@@ -1,7 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
-import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -186,9 +185,8 @@ public class MoveMethodRefactoring {
 		PackageDeclaration targetPackageDeclaration = targetCompilationUnit.getPackage();
 		String targetPackageDeclarationName = "";
 		if(targetPackageDeclaration != null)
-			targetPackageDeclarationName = targetPackageDeclaration.getName().getFullyQualifiedName();
-			
-		if(!qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(targetPackageDeclarationName)) {
+			targetPackageDeclarationName = targetPackageDeclaration.getName().getFullyQualifiedName();	
+		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(targetPackageDeclarationName)) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
 			boolean found = false;
 			for(ImportDeclaration importDeclaration : importDeclarationList) {
@@ -199,7 +197,10 @@ public class MoveMethodRefactoring {
 					}
 				}
 				else {
-					
+					if(qualifiedPackageName.equals(importDeclaration.getName().getFullyQualifiedName())) {
+						found = true;
+						break;
+					}
 				}
 			}
 			if(!found) {

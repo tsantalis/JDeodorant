@@ -48,7 +48,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 public class ExpressionExtractor {
-	InstanceChecker instanceChecker;
+	ExpressionInstanceChecker instanceChecker;
 	
 	// returns a List of SimpleName objects
 	public List<Expression> getVariableInstructions(Statement statement) {
@@ -72,6 +72,12 @@ public class ExpressionExtractor {
 	public List<Expression> getMethodInvocations(Expression expression) {
 		instanceChecker = new InstanceOfMethodInvocation();
 		return getExpressions(expression);
+	}
+	
+	// returns a List of ClassInstanceCreation objects
+	public List<Expression> getClassInstanceCreations(Statement statement) {
+		instanceChecker = new InstanceOfClassInstanceCreation();
+		return getExpressions(statement);
 	}
 	
 	private List<Expression> getExpressions(Statement statement) {
@@ -242,6 +248,8 @@ public class ExpressionExtractor {
 			List<Expression> arguments = classInstanceCreation.arguments();
 			for(Expression argument : arguments)
 				expressionList.addAll(getExpressions(argument));
+			if(instanceChecker.instanceOf(classInstanceCreation))
+				expressionList.add(classInstanceCreation);
 			if(classInstanceCreation.getAnonymousClassDeclaration() != null) {
 				System.out.println("AnonymousClassDeclaration");
 			}

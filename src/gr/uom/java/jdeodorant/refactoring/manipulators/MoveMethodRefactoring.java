@@ -1,11 +1,14 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -15,16 +18,23 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -38,21 +48,28 @@ import org.eclipse.text.edits.UndoEdit;
 public class MoveMethodRefactoring {
 	private IFile sourceFile;
 	private IFile targetFile;
+	private CompilationUnit sourceCompilationUnit;
+	private CompilationUnit targetCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private TypeDeclaration targetTypeDeclaration;
 	private MethodDeclaration sourceMethod;
 	private ASTRewrite sourceRewriter;
 	private ASTRewrite targetRewriter;
 	private Map<IDocument, UndoEdit> undoEditMap;
+	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
 	
-	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, TypeDeclaration sourceTypeDeclaration, 
-								TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod) {
+	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
+			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod) {
 		this.sourceFile = sourceFile;
 		this.targetFile = targetFile;
+		this.sourceCompilationUnit = sourceCompilationUnit;
+		this.targetCompilationUnit = targetCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.targetTypeDeclaration = targetTypeDeclaration;
 		this.sourceMethod = sourceMethod;
 		this.undoEditMap = new LinkedHashMap<IDocument, UndoEdit>();
+		this.requiredTargetImportDeclarationSet = new LinkedHashSet<ITypeBinding>();
+		targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
 	}
 
 	public Map<IDocument, UndoEdit> getUndoEditMap() {
@@ -60,6 +77,7 @@ public class MoveMethodRefactoring {
 	}
 	
 	public void apply() {
+		addRequiredTargetImportDeclarations();
 		createMovedMethod();
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
@@ -89,9 +107,113 @@ public class MoveMethodRefactoring {
 		}
 	}
 
+	private void addRequiredTargetImportDeclarations() {
+		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+		Type returnType = sourceMethod.getReturnType2();
+		ITypeBinding returnTypeBinding = returnType.resolveBinding();
+		if(!typeBindings.contains(returnTypeBinding))
+			typeBindings.add(returnTypeBinding);
+		
+		List<SingleVariableDeclaration> parameters = sourceMethod.parameters();
+		for(SingleVariableDeclaration parameter : parameters) {
+			Type parameterType = parameter.getType();
+			ITypeBinding parameterTypeBinding = parameterType.resolveBinding();
+			if(!typeBindings.contains(parameterTypeBinding))
+				typeBindings.add(parameterTypeBinding);			
+		}
+		
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(sourceMethod.getBody());
+		for(Expression variableInstruction : variableInstructions) {
+			SimpleName simpleName = (SimpleName)variableInstruction;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				ITypeBinding variableTypeBinding = variableBinding.getType();
+				if(!typeBindings.contains(variableTypeBinding))
+					typeBindings.add(variableTypeBinding);
+			}
+		}
+		
+		List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(sourceMethod.getBody());
+		for(Expression expression : classInstanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+			Type classInstanceCreationType = classInstanceCreation.getType();
+			ITypeBinding classInstanceCreationTypeBinding = classInstanceCreationType.resolveBinding();
+			if(!typeBindings.contains(classInstanceCreationTypeBinding))
+				typeBindings.add(classInstanceCreationTypeBinding);
+		}
+		getSimpleTypeBindings(typeBindings);
+		for(ITypeBinding typeBinding : requiredTargetImportDeclarationSet)
+			addImportDeclaration(typeBinding);
+	}
+
+	private void getSimpleTypeBindings(List<ITypeBinding> typeBindings) {
+		for(ITypeBinding typeBinding : typeBindings) {
+			if(typeBinding.isPrimitive()) {
+				
+			}
+			else if(typeBinding.isArray()) {
+				ITypeBinding elementTypeBinding = typeBinding.getElementType();
+				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				typeBindingList.add(elementTypeBinding);
+				getSimpleTypeBindings(typeBindingList);
+			}
+			else if(typeBinding.isParameterizedType()) {
+				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				typeBindingList.add(typeBinding.getTypeDeclaration());
+				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
+				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
+					typeBindingList.add(typeArgumentBinding);
+				getSimpleTypeBindings(typeBindingList);
+			}
+			else if(typeBinding.isWildcardType()) {
+				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				typeBindingList.add(typeBinding.getBound());
+				getSimpleTypeBindings(typeBindingList);
+			}
+			else {
+				requiredTargetImportDeclarationSet.add(typeBinding);
+			}
+		}
+	}
+
+	private void addImportDeclaration(ITypeBinding typeBinding) {
+		String qualifiedName = typeBinding.getQualifiedName();
+		String qualifiedPackageName = "";
+		if(qualifiedName.contains("."))
+			qualifiedPackageName = qualifiedName.substring(0,qualifiedName.lastIndexOf("."));
+		PackageDeclaration targetPackageDeclaration = targetCompilationUnit.getPackage();
+		String targetPackageDeclarationName = "";
+		if(targetPackageDeclaration != null)
+			targetPackageDeclarationName = targetPackageDeclaration.getName().getFullyQualifiedName();
+			
+		if(!qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(targetPackageDeclarationName)) {
+			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
+			boolean found = false;
+			for(ImportDeclaration importDeclaration : importDeclarationList) {
+				if(!importDeclaration.isOnDemand()) {
+					if(qualifiedName.equals(importDeclaration.getName().getFullyQualifiedName())) {
+						found = true;
+						break;
+					}
+				}
+				else {
+					
+				}
+			}
+			if(!found) {
+				AST ast = targetCompilationUnit.getAST();
+				ImportDeclaration importDeclaration = ast.newImportDeclaration();
+				targetRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(qualifiedName), null);
+				ListRewrite importRewrite = targetRewriter.getListRewrite(targetCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
+				importRewrite.insertLast(importDeclaration, null);
+			}
+		}
+	}
+
 	private void createMovedMethod() {
 		AST ast = targetTypeDeclaration.getAST();
-		targetRewriter = ASTRewrite.create(ast);
 		MethodDeclaration newMethodDeclaration = (MethodDeclaration)ASTNode.copySubtree(ast, sourceMethod);
 		
 		ListRewrite modifierRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);

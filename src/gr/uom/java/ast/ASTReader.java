@@ -32,11 +32,13 @@ import java.util.Map;
 public class ASTReader {
 
 	private SystemObject systemObject;
-	private Map<TypeDeclaration,IFile> fileMap;
+	private Map<TypeDeclaration, IFile> fileMap;
+	private Map<TypeDeclaration, CompilationUnit> compilationUnitMap;
 
 	public ASTReader(IProject iProject) {
 		this.systemObject = new SystemObject();
-		this.fileMap = new LinkedHashMap<TypeDeclaration,IFile>();
+		this.fileMap = new LinkedHashMap<TypeDeclaration, IFile>();
+		this.compilationUnitMap = new LinkedHashMap<TypeDeclaration, CompilationUnit>();
 		recurse(iProject);
 	}
 	
@@ -83,6 +85,7 @@ public class ASTReader {
         	if(abstractTypeDeclaration instanceof TypeDeclaration) {
         		TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
 	        	fileMap.put(typeDeclaration, iFile);
+	        	compilationUnitMap.put(typeDeclaration, compilationUnit);
 	        	if(packageDeclaration != null) {
 	        		classObject.setName(packageDeclaration.getName() + "." + typeDeclaration.getName().getIdentifier());
 	        	}
@@ -230,6 +233,10 @@ public class ASTReader {
 
 	public IFile getFile(TypeDeclaration typeDeclaration) {
 		return fileMap.get(typeDeclaration);
+	}
+
+	public CompilationUnit getCompilationUnit(TypeDeclaration typeDeclaration) {
+		return compilationUnitMap.get(typeDeclaration);
 	}
 
     public SystemObject getSystemObject() {

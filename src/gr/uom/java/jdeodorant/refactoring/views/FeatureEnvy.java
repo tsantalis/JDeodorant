@@ -35,6 +35,7 @@ import org.eclipse.text.edits.UndoEdit;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.internal.ui.javaeditor.EditorUtility;
 
@@ -253,10 +254,11 @@ public class FeatureEnvy extends ViewPart {
 					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
 					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
 					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
+					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
+					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
 					
-					MoveMethodRefactoring refactoring = new MoveMethodRefactoring(sourceFile, targetFile,
-						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(),
-						candidate.getSourceMethodDeclaration());
+					MoveMethodRefactoring refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration());
 					ITextEditor targetEditor = null;
 					ITextEditor sourceEditor = null;
 					try {

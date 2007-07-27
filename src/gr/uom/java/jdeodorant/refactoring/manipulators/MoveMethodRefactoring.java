@@ -22,6 +22,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
@@ -55,7 +56,9 @@ public class MoveMethodRefactoring {
 	private ASTRewrite sourceRewriter;
 	private ASTRewrite targetRewriter;
 	private Map<IDocument, UndoEdit> undoEditMap;
+	private Map<IFile, IDocument> documentMap;
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
+	private List<String> targetClassVariableNames;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
 			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod) {
@@ -67,12 +70,43 @@ public class MoveMethodRefactoring {
 		this.targetTypeDeclaration = targetTypeDeclaration;
 		this.sourceMethod = sourceMethod;
 		this.undoEditMap = new LinkedHashMap<IDocument, UndoEdit>();
+		this.documentMap = new LinkedHashMap<IFile, IDocument>();
 		this.requiredTargetImportDeclarationSet = new LinkedHashSet<ITypeBinding>();
-		targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
+		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
+		this.targetClassVariableNames = getTargetClassVariableNames();
 	}
 
 	public Map<IDocument, UndoEdit> getUndoEditMap() {
 		return this.undoEditMap;
+	}
+	
+	public IDocument getDocument(IFile file) {
+		return documentMap.get(file);
+	}
+	
+	private List<String> getTargetClassVariableNames() {
+		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
+		
+		List<String> targetClassVariableNames = new ArrayList<String>();
+		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
+			ITypeBinding parameterTypeBinding = parameter.getType().resolveBinding();
+			if(parameterTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
+				targetClassVariableNames.add(parameter.getName().getIdentifier());
+			}
+		}
+		if(targetClassVariableNames.isEmpty()) {
+			FieldDeclaration[] fields = sourceTypeDeclaration.getFields();
+			for(FieldDeclaration field : fields) {
+				ITypeBinding fieldTypeBinding = field.getType().resolveBinding();
+				List<VariableDeclarationFragment> fragments = field.fragments();
+				for(VariableDeclarationFragment fragment : fragments){
+					if(fieldTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
+						targetClassVariableNames.add(fragment.getName().getIdentifier());
+					}
+				}
+			}
+		}
+		return targetClassVariableNames;
 	}
 	
 	public void apply() {
@@ -85,6 +119,7 @@ public class MoveMethodRefactoring {
 		try {
 			UndoEdit undoEdit = targetEdit.apply(targetDocument, UndoEdit.CREATE_UNDO);
 			undoEditMap.put(targetDocument, undoEdit);
+			documentMap.put(targetFile, targetDocument);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
 		} catch (BadLocationException e) {
@@ -99,6 +134,7 @@ public class MoveMethodRefactoring {
 		try {
 			UndoEdit undoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
 			undoEditMap.put(sourceDocument, undoEdit);
+			documentMap.put(sourceFile, sourceDocument);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
 		} catch (BadLocationException e) {
@@ -131,6 +167,20 @@ public class MoveMethodRefactoring {
 				ITypeBinding variableTypeBinding = variableBinding.getType();
 				if(!typeBindings.contains(variableTypeBinding))
 					typeBindings.add(variableTypeBinding);
+				ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
+				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding) && !targetClassVariableNames.contains(simpleName.getIdentifier()))
+					typeBindings.add(declaringClassTypeBinding);
+			}
+		}
+		
+		List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(sourceMethod.getBody());
+		for(Expression expression : methodInvocations) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+				ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
+				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
+					typeBindings.add(declaringClassTypeBinding);
 			}
 		}
 		
@@ -239,28 +289,15 @@ public class MoveMethodRefactoring {
 		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
 		List<SingleVariableDeclaration> newMethodParameters = newMethodDeclaration.parameters();
 		
-		List<String> targetClassVariableNames = new ArrayList<String>();
 		int i = 0;
 		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
 			ITypeBinding parameterTypeBinding = parameter.getType().resolveBinding();
 			if(parameterTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
 				parametersRewrite.remove(newMethodParameters.get(i), null);
-				targetClassVariableNames.add(parameter.getName().getIdentifier());
 			}
 			i++;
 		}
-		if(targetClassVariableNames.isEmpty()) {
-			FieldDeclaration[] fields = sourceTypeDeclaration.getFields();
-			for(FieldDeclaration field : fields) {
-				ITypeBinding fieldTypeBinding = field.getType().resolveBinding();
-				List<VariableDeclarationFragment> fragments = field.fragments();
-				for(VariableDeclarationFragment fragment : fragments){
-					if(fieldTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
-						targetClassVariableNames.add(fragment.getName().getIdentifier());
-					}
-				}
-			}
-		}
+
 		List<Statement> oldMethodStatements = newMethodDeclaration.getBody().statements();
 		for(Statement statement : oldMethodStatements){
 			modifyTargetMethodInvocations(statement, targetClassVariableNames);

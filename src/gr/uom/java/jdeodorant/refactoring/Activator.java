@@ -10,7 +10,7 @@ import org.osgi.framework.BundleContext;
 public class Activator extends AbstractUIPlugin {
 
 	// The plug-in ID
-	public static final String PLUGIN_ID = "uom.se.refactoring.jprojects.eclipse.refactoringDetector";
+	public static final String PLUGIN_ID = "gr.uom.java.jdeodorant";
 
 	// The shared instance
 	private static Activator plugin;

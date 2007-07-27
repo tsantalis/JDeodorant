@@ -12,6 +12,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,7 +67,7 @@ public class FeatureEnvy extends ViewPart {
 	private IProject selectedProject;
 	private CandidateRefactoring[] candidateRefactoringTable;
 	private ASTReader astReader;
-	//private Stack<Map<IDocument, UndoEdit>> undoStack = new Stack<Map<IDocument, UndoEdit>>();
+	private Map<IDocument, IFile> fileMap = new LinkedHashMap<IDocument, IFile>();
 	private Map<IProject, Stack<Map<IDocument, UndoEdit>>> undoStackMap = new HashMap<IProject, Stack<Map<IDocument, UndoEdit>>>();
 
 	/*
@@ -98,10 +99,17 @@ public class FeatureEnvy extends ViewPart {
 			CandidateRefactoring entry = (CandidateRefactoring)obj;
 			switch(index){
 			case 0:
-				return entry.getSourceEntity();
+				if(entry instanceof MoveMethodCandidateRefactoring)
+					return "Move Method";
+				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring)
+					return "Extract and Move Method";
+				else
+					return "";
 			case 1:
-				return entry.getTarget();
+				return entry.getSourceEntity();
 			case 2:
+				return entry.getTarget();
+			case 3:
 				return Double.toString(entry.getEntityPlacement());
 			default:
 				return "";
@@ -168,21 +176,26 @@ public class FeatureEnvy extends ViewPart {
 		tableViewer.setSorter(new NameSorter());
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
-		layout.addColumnData(new ColumnWeightData(33, true));
-		layout.addColumnData(new ColumnWeightData(33, true));
-		layout.addColumnData(new ColumnWeightData(33, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(60, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
-		TableColumn column1 = new TableColumn(tableViewer.getTable(),SWT.CENTER);
+		TableColumn column0 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column0.setText("Refactoring Type");
+		column0.setResizable(true);
+		column0.pack();
+		TableColumn column1 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
 		column1.setText("Source Entity");
 		column1.setResizable(true);
 		column1.pack();
-		TableColumn column2 = new TableColumn(tableViewer.getTable(),SWT.CENTER);
+		TableColumn column2 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
 		column2.setText("Target Class");
 		column2.setResizable(true);
 		column2.pack();
-		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.CENTER);
+		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
 		column3.setText("Entity Placement");
 		column3.setResizable(true);
 		column3.pack();
@@ -272,6 +285,8 @@ public class FeatureEnvy extends ViewPart {
 					refactoring.apply();
 					sourceEditor.doSave(null);
 					targetEditor.doSave(null);
+					fileMap.put(refactoring.getDocument(sourceFile), sourceFile);
+					fileMap.put(refactoring.getDocument(targetFile), targetFile);
 					if(undoStackMap.containsKey(selectedProject)) {
 						Stack<Map<IDocument, UndoEdit>> undoStack = undoStackMap.get(selectedProject);
 						undoStack.push(refactoring.getUndoEditMap());
@@ -350,11 +365,15 @@ public class FeatureEnvy extends ViewPart {
 							UndoEdit undoEdit = undoEditMap.get(key);
 							try {
 								undoEdit.apply(key);
-								//ITextEditor editor = (ITextEditor)EditorUtility.openInEditor(key);
-								//editor.doSave(null);
+								ITextEditor editor = (ITextEditor)EditorUtility.openInEditor(fileMap.get(key));
+								editor.doSave(null);
 							} catch (MalformedTreeException e) {
 								e.printStackTrace();
 							} catch (BadLocationException e) {
+								e.printStackTrace();
+							} catch (PartInitException e) {
+								e.printStackTrace();
+							} catch (JavaModelException e) {
 								e.printStackTrace();
 							}
 						}

@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -60,6 +61,7 @@ public class MoveMethodRefactoring {
 	private Map<IFile, IDocument> documentMap;
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
 	private List<String> targetClassVariableNames;
+	private boolean sourceClassParameterAdded;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
 			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod) {
@@ -75,6 +77,7 @@ public class MoveMethodRefactoring {
 		this.requiredTargetImportDeclarationSet = new LinkedHashSet<ITypeBinding>();
 		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
 		this.targetClassVariableNames = getTargetClassVariableNames();
+		this.sourceClassParameterAdded = false;
 	}
 
 	public Map<IDocument, UndoEdit> getUndoEditMap() {
@@ -344,14 +347,21 @@ public class MoveMethodRefactoring {
     							}
     						}
     						if(!foundInArguments) {
-    							//we suppose that there is only one FieldDeclaration (with only one fragment) matching the Type of the TargetClass
     							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
     				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-    				        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
-    				        			VariableDeclarationFragment fragment = (VariableDeclarationFragment)fieldDeclaration.fragments().get(0);
-    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+    				        		for(VariableDeclarationFragment fragment : fragments) {
+	    				        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
+	    				        				targetClassVariableNames.contains(fragment.getName().getIdentifier())) {
+	    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+	    				        		}
     				        		}
     				        	}
+    						}
+    						if(sourceClassParameterAdded) {
+    							ThisExpression thisExpression = methodInvocation.getAST().newThisExpression();
+    							ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+    							argumentRewrite.insertLast(thisExpression, null);
     						}
     					}
     				}
@@ -508,6 +518,7 @@ public class MoveMethodRefactoring {
 		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterName, null);
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
+		this.sourceClassParameterAdded = true;
 		return parameterName;
 	}
 }

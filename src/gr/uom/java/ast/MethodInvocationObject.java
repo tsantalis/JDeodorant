@@ -13,12 +13,20 @@ public class MethodInvocationObject {
     private TypeObject returnType;
     private List<TypeObject> parameterList;
     private MethodInvocation methodInvocation;
+    private volatile int hashCode = 0;
 
     public MethodInvocationObject(String originClassName, String methodName, TypeObject returnType) {
         this.originClassName = originClassName;
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = new ArrayList<TypeObject>();
+    }
+
+    public MethodInvocationObject(String originClassName, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
+        this.originClassName = originClassName;
+        this.methodName = methodName;
+        this.returnType = returnType;
+        this.parameterList = parameterList;
     }
 
     public boolean addParameter(TypeObject parameterType) {
@@ -76,6 +84,18 @@ public class MethodInvocationObject {
         return false;
     }
 
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + originClassName.hashCode();
+    		result = 37*result + methodName.hashCode();
+    		result = 37*result + returnType.hashCode();
+    		for(TypeObject parameter : parameterList)
+    			result = 37*result + parameter.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
+    }
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(originClassName).append("::");

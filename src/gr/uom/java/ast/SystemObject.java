@@ -7,16 +7,65 @@ public class SystemObject {
     private List<ClassObject> classList;
     //Map that has as key the classname and as value
     //the position of className in the classNameList
-    private HashMap<String,Integer> classNameMap;
+    private Map<String, Integer> classNameMap;
+    private Map<MethodInvocationObject, FieldInstructionObject> getterMap;
+    private Map<MethodInvocationObject, FieldInstructionObject> setterMap;
+    private Map<MethodInvocationObject, FieldInstructionObject> collectionAdderMap;
+    private Map<MethodInvocationObject, MethodInvocationObject> delegateMap;
 
     public SystemObject() {
         this.classList = new ArrayList<ClassObject>();
-        this.classNameMap = new HashMap<String,Integer>();
+        this.classNameMap = new HashMap<String, Integer>();
+        this.getterMap = new LinkedHashMap<MethodInvocationObject, FieldInstructionObject>();
+        this.setterMap = new LinkedHashMap<MethodInvocationObject, FieldInstructionObject>();
+        this.collectionAdderMap = new LinkedHashMap<MethodInvocationObject, FieldInstructionObject>();
+        this.delegateMap = new LinkedHashMap<MethodInvocationObject, MethodInvocationObject>();
     }
 
     public void addClass(ClassObject c) {
         classNameMap.put(c.getName(),classList.size());
         classList.add(c);
+    }
+    
+    public void addGetter(MethodInvocationObject methodInvocation, FieldInstructionObject fieldInstruction) {
+    	getterMap.put(methodInvocation, fieldInstruction);
+    }
+    
+    public void addSetter(MethodInvocationObject methodInvocation, FieldInstructionObject fieldInstruction) {
+    	setterMap.put(methodInvocation, fieldInstruction);
+    }
+    
+    public void addCollectionAdder(MethodInvocationObject methodInvocation, FieldInstructionObject fieldInstruction) {
+    	collectionAdderMap.put(methodInvocation, fieldInstruction);
+    }
+    
+    public void addDelegate(MethodInvocationObject methodInvocation, MethodInvocationObject delegation) {
+    	delegateMap.put(methodInvocation, delegation);
+    }
+    
+    public FieldInstructionObject containsGetter(MethodInvocationObject methodInvocation) {
+    	return getterMap.get(methodInvocation);
+    }
+    
+    public FieldInstructionObject containsSetter(MethodInvocationObject methodInvocation) {
+    	return setterMap.get(methodInvocation);
+    }
+    
+    public FieldInstructionObject containsCollectionAdder(MethodInvocationObject methodInvocation) {
+    	return collectionAdderMap.get(methodInvocation);
+    }
+    
+    public MethodInvocationObject containsDelegate(MethodInvocationObject methodInvocation) {
+    	return delegateMap.get(methodInvocation);
+    }
+    
+    public MethodObject getMethod(MethodInvocationObject mio) {
+    	for(ClassObject classObject : classList) {
+    		MethodObject methodObject = classObject.getMethod(mio);
+    		if(methodObject != null)
+    			return methodObject;
+    	}
+    	return null;
     }
     
     public ClassObject getClassObject(String className) {

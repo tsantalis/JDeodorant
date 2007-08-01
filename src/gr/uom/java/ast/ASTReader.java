@@ -202,6 +202,18 @@ public class ASTReader {
 	        				methodObject.setStatic(true);
 	        			
 	        			classObject.addMethod(methodObject);
+	        			FieldInstructionObject fieldInstruction = methodObject.isGetter();
+	        			if(fieldInstruction != null)
+	        				systemObject.addGetter(methodObject.generateMethodInvocation(), fieldInstruction);
+	        			fieldInstruction = methodObject.isSetter();
+	        			if(fieldInstruction != null)
+	        				systemObject.addSetter(methodObject.generateMethodInvocation(), fieldInstruction);
+	        			fieldInstruction = methodObject.isCollectionAdder();
+	        			if(fieldInstruction != null)
+	        				systemObject.addCollectionAdder(methodObject.generateMethodInvocation(), fieldInstruction);
+	        			MethodInvocationObject methodInvocation = methodObject.isDelegate();
+	        			if(methodInvocation != null)
+	        				systemObject.addDelegate(methodObject.generateMethodInvocation(), methodInvocation);
 	        		}
 	        	}
 	        	

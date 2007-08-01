@@ -108,16 +108,7 @@ public class DistanceMatrix {
                         MyClass targetClass = classList.get(j);
                         if(entity instanceof MyMethod) {
                             MyMethod method = (MyMethod)entity;
-                            if(method.isDelegation())
-                                System.out.println(method + "\tDELEGATION");
-                            else if( method.checkForMethodInvocationWithTheSameReturnType() && system.checkInheritanceRelationship(method.getClassOrigin(),method.getMethodInvocation(0).getClassOrigin()) )
-                                System.out.println(method + "\tSUPERCLASS DELEGATION");
-                            else if(method.isSelfDelegation())
-                                System.out.println(method + "\tSELF DELEGATION");
-                            else if(method.isAbstract())
-                                System.out.println(method + "\tABSTRACT");
-                            else
-                                candidateRefactoringList.add(new MoveMethodCandidateRefactoring(system,system.getClass(rowClass),targetClass,method));
+                            candidateRefactoringList.add(new MoveMethodCandidateRefactoring(system,system.getClass(rowClass),targetClass,method));
                         }
                     }
                 }

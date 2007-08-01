@@ -48,29 +48,6 @@ public class MyMethod extends Entity {
         return new MyMethodInvocation(this.classOrigin,this.methodName,this.returnType,this.parameterList);
     }
 
-    public boolean checkForMethodInvocationWithTheSameReturnType() {
-        return getNumberOfMethodInvocations() == 1 && getMethodInvocation(0).getReturnType().equals(returnType) && getMethodInvocation(0).getParameterList().size() >= parameterList.size();
-    }
-    // 1 method invocation having the same return type
-    // the method invocation parameters are equal with the method parameters
-    // 1 attribute instruction having the same class type as the invocation class origin
-    public boolean isDelegation() {
-        if( (checkForMethodInvocationWithTheSameReturnType() /*&& getMethodInvocation(0).getParameterList().equals(parameterList)*/) &&
-            (getNumberOfAttributeInstructions() == 1 && getAttributeInstruction(0).getClassType().equals(getMethodInvocation(0).getClassOrigin())) )
-            return true;
-        else
-            return false;
-    }
-
-    // 1 method invocation having the same return type and class origin
-    // the method invocation must have larger or equal number of parameters
-    public boolean isSelfDelegation() {
-        if( checkForMethodInvocationWithTheSameReturnType() && getNumberOfAttributeInstructions() == 0 && getMethodInvocation(0).getClassOrigin().equals(classOrigin) ) 
-            return true;
-        else
-            return false;
-    }
-
     public boolean isAbstract() {
         return isAbstract;
     }

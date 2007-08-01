@@ -37,13 +37,53 @@ public abstract class MyAbstractStatement {
         List<MethodInvocationObject> methodInvocations = statement.getMethodInvocations();
         for(MethodInvocationObject mio : methodInvocations) {
             if(system.getClassObject(mio.getOriginClassName()) != null) {
-                MyMethodInvocation myMethodInvocation = new MyMethodInvocation(mio.getOriginClassName(),
-                    mio.getMethodName(),mio.getReturnType().toString(),mio.getParameterList());
-                
-                if(!methodInvocationList.contains(myMethodInvocation))
-                	methodInvocationList.add(myMethodInvocation);
+            	FieldInstructionObject fieldInstruction;
+            	MethodInvocationObject methodInvocation;
+            	if( (fieldInstruction = system.containsGetter(mio)) != null) {
+            		MyAttributeInstruction myAttributeInstruction = 
+            			new MyAttributeInstruction(fieldInstruction.getOwnerClass(),fieldInstruction.getType().toString(),fieldInstruction.getName());
+                    
+                    if(!attributeInstructionList.contains(myAttributeInstruction))
+                    	attributeInstructionList.add(myAttributeInstruction);
+            	}
+            	else if((fieldInstruction = system.containsSetter(mio)) != null) {
+            		MyAttributeInstruction myAttributeInstruction = 
+            			new MyAttributeInstruction(fieldInstruction.getOwnerClass(),fieldInstruction.getType().toString(),fieldInstruction.getName());
+                    
+                    if(!attributeInstructionList.contains(myAttributeInstruction))
+                    	attributeInstructionList.add(myAttributeInstruction);
+            	}
+            	else if((fieldInstruction = system.containsCollectionAdder(mio)) != null) {
+            		MyAttributeInstruction myAttributeInstruction = 
+            			new MyAttributeInstruction(fieldInstruction.getOwnerClass(),fieldInstruction.getType().toString(),fieldInstruction.getName());
+                    
+                    if(!attributeInstructionList.contains(myAttributeInstruction))
+                    	attributeInstructionList.add(myAttributeInstruction);
+            	}
+            	else if((methodInvocation = recurseDelegations(mio,system)) != null) {
+            		MyMethodInvocation myMethodInvocation = new MyMethodInvocation(methodInvocation.getOriginClassName(),
+            				methodInvocation.getMethodName(),methodInvocation.getReturnType().toString(),methodInvocation.getParameterList());
+    	                
+    	                if(!methodInvocationList.contains(myMethodInvocation))
+    	                	methodInvocationList.add(myMethodInvocation);
+            	}
+            	/*else {
+	                MyMethodInvocation myMethodInvocation = new MyMethodInvocation(mio.getOriginClassName(),
+	                    mio.getMethodName(),mio.getReturnType().toString(),mio.getParameterList());
+	                
+	                if(!methodInvocationList.contains(myMethodInvocation))
+	                	methodInvocationList.add(myMethodInvocation);
+            	}*/
             }
         }
+    }
+    
+    private MethodInvocationObject recurseDelegations(MethodInvocationObject methodInvocation, SystemObject system) {
+    	MethodInvocationObject delegation;
+    	if((delegation = system.containsDelegate(methodInvocation)) != null)
+    		return recurseDelegations(delegation, system);
+    	else
+    		return methodInvocation;
     }
     
     public MyAbstractStatement(List<MyAbstractStatement> statementList) {

@@ -4,6 +4,7 @@ public class TypeObject {
     private String classType;
     private String genericType;
     private int arrayDimension;
+    private volatile int hashCode = 0;
 
     public TypeObject(String type) {
         this.classType = type;
@@ -52,6 +53,18 @@ public class TypeObject {
             }
         }
         return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + classType.hashCode();
+    		if(genericType != null)
+    			result = 37*result + genericType.hashCode();
+    		result = 37*result + arrayDimension;
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

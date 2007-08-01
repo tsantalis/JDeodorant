@@ -15,96 +15,18 @@ public class MySystem {
         this.classMap = new HashMap<String,MyClass>();
         this.associationDetection = new AssociationDetection(system);
         generate(system);
-        replaceGetInvocationWithAttribute();
-        removeExistingGetMethods();
+        //replaceGetInvocationWithAttribute();
+        //removeExistingGetMethods();
     }
 
     private MySystem(Map<String,MyClass> classMap) {
         this.classMap = classMap;
     }
 
-    public boolean checkInheritanceRelationship(String subClass, String superClass) {
-        String s;
-        String sub = subClass;
-        while((s = classMap.get(sub).getSuperclass()) != null) {
-            if(s.equals(superClass))
-                return true;
-            sub = s;
-        }
-        return false;
-    }
-/*
-    public void moveOperation(Entity entity, String toClass) {
-        if(entity instanceof MyMethod)
-            moveMethod((MyMethod)entity,toClass);
-        else if(entity instanceof MyAttribute)
-            moveAttribute((MyAttribute)entity,toClass);
-    }
-
-    public void moveAttribute(MyAttribute oldAttribute, String toClass) {
-        MyAttribute newAttribute = MyAttribute.newInstance(oldAttribute);
-        newAttribute.setClassOrigin(toClass);
-        if(associationDetection.checkForContainerAssociation(oldAttribute.getClassOrigin(),toClass)) {
-            newAttribute.setClassType("java.util.Vector");
-        }
-
-        MyAttributeInstruction oldAttributeInstruction = oldAttribute.generateAttributeInstruction();
-        MyAttributeInstruction newAttributeInstruction = newAttribute.generateAttributeInstruction();
-        classMap.get(oldAttribute.getClassOrigin()).removeAttribute(oldAttribute);
-        classMap.get(toClass).addAttribute(newAttribute);
-        Iterator<MyClass> classIterator = getClassIterator();
-        while(classIterator.hasNext()) {
-            MyClass myClass = classIterator.next();
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod myMethod = methodIterator.next();
-                myMethod.replaceAttributeInstruction(oldAttributeInstruction,newAttributeInstruction);
-            }
-        }
-    }
-
-    public void moveMethod(MyMethod oldMethod, String toClass) {
-        MyMethod newMethod = MyMethod.newInstance(oldMethod);
-        newMethod.setClassOrigin(toClass);
-        newMethod.removeParameter(toClass);
-
-        ListIterator<MyAttributeInstruction> instructionIterator = newMethod.getAttributeInstructionIterator();
-        while(instructionIterator.hasNext()) {
-            MyAttributeInstruction instruction = instructionIterator.next();
-            if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin()))
-                newMethod.addParameter(instruction.getClassOrigin());
-        }
-        ListIterator<MyMethodInvocation> invocationIterator = newMethod.getMethodInvocationIterator();
-        while(invocationIterator.hasNext()) {
-            MyMethodInvocation invocation = invocationIterator.next();
-            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()))
-                newMethod.addParameter(invocation.getClassOrigin());
-        }
-
-        MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
-        MyMethodInvocation newMethodInvocation = newMethod.generateMethodInvocation();
-        classMap.get(oldMethod.getClassOrigin()).removeMethod(oldMethod);
-        classMap.get(toClass).addMethod(newMethod);
-        Iterator<MyClass> classIterator = getClassIterator();
-        while(classIterator.hasNext()) {
-            MyClass myClass = classIterator.next();
-            ListIterator<MyAttribute> attributeIterator = myClass.getAttributeIterator();
-            while(attributeIterator.hasNext()) {
-                MyAttribute attribute = attributeIterator.next();
-                attribute.replaceMethod(oldMethod,newMethod);
-            }
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod myMethod = methodIterator.next();
-                myMethod.replaceMethodInvocation(oldMethodInvocation,newMethodInvocation);
-            }
-        }
-    }
-*/
     private void generate(SystemObject so) {
-        ListIterator<ClassObject> classIt = so.getClassListIterator();
-        while(classIt.hasNext()) {
-            ClassObject co = classIt.next();
+        ListIterator<ClassObject> classIterator1 = so.getClassListIterator();
+        while(classIterator1.hasNext()) {
+            ClassObject co = classIterator1.next();
             MyClass myClass = new MyClass(co.getName());
             myClass.setClassObject(co);
             if(so.getClassObject(co.getSuperclass()) != null) {
@@ -122,11 +44,18 @@ public class MySystem {
                     myClass.addAttribute(myAttribute);
                 }
             }
-
+            classMap.put(co.getName(),myClass);
+        }
+        
+        ListIterator<ClassObject> classIterator2 = so.getClassListIterator();
+        while(classIterator2.hasNext()) {
+            ClassObject co = classIterator2.next();
+            MyClass myClass = classMap.get(co.getName());
             ListIterator<MethodObject> methodIt = co.getMethodIterator();
             while(methodIt.hasNext()) {
                 MethodObject mo = methodIt.next();
-                if(!mo.isStatic()) {
+                if(!mo.isStatic() && so.containsGetter(mo.generateMethodInvocation()) == null && so.containsSetter(mo.generateMethodInvocation()) == null &&
+                		so.containsCollectionAdder(mo.generateMethodInvocation()) == null && so.containsDelegate(mo.generateMethodInvocation()) == null) {
                     MyMethod myMethod = new MyMethod(mo.getClassName(),mo.getName(),
                         mo.getReturnType().toString(),mo.getParameterList());
                     if(mo.isAbstract())
@@ -139,130 +68,19 @@ public class MySystem {
                     	myMethod.setMethodBody(myMethodBody);
                     }
                     myClass.addMethod(myMethod);
-                }
-            }
-            classMap.put(co.getName(),myClass);
-        }
-        
-        for(MyClass myClass : classMap.values()) {
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod myMethod = methodIterator.next();
-                ListIterator<MyAttributeInstruction> attributeInstructionIterator = myMethod.getAttributeInstructionIterator();
-                while(attributeInstructionIterator.hasNext()) {
-                    MyAttributeInstruction myInstruction = attributeInstructionIterator.next();
-                    MyClass ownerClass = classMap.get(myInstruction.getClassOrigin());
-                    MyAttribute accessedAttribute = ownerClass.getAttribute(myInstruction);
-                    /*while(accessedAttribute == null && ownerClass.getSuperclass() != null) {
-                        myInstruction.setClassOrigin(ownerClass.getSuperclass());
-                        ownerClass = classMap.get(ownerClass.getSuperclass());
-                        accessedAttribute = ownerClass.getAttribute(myInstruction);
-                    }*/
-                    if(accessedAttribute != null) {
-                        if(accessedAttribute.isReference())
-                            myMethod.setAttributeInstructionReference(myInstruction, true);
-                        accessedAttribute.addMethod(myMethod);
-                    }
-                }
-            }
-        }
-    }
-    //replaces get, set and add method invocations with the corresponding attributes
-    private void replaceGetInvocationWithAttribute() {
-        List<MyMethod> methodsToBeRemoved = new ArrayList<MyMethod>();
-        for(MyClass myClass : classMap.values()) {
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod myMethod = methodIterator.next();
-                ListIterator<MyMethodInvocation> methodInvocationIterator = myMethod.getMethodInvocationIterator();
-                Map<MyMethodInvocation, MyAttributeInstruction> methodInvocationsToBeReplaced = new LinkedHashMap<MyMethodInvocation, MyAttributeInstruction>();
-                while(methodInvocationIterator.hasNext()) {
-                    MyMethodInvocation myInvocation = methodInvocationIterator.next();
-                    if(myInvocation.getMethodName().startsWith("get") || myInvocation.getMethodName().startsWith("set") || myInvocation.getMethodName().startsWith("add")) {
-                        MyClass invokedClass = classMap.get(myInvocation.getClassOrigin());
-                        MyMethod invokedMethod = invokedClass.getMethod(myInvocation);
-                        /*while(invokedMethod == null && invokedClass.getSuperclass() != null) {
-                            myInvocation.setClassOrigin(invokedClass.getSuperclass());
-                            invokedClass = classMap.get(invokedClass.getSuperclass());
-                            invokedMethod = invokedClass.getMethod(myInvocation);
-                        }*/
-                        MyAttributeInstruction attributeInstruction = null;
-                        if(invokedMethod != null && invokedMethod.getNumberOfAttributeInstructions() == 1 && invokedMethod.getNumberOfMethodInvocations() == 0) {
-                            if(myInvocation.getMethodName().startsWith("get") && myInvocation.getNumberOfParameters() == 0 && myInvocation.getReturnType().equals(invokedMethod.getAttributeInstruction(0).getClassType()))
-                                attributeInstruction = invokedMethod.getAttributeInstruction(0);
-                            else if(myInvocation.getMethodName().startsWith("set") && myInvocation.getNumberOfParameters() == 1 && myInvocation.getParameterList().get(0).equals(invokedMethod.getAttributeInstruction(0).getClassType()))
-                                attributeInstruction = invokedMethod.getAttributeInstruction(0);
-                            else if(myInvocation.getMethodName().startsWith("add") && myInvocation.getNumberOfParameters() == 1)
-                                attributeInstruction = invokedMethod.getAttributeInstruction(0);
-                        }
-                        if(attributeInstruction != null) {
-                            MyAttribute myAttribute = invokedClass.getAttribute(attributeInstruction);
-                            /*while(myAttribute == null && invokedClass.getSuperclass() != null) {
-                                invokedClass = classMap.get(invokedClass.getSuperclass());
-                                myAttribute = invokedClass.getAttribute(attributeInstruction);
-                            }*/
-                            if(myAttribute != null) {
-                                myAttribute.addMethod(myMethod);
-                                myAttribute.removeMethod(invokedMethod);
-                                if(!methodInvocationsToBeReplaced.containsKey(myInvocation))
-                                    methodInvocationsToBeReplaced.put(myInvocation, attributeInstruction);
-                                //myMethod.addAttributeInstruction(attributeInstruction);
-                                if(!methodsToBeRemoved.contains(invokedMethod))
-                                    methodsToBeRemoved.add(invokedMethod);
-                            }
-                        }
-                    }
-                }
-                myMethod.replaceMethodInvocationsWithAttributeInstructions(methodInvocationsToBeReplaced);
-            }
-        }
-        for(MyMethod myMethod : methodsToBeRemoved) {
-            MyClass myClass = classMap.get(myMethod.getClassOrigin());
-            myClass.removeMethod(myMethod);
-        }
-    }
-    //removes remaining get, set and add methods
-    private void removeExistingGetMethods() {
-        List<MyMethod> methodsToBeRemoved = new ArrayList<MyMethod>();
-        for(MyClass myClass : classMap.values()) {
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod myMethod = methodIterator.next();
-                if(myMethod.getMethodName().startsWith("get") && myMethod.getNumberOfParameters() == 0) {
-                    if(myMethod.getNumberOfAttributeInstructions() == 1 && myMethod.getNumberOfMethodInvocations() == 0) {
-                        MyAttributeInstruction attributeInstruction = myMethod.getAttributeInstruction(0);
-                        MyAttribute attribute = myClass.getAttribute(attributeInstruction);
-                        if(attribute != null && attribute.getClassType().equals(myMethod.getReturnType())) {
-                            attribute.removeMethod(myMethod);
-                            methodsToBeRemoved.add(myMethod);
-                        }
-                    }
-                }
-                else if(myMethod.getMethodName().startsWith("set") && myMethod.getNumberOfParameters() == 1) {
-                    if(myMethod.getNumberOfAttributeInstructions() == 1 && myMethod.getNumberOfMethodInvocations() == 0) {
-                        MyAttributeInstruction attributeInstruction = myMethod.getAttributeInstruction(0);
-                        MyAttribute attribute = myClass.getAttribute(attributeInstruction);
-                        if(attribute != null && attribute.getClassType().equals(myMethod.getParameterList().get(0))) {
-                            attribute.removeMethod(myMethod);
-                            methodsToBeRemoved.add(myMethod);
-                        }
-                    }
-                }
-                else if(myMethod.getMethodName().startsWith("add") && myMethod.getNumberOfParameters() == 1) {
-                    if(myMethod.getNumberOfAttributeInstructions() == 1 && myMethod.getNumberOfMethodInvocations() == 0) {
-                        MyAttributeInstruction attributeInstruction = myMethod.getAttributeInstruction(0);
-                        MyAttribute attribute = myClass.getAttribute(attributeInstruction);
-                        if(attribute != null) {
-                            attribute.removeMethod(myMethod);
-                            methodsToBeRemoved.add(myMethod);
+                    ListIterator<MyAttributeInstruction> attributeInstructionIterator = myMethod.getAttributeInstructionIterator();
+                    while(attributeInstructionIterator.hasNext()) {
+                        MyAttributeInstruction myInstruction = attributeInstructionIterator.next();
+                        MyClass ownerClass = classMap.get(myInstruction.getClassOrigin());
+                        MyAttribute accessedAttribute = ownerClass.getAttribute(myInstruction);
+                        if(accessedAttribute != null) {
+                            if(accessedAttribute.isReference())
+                                myMethod.setAttributeInstructionReference(myInstruction, true);
+                            accessedAttribute.addMethod(myMethod);
                         }
                     }
                 }
             }
-        }
-        for(MyMethod myMethod : methodsToBeRemoved) {
-            MyClass myClass = classMap.get(myMethod.getClassOrigin());
-            myClass.removeMethod(myMethod);
         }
     }
 

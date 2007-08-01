@@ -97,7 +97,8 @@ public class MethodBodyObject {
 				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null)
 					newLocalVariableAssignments.add(current);
 			}
-			if( (newLocalVariableAssignments.size() > 1 && sameScope(newLocalVariableAssignments)) || (newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) )
+			if( (newLocalVariableAssignments.size() > 1 && sameScope(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
+					(newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) )
 				finalExtractBlockMap.put(lvdo, newLocalVariableAssignments);
 		}
 		return finalExtractBlockMap;
@@ -108,6 +109,18 @@ public class MethodBodyObject {
 		for(int i=1; i<list.size(); i++) {
 			if(!statement.getParent().equals(list.get(i).getParent()))
 				return false;
+		}
+		return true;
+	}
+
+	private boolean consecutive(List<AbstractStatement> list) {
+		int currentPosition = this.compositeStatement.getStatementPosition(list.get(0));
+		for(int i=1; i<list.size(); i++) {
+			int position = this.compositeStatement.getStatementPosition(list.get(i));
+			if(position != currentPosition + 1) {
+				return false;
+			}
+			currentPosition = position;
 		}
 		return true;
 	}

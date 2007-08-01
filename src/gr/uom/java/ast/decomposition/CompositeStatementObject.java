@@ -70,6 +70,21 @@ public class CompositeStatementObject extends AbstractStatement {
 		return statementList;
 	}
 
+	public int getStatementPosition(AbstractStatement statement) {
+		if(statementList.contains(statement)) {
+			return statementList.indexOf(statement);
+		}
+		else {
+			for(AbstractStatement abstractStatement : statementList) {
+				if(abstractStatement instanceof CompositeStatementObject) {
+					CompositeStatementObject compositeStatementObject = (CompositeStatementObject)abstractStatement;
+					return compositeStatementObject.getStatementPosition(statement);
+				}
+			}
+		}
+		return -1;
+	}
+
 	public void addExpression(AbstractExpression expression) {
 		expressionList.add(expression);
 		expression.setOwner(this);

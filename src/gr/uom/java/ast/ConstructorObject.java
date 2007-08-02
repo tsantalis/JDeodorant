@@ -77,6 +77,10 @@ public class ConstructorObject {
         return methodBody.getLocalVariableInstructions().listIterator();
     }
 
+    public boolean containsMehtodInvocation(MethodInvocationObject methodInvocation) {
+    	return methodBody.conatinsMethodInvocation(methodInvocation);
+    }
+
     public List<TypeObject> getParameterTypeList() {
     	List<TypeObject> list = new ArrayList<TypeObject>();
     	for(ParameterObject parameterObject : parameterList)

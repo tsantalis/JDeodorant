@@ -49,6 +49,14 @@ public class ClassObject {
         return null;
     }
 
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
+    	for(MethodObject method : methodList) {
+    		if(method.containsMethodInvocation(methodInvocation))
+    			return true;
+    	}
+    	return false;
+    }
+
     public boolean hasFieldType(String className) {
         ListIterator<FieldObject> fi = getFieldIterator();
         while(fi.hasNext()) {

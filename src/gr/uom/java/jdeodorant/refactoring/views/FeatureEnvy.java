@@ -11,6 +11,7 @@ import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -269,6 +270,12 @@ public class FeatureEnvy extends ViewPart {
 					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
 					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
 					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
+					
+					List<String> excludedClasses = new ArrayList<String>();
+					excludedClasses.add(candidate.getSourceClass().getClassObject().getName());
+					excludedClasses.add(candidate.getTargetClass().getClassObject().getName());
+					boolean leaveDelegate = astReader.getSystemObject().containsMethodInvocation(candidate.getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
+					System.out.println("Leave Delegate = " + leaveDelegate);
 					
 					MoveMethodRefactoring refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
 						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration());

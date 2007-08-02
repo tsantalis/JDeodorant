@@ -68,6 +68,14 @@ public class SystemObject {
     	return null;
     }
     
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, List<String> excludedClasses) {
+    	for(ClassObject classObject : classList) {
+    		if(!excludedClasses.contains(classObject.getName()) && classObject.containsMethodInvocation(methodInvocation))
+    			return true;
+    	}
+    	return false;
+    }
+
     public ClassObject getClassObject(String className) {
         Integer pos = classNameMap.get(className);
         if(pos != null)

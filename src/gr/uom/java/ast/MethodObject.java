@@ -208,6 +208,10 @@ public class MethodObject {
         return constructorObject.getLocalVariableInstructionIterator();
     }
 
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
+    	return constructorObject.containsMehtodInvocation(methodInvocation);
+    }
+
     public List<String> getParameterList() {
     	return constructorObject.getParameterList();
     }

@@ -145,6 +145,10 @@ public class MethodBodyObject {
 		return compositeStatement.getMethodInvocations();
 	}
 
+	public boolean conatinsMethodInvocation(MethodInvocationObject methodInvocation) {
+		return compositeStatement.containsMethodInvocation(methodInvocation);
+	}
+
 	private void processStatement(CompositeStatementObject parent, Statement statement) {
 		if(statement instanceof Block) {
 			Block block = (Block)statement;

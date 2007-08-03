@@ -275,10 +275,9 @@ public class FeatureEnvy extends ViewPart {
 					excludedClasses.add(candidate.getSourceClass().getClassObject().getName());
 					excludedClasses.add(candidate.getTargetClass().getClassObject().getName());
 					boolean leaveDelegate = astReader.getSystemObject().containsMethodInvocation(candidate.getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
-					System.out.println("Leave Delegate = " + leaveDelegate);
 					
 					MoveMethodRefactoring refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration());
+						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), leaveDelegate);
 					ITextEditor targetEditor = null;
 					ITextEditor sourceEditor = null;
 					try {

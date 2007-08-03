@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -32,6 +33,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -62,9 +64,10 @@ public class MoveMethodRefactoring {
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
 	private List<String> targetClassVariableNames;
 	private boolean sourceClassParameterAdded;
+	private boolean leaveDelegate;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
-			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod) {
+			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, boolean leaveDelegate) {
 		this.sourceFile = sourceFile;
 		this.targetFile = targetFile;
 		this.sourceCompilationUnit = sourceCompilationUnit;
@@ -78,6 +81,7 @@ public class MoveMethodRefactoring {
 		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
 		this.targetClassVariableNames = getTargetClassVariableNames();
 		this.sourceClassParameterAdded = false;
+		this.leaveDelegate = leaveDelegate;
 	}
 
 	public Map<IDocument, UndoEdit> getUndoEditMap() {
@@ -130,7 +134,12 @@ public class MoveMethodRefactoring {
 			e.printStackTrace();
 		}
 		
-		removeSourceMethod();
+		if(leaveDelegate) {
+			addDelegationInSourceMethod();
+		}
+		else {
+			removeSourceMethod();
+		}
 		modifyMovedMethodInvocationInSourceClass();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
@@ -302,7 +311,7 @@ public class MoveMethodRefactoring {
 			i++;
 		}
 		
-		modifySourceMethodInvocationsInTargetClass(newMethodDeclaration);
+		modifySourceMemberAccessesInTargetClass(newMethodDeclaration);
 
 		List<Statement> oldMethodStatements = newMethodDeclaration.getBody().statements();
 		for(Statement statement : oldMethodStatements){
@@ -320,8 +329,49 @@ public class MoveMethodRefactoring {
 			AST ast = sourceTypeDeclaration.getAST();
 			sourceRewriter = ASTRewrite.create(ast);
 		}
-		ListRewrite bodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		bodyRewrite.remove(sourceMethod, null);
+		ListRewrite classBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		classBodyRewrite.remove(sourceMethod, null);
+	}
+
+	private void addDelegationInSourceMethod() {
+		if(sourceRewriter == null) {
+			AST ast = sourceTypeDeclaration.getAST();
+			sourceRewriter = ASTRewrite.create(ast);
+		}
+		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(sourceMethod.getBody(), Block.STATEMENTS_PROPERTY);
+		List<Statement> sourceMethodStatements = sourceMethod.getBody().statements();
+		for(Statement statement : sourceMethodStatements) {
+			methodBodyRewrite.remove(statement, null);
+		}
+		
+		Type sourceMethodReturnType = sourceMethod.getReturnType2();
+		ITypeBinding sourceMethodReturnTypeBinding = sourceMethodReturnType.resolveBinding();
+		AST ast = sourceMethod.getBody().getAST();
+		MethodInvocation delegation = ast.newMethodInvocation();
+		sourceRewriter.set(delegation, MethodInvocation.NAME_PROPERTY, sourceMethod.getName(), null);
+		SimpleName expressionName = ast.newSimpleName(targetClassVariableNames.get(0));
+		sourceRewriter.set(delegation, MethodInvocation.EXPRESSION_PROPERTY, expressionName, null);
+		
+		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(delegation, MethodInvocation.ARGUMENTS_PROPERTY);
+		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
+		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
+			if(!targetClassVariableNames.contains(parameter.getName().getIdentifier())) {
+				SimpleName argumentName = ast.newSimpleName(parameter.getName().getIdentifier());
+				argumentRewrite.insertLast(argumentName, null);
+			}
+		}
+		if(sourceClassParameterAdded) {
+			argumentRewrite.insertLast(ast.newThisExpression(), null);
+		}
+		if(sourceMethodReturnTypeBinding.getName().equals("void")) {
+			ExpressionStatement expressionStatement = ast.newExpressionStatement(delegation);
+			methodBodyRewrite.insertLast(expressionStatement, null);
+		}
+		else {
+			ReturnStatement returnStatement = ast.newReturnStatement();
+			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, delegation, null);
+			methodBodyRewrite.insertLast(returnStatement, null);
+		}
 	}
 
 	private void modifyMovedMethodInvocationInSourceClass() {
@@ -335,7 +385,7 @@ public class MoveMethodRefactoring {
     			for(Expression expression : methodInvocations) {
     				if(expression instanceof MethodInvocation) {
     					MethodInvocation methodInvocation = (MethodInvocation)expression;
-    					if(identicalSignatureWithSourceMethod(methodInvocation)) {
+    					if(identicalSignature(sourceMethod, methodInvocation)) {
     						List<Expression> arguments = methodInvocation.arguments();
     						boolean foundInArguments = false;
     						for(Expression argument : arguments) {
@@ -370,10 +420,10 @@ public class MoveMethodRefactoring {
     	}
 	}
 
-	private boolean identicalSignatureWithSourceMethod(MethodInvocation methodInvocation) {
-		if(!methodInvocation.getName().getIdentifier().equals(sourceMethod.getName().getIdentifier()))
+	private boolean identicalSignature(MethodDeclaration methodDeclaration, MethodInvocation methodInvocation) {
+		if(!methodInvocation.getName().getIdentifier().equals(methodDeclaration.getName().getIdentifier()))
 			return false;
-		List<SingleVariableDeclaration> parameters = sourceMethod.parameters();
+		List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
 		List<Expression> arguments = methodInvocation.arguments();
 		if(arguments.size() != parameters.size()) {
 			return false;
@@ -401,7 +451,7 @@ public class MoveMethodRefactoring {
 				Expression methodInvocationExpression = methodInvocation.getExpression();
 				if(methodInvocationExpression instanceof SimpleName){
 					SimpleName methodInvocationExpressionSimpleName = (SimpleName)methodInvocationExpression;
-					if(targetClassVariableNames.contains(methodInvocationExpressionSimpleName.getIdentifier())){
+					if(targetClassVariableNames.contains(methodInvocationExpressionSimpleName.getIdentifier())) {
 						targetRewriter.remove(methodInvocationExpressionSimpleName, null);
 					}
 				}
@@ -454,10 +504,41 @@ public class MoveMethodRefactoring {
 		}
 	}
 	
-	private void modifySourceMethodInvocationsInTargetClass(MethodDeclaration newMethodDeclaration) {
+	private void modifySourceMemberAccessesInTargetClass(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();	
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
 		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		List<Expression> expressionsToBeRemoved = new ArrayList<Expression>();
+		int k = 0;
+		for(Expression expression : sourceMethodInvocations) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
+				for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
+					if(identicalSignature(sourceMethodDeclaration, methodInvocation)) {
+						MethodInvocation delegation = isDelegate(sourceMethodDeclaration);
+						if(delegation != null) {
+							ITypeBinding declaringClassTypeBinding = delegation.resolveMethodBinding().getDeclaringClass();
+							if(declaringClassTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+								if(delegation.getExpression() != null) {
+									MethodInvocation newMethodInvocation = (MethodInvocation)ASTNode.copySubtree(newMethodDeclaration.getAST(), delegation);
+									targetRewriter.remove(newMethodInvocation.getExpression(), null);
+									targetRewriter.replace(newMethodInvocations.get(k), newMethodInvocation, null);
+								}
+								expressionsToBeRemoved.add(methodInvocation);
+							}
+						}
+					}
+				}
+			}
+			k++;
+		}
+		for(Expression expression : expressionsToBeRemoved) {
+			int index = sourceMethodInvocations.indexOf(expression);
+			sourceMethodInvocations.remove(index);
+			newMethodInvocations.remove(index);
+		}
+		
 		List<Expression> sourceFieldInstructions = extractor.getVariableInstructions(sourceMethod.getBody());
 		List<Expression> newFieldInstructions = extractor.getVariableInstructions(newMethodDeclaration.getBody());
 		SimpleName parameterName = null;
@@ -520,5 +601,28 @@ public class MoveMethodRefactoring {
 		parametersRewrite.insertLast(parameter, null);
 		this.sourceClassParameterAdded = true;
 		return parameterName;
+	}
+
+	private MethodInvocation isDelegate(MethodDeclaration methodDeclaration) {
+		Block methodBody = methodDeclaration.getBody();
+		if(methodBody != null) {
+			List<Statement> statements = methodBody.statements();
+			if(statements.size() == 1) {
+				Statement statement = statements.get(0);
+	    		if(statement instanceof ReturnStatement) {
+	    			ReturnStatement returnStatement = (ReturnStatement)statement;
+	    			if(returnStatement.getExpression() instanceof MethodInvocation) {
+	    				return (MethodInvocation)returnStatement.getExpression();
+	    			}
+	    		}
+	    		else if(statement instanceof ExpressionStatement) {
+	    			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+	    			if(expressionStatement.getExpression() instanceof MethodInvocation) {
+	    				return (MethodInvocation)expressionStatement.getExpression();
+	    			}
+	    		}
+			}
+		}
+		return null;
 	}
 }

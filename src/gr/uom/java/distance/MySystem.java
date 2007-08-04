@@ -54,30 +54,33 @@ public class MySystem {
             ListIterator<MethodObject> methodIt = co.getMethodIterator();
             while(methodIt.hasNext()) {
                 MethodObject mo = methodIt.next();
-                if(!mo.isStatic() && so.containsGetter(mo.generateMethodInvocation()) == null && so.containsSetter(mo.generateMethodInvocation()) == null &&
-                		so.containsCollectionAdder(mo.generateMethodInvocation()) == null && so.containsDelegate(mo.generateMethodInvocation()) == null) {
-                    MyMethod myMethod = new MyMethod(mo.getClassName(),mo.getName(),
-                        mo.getReturnType().toString(),mo.getParameterList());
-                    if(mo.isAbstract())
-                        myMethod.setAbstract(true);
-                    myMethod.setAccess(mo.getAccess().toString());
-                    myMethod.setMethodObject(mo);
-                    MethodBodyObject methodBodyObject = mo.getMethodBody();
-                    if(methodBodyObject != null) {
-                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, so);
-                    	myMethod.setMethodBody(myMethodBody);
-                    }
-                    myClass.addMethod(myMethod);
-                    ListIterator<MyAttributeInstruction> attributeInstructionIterator = myMethod.getAttributeInstructionIterator();
-                    while(attributeInstructionIterator.hasNext()) {
-                        MyAttributeInstruction myInstruction = attributeInstructionIterator.next();
-                        MyClass ownerClass = classMap.get(myInstruction.getClassOrigin());
-                        MyAttribute accessedAttribute = ownerClass.getAttribute(myInstruction);
-                        if(accessedAttribute != null) {
-                            if(accessedAttribute.isReference())
-                                myMethod.setAttributeInstructionReference(myInstruction, true);
-                            accessedAttribute.addMethod(myMethod);
-                        }
+                if(!mo.isStatic() && so.containsGetter(mo.generateMethodInvocation()) == null &&
+                		so.containsSetter(mo.generateMethodInvocation()) == null && so.containsCollectionAdder(mo.generateMethodInvocation()) == null) {
+                    MethodInvocationObject delegation = so.containsDelegate(mo.generateMethodInvocation());
+                    if(delegation == null || (delegation != null && so.getClassObject(delegation.getOriginClassName()) == null)) {
+	                	MyMethod myMethod = new MyMethod(mo.getClassName(),mo.getName(),
+	                        mo.getReturnType().toString(),mo.getParameterList());
+	                    if(mo.isAbstract())
+	                        myMethod.setAbstract(true);
+	                    myMethod.setAccess(mo.getAccess().toString());
+	                    myMethod.setMethodObject(mo);
+	                    MethodBodyObject methodBodyObject = mo.getMethodBody();
+	                    if(methodBodyObject != null) {
+	                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, so);
+	                    	myMethod.setMethodBody(myMethodBody);
+	                    }
+	                    myClass.addMethod(myMethod);
+	                    ListIterator<MyAttributeInstruction> attributeInstructionIterator = myMethod.getAttributeInstructionIterator();
+	                    while(attributeInstructionIterator.hasNext()) {
+	                        MyAttributeInstruction myInstruction = attributeInstructionIterator.next();
+	                        MyClass ownerClass = classMap.get(myInstruction.getClassOrigin());
+	                        MyAttribute accessedAttribute = ownerClass.getAttribute(myInstruction);
+	                        if(accessedAttribute != null) {
+	                            if(accessedAttribute.isReference())
+	                                myMethod.setAttributeInstructionReference(myInstruction, true);
+	                            accessedAttribute.addMethod(myMethod);
+	                        }
+	                    }
                     }
                 }
             }

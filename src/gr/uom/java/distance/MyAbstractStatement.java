@@ -76,7 +76,7 @@ public abstract class MyAbstractStatement {
     
     private MethodInvocationObject recurseDelegations(MethodInvocationObject methodInvocation, SystemObject system) {
     	MethodInvocationObject delegation;
-    	if((delegation = system.containsDelegate(methodInvocation)) != null)
+    	if((delegation = system.containsDelegate(methodInvocation)) != null && system.getClassObject(delegation.getOriginClassName()) != null)
     		return recurseDelegations(delegation, system);
     	else
     		return methodInvocation;

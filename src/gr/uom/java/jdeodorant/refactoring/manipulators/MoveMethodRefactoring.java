@@ -565,7 +565,8 @@ public class MoveMethodRefactoring {
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.isField() && variableBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding()) && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
+				if(variableBinding.isField() && variableBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding()) &&
+						(variableBinding.getModifiers() & Modifier.STATIC) == 0 && !targetClassVariableNames.contains(simpleName.getIdentifier())) {
 					numberOfOccurences++;
 					if(numberOfOccurences == 1) {
 						parameterName = addSourceClassParameter(newMethodDeclaration);

@@ -86,7 +86,7 @@ public class ExtractMethodRefactoring implements Refactoring {
 		}
 	}
 
-	private MethodDeclaration extractMethod() {
+	private void extractMethod() {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
@@ -177,7 +177,6 @@ public class ExtractMethodRefactoring implements Refactoring {
 		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
 		
 		replaceExtractedCodeWithMethodInvocation(extractedMethodArguments);
-		return newMethodDeclaration;
 	}
 	
 	private void replaceExtractedCodeWithMethodInvocation(List<SimpleName> extractedMethodArguments) {

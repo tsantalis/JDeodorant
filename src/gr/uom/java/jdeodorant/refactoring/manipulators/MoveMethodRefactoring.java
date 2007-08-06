@@ -3,10 +3,8 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
@@ -49,7 +47,7 @@ import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
 import org.eclipse.text.edits.UndoEdit;
 
-public class MoveMethodRefactoring {
+public class MoveMethodRefactoring implements Refactoring {
 	private IFile sourceFile;
 	private IFile targetFile;
 	private CompilationUnit sourceCompilationUnit;
@@ -59,8 +57,7 @@ public class MoveMethodRefactoring {
 	private MethodDeclaration sourceMethod;
 	private ASTRewrite sourceRewriter;
 	private ASTRewrite targetRewriter;
-	private Map<IDocument, UndoEdit> undoEditMap;
-	private Map<IFile, IDocument> documentMap;
+	private UndoRefactoring undoRefactoring;
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
 	private List<String> targetClassVariableNames;
 	private boolean sourceClassParameterAdded;
@@ -75,23 +72,19 @@ public class MoveMethodRefactoring {
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.targetTypeDeclaration = targetTypeDeclaration;
 		this.sourceMethod = sourceMethod;
-		this.undoEditMap = new LinkedHashMap<IDocument, UndoEdit>();
-		this.documentMap = new LinkedHashMap<IFile, IDocument>();
+		this.undoRefactoring = new UndoRefactoring();
 		this.requiredTargetImportDeclarationSet = new LinkedHashSet<ITypeBinding>();
+		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
 		this.targetClassVariableNames = getTargetClassVariableNames();
 		this.sourceClassParameterAdded = false;
 		this.leaveDelegate = leaveDelegate;
 	}
 
-	public Map<IDocument, UndoEdit> getUndoEditMap() {
-		return this.undoEditMap;
+	public UndoRefactoring getUndoRefactoring() {
+		return undoRefactoring;
 	}
-	
-	public IDocument getDocument(IFile file) {
-		return documentMap.get(file);
-	}
-	
+
 	private List<String> getTargetClassVariableNames() {
 		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
 		
@@ -126,8 +119,7 @@ public class MoveMethodRefactoring {
 		TextEdit targetEdit = targetRewriter.rewriteAST(targetDocument, null);
 		try {
 			UndoEdit undoEdit = targetEdit.apply(targetDocument, UndoEdit.CREATE_UNDO);
-			undoEditMap.put(targetDocument, undoEdit);
-			documentMap.put(targetFile, targetDocument);
+			undoRefactoring.put(targetFile, targetDocument, undoEdit);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
 		} catch (BadLocationException e) {
@@ -146,8 +138,7 @@ public class MoveMethodRefactoring {
 		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
 		try {
 			UndoEdit undoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoEditMap.put(sourceDocument, undoEdit);
-			documentMap.put(sourceFile, sourceDocument);
+			undoRefactoring.put(sourceFile, sourceDocument, undoEdit);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
 		} catch (BadLocationException e) {
@@ -325,19 +316,11 @@ public class MoveMethodRefactoring {
 	}
 
 	private void removeSourceMethod() {
-		if(sourceRewriter == null) {
-			AST ast = sourceTypeDeclaration.getAST();
-			sourceRewriter = ASTRewrite.create(ast);
-		}
 		ListRewrite classBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		classBodyRewrite.remove(sourceMethod, null);
 	}
 
 	private void addDelegationInSourceMethod() {
-		if(sourceRewriter == null) {
-			AST ast = sourceTypeDeclaration.getAST();
-			sourceRewriter = ASTRewrite.create(ast);
-		}
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(sourceMethod.getBody(), Block.STATEMENTS_PROPERTY);
 		List<Statement> sourceMethodStatements = sourceMethod.getBody().statements();
 		for(Statement statement : sourceMethodStatements) {

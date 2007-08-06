@@ -8,12 +8,13 @@ import gr.uom.java.distance.InitialSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
-import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractAndMoveMethodRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
+import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
+import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,16 +25,12 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.ui.part.*;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
 import org.eclipse.ui.*;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.SWT;
-import org.eclipse.text.edits.MalformedTreeException;
-import org.eclipse.text.edits.UndoEdit;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
@@ -68,8 +65,7 @@ public class FeatureEnvy extends ViewPart {
 	private IProject selectedProject;
 	private CandidateRefactoring[] candidateRefactoringTable;
 	private ASTReader astReader;
-	private Map<IDocument, IFile> fileMap = new LinkedHashMap<IDocument, IFile>();
-	private Map<IProject, Stack<Map<IDocument, UndoEdit>>> undoStackMap = new HashMap<IProject, Stack<Map<IDocument, UndoEdit>>>();
+	private Map<IProject, Stack<UndoRefactoring>> undoStackMap = new HashMap<IProject, Stack<UndoRefactoring>>();
 
 	/*
 	 * The content provider class is responsible for
@@ -153,7 +149,7 @@ public class FeatureEnvy extends ViewPart {
 					tableViewer.remove(candidateRefactoringTable);
 					applyRefactoringAction.setEnabled(false);
 					if(undoStackMap.containsKey(selectedProject)) {
-						Stack<Map<IDocument, UndoEdit>> undoStack = undoStackMap.get(selectedProject);
+						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
 						if(undoStack.empty())
 							undoRefactoringAction.setEnabled(false);
 						else
@@ -249,7 +245,6 @@ public class FeatureEnvy extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
-				System.out.println("Run Detection executed");
 				candidateRefactoringTable=getTable(selectedProject);
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
@@ -261,13 +256,15 @@ public class FeatureEnvy extends ViewPart {
 		
 		applyRefactoringAction = new Action() {
 			public void run() {
-				System.out.println("Do Refactor executed");
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
+				IFile sourceFile = null;
+				IFile targetFile = null;
+				Refactoring refactoring = null;
 				if(entry instanceof MoveMethodCandidateRefactoring) {
 					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
-					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
+					sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
+					targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
 					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
 					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
 					
@@ -276,41 +273,44 @@ public class FeatureEnvy extends ViewPart {
 					excludedClasses.add(candidate.getTargetClass().getClassObject().getName());
 					boolean leaveDelegate = astReader.getSystemObject().containsMethodInvocation(candidate.getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
 					
-					MoveMethodRefactoring refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+					refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
 						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), leaveDelegate);
-					ITextEditor targetEditor = null;
-					ITextEditor sourceEditor = null;
-					try {
-						targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
-						sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
-					} catch (PartInitException e) {
-						e.printStackTrace();
-					} catch (JavaModelException e) {
-						e.printStackTrace();
-					}
-					refactoring.apply();
-					sourceEditor.doSave(null);
-					targetEditor.doSave(null);
-					fileMap.put(refactoring.getDocument(sourceFile), sourceFile);
-					fileMap.put(refactoring.getDocument(targetFile), targetFile);
-					if(undoStackMap.containsKey(selectedProject)) {
-						Stack<Map<IDocument, UndoEdit>> undoStack = undoStackMap.get(selectedProject);
-						undoStack.push(refactoring.getUndoEditMap());
-					}
-					else {
-						Stack<Map<IDocument, UndoEdit>> undoStack = new Stack<Map<IDocument, UndoEdit>>();
-						undoStack.push(refactoring.getUndoEditMap());
-						undoStackMap.put(selectedProject, undoStack);
-					}
-					undoRefactoringAction.setEnabled(true);
 				}
 				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
 					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-				    ExtractMethodRefactoring refactoring = new ExtractMethodRefactoring(sourceFile, candidate.getSourceClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), 
+					sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
+					targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
+					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
+					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
+					
+					refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), 
 				    	candidate.getVariableDeclarationStatement(), candidate.getVariableDeclarationFragment(), candidate.getStatementList(), candidate.getVariableDeclarationStatements());
-				    refactoring.extractMethod();
 				}
+				ITextEditor targetEditor = null;
+				ITextEditor sourceEditor = null;
+				try {
+					targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
+					sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
+				} catch (PartInitException e) {
+					e.printStackTrace();
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
+				refactoring.apply();
+				sourceEditor.doSave(null);
+				targetEditor.doSave(null);
+				UndoRefactoring undoRefactoring = refactoring.getUndoRefactoring();
+				if(undoStackMap.containsKey(selectedProject)) {
+					Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
+					undoStack.push(undoRefactoring);
+				}
+				else {
+					Stack<UndoRefactoring> undoStack = new Stack<UndoRefactoring>();
+					undoStack.push(undoRefactoring);
+					undoStackMap.put(selectedProject, undoStack);
+				}
+				undoRefactoringAction.setEnabled(true);
 			}
 		};
 		applyRefactoringAction.setToolTipText("Apply Refactoring");
@@ -322,12 +322,10 @@ public class FeatureEnvy extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				System.out.println("Double-click detected on "+entry.toString());
 				if(entry instanceof MoveMethodCandidateRefactoring) {
 					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
 					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
 					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
-					
 					try {
 						ITextEditor targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
 						ITextEditor sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
@@ -341,8 +339,9 @@ public class FeatureEnvy extends ViewPart {
 				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
 					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
 					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-					
+					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
 					try {
+						ITextEditor targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
 						ITextEditor sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
 						List<Statement> statementList = candidate.getStatementList();
 						int startPosition = statementList.get(0).getStartPosition();
@@ -361,22 +360,16 @@ public class FeatureEnvy extends ViewPart {
 		
 		undoRefactoringAction = new Action() {
 			public void run() {
-				System.out.println("Undo executed");
 				if(undoStackMap.containsKey(selectedProject)) {
-					Stack<Map<IDocument, UndoEdit>> undoStack = undoStackMap.get(selectedProject);
+					Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
 					if(!undoStack.empty()) {
-						Map<IDocument, UndoEdit> undoEditMap = undoStack.pop();
-						Set<IDocument> keySet = undoEditMap.keySet();
-						for(IDocument key : keySet){
-							UndoEdit undoEdit = undoEditMap.get(key);
+						UndoRefactoring undoRefactoring = undoStack.pop();
+						undoRefactoring.apply();
+						Set<IFile> fileKeySet = undoRefactoring.getFileKeySet();
+						for(IFile key : fileKeySet) {
 							try {
-								undoEdit.apply(key);
-								ITextEditor editor = (ITextEditor)EditorUtility.openInEditor(fileMap.get(key));
+								ITextEditor editor = (ITextEditor)EditorUtility.openInEditor(key);
 								editor.doSave(null);
-							} catch (MalformedTreeException e) {
-								e.printStackTrace();
-							} catch (BadLocationException e) {
-								e.printStackTrace();
 							} catch (PartInitException e) {
 								e.printStackTrace();
 							} catch (JavaModelException e) {
@@ -435,24 +428,4 @@ public class FeatureEnvy extends ViewPart {
 		return table;
 		
 	}
-	/*
-	private IResource extractSelection(ISelection sel) {
-	      if (!(sel instanceof IStructuredSelection))
-	         return null;
-	      IStructuredSelection ss = (IStructuredSelection) sel;
-	      Object element =ss.getFirstElement();
-	      return (IResource) element;
-	   }
-	
-	private IProject getSelectedProject(){
-		IWorkbenchPage page=this.getViewSite().getPage();
-		ISelection selection=page.getSelection(IPageLayout.ID_RES_NAV);
-		IResource res=extractSelection(selection);
-		IProject iproject=res.getProject();
-		//IPath ilocation=iproject.getLocation();
-		//String location =ilocation.toOSString();
-		//return new File(location);
-		return iproject;
-	}
-	*/
 }

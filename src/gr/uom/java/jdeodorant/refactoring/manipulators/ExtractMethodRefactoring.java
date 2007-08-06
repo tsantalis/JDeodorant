@@ -39,8 +39,9 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
+import org.eclipse.text.edits.UndoEdit;
 
-public class ExtractMethodRefactoring {
+public class ExtractMethodRefactoring implements Refactoring {
 	private IFile sourceFile;
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
@@ -50,6 +51,7 @@ public class ExtractMethodRefactoring {
 	//includes all variable declaration statements which are related with the extracted method
 	private List<VariableDeclarationStatement> variableDeclarationStatementList;
 	private ASTRewrite sourceRewriter;
+	private UndoRefactoring undoRefactoring;
 	
 	public ExtractMethodRefactoring(IFile sourceFile, TypeDeclaration sourceTypeDeclaration, MethodDeclaration sourceMethodDeclaration, 
 			VariableDeclarationStatement variableDeclarationStatement, VariableDeclarationFragment variableDeclarationFragment, List<Statement> extractStatementList, List<VariableDeclarationStatement> variableDeclarationStatementList) {
@@ -61,9 +63,30 @@ public class ExtractMethodRefactoring {
 		this.extractStatementList = extractStatementList;
 		this.variableDeclarationStatementList = variableDeclarationStatementList;
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		this.undoRefactoring = new UndoRefactoring();
 	}
 
-	public void extractMethod() {
+	public UndoRefactoring getUndoRefactoring() {
+		return undoRefactoring;
+	}
+
+	public void apply() {
+		extractMethod();
+		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
+		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
+		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
+		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
+		try {
+			UndoEdit sourceUndoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
+			undoRefactoring.put(sourceFile, sourceDocument, sourceUndoEdit);
+		} catch (MalformedTreeException e) {
+			e.printStackTrace();
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private MethodDeclaration extractMethod() {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
@@ -154,18 +177,7 @@ public class ExtractMethodRefactoring {
 		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
 		
 		replaceExtractedCodeWithMethodInvocation(extractedMethodArguments);
-		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer textFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument document = textFileBuffer.getDocument();
-		TextEdit edit = sourceRewriter.rewriteAST(document, null);
-		try {
-			edit.apply(document);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
+		return newMethodDeclaration;
 	}
 	
 	private void replaceExtractedCodeWithMethodInvocation(List<SimpleName> extractedMethodArguments) {

@@ -10,6 +10,7 @@ import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -86,7 +87,7 @@ public class MethodObject {
 	    		Statement statement = statementObject.getStatement();
 	    		if(statement instanceof ReturnStatement) {
 	    			ReturnStatement returnStatement = (ReturnStatement) statement;
-	    			if(returnStatement.getExpression() instanceof SimpleName && statementObject.getFieldInstructions().size() == 1 && statementObject.getMethodInvocations().size() == 0 &&
+	    			if((returnStatement.getExpression() instanceof SimpleName || returnStatement.getExpression() instanceof FieldAccess) && statementObject.getFieldInstructions().size() == 1 && statementObject.getMethodInvocations().size() == 0 &&
 		    				statementObject.getLocalVariableDeclarations().size() == 0 && statementObject.getLocalVariableInstructions().size() == 0 && this.constructorObject.parameterList.size() == 0) {
 	    				return statementObject.getFieldInstructions().get(0);
 	    			}
@@ -107,7 +108,7 @@ public class MethodObject {
 	    			if(expressionStatement.getExpression() instanceof Assignment && statementObject.getFieldInstructions().size() == 1 && statementObject.getMethodInvocations().size() == 0 &&
 	        				statementObject.getLocalVariableDeclarations().size() == 0 && statementObject.getLocalVariableInstructions().size() == 1 && this.constructorObject.parameterList.size() == 1) {
 	    				Assignment assignment = (Assignment)expressionStatement.getExpression();
-	    				if(assignment.getLeftHandSide() instanceof SimpleName && assignment.getRightHandSide() instanceof SimpleName)
+	    				if((assignment.getLeftHandSide() instanceof SimpleName || assignment.getLeftHandSide() instanceof FieldAccess) && assignment.getRightHandSide() instanceof SimpleName)
 	    					return statementObject.getFieldInstructions().get(0);
 	    			}
 	    		}

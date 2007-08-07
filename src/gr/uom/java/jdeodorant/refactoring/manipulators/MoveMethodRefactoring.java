@@ -496,19 +496,40 @@ public class MoveMethodRefactoring implements Refactoring {
 		for(Expression expression : sourceMethodInvocations) {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
-				MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
-				for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
-					if(identicalSignature(sourceMethodDeclaration, methodInvocation)) {
-						MethodInvocation delegation = isDelegate(sourceMethodDeclaration);
-						if(delegation != null) {
-							ITypeBinding declaringClassTypeBinding = delegation.resolveMethodBinding().getDeclaringClass();
-							if(declaringClassTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
-								if(delegation.getExpression() != null) {
-									MethodInvocation newMethodInvocation = (MethodInvocation)ASTNode.copySubtree(newMethodDeclaration.getAST(), delegation);
-									targetRewriter.remove(newMethodInvocation.getExpression(), null);
-									targetRewriter.replace(newMethodInvocations.get(k), newMethodInvocation, null);
+				ITypeBinding methodInvocationDeclaringClassTypeBinding = methodInvocation.resolveMethodBinding().getDeclaringClass();
+				if(methodInvocationDeclaringClassTypeBinding.getQualifiedName().equals(sourceTypeDeclaration.resolveBinding().getQualifiedName()) && methodInvocation.getExpression() == null) {
+					MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
+					for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
+						if(identicalSignature(sourceMethodDeclaration, methodInvocation)) {
+							MethodInvocation delegation = isDelegate(sourceMethodDeclaration);
+							if(delegation != null) {
+								ITypeBinding delegationDeclaringClassTypeBinding = delegation.resolveMethodBinding().getDeclaringClass();
+								if(delegationDeclaringClassTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+									if(delegation.getExpression() != null) {
+										MethodInvocation newMethodInvocation = (MethodInvocation)ASTNode.copySubtree(newMethodDeclaration.getAST(), delegation);
+										targetRewriter.remove(newMethodInvocation.getExpression(), null);
+										targetRewriter.replace(newMethodInvocations.get(k), newMethodInvocation, null);
+									}
+									expressionsToBeRemoved.add(methodInvocation);
 								}
-								expressionsToBeRemoved.add(methodInvocation);
+							}
+						}
+					}
+				}
+				else if(methodInvocationDeclaringClassTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) && methodInvocation.getExpression() != null) {
+					Expression methodInvocationExpression = methodInvocation.getExpression();
+					if(methodInvocationExpression instanceof MethodInvocation) {
+						MethodInvocation invoker = (MethodInvocation)methodInvocationExpression;
+						MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
+						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
+							if(identicalSignature(sourceMethodDeclaration, invoker)) {
+								SimpleName fieldInstruction = isGetter(sourceMethodDeclaration);
+								if(fieldInstruction != null && fieldInstruction.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+									int index = sourceMethodInvocations.indexOf(invoker);
+									targetRewriter.remove(newMethodInvocations.get(index), null);
+									expressionsToBeRemoved.add(invoker);
+									expressionsToBeRemoved.add(methodInvocation);
+								}
 							}
 						}
 					}
@@ -603,6 +624,28 @@ public class MoveMethodRefactoring implements Refactoring {
 	    			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
 	    			if(expressionStatement.getExpression() instanceof MethodInvocation) {
 	    				return (MethodInvocation)expressionStatement.getExpression();
+	    			}
+	    		}
+			}
+		}
+		return null;
+	}
+
+	private SimpleName isGetter(MethodDeclaration methodDeclaration) {
+		Block methodBody = methodDeclaration.getBody();
+		if(methodBody != null) {
+			List<Statement> statements = methodBody.statements();
+			if(statements.size() == 1) {
+				Statement statement = statements.get(0);
+	    		if(statement instanceof ReturnStatement) {
+	    			ReturnStatement returnStatement = (ReturnStatement)statement;
+	    			Expression returnStatementExpression = returnStatement.getExpression();
+	    			if(returnStatementExpression instanceof SimpleName) {
+	    				return (SimpleName)returnStatementExpression;
+	    			}
+	    			else if(returnStatementExpression instanceof FieldAccess) {
+	    				FieldAccess fieldAccess = (FieldAccess)returnStatementExpression;
+	    				return fieldAccess.getName();
 	    			}
 	    		}
 			}

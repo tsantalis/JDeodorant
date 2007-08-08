@@ -70,14 +70,12 @@ public class AssociationDetection {
         ListIterator<MethodObject> methodIt = co.getMethodIterator();
         while(methodIt.hasNext()) {
             MethodObject mo = methodIt.next();
-            ListIterator<FieldInstructionObject> fieldInstructionIt = mo.getFieldInstructionIterator();
-            while(fieldInstructionIt.hasNext()) {
-                FieldInstructionObject fio = fieldInstructionIt.next();
+            List<FieldInstructionObject> fieldInstructions = mo.getFieldInstructions();
+            for(FieldInstructionObject fio : fieldInstructions) {
                 if(fo.equals(fio)) {
                     List<String> parameterList = mo.getParameterList();
-                    ListIterator<MethodInvocationObject> methodInvocationIt = mo.getMethodInvocationIterator();
-                    while(methodInvocationIt.hasNext()) {
-                        MethodInvocationObject mio = methodInvocationIt.next();
+                    List<MethodInvocationObject> methodInvocations = mo.getMethodInvocations();
+                    for(MethodInvocationObject mio : methodInvocations) {
                         if(mio.getOriginClassName().startsWith("java.util.List") ||
                                 mio.getOriginClassName().startsWith("java.util.ArrayList") || mio.getOriginClassName().startsWith("java.util.Vector")) {
                             if(mio.getMethodName().equals("add") || mio.getMethodName().equals("addElement")) {

@@ -193,24 +193,24 @@ public class MethodObject {
         return constructorObject.getParameterListIterator();
     }
 
-    public ListIterator<MethodInvocationObject> getMethodInvocationIterator() {
-        return constructorObject.getMethodInvocationIterator();
+    public List<MethodInvocationObject> getMethodInvocations() {
+        return constructorObject.getMethodInvocations();
     }
 
-    public ListIterator<FieldInstructionObject> getFieldInstructionIterator() {
-        return constructorObject.getFieldInstructionIterator();
+    public List<FieldInstructionObject> getFieldInstructions() {
+        return constructorObject.getFieldInstructions();
     }
 
-    public ListIterator<LocalVariableDeclarationObject> getLocalVariableDeclarationIterator() {
-        return constructorObject.getLocalVariableDeclarationIterator();
+    public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
+        return constructorObject.getLocalVariableDeclarations();
     }
     
-    public ListIterator<LocalVariableInstructionObject> getLocalVariableInstructionIterator() {
-        return constructorObject.getLocalVariableInstructionIterator();
+    public List<LocalVariableInstructionObject> getLocalVariableInstructions() {
+        return constructorObject.getLocalVariableInstructions();
     }
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
-    	return constructorObject.containsMehtodInvocation(methodInvocation);
+    	return constructorObject.containsMethodInvocation(methodInvocation);
     }
 
     public List<String> getParameterList() {

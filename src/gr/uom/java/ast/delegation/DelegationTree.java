@@ -3,7 +3,6 @@ package gr.uom.java.ast.delegation;
 import gr.uom.java.ast.*;
 
 import javax.swing.tree.DefaultMutableTreeNode;
-import java.util.ListIterator;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.ArrayList;
@@ -22,9 +21,8 @@ public class DelegationTree {
     private void getDelegations(DefaultMutableTreeNode node) {
         MethodObject methodObject = (MethodObject)node.getUserObject();
         if(methodObject != null) {
-            ListIterator<MethodInvocationObject> it = methodObject.getMethodInvocationIterator();
-            while(it.hasNext()) {
-                MethodInvocationObject mio = it.next();
+            List<MethodInvocationObject> methodInvocationList = methodObject.getMethodInvocations();
+            for(MethodInvocationObject mio : methodInvocationList) {
                 //int methodPos = systemObject.getPositionInClassList(methodObject.getClassName());
                 int methodInvocationPos = systemObject.getPositionInClassList(mio.getOriginClassName());
                 if(methodInvocationPos != -1) {

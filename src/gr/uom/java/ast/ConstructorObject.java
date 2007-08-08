@@ -61,23 +61,23 @@ public class ConstructorObject {
 		return parameterList.listIterator();
 	}
 	
-	public ListIterator<MethodInvocationObject> getMethodInvocationIterator() {
-		return methodBody.getMethodInvocations().listIterator();
+	public List<MethodInvocationObject> getMethodInvocations() {
+		return methodBody.getMethodInvocations();
 	}
 
-    public ListIterator<FieldInstructionObject> getFieldInstructionIterator() {
-        return methodBody.getFieldInstructions().listIterator();
+    public List<FieldInstructionObject> getFieldInstructions() {
+        return methodBody.getFieldInstructions();
     }
 
-    public ListIterator<LocalVariableDeclarationObject> getLocalVariableDeclarationIterator() {
-        return methodBody.getLocalVariableDeclarations().listIterator();
+    public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
+        return methodBody.getLocalVariableDeclarations();
     }
     
-    public ListIterator<LocalVariableInstructionObject> getLocalVariableInstructionIterator() {
-        return methodBody.getLocalVariableInstructions().listIterator();
+    public List<LocalVariableInstructionObject> getLocalVariableInstructions() {
+        return methodBody.getLocalVariableInstructions();
     }
 
-    public boolean containsMehtodInvocation(MethodInvocationObject methodInvocation) {
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	return methodBody.conatinsMethodInvocation(methodInvocation);
     }
 

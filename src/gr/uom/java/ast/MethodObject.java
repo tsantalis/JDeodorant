@@ -213,6 +213,10 @@ public class MethodObject {
     	return constructorObject.containsMethodInvocation(methodInvocation);
     }
 
+    public List<TypeObject> getParameterTypeList() {
+    	return constructorObject.getParameterTypeList();
+    }
+
     public List<String> getParameterList() {
     	return constructorObject.getParameterList();
     }

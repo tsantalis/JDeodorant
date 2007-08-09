@@ -12,11 +12,14 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
+import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
+import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefactoring {
+	private MySystem system;
 	private MyClass sourceClass;
     private MyClass targetClass;
     //this is the method from which the extracted method is going to be extracted
@@ -29,28 +32,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 
     public ExtractAndMoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, 
     		LocalVariableDeclarationObject localVariableDeclaration, List<AbstractStatement> statementList) {
-    	this.sourceClass = sourceClass;
-    	this.targetClass = targetClass;
-    	this.sourceMethod = sourceMethod;
-    	this.localVariableDeclaration = localVariableDeclaration;
-    	this.statementList = statementList;
-    	this.variableDeclarationStatement = sourceMethod.getMethodObject().getMethodBody().getVariableDeclarationStatement(localVariableDeclaration);
-    	
-    	Set<String> entitySet = sourceMethod.getEntitySet(statementList.get(0));
-    	for(int i=1; i<statementList.size(); i++) {
-    		Set<String> setI = sourceMethod.getEntitySet(statementList.get(i));
-    		entitySet = DistanceCalculator.union(entitySet, setI);
-    	}
-    	this.entitySet = entitySet;
-    	
-    	MySystem virtualSystem = MySystem.newInstance(system);
-	    virtualApplication(virtualSystem);
-	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-	    this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
-    }
-
-    public ExtractAndMoveMethodCandidateRefactoring(MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, 
-    		LocalVariableDeclarationObject localVariableDeclaration, List<AbstractStatement> statementList) {
+    	this.system = system;
     	this.sourceClass = sourceClass;
     	this.targetClass = targetClass;
     	this.sourceMethod = sourceMethod;
@@ -66,7 +48,46 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	this.entitySet = entitySet;
     }
 
-    public void virtualApplication(MySystem virtualSystem) {
+    public boolean apply() {
+    	if(checkPreconditions()) {
+    		MySystem virtualSystem = MySystem.newInstance(system);
+	    	virtualApplication(virtualSystem);
+	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
+	    	this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+	    	return true;
+    	}
+    	else {
+    		System.out.println(this.toString() + " excluded");
+    		return false;
+    	}
+    }
+
+    private boolean checkPreconditions() {
+    	List<TypeObject> sourceMethodParameterTypes = sourceMethod.getMethodObject().getParameterTypeList();
+    	for(TypeObject parameterType : sourceMethodParameterTypes) {
+    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
+    			return true;
+    		}
+    	}
+    	List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = sourceMethod.getMethodObject().getLocalVariableDeclarations();
+    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
+    		TypeObject type = localVariableDeclaration.getType();
+    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
+    			return true;
+    		}
+    	}
+    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
+    	while(sourceClassFieldIterator.hasNext()) {
+    		FieldObject field = sourceClassFieldIterator.next();
+    		TypeObject type = field.getType();
+    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
+    			return true;
+    		}
+    	}
+    	return false;
+    }
+
+    private void virtualApplication(MySystem virtualSystem) {
     	List<MyAbstractStatement> myAbstractStatementList = new ArrayList<MyAbstractStatement>();
     	for(AbstractStatement abstractStatement : statementList) {
     		MyAbstractStatement myAbstractStatement = sourceMethod.getAbstractStatement(abstractStatement);

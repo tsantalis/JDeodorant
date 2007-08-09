@@ -1,29 +1,84 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.FieldObject;
+import gr.uom.java.ast.LocalVariableDeclarationObject;
+import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.TypeObject;
+
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
-    private MyClass sourceClass;
+    private MySystem system;
+	private MyClass sourceClass;
     private MyClass targetClass;
     private MyMethod sourceMethod;
     private double entityPlacement;
 
     public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod) {
-        this.sourceClass = sourceClass;
+        this.system = system;
+    	this.sourceClass = sourceClass;
         this.targetClass = targetClass;
         this.sourceMethod = sourceMethod;
-        
-        MySystem virtualSystem = MySystem.newInstance(system);
-	    virtualApplication(virtualSystem);
-	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-	    this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
     }
 
-    public void virtualApplication(MySystem virtualSystem) {
+    public boolean apply() {
+    	if(checkPreconditions()) {
+    		MySystem virtualSystem = MySystem.newInstance(system);
+    	    virtualApplication(virtualSystem);
+    	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
+    	    this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+    	    return true;
+    	}
+    	else {
+    		System.out.println(this.toString() + " excluded");
+    		return false;
+    	}
+    }
+
+    private boolean checkPreconditions() {
+    	ListIterator<MethodObject> sourceMethodIterator = sourceClass.getClassObject().getMethodIterator();
+    	MethodInvocationObject sourceMethodInvocation = sourceMethod.getMethodObject().generateMethodInvocation();
+    	boolean sourceMethodInvocationFound = false;
+    	while(sourceMethodIterator.hasNext()) {
+    		MethodObject method = sourceMethodIterator.next();
+    		if(method.containsMethodInvocation(sourceMethodInvocation)) {
+    			sourceMethodInvocationFound = true;
+    			List<TypeObject> sourceMethodParameterTypes = method.getParameterTypeList();
+    	    	for(TypeObject parameterType : sourceMethodParameterTypes) {
+    	    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
+    	    			return true;
+    	    		}
+    	    	}
+    	    	List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = method.getLocalVariableDeclarations();
+    	    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
+    	    		TypeObject type = localVariableDeclaration.getType();
+    	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
+    	    			return true;
+    	    		}
+    	    	}
+    	    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
+    	    	while(sourceClassFieldIterator.hasNext()) {
+    	    		FieldObject field = sourceClassFieldIterator.next();
+    	    		TypeObject type = field.getType();
+    	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
+    	    			return true;
+    	    		}
+    	    	}
+    		}
+    	}
+    	if(sourceMethodInvocationFound)
+    		return false;
+    	else
+    		return true;
+    }
+
+    private void virtualApplication(MySystem virtualSystem) {
     	MyMethod oldMethod = sourceMethod;
         MyMethod newMethod = MyMethod.newInstance(oldMethod);
         newMethod.setClassOrigin(targetClass.getName());

@@ -108,7 +108,10 @@ public class DistanceMatrix {
                         MyClass targetClass = classList.get(j);
                         if(entity instanceof MyMethod) {
                             MyMethod method = (MyMethod)entity;
-                            candidateRefactoringList.add(new MoveMethodCandidateRefactoring(system,system.getClass(rowClass),targetClass,method));
+                            MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,system.getClass(rowClass),targetClass,method);
+                            boolean applicable = candidate.apply();
+                            if(applicable)
+                            	candidateRefactoringList.add(candidate);
                         }
                     }
                 }
@@ -130,7 +133,7 @@ public class DistanceMatrix {
 	                	method.getMethodObject().getMethodBody().generateBlocksForExtraction();
 	                for(LocalVariableDeclarationObject lvdo : extractBlockMap.keySet()) {
 	                	ExtractAndMoveMethodCandidateRefactoring candidate = 
-	                		new ExtractAndMoveMethodCandidateRefactoring(myClass,myClass,method,lvdo,extractBlockMap.get(lvdo));
+	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,lvdo,extractBlockMap.get(lvdo));
 	                	extractMethodCandidateRefactoringList.add(candidate);
 	                }
                 }
@@ -170,7 +173,9 @@ public class DistanceMatrix {
                         	ExtractAndMoveMethodCandidateRefactoring newCandidate = 
                         		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),targetClass,
                         		candidate.getSourceMethod(),candidate.getLocalVariableDeclaration(),candidate.getAbstractStatementList());
-                        	candidateRefactoringList.add(newCandidate);
+                        	boolean applicable = newCandidate.apply();
+                        	if(applicable)
+                        		candidateRefactoringList.add(newCandidate);
                         }
                     }
                 }

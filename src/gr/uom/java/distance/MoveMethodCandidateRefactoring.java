@@ -28,20 +28,27 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     }
 
     public boolean apply() {
-    	if(checkPreconditions()) {
+    	if(hasReferenceToTargetClass() && !overridesAbstractMethod()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
     	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
     	    this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
     	    return true;
     	}
-    	else {
-    		System.out.println(this.toString() + " excluded");
+    	else
     		return false;
-    	}
     }
 
-    private boolean checkPreconditions() {
+    private boolean overridesAbstractMethod() {
+    	if(sourceMethod.getMethodObject().overridesAbstractMethod()) {
+    		System.out.println(this.toString() + "\toverrides abstract method");
+    		return true;
+    	}
+    	else
+    		return false;
+    }
+
+    private boolean hasReferenceToTargetClass() {
     	ListIterator<MethodObject> sourceMethodIterator = sourceClass.getClassObject().getMethodIterator();
     	MethodInvocationObject sourceMethodInvocation = sourceMethod.getMethodObject().generateMethodInvocation();
     	boolean sourceMethodInvocationFound = false;
@@ -72,8 +79,10 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	    	}
     		}
     	}
-    	if(sourceMethodInvocationFound)
+    	if(sourceMethodInvocationFound) {
+    		System.out.println(this.toString() + "\thas no reference to Target class");
     		return false;
+    	}
     	else
     		return true;
     }

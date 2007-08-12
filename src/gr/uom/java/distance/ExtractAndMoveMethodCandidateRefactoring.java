@@ -49,20 +49,18 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(checkPreconditions()) {
+    	if(hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
 	    	this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
 	    	return true;
     	}
-    	else {
-    		System.out.println(this.toString() + " excluded");
+    	else
     		return false;
-    	}
     }
 
-    private boolean checkPreconditions() {
+    private boolean hasReferenceToTargetClass() {
     	List<TypeObject> sourceMethodParameterTypes = sourceMethod.getMethodObject().getParameterTypeList();
     	for(TypeObject parameterType : sourceMethodParameterTypes) {
     		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
@@ -84,6 +82,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			return true;
     		}
     	}
+    	System.out.println(this.toString() + "\thas no reference to Target class");
     	return false;
     }
 

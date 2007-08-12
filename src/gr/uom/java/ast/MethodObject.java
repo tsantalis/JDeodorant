@@ -5,14 +5,19 @@ import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
@@ -179,6 +184,53 @@ public class MethodObject {
 	    	}
     	}
     	return null;
+    }
+
+    public boolean overridesAbstractMethod() {
+    	IMethodBinding methodBinding = getMethodDeclaration().resolveBinding();
+    	ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
+    	Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+    	ITypeBinding superClassTypeBinding = declaringClassTypeBinding.getSuperclass();
+    	if(superClassTypeBinding != null)
+    		typeBindings.add(superClassTypeBinding);
+    	ITypeBinding[] interfaceTypeBindings = declaringClassTypeBinding.getInterfaces();
+    	for(ITypeBinding interfaceTypeBinding : interfaceTypeBindings)
+    		typeBindings.add(interfaceTypeBinding);
+    	return overridesAbstractMethod(typeBindings);
+    }
+
+    private boolean overridesAbstractMethod(Set<ITypeBinding> typeBindings) {
+    	IMethodBinding methodBinding = getMethodDeclaration().resolveBinding();
+    	Set<ITypeBinding> superTypeBindings = new LinkedHashSet<ITypeBinding>();
+    	for(ITypeBinding typeBinding : typeBindings) {
+    		ITypeBinding superClassTypeBinding = typeBinding.getSuperclass();
+        	if(superClassTypeBinding != null)
+        		superTypeBindings.add(superClassTypeBinding);
+        	ITypeBinding[] interfaceTypeBindings = typeBinding.getInterfaces();
+        	for(ITypeBinding interfaceTypeBinding : interfaceTypeBindings)
+        		superTypeBindings.add(interfaceTypeBinding);
+    		if(typeBinding.isInterface()) {
+    			IMethodBinding[] interfaceMethodBindings = typeBinding.getDeclaredMethods();
+        		for(IMethodBinding interfaceMethodBinding : interfaceMethodBindings) {
+        			if(methodBinding.overrides(interfaceMethodBinding))
+        				return true;
+        		}
+    		}
+    		else {
+    			if((typeBinding.getModifiers() & Modifier.ABSTRACT) != 0) {
+    				IMethodBinding[] superClassMethodBindings = typeBinding.getDeclaredMethods();
+    	    		for(IMethodBinding superClassMethodBinding : superClassMethodBindings) {
+    	    			if((superClassMethodBinding.getModifiers() & Modifier.ABSTRACT) != 0 && methodBinding.overrides(superClassMethodBinding))
+    	    				return true;
+    	    		}
+    			}
+    		}
+    	}
+    	if(!superTypeBindings.isEmpty()) {
+    		return overridesAbstractMethod(superTypeBindings);
+    	}
+    	else
+    		return false;
     }
 
     public void setClassName(String className) {

@@ -32,6 +32,11 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
+	public List<Statement> getVariableDeclarations(Statement statement) {
+		instanceChecker = new InstanceOfVariableDeclaration();
+		return getStatements(statement);
+	}
+	
 	private List<Statement> getStatements(Statement statement) {
 		List<Statement> statementList = new ArrayList<Statement>();
 		if(statement instanceof Block) {
@@ -105,6 +110,8 @@ public class StatementExtractor {
 		}
 		else if(statement instanceof VariableDeclarationStatement) {
 			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+			if(instanceChecker.instanceOf(variableDeclarationStatement))
+				statementList.add(variableDeclarationStatement);
 		}
 		else if(statement instanceof ConstructorInvocation) {
 			ConstructorInvocation constructorInvocation = (ConstructorInvocation)statement;

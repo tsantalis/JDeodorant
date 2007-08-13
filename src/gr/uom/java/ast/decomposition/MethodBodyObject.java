@@ -145,7 +145,7 @@ public class MethodBodyObject {
 		return compositeStatement.getMethodInvocations();
 	}
 
-	public boolean conatinsMethodInvocation(MethodInvocationObject methodInvocation) {
+	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
 		return compositeStatement.containsMethodInvocation(methodInvocation);
 	}
 

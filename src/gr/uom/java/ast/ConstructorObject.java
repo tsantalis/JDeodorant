@@ -78,7 +78,7 @@ public class ConstructorObject {
     }
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
-    	return methodBody.conatinsMethodInvocation(methodInvocation);
+    	return methodBody.containsMethodInvocation(methodInvocation);
     }
 
     public List<TypeObject> getParameterTypeList() {

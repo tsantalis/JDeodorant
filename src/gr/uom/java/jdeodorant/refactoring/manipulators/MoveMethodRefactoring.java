@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -39,6 +40,7 @@ import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jface.text.BadLocationException;
@@ -59,7 +61,6 @@ public class MoveMethodRefactoring implements Refactoring {
 	private ASTRewrite targetRewriter;
 	private UndoRefactoring undoRefactoring;
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
-	private List<String> targetClassVariableNames;
 	private boolean sourceClassParameterAdded;
 	private boolean leaveDelegate;
 	
@@ -76,38 +77,12 @@ public class MoveMethodRefactoring implements Refactoring {
 		this.requiredTargetImportDeclarationSet = new LinkedHashSet<ITypeBinding>();
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
-		this.targetClassVariableNames = getTargetClassVariableNames();
 		this.sourceClassParameterAdded = false;
 		this.leaveDelegate = leaveDelegate;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {
 		return undoRefactoring;
-	}
-
-	private List<String> getTargetClassVariableNames() {
-		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
-		
-		List<String> targetClassVariableNames = new ArrayList<String>();
-		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
-			ITypeBinding parameterTypeBinding = parameter.getType().resolveBinding();
-			if(parameterTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
-				targetClassVariableNames.add(parameter.getName().getIdentifier());
-			}
-		}
-		if(targetClassVariableNames.isEmpty()) {
-			FieldDeclaration[] fields = sourceTypeDeclaration.getFields();
-			for(FieldDeclaration field : fields) {
-				ITypeBinding fieldTypeBinding = field.getType().resolveBinding();
-				List<VariableDeclarationFragment> fragments = field.fragments();
-				for(VariableDeclarationFragment fragment : fragments){
-					if(fieldTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
-						targetClassVariableNames.add(fragment.getName().getIdentifier());
-					}
-				}
-			}
-		}
-		return targetClassVariableNames;
 	}
 	
 	public void apply() {
@@ -172,7 +147,7 @@ public class MoveMethodRefactoring implements Refactoring {
 				if(!typeBindings.contains(variableTypeBinding))
 					typeBindings.add(variableTypeBinding);
 				ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
-				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding) && !targetClassVariableNames.contains(simpleName.getIdentifier()))
+				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
 					typeBindings.add(declaringClassTypeBinding);
 			}
 		}
@@ -303,14 +278,10 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 		
 		modifySourceMemberAccessesInTargetClass(newMethodDeclaration);
+		modifyTargetMethodInvocations(newMethodDeclaration);
+		modifyTargetPublicFieldInstructions(newMethodDeclaration);
+		modifyTargetStaticFieldInstructions(newMethodDeclaration);
 
-		List<Statement> oldMethodStatements = newMethodDeclaration.getBody().statements();
-		for(Statement statement : oldMethodStatements){
-			modifyTargetMethodInvocations(statement, targetClassVariableNames);
-			modifyTargetPublicFieldInstructions(statement, targetClassVariableNames);
-			modifyTargetStaticFieldInstructions(statement);
-		}
-		
 		ListRewrite methodDeclarationRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
 	}
@@ -321,6 +292,41 @@ public class MoveMethodRefactoring implements Refactoring {
 	}
 
 	private void addDelegationInSourceMethod() {
+		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
+		String targetClassVariableName = null;
+		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
+			ITypeBinding parameterTypeBinding = parameter.getType().resolveBinding();
+			if(parameterTypeBinding.getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())){
+				targetClassVariableName = parameter.getName().getIdentifier();
+			}
+		}
+		/*if(targetClassVariableName == null) {
+			StatementExtractor statementExtractor = new StatementExtractor();
+			List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(sourceMethod.getBody());
+			for(Statement variableDeclarationStatement : variableDeclarationStatements) {
+				VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
+				List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
+        		for(VariableDeclarationFragment fragment : fragments) {
+        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+        				targetClassVariableName = fragment.getName().getIdentifier();
+        				break;
+        			}
+        		}
+			}
+		}*/
+		if(targetClassVariableName == null) {
+			FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+        		for(VariableDeclarationFragment fragment : fragments) {
+	        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+	        			targetClassVariableName = fragment.getName().getIdentifier();
+	        			break;
+	        		}
+        		}
+        	}
+		}
+		
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(sourceMethod.getBody(), Block.STATEMENTS_PROPERTY);
 		List<Statement> sourceMethodStatements = sourceMethod.getBody().statements();
 		for(Statement statement : sourceMethodStatements) {
@@ -332,13 +338,12 @@ public class MoveMethodRefactoring implements Refactoring {
 		AST ast = sourceMethod.getBody().getAST();
 		MethodInvocation delegation = ast.newMethodInvocation();
 		sourceRewriter.set(delegation, MethodInvocation.NAME_PROPERTY, sourceMethod.getName(), null);
-		SimpleName expressionName = ast.newSimpleName(targetClassVariableNames.get(0));
+		SimpleName expressionName = ast.newSimpleName(targetClassVariableName);
 		sourceRewriter.set(delegation, MethodInvocation.EXPRESSION_PROPERTY, expressionName, null);
 		
 		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(delegation, MethodInvocation.ARGUMENTS_PROPERTY);
-		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
 		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
-			if(!targetClassVariableNames.contains(parameter.getName().getIdentifier())) {
+			if(!targetClassVariableName.equals(parameter.getName().getIdentifier())) {
 				SimpleName argumentName = ast.newSimpleName(parameter.getName().getIdentifier());
 				argumentRewrite.insertLast(argumentName, null);
 			}
@@ -377,16 +382,33 @@ public class MoveMethodRefactoring implements Refactoring {
     								ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
     								argumentRewrite.remove(argument, null);
     								sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+    								break;
     							}
     						}
+    						boolean foundInLocalVariableDeclarations = false;
     						if(!foundInArguments) {
+    							StatementExtractor statementExtractor = new StatementExtractor();
+    							List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(methodBody);
+    							for(Statement variableDeclarationStatement : variableDeclarationStatements) {
+    								VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
+    								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
+    				        		for(VariableDeclarationFragment fragment : fragments) {
+    				        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+    				        				foundInLocalVariableDeclarations = true;
+    				        				sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+    				        				break;
+    				        			}
+    				        		}
+    							}
+    						}
+    						if(!foundInLocalVariableDeclarations) {
     							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
     				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
     				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
     				        		for(VariableDeclarationFragment fragment : fragments) {
-	    				        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
-	    				        				targetClassVariableNames.contains(fragment.getName().getIdentifier())) {
+	    				        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
 	    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+	    				        			break;
 	    				        		}
     				        		}
     				        	}
@@ -425,51 +447,59 @@ public class MoveMethodRefactoring implements Refactoring {
 		return true;
 	}
 
-	private void modifyTargetMethodInvocations(Statement statement, List<String> targetClassVariableNames) {
+	private void modifyTargetMethodInvocations(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
-		List<Expression> methodInvocations = extractor.getMethodInvocations(statement);
-		for(Expression expression : methodInvocations) {
+		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
+		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		int i = 0;
+		for(Expression expression : sourceMethodInvocations) {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				Expression methodInvocationExpression = methodInvocation.getExpression();
 				if(methodInvocationExpression instanceof SimpleName){
 					SimpleName methodInvocationExpressionSimpleName = (SimpleName)methodInvocationExpression;
-					if(targetClassVariableNames.contains(methodInvocationExpressionSimpleName.getIdentifier())) {
-						targetRewriter.remove(methodInvocationExpressionSimpleName, null);
+					if(methodInvocationExpressionSimpleName.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+						MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(i);
+						targetRewriter.remove(newMethodInvocation.getExpression(), null);
 					}
 				}
 			}
+			i++;
 		}
 	}
 
-	private void modifyTargetPublicFieldInstructions(Statement statement, List<String> targetClassVariableNames) {
+	private void modifyTargetPublicFieldInstructions(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
-		List<Expression> variableInstructions = extractor.getVariableInstructions(statement);
+		List<Expression> sourceFieldInstructions = extractor.getVariableInstructions(sourceMethod.getBody());
+		List<Expression> newFieldInstructions = extractor.getVariableInstructions(newMethodDeclaration.getBody());
 		FieldDeclaration[] fields = targetTypeDeclaration.getFields();
 		for(FieldDeclaration field : fields) {
 			List<VariableDeclarationFragment> fragments = field.fragments();
 			for(VariableDeclarationFragment fragment : fragments) {
 				SimpleName fragmentName = fragment.getName();
-				for(Expression expression : variableInstructions) {
+				int i = 0;
+				for(Expression expression : sourceFieldInstructions) {
 					SimpleName simpleName = (SimpleName)expression;
 					if(simpleName.getParent() instanceof QualifiedName && fragmentName.getIdentifier().equals(simpleName.getIdentifier())) {
 						QualifiedName qualifiedName = (QualifiedName)simpleName.getParent();
-						if(targetClassVariableNames.contains(qualifiedName.getQualifier().getFullyQualifiedName())) {
-							targetRewriter.replace(qualifiedName, simpleName, null);
+						if(qualifiedName.getQualifier().resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+							SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
+							targetRewriter.replace(newSimpleName.getParent(), simpleName, null);
 						}
 					}
+					i++;
 				}
 			}
 		}
 	}
 	
-	private void modifyTargetStaticFieldInstructions(Statement statement) {
+	private void modifyTargetStaticFieldInstructions(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
-		List<Expression> variableInstructions = extractor.getVariableInstructions(statement);
+		List<Expression> variableInstructions = extractor.getVariableInstructions(newMethodDeclaration.getBody());
 		FieldDeclaration[] fields = sourceTypeDeclaration.getFields();
-		AST ast = statement.getAST();
+		AST ast = newMethodDeclaration.getAST();
 		for(FieldDeclaration field : fields) {
-			if((field.getModifiers() & Modifier.STATIC) != 0){
+			if((field.getModifiers() & Modifier.STATIC) != 0) {
 				List<VariableDeclarationFragment> fragments = field.fragments();
 				for(VariableDeclarationFragment fragment : fragments) {
 					SimpleName fragmentName = fragment.getName();
@@ -559,6 +589,7 @@ public class MoveMethodRefactoring implements Refactoring {
 					}
 					MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(i);
 					targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
+					setPublicModifierToSourceMethod(methodInvocation);
 				}
 			}
 			i++;
@@ -570,7 +601,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && variableBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding()) &&
-						(variableBinding.getModifiers() & Modifier.STATIC) == 0 && !targetClassVariableNames.contains(simpleName.getIdentifier())) {
+						(variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 					numberOfOccurences++;
 					if(numberOfOccurences == 1) {
 						parameterName = addSourceClassParameter(newMethodDeclaration);
@@ -587,6 +618,7 @@ public class MoveMethodRefactoring implements Refactoring {
 						QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 						targetRewriter.replace(expressionName, newQualifiedName, null);
 					}
+					setPublicModifierToSourceField(simpleName);
 				}
 			}
 			j++;
@@ -606,6 +638,61 @@ public class MoveMethodRefactoring implements Refactoring {
 		parametersRewrite.insertLast(parameter, null);
 		this.sourceClassParameterAdded = true;
 		return parameterName;
+	}
+
+	private void setPublicModifierToSourceField(SimpleName simpleName) {
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			if(fieldDeclaration.getType().resolveBinding().equals(simpleName.resolveTypeBinding())) {
+				List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+				for(VariableDeclarationFragment fragment : fragments) {
+					if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+						ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+						Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+						boolean modifierFound = false;
+						List<Modifier> modifiers = fieldDeclaration.modifiers();
+						for(Modifier modifier : modifiers){
+							if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
+								modifierFound = true;
+							}
+							else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+									modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
+								modifierFound = true;
+								modifierRewrite.replace(modifier, publicModifier, null);
+							}
+						}
+						if(!modifierFound){
+							modifierRewrite.insertFirst(publicModifier, null);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private void setPublicModifierToSourceMethod(MethodInvocation methodInvocation) {
+		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
+		for(MethodDeclaration methodDeclaration : methodDeclarations) {
+			if(identicalSignature(methodDeclaration, methodInvocation)) {
+				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+				Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+				boolean modifierFound = false;
+				List<Modifier> modifiers = methodDeclaration.modifiers();
+				for(Modifier modifier : modifiers){
+					if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
+						modifierFound = true;
+					}
+					else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+							modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
+						modifierFound = true;
+						modifierRewrite.replace(modifier, publicModifier, null);
+					}
+				}
+				if(!modifierFound){
+					modifierRewrite.insertFirst(publicModifier, null);
+				}
+			}
+		}
 	}
 
 	private MethodInvocation isDelegate(MethodDeclaration methodDeclaration) {

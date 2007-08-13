@@ -129,6 +129,10 @@ public class MethodBodyObject {
 		return this.compositeStatement.getVariableDeclarationStatement(lvdo);
 	}
 
+	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
+		return this.compositeStatement.getMethodInvocationStatements(methodInvocation);
+	}
+
 	public List<FieldInstructionObject> getFieldInstructions() {
 		return compositeStatement.getFieldInstructions();
 	}

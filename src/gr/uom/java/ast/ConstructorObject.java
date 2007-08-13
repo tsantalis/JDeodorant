@@ -1,5 +1,6 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.ArrayList;
 import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class ConstructorObject {
 
@@ -60,7 +62,15 @@ public class ConstructorObject {
     public ListIterator<ParameterObject> getParameterListIterator() {
 		return parameterList.listIterator();
 	}
-	
+
+	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
+		return methodBody.getVariableDeclarationStatement(lvdo);
+	}
+
+	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
+		return methodBody.getMethodInvocationStatements(methodInvocation);
+	}
+
 	public List<MethodInvocationObject> getMethodInvocations() {
 		return methodBody.getMethodInvocations();
 	}
@@ -72,7 +82,7 @@ public class ConstructorObject {
     public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
         return methodBody.getLocalVariableDeclarations();
     }
-    
+
     public List<LocalVariableInstructionObject> getLocalVariableInstructions() {
         return methodBody.getLocalVariableInstructions();
     }

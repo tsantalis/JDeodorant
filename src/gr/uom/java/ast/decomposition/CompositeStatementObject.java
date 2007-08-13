@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.LocalVariableDeclarationObject;
+import gr.uom.java.ast.MethodInvocationObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,6 +109,22 @@ public class CompositeStatementObject extends AbstractStatement {
 			}
 		}
 		return null;
+	}
+
+	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
+		List<AbstractStatement> methodInvocationStatements = new ArrayList<AbstractStatement>();
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof StatementObject) {
+				StatementObject statementObject = (StatementObject)statement;
+				if(statementObject.containsMethodInvocation(methodInvocation))
+					methodInvocationStatements.add(statementObject);
+			}
+			else if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+				methodInvocationStatements.addAll(compositeStatementObject.getMethodInvocationStatements(methodInvocation));
+			}
+		}
+		return methodInvocationStatements;
 	}
 
 	public List<AbstractStatement> getLocalVariableAssignments(LocalVariableDeclarationObject lvdo) {

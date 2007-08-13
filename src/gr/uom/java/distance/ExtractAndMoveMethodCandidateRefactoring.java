@@ -38,7 +38,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	this.sourceMethod = sourceMethod;
     	this.localVariableDeclaration = localVariableDeclaration;
     	this.statementList = statementList;
-    	this.variableDeclarationStatement = sourceMethod.getMethodObject().getMethodBody().getVariableDeclarationStatement(localVariableDeclaration);
+    	this.variableDeclarationStatement = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
     	
     	Set<String> entitySet = sourceMethod.getEntitySet(statementList.get(0));
     	for(int i=1; i<statementList.size(); i++) {
@@ -71,7 +71,9 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
     		TypeObject type = localVariableDeclaration.getType();
     		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    			return true;
+    			VariableDeclarationStatement variableDeclaration = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
+    			if(statementList.get(0).getStatement().getParent().equals(variableDeclaration.getParent()))
+    				return true;
     		}
     	}
     	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
@@ -220,7 +222,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 				if(!discreteLocalVariableInstructions.contains(instruction)) {
 					discreteLocalVariableInstructions.add(instruction);
 					VariableDeclarationStatement variableDeclarationStatement = 
-						sourceMethod.getMethodObject().getMethodBody().getVariableDeclarationStatement(new LocalVariableDeclarationObject(instruction.getType(), instruction.getName()));
+						sourceMethod.getMethodObject().getVariableDeclarationStatement(new LocalVariableDeclarationObject(instruction.getType(), instruction.getName()));
 					if(variableDeclarationStatement != null)
 						list.add(variableDeclarationStatement);
 				}

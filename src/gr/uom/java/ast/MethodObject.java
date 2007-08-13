@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class MethodObject {
 
@@ -244,6 +245,14 @@ public class MethodObject {
     public ListIterator<ParameterObject> getParameterListIterator() {
         return constructorObject.getParameterListIterator();
     }
+
+	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
+		return constructorObject.getVariableDeclarationStatement(lvdo);
+	}
+
+	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
+		return constructorObject.getMethodInvocationStatements(methodInvocation);
+	}
 
     public List<MethodInvocationObject> getMethodInvocations() {
         return constructorObject.getMethodInvocations();

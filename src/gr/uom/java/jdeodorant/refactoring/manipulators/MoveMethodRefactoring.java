@@ -300,20 +300,6 @@ public class MoveMethodRefactoring implements Refactoring {
 				targetClassVariableName = parameter.getName().getIdentifier();
 			}
 		}
-		/*if(targetClassVariableName == null) {
-			StatementExtractor statementExtractor = new StatementExtractor();
-			List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(sourceMethod.getBody());
-			for(Statement variableDeclarationStatement : variableDeclarationStatements) {
-				VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
-				List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
-        		for(VariableDeclarationFragment fragment : fragments) {
-        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
-        				targetClassVariableName = fragment.getName().getIdentifier();
-        				break;
-        			}
-        		}
-			}
-		}*/
 		if(targetClassVariableName == null) {
 			FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
         	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {

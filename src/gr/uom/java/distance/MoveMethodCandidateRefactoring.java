@@ -5,13 +5,16 @@ import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.TypeObject;
+import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     private MySystem system;
@@ -66,7 +69,16 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
     	    		TypeObject type = localVariableDeclaration.getType();
     	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    	    			return true;
+    	    			List<AbstractStatement> methodInvocationStatements = method.getMethodInvocationStatements(sourceMethodInvocation);
+    	    			VariableDeclarationStatement variableDeclaration = method.getVariableDeclarationStatement(localVariableDeclaration);
+    	    			int sameScopeCounter = 0;
+    	    			for(AbstractStatement methodInvocationStatement : methodInvocationStatements) {
+    	    				Statement methodInvocation = methodInvocationStatement.getStatement();
+    	    				if(methodInvocation.getParent().equals(variableDeclaration.getParent()))
+    	    					sameScopeCounter++;
+    	    			}
+    	    			if(sameScopeCounter == methodInvocationStatements.size())
+    	    				return true;
     	    		}
     	    	}
     	    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();

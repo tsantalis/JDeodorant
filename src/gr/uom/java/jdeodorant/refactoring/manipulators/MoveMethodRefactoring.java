@@ -387,7 +387,7 @@ public class MoveMethodRefactoring implements Refactoring {
     				        		}
     							}
     						}
-    						if(!foundInLocalVariableDeclarations) {
+    						if(!foundInArguments && !foundInLocalVariableDeclarations) {
     							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
     				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
     				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();

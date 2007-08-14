@@ -54,15 +54,17 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     private boolean hasReferenceToTargetClass() {
     	ListIterator<MethodObject> sourceMethodIterator = sourceClass.getClassObject().getMethodIterator();
     	MethodInvocationObject sourceMethodInvocation = sourceMethod.getMethodObject().generateMethodInvocation();
-    	boolean sourceMethodInvocationFound = false;
+    	int numberOfMethodsInvokingSourceMethod = 0;
+    	int numberOfMethodsHavingReferenceToTargetClass = 0;
     	while(sourceMethodIterator.hasNext()) {
     		MethodObject method = sourceMethodIterator.next();
     		if(method.containsMethodInvocation(sourceMethodInvocation)) {
-    			sourceMethodInvocationFound = true;
+    			boolean hasReferenceToTargetClass = false;
+    			numberOfMethodsInvokingSourceMethod++;
     			List<TypeObject> sourceMethodParameterTypes = method.getParameterTypeList();
     	    	for(TypeObject parameterType : sourceMethodParameterTypes) {
     	    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
-    	    			return true;
+    	    			hasReferenceToTargetClass = true;
     	    		}
     	    	}
     	    	List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = method.getLocalVariableDeclarations();
@@ -78,7 +80,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	    					sameScopeCounter++;
     	    			}
     	    			if(sameScopeCounter == methodInvocationStatements.size())
-    	    				return true;
+    	    				hasReferenceToTargetClass = true;
     	    		}
     	    	}
     	    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
@@ -86,12 +88,14 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	    		FieldObject field = sourceClassFieldIterator.next();
     	    		TypeObject type = field.getType();
     	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    	    			return true;
+    	    			hasReferenceToTargetClass = true;
     	    		}
     	    	}
+    	    	if(hasReferenceToTargetClass)
+    	    		numberOfMethodsHavingReferenceToTargetClass++;
     		}
     	}
-    	if(sourceMethodInvocationFound) {
+    	if(numberOfMethodsInvokingSourceMethod > 0 && numberOfMethodsInvokingSourceMethod != numberOfMethodsHavingReferenceToTargetClass) {
     		System.out.println(this.toString() + "\thas no reference to Target class");
     		return false;
     	}

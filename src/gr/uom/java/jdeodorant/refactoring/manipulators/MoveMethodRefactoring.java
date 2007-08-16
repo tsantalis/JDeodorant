@@ -36,6 +36,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -294,8 +295,8 @@ public class MoveMethodRefactoring implements Refactoring {
 		
 		modifySourceMemberAccessesInTargetClass(newMethodDeclaration);
 		if(targetClassVariableName != null) {
-			modifyTargetMethodInvocations(newMethodDeclaration, targetClassVariableName);
-			modifyTargetPublicFieldInstructions(newMethodDeclaration, targetClassVariableName);
+			modifyTargetMethodInvocations(newMethodDeclaration);
+			modifyTargetPublicFieldInstructions(newMethodDeclaration);
 		}
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
 
@@ -457,7 +458,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		return true;
 	}
 
-	private void modifyTargetMethodInvocations(MethodDeclaration newMethodDeclaration, String targetClassVariableName) {
+	private void modifyTargetMethodInvocations(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
 		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
@@ -466,10 +467,18 @@ public class MoveMethodRefactoring implements Refactoring {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				Expression methodInvocationExpression = methodInvocation.getExpression();
-				if(methodInvocationExpression instanceof SimpleName){
+				if(methodInvocationExpression instanceof SimpleName) {
 					SimpleName methodInvocationExpressionSimpleName = (SimpleName)methodInvocationExpression;
 					if(methodInvocationExpressionSimpleName.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
-							targetClassVariableName.equals(methodInvocationExpressionSimpleName.getIdentifier())) {
+							methodInvocationExpressionSimpleName.getIdentifier().equals(targetClassVariableName)) {
+						MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(i);
+						targetRewriter.remove(newMethodInvocation.getExpression(), null);
+					}
+				}
+				else if(methodInvocationExpression instanceof FieldAccess) {
+					FieldAccess methodInvocationExpressionFieldAccess = (FieldAccess)methodInvocationExpression;
+					if(methodInvocationExpressionFieldAccess.getName().resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
+							methodInvocationExpressionFieldAccess.getName().getIdentifier().equals(targetClassVariableName)) {
 						MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(i);
 						targetRewriter.remove(newMethodInvocation.getExpression(), null);
 					}
@@ -479,7 +488,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 	}
 
-	private void modifyTargetPublicFieldInstructions(MethodDeclaration newMethodDeclaration, String targetClassVariableName) {
+	private void modifyTargetPublicFieldInstructions(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
 		List<Expression> sourceFieldInstructions = extractor.getVariableInstructions(sourceMethod.getBody());
 		List<Expression> newFieldInstructions = extractor.getVariableInstructions(newMethodDeclaration.getBody());
@@ -494,9 +503,22 @@ public class MoveMethodRefactoring implements Refactoring {
 					if(simpleName.getParent() instanceof QualifiedName && fragmentName.getIdentifier().equals(simpleName.getIdentifier())) {
 						QualifiedName qualifiedName = (QualifiedName)simpleName.getParent();
 						if(qualifiedName.getQualifier().resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
-								targetClassVariableName.equals(qualifiedName.getQualifier().getFullyQualifiedName())) {
+								qualifiedName.getQualifier().getFullyQualifiedName().equals(targetClassVariableName)) {
 							SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
 							targetRewriter.replace(newSimpleName.getParent(), simpleName, null);
+						}
+					}
+					else if(simpleName.getParent() instanceof FieldAccess && fragmentName.getIdentifier().equals(simpleName.getIdentifier())) {
+						FieldAccess fieldAccess = (FieldAccess)simpleName.getParent();
+						Expression fieldAccessExpression = fieldAccess.getExpression();
+						if(fieldAccessExpression instanceof FieldAccess) {
+							FieldAccess invokerFieldAccess = (FieldAccess)fieldAccessExpression;
+							if(invokerFieldAccess.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
+									invokerFieldAccess.getName().getIdentifier().equals(targetClassVariableName) && invokerFieldAccess.getExpression() instanceof ThisExpression) {
+								SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
+								FieldAccess newFieldAccess = (FieldAccess)newSimpleName.getParent();
+								targetRewriter.replace(newFieldAccess.getExpression(), newMethodDeclaration.getAST().newThisExpression(), null);
+							}
 						}
 					}
 					i++;
@@ -597,15 +619,8 @@ public class MoveMethodRefactoring implements Refactoring {
 				if(variableBinding.isField() && variableBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding()) &&
 						(variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 					SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
-					if(expressionName.getParent() instanceof FieldAccess) {
-						if(expressionName.getIdentifier().equals(targetClassVariableName))
-							targetRewriter.remove(expressionName.getParent(), null);
-						else
-							targetRewriter.replace(expressionName.getParent(), expressionName, null);
-					}
-					else {
-						if(expressionName.getIdentifier().equals(targetClassVariableName))
-							targetRewriter.remove(expressionName, null);
+					if(expressionName.getParent() instanceof FieldAccess && !expressionName.getIdentifier().equals(targetClassVariableName)) {
+						targetRewriter.replace(expressionName.getParent(), expressionName, null);
 					}
 					if(!expressionName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
 						addParameterToMovedMethod(newMethodDeclaration, expressionName);

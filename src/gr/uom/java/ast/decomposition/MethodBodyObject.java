@@ -63,18 +63,7 @@ public class MethodBodyObject {
 			new LinkedHashMap<LocalVariableDeclarationObject, List<AbstractStatement>>();
 		
 		for(LocalVariableDeclarationObject lvdo : getLocalVariableDeclarations()) {
-			List<AbstractStatement> localVariableAssignments = new ArrayList<AbstractStatement>();
-			for(AbstractStatement statement : compositeStatement.getStatements()) {
-				if(statement instanceof StatementObject) {
-					StatementObject statementObject = (StatementObject)statement;
-					if(statementObject.isLocalVariableAssignment(lvdo))
-						localVariableAssignments.add(statementObject);
-				}
-				else if(statement instanceof CompositeStatementObject) {
-					CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
-					localVariableAssignments.addAll(compositeStatementObject.getLocalVariableAssignments(lvdo));
-				}
-			}
+			List<AbstractStatement> localVariableAssignments = compositeStatement.getLocalVariableAssignments(lvdo);
 			if(localVariableAssignments.size() > 0)
 				extractBlockMap.put(lvdo, localVariableAssignments);
 		}

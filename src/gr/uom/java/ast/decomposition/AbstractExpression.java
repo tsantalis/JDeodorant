@@ -127,6 +127,10 @@ public class AbstractExpression {
 		return methodInvocationList;
 	}
 
+	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
+		return methodInvocationList.contains(methodInvocation);
+	}
+
 	public boolean containsLocalVariableDeclaration(LocalVariableDeclarationObject lvdo) {
 		return localVariableDeclarationList.contains(lvdo);
 	}

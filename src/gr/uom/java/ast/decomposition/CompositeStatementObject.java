@@ -113,6 +113,10 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
 		List<AbstractStatement> methodInvocationStatements = new ArrayList<AbstractStatement>();
+		for(AbstractExpression expression : expressionList) {
+			if(expression.containsMethodInvocation(methodInvocation))
+				methodInvocationStatements.add(this);
+		}
 		for(AbstractStatement statement : statementList) {
 			if(statement instanceof StatementObject) {
 				StatementObject statementObject = (StatementObject)statement;

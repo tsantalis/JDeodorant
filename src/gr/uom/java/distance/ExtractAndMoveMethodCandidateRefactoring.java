@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -61,19 +62,25 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     private boolean hasReferenceToTargetClass() {
-    	List<TypeObject> sourceMethodParameterTypes = sourceMethod.getMethodObject().getParameterTypeList();
-    	for(TypeObject parameterType : sourceMethodParameterTypes) {
-    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
-    			return true;
-    		}
-    	}
     	List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = sourceMethod.getMethodObject().getLocalVariableDeclarations();
     	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
     		TypeObject type = localVariableDeclaration.getType();
     		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
     			VariableDeclarationStatement variableDeclaration = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
-    			if(statementList.get(0).getStatement().getParent().equals(variableDeclaration.getParent()))
-    				return true;
+    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
+    			Statement statement = statementList.get(0).getStatement();
+				ASTNode statementParent = statement.getParent();
+				while(!(statementParent instanceof MethodDeclaration)) {
+					if(statementParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < statement.getStartPosition())
+						return true;
+					statementParent = statementParent.getParent();
+				}
+    		}
+    	}
+    	List<TypeObject> sourceMethodParameterTypes = sourceMethod.getMethodObject().getParameterTypeList();
+    	for(TypeObject parameterType : sourceMethodParameterTypes) {
+    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
+    			return true;
     		}
     	}
     	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();

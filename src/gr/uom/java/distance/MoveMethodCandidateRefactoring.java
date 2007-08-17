@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -61,35 +62,46 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     		if(method.containsMethodInvocation(sourceMethodInvocation)) {
     			boolean hasReferenceToTargetClass = false;
     			numberOfMethodsInvokingSourceMethod++;
-    			List<TypeObject> sourceMethodParameterTypes = method.getParameterTypeList();
-    	    	for(TypeObject parameterType : sourceMethodParameterTypes) {
-    	    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
-    	    			hasReferenceToTargetClass = true;
-    	    		}
+    			List<AbstractStatement> methodInvocationStatements = method.getMethodInvocationStatements(sourceMethodInvocation);
+    	    	int sameScopeCounter = 0;
+    	    	for(AbstractStatement methodInvocationStatement : methodInvocationStatements) {
+    	    		List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = method.getLocalVariableDeclarations();
+        	    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
+        	    		TypeObject type = localVariableDeclaration.getType();
+        	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
+        	    			VariableDeclarationStatement variableDeclaration = method.getVariableDeclarationStatement(localVariableDeclaration);
+        	    			Statement methodInvocation = methodInvocationStatement.getStatement();
+    	    				ASTNode variableDeclarationParent = variableDeclaration.getParent();
+    	    				ASTNode methodInvocationParent = methodInvocation.getParent();
+    	    				while(!(methodInvocationParent instanceof MethodDeclaration)) {
+    	    					if(methodInvocationParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
+    	    						sameScopeCounter++;
+    	    						break;
+    	    					}
+    	    					methodInvocationParent = methodInvocationParent.getParent();
+    	    				}
+        	    		}
+        	    	}
     	    	}
-    	    	List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = method.getLocalVariableDeclarations();
-    	    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
-    	    		TypeObject type = localVariableDeclaration.getType();
-    	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    	    			List<AbstractStatement> methodInvocationStatements = method.getMethodInvocationStatements(sourceMethodInvocation);
-    	    			VariableDeclarationStatement variableDeclaration = method.getVariableDeclarationStatement(localVariableDeclaration);
-    	    			int sameScopeCounter = 0;
-    	    			for(AbstractStatement methodInvocationStatement : methodInvocationStatements) {
-    	    				Statement methodInvocation = methodInvocationStatement.getStatement();
-    	    				if(methodInvocation.getParent().equals(variableDeclaration.getParent()))
-    	    					sameScopeCounter++;
-    	    			}
-    	    			if(sameScopeCounter == methodInvocationStatements.size())
-    	    				hasReferenceToTargetClass = true;
-    	    		}
+    	    	if(sameScopeCounter >= methodInvocationStatements.size())
+    				hasReferenceToTargetClass = true;
+    	    	if(!hasReferenceToTargetClass) {
+	    			List<TypeObject> sourceMethodParameterTypes = method.getParameterTypeList();
+	    	    	for(TypeObject parameterType : sourceMethodParameterTypes) {
+	    	    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
+	    	    			hasReferenceToTargetClass = true;
+	    	    		}
+	    	    	}
     	    	}
-    	    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
-    	    	while(sourceClassFieldIterator.hasNext()) {
-    	    		FieldObject field = sourceClassFieldIterator.next();
-    	    		TypeObject type = field.getType();
-    	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    	    			hasReferenceToTargetClass = true;
-    	    		}
+    	    	if(!hasReferenceToTargetClass) {
+	    	    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
+	    	    	while(sourceClassFieldIterator.hasNext()) {
+	    	    		FieldObject field = sourceClassFieldIterator.next();
+	    	    		TypeObject type = field.getType();
+	    	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
+	    	    			hasReferenceToTargetClass = true;
+	    	    		}
+	    	    	}
     	    	}
     	    	if(hasReferenceToTargetClass)
     	    		numberOfMethodsHavingReferenceToTargetClass++;

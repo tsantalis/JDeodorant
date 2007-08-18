@@ -187,7 +187,7 @@ public class MethodObject {
     	return null;
     }
 
-    public boolean overridesAbstractMethod() {
+    public boolean overridesMethod() {
     	IMethodBinding methodBinding = getMethodDeclaration().resolveBinding();
     	ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
     	Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -197,10 +197,10 @@ public class MethodObject {
     	ITypeBinding[] interfaceTypeBindings = declaringClassTypeBinding.getInterfaces();
     	for(ITypeBinding interfaceTypeBinding : interfaceTypeBindings)
     		typeBindings.add(interfaceTypeBinding);
-    	return overridesAbstractMethod(typeBindings);
+    	return overridesMethod(typeBindings);
     }
 
-    private boolean overridesAbstractMethod(Set<ITypeBinding> typeBindings) {
+    private boolean overridesMethod(Set<ITypeBinding> typeBindings) {
     	IMethodBinding methodBinding = getMethodDeclaration().resolveBinding();
     	Set<ITypeBinding> superTypeBindings = new LinkedHashSet<ITypeBinding>();
     	for(ITypeBinding typeBinding : typeBindings) {
@@ -218,17 +218,17 @@ public class MethodObject {
         		}
     		}
     		else {
-    			if((typeBinding.getModifiers() & Modifier.ABSTRACT) != 0) {
-    				IMethodBinding[] superClassMethodBindings = typeBinding.getDeclaredMethods();
-    	    		for(IMethodBinding superClassMethodBinding : superClassMethodBindings) {
-    	    			if((superClassMethodBinding.getModifiers() & Modifier.ABSTRACT) != 0 && methodBinding.overrides(superClassMethodBinding))
-    	    				return true;
-    	    		}
-    			}
+    			//if((typeBinding.getModifiers() & Modifier.ABSTRACT) != 0) {
+    			IMethodBinding[] superClassMethodBindings = typeBinding.getDeclaredMethods();
+    	    	for(IMethodBinding superClassMethodBinding : superClassMethodBindings) {
+    	    		if(methodBinding.overrides(superClassMethodBinding)/* && (superClassMethodBinding.getModifiers() & Modifier.ABSTRACT) != 0*/)
+    	    			return true;
+    	    	}
+    			//}
     		}
     	}
     	if(!superTypeBindings.isEmpty()) {
-    		return overridesAbstractMethod(superTypeBindings);
+    		return overridesMethod(superTypeBindings);
     	}
     	else
     		return false;

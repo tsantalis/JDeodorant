@@ -32,7 +32,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     }
 
     public boolean apply() {
-    	if(hasReferenceToTargetClass() && !overridesAbstractMethod()) {
+    	if(hasReferenceToTargetClass() && !overridesMethod()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
     	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -43,9 +43,9 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     		return false;
     }
 
-    private boolean overridesAbstractMethod() {
-    	if(sourceMethod.getMethodObject().overridesAbstractMethod()) {
-    		System.out.println(this.toString() + "\toverrides abstract method");
+    private boolean overridesMethod() {
+    	if(sourceMethod.getMethodObject().overridesMethod()) {
+    		System.out.println(this.toString() + "\toverrides method of superclass");
     		return true;
     	}
     	else

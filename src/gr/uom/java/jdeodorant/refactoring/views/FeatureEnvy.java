@@ -310,6 +310,7 @@ public class FeatureEnvy extends ViewPart {
 					undoStack.push(undoRefactoring);
 					undoStackMap.put(selectedProject, undoStack);
 				}
+				applyRefactoringAction.setEnabled(false);
 				undoRefactoringAction.setEnabled(true);
 			}
 		};

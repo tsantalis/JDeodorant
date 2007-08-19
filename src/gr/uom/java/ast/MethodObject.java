@@ -187,6 +187,46 @@ public class MethodObject {
     	return null;
     }
 
+    public boolean canBeMovedTo(ClassObject sourceClass, ClassObject targetClass) {
+    	List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
+    	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
+    		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
+    			VariableDeclarationStatement variableDeclarationStatement = 
+    				getVariableDeclarationStatement(new LocalVariableDeclarationObject(localVariableInstruction.getType(), localVariableInstruction.getName()));
+    			if(variableDeclarationStatement != null) {
+    				return false;
+    			}
+    			else {
+    				ListIterator<ParameterObject> parameterIterator = getParameterListIterator();
+    				while(parameterIterator.hasNext()) {
+    					ParameterObject parameter = parameterIterator.next();
+    					if(localVariableInstruction.getName().equals(parameter.getName()))
+    						return true;
+    				}
+    				ListIterator<FieldObject> fieldIterator = targetClass.getFieldIterator();
+    				while(fieldIterator.hasNext()) {
+    					FieldObject field = fieldIterator.next();
+    					if(localVariableInstruction.getName().equals(field.getName()))
+    						return true;
+    				}
+    			}
+    		}
+    	}
+    	List<MethodInvocationObject> methodInvocations = getMethodInvocations();
+    	for(MethodInvocationObject methodInvocation : methodInvocations) {
+    		if(methodInvocation.getOriginClassName().equals(sourceClass.getName())) {
+    			MethodObject invokedMethod = sourceClass.getMethod(methodInvocation);
+    			FieldInstructionObject fieldInstruction = invokedMethod.isGetter();
+    			if(fieldInstruction != null && fieldInstruction.getType().getClassType().equals(targetClass.getName()))
+    				return true;
+    			MethodInvocationObject delegation = invokedMethod.isDelegate();
+    			if(delegation != null && delegation.getOriginClassName().equals(targetClass.getName()))
+    				return true;
+    		}
+    	}
+    	return false;
+    }
+
     public boolean overridesMethod() {
     	IMethodBinding methodBinding = getMethodDeclaration().resolveBinding();
     	ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();

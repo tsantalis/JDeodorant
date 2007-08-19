@@ -33,7 +33,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     }
 
     public boolean apply() {
-    	if(hasReferenceToTargetClass() && !overridesMethod()) {
+    	if(canBeMoved() && hasReferenceToTargetClass() && !overridesMethod()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
     	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -42,6 +42,16 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	}
     	else
     		return false;
+    }
+
+    private boolean canBeMoved() {
+    	if(sourceMethod.getMethodObject().canBeMovedTo(sourceClass.getClassObject(), targetClass.getClassObject())) {
+    		return true;
+    	}
+    	else {
+    		System.out.println(this.toString() + "\tcannot be moved");
+    		return false;
+    	}
     }
 
     private boolean overridesMethod() {

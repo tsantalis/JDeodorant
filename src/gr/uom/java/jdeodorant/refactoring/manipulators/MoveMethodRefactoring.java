@@ -401,7 +401,8 @@ public class MoveMethodRefactoring implements Refactoring {
     								VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
     								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
     				        		for(VariableDeclarationFragment fragment : fragments) {
-    				        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+    				        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
+    				        					variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
     				        				foundInLocalVariableDeclarations = true;
     				        				sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
     				        				break;

@@ -104,6 +104,10 @@ public class MyMethodBody {
 		this.compositeStatement.replaceAttributeInstruction(oldInstruction, newInstruction);
 	}
 
+    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
+    	this.compositeStatement.removeAttributeInstruction(attributeInstruction);
+    }
+
 	public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	this.compositeStatement.setAttributeInstructionReference(myAttributeInstruction, reference);
     }

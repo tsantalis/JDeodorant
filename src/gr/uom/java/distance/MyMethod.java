@@ -108,6 +108,11 @@ public class MyMethod extends Entity {
     		this.methodBody.replaceAttributeInstruction(oldInstruction, newInstruction);
     }
 
+    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
+    	if(this.methodBody != null)
+    		this.methodBody.removeAttributeInstruction(attributeInstruction);
+    }
+
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	if(this.methodBody != null)
     		this.methodBody.setAttributeInstructionReference(myAttributeInstruction, reference);

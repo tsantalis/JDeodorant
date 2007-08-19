@@ -561,7 +561,8 @@ public class MoveMethodRefactoring implements Refactoring {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				ITypeBinding methodInvocationDeclaringClassTypeBinding = methodInvocation.resolveMethodBinding().getDeclaringClass();
-				if(methodInvocationDeclaringClassTypeBinding.getQualifiedName().equals(sourceTypeDeclaration.resolveBinding().getQualifiedName())) {
+				if(methodInvocationDeclaringClassTypeBinding.getQualifiedName().equals(sourceTypeDeclaration.resolveBinding().getQualifiedName()) &&
+						(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression)) {
 					MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
 					for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
 						if(identicalSignature(sourceMethodDeclaration, methodInvocation)) {
@@ -584,15 +585,17 @@ public class MoveMethodRefactoring implements Refactoring {
 					Expression methodInvocationExpression = methodInvocation.getExpression();
 					if(methodInvocationExpression instanceof MethodInvocation) {
 						MethodInvocation invoker = (MethodInvocation)methodInvocationExpression;
-						MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
-						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
-							if(identicalSignature(sourceMethodDeclaration, invoker)) {
-								SimpleName fieldInstruction = isGetter(sourceMethodDeclaration);
-								if(fieldInstruction != null && fieldInstruction.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
-									int index = sourceMethodInvocations.indexOf(invoker);
-									targetRewriter.remove(newMethodInvocations.get(index), null);
-									expressionsToBeRemoved.add(invoker);
-									expressionsToBeRemoved.add(methodInvocation);
+						if(invoker.getExpression() == null || invoker.getExpression() instanceof ThisExpression) {
+							MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
+							for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
+								if(identicalSignature(sourceMethodDeclaration, invoker)) {
+									SimpleName fieldInstruction = isGetter(sourceMethodDeclaration);
+									if(fieldInstruction != null && fieldInstruction.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+										int index = sourceMethodInvocations.indexOf(invoker);
+										targetRewriter.remove(newMethodInvocations.get(index), null);
+										expressionsToBeRemoved.add(invoker);
+										expressionsToBeRemoved.add(methodInvocation);
+									}
 								}
 							}
 						}
@@ -619,10 +622,15 @@ public class MoveMethodRefactoring implements Refactoring {
 				if(variableBinding.isField() && variableBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding()) &&
 						(variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 					SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
-					if(expressionName.getParent() instanceof FieldAccess && !expressionName.getIdentifier().equals(targetClassVariableName)) {
-						targetRewriter.replace(expressionName.getParent(), expressionName, null);
+					if(expressionName.getParent() instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)expressionName.getParent();
+						if(fieldAccess.getExpression() instanceof ThisExpression && !expressionName.getIdentifier().equals(targetClassVariableName)) {
+							targetRewriter.replace(expressionName.getParent(), expressionName, null);
+							if(!additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
+								addParameterToMovedMethod(newMethodDeclaration, expressionName);
+						}
 					}
-					if(!expressionName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
+					else if(!expressionName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
 						addParameterToMovedMethod(newMethodDeclaration, expressionName);
 				}
 			}
@@ -633,25 +641,27 @@ public class MoveMethodRefactoring implements Refactoring {
 		for(Expression expression : sourceMethodInvocations) {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				if(methodBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding())) {
-					MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
-					for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
-						if(identicalSignature(sourceMethodDeclaration, methodInvocation)) {
-							SimpleName fieldName = isGetter(sourceMethodDeclaration);
-							MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
-							if(fieldName != null) {
-								AST ast = newMethodDeclaration.getAST();
-								targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
-								if(!fieldName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(fieldName.getIdentifier()))
-									addParameterToMovedMethod(newMethodDeclaration, fieldName);
-							}
-							else {
-								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
-									parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+				if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
+					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+					if(methodBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding())) {
+						MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
+						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
+							if(identicalSignature(sourceMethodDeclaration, methodInvocation)) {
+								SimpleName fieldName = isGetter(sourceMethodDeclaration);
+								MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
+								if(fieldName != null) {
+									AST ast = newMethodDeclaration.getAST();
+									targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
+									if(!fieldName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(fieldName.getIdentifier()))
+										addParameterToMovedMethod(newMethodDeclaration, fieldName);
 								}
-								targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
-								setPublicModifierToSourceMethod(methodInvocation);
+								else {
+									if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+										parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+									}
+									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
+									setPublicModifierToSourceMethod(methodInvocation);
+								}
 							}
 						}
 					}

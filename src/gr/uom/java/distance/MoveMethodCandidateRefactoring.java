@@ -7,6 +7,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -122,10 +123,16 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
         newMethod.removeParameter(targetClass.getName());
 
         ListIterator<MyAttributeInstruction> instructionIterator = newMethod.getAttributeInstructionIterator();
+        List<MyAttributeInstruction> instructionsToBeRemoved = new ArrayList<MyAttributeInstruction>();
         while(instructionIterator.hasNext()) {
             MyAttributeInstruction instruction = instructionIterator.next();
-            if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin()))
-                newMethod.addParameter(instruction.getClassOrigin());
+            if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin())) {
+                newMethod.addParameter(instruction.getClassType());
+                instructionsToBeRemoved.add(instruction);
+            }
+        }
+        for(MyAttributeInstruction instruction : instructionsToBeRemoved) {
+        	newMethod.removeAttributeInstruction(instruction);
         }
         ListIterator<MyMethodInvocation> invocationIterator = newMethod.getMethodInvocationIterator();
         while(invocationIterator.hasNext()) {
@@ -144,6 +151,8 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
             ListIterator<MyAttribute> attributeIterator = myClass.getAttributeIterator();
             while(attributeIterator.hasNext()) {
                 MyAttribute attribute = attributeIterator.next();
+                if(attribute.getClassOrigin().equals(sourceClass.getName()))
+                	attribute.removeMethod(oldMethod);
                 attribute.replaceMethod(oldMethod,newMethod);
             }
             ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();

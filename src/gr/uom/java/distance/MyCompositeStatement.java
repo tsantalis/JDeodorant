@@ -57,6 +57,14 @@ public class MyCompositeStatement extends MyAbstractStatement {
 		}
     }
 
+
+    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
+    	super.removeAttributeInstruction(attributeInstruction);
+    	for(MyAbstractStatement statement : statementList) {
+			statement.removeAttributeInstruction(attributeInstruction);
+		}
+    }
+
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	super.setAttributeInstructionReference(myAttributeInstruction, reference);
     	for(MyAbstractStatement statement : statementList) {

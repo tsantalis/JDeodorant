@@ -198,6 +198,10 @@ public abstract class MyAbstractStatement {
         }
     }
 
+    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
+    	attributeInstructionList.remove(attributeInstruction);
+    }
+
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	int index = attributeInstructionList.indexOf(myAttributeInstruction);
     	if(index != -1) {

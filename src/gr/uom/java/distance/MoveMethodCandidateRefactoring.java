@@ -81,16 +81,18 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
         	    		TypeObject type = localVariableDeclaration.getType();
         	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
         	    			VariableDeclarationStatement variableDeclaration = method.getVariableDeclarationStatement(localVariableDeclaration);
-        	    			Statement methodInvocation = methodInvocationStatement.getStatement();
-    	    				ASTNode variableDeclarationParent = variableDeclaration.getParent();
-    	    				ASTNode methodInvocationParent = methodInvocation.getParent();
-    	    				while(!(methodInvocationParent instanceof MethodDeclaration)) {
-    	    					if(methodInvocationParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
-    	    						sameScopeCounter++;
-    	    						break;
-    	    					}
-    	    					methodInvocationParent = methodInvocationParent.getParent();
-    	    				}
+        	    			if(variableDeclaration != null) {
+	        	    			Statement methodInvocation = methodInvocationStatement.getStatement();
+	        	    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
+	    	    				ASTNode methodInvocationParent = methodInvocation.getParent();
+	    	    				while(!(methodInvocationParent instanceof MethodDeclaration)) {
+	    	    					if(methodInvocationParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
+	    	    						sameScopeCounter++;
+	    	    						break;
+	    	    					}
+	    	    					methodInvocationParent = methodInvocationParent.getParent();
+	    	    				}
+        	    			}
         	    		}
         	    	}
     	    	}

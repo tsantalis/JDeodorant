@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.MMImportCoupling;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.ExtractAndMoveMethodCandidateRefactoring;
@@ -407,6 +408,8 @@ public class FeatureEnvy extends ViewPart {
 	public CandidateRefactoring[] getTable(IProject iProject){
 		astReader = new ASTReader(iProject);
 		SystemObject systemObject = astReader.getSystemObject();
+		MMImportCoupling mmic = new MMImportCoupling(systemObject);
+		System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
 		MySystem system = new MySystem(systemObject);
 		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 

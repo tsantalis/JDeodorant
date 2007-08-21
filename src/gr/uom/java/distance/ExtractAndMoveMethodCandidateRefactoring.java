@@ -67,14 +67,16 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     		TypeObject type = localVariableDeclaration.getType();
     		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
     			VariableDeclarationStatement variableDeclaration = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
-    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
-    			Statement statement = statementList.get(0).getStatement();
-				ASTNode statementParent = statement.getParent();
-				while(!(statementParent instanceof MethodDeclaration)) {
-					if(statementParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < statement.getStartPosition())
-						return true;
-					statementParent = statementParent.getParent();
-				}
+    			if(variableDeclaration != null) {
+	    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
+	    			Statement statement = statementList.get(0).getStatement();
+					ASTNode statementParent = statement.getParent();
+					while(!(statementParent instanceof MethodDeclaration)) {
+						if(statementParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < statement.getStartPosition())
+							return true;
+						statementParent = statementParent.getParent();
+					}
+    			}
     		}
     	}
     	List<TypeObject> sourceMethodParameterTypes = sourceMethod.getMethodObject().getParameterTypeList();

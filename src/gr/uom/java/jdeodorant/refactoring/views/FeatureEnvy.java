@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.LCOM;
 import gr.uom.java.ast.MMImportCoupling;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
@@ -410,6 +411,9 @@ public class FeatureEnvy extends ViewPart {
 		SystemObject systemObject = astReader.getSystemObject();
 		MMImportCoupling mmic = new MMImportCoupling(systemObject);
 		System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
+		LCOM lcom = new LCOM(systemObject);
+		System.out.println("System Average LCOM2: " + lcom.getSystemAverageLCOM2());
+		System.out.println("System Average LCOM3: " + lcom.getSystemAverageLCOM3());
 		MySystem system = new MySystem(systemObject);
 		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 

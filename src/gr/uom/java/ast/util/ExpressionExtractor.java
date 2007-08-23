@@ -80,6 +80,12 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of ThisExpression objects
+	public List<Expression> getThisExpressions(Statement statement) {
+		instanceChecker = new InstanceOfThisExpression();
+		return getExpressions(statement);
+	}
+	
 	private List<Expression> getExpressions(Statement statement) {
 		List<Expression> expressionList = new ArrayList<Expression>();
 		if(statement instanceof Block) {
@@ -343,6 +349,8 @@ public class ExpressionExtractor {
 			ThisExpression thisExpression = (ThisExpression)expression;
 			if(thisExpression.getQualifier() != null)
 				expressionList.addAll(getExpressions(thisExpression.getQualifier()));
+			if(instanceChecker.instanceOf(thisExpression))
+				expressionList.add(thisExpression);
 		}
 		
 		return expressionList;

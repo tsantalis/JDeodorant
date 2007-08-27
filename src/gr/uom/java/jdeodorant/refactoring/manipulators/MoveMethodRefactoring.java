@@ -64,7 +64,6 @@ public class MoveMethodRefactoring implements Refactoring {
 	private String targetClassVariableName;
 	private Set<String> additionalArgumentsAddedToMovedMethod;
 	private boolean leaveDelegate;
-	private boolean sourceClassParameterAdded;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
 			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, boolean leaveDelegate) {
@@ -82,7 +81,6 @@ public class MoveMethodRefactoring implements Refactoring {
 		this.targetClassVariableName = null;
 		this.additionalArgumentsAddedToMovedMethod = new LinkedHashSet<String>();
 		this.leaveDelegate = leaveDelegate;
-		this.sourceClassParameterAdded = false;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {
@@ -295,7 +293,7 @@ public class MoveMethodRefactoring implements Refactoring {
         	}
 		}
 		
-		replaceThisExpressionWithourceClassParameter(newMethodDeclaration);
+		replaceThisExpressionWithSourceClassParameter(newMethodDeclaration);
 		modifySourceMemberAccessesInTargetClass(newMethodDeclaration);
 		if(targetClassVariableName != null) {
 			modifyTargetMethodInvocations(newMethodDeclaration);
@@ -687,7 +685,6 @@ public class MoveMethodRefactoring implements Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add("this");
-		sourceClassParameterAdded = true;
 		return parameterName;
 	}
 
@@ -812,16 +809,20 @@ public class MoveMethodRefactoring implements Refactoring {
 		return null;
 	}
 	
-	private void replaceThisExpressionWithourceClassParameter(MethodDeclaration newMethodDeclaration) {
+	private void replaceThisExpressionWithSourceClassParameter(MethodDeclaration newMethodDeclaration) {
 		SimpleName parameterName = null;
 		ExpressionExtractor extractor = new ExpressionExtractor();
 		List<Expression> thisExpressions = extractor.getThisExpressions(newMethodDeclaration.getBody());
-		if(!(thisExpressions.isEmpty() || sourceClassParameterAdded)) {
+		if(!thisExpressions.isEmpty() && !additionalArgumentsAddedToMovedMethod.contains("this")) {
 			parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
 		}
-		for(Expression thisExpression : thisExpressions){
+		else {
+			AST ast = newMethodDeclaration.getAST();
+			String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
+			parameterName = ast.newSimpleName(sourceTypeName.replace(sourceTypeName.charAt(0), Character.toLowerCase(sourceTypeName.charAt(0))));
+		}
+		for(Expression thisExpression : thisExpressions) {
 			targetRewriter.replace(thisExpression, parameterName, null);
 		}
-
 	}
 }

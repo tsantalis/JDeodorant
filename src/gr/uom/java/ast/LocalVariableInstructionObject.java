@@ -3,6 +3,7 @@ package gr.uom.java.ast;
 public class LocalVariableInstructionObject {
 	private TypeObject type;
     private String name;
+    private volatile int hashCode = 0;
 
     public LocalVariableInstructionObject(TypeObject type, String name) {
         this.type = type;
@@ -15,6 +16,10 @@ public class LocalVariableInstructionObject {
 
     public String getName() {
         return name;
+    }
+
+    public LocalVariableDeclarationObject generateLocalVariableDeclaration() {
+    	return new LocalVariableDeclarationObject(type, name);
     }
 
     public boolean equals(Object o) {
@@ -31,6 +36,16 @@ public class LocalVariableInstructionObject {
             return this.name.equals(lvdo.getName()) && this.type.equals(lvdo.getType());
         }
         return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + type.hashCode();
+    		result = 37*result + name.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

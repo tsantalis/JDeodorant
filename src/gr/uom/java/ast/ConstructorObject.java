@@ -64,31 +64,52 @@ public class ConstructorObject {
 	}
 
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
-		return methodBody.getVariableDeclarationStatement(lvdo);
+		if(methodBody != null)
+			return methodBody.getVariableDeclarationStatement(lvdo);
+		else
+			return null;
 	}
 
 	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
-		return methodBody.getMethodInvocationStatements(methodInvocation);
+		if(methodBody != null)
+			return methodBody.getMethodInvocationStatements(methodInvocation);
+		else
+			return new ArrayList<AbstractStatement>();
 	}
 
 	public List<MethodInvocationObject> getMethodInvocations() {
-		return methodBody.getMethodInvocations();
+		if(methodBody != null)
+			return methodBody.getMethodInvocations();
+		else
+			return new ArrayList<MethodInvocationObject>();
 	}
 
     public List<FieldInstructionObject> getFieldInstructions() {
-        return methodBody.getFieldInstructions();
+    	if(methodBody != null)
+    		return methodBody.getFieldInstructions();
+    	else
+    		return new ArrayList<FieldInstructionObject>();
     }
 
     public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
-        return methodBody.getLocalVariableDeclarations();
+    	if(methodBody != null)
+    		return methodBody.getLocalVariableDeclarations();
+    	else
+    		return new ArrayList<LocalVariableDeclarationObject>();
     }
 
     public List<LocalVariableInstructionObject> getLocalVariableInstructions() {
-        return methodBody.getLocalVariableInstructions();
+    	if(methodBody != null)
+    		return methodBody.getLocalVariableInstructions();
+    	else
+    		return new ArrayList<LocalVariableInstructionObject>();
     }
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
-    	return methodBody.containsMethodInvocation(methodInvocation);
+    	if(methodBody != null)
+    		return methodBody.containsMethodInvocation(methodInvocation);
+    	else
+    		return false;
     }
 
     public List<TypeObject> getParameterTypeList() {

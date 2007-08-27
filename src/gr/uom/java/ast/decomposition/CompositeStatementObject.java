@@ -35,33 +35,6 @@ public class CompositeStatementObject extends AbstractStatement {
 		this.expressionList = new ArrayList<AbstractExpression>();
 	}
 
-	public CompositeStatementObject(List<AbstractStatement> statementList) {
-		super(statementList);
-		this.statementList = new ArrayList<AbstractStatement>();
-		this.expressionList = new ArrayList<AbstractExpression>();
-		for(AbstractStatement statement : statementList) {
-			processAbstractStatement(this, statement);
-		}
-	}
-
-	private void processAbstractStatement(CompositeStatementObject parent, AbstractStatement statement) {
-		if(statement instanceof StatementObject) {
-			StatementObject child = new StatementObject(statement.getStatement());
-			parent.addStatement(child);
-		}
-		else if(statement instanceof CompositeStatementObject) {
-			CompositeStatementObject compositeStatement = (CompositeStatementObject)statement;
-			CompositeStatementObject child = new CompositeStatementObject(statement.getStatement());
-			List<AbstractExpression> expressionList = compositeStatement.getExpressions();
-			for(AbstractExpression abstractExpression : expressionList)
-				child.addExpression(new AbstractExpression(abstractExpression.getExpression()));
-			parent.addStatement(child);
-			List<AbstractStatement> statementList = compositeStatement.getStatements();
-			for(AbstractStatement abstractStatement : statementList)
-				processAbstractStatement(child, abstractStatement);
-		}
-	}
-
 	public void addStatement(AbstractStatement statement) {
 		statementList.add(statement);
 		statement.setParent(this);
@@ -79,11 +52,34 @@ public class CompositeStatementObject extends AbstractStatement {
 			for(AbstractStatement abstractStatement : statementList) {
 				if(abstractStatement instanceof CompositeStatementObject) {
 					CompositeStatementObject compositeStatementObject = (CompositeStatementObject)abstractStatement;
-					return compositeStatementObject.getStatementPosition(statement);
+					int statementPosition = compositeStatementObject.getStatementPosition(statement);
+					if(statementPosition != -1)
+						return statementPosition;
 				}
 			}
 		}
 		return -1;
+	}
+
+	public AbstractStatement getPreviousStatement(AbstractStatement statement) {
+		if(statementList.contains(statement)) {
+			int index = statementList.indexOf(statement);
+			if(index > 0)
+				return statementList.get(index-1);
+			else
+				return null;
+		}
+		else {
+			for(AbstractStatement abstractStatement : statementList) {
+				if(abstractStatement instanceof CompositeStatementObject) {
+					CompositeStatementObject compositeStatementObject = (CompositeStatementObject)abstractStatement;
+					AbstractStatement previousStatement = compositeStatementObject.getPreviousStatement(statement);
+					if(previousStatement != null)
+						return previousStatement;
+				}
+			}
+		}
+		return null;
 	}
 
 	public void addExpression(AbstractExpression expression) {

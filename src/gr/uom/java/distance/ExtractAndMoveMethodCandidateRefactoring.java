@@ -18,6 +18,8 @@ import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.ExtractionBlock;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ASTExtractionBlock;
 
 public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefactoring {
 	private MySystem system;
@@ -25,28 +27,47 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     private MyClass targetClass;
     //this is the method from which the extracted method is going to be extracted
     private MyMethod sourceMethod;
-    private LocalVariableDeclarationObject localVariableDeclaration;
-    private List<AbstractStatement> statementList;
-    private VariableDeclarationStatement variableDeclarationStatement;
+    private ExtractionBlock extractionBlock;
+    private MyMethodBody newMethodBody;
+    private List<MyAbstractStatement> extractionStatementList;
     private Set<String> entitySet;
     private double entityPlacement;
 
-    public ExtractAndMoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, 
-    		LocalVariableDeclarationObject localVariableDeclaration, List<AbstractStatement> statementList) {
+    public ExtractAndMoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass,
+    		MyMethod sourceMethod, ExtractionBlock extractionBlock) {
     	this.system = system;
     	this.sourceClass = sourceClass;
     	this.targetClass = targetClass;
     	this.sourceMethod = sourceMethod;
-    	this.localVariableDeclaration = localVariableDeclaration;
-    	this.statementList = statementList;
-    	this.variableDeclarationStatement = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
+    	this.extractionBlock = extractionBlock;
     	
-    	Set<String> entitySet = sourceMethod.getEntitySet(statementList.get(0));
-    	for(int i=1; i<statementList.size(); i++) {
-    		Set<String> setI = sourceMethod.getEntitySet(statementList.get(i));
-    		entitySet = DistanceCalculator.union(entitySet, setI);
+    	this.newMethodBody = null;
+    	List<MyAbstractStatement> myAbstractStatementList = new ArrayList<MyAbstractStatement>();
+    	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
+    		MyAbstractStatement myAbstractStatement = sourceMethod.getAbstractStatement(abstractStatement);
+    		if(myAbstractStatement instanceof MyStatement) {
+    			MyStatement myStatement = (MyStatement)myAbstractStatement;
+    			myAbstractStatementList.add(MyStatement.newInstance(myStatement));
+    		}
+    		else if(myAbstractStatement instanceof MyCompositeStatement) {
+    			MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myAbstractStatement;
+    			myAbstractStatementList.add(MyCompositeStatement.newInstance(myCompositeStatement));
+    		}
     	}
-    	this.entitySet = entitySet;
+    	this.extractionStatementList = myAbstractStatementList;
+    	if(extractionBlock.getParentStatementForCopy() == null) {
+	    	newMethodBody = new MyMethodBody(myAbstractStatementList);
+    	}
+    	else {
+    		MyAbstractStatement myParentStatement = sourceMethod.getAbstractStatement(extractionBlock.getParentStatementForCopy());
+    		MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myParentStatement;
+    		MyCompositeStatement copiedCompositeStatement = MyCompositeStatement.newInstance(myCompositeStatement);
+    		copiedCompositeStatement.removeAllStatementsExceptFrom(myAbstractStatementList);
+    		List<MyAbstractStatement> statementList = new ArrayList<MyAbstractStatement>();
+    		statementList.add(copiedCompositeStatement);
+    		newMethodBody = new MyMethodBody(statementList);
+    	}
+    	this.entitySet = newMethodBody.getEntitySet();
     }
 
     public boolean apply() {
@@ -69,7 +90,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			VariableDeclarationStatement variableDeclaration = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
     			if(variableDeclaration != null) {
 	    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
-	    			Statement statement = statementList.get(0).getStatement();
+	    			Statement statement = extractionBlock.getStatementsForExtraction().get(0).getStatement();
 					ASTNode statementParent = statement.getParent();
 					while(!(statementParent instanceof MethodDeclaration)) {
 						if(statementParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < statement.getStartPosition())
@@ -98,23 +119,8 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     private void virtualApplication(MySystem virtualSystem) {
-    	List<MyAbstractStatement> myAbstractStatementList = new ArrayList<MyAbstractStatement>();
-    	for(AbstractStatement abstractStatement : statementList) {
-    		MyAbstractStatement myAbstractStatement = sourceMethod.getAbstractStatement(abstractStatement);
-    		if(myAbstractStatement instanceof MyStatement) {
-    			MyStatement myStatement = (MyStatement)myAbstractStatement;
-    			myAbstractStatementList.add(MyStatement.newInstance(myStatement));
-    		}
-    		else if(myAbstractStatement instanceof MyCompositeStatement) {
-    			MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myAbstractStatement;
-    			myAbstractStatementList.add(MyCompositeStatement.newInstance(myCompositeStatement));
-    		}
-    	}
-    	
-    	MyMethodBody newMethodBody = new MyMethodBody(myAbstractStatementList);
-    	
     	List<LocalVariableInstructionObject> discreteLocalVariableInstructions = new ArrayList<LocalVariableInstructionObject>();
-		for(AbstractStatement abstractStatement : statementList) {
+		for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
 			List<LocalVariableInstructionObject> list = abstractStatement.getLocalVariableInstructions();
 			for(LocalVariableInstructionObject instruction : list) {
 				if(!discreteLocalVariableInstructions.contains(instruction))
@@ -124,18 +130,27 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	
 		List<String> parameterList = new ArrayList<String>();
 		for(LocalVariableInstructionObject instruction : discreteLocalVariableInstructions) {
-			if(!localVariableDeclaration.equals(instruction))
+			if(!extractionBlock.getReturnVariableDeclaration().equals(instruction.generateLocalVariableDeclaration()) &&
+					!extractionBlock.getAdditionalRequiredVariableDeclarations().contains(instruction.generateLocalVariableDeclaration()))
 				parameterList.add(instruction.getType().toString());
 		}
 		
-    	MyMethod newMethod = new MyMethod(sourceMethod.getClassOrigin(),localVariableDeclaration.getName(),
-    		localVariableDeclaration.getType().toString(),parameterList);
+    	MyMethod newMethod = new MyMethod(sourceMethod.getClassOrigin(),extractionBlock.getReturnVariableDeclaration().getName(),
+    			extractionBlock.getReturnVariableDeclaration().getType().toString(),parameterList);
     	newMethod.setMethodBody(newMethodBody);
     	
     	MyMethodInvocation newMethodInvocation = newMethod.generateMethodInvocation();
     	
     	MyMethod newSourceMethod = virtualSystem.getClass(sourceClass.getName()).getMethod(sourceMethod);
-    	newSourceMethod.replaceStatementsWithMethodInvocation(statementList, new MyStatement(newMethodInvocation));
+    	if(extractionBlock.getParentStatementForCopy() == null) {
+    		newSourceMethod.replaceStatementsWithMethodInvocation(extractionStatementList, new MyStatement(newMethodInvocation));
+    	}
+    	else {
+    		MyAbstractStatement parentStatement = newSourceMethod.getAbstractStatement(extractionBlock.getParentStatementForCopy());
+    		newSourceMethod.insertMethodInvocationBeforeStatement(parentStatement, new MyStatement(newMethodInvocation));
+    		for(MyAbstractStatement statementToRemove : extractionStatementList)
+    			newSourceMethod.removeStatement(statementToRemove);
+    	}
     	virtualSystem.getClass(sourceClass.getName()).addMethod(newMethod);
     	
     	ListIterator<MyAttributeInstruction> attributeInstructionIterator = newMethod.getAttributeInstructionIterator();
@@ -209,31 +224,41 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
         return sourceMethod.getMethodObject().getMethodDeclaration();
     }
 
-    public List<Statement> getStatementList() {
+    public List<Statement> getStatementsForExtraction() {
     	List<Statement> list = new ArrayList<Statement>();
-    	for(AbstractStatement abstractStatement : statementList) {
+    	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
     		list.add(abstractStatement.getStatement());
     	}
     	return list;
     }
 
-    public VariableDeclarationStatement getVariableDeclarationStatement() {
-    	return variableDeclarationStatement;
+    private VariableDeclarationStatement getReturnVariableDeclarationStatement() {
+    	return extractionBlock.getReturnVariableDeclarationStatement();
     }
-    
-    public VariableDeclarationFragment getVariableDeclarationFragment() {
+
+    private VariableDeclarationFragment getReturnVariableDeclarationFragment() {
+    	VariableDeclarationStatement variableDeclarationStatement = extractionBlock.getReturnVariableDeclarationStatement();
     	List<VariableDeclarationFragment> fragmentList = variableDeclarationStatement.fragments();
     	for(VariableDeclarationFragment fragment : fragmentList) {
-    		if(fragment.getName().getIdentifier().equals(localVariableDeclaration.getName()))
+    		if(fragment.getName().getIdentifier().equals(extractionBlock.getReturnVariableDeclaration().getName()))
+    			return fragment;
+    	}
+    	return null;
+    }
+    
+    private VariableDeclarationFragment getVariableDeclarationFragment(LocalVariableDeclarationObject lvdo, VariableDeclarationStatement variableDeclarationStatement) {
+    	List<VariableDeclarationFragment> fragmentList = variableDeclarationStatement.fragments();
+    	for(VariableDeclarationFragment fragment : fragmentList) {
+    		if(fragment.getName().getIdentifier().equals(lvdo.getName()))
     			return fragment;
     	}
     	return null;
     }
 
-    public List<VariableDeclarationStatement> getVariableDeclarationStatements() {
+    private List<VariableDeclarationStatement> getAllVariableDeclarationStatements() {
     	List<VariableDeclarationStatement> list = new ArrayList<VariableDeclarationStatement>();
     	List<LocalVariableInstructionObject> discreteLocalVariableInstructions = new ArrayList<LocalVariableInstructionObject>();
-		for(AbstractStatement abstractStatement : statementList) {
+		for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
 			List<LocalVariableInstructionObject> instructionList = abstractStatement.getLocalVariableInstructions();
 			for(LocalVariableInstructionObject instruction : instructionList) {
 				if(!discreteLocalVariableInstructions.contains(instruction)) {
@@ -248,6 +273,18 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 		return list;
     }
 
+    public ASTExtractionBlock getASTExtractionBlock() {
+    	ASTExtractionBlock astExtractionBlock = new ASTExtractionBlock(getReturnVariableDeclarationFragment(),
+    		getReturnVariableDeclarationStatement(), getStatementsForExtraction(), getAllVariableDeclarationStatements());
+    	if(extractionBlock.getParentStatementForCopy() != null)
+    		astExtractionBlock.setParentStatementForCopy(extractionBlock.getParentStatementForCopy().getStatement());
+    	for(LocalVariableDeclarationObject lvdo : extractionBlock.getAdditionalRequiredVariableDeclarations()) {
+    		VariableDeclarationStatement variableDeclarationStatement = extractionBlock.getAdditionalRequiredVariableDeclarationStatement(lvdo);
+    		astExtractionBlock.addRequiredVariableDeclarationStatement(getVariableDeclarationFragment(lvdo, variableDeclarationStatement), variableDeclarationStatement);
+    	}
+    	return astExtractionBlock;
+    }
+
     public MyClass getSourceClass() {
     	return sourceClass;
     }
@@ -260,12 +297,8 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	return sourceMethod;
     }
 
-    public LocalVariableDeclarationObject getLocalVariableDeclaration() {
-    	return localVariableDeclaration;
-    }
-
-    public List<AbstractStatement> getAbstractStatementList() {
-    	return statementList;
+    public ExtractionBlock getExtractionBlock() {
+    	return extractionBlock;
     }
 
     public Set<String> getEntitySet() {
@@ -277,6 +310,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
 	public String getSourceEntity() {
+		LocalVariableDeclarationObject localVariableDeclaration = extractionBlock.getReturnVariableDeclaration();
 		return sourceClass.getName() + "::" + localVariableDeclaration.getName() + "():" + localVariableDeclaration.getType();
 	}
 

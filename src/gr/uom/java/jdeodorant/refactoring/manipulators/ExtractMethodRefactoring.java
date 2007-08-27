@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -45,23 +46,16 @@ public class ExtractMethodRefactoring implements Refactoring {
 	private IFile sourceFile;
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
-	private VariableDeclarationStatement variableDeclarationStatement;
-	private VariableDeclarationFragment variableDeclarationFragment;
-	private List<Statement> extractStatementList;
-	//includes all variable declaration statements which are related with the extracted method
-	private List<VariableDeclarationStatement> variableDeclarationStatementList;
+	private ASTExtractionBlock extractionBlock;
 	private ASTRewrite sourceRewriter;
 	private UndoRefactoring undoRefactoring;
 	
 	public ExtractMethodRefactoring(IFile sourceFile, TypeDeclaration sourceTypeDeclaration, MethodDeclaration sourceMethodDeclaration, 
-			VariableDeclarationStatement variableDeclarationStatement, VariableDeclarationFragment variableDeclarationFragment, List<Statement> extractStatementList, List<VariableDeclarationStatement> variableDeclarationStatementList) {
+			ASTExtractionBlock extractionBlock) {
 		this.sourceFile = sourceFile;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.sourceMethodDeclaration = sourceMethodDeclaration;
-		this.variableDeclarationStatement = variableDeclarationStatement;
-		this.variableDeclarationFragment = variableDeclarationFragment;
-		this.extractStatementList = extractStatementList;
-		this.variableDeclarationStatementList = variableDeclarationStatementList;
+		this.extractionBlock = extractionBlock;
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.undoRefactoring = new UndoRefactoring();
 	}
@@ -90,10 +84,10 @@ public class ExtractMethodRefactoring implements Refactoring {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
-		SimpleName returnVariableSimpleName = variableDeclarationFragment.getName();
+		SimpleName returnVariableSimpleName = extractionBlock.getReturnVariableDeclarationFragment().getName();
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, returnVariableSimpleName, null);
 
-		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, variableDeclarationStatement.getType(), null);
+		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, extractionBlock.getReturnVariableDeclarationStatement().getType(), null);
 		
 		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		Modifier modifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
@@ -103,7 +97,9 @@ public class ExtractMethodRefactoring implements Refactoring {
 		List<SimpleName> extractedMethodArguments = new ArrayList<SimpleName>();
 		List<String> extractedMethodArgumentIdentifiers = new ArrayList<String>();
 		List<String> variableDeclarationIdentifiers = new ArrayList<String>();
-		for(Statement statement : extractStatementList) {
+		for(VariableDeclarationFragment fragment : extractionBlock.getAdditionalRequiredVariableDeclarationFragments())
+			variableDeclarationIdentifiers.add(fragment.getName().getIdentifier());
+		for(Statement statement : extractionBlock.getStatementsForExtraction()) {
 			List<Expression> list = extractor.getVariableInstructions(statement);
 			for(Expression expression : list) {
 				SimpleName simpleName = (SimpleName)expression;
@@ -128,7 +124,7 @@ public class ExtractMethodRefactoring implements Refactoring {
 		ListRewrite paramRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		for(SimpleName argument : extractedMethodArguments) {
 			Type argumentVariableDeclarationType = null;
-			for(VariableDeclarationStatement statement : variableDeclarationStatementList) {
+			for(VariableDeclarationStatement statement : extractionBlock.getAllVariableDeclarationStatements()) {
 				List<VariableDeclarationFragment> fragmentList = statement.fragments();
 				for(VariableDeclarationFragment fragment : fragmentList) {
 					if(fragment.getName().getIdentifier().equals(argument.getIdentifier())) {
@@ -156,17 +152,72 @@ public class ExtractMethodRefactoring implements Refactoring {
 		
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
 		ListRewrite bodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
-		VariableDeclarationFragment localVariableDeclarationFragment = newMethodBody.getAST().newVariableDeclarationFragment();
-		sourceRewriter.set(localVariableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
-		sourceRewriter.set(localVariableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, variableDeclarationFragment.getInitializer(), null);
+		VariableDeclarationFragment returnVariableDeclarationFragment = newMethodBody.getAST().newVariableDeclarationFragment();
+		sourceRewriter.set(returnVariableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
+		sourceRewriter.set(returnVariableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getInitializer(), null);
+		VariableDeclarationStatement returnVariableDeclarationStatement = 
+			newMethodBody.getAST().newVariableDeclarationStatement(returnVariableDeclarationFragment);
+		sourceRewriter.set(returnVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, extractionBlock.getReturnVariableDeclarationStatement().getType(), null);
+		bodyRewrite.insertLast(returnVariableDeclarationStatement, null);
 		
-		VariableDeclarationStatement localVariableDeclarationStatement = 
-			newMethodBody.getAST().newVariableDeclarationStatement(localVariableDeclarationFragment);
-		sourceRewriter.set(localVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
-		bodyRewrite.insertLast(localVariableDeclarationStatement, null);
-		for(Statement statement : extractStatementList) {
-			bodyRewrite.insertLast(statement, null);
+		for(VariableDeclarationFragment fragment : extractionBlock.getAdditionalRequiredVariableDeclarationFragments()) {
+			VariableDeclarationFragment variableDeclarationFragment = newMethodBody.getAST().newVariableDeclarationFragment();
+			sourceRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, fragment.getName(), null);
+			sourceRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, fragment.getInitializer(), null);
+			VariableDeclarationStatement variableDeclarationStatement = 
+				newMethodBody.getAST().newVariableDeclarationStatement(variableDeclarationFragment);
+			sourceRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, extractionBlock.getAdditionalRequiredVariableDeclarationStatement(fragment).getType(), null);
+			bodyRewrite.insertLast(variableDeclarationStatement, null);
 		}
+		
+		if(extractionBlock.getParentStatementForCopy() == null) {
+			for(Statement statement : extractionBlock.getStatementsForExtraction()) {
+				bodyRewrite.insertLast(statement, null);
+			}
+		}
+		else {
+			Statement parentStatement = extractionBlock.getParentStatementForCopy();
+			Statement copiedParentStatement = (Statement)ASTNode.copySubtree(ast, parentStatement);
+			if(copiedParentStatement.getNodeType() == ASTNode.IF_STATEMENT) {
+				IfStatement ifStatement = (IfStatement)copiedParentStatement;
+				Statement thenStatement = ifStatement.getThenStatement();
+				if(thenStatement.getNodeType() == ASTNode.BLOCK) {
+					Block oldThenBlock = (Block)((IfStatement)parentStatement).getThenStatement();
+					Block newThenBlock = (Block)thenStatement;
+					ListRewrite oldBlockRewrite = sourceRewriter.getListRewrite(oldThenBlock, Block.STATEMENTS_PROPERTY);
+					ListRewrite newBlockRewrite = sourceRewriter.getListRewrite(newThenBlock, Block.STATEMENTS_PROPERTY);
+					List<Statement> oldStatementList = oldThenBlock.statements();
+					List<Statement> newStatementList = newThenBlock.statements();
+					int i = 0;
+					for(Statement statement : oldStatementList) {
+						if(extractionBlock.getStatementsForExtraction().contains(statement))
+							oldBlockRewrite.remove(statement, null);
+						else
+							newBlockRewrite.remove(newStatementList.get(i), null);
+						i++;
+					}
+				}
+				Statement elseStatement = ifStatement.getElseStatement();
+				if(elseStatement.getNodeType() == ASTNode.BLOCK) {
+					Block oldElseBlock = (Block)((IfStatement)parentStatement).getElseStatement();
+					Block newElseBlock = (Block)elseStatement;
+					ListRewrite oldBlockRewrite = sourceRewriter.getListRewrite(oldElseBlock, Block.STATEMENTS_PROPERTY);
+					ListRewrite newBlockRewrite = sourceRewriter.getListRewrite(newElseBlock, Block.STATEMENTS_PROPERTY);
+					List<Statement> oldStatementList = oldElseBlock.statements();
+					List<Statement> newStatementList = newElseBlock.statements();
+					int i = 0;
+					for(Statement statement : oldStatementList) {
+						if(extractionBlock.getStatementsForExtraction().contains(statement))
+							oldBlockRewrite.remove(statement, null);
+						else
+							newBlockRewrite.remove(newStatementList.get(i), null);
+						i++;
+					}
+				}
+			}
+			bodyRewrite.insertLast(copiedParentStatement, null);
+		}
+		
 		ReturnStatement returnStatement = newMethodBody.getAST().newReturnStatement();
 		sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnVariableSimpleName, null);
 
@@ -176,20 +227,25 @@ public class ExtractMethodRefactoring implements Refactoring {
 		ListRewrite methodDeclarationRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
 		
-		replaceExtractedCodeWithMethodInvocation(extractedMethodArguments);
+		if(extractionBlock.getParentStatementForCopy() == null) {
+			replaceExtractedCodeWithMethodInvocation(extractedMethodArguments);
+		}
+		else {
+			insertMethodInvocationBeforeParentStatement(extractedMethodArguments);
+		}
 	}
 	
 	private void replaceExtractedCodeWithMethodInvocation(List<SimpleName> extractedMethodArguments) {
-		ASTNode parent = extractStatementList.get(0).getParent();
+		ASTNode parent = extractionBlock.getStatementsForExtraction().get(0).getParent();
 		Assignment assignment = parent.getAST().newAssignment();
-		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, variableDeclarationFragment.getName(), null);
-		if(variableDeclarationStatement.getType().isPrimitiveType() && parent != variableDeclarationStatement.getParent() && isLoop(parent))
+		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
+		if(extractionBlock.getReturnVariableDeclarationStatement().getType().isPrimitiveType() && parent != extractionBlock.getReturnVariableDeclarationStatement().getParent() && isLoop(parent))
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.PLUS_ASSIGN, null);
 		else
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
 		
 		MethodInvocation methodInvocation = assignment.getAST().newMethodInvocation();
-		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
 		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		
 		for(SimpleName argument : extractedMethodArguments) {
@@ -199,14 +255,33 @@ public class ExtractMethodRefactoring implements Refactoring {
 		
 		ExpressionStatement expressionStatement = parent.getAST().newExpressionStatement(assignment);
 		
-		for(int i=0; i<extractStatementList.size(); i++) {
-			Statement statement = extractStatementList.get(i);
+		for(int i=0; i<extractionBlock.getStatementsForExtraction().size(); i++) {
+			Statement statement = extractionBlock.getStatementsForExtraction().get(i);
 			ListRewrite bodyRewrite = sourceRewriter.getListRewrite(statement.getParent(), Block.STATEMENTS_PROPERTY);
-			if(i == extractStatementList.size()-1)
+			if(i == extractionBlock.getStatementsForExtraction().size()-1)
 				bodyRewrite.replace(statement, expressionStatement, null);
 			else
 				bodyRewrite.remove(statement, null);
 		}
+	}
+	
+	private void insertMethodInvocationBeforeParentStatement(List<SimpleName> extractedMethodArguments) {
+		ASTNode parentBlock = extractionBlock.getParentStatementForCopy().getParent();
+		Assignment assignment = parentBlock.getAST().newAssignment();
+		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
+		sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+		MethodInvocation methodInvocation = assignment.getAST().newMethodInvocation();
+		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
+		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+		
+		for(SimpleName argument : extractedMethodArguments) {
+			argumentRewrite.insertLast(argument, null);
+		}
+		sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, methodInvocation, null);
+		
+		ExpressionStatement expressionStatement = parentBlock.getAST().newExpressionStatement(assignment);
+		ListRewrite bodyRewrite = sourceRewriter.getListRewrite(parentBlock, Block.STATEMENTS_PROPERTY);
+		bodyRewrite.insertBefore(expressionStatement, extractionBlock.getParentStatementForCopy(), null);
 	}
 	
 	private boolean isLoop(ASTNode node) {

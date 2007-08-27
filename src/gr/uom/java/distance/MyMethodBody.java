@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
@@ -47,6 +48,11 @@ public class MyMethodBody {
 			MyCompositeStatement child = new MyCompositeStatement(statement, system);
 			parent.addStatement(child);
 			CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+			List<AbstractExpression> expressions = compositeStatementObject.getExpressions();
+			for(AbstractExpression expression : expressions) {
+				MyAbstractExpression myAbstractExpression = new MyAbstractExpression(expression, system);
+				child.addExpression(myAbstractExpression);
+			}
 			List<AbstractStatement> statements = compositeStatementObject.getStatements();
 			for(AbstractStatement statement2 : statements) {
 				processStatement(child, statement2);
@@ -72,14 +78,6 @@ public class MyMethodBody {
 
     public int getNumberOfMethodInvocations() {
         return this.compositeStatement.getNumberOfMethodInvocations();
-    }
-
-    public MyMethodInvocation getMethodInvocation(int pos) {
-        return this.compositeStatement.getMethodInvocation(pos);
-    }
-
-    public MyAttributeInstruction getAttributeInstruction(int pos) {
-        return this.compositeStatement.getAttributeInstruction(pos);
     }
 
     public ListIterator<MyMethodInvocation> getMethodInvocationIterator() {
@@ -116,12 +114,20 @@ public class MyMethodBody {
 		return this.compositeStatement.getAbstractStatement(statement);
 	}
 
-	public Set<String> getEntitySet(AbstractStatement statement) {
-		return this.compositeStatement.getEntitySet(statement);
+	public void insertMethodInvocationBeforeStatement(MyAbstractStatement parentStatement, MyStatement methodInvocation) {
+		this.compositeStatement.insertMethodInvocationBeforeStatement(parentStatement, methodInvocation);
 	}
 
-	public void replaceStatementsWithMethodInvocation(List<AbstractStatement> statementsToRemove, MyStatement methodInvocation) {
-		this.compositeStatement.replaceStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
+	public void removeStatement(MyAbstractStatement statementToRemove) {
+		this.compositeStatement.removeStatement(statementToRemove);
+	}
+
+	public void replaceStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
+		this.compositeStatement.replaceConsecutiveStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
+	}
+
+	public Set<String> getEntitySet() {
+		return this.compositeStatement.getEntitySet();
 	}
 
 	public static MyMethodBody newInstance(MyMethodBody methodBody) {

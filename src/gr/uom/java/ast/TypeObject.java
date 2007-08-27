@@ -37,6 +37,25 @@ public class TypeObject {
             return false;
     }
 
+    public boolean equalsClassType(TypeObject typeObject) {
+    	if(this.classType.equals("T") || typeObject.classType.equals("T"))
+    		return true;
+    	else
+    		return this.classType.equals(typeObject.classType);
+    }
+
+    public boolean equalsGenericType(TypeObject typeObject) {
+    	if(this.genericType == null && typeObject.genericType == null)
+    		return true;
+    	else if(this.genericType != null && typeObject.genericType != null) {
+    		if(this.genericType.equals("<T>") || typeObject.genericType.equals("<T>"))
+    			return true;
+    		else
+    			return this.genericType.equals(typeObject.genericType);
+    	}
+    	return false;
+    }
+
     public boolean equals(Object o) {
         if(this == o) {
             return true;

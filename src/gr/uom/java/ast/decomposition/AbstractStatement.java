@@ -100,21 +100,6 @@ public abstract class AbstractStatement {
 		}
     }
 
-    public AbstractStatement(List<AbstractStatement> statementList) {
-    	this.statement = null;
-    	this.parent = null;
-    	this.methodInvocationList = new ArrayList<MethodInvocationObject>();
-		this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
-		this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
-		this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
-		for(AbstractStatement statement : statementList) {
-			methodInvocationList.addAll(statement.getMethodInvocations());
-			fieldInstructionList.addAll(statement.getFieldInstructions());
-			localVariableDeclarationList.addAll(statement.getLocalVariableDeclarations());
-			localVariableInstructionList.addAll(statement.getLocalVariableInstructions());
-		}
-    }
-
     public void setParent(CompositeStatementObject parent) {
     	this.parent = parent;
     }

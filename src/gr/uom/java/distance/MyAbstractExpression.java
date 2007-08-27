@@ -3,7 +3,7 @@ package gr.uom.java.distance;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.AbstractExpression;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -11,20 +11,20 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
-public abstract class MyAbstractStatement {
+public class MyAbstractExpression {
 	
-	private AbstractStatement statement;
-	private MyCompositeStatement parent;
+	private AbstractExpression expression;
+	private MyCompositeStatement owner;
 	private List<MyMethodInvocation> methodInvocationList;
     private List<MyAttributeInstruction> attributeInstructionList;
     
-    public MyAbstractStatement(AbstractStatement statement, SystemObject system) {
-    	this.statement = statement;
-    	this.parent = null;
+    public MyAbstractExpression(AbstractExpression expression, SystemObject system) {
+    	this.expression = expression;
+    	this.owner = null;
     	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
         this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
         
-        List<FieldInstructionObject> fieldInstructions = statement.getFieldInstructions();
+        List<FieldInstructionObject> fieldInstructions = expression.getFieldInstructions();
         for(FieldInstructionObject fio : fieldInstructions) {
             if(system.getClassObject(fio.getOwnerClass()) != null && !fio.isStatic()) {
                 MyAttributeInstruction myAttributeInstruction = new MyAttributeInstruction(fio.getOwnerClass(),fio.getType().toString(),fio.getName());
@@ -34,7 +34,7 @@ public abstract class MyAbstractStatement {
             }
         }
 
-        List<MethodInvocationObject> methodInvocations = statement.getMethodInvocations();
+        List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
         for(MethodInvocationObject mio : methodInvocations) {
             if(system.getClassObject(mio.getOriginClassName()) != null) {
             	MethodInvocationObject methodInvocation;
@@ -53,7 +53,15 @@ public abstract class MyAbstractStatement {
             }
         }
     }
-    
+
+
+    private MyAbstractExpression(AbstractExpression expression) {
+    	this.expression = expression;
+    	this.owner = null;
+    	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
+        this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
+    }
+
     private boolean isAccessor(MethodInvocationObject methodInvocation, SystemObject system) {
     	FieldInstructionObject fieldInstruction = null;
     	if((fieldInstruction = system.containsGetter(methodInvocation)) != null) {
@@ -80,32 +88,6 @@ public abstract class MyAbstractStatement {
     		return recurseDelegations(delegation, system);
     	else
     		return methodInvocation;
-    }
-    
-    public MyAbstractStatement(List<MyAbstractStatement> statementList) {
-    	this.statement = null;
-    	this.parent = null;
-    	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
-        this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
-        for(MyAbstractStatement myAbstractStatement : statementList) {
-        	methodInvocationList.addAll(myAbstractStatement.methodInvocationList);
-        	attributeInstructionList.addAll(myAbstractStatement.attributeInstructionList);
-        }
-    }
-
-    public MyAbstractStatement(MyMethodInvocation methodInvocation) {
-    	this.statement = null;
-    	this.parent = null;
-    	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
-        this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
-        this.methodInvocationList.add(methodInvocation);
-    }
-
-    protected MyAbstractStatement(AbstractStatement statement) {
-    	this.statement = statement;
-    	this.parent = null;
-    	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
-        this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
     }
 
     public void setMethodInvocationList(List<MyMethodInvocation> list) {
@@ -150,20 +132,20 @@ public abstract class MyAbstractStatement {
         return attributeInstructionList.listIterator();
     }
 
-    public void setParent(MyCompositeStatement parent) {
-    	this.parent = parent;
+    public void setOwner(MyCompositeStatement owner) {
+    	this.owner = owner;
     }
 
-    public MyCompositeStatement getParent() {
-    	return this.parent;
+    public MyCompositeStatement getOwner() {
+    	return this.owner;
     }
 
-    public AbstractStatement getStatement() {
-    	return this.statement;
+    public AbstractExpression getExpression() {
+    	return this.expression;
     }
 
     public String toString() {
-    	return this.statement.toString();
+    	return this.expression.toString();
     }
 
     public void replaceMethodInvocationWithAttributeInstruction(MyMethodInvocation methodInvocation, MyAttributeInstruction attributeInstruction) {
@@ -202,13 +184,6 @@ public abstract class MyAbstractStatement {
     	}
     }
 
-    public MyAbstractStatement getAbstractStatement(AbstractStatement statement) {
-    	if(this.statement.equals(statement))
-    		return this;
-    	else
-    		return null;
-    }
-
     public Set<String> getEntitySet() {
         Set<String> set = new HashSet<String>();
         ListIterator<MyAttributeInstruction> attributeInstructionIterator = getAttributeInstructionIterator();
@@ -229,10 +204,25 @@ public abstract class MyAbstractStatement {
     	if(this == o)
     		return true;
     	
-    	if(o instanceof MyAbstractStatement) {
-    		MyAbstractStatement myAbstractStatement = (MyAbstractStatement)o;
-    		return this.statement.equals(myAbstractStatement.statement);
+    	if(o instanceof MyAbstractExpression) {
+    		MyAbstractExpression myAbstractExpression = (MyAbstractExpression)o;
+    		return this.expression.equals(myAbstractExpression.expression);
     	}
     	return false;
     }
+
+	public static MyAbstractExpression newInstance(MyAbstractExpression expression) {
+		MyAbstractExpression newExpression = new MyAbstractExpression(expression.getExpression());
+		ListIterator<MyMethodInvocation> methodInvocationIterator = expression.getMethodInvocationIterator();
+		while(methodInvocationIterator.hasNext()) {
+			MyMethodInvocation myMethodInvocation = methodInvocationIterator.next();
+			newExpression.addMethodInvocation(myMethodInvocation);
+		}
+		ListIterator<MyAttributeInstruction> attributeInstructionIterator = expression.getAttributeInstructionIterator();
+		while(attributeInstructionIterator.hasNext()) {
+			MyAttributeInstruction myAttributeInstruction = attributeInstructionIterator.next();
+			newExpression.addAttributeInstruction(myAttributeInstruction);
+		}
+		return newExpression;
+	}
 }

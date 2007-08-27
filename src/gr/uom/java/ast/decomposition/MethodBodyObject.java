@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Block;
@@ -50,50 +51,116 @@ public class MethodBodyObject {
 		}
 	}
 
-	public MethodBodyObject(List<AbstractStatement> statementList) {
-		this.compositeStatement = new CompositeStatementObject(statementList);
-	}
-
 	public CompositeStatementObject getCompositeStatement() {
 		return compositeStatement;
 	}
 
-	public Map<LocalVariableDeclarationObject, List<AbstractStatement>> generateBlocksForExtraction() {
-		Map<LocalVariableDeclarationObject, List<AbstractStatement>> extractBlockMap = 
+	public List<ExtractionBlock> generateExtractionBlocks() {
+		//contains the assignments corresponding to each local variable declaration
+		Map<LocalVariableDeclarationObject, List<AbstractStatement>> assignmentMap = 
 			new LinkedHashMap<LocalVariableDeclarationObject, List<AbstractStatement>>();
 		
 		for(LocalVariableDeclarationObject lvdo : getLocalVariableDeclarations()) {
 			List<AbstractStatement> localVariableAssignments = compositeStatement.getLocalVariableAssignments(lvdo);
 			if(localVariableAssignments.size() > 0)
-				extractBlockMap.put(lvdo, localVariableAssignments);
+				assignmentMap.put(lvdo, localVariableAssignments);
 		}
 		
-		Map<LocalVariableDeclarationObject, List<AbstractStatement>> finalExtractBlockMap = 
-			new LinkedHashMap<LocalVariableDeclarationObject, List<AbstractStatement>>();
+		List<ExtractionBlock> extractionBlockList = new ArrayList<ExtractionBlock>();
 		
-		for(LocalVariableDeclarationObject lvdo : extractBlockMap.keySet()) {
-			List<AbstractStatement> localVariableAssignments = extractBlockMap.get(lvdo);
+		for(LocalVariableDeclarationObject variableDeclaration : assignmentMap.keySet()) {
+			List<AbstractStatement> localVariableAssignments = assignmentMap.get(variableDeclaration);
+			//contains the local variable instructions found in the assignment statements
+			Set<LocalVariableInstructionObject> localVariableInstructions = new HashSet<LocalVariableInstructionObject>();
+			for(AbstractStatement localVariableAssignment : localVariableAssignments) {
+				List<LocalVariableInstructionObject> instructions = localVariableAssignment.getLocalVariableInstructions();
+				for(LocalVariableInstructionObject instruction : instructions) {
+					if(assignmentMap.containsKey(instruction.generateLocalVariableDeclaration()))
+						localVariableInstructions.add(instruction);
+				}
+			}
 			List<AbstractStatement> newLocalVariableAssignments = new ArrayList<AbstractStatement>();
-			Set<LocalVariableDeclarationObject> set = new HashSet<LocalVariableDeclarationObject>(extractBlockMap.keySet());
-			set.remove(lvdo);
+			//contains the local variable declarations that are not accepted within the scope of the assignment
+			Set<LocalVariableDeclarationObject> nonAcceptedVariableAssignments = new HashSet<LocalVariableDeclarationObject>(assignmentMap.keySet());
+			for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
+				LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
+				nonAcceptedVariableAssignments.remove(lvdo);
+			}
 			for(AbstractStatement statement : localVariableAssignments) {
 				CompositeStatementObject parent = statement.getParent();
 				AbstractStatement current = statement;
-				while(parent != null && parent.getLocalVariableAssignments(set).size() == 0) {
+				while(parent != null && parent.getLocalVariableAssignments(nonAcceptedVariableAssignments).size() == 0) {
 					current = parent;
 					parent = current.getParent();
 				}
 				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null)
 					newLocalVariableAssignments.add(current);
 			}
-			if( (newLocalVariableAssignments.size() > 1 && sameScope(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
-					(newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) )
-				finalExtractBlockMap.put(lvdo, newLocalVariableAssignments);
+			if( (newLocalVariableAssignments.size() > 1 && sameBlock(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
+					(newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) ) {
+				ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
+				for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
+					LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
+					if(!lvdo.equals(variableDeclaration)) {
+						VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(lvdo);
+						if(variableDeclarationStatement != null)
+							block.addRequiredVariableDeclarationStatement(lvdo, variableDeclarationStatement);
+					}
+				}
+				extractionBlockList.add(block);
+			}
+			else if(newLocalVariableAssignments.size() > 1) {
+				AbstractStatement parentStatement = sameParent(newLocalVariableAssignments);
+				if(parentStatement != null) {
+					List<AbstractStatement> tempLocalVariableAssignments = new ArrayList<AbstractStatement>(newLocalVariableAssignments);
+					for(AbstractStatement statement : tempLocalVariableAssignments) {
+						int index = newLocalVariableAssignments.indexOf(statement);
+						AbstractStatement previousStatement = this.compositeStatement.getPreviousStatement(statement);
+						while(previousStatement != null) {
+							if(previousStatement instanceof StatementObject) {
+								StatementObject previousStatementObject = (StatementObject)previousStatement;
+								if(!previousStatementObject.isLocalVariableAssignment(nonAcceptedVariableAssignments)) {
+									if(!(previousStatementObject.getStatement() instanceof EmptyStatement)) {
+										newLocalVariableAssignments.add(index, previousStatement);
+										index = newLocalVariableAssignments.indexOf(previousStatement);
+									}
+									previousStatement = this.compositeStatement.getPreviousStatement(previousStatement);
+								}
+								else {
+									break;
+								}
+							}
+							else if(previousStatement instanceof CompositeStatementObject) {
+								CompositeStatementObject previousCompositeStatement = (CompositeStatementObject)previousStatement;
+								if(previousCompositeStatement.getLocalVariableAssignments(nonAcceptedVariableAssignments).size() == 0) {
+									newLocalVariableAssignments.add(index, previousStatement);
+									index = newLocalVariableAssignments.indexOf(previousStatement);
+									previousStatement = this.compositeStatement.getPreviousStatement(previousStatement);
+								}
+								else {
+									break;
+								}
+							}
+						}
+					}
+					ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
+					for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
+						LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
+						if(!lvdo.equals(variableDeclaration)) {
+							VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(lvdo);
+							if(variableDeclarationStatement != null)
+								block.addRequiredVariableDeclarationStatement(lvdo, variableDeclarationStatement);
+						}
+					}
+					block.setParentStatementForCopy(parentStatement);
+					extractionBlockList.add(block);
+				}
+			}
 		}
-		return finalExtractBlockMap;
+		return extractionBlockList;
 	}
 
-	private boolean sameScope(List<AbstractStatement> list) {
+	private boolean sameBlock(List<AbstractStatement> list) {
 		AbstractStatement statement = list.get(0);
 		for(int i=1; i<list.size(); i++) {
 			if(!statement.getParent().equals(list.get(i).getParent()))
@@ -112,6 +179,55 @@ public class MethodBodyObject {
 			currentPosition = position;
 		}
 		return true;
+	}
+
+	private AbstractStatement sameParent(List<AbstractStatement> list) {
+		Map<AbstractStatement, Integer> depthOfNestingMap = new LinkedHashMap<AbstractStatement, Integer>();
+		for(AbstractStatement statement : list) {
+			int depthOfNesting = 0;
+			AbstractStatement parentStatement = statement.getParent();
+			while(parentStatement != null) {
+				parentStatement = parentStatement.getParent();
+				depthOfNesting++;
+			}
+			depthOfNestingMap.put(statement, depthOfNesting);
+		}
+		TreeSet<Integer> depths = new TreeSet<Integer>();
+		for(Integer depth : depthOfNestingMap.values()) {
+			depths.add(depth);
+		}
+		int minimumDepthOfNesting = depths.first();
+		if(minimumDepthOfNesting == 1) {
+			return null;
+		}
+		else {
+			for(AbstractStatement statement : depthOfNestingMap.keySet()) {
+				int depth = depthOfNestingMap.get(statement);
+				if(depth > minimumDepthOfNesting) {
+					AbstractStatement parentStatement = statement;
+					for(int i=0; i<depth-minimumDepthOfNesting; i++) {
+						parentStatement = parentStatement.getParent();
+					}
+					int index = list.indexOf(statement);
+					list.remove(index);
+					list.add(index, parentStatement);
+				}
+			}
+		}
+		List<AbstractStatement> parentStatements = new ArrayList<AbstractStatement>();
+		for(AbstractStatement statement : list) {
+			parentStatements.add(statement.getParent());
+		}
+		AbstractStatement parentStatement = parentStatements.get(0);
+		for(int i=1; i<parentStatements.size(); i++) {
+			if(!parentStatement.equals(parentStatements.get(i))) {
+				return sameParent(parentStatements);
+			}	
+		}
+		if(parentStatement.getParent() != null)
+			return parentStatement;
+		else
+			return null;
 	}
 
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {

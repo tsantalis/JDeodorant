@@ -1,7 +1,6 @@
 package gr.uom.java.distance;
 
-import gr.uom.java.ast.LocalVariableDeclarationObject;
-import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.ExtractionBlock;
 
 import java.util.*;
 
@@ -129,11 +128,10 @@ public class DistanceMatrix {
             while(methodIterator.hasNext()) {
                 MyMethod method = methodIterator.next();
                 if(method.getMethodObject().getMethodBody() != null) {
-	                Map<LocalVariableDeclarationObject, List<AbstractStatement>> extractBlockMap = 
-	                	method.getMethodObject().getMethodBody().generateBlocksForExtraction();
-	                for(LocalVariableDeclarationObject lvdo : extractBlockMap.keySet()) {
+	                List<ExtractionBlock> extractionBlockList = method.getMethodObject().getMethodBody().generateExtractionBlocks();
+	                for(ExtractionBlock block : extractionBlockList) {
 	                	ExtractAndMoveMethodCandidateRefactoring candidate = 
-	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,lvdo,extractBlockMap.get(lvdo));
+	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,block);
 	                	extractMethodCandidateRefactoringList.add(candidate);
 	                }
                 }
@@ -172,7 +170,7 @@ public class DistanceMatrix {
                         	MyClass targetClass = classList.get(j);
                         	ExtractAndMoveMethodCandidateRefactoring newCandidate = 
                         		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),targetClass,
-                        		candidate.getSourceMethod(),candidate.getLocalVariableDeclaration(),candidate.getAbstractStatementList());
+                        		candidate.getSourceMethod(),candidate.getExtractionBlock());
                         	boolean applicable = newCandidate.apply();
                         	if(applicable)
                         		candidateRefactoringList.add(newCandidate);

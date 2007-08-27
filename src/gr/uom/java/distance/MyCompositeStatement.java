@@ -11,20 +11,24 @@ import java.util.Set;
 public class MyCompositeStatement extends MyAbstractStatement {
 	
 	private List<MyAbstractStatement> statementList;
+	private List<MyAbstractExpression> expressionList;
 	
 	public MyCompositeStatement(AbstractStatement statement, SystemObject system) {
 		super(statement, system);
 		this.statementList = new ArrayList<MyAbstractStatement>();
+		this.expressionList = new ArrayList<MyAbstractExpression>();
 	}
 
 	public MyCompositeStatement(List<MyAbstractStatement> statementList) {
 		super(statementList);
 		this.statementList = statementList;
+		this.expressionList = new ArrayList<MyAbstractExpression>();
 	}
 
 	private MyCompositeStatement(AbstractStatement statement) {
 		super(statement);
 		this.statementList = new ArrayList<MyAbstractStatement>();
+		this.expressionList = new ArrayList<MyAbstractExpression>();
 	}
 
 	public void addStatement(MyAbstractStatement statement) {
@@ -36,10 +40,22 @@ public class MyCompositeStatement extends MyAbstractStatement {
 		return this.statementList.listIterator();
 	}
 
+	public void addExpression(MyAbstractExpression expression) {
+		expressionList.add(expression);
+		expression.setOwner(this);
+	}
+
+	public ListIterator<MyAbstractExpression> getExpressionIterator() {
+		return this.expressionList.listIterator();
+	}
+
 	public void replaceMethodInvocationWithAttributeInstruction(MyMethodInvocation methodInvocation, MyAttributeInstruction attributeInstruction) {
 		super.replaceMethodInvocationWithAttributeInstruction(methodInvocation, attributeInstruction);
 		for(MyAbstractStatement statement : statementList) {
 			statement.replaceMethodInvocationWithAttributeInstruction(methodInvocation, attributeInstruction);
+		}
+		for(MyAbstractExpression expression : expressionList) {
+			expression.replaceMethodInvocationWithAttributeInstruction(methodInvocation, attributeInstruction);
 		}
 	}
 
@@ -48,6 +64,9 @@ public class MyCompositeStatement extends MyAbstractStatement {
         for(MyAbstractStatement statement : statementList) {
 			statement.replaceMethodInvocation(oldMethodInvocation, newMethodInvocation);
 		}
+        for(MyAbstractExpression expression : expressionList) {
+        	expression.replaceMethodInvocation(oldMethodInvocation, newMethodInvocation);
+        }
     }
 
     public void replaceAttributeInstruction(MyAttributeInstruction oldInstruction, MyAttributeInstruction newInstruction) {
@@ -55,6 +74,9 @@ public class MyCompositeStatement extends MyAbstractStatement {
         for(MyAbstractStatement statement : statementList) {
 			statement.replaceAttributeInstruction(oldInstruction, newInstruction);
 		}
+        for(MyAbstractExpression expression : expressionList) {
+        	expression.replaceAttributeInstruction(oldInstruction, newInstruction);
+        }
     }
 
 
@@ -63,6 +85,9 @@ public class MyCompositeStatement extends MyAbstractStatement {
     	for(MyAbstractStatement statement : statementList) {
 			statement.removeAttributeInstruction(attributeInstruction);
 		}
+    	for(MyAbstractExpression expression : expressionList) {
+    		expression.removeAttributeInstruction(attributeInstruction);
+    	}
     }
 
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
@@ -70,6 +95,9 @@ public class MyCompositeStatement extends MyAbstractStatement {
     	for(MyAbstractStatement statement : statementList) {
 			statement.setAttributeInstructionReference(myAttributeInstruction, reference);
 		}
+    	for(MyAbstractExpression expression : expressionList) {
+    		expression.setAttributeInstructionReference(myAttributeInstruction, reference);
+    	}
     }
 
     public MyAbstractStatement getAbstractStatement(AbstractStatement statement) {
@@ -88,32 +116,23 @@ public class MyCompositeStatement extends MyAbstractStatement {
     	return null;
     }
 
-    public Set<String> getEntitySet(AbstractStatement statement) {
-    	Set<String> entitySet = super.getEntitySet(statement);
-    	if(entitySet != null) {
-    		return entitySet;
-    	}
-    	else {
-    		for(MyAbstractStatement myStatement : statementList) {
-    			entitySet = myStatement.getEntitySet(statement);
-    			if(entitySet != null)
-    				return entitySet;
-    		}
-    	}
-    	return null;
-    }
-    
-    private MyAbstractStatement getStatementPosition(AbstractStatement abstractStatement) {
-    	for(MyAbstractStatement myAbstractStatement : statementList) {
-    		if(myAbstractStatement.getStatement().equals(abstractStatement))
-    			return myAbstractStatement;
-    	}
-    	return null;
-    }
-    
     private void update() {
     	List<MyMethodInvocation> methodInvocationList = new ArrayList<MyMethodInvocation>();
     	List<MyAttributeInstruction> attributeInstructionList = new ArrayList<MyAttributeInstruction>();
+    	for(MyAbstractExpression myAbstractExpression : expressionList) {
+    		ListIterator<MyMethodInvocation> methodInvocationIterator = myAbstractExpression.getMethodInvocationIterator();
+    		while(methodInvocationIterator.hasNext()) {
+    			MyMethodInvocation methodInvocation = methodInvocationIterator.next();
+    			if(!methodInvocationList.contains(methodInvocation))
+    				methodInvocationList.add(methodInvocation);
+    		}
+    		ListIterator<MyAttributeInstruction> attributeInstructionIterator = myAbstractExpression.getAttributeInstructionIterator();
+    		while(attributeInstructionIterator.hasNext()) {
+    			MyAttributeInstruction attributeInstruction = attributeInstructionIterator.next();
+    			if(!attributeInstructionList.contains(attributeInstruction))
+    				attributeInstructionList.add(attributeInstruction);
+    		}
+    	}
     	for(MyAbstractStatement myAbstractStatement : statementList) {
     		ListIterator<MyMethodInvocation> methodInvocationIterator = myAbstractStatement.getMethodInvocationIterator();
     		while(methodInvocationIterator.hasNext()) {
@@ -135,11 +154,43 @@ public class MyCompositeStatement extends MyAbstractStatement {
     		parent.update();
     }
 
-    public void replaceStatementsWithMethodInvocation(List<AbstractStatement> statementsToRemove, MyStatement methodInvocation) {
+    public void insertMethodInvocationBeforeStatement(MyAbstractStatement parentStatement, MyStatement methodInvocation) {
+    	if(statementList.contains(parentStatement)) {
+    		int index = statementList.indexOf(parentStatement);
+    		methodInvocation.setParent(this);
+    		statementList.add(index, methodInvocation);
+    		update();
+    	}
+    	else {
+    		for(MyAbstractStatement myAbstractStatement : statementList) {
+    			if(myAbstractStatement instanceof MyCompositeStatement) {
+    				MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myAbstractStatement;
+    				myCompositeStatement.insertMethodInvocationBeforeStatement(parentStatement, methodInvocation);
+    			}
+    		}
+    	}
+    }
+
+    public void removeStatement(MyAbstractStatement statementToRemove) {
+    	if(statementList.contains(statementToRemove)) {
+    		statementList.remove(statementToRemove);
+    		update();
+    		return;
+    	}
+    	else {
+    		for(MyAbstractStatement statement : statementList) {
+    			if(statement instanceof MyCompositeStatement) {
+    				MyCompositeStatement myCompositeStatement = (MyCompositeStatement)statement;
+    				myCompositeStatement.removeStatement(statementToRemove);
+    			}
+    		}
+    	}
+    }
+
+    public void replaceConsecutiveStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
     	boolean found = true;
     	int lastIndexRemoved = -1;
-    	for(AbstractStatement abstractStatement : statementsToRemove) {
-    		MyAbstractStatement myAbstractStatement = getStatementPosition(abstractStatement);
+    	for(MyAbstractStatement myAbstractStatement : statementsToRemove) {
     		lastIndexRemoved = statementList.indexOf(myAbstractStatement);
     		if(lastIndexRemoved == -1)
     			found = false;
@@ -155,10 +206,39 @@ public class MyCompositeStatement extends MyAbstractStatement {
     		for(MyAbstractStatement myAbstractStatement : statementList) {
     			if(myAbstractStatement instanceof MyCompositeStatement) {
     				MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myAbstractStatement;
-    				myCompositeStatement.replaceStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
+    				myCompositeStatement.replaceConsecutiveStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
     			}
     		}
     	}
+    }
+
+    public void removeAllStatementsExceptFrom(List<MyAbstractStatement> statementsToKeep) {
+    	for(MyAbstractStatement myAbstractStatement : statementsToKeep) {
+    		if(statementList.contains(myAbstractStatement)) {
+    			List<MyAbstractStatement> statementsToRemove = new ArrayList<MyAbstractStatement>();
+    			for(MyAbstractStatement statement : statementList) {
+    				if(!statementsToKeep.contains(statement))
+    					statementsToRemove.add(statement);
+    			}
+    			statementList.removeAll(statementsToRemove);
+    			update();
+    		}
+    		else {
+    			for(MyAbstractStatement statement : statementList) {
+    				if(statement instanceof MyCompositeStatement) {
+    					MyCompositeStatement myCompositeStatement = (MyCompositeStatement)statement;
+    					myCompositeStatement.removeAllStatementsExceptFrom(statementsToKeep);
+    				}
+    			}
+    		}
+    	}
+    }
+
+    public Set<String> getEntitySet() {
+    	Set<String> entitySet = super.getEntitySet();
+    	for(MyAbstractExpression expression : expressionList)
+    		entitySet.addAll(expression.getEntitySet());
+    	return entitySet;
     }
 
     public static MyCompositeStatement newInstance(MyCompositeStatement statement) {
@@ -186,6 +266,12 @@ public class MyCompositeStatement extends MyAbstractStatement {
 				MyCompositeStatement newMyCompositeStatement = MyCompositeStatement.newInstance(myCompositeStatement);
 				newStatement.addStatement(newMyCompositeStatement);
 			}
+		}
+		ListIterator<MyAbstractExpression> expressionIterator = statement.getExpressionIterator();
+		while(expressionIterator.hasNext()) {
+			MyAbstractExpression myAbstractExpression = expressionIterator.next();
+			MyAbstractExpression newMyAbstractExpression = MyAbstractExpression.newInstance(myAbstractExpression);
+			newStatement.addExpression(newMyAbstractExpression);
 		}
 		return newStatement;
 	}

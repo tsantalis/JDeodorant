@@ -286,8 +286,7 @@ public class FeatureEnvy extends ViewPart {
 					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
 					
 					refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), 
-				    	candidate.getVariableDeclarationStatement(), candidate.getVariableDeclarationFragment(), candidate.getStatementList(), candidate.getVariableDeclarationStatements());
+						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), candidate.getASTExtractionBlock());
 				}
 				ITextEditor targetEditor = null;
 				ITextEditor sourceEditor = null;
@@ -346,12 +345,10 @@ public class FeatureEnvy extends ViewPart {
 					try {
 						ITextEditor targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
 						ITextEditor sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
-						List<Statement> statementList = candidate.getStatementList();
-						int startPosition = statementList.get(0).getStartPosition();
-						Statement lastStatement = statementList.get(statementList.size()-1);
-						int endPosition = lastStatement.getStartPosition() + lastStatement.getLength();
-						int length = endPosition - startPosition;
-						sourceEditor.selectAndReveal(startPosition, length);
+						List<Statement> statementList = candidate.getStatementsForExtraction();
+						for(Statement statement : statementList) {
+							sourceEditor.selectAndReveal(statement.getStartPosition(), statement.getLength());
+						}
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {

@@ -68,8 +68,6 @@ public class ASTReader {
 	}
 	
 	private void parseAST(IFile iFile) {
-        final ClassObject classObject = new ClassObject();
-        
         IJavaElement iJavaElement = JavaCore.create(iFile);
         ICompilationUnit iCompilationUnit = (ICompilationUnit)iJavaElement;
         ASTParser parser = ASTParser.newParser(AST.JLS3);
@@ -83,6 +81,7 @@ public class ASTReader {
         List<AbstractTypeDeclaration> typeDeclarationList = compilationUnit.types();
         for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarationList) {
         	if(abstractTypeDeclaration instanceof TypeDeclaration) {
+        		final ClassObject classObject = new ClassObject();
         		TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
 	        	fileMap.put(typeDeclaration, iFile);
 	        	compilationUnitMap.put(typeDeclaration, compilationUnit);

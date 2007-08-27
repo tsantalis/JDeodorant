@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition;
 
 import java.util.List;
+import java.util.Set;
 
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
@@ -68,6 +69,14 @@ public class StatementObject extends AbstractStatement {
 					}
 				}
 			}
+		}
+		return false;
+	}
+
+	public boolean isLocalVariableAssignment(Set<LocalVariableDeclarationObject> set) {
+		for(LocalVariableDeclarationObject lvdo : set) {
+			if(isLocalVariableAssignment(lvdo))
+				return true;
 		}
 		return false;
 	}

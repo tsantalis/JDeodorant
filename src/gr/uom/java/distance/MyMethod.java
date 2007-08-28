@@ -128,9 +128,9 @@ public class MyMethod extends Entity {
     		this.methodBody.removeStatement(statementToRemove);
     }
 
-    public void replaceStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
+    public void replaceSiblingStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
 		if(this.methodBody != null)
-			this.methodBody.replaceStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
+			this.methodBody.replaceSiblingStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
 	}
 
     public MyAbstractStatement getAbstractStatement(AbstractStatement statement) {

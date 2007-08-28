@@ -160,6 +160,7 @@ public class MyCompositeStatement extends MyAbstractStatement {
     		methodInvocation.setParent(this);
     		statementList.add(index, methodInvocation);
     		update();
+    		return;
     	}
     	else {
     		for(MyAbstractStatement myAbstractStatement : statementList) {
@@ -187,51 +188,51 @@ public class MyCompositeStatement extends MyAbstractStatement {
     	}
     }
 
-    public void replaceConsecutiveStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
-    	boolean found = true;
+    public void replaceSiblingStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
+    	boolean found = false;
     	int lastIndexRemoved = -1;
     	for(MyAbstractStatement myAbstractStatement : statementsToRemove) {
     		lastIndexRemoved = statementList.indexOf(myAbstractStatement);
-    		if(lastIndexRemoved == -1)
-    			found = false;
-    		else
+    		if(lastIndexRemoved != -1) {
     			statementList.remove(myAbstractStatement);
+    			found = true;
+    		}	
     	}
     	if(found) {
     		methodInvocation.setParent(this);
     		statementList.add(lastIndexRemoved, methodInvocation);
     		update();
+    		return;
     	}
     	else {
     		for(MyAbstractStatement myAbstractStatement : statementList) {
     			if(myAbstractStatement instanceof MyCompositeStatement) {
     				MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myAbstractStatement;
-    				myCompositeStatement.replaceConsecutiveStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
+    				myCompositeStatement.replaceSiblingStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
     			}
     		}
     	}
     }
 
-    public void removeAllStatementsExceptFrom(List<MyAbstractStatement> statementsToKeep) {
-    	for(MyAbstractStatement myAbstractStatement : statementsToKeep) {
-    		if(statementList.contains(myAbstractStatement)) {
-    			List<MyAbstractStatement> statementsToRemove = new ArrayList<MyAbstractStatement>();
-    			for(MyAbstractStatement statement : statementList) {
-    				if(!statementsToKeep.contains(statement))
-    					statementsToRemove.add(statement);
-    			}
-    			statementList.removeAll(statementsToRemove);
-    			update();
-    		}
-    		else {
-    			for(MyAbstractStatement statement : statementList) {
-    				if(statement instanceof MyCompositeStatement) {
-    					MyCompositeStatement myCompositeStatement = (MyCompositeStatement)statement;
-    					myCompositeStatement.removeAllStatementsExceptFrom(statementsToKeep);
-    				}
-    			}
-    		}
+    public void removeAllStatementsExceptFromSiblingStatements(List<MyAbstractStatement> statementsToKeep) {
+    	if(statementList.contains(statementsToKeep.get(0))) {
+    		List<MyAbstractStatement> statementsToRemove = new ArrayList<MyAbstractStatement>();
+			for(MyAbstractStatement statement : statementList) {
+				if(!statementsToKeep.contains(statement))
+					statementsToRemove.add(statement);
+			}
+			statementList.removeAll(statementsToRemove);
+			update();
+			return;
     	}
+    	else {
+			for(MyAbstractStatement statement : statementList) {
+				if(statement instanceof MyCompositeStatement) {
+					MyCompositeStatement myCompositeStatement = (MyCompositeStatement)statement;
+					myCompositeStatement.removeAllStatementsExceptFromSiblingStatements(statementsToKeep);
+				}
+			}
+		}
     }
 
     public Set<String> getEntitySet() {
@@ -243,6 +244,7 @@ public class MyCompositeStatement extends MyAbstractStatement {
 
     public static MyCompositeStatement newInstance(MyCompositeStatement statement) {
 		MyCompositeStatement newStatement = new MyCompositeStatement(statement.getStatement());
+		newStatement.setParent(statement.getParent());
 		ListIterator<MyMethodInvocation> methodInvocationIterator = statement.getMethodInvocationIterator();
 		while(methodInvocationIterator.hasNext()) {
 			MyMethodInvocation myMethodInvocation = methodInvocationIterator.next();

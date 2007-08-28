@@ -213,6 +213,7 @@ public class MyAbstractExpression {
 
 	public static MyAbstractExpression newInstance(MyAbstractExpression expression) {
 		MyAbstractExpression newExpression = new MyAbstractExpression(expression.getExpression());
+		newExpression.setOwner(expression.getOwner());
 		ListIterator<MyMethodInvocation> methodInvocationIterator = expression.getMethodInvocationIterator();
 		while(methodInvocationIterator.hasNext()) {
 			MyMethodInvocation myMethodInvocation = methodInvocationIterator.next();

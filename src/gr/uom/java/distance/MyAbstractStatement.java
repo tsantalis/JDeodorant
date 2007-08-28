@@ -224,7 +224,7 @@ public abstract class MyAbstractStatement {
         }
         return set;
     }
-    
+
     public boolean equals(Object o) {
     	if(this == o)
     		return true;
@@ -234,5 +234,9 @@ public abstract class MyAbstractStatement {
     		return this.statement.equals(myAbstractStatement.statement);
     	}
     	return false;
+    }
+
+    public int hashCode() {
+    	return statement.hashCode();
     }
 }

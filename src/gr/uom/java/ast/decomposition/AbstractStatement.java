@@ -156,43 +156,23 @@ public abstract class AbstractStatement {
 		typeObject.setArrayDimension(arrayDimension);
 		return typeObject;
 	}
-	
+
+	public boolean equals(Object o) {
+		if(this == o)
+    		return true;
+    	
+    	if(o instanceof AbstractStatement) {
+    		AbstractStatement abstractStatement = (AbstractStatement)o;
+    		return this.statement.equals(abstractStatement.statement);
+    	}
+    	return false;
+	}
+
+	public int hashCode() {
+		return statement.hashCode();
+	}
+
 	public String toString() {
-		/*
-		StringBuilder sb = new StringBuilder();
-		if(fieldInstructionList.size() > 0) {
-        	sb.append("FIELD_INSTRUCTIONS:");
-	        for(FieldInstructionObject fio : fieldInstructionList) {
-	        	sb.append("\n\t").append(fio.toString());
-	        }
-	        sb.append("\n");
-		}
-		if(localVariableDeclarationList.size() > 0) {
-        	sb.append("LOCAL_VARIABLE_DECLARATIONS:");
-	        for(LocalVariableDeclarationObject lvdo : localVariableDeclarationList) {
-	        	sb.append("\n\t").append(lvdo.toString());
-	        }
-	        sb.append("\n");
-        }
-        if(localVariableInstructionList.size() > 0) {
-        	sb.append("LOCAL_VARIABLE_INSTRUCTIONS:");
-	        for(LocalVariableInstructionObject lvio : localVariableInstructionList) {
-	        	sb.append("\n\t").append(lvio.toString());
-	        }
-	        sb.append("\n");
-        }
-        if(methodInvocationList.size() > 0) {
-        	sb.append("METHOD_INVOCATIONS:");
-	        for(MethodInvocationObject mio : methodInvocationList) {
-	            sb.append("\n\t").append(mio.toString());
-	        }
-	        sb.append("\n");
-        }
-        return sb.toString();
-        */
-		if(statement != null)
-			return statement.toString();
-		else
-			return null;
+		return statement.toString();
 	}
 }

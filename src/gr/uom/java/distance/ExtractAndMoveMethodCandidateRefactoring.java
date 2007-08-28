@@ -2,8 +2,10 @@ package gr.uom.java.distance;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -62,12 +64,32 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     		MyAbstractStatement myParentStatement = sourceMethod.getAbstractStatement(extractionBlock.getParentStatementForCopy());
     		MyCompositeStatement myCompositeStatement = (MyCompositeStatement)myParentStatement;
     		MyCompositeStatement copiedCompositeStatement = MyCompositeStatement.newInstance(myCompositeStatement);
-    		copiedCompositeStatement.removeAllStatementsExceptFrom(myAbstractStatementList);
+    		Map<MyCompositeStatement, ArrayList<MyAbstractStatement>> map = splitStatementsByParent(myAbstractStatementList);
+    		for(MyCompositeStatement key : map.keySet()) {
+    			copiedCompositeStatement.removeAllStatementsExceptFromSiblingStatements(map.get(key));
+    		}
     		List<MyAbstractStatement> statementList = new ArrayList<MyAbstractStatement>();
     		statementList.add(copiedCompositeStatement);
     		newMethodBody = new MyMethodBody(statementList);
     	}
     	this.entitySet = newMethodBody.getEntitySet();
+    }
+
+    private Map<MyCompositeStatement, ArrayList<MyAbstractStatement>> splitStatementsByParent(List<MyAbstractStatement> myAbstractStatementList) {
+    	Map<MyCompositeStatement, ArrayList<MyAbstractStatement>> map = new LinkedHashMap<MyCompositeStatement, ArrayList<MyAbstractStatement>>();
+    	for(MyAbstractStatement myAbstractStatement: myAbstractStatementList) {
+    		MyCompositeStatement parent = myAbstractStatement.getParent();
+    		if(map.containsKey(parent)) {
+    			List<MyAbstractStatement> list = map.get(parent);
+    			list.add(myAbstractStatement);
+    		}
+    		else {
+    			ArrayList<MyAbstractStatement> list = new ArrayList<MyAbstractStatement>();
+    			list.add(myAbstractStatement);
+    			map.put(parent, list);
+    		}
+    	}
+    	return map;
     }
 
     public boolean apply() {
@@ -143,7 +165,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	
     	MyMethod newSourceMethod = virtualSystem.getClass(sourceClass.getName()).getMethod(sourceMethod);
     	if(extractionBlock.getParentStatementForCopy() == null) {
-    		newSourceMethod.replaceStatementsWithMethodInvocation(extractionStatementList, new MyStatement(newMethodInvocation));
+    		newSourceMethod.replaceSiblingStatementsWithMethodInvocation(extractionStatementList, new MyStatement(newMethodInvocation));
     	}
     	else {
     		MyAbstractStatement parentStatement = newSourceMethod.getAbstractStatement(extractionBlock.getParentStatementForCopy());

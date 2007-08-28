@@ -122,8 +122,8 @@ public class MyMethodBody {
 		this.compositeStatement.removeStatement(statementToRemove);
 	}
 
-	public void replaceStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
-		this.compositeStatement.replaceConsecutiveStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
+	public void replaceSiblingStatementsWithMethodInvocation(List<MyAbstractStatement> statementsToRemove, MyStatement methodInvocation) {
+		this.compositeStatement.replaceSiblingStatementsWithMethodInvocation(statementsToRemove, methodInvocation);
 	}
 
 	public Set<String> getEntitySet() {

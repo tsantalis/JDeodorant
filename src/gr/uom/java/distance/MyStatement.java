@@ -21,6 +21,7 @@ public class MyStatement extends MyAbstractStatement {
 
 	public static MyStatement newInstance(MyStatement statement) {
 		MyStatement newStatement = new MyStatement(statement.getStatement());
+		newStatement.setParent(statement.getParent());
 		ListIterator<MyMethodInvocation> methodInvocationIterator = statement.getMethodInvocationIterator();
 		while(methodInvocationIterator.hasNext()) {
 			MyMethodInvocation myMethodInvocation = methodInvocationIterator.next();

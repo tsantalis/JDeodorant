@@ -286,7 +286,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 				if(!discreteLocalVariableInstructions.contains(instruction)) {
 					discreteLocalVariableInstructions.add(instruction);
 					VariableDeclarationStatement variableDeclarationStatement = 
-						sourceMethod.getMethodObject().getVariableDeclarationStatement(new LocalVariableDeclarationObject(instruction.getType(), instruction.getName()));
+						sourceMethod.getMethodObject().getVariableDeclarationStatement(instruction.generateLocalVariableDeclaration());
 					if(variableDeclarationStatement != null)
 						list.add(variableDeclarationStatement);
 				}

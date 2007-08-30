@@ -191,8 +191,7 @@ public class MethodObject {
     	List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
     	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
     		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
-    			VariableDeclarationStatement variableDeclarationStatement = 
-    				getVariableDeclarationStatement(new LocalVariableDeclarationObject(localVariableInstruction.getType(), localVariableInstruction.getName()));
+    			VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(localVariableInstruction.generateLocalVariableDeclaration());
     			if(variableDeclarationStatement != null) {
     				return false;
     			}
@@ -203,13 +202,18 @@ public class MethodObject {
     					if(localVariableInstruction.getName().equals(parameter.getName()))
     						return true;
     				}
-    				ListIterator<FieldObject> fieldIterator = targetClass.getFieldIterator();
-    				while(fieldIterator.hasNext()) {
-    					FieldObject field = fieldIterator.next();
-    					if(localVariableInstruction.getName().equals(field.getName()))
-    						return true;
-    				}
     			}
+    		}
+    	}
+    	List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
+    	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+    		if(fieldInstruction.getType().getClassType().equals(targetClass.getName())) {
+				ListIterator<FieldObject> fieldIterator = sourceClass.getFieldIterator();
+				while(fieldIterator.hasNext()) {
+					FieldObject field = fieldIterator.next();
+					if(fieldInstruction.getName().equals(field.getName()))
+						return true;
+				}
     		}
     	}
     	List<MethodInvocationObject> methodInvocations = getMethodInvocations();

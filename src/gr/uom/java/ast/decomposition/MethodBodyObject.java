@@ -101,7 +101,7 @@ public class MethodBodyObject {
 				ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
 				for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
 					LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
-					if(!lvdo.equals(variableDeclaration)) {
+					if(!lvdo.equals(variableDeclaration) && !hasAssignmentBeforeStatement(lvdo, newLocalVariableAssignments.get(0))) {
 						VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(lvdo);
 						if(variableDeclarationStatement != null)
 							block.addRequiredVariableDeclarationStatement(lvdo, variableDeclarationStatement);
@@ -146,7 +146,7 @@ public class MethodBodyObject {
 					ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
 					for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
 						LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
-						if(!lvdo.equals(variableDeclaration)) {
+						if(!lvdo.equals(variableDeclaration) && !hasAssignmentBeforeStatement(lvdo, newLocalVariableAssignments.get(0))) {
 							VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(lvdo);
 							if(variableDeclarationStatement != null)
 								block.addRequiredVariableDeclarationStatement(lvdo, variableDeclarationStatement);
@@ -228,6 +228,28 @@ public class MethodBodyObject {
 			return parentStatement;
 		else
 			return null;
+	}
+
+	private boolean hasAssignmentBeforeStatement(LocalVariableDeclarationObject lvdo, AbstractStatement statement) {
+		CompositeStatementObject parent = statement.getParent();
+		if(parent == null)
+			return false;
+		int statementPosition = parent.getStatementPosition(statement);
+		List<AbstractStatement> parentStatements = parent.getStatements();
+		for(int i=0; i<statementPosition; i++) {
+			AbstractStatement abstractStatement = parentStatements.get(i);
+			if(abstractStatement instanceof StatementObject) {
+				StatementObject statementObject = (StatementObject)abstractStatement;
+				if(statementObject.isLocalVariableAssignment(lvdo))
+					return true;
+			}
+			else if(abstractStatement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)abstractStatement;
+				if(compositeStatementObject.getLocalVariableAssignments(lvdo).size() > 0)
+					return true;
+			}
+		}
+		return hasAssignmentBeforeStatement(lvdo, parent);
 	}
 
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {

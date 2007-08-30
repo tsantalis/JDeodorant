@@ -293,7 +293,6 @@ public class MoveMethodRefactoring implements Refactoring {
         	}
 		}
 		
-		replaceThisExpressionWithSourceClassParameter(newMethodDeclaration);
 		modifySourceMemberAccessesInTargetClass(newMethodDeclaration);
 		if(targetClassVariableName != null) {
 			modifyTargetMethodInvocations(newMethodDeclaration);

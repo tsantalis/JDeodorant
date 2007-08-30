@@ -37,7 +37,7 @@ public class StatementObject extends AbstractStatement {
 	}
 	
 	public boolean isLocalVariableAssignment(LocalVariableDeclarationObject lvdo) {
-		LocalVariableInstructionObject lvio = new LocalVariableInstructionObject(lvdo.getType(), lvdo.getName());
+		LocalVariableInstructionObject lvio = lvdo.generateLocalVariableInstruction();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		if( getLocalVariableInstructions().contains(lvio) ) {
 			Statement statement = getStatement();

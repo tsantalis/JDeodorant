@@ -299,6 +299,8 @@ public class MoveMethodRefactoring implements Refactoring {
 			modifyTargetPublicFieldInstructions(newMethodDeclaration);
 		}
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
+		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
 
 		ListRewrite methodDeclarationRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
@@ -808,20 +810,50 @@ public class MoveMethodRefactoring implements Refactoring {
 		return null;
 	}
 	
-	private void replaceThisExpressionWithSourceClassParameter(MethodDeclaration newMethodDeclaration) {
-		SimpleName parameterName = null;
+	private void replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
-		List<Expression> thisExpressions = extractor.getThisExpressions(newMethodDeclaration.getBody());
-		if(!thisExpressions.isEmpty() && !additionalArgumentsAddedToMovedMethod.contains("this")) {
-			parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+		List<Expression> methodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		for(Expression invocation : methodInvocations) {
+			if(invocation instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)invocation;
+				List<Expression> arguments = methodInvocation.arguments();
+				for(Expression argument : arguments) {
+					if(argument instanceof SimpleName) {
+						SimpleName simpleNameArgument = (SimpleName)argument;
+						if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
+							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+							AST ast = newMethodDeclaration.getAST();
+							argumentRewrite.replace(argument, ast.newThisExpression(), null);
+						}
+					}
+				}
+			}
 		}
-		else {
-			AST ast = newMethodDeclaration.getAST();
-			String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
-			parameterName = ast.newSimpleName(sourceTypeName.replace(sourceTypeName.charAt(0), Character.toLowerCase(sourceTypeName.charAt(0))));
-		}
-		for(Expression thisExpression : thisExpressions) {
-			targetRewriter.replace(thisExpression, parameterName, null);
+	}
+	
+	private void replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> methodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		for(Expression invocation : methodInvocations) {
+			if(invocation instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)invocation;
+				List<Expression> arguments = methodInvocation.arguments();
+				for(Expression argument : arguments) {
+					if(argument instanceof ThisExpression) {
+						SimpleName parameterName = null;
+						if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+							parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+						}
+						else {
+							AST ast = newMethodDeclaration.getAST();
+							String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
+							parameterName = ast.newSimpleName(sourceTypeName.replace(sourceTypeName.charAt(0), Character.toLowerCase(sourceTypeName.charAt(0))));
+						}
+						ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+						argumentRewrite.replace(argument, parameterName, null);
+					}
+				}
+			}
 		}
 	}
 }

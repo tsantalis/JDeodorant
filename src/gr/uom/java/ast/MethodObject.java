@@ -17,7 +17,6 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
@@ -262,13 +261,11 @@ public class MethodObject {
         		}
     		}
     		else {
-    			//if((typeBinding.getModifiers() & Modifier.ABSTRACT) != 0) {
     			IMethodBinding[] superClassMethodBindings = typeBinding.getDeclaredMethods();
     	    	for(IMethodBinding superClassMethodBinding : superClassMethodBindings) {
-    	    		if(methodBinding.overrides(superClassMethodBinding)/* && (superClassMethodBinding.getModifiers() & Modifier.ABSTRACT) != 0*/)
+    	    		if(methodBinding.overrides(superClassMethodBinding))
     	    			return true;
     	    	}
-    			//}
     		}
     	}
     	if(!superTypeBindings.isEmpty()) {

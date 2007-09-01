@@ -93,7 +93,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(hasReferenceToTargetClass()) {
+    	if(canBeMoved() && hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -102,6 +102,16 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	}
     	else
     		return false;
+    }
+
+    private boolean canBeMoved() {
+    	if(extractionBlock.canBeMovedTo(sourceClass.getClassObject(), targetClass.getClassObject(), sourceMethod.getMethodObject())) {
+    		return true;
+    	}
+    	else {
+    		System.out.println(this.toString() + "\tcannot be moved");
+    		return false;
+    	}
     }
 
     private boolean hasReferenceToTargetClass() {

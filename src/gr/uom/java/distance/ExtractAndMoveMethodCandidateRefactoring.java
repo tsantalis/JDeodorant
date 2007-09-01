@@ -343,4 +343,47 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 	public double getEntityPlacement() {
 		return entityPlacement;
 	}
+	
+	public boolean isSubRefactoringOf(CandidateRefactoring refactoring) {
+		if(this == refactoring)
+			return false;
+		if(refactoring instanceof MoveMethodCandidateRefactoring) {
+			MoveMethodCandidateRefactoring moveMethodRefactoring = (MoveMethodCandidateRefactoring)refactoring;
+			if(this.sourceMethod.equals(moveMethodRefactoring.getSourceMethod()))
+				return true;
+		}
+		else if(refactoring instanceof ExtractAndMoveMethodCandidateRefactoring) {
+			ExtractAndMoveMethodCandidateRefactoring extractAndMoveRefactoring = (ExtractAndMoveMethodCandidateRefactoring)refactoring;
+			List<MyAbstractStatement> otherStatementList = extractAndMoveRefactoring.extractionStatementList;
+			for(MyAbstractStatement otherStatement : otherStatementList) {
+				List<MyAbstractStatement> thisStatementList = this.extractionStatementList;
+				for(MyAbstractStatement thisStatement : thisStatementList) {
+					if(thisStatement.equals(otherStatement)) {
+						AbstractStatement thisParentStatementForCopy = this.extractionBlock.getParentStatementForCopy();
+						AbstractStatement otherParentStatementForCopy = extractAndMoveRefactoring.extractionBlock.getParentStatementForCopy();
+						if(otherParentStatementForCopy != null) {
+							if(thisParentStatementForCopy == null) {
+								return true;
+							}
+							else {
+								AbstractStatement thisParent = thisParentStatementForCopy.getParent();
+								while(thisParent != null) {
+									if(thisParent.equals(otherParentStatementForCopy))
+										return true;
+									thisParent = thisParent.getParent();
+								}
+							}
+						}
+					}
+					MyCompositeStatement thisParent = thisStatement.getParent();
+					while(thisParent != null) {
+						if(thisParent.equals(otherStatement))
+							return true;
+						thisParent = thisParent.getParent();
+					}
+				}
+			}
+		}
+		return false;
+	}
 }

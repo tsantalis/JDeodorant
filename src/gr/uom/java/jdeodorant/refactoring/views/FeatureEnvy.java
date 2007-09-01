@@ -417,15 +417,37 @@ public class FeatureEnvy extends ViewPart {
 		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactorings();
 		List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactorings();
 		
-		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + extractMethodCandidateList.size() + 1];
+		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
+		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
+			boolean subRefactoring = false;
+			for(MoveMethodCandidateRefactoring moveMethodCandidate : moveMethodCandidateList) {
+				if(candidate.isSubRefactoringOf(moveMethodCandidate) && candidate.getTargetClass().equals(moveMethodCandidate.getTargetClass())) {
+					subRefactoring = true;
+					System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + moveMethodCandidate.toString());
+					break;
+				}
+			}
+			if(!subRefactoring) {
+				for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
+					if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass())) {
+						subRefactoring = true;
+						System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
+						break;
+					}
+				}
+			}
+			if(!subRefactoring) {
+				finalExtractMethodCandidateList.add(candidate);
+			}
+		}
 		
+		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + finalExtractMethodCandidateList.size() + 1];
 		table[0] = new InitialSystem(distanceMatrix);
 		int counter = 1;
-		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
+		for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;
 		}
-		
 		for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;

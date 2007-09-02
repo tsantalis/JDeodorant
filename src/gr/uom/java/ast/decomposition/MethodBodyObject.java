@@ -89,13 +89,31 @@ public class MethodBodyObject {
 			for(AbstractStatement statement : localVariableAssignments) {
 				CompositeStatementObject parent = statement.getParent();
 				AbstractStatement current = statement;
-				while(parent != null && parent.getLocalVariableAssignments(nonAcceptedVariableAssignments).size() == 0) {
+				while(parent != null && parent.getLocalVariableAssignments(nonAcceptedVariableAssignments).size() == 0 &&
+						parent.getLocalVariableDeclarations().size() == 0) {
 					current = parent;
 					parent = current.getParent();
 				}
 				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null)
 					newLocalVariableAssignments.add(current);
 			}
+			//
+			AbstractStatement currentStatement = newLocalVariableAssignments.get(0);
+			AbstractStatement parent = currentStatement.getParent();
+			if(parent.getParent() == null) {
+				boolean onlyLocalVariableDeclarationsFound = true;
+				AbstractStatement previousStatement = compositeStatement.getPreviousStatement(currentStatement);
+				while(previousStatement != null) {
+					if(!(previousStatement.getStatement() instanceof VariableDeclarationStatement)) {
+						onlyLocalVariableDeclarationsFound = false;
+						break;
+					}
+					previousStatement = compositeStatement.getPreviousStatement(previousStatement);
+				}
+				if(onlyLocalVariableDeclarationsFound)
+					newLocalVariableAssignments.clear();
+			}
+			//
 			if( (newLocalVariableAssignments.size() > 1 && sameBlock(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
 					(newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) ) {
 				ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);

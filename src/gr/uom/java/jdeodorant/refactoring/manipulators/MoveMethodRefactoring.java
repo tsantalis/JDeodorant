@@ -300,6 +300,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
+		insertTargetClassVariableNameAsVariableDeclaration(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
 
 		ListRewrite methodDeclarationRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
@@ -825,6 +826,31 @@ public class MoveMethodRefactoring implements Refactoring {
 							AST ast = newMethodDeclaration.getAST();
 							argumentRewrite.replace(argument, ast.newThisExpression(), null);
 						}
+					}
+				}
+			}
+		}
+	}
+	
+	private void insertTargetClassVariableNameAsVariableDeclaration(MethodDeclaration newMethodDeclaration) {
+		StatementExtractor extractor = new StatementExtractor();
+		List<Statement> variableDeclarations = extractor.getVariableDeclarations(newMethodDeclaration.getBody());
+		for(Statement declaration : variableDeclarations) {
+			VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)declaration;
+			List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				Expression initializer = fragment.getInitializer();
+				if(initializer instanceof SimpleName) {
+					SimpleName simpleNameInitializer = (SimpleName)initializer;
+					if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
+						AST ast = newMethodDeclaration.getAST();
+						VariableDeclarationFragment variableDeclarationFragment = ast.newVariableDeclarationFragment();
+						targetRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, simpleNameInitializer, null);
+						targetRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
+						VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(variableDeclarationFragment);
+						targetRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableDeclaration.getType(), null);
+						ListRewrite bodyRewrite = targetRewriter.getListRewrite(newMethodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
+						bodyRewrite.insertFirst(variableDeclarationStatement, null);
 					}
 				}
 			}

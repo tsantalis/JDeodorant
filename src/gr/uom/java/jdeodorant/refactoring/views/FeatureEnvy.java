@@ -17,6 +17,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +28,10 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.ui.part.*;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jface.text.Position;
+import org.eclipse.jface.text.source.Annotation;
+import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
@@ -34,11 +39,13 @@ import org.eclipse.ui.*;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.SWT;
 import org.eclipse.ui.texteditor.ITextEditor;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Statement;
-import org.eclipse.jdt.internal.ui.javaeditor.EditorUtility;
+import org.eclipse.jdt.ui.JavaUI;
 
 /**
  * This sample class demonstrates how to plug-in a new
@@ -288,11 +295,13 @@ public class FeatureEnvy extends ViewPart {
 					refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
 						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), candidate.getASTExtractionBlock());
 				}
-				ITextEditor targetEditor = null;
-				ITextEditor sourceEditor = null;
+				IEditorPart targetEditor = null;
+				IEditorPart sourceEditor = null;
 				try {
-					targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
-					sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
+					IJavaElement targetJavaElement = JavaCore.create(targetFile);
+					targetEditor = JavaUI.openInEditor(targetJavaElement);
+					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+					sourceEditor = JavaUI.openInEditor(sourceJavaElement);
 				} catch (PartInitException e) {
 					e.printStackTrace();
 				} catch (JavaModelException e) {
@@ -329,9 +338,21 @@ public class FeatureEnvy extends ViewPart {
 					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
 					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
 					try {
-						ITextEditor targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
-						ITextEditor sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
-						sourceEditor.selectAndReveal(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength());
+						IJavaElement targetJavaElement = JavaCore.create(targetFile);
+						JavaUI.openInEditor(targetJavaElement);
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
+						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
+						while(annotationIterator.hasNext()) {
+							Annotation currentAnnotation = annotationIterator.next();
+							if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
+								annotationModel.removeAnnotation(currentAnnotation);
+							}
+						}
+						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceMethodDeclaration().toString());
+						Position position = new Position(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength());
+						annotationModel.addAnnotation(annotation, position);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
@@ -343,15 +364,29 @@ public class FeatureEnvy extends ViewPart {
 					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
 					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
 					try {
-						ITextEditor targetEditor = (ITextEditor)EditorUtility.openInEditor(targetFile);
-						ITextEditor sourceEditor = (ITextEditor)EditorUtility.openInEditor(sourceFile);
+						IJavaElement targetJavaElement = JavaCore.create(targetFile);
+						JavaUI.openInEditor(targetJavaElement);
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
 						List<Statement> statementList = candidate.getStatementsForExtraction();
+						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
+						while(annotationIterator.hasNext()) {
+							Annotation currentAnnotation = annotationIterator.next();
+							if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
+								annotationModel.removeAnnotation(currentAnnotation);
+							}
+						}
 						for(Statement statement : statementList) {
-							sourceEditor.selectAndReveal(statement.getStartPosition(), statement.getLength());
+							Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, statement.toString());
+							Position position = new Position(statement.getStartPosition(), statement.getLength());
+							annotationModel.addAnnotation(annotation, position);
 						}
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
+						e.printStackTrace();
+					} catch (CoreException e) {
 						e.printStackTrace();
 					}
 				}
@@ -368,7 +403,8 @@ public class FeatureEnvy extends ViewPart {
 						Set<IFile> fileKeySet = undoRefactoring.getFileKeySet();
 						for(IFile key : fileKeySet) {
 							try {
-								ITextEditor editor = (ITextEditor)EditorUtility.openInEditor(key);
+								IJavaElement iJavaElement = JavaCore.create(key);
+								IEditorPart editor = JavaUI.openInEditor(iJavaElement);
 								editor.doSave(null);
 							} catch (PartInitException e) {
 								e.printStackTrace();

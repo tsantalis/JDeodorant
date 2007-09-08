@@ -6,7 +6,7 @@ import gr.uom.java.ast.MMImportCoupling;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.ExtractAndMoveMethodCandidateRefactoring;
-import gr.uom.java.distance.InitialSystem;
+import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
@@ -28,7 +28,6 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.ui.part.*;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -350,7 +349,7 @@ public class FeatureEnvy extends ViewPart {
 								annotationModel.removeAnnotation(currentAnnotation);
 							}
 						}
-						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceMethodDeclaration().toString());
+						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceEntity());
 						Position position = new Position(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength());
 						annotationModel.addAnnotation(annotation, position);
 					} catch (PartInitException e) {
@@ -378,15 +377,13 @@ public class FeatureEnvy extends ViewPart {
 							}
 						}
 						for(Statement statement : statementList) {
-							Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, statement.toString());
+							Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceEntity());
 							Position position = new Position(statement.getStartPosition(), statement.getLength());
 							annotationModel.addAnnotation(annotation, position);
 						}
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
-						e.printStackTrace();
-					} catch (CoreException e) {
 						e.printStackTrace();
 					}
 				}
@@ -452,12 +449,13 @@ public class FeatureEnvy extends ViewPart {
 
 		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactorings();
 		List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactorings();
-		
+		/*
 		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
 		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
 			boolean subRefactoring = false;
 			for(MoveMethodCandidateRefactoring moveMethodCandidate : moveMethodCandidateList) {
-				if(candidate.isSubRefactoringOf(moveMethodCandidate) && candidate.getTargetClass().equals(moveMethodCandidate.getTargetClass())) {
+				if(candidate.isSubRefactoringOf(moveMethodCandidate) && candidate.getTargetClass().equals(moveMethodCandidate.getTargetClass()) &&
+						candidate.getEntityPlacement() >= moveMethodCandidate.getEntityPlacement()) {
 					subRefactoring = true;
 					System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + moveMethodCandidate.toString());
 					break;
@@ -465,7 +463,8 @@ public class FeatureEnvy extends ViewPart {
 			}
 			if(!subRefactoring) {
 				for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
-					if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass())) {
+					if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass()) &&
+							candidate.getEntityPlacement() >= extractMethodCandidate.getEntityPlacement()) {
 						subRefactoring = true;
 						System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
 						break;
@@ -476,11 +475,11 @@ public class FeatureEnvy extends ViewPart {
 				finalExtractMethodCandidateList.add(candidate);
 			}
 		}
-		
-		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + finalExtractMethodCandidateList.size() + 1];
-		table[0] = new InitialSystem(distanceMatrix);
+		*/
+		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + extractMethodCandidateList.size() + 1];
+		table[0] = new CurrentSystem(distanceMatrix);
 		int counter = 1;
-		for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
+		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;
 		}

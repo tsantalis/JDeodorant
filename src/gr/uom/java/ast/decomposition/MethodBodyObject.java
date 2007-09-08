@@ -71,26 +71,27 @@ public class MethodBodyObject {
 		for(LocalVariableDeclarationObject variableDeclaration : assignmentMap.keySet()) {
 			List<AbstractStatement> localVariableAssignments = assignmentMap.get(variableDeclaration);
 			//contains the local variable instructions found in the assignment statements
-			Set<LocalVariableInstructionObject> localVariableInstructions = new HashSet<LocalVariableInstructionObject>();
+			Set<LocalVariableInstructionObject> localVariableInstructionsFoundInAssignments = new HashSet<LocalVariableInstructionObject>();
 			for(AbstractStatement localVariableAssignment : localVariableAssignments) {
 				List<LocalVariableInstructionObject> instructions = localVariableAssignment.getLocalVariableInstructions();
 				for(LocalVariableInstructionObject instruction : instructions) {
 					if(assignmentMap.containsKey(instruction.generateLocalVariableDeclaration()))
-						localVariableInstructions.add(instruction);
+						localVariableInstructionsFoundInAssignments.add(instruction);
 				}
 			}
-			List<AbstractStatement> newLocalVariableAssignments = new ArrayList<AbstractStatement>();
-			//contains the local variable declarations that are not accepted within the scope of the assignment
+			//contains the local variable assignments that are not accepted within the scope of the returned assignment
 			Set<LocalVariableDeclarationObject> nonAcceptedVariableAssignments = new HashSet<LocalVariableDeclarationObject>(assignmentMap.keySet());
-			for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
+			for(LocalVariableInstructionObject variableInstruction : localVariableInstructionsFoundInAssignments) {
 				LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
 				nonAcceptedVariableAssignments.remove(lvdo);
 			}
+			
+			List<AbstractStatement> newLocalVariableAssignments = new ArrayList<AbstractStatement>();
 			for(AbstractStatement statement : localVariableAssignments) {
 				CompositeStatementObject parent = statement.getParent();
 				AbstractStatement current = statement;
 				while(parent != null && parent.getLocalVariableAssignments(nonAcceptedVariableAssignments).size() == 0 &&
-						parent.getLocalVariableDeclarations().size() == 0) {
+						parent.getLocalVariableDeclarations().size() == 0 && !parent.containsLocalVariableInstruction(nonAcceptedVariableAssignments)) {
 					current = parent;
 					parent = current.getParent();
 				}
@@ -114,10 +115,10 @@ public class MethodBodyObject {
 					newLocalVariableAssignments.clear();
 			}
 			//
-			if( (newLocalVariableAssignments.size() > 1 && sameBlock(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
+			if( (newLocalVariableAssignments.size() > 1 && belongToTheSameBlock(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
 					(newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) ) {
 				ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
-				for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
+				for(LocalVariableInstructionObject variableInstruction : localVariableInstructionsFoundInAssignments) {
 					LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
 					if(!lvdo.equals(variableDeclaration) && !hasAssignmentBeforeStatement(lvdo, newLocalVariableAssignments.get(0))) {
 						VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(lvdo);
@@ -128,8 +129,8 @@ public class MethodBodyObject {
 				extractionBlockList.add(block);
 			}
 			else if(newLocalVariableAssignments.size() > 1) {
-				AbstractStatement parentStatement = sameParent(newLocalVariableAssignments);
-				if(parentStatement != null) {
+				AbstractStatement parentStatement = haveRecursivelyTheSameParent(newLocalVariableAssignments);
+				if(parentStatement != null && !(parentStatement.getStatement() instanceof Block)) {
 					List<AbstractStatement> tempLocalVariableAssignments = new ArrayList<AbstractStatement>(newLocalVariableAssignments);
 					for(AbstractStatement statement : tempLocalVariableAssignments) {
 						int index = newLocalVariableAssignments.indexOf(statement);
@@ -162,7 +163,7 @@ public class MethodBodyObject {
 						}
 					}
 					ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
-					for(LocalVariableInstructionObject variableInstruction : localVariableInstructions) {
+					for(LocalVariableInstructionObject variableInstruction : localVariableInstructionsFoundInAssignments) {
 						LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
 						if(!lvdo.equals(variableDeclaration) && !hasAssignmentBeforeStatement(lvdo, newLocalVariableAssignments.get(0))) {
 							VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(lvdo);
@@ -178,7 +179,7 @@ public class MethodBodyObject {
 		return extractionBlockList;
 	}
 
-	private boolean sameBlock(List<AbstractStatement> list) {
+	private boolean belongToTheSameBlock(List<AbstractStatement> list) {
 		AbstractStatement statement = list.get(0);
 		for(int i=1; i<list.size(); i++) {
 			if(!statement.getParent().equals(list.get(i).getParent()))
@@ -199,7 +200,7 @@ public class MethodBodyObject {
 		return true;
 	}
 
-	private AbstractStatement sameParent(List<AbstractStatement> list) {
+	private AbstractStatement haveRecursivelyTheSameParent(List<AbstractStatement> list) {
 		Map<AbstractStatement, Integer> depthOfNestingMap = new LinkedHashMap<AbstractStatement, Integer>();
 		for(AbstractStatement statement : list) {
 			int depthOfNesting = 0;
@@ -239,7 +240,7 @@ public class MethodBodyObject {
 		AbstractStatement parentStatement = parentStatements.get(0);
 		for(int i=1; i<parentStatements.size(); i++) {
 			if(!parentStatement.equals(parentStatements.get(i))) {
-				return sameParent(parentStatements);
+				return haveRecursivelyTheSameParent(parentStatements);
 			}	
 		}
 		if(parentStatement.getParent() != null)

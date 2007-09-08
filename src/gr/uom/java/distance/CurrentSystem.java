@@ -1,14 +1,14 @@
 package gr.uom.java.distance;
 
-public class InitialSystem implements CandidateRefactoring {
+public class CurrentSystem implements CandidateRefactoring {
 	private double entityPlacement;
 	
-	public InitialSystem(DistanceMatrix distanceMatrix) {
+	public CurrentSystem(DistanceMatrix distanceMatrix) {
 		this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
 	}
 
 	public String getSourceEntity() {
-		return "initialSystem";
+		return "current system";
 	}
 
 	public String getTarget() {

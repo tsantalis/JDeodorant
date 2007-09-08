@@ -121,6 +121,7 @@ public class DistanceMatrix {
 
     public List<ExtractAndMoveMethodCandidateRefactoring> getExtractAndMoveMethodCandidateRefactorings() {
     	List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
+    	Set<String> extractedMethodNames = new LinkedHashSet<String>();
     	Iterator<MyClass> classIt = system.getClassIterator();
         while(classIt.hasNext()) {
             MyClass myClass = classIt.next();
@@ -130,6 +131,13 @@ public class DistanceMatrix {
                 if(method.getMethodObject().getMethodBody() != null) {
 	                List<ExtractionBlock> extractionBlockList = method.getMethodObject().getMethodBody().generateExtractionBlocks();
 	                for(ExtractionBlock block : extractionBlockList) {
+	                	if(extractedMethodNames.contains(block.getExtractedMethodName())) {
+	                		block.setExtractedMethodName(block.getReturnVariableDeclaration().getName() +
+	                		method.getMethodName().replace(method.getMethodName().charAt(0), Character.toUpperCase(method.getMethodName().charAt(0))));
+	                	}
+	                	else {
+	                		extractedMethodNames.add(block.getExtractedMethodName());
+	                	}
 	                	ExtractAndMoveMethodCandidateRefactoring candidate = 
 	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,block);
 	                	extractMethodCandidateRefactoringList.add(candidate);

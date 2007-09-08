@@ -167,7 +167,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 				parameterList.add(instruction.getType().toString());
 		}
 		
-    	MyMethod newMethod = new MyMethod(sourceMethod.getClassOrigin(),extractionBlock.getReturnVariableDeclaration().getName(),
+    	MyMethod newMethod = new MyMethod(sourceMethod.getClassOrigin(),extractionBlock.getExtractedMethodName(),
     			extractionBlock.getReturnVariableDeclaration().getType().toString(),parameterList);
     	newMethod.setMethodBody(newMethodBody);
     	
@@ -306,7 +306,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public ASTExtractionBlock getASTExtractionBlock() {
-    	ASTExtractionBlock astExtractionBlock = new ASTExtractionBlock(getReturnVariableDeclarationFragment(),
+    	ASTExtractionBlock astExtractionBlock = new ASTExtractionBlock(extractionBlock.getExtractedMethodName(), getReturnVariableDeclarationFragment(),
     		getReturnVariableDeclarationStatement(), getStatementsForExtraction(), getAllVariableDeclarationStatements());
     	if(extractionBlock.getParentStatementForCopy() != null)
     		astExtractionBlock.setParentStatementForCopy(extractionBlock.getParentStatementForCopy().getStatement());
@@ -343,7 +343,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 
 	public String getSourceEntity() {
 		LocalVariableDeclarationObject localVariableDeclaration = extractionBlock.getReturnVariableDeclaration();
-		return sourceClass.getName() + "::" + localVariableDeclaration.getName() + "():" + localVariableDeclaration.getType();
+		return sourceClass.getName() + "::" + extractionBlock.getExtractedMethodName() + "():" + localVariableDeclaration.getType();
 	}
 
 	public String getTarget() {

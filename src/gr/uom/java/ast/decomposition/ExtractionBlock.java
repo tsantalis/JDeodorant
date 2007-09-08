@@ -19,6 +19,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 
 public class ExtractionBlock {
+	private String extractedMethodName;
 	private LocalVariableDeclarationObject returnVariableDeclaration;
 	private VariableDeclarationStatement returnVariableDeclarationStatement;
 	private List<AbstractStatement> statementsForExtraction;
@@ -28,11 +29,20 @@ public class ExtractionBlock {
 	public ExtractionBlock(LocalVariableDeclarationObject returnVariableDeclaration,
 			VariableDeclarationStatement returnVariableDeclarationStatement,
 			List<AbstractStatement> statementsForExtraction) {
+		this.extractedMethodName = returnVariableDeclaration.getName();
 		this.returnVariableDeclaration = returnVariableDeclaration;
 		this.returnVariableDeclarationStatement = returnVariableDeclarationStatement;
 		this.statementsForExtraction = statementsForExtraction;
 		this.parentStatementForCopy = null;
 		this.additionalRequiredVariableDeclarationStatementMap = new LinkedHashMap<LocalVariableDeclarationObject, VariableDeclarationStatement>();
+	}
+
+	public String getExtractedMethodName() {
+		return extractedMethodName;
+	}
+
+	public void setExtractedMethodName(String extractedMethodName) {
+		this.extractedMethodName = extractedMethodName;
 	}
 
 	public LocalVariableDeclarationObject getReturnVariableDeclaration() {

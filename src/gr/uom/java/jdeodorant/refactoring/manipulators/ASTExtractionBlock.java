@@ -10,6 +10,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class ASTExtractionBlock {
+	private String extractedMethodName;
 	private VariableDeclarationFragment returnVariableDeclarationFragment;
 	private VariableDeclarationStatement returnVariableDeclarationStatement;
 	private List<Statement> statementsForExtraction;
@@ -20,14 +21,19 @@ public class ASTExtractionBlock {
 	//includes all variable declaration statements which are related with the extracted method
 	private List<VariableDeclarationStatement> allVariableDeclarationStatements;
 	
-	public ASTExtractionBlock(VariableDeclarationFragment returnVariableDeclarationFragment, VariableDeclarationStatement returnVariableDeclarationStatement,
+	public ASTExtractionBlock(String extractedMethodName, VariableDeclarationFragment returnVariableDeclarationFragment, VariableDeclarationStatement returnVariableDeclarationStatement,
 			List<Statement> statementsForExtraction, List<VariableDeclarationStatement> allVariableDeclarationStatements) {
+		this.extractedMethodName = extractedMethodName;
 		this.returnVariableDeclarationFragment = returnVariableDeclarationFragment;
 		this.returnVariableDeclarationStatement = returnVariableDeclarationStatement;
 		this.statementsForExtraction = statementsForExtraction;
 		this.allVariableDeclarationStatements = allVariableDeclarationStatements;
 		this.parentStatementForCopy = null;
 		this.additionalRequiredVariableDeclarationStatementMap = new LinkedHashMap<VariableDeclarationFragment, VariableDeclarationStatement>();
+	}
+
+	public String getExtractedMethodName() {
+		return extractedMethodName;
 	}
 
 	public VariableDeclarationFragment getReturnVariableDeclarationFragment() {

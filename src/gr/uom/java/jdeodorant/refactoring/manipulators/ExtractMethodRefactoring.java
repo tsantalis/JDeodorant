@@ -85,7 +85,7 @@ public class ExtractMethodRefactoring implements Refactoring {
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
 		SimpleName returnVariableSimpleName = extractionBlock.getReturnVariableDeclarationFragment().getName();
-		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, returnVariableSimpleName, null);
+		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(extractionBlock.getExtractedMethodName()), null);
 
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, extractionBlock.getReturnVariableDeclarationStatement().getType(), null);
 		
@@ -236,16 +236,16 @@ public class ExtractMethodRefactoring implements Refactoring {
 	}
 	
 	private void replaceExtractedCodeWithMethodInvocation(List<SimpleName> extractedMethodArguments) {
-		ASTNode parent = extractionBlock.getStatementsForExtraction().get(0).getParent();
-		Assignment assignment = parent.getAST().newAssignment();
+		ASTNode parentBlock = extractionBlock.getStatementsForExtraction().get(0).getParent();
+		Assignment assignment = parentBlock.getAST().newAssignment();
 		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
-		if(extractionBlock.getReturnVariableDeclarationStatement().getType().isPrimitiveType() && parent != extractionBlock.getReturnVariableDeclarationStatement().getParent() && isLoop(parent))
+		if(extractionBlock.getReturnVariableDeclarationStatement().getType().isPrimitiveType() && parentBlock != extractionBlock.getReturnVariableDeclarationStatement().getParent() && isLoop(parentBlock))
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.PLUS_ASSIGN, null);
 		else
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
 		
 		MethodInvocation methodInvocation = assignment.getAST().newMethodInvocation();
-		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
+		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, parentBlock.getAST().newSimpleName(extractionBlock.getExtractedMethodName()), null);
 		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		
 		for(SimpleName argument : extractedMethodArguments) {
@@ -253,7 +253,7 @@ public class ExtractMethodRefactoring implements Refactoring {
 		}
 		sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, methodInvocation, null);
 		
-		ExpressionStatement expressionStatement = parent.getAST().newExpressionStatement(assignment);
+		ExpressionStatement expressionStatement = parentBlock.getAST().newExpressionStatement(assignment);
 		
 		for(int i=0; i<extractionBlock.getStatementsForExtraction().size(); i++) {
 			Statement statement = extractionBlock.getStatementsForExtraction().get(i);
@@ -271,7 +271,7 @@ public class ExtractMethodRefactoring implements Refactoring {
 		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
 		sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
 		MethodInvocation methodInvocation = assignment.getAST().newMethodInvocation();
-		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
+		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, parentBlock.getAST().newSimpleName(extractionBlock.getExtractedMethodName()), null);
 		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		
 		for(SimpleName argument : extractedMethodArguments) {

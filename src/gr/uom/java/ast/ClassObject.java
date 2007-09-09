@@ -57,6 +57,14 @@ public class ClassObject {
     	return false;
     }
 
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, MethodObject excludedMethod) {
+    	for(MethodObject method : methodList) {
+    		if(!method.equals(excludedMethod) && method.containsMethodInvocation(methodInvocation))
+    			return true;
+    	}
+    	return false;
+    }
+
     public boolean hasFieldType(String className) {
         ListIterator<FieldObject> fi = getFieldIterator();
         while(fi.hasNext()) {

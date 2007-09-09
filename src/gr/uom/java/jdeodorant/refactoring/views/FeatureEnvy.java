@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.LCOM;
 import gr.uom.java.ast.MMImportCoupling;
 import gr.uom.java.ast.SystemObject;
@@ -276,13 +277,13 @@ public class FeatureEnvy extends ViewPart {
 					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
 					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
 					
-					List<String> excludedClasses = new ArrayList<String>();
-					excludedClasses.add(candidate.getSourceClass().getClassObject().getName());
-					excludedClasses.add(candidate.getTargetClass().getClassObject().getName());
+					List<ClassObject> excludedClasses = new ArrayList<ClassObject>();
+					excludedClasses.add(candidate.getSourceClass().getClassObject());
+					excludedClasses.add(candidate.getTargetClass().getClassObject());
 					boolean leaveDelegate = astReader.getSystemObject().containsMethodInvocation(candidate.getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
 					
 					refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), leaveDelegate);
+						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), candidate.getAdditionalMethodsToBeMoved(), leaveDelegate);
 				}
 				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
 					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;

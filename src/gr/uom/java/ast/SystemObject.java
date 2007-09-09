@@ -67,10 +67,18 @@ public class SystemObject {
     	}
     	return null;
     }
-    
-    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, List<String> excludedClasses) {
+
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, List<ClassObject> excludedClasses) {
     	for(ClassObject classObject : classList) {
-    		if(!excludedClasses.contains(classObject.getName()) && classObject.containsMethodInvocation(methodInvocation))
+    		if(!excludedClasses.contains(classObject) && classObject.containsMethodInvocation(methodInvocation))
+    			return true;
+    	}
+    	return false;
+    }
+
+    public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, ClassObject excludedClass) {
+    	for(ClassObject classObject : classList) {
+    		if(!excludedClass.equals(classObject) && classObject.containsMethodInvocation(methodInvocation))
     			return true;
     	}
     	return false;

@@ -10,26 +10,26 @@ public class MySystem {
 
     private Map<String,MyClass> classMap;
     private AssociationDetection associationDetection;
+    private SystemObject systemObject;
 
-    public MySystem(SystemObject system) {
+    public MySystem(SystemObject systemObject) {
+    	this.systemObject = systemObject;
         this.classMap = new HashMap<String,MyClass>();
-        this.associationDetection = new AssociationDetection(system);
-        generate(system);
-        //replaceGetInvocationWithAttribute();
-        //removeExistingGetMethods();
+        this.associationDetection = new AssociationDetection(systemObject);
+        generateSystem();
     }
 
     private MySystem(Map<String,MyClass> classMap) {
         this.classMap = classMap;
     }
 
-    private void generate(SystemObject so) {
-        ListIterator<ClassObject> classIterator1 = so.getClassListIterator();
+    private void generateSystem() {
+        ListIterator<ClassObject> classIterator1 = systemObject.getClassListIterator();
         while(classIterator1.hasNext()) {
             ClassObject co = classIterator1.next();
             MyClass myClass = new MyClass(co.getName());
             myClass.setClassObject(co);
-            if(so.getClassObject(co.getSuperclass()) != null) {
+            if(systemObject.getClassObject(co.getSuperclass()) != null) {
                 myClass.setSuperclass(co.getSuperclass());
             }
 
@@ -47,17 +47,17 @@ public class MySystem {
             classMap.put(co.getName(),myClass);
         }
         
-        ListIterator<ClassObject> classIterator2 = so.getClassListIterator();
+        ListIterator<ClassObject> classIterator2 = systemObject.getClassListIterator();
         while(classIterator2.hasNext()) {
             ClassObject co = classIterator2.next();
             MyClass myClass = classMap.get(co.getName());
             ListIterator<MethodObject> methodIt = co.getMethodIterator();
             while(methodIt.hasNext()) {
                 MethodObject mo = methodIt.next();
-                if(!mo.isStatic() && so.containsGetter(mo.generateMethodInvocation()) == null &&
-                		so.containsSetter(mo.generateMethodInvocation()) == null && so.containsCollectionAdder(mo.generateMethodInvocation()) == null) {
-                    MethodInvocationObject delegation = so.containsDelegate(mo.generateMethodInvocation());
-                    if(delegation == null || (delegation != null && so.getClassObject(delegation.getOriginClassName()) == null)) {
+                if(!mo.isStatic() && systemObject.containsGetter(mo.generateMethodInvocation()) == null &&
+                		systemObject.containsSetter(mo.generateMethodInvocation()) == null && systemObject.containsCollectionAdder(mo.generateMethodInvocation()) == null) {
+                    MethodInvocationObject delegation = systemObject.containsDelegate(mo.generateMethodInvocation());
+                    if(delegation == null || (delegation != null && systemObject.getClassObject(delegation.getOriginClassName()) == null)) {
 	                	MyMethod myMethod = new MyMethod(mo.getClassName(),mo.getName(),
 	                        mo.getReturnType().toString(),mo.getParameterList());
 	                    if(mo.isAbstract())
@@ -66,7 +66,7 @@ public class MySystem {
 	                    myMethod.setMethodObject(mo);
 	                    MethodBodyObject methodBodyObject = mo.getMethodBody();
 	                    if(methodBodyObject != null) {
-	                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, so);
+	                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, systemObject);
 	                    	myMethod.setMethodBody(myMethodBody);
 	                    }
 	                    myClass.addMethod(myMethod);
@@ -95,7 +95,11 @@ public class MySystem {
     	return classMap.get(className);
     }
 
-    public static MySystem newInstance(MySystem system) {
+    public SystemObject getSystemObject() {
+		return systemObject;
+	}
+
+	public static MySystem newInstance(MySystem system) {
         Map<String,MyClass> classMap = new HashMap<String,MyClass>();
         Iterator<MyClass> classIterator = system.getClassIterator();
         while(classIterator.hasNext()) {

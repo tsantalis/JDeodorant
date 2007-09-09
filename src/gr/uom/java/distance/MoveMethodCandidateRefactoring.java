@@ -1,5 +1,6 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodInvocationObject;
@@ -8,12 +9,16 @@ import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -24,12 +29,40 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     private MyClass targetClass;
     private MyMethod sourceMethod;
     private double entityPlacement;
+    //contains source class methods that do not access any field or method and are accessed only by sourceMethod
+    private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
 
     public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod) {
         this.system = system;
     	this.sourceClass = sourceClass;
         this.targetClass = targetClass;
         this.sourceMethod = sourceMethod;
+        this.additionalMethodsToBeMoved = new LinkedHashMap<MethodInvocation, MethodDeclaration>();
+        List<MethodInvocationObject> methodInvocations = sourceMethod.getMethodObject().getMethodInvocations();
+        for(MethodInvocationObject methodInvocation : methodInvocations) {
+        	if(methodInvocation.getOriginClassName().equals(sourceClass.getClassObject().getName()) &&
+        			!sourceClass.getClassObject().containsMethodInvocation(methodInvocation, sourceMethod.getMethodObject()) &&
+        			!system.getSystemObject().containsMethodInvocation(methodInvocation, sourceClass.getClassObject())) {
+        		MethodObject invokedMethod = sourceClass.getClassObject().getMethod(methodInvocation);
+        		boolean systemMemberAccessed = false;
+        		for(MethodInvocationObject methodInvocationObject : invokedMethod.getMethodInvocations()) {
+        			if(system.getSystemObject().getClassObject(methodInvocationObject.getOriginClassName()) != null) {
+        				systemMemberAccessed = true;
+        				break;
+        			}
+        		}
+        		if(!systemMemberAccessed) {
+        			for(FieldInstructionObject fieldInstructionObject : invokedMethod.getFieldInstructions()) {
+        				if(system.getSystemObject().getClassObject(fieldInstructionObject.getOwnerClass()) != null) {
+        					systemMemberAccessed = true;
+        					break;
+        				}
+        			}
+        		}
+        		if(!systemMemberAccessed && !additionalMethodsToBeMoved.containsKey(methodInvocation.getMethodInvocation()))
+        			additionalMethodsToBeMoved.put(methodInvocation.getMethodInvocation(), invokedMethod.getMethodDeclaration());
+        	}
+        }
     }
 
     public boolean apply() {
@@ -173,6 +206,24 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
                 myMethod.replaceMethodInvocation(oldMethodInvocation,newMethodInvocation);
             }
         }
+        
+        List<MyMethod> methodsToBeMoved = new ArrayList<MyMethod>();
+        Collection<MethodDeclaration> methodDeclarationsToBeMoved = additionalMethodsToBeMoved.values();
+        ListIterator<MyMethod> sourceClassMethodIterator = sourceClass.getMethodIterator();
+        while(sourceClassMethodIterator.hasNext()) {
+        	MyMethod sourceMethod = sourceClassMethodIterator.next();
+        	if(methodDeclarationsToBeMoved.contains(sourceMethod.getMethodObject().getMethodDeclaration()) && !methodsToBeMoved.contains(sourceMethod))
+        		methodsToBeMoved.add(sourceMethod);
+        }
+        for(MyMethod oldMyMethod : methodsToBeMoved) {
+        	MyMethod newMyMethod = MyMethod.newInstance(oldMyMethod);
+        	newMyMethod.setClassOrigin(targetClass.getName());
+        	MyMethodInvocation oldMyMethodInvocation = oldMyMethod.generateMethodInvocation();
+        	MyMethodInvocation newMyMethodInvocation = newMyMethod.generateMethodInvocation();
+        	virtualSystem.getClass(sourceClass.getName()).removeMethod(oldMyMethod);
+            virtualSystem.getClass(targetClass.getName()).addMethod(newMyMethod);
+            newMethod.replaceMethodInvocation(oldMyMethodInvocation, newMyMethodInvocation);
+        }
     }
 
     public TypeDeclaration getSourceClassTypeDeclaration() {
@@ -197,6 +248,10 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
     public MyMethod getSourceMethod() {
     	return sourceMethod;
+    }
+
+    public Map<MethodInvocation, MethodDeclaration> getAdditionalMethodsToBeMoved() {
+    	return additionalMethodsToBeMoved;
     }
 
     public String toString() {

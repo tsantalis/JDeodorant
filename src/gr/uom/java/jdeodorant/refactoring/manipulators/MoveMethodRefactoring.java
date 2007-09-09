@@ -6,6 +6,7 @@ import gr.uom.java.ast.util.StatementExtractor;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
@@ -63,10 +64,11 @@ public class MoveMethodRefactoring implements Refactoring {
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
 	private String targetClassVariableName;
 	private Set<String> additionalArgumentsAddedToMovedMethod;
+	private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
 	private boolean leaveDelegate;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
-			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, boolean leaveDelegate) {
+			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved, boolean leaveDelegate) {
 		this.sourceFile = sourceFile;
 		this.targetFile = targetFile;
 		this.sourceCompilationUnit = sourceCompilationUnit;
@@ -80,6 +82,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
 		this.targetClassVariableName = null;
 		this.additionalArgumentsAddedToMovedMethod = new LinkedHashSet<String>();
+		this.additionalMethodsToBeMoved = additionalMethodsToBeMoved;
 		this.leaveDelegate = leaveDelegate;
 	}
 
@@ -90,6 +93,7 @@ public class MoveMethodRefactoring implements Refactoring {
 	public void apply() {
 		addRequiredTargetImportDeclarations();
 		createMovedMethod();
+		moveAdditionalMethods();
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
 		IDocument targetDocument = targetTextFileBuffer.getDocument();
@@ -303,8 +307,20 @@ public class MoveMethodRefactoring implements Refactoring {
 		insertTargetClassVariableNameAsVariableDeclaration(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
 
-		ListRewrite methodDeclarationRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
+		ListRewrite targetClassBodyRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		targetClassBodyRewrite.insertLast(newMethodDeclaration, null);
+	}
+
+	private void moveAdditionalMethods() {
+		AST ast = targetTypeDeclaration.getAST();
+		Set<MethodDeclaration> methodsToBeMoved = new LinkedHashSet<MethodDeclaration>(additionalMethodsToBeMoved.values());
+		for(MethodDeclaration methodDeclaration : methodsToBeMoved) {
+			MethodDeclaration newMethodDeclaration = (MethodDeclaration)ASTNode.copySubtree(ast, methodDeclaration);
+			ListRewrite targetClassBodyRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			targetClassBodyRewrite.insertLast(newMethodDeclaration, null);
+			ListRewrite sourceClassBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			sourceClassBodyRewrite.remove(methodDeclaration, null);
+		}
 	}
 
 	private void removeSourceMethod() {
@@ -560,6 +576,22 @@ public class MoveMethodRefactoring implements Refactoring {
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
 		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
 		List<Expression> expressionsToBeRemoved = new ArrayList<Expression>();
+		for(MethodInvocation methodInvocation : additionalMethodsToBeMoved.keySet()) {
+			for(Expression expression : sourceMethodInvocations) {
+				if(expression instanceof MethodInvocation) {
+					MethodInvocation sourceMethodInvocation = (MethodInvocation)expression;
+					if(methodInvocation.equals(sourceMethodInvocation)) {
+						expressionsToBeRemoved.add(methodInvocation);
+					}
+				}
+			}
+		}
+		for(Expression expression : expressionsToBeRemoved) {
+			int index = sourceMethodInvocations.indexOf(expression);
+			sourceMethodInvocations.remove(index);
+			newMethodInvocations.remove(index);
+		}
+		expressionsToBeRemoved.clear();
 		int k = 0;
 		for(Expression expression : sourceMethodInvocations) {
 			if(expression instanceof MethodInvocation) {

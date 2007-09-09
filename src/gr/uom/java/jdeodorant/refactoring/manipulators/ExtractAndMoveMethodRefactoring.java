@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.eclipse.core.resources.IFile;
@@ -11,6 +12,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class ExtractAndMoveMethodRefactoring implements Refactoring {
@@ -67,7 +69,7 @@ public class ExtractAndMoveMethodRefactoring implements Refactoring {
         	}
         }
 		MoveMethodRefactoring moveMethodRefactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-			sourceTypeDeclaration, targetTypeDeclaration, extractedMethodDeclaration, false);
+			sourceTypeDeclaration, targetTypeDeclaration, extractedMethodDeclaration, new LinkedHashMap<MethodInvocation, MethodDeclaration>(), false);
 		moveMethodRefactoring.apply();
 		UndoRefactoring moveMethodUndoRefactoring = moveMethodRefactoring.getUndoRefactoring();
 		undoRefactoring.merge(moveMethodUndoRefactoring);

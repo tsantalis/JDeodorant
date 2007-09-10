@@ -4,6 +4,7 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +95,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		addRequiredTargetImportDeclarations();
 		createMovedMethod();
 		moveAdditionalMethods();
+		modifyMovedMethodInvocationInTargetClass();
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
 		IDocument targetDocument = targetTextFileBuffer.getDocument();
@@ -453,6 +455,65 @@ public class MoveMethodRefactoring implements Refactoring {
     				}
     			}
     		}
+    	}
+	}
+
+	private void modifyMovedMethodInvocationInTargetClass() {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		MethodDeclaration[] methodDeclarations = targetTypeDeclaration.getMethods();
+    	for(MethodDeclaration methodDeclaration : methodDeclarations) {
+    		Block methodBody = methodDeclaration.getBody();
+    		List<Statement> statements = methodBody.statements();
+    		Map<String, Integer> invokerCounterMap = new LinkedHashMap<String, Integer>();
+    		for(Statement statement : statements) {
+    			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
+    			for(Expression expression : methodInvocations) {
+    				if(expression instanceof MethodInvocation) {
+    					MethodInvocation methodInvocation = (MethodInvocation)expression;
+    					if(identicalSignature(sourceMethod, methodInvocation)) {
+    						Expression invoker = methodInvocation.getExpression();
+    						if(invoker instanceof SimpleName) {
+    							SimpleName simpleName = (SimpleName)invoker;
+    							targetRewriter.remove(simpleName, null);
+    							String identifier = simpleName.getIdentifier();
+    							if(invokerCounterMap.containsKey(identifier)) {
+    								invokerCounterMap.put(identifier, invokerCounterMap.get(identifier)+1);
+    							}
+    							else {
+    								invokerCounterMap.put(identifier, 1);
+    							}
+    						}
+    						List<Expression> arguments = methodInvocation.arguments();
+    						for(Expression argument : arguments) {
+    							if(argument instanceof ThisExpression) {
+    								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+    								argumentRewrite.remove(argument, null);
+    							}
+    						}
+    					}
+    				}
+    			}
+    		}
+    		/*
+    		List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(methodBody);
+    		for(String invoker : invokerCounterMap.keySet()) {
+    			int invokerCounter = 0;
+    			for(Expression expression : variableInstructions) {
+    				SimpleName simpleName = (SimpleName)expression;
+    				if(simpleName.getIdentifier().equals(invoker))
+    					invokerCounter++;
+    			}
+    			if(invokerCounter == invokerCounterMap.get(invoker)) {
+    				List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
+    				for(SingleVariableDeclaration parameter : parameters) {
+    					if(parameter.getName().getIdentifier().equals(invoker)) {
+    						ListRewrite parameterRewrite = targetRewriter.getListRewrite(methodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+    						parameterRewrite.remove(parameter, null);
+    					}
+    				}
+    			}
+    		}
+    		*/
     	}
 	}
 

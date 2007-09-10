@@ -248,7 +248,6 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	String sourceMethodName = sourceMethod.getMethodName();
     	extractionBlock.setExtractedMethodName(extractionBlock.getReturnVariableDeclaration().getName() +
     	sourceMethodName.replaceFirst(Character.toString(sourceMethodName.charAt(0)), Character.toString(Character.toUpperCase(sourceMethodName.charAt(0)))));
-    	System.out.println("breakpoint");
     }
 
     public TypeDeclaration getSourceClassTypeDeclaration() {

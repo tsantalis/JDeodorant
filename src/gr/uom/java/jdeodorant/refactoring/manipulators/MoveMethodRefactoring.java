@@ -396,64 +396,66 @@ public class MoveMethodRefactoring implements Refactoring {
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
     	for(MethodDeclaration methodDeclaration : methodDeclarations) {
     		Block methodBody = methodDeclaration.getBody();
-    		List<Statement> statements = methodBody.statements();
-    		for(Statement statement : statements) {
-    			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
-    			for(Expression expression : methodInvocations) {
-    				if(expression instanceof MethodInvocation) {
-    					MethodInvocation methodInvocation = (MethodInvocation)expression;
-    					if(identicalSignature(sourceMethod, methodInvocation)) {
-    						List<Expression> arguments = methodInvocation.arguments();
-    						boolean foundInArguments = false;
-    						for(Expression argument : arguments) {
-    							if(argument.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
-    								foundInArguments = true;
-    								ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-    								argumentRewrite.remove(argument, null);
-    								sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
-    								break;
-    							}
-    						}
-    						boolean foundInLocalVariableDeclarations = false;
-    						if(!foundInArguments) {
-    							StatementExtractor statementExtractor = new StatementExtractor();
-    							List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(methodBody);
-    							for(Statement variableDeclarationStatement : variableDeclarationStatements) {
-    								VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
-    								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
-    				        		for(VariableDeclarationFragment fragment : fragments) {
-    				        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
-    				        					variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
-    				        				foundInLocalVariableDeclarations = true;
-    				        				sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
-    				        				break;
-    				        			}
-    				        		}
-    							}
-    						}
-    						if(!foundInArguments && !foundInLocalVariableDeclarations) {
-    							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
-    				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-    				        		for(VariableDeclarationFragment fragment : fragments) {
-	    				        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
-	    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
-	    				        			break;
+    		if(methodBody != null) {
+	    		List<Statement> statements = methodBody.statements();
+	    		for(Statement statement : statements) {
+	    			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
+	    			for(Expression expression : methodInvocations) {
+	    				if(expression instanceof MethodInvocation) {
+	    					MethodInvocation methodInvocation = (MethodInvocation)expression;
+	    					if(identicalSignature(sourceMethod, methodInvocation)) {
+	    						List<Expression> arguments = methodInvocation.arguments();
+	    						boolean foundInArguments = false;
+	    						for(Expression argument : arguments) {
+	    							if(argument.resolveTypeBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+	    								foundInArguments = true;
+	    								ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+	    								argumentRewrite.remove(argument, null);
+	    								sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+	    								break;
+	    							}
+	    						}
+	    						boolean foundInLocalVariableDeclarations = false;
+	    						if(!foundInArguments) {
+	    							StatementExtractor statementExtractor = new StatementExtractor();
+	    							List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(methodBody);
+	    							for(Statement variableDeclarationStatement : variableDeclarationStatements) {
+	    								VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
+	    								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
+	    				        		for(VariableDeclarationFragment fragment : fragments) {
+	    				        			if(variableDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName()) &&
+	    				        					variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
+	    				        				foundInLocalVariableDeclarations = true;
+	    				        				sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+	    				        				break;
+	    				        			}
 	    				        		}
-    				        		}
-    				        	}
-    						}
-    						ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-    						AST ast = methodInvocation.getAST();
-    						for(String argument : additionalArgumentsAddedToMovedMethod) {
-    							if(argument.equals("this"))
-    								argumentRewrite.insertLast(ast.newThisExpression(), null);
-    							else
-    								argumentRewrite.insertLast(ast.newSimpleName(argument), null);
-    						}
-    					}
-    				}
-    			}
+	    							}
+	    						}
+	    						if(!foundInArguments && !foundInLocalVariableDeclarations) {
+	    							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+	    				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+	    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+	    				        		for(VariableDeclarationFragment fragment : fragments) {
+		    				        		if(fieldDeclaration.getType().resolveBinding().getQualifiedName().equals(targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+		    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+		    				        			break;
+		    				        		}
+	    				        		}
+	    				        	}
+	    						}
+	    						ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+	    						AST ast = methodInvocation.getAST();
+	    						for(String argument : additionalArgumentsAddedToMovedMethod) {
+	    							if(argument.equals("this"))
+	    								argumentRewrite.insertLast(ast.newThisExpression(), null);
+	    							else
+	    								argumentRewrite.insertLast(ast.newSimpleName(argument), null);
+	    						}
+	    					}
+	    				}
+	    			}
+	    		}
     		}
     	}
 	}
@@ -463,36 +465,38 @@ public class MoveMethodRefactoring implements Refactoring {
 		MethodDeclaration[] methodDeclarations = targetTypeDeclaration.getMethods();
     	for(MethodDeclaration methodDeclaration : methodDeclarations) {
     		Block methodBody = methodDeclaration.getBody();
-    		List<Statement> statements = methodBody.statements();
-    		Map<String, Integer> invokerCounterMap = new LinkedHashMap<String, Integer>();
-    		for(Statement statement : statements) {
-    			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
-    			for(Expression expression : methodInvocations) {
-    				if(expression instanceof MethodInvocation) {
-    					MethodInvocation methodInvocation = (MethodInvocation)expression;
-    					if(identicalSignature(sourceMethod, methodInvocation)) {
-    						Expression invoker = methodInvocation.getExpression();
-    						if(invoker instanceof SimpleName) {
-    							SimpleName simpleName = (SimpleName)invoker;
-    							targetRewriter.remove(simpleName, null);
-    							String identifier = simpleName.getIdentifier();
-    							if(invokerCounterMap.containsKey(identifier)) {
-    								invokerCounterMap.put(identifier, invokerCounterMap.get(identifier)+1);
-    							}
-    							else {
-    								invokerCounterMap.put(identifier, 1);
-    							}
-    						}
-    						List<Expression> arguments = methodInvocation.arguments();
-    						for(Expression argument : arguments) {
-    							if(argument instanceof ThisExpression) {
-    								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-    								argumentRewrite.remove(argument, null);
-    							}
-    						}
-    					}
-    				}
-    			}
+    		if(methodBody != null) {
+	    		List<Statement> statements = methodBody.statements();
+	    		Map<String, Integer> invokerCounterMap = new LinkedHashMap<String, Integer>();
+	    		for(Statement statement : statements) {
+	    			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
+	    			for(Expression expression : methodInvocations) {
+	    				if(expression instanceof MethodInvocation) {
+	    					MethodInvocation methodInvocation = (MethodInvocation)expression;
+	    					if(identicalSignature(sourceMethod, methodInvocation)) {
+	    						Expression invoker = methodInvocation.getExpression();
+	    						if(invoker instanceof SimpleName) {
+	    							SimpleName simpleName = (SimpleName)invoker;
+	    							targetRewriter.remove(simpleName, null);
+	    							String identifier = simpleName.getIdentifier();
+	    							if(invokerCounterMap.containsKey(identifier)) {
+	    								invokerCounterMap.put(identifier, invokerCounterMap.get(identifier)+1);
+	    							}
+	    							else {
+	    								invokerCounterMap.put(identifier, 1);
+	    							}
+	    						}
+	    						List<Expression> arguments = methodInvocation.arguments();
+	    						for(Expression argument : arguments) {
+	    							if(argument instanceof ThisExpression) {
+	    								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+	    								argumentRewrite.remove(argument, null);
+	    							}
+	    						}
+	    					}
+	    				}
+	    			}
+	    		}
     		}
     		/*
     		List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(methodBody);

@@ -714,7 +714,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		Type parameterType = ast.newSimpleType(typeName);
 		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 		String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
-		SimpleName parameterName = ast.newSimpleName(sourceTypeName.replace(sourceTypeName.charAt(0), Character.toLowerCase(sourceTypeName.charAt(0))));
+		SimpleName parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
 		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterName, null);
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
@@ -905,7 +905,7 @@ public class MoveMethodRefactoring implements Refactoring {
 						else {
 							AST ast = newMethodDeclaration.getAST();
 							String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
-							parameterName = ast.newSimpleName(sourceTypeName.replace(sourceTypeName.charAt(0), Character.toLowerCase(sourceTypeName.charAt(0))));
+							parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
 						}
 						ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 						argumentRewrite.replace(argument, parameterName, null);

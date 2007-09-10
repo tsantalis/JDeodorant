@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.regex.Pattern;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.TableColumn;
@@ -35,8 +36,9 @@ import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
+import org.eclipse.jface.dialogs.IInputValidator;
+import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.ui.*;
-import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.SWT;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.jdt.core.IJavaElement;
@@ -71,6 +73,7 @@ public class FeatureEnvy extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action undoRefactoringAction;
 	private Action doubleClickAction;
+	private Action renameMethodAction;
 	private IProject selectedProject;
 	private CandidateRefactoring[] candidateRefactoringTable;
 	private ASTReader astReader;
@@ -126,8 +129,6 @@ public class FeatureEnvy extends ViewPart {
 			return null;
 		}
 		public Image getImage(Object obj) {
-			//return PlatformUI.getWorkbench().
-			//		getSharedImages().getImage(ISharedImages.IMG_OBJ_ELEMENT);
 			return null;
 		}
 	}
@@ -154,18 +155,22 @@ public class FeatureEnvy extends ViewPart {
 				Object element = structuredSelection.getFirstElement();
 				if(element instanceof IJavaProject) {
 					IJavaProject javaProject = (IJavaProject)element;
-					selectedProject = javaProject.getProject();
-					tableViewer.remove(candidateRefactoringTable);
-					applyRefactoringAction.setEnabled(false);
-					if(undoStackMap.containsKey(selectedProject)) {
-						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-						if(undoStack.empty())
-							undoRefactoringAction.setEnabled(false);
+					if(!javaProject.getProject().equals(selectedProject)) {
+						selectedProject = javaProject.getProject();
+						if(candidateRefactoringTable != null)
+							tableViewer.remove(candidateRefactoringTable);
+						applyRefactoringAction.setEnabled(false);
+						renameMethodAction.setEnabled(false);
+						if(undoStackMap.containsKey(selectedProject)) {
+							Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
+							if(undoStack.empty())
+								undoRefactoringAction.setEnabled(false);
+							else
+								undoRefactoringAction.setEnabled(true);
+						}
 						else
-							undoRefactoringAction.setEnabled(true);
+							undoRefactoringAction.setEnabled(false);
 					}
-					else
-						undoRefactoringAction.setEnabled(false);
 				}
 			}
 		}
@@ -206,57 +211,30 @@ public class FeatureEnvy extends ViewPart {
 		column3.setResizable(true);
 		column3.pack();
 		makeActions();
-		hookContextMenu();
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
 	}
 
-	private void hookContextMenu() {
-		MenuManager menuMgr = new MenuManager("#PopupMenu");
-		menuMgr.setRemoveAllWhenShown(true);
-		menuMgr.addMenuListener(new IMenuListener() {
-			public void menuAboutToShow(IMenuManager manager) {
-				FeatureEnvy.this.fillContextMenu(manager);
-			}
-		});
-		Menu menu = menuMgr.createContextMenu(tableViewer.getControl());
-		tableViewer.getControl().setMenu(menu);
-		getSite().registerContextMenu(menuMgr, tableViewer);
-	}
-
 	private void contributeToActionBars() {
 		IActionBars bars = getViewSite().getActionBars();
-		fillLocalPullDown(bars.getMenuManager());
 		fillLocalToolBar(bars.getToolBarManager());
-	}
-
-	private void fillLocalPullDown(IMenuManager manager) {
-		manager.add(identifyBadSmellsAction);
-		manager.add(new Separator());
-		manager.add(applyRefactoringAction);
-	}
-
-	private void fillContextMenu(IMenuManager manager) {
-		manager.add(identifyBadSmellsAction);
-		manager.add(applyRefactoringAction);
-		manager.add(undoRefactoringAction);
-		// Other plug-ins can contribute there actions here
-		manager.add(new Separator(IWorkbenchActionConstants.MB_ADDITIONS));
 	}
 	
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(undoRefactoringAction);
+		manager.add(renameMethodAction);
 	}
 
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
-				candidateRefactoringTable=getTable(selectedProject);
+				candidateRefactoringTable = getTable(selectedProject);
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
+				renameMethodAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -420,6 +398,38 @@ public class FeatureEnvy extends ViewPart {
 		undoRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_TOOL_UNDO));
 		undoRefactoringAction.setEnabled(false);
+		
+		renameMethodAction = new Action() {
+			public void run() {
+				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
+				if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
+					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
+					String methodName = candidate.getExtractionBlock().getExtractedMethodName();
+					IInputValidator methodNameValidator = new IInputValidator() {
+						public String isValid(String text) {
+							String pattern = "[a-zA-Z\\$_][a-zA-Z0-9\\$_]*";
+							if(Pattern.matches(pattern, text)) {
+								return null;
+							}
+							else {
+								return "Invalid method name";
+							}
+						}
+					};
+					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+					dialog.open();
+					if(dialog.getValue() != null) {
+						candidate.getExtractionBlock().setExtractedMethodName(dialog.getValue());
+						tableViewer.refresh();
+					}
+				}
+			}
+		};
+		renameMethodAction.setToolTipText("Rename Method");
+		renameMethodAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+				getImageDescriptor(ISharedImages.IMG_OBJ_FILE));
+		renameMethodAction.setEnabled(false);
 	}
 
 	private void hookDoubleClickAction() {
@@ -488,7 +498,6 @@ public class FeatureEnvy extends ViewPart {
 			table[counter] = candidate;
 			counter++;
 		}
-		return table;
-		
+		return table;		
 	}
 }

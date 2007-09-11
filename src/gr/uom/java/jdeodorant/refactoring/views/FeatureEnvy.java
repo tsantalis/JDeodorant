@@ -331,6 +331,7 @@ public class FeatureEnvy extends ViewPart {
 						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceEntity());
 						Position position = new Position(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength());
 						annotationModel.addAnnotation(annotation, position);
+						sourceEditor.setHighlightRange(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength(), true);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
@@ -360,6 +361,11 @@ public class FeatureEnvy extends ViewPart {
 							Position position = new Position(statement.getStartPosition(), statement.getLength());
 							annotationModel.addAnnotation(annotation, position);
 						}
+						Statement firstStatement = statementList.get(0);
+						Statement lastStatement = statementList.get(statementList.size()-1);
+						int offset = firstStatement.getStartPosition();
+						int length = lastStatement.getStartPosition() + lastStatement.getLength() - firstStatement.getStartPosition();
+						sourceEditor.setHighlightRange(offset, length, true);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {

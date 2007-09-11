@@ -121,7 +121,6 @@ public class DistanceMatrix {
 
     public List<ExtractAndMoveMethodCandidateRefactoring> getExtractAndMoveMethodCandidateRefactorings() {
     	List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-    	Map<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>> extractedMethodNameMap = new LinkedHashMap<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>>();
     	Iterator<MyClass> classIt = system.getClassIterator();
         while(classIt.hasNext()) {
             MyClass myClass = classIt.next();
@@ -134,27 +133,9 @@ public class DistanceMatrix {
 	                	ExtractAndMoveMethodCandidateRefactoring candidate = 
 	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,block);
 	                	extractMethodCandidateRefactoringList.add(candidate);
-	                	if(!extractedMethodNameMap.containsKey(block.getExtractedMethodName())) {
-	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-	                		list.add(candidate);
-	                		extractedMethodNameMap.put(block.getExtractedMethodName(), list);
-	                	}
-	                	else {
-	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(block.getExtractedMethodName());
-	                		list.add(candidate);
-	                	}
 	                }
                 }
             }
-        }
-    	
-        for(String extractedMethodName : extractedMethodNameMap.keySet()) {
-        	List<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(extractedMethodName);
-        	if(list.size() > 1) {
-        		for(ExtractAndMoveMethodCandidateRefactoring candidate : list) {
-        			candidate.setDistinctExtractedMethodName();
-        		}
-        	}
         }
 
         Double[][] blockDistanceMatrix = new Double[extractMethodCandidateRefactoringList.size()][classList.size()];
@@ -178,6 +159,7 @@ public class DistanceMatrix {
             minValueMap.put(i,minValue);
         }
         
+        Map<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>> extractedMethodNameMap = new LinkedHashMap<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>>();
         for(Integer i : minValueMap.keySet()) {
             double minValue = minValueMap.get(i);
             ExtractAndMoveMethodCandidateRefactoring candidate = extractMethodCandidateRefactoringList.get(i);
@@ -191,12 +173,31 @@ public class DistanceMatrix {
                         		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),targetClass,
                         		candidate.getSourceMethod(),candidate.getExtractionBlock());
                         	boolean applicable = newCandidate.apply();
-                        	if(applicable)
+                        	if(applicable) {
                         		candidateRefactoringList.add(newCandidate);
+                        		if(!extractedMethodNameMap.containsKey(newCandidate.getExtractionBlock().getExtractedMethodName()+targetClass.getName())) {
+        	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
+        	                		list.add(newCandidate);
+        	                		extractedMethodNameMap.put(newCandidate.getExtractionBlock().getExtractedMethodName()+targetClass.getName(), list);
+        	                	}
+        	                	else {
+        	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(newCandidate.getExtractionBlock().getExtractedMethodName()+targetClass.getName());
+        	                		list.add(newCandidate);
+        	                	}
+                        	}
                         }
                     }
                 }
             }
+        }
+
+        for(String extractedMethodName : extractedMethodNameMap.keySet()) {
+        	List<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(extractedMethodName);
+        	if(list.size() > 1) {
+        		for(ExtractAndMoveMethodCandidateRefactoring candidate : list) {
+        			candidate.setDistinctExtractedMethodName();
+        		}
+        	}
         }
         return candidateRefactoringList;
     }

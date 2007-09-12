@@ -720,7 +720,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.isField() && variableBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding()) &&
+				if(variableBinding.isField() && sourceTypeDeclaration.resolveBinding().equals(variableBinding.getDeclaringClass()) &&
 						(variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 					SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
 					if(expressionName.getParent() instanceof FieldAccess) {

@@ -91,7 +91,7 @@ public class MethodBodyObject {
 				CompositeStatementObject parent = statement.getParent();
 				AbstractStatement current = statement;
 				while(parent != null && parent.getLocalVariableAssignments(nonAcceptedVariableAssignments).size() == 0 &&
-						parent.getLocalVariableDeclarations().size() == 0 && !parent.containsLocalVariableInstruction(nonAcceptedVariableAssignments)) {
+						removeExceptionVariableDeclarations(parent.getLocalVariableDeclarations()).size() == 0 && !parent.containsLocalVariableInstruction(nonAcceptedVariableAssignments)) {
 					current = parent;
 					parent = current.getParent();
 				}
@@ -177,6 +177,15 @@ public class MethodBodyObject {
 			}
 		}
 		return extractionBlockList;
+	}
+
+	private List<LocalVariableDeclarationObject> removeExceptionVariableDeclarations(List<LocalVariableDeclarationObject> list) {
+		List<LocalVariableDeclarationObject> localVariableDeclarations = new ArrayList<LocalVariableDeclarationObject>(list);
+		for(LocalVariableDeclarationObject localVariableDeclaration : list) {
+			if(localVariableDeclaration.getType().getClassType().endsWith("Exception"))
+				localVariableDeclarations.remove(localVariableDeclaration);
+		}
+		return localVariableDeclarations;
 	}
 
 	private boolean belongToTheSameBlock(List<AbstractStatement> list) {

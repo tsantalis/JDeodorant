@@ -487,10 +487,24 @@ public class MoveMethodRefactoring implements Refactoring {
 	    							}
 	    						}
 	    						List<Expression> arguments = methodInvocation.arguments();
+	    						boolean thisArgumentFound = false;
 	    						for(Expression argument : arguments) {
 	    							if(argument instanceof ThisExpression) {
 	    								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 	    								argumentRewrite.remove(argument, null);
+	    								thisArgumentFound = true;
+	    							}
+	    						}
+	    						if(!thisArgumentFound) {
+	    							for(Expression argument : arguments) {
+	    								if(argument instanceof SimpleName) {
+		    								SimpleName argumentSimpleName = (SimpleName)argument;
+		    								if(argumentSimpleName.resolveTypeBinding().equals(targetTypeDeclaration.resolveBinding())) {
+		    									ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+			    								argumentRewrite.remove(argumentSimpleName, null);
+			    								targetRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argumentSimpleName, null);
+		    								}
+		    							}
 	    							}
 	    						}
 	    					}

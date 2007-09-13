@@ -3,7 +3,6 @@ package gr.uom.java.ast.association;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
-import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 
@@ -15,9 +14,24 @@ import javax.swing.tree.DefaultMutableTreeNode;
 
 public class AssociationDetection {
 	private List<Association> associationList;
+	private List<String> acceptableOriginClassNames;
 	
 	public AssociationDetection(SystemObject system) {
 		this.associationList = new ArrayList<Association>();
+		acceptableOriginClassNames = new ArrayList<String>();
+		acceptableOriginClassNames.add("java.util.Collection");
+		acceptableOriginClassNames.add("java.util.AbstractCollection");
+		acceptableOriginClassNames.add("java.util.List");
+		acceptableOriginClassNames.add("java.util.AbstractList");
+		acceptableOriginClassNames.add("java.util.ArrayList");
+		acceptableOriginClassNames.add("java.util.LinkedList");
+		acceptableOriginClassNames.add("java.util.Set");
+		acceptableOriginClassNames.add("java.util.AbstractSet");
+		acceptableOriginClassNames.add("java.util.HashSet");
+		acceptableOriginClassNames.add("java.util.LinkedHashSet");
+		acceptableOriginClassNames.add("java.util.SortedSet");
+		acceptableOriginClassNames.add("java.util.TreeSet");
+		acceptableOriginClassNames.add("java.util.Vector");
 		generateAssociations(system);
 	}
 	
@@ -38,7 +52,7 @@ public class AssociationDetection {
                 FieldObject fieldObject = fieldIt.next();
                 String type = fieldObject.getType().getClassType();
                 //cover also other collections in the future
-				if(type.equals("java.util.List") || type.equals("java.util.ArrayList") || type.equals("java.util.Vector")) {
+				if(acceptableOriginClassNames.contains(type)) {
 					String genericType = fieldObject.getType().getGenericType();
 					if(genericType != null) {
 						for(String className : systemObject.getClassNames()) {
@@ -66,31 +80,18 @@ public class AssociationDetection {
         }
 	}
 	
-	private Association checkCollectionAttribute(SystemObject so, ClassObject co, FieldObject fo) {
-        ListIterator<MethodObject> methodIt = co.getMethodIterator();
+	private Association checkCollectionAttribute(SystemObject systemObject, ClassObject classObject, FieldObject field) {
+        ListIterator<MethodObject> methodIt = classObject.getMethodIterator();
         while(methodIt.hasNext()) {
-            MethodObject mo = methodIt.next();
-            List<FieldInstructionObject> fieldInstructions = mo.getFieldInstructions();
-            for(FieldInstructionObject fio : fieldInstructions) {
-                if(fo.equals(fio)) {
-                    List<String> parameterList = mo.getParameterList();
-                    List<MethodInvocationObject> methodInvocations = mo.getMethodInvocations();
-                    for(MethodInvocationObject mio : methodInvocations) {
-                        if(mio.getOriginClassName().startsWith("java.util.List") ||
-                                mio.getOriginClassName().startsWith("java.util.ArrayList") || mio.getOriginClassName().startsWith("java.util.Vector")) {
-                            if(mio.getMethodName().equals("add") || mio.getMethodName().equals("addElement")) {
-                                if(parameterList.size() == 1 && so.getClassObject(parameterList.get(0)) != null) {
-                                    Association association = new Association(fo, co.getName(),parameterList.get(0));
-                                    association.setContainer(true);
-                                    return association;
-                                }
-                                else if(parameterList.size() > 1) {
-                                    //System.out.println(mSignature);
-                                }
-                            }
-                        }
-                    }
-                }
+            MethodObject method = methodIt.next();
+            FieldInstructionObject fieldInstruction = method.isCollectionAdder();
+            if(fieldInstruction != null && field.equals(fieldInstruction)) {
+            	List<String> parameterList = method.getParameterList();
+            	if(parameterList.size() == 1 && systemObject.getClassObject(parameterList.get(0)) != null) {
+            		 Association association = new Association(field, classObject.getName(), parameterList.get(0));
+                     association.setContainer(true);
+                     return association;
+            	}
             }
         }
         return null;

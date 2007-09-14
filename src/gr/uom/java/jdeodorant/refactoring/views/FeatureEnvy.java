@@ -168,6 +168,7 @@ public class FeatureEnvy extends ViewPart {
 						selectedProject = javaProject.getProject();
 						if(candidateRefactoringTable != null)
 							tableViewer.remove(candidateRefactoringTable);
+						identifyBadSmellsAction.setEnabled(true);
 						applyRefactoringAction.setEnabled(false);
 						renameMethodAction.setEnabled(false);
 						if(undoStackMap.containsKey(selectedProject)) {
@@ -307,6 +308,7 @@ public class FeatureEnvy extends ViewPart {
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
 		identifyBadSmellsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
+		identifyBadSmellsAction.setEnabled(false);
 		
 		applyRefactoringAction = new Action() {
 			public void run() {

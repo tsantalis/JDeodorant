@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -268,5 +269,9 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
 	public double getEntityPlacement() {
 		return entityPlacement;
+	}
+
+	public Set<String> getEntitySet() {
+		return sourceMethod.getEntitySet();
 	}
 }

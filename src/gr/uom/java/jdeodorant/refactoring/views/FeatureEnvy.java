@@ -26,7 +26,13 @@ import java.util.Stack;
 import java.util.regex.Pattern;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -35,6 +41,9 @@ import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
@@ -214,6 +223,64 @@ public class FeatureEnvy extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
+		final TooltipLabelListener tooltipLabelListener = new TooltipLabelListener();
+		Listener tableListener = new Listener() {
+			Shell tooltip = null;
+			Label label = null;
+			public void handleEvent(Event event) {
+				switch(event.type) {
+					case SWT.KeyDown:
+					case SWT.Dispose:
+					case SWT.MouseMove: {
+						if(tooltip == null)
+							break;
+						tooltip.dispose();
+						tooltip = null;
+						label = null;
+						break;
+					}
+					case SWT.MouseHover: {
+						Table table = tableViewer.getTable();
+						Point coords = new Point(event.x, event.y);
+						TableItem item = table.getItem(coords);
+						if(item != null) {
+							List<CandidateRefactoring> prerequisiteRefactorings = getPrerequisiteRefactorings((CandidateRefactoring)item.getData());
+							if(!prerequisiteRefactorings.isEmpty()) {
+								int columnCount = table.getColumnCount();
+								for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+									if(item.getBounds(columnIndex).contains(coords)) {
+										if(tooltip != null && !tooltip.isDisposed())
+											tooltip.dispose();
+										tooltip = new Shell(table.getShell(), SWT.ON_TOP | SWT.NO_FOCUS | SWT.TOOL);
+										tooltip.setBackground(table.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
+										FillLayout layout = new FillLayout();
+										layout.marginWidth = 2;
+										tooltip.setLayout(layout);
+										label = new Label(tooltip, SWT.NONE);
+										label.setForeground(table.getDisplay().getSystemColor(SWT.COLOR_INFO_FOREGROUND));
+										label.setBackground(table.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
+										label.setData("_TableItem_", item);
+										label.setText("APPLY FIRST " + prerequisiteRefactorings.get(0));
+										label.addListener(SWT.MouseExit, tooltipLabelListener);
+										label.addListener(SWT.MouseDown, tooltipLabelListener);
+										Point size = tooltip.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+										Rectangle rect = item.getBounds(columnIndex);
+										Point pt = table.toDisplay(rect.x, rect.y);
+										tooltip.setBounds(pt.x, pt.y, size.x, size.y);
+										tooltip.setVisible(true);
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		};
+		tableViewer.getTable().addListener(SWT.Dispose, tableListener);
+		tableViewer.getTable().addListener(SWT.KeyDown, tableListener);
+		tableViewer.getTable().addListener(SWT.MouseMove, tableListener);
+		tableViewer.getTable().addListener(SWT.MouseHover, tableListener);
 	}
 
 	private void contributeToActionBars() {
@@ -453,7 +520,30 @@ public class FeatureEnvy extends ViewPart {
 		tableViewer.getControl().setFocus();
 	}
 	
-	public CandidateRefactoring[] getTable(IProject iProject){
+	private List<CandidateRefactoring> getPrerequisiteRefactorings(CandidateRefactoring candidateRefactoring) {
+		List<CandidateRefactoring> moveMethodPrerequisiteRefactorings = new ArrayList<CandidateRefactoring>();
+		List<CandidateRefactoring> extractMethodPrerequisiteRefactorings = new ArrayList<CandidateRefactoring>();
+		if(candidateRefactoringTable != null) {
+			Set<String> entitySet = candidateRefactoring.getEntitySet();
+			for(CandidateRefactoring candidate : candidateRefactoringTable) {
+				if(candidate instanceof MoveMethodCandidateRefactoring) {
+					if(entitySet.contains(candidate.getSourceEntity())/* && candidateRefactoring.getTarget().equals(candidate.getTarget())*/)
+						moveMethodPrerequisiteRefactorings.add(candidate);
+				}
+				else if(candidate instanceof ExtractAndMoveMethodCandidateRefactoring) {
+					ExtractAndMoveMethodCandidateRefactoring extractCandidate = (ExtractAndMoveMethodCandidateRefactoring)candidate;
+					if(extractCandidate.isSubRefactoringOf(candidateRefactoring))
+						extractMethodPrerequisiteRefactorings.add(candidate);
+				}
+			}
+		}
+		if(!moveMethodPrerequisiteRefactorings.isEmpty())
+			return moveMethodPrerequisiteRefactorings;
+		else
+			return extractMethodPrerequisiteRefactorings;
+	}
+	
+	private CandidateRefactoring[] getTable(IProject iProject) {
 		astReader = new ASTReader(iProject);
 		SystemObject systemObject = astReader.getSystemObject();
 		MMImportCoupling mmic = new MMImportCoupling(systemObject);
@@ -466,37 +556,26 @@ public class FeatureEnvy extends ViewPart {
 
 		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactorings();
 		List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactorings();
-		/*
+		
 		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
 		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
 			boolean subRefactoring = false;
-			for(MoveMethodCandidateRefactoring moveMethodCandidate : moveMethodCandidateList) {
-				if(candidate.isSubRefactoringOf(moveMethodCandidate) && candidate.getTargetClass().equals(moveMethodCandidate.getTargetClass()) &&
-						candidate.getEntityPlacement() >= moveMethodCandidate.getEntityPlacement()) {
+			for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
+				if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass())) {
 					subRefactoring = true;
-					System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + moveMethodCandidate.toString());
+					System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
 					break;
-				}
-			}
-			if(!subRefactoring) {
-				for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
-					if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass()) &&
-							candidate.getEntityPlacement() >= extractMethodCandidate.getEntityPlacement()) {
-						subRefactoring = true;
-						System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
-						break;
-					}
 				}
 			}
 			if(!subRefactoring) {
 				finalExtractMethodCandidateList.add(candidate);
 			}
 		}
-		*/
-		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + extractMethodCandidateList.size() + 1];
+		
+		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + finalExtractMethodCandidateList.size() + 1];
 		table[0] = new CurrentSystem(distanceMatrix);
 		int counter = 1;
-		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
+		for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;
 		}
@@ -505,5 +584,49 @@ public class FeatureEnvy extends ViewPart {
 			counter++;
 		}
 		return table;		
+	}
+	
+	final class TooltipLabelListener implements Listener {
+		private boolean isCTRLDown(Event e) {
+			return (e.stateMask & SWT.CTRL) != 0;
+		}
+		public void handleEvent(Event event) {
+			Label label = (Label)event.widget;
+			Shell shell = label.getShell();
+			switch(event.type) {
+				case SWT.MouseDown:
+					Event e = new Event();
+					e.item = (TableItem)label.getData("_TableItem_");
+					Table table = ((TableItem)e.item).getParent();
+					TableItem[] newSelection = null;
+					if (isCTRLDown(event)) {
+						TableItem[] sel = table.getSelection();
+						for(int i = 0; i < sel.length; ++i) {
+							if(e.item.equals(sel[i])) {
+								newSelection = new TableItem[sel.length - 1];
+								System.arraycopy(sel, 0, newSelection, 0, i);
+								System.arraycopy(sel, i+1, newSelection, i, sel.length - i - 1);
+								break;
+							}
+						}
+						if(newSelection == null) {
+							newSelection = new TableItem[sel.length + 1];
+							System.arraycopy(sel, 0, newSelection, 0, sel.length);
+							newSelection[sel.length] = (TableItem)e.item;
+						}
+					}
+					else {
+						newSelection = new TableItem[] { (TableItem) e.item };
+					}
+					table.setSelection(newSelection);
+					table.notifyListeners(SWT.Selection, e);
+					shell.dispose();
+					table.setFocus();
+					break;
+				case SWT.MouseExit:
+					shell.dispose();
+					break;
+			}
+		}
 	}
 }

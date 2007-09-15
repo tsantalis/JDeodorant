@@ -114,6 +114,10 @@ public class MyMethodBody {
 		return this.compositeStatement.getAbstractStatement(statement);
 	}
 
+	public void addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(MyAttributeInstruction attributeInstruction, MyMethodInvocation methodInvocation) {
+		this.compositeStatement.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(attributeInstruction, methodInvocation);
+	}
+
 	public void insertMethodInvocationBeforeStatement(MyAbstractStatement parentStatement, MyStatement methodInvocation) {
 		this.compositeStatement.insertMethodInvocationBeforeStatement(parentStatement, methodInvocation);
 	}

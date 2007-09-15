@@ -20,6 +20,7 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -175,6 +176,16 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
             if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin())) {
                 newMethod.addParameter(instruction.getClassType());
                 instructionsToBeRemoved.add(instruction);
+                MyClass virtualSourceClass = virtualSystem.getClass(sourceClass.getName());
+                ListIterator<MyMethod> sourceMethodIterator = virtualSourceClass.getMethodIterator();
+                while(sourceMethodIterator.hasNext()) {
+                	MyMethod myMethod = sourceMethodIterator.next();
+                	MyMethodInvocation myMethodInvocation = oldMethod.generateMethodInvocation();
+                	if(myMethod.containsMethodInvocation(myMethodInvocation)) {
+                		virtualSourceClass.getAttribute(instruction).addMethod(myMethod);
+                		myMethod.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(instruction, myMethodInvocation);
+                	}
+                }
             }
         }
         for(MyAttributeInstruction instruction : instructionsToBeRemoved) {
@@ -183,7 +194,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
         ListIterator<MyMethodInvocation> invocationIterator = newMethod.getMethodInvocationIterator();
         while(invocationIterator.hasNext()) {
             MyMethodInvocation invocation = invocationIterator.next();
-            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()))
+            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()) && !belongsToAdditionalMethodsToBeMoved(invocation))
                 newMethod.addParameter(invocation.getClassOrigin());
         }
 
@@ -225,6 +236,25 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
             virtualSystem.getClass(targetClass.getName()).addMethod(newMyMethod);
             newMethod.replaceMethodInvocation(oldMyMethodInvocation, newMyMethodInvocation);
         }
+    }
+
+    private boolean belongsToAdditionalMethodsToBeMoved(MyMethodInvocation methodInvocation) {
+    	for(MethodDeclaration methodDeclaration : additionalMethodsToBeMoved.values()) {
+    		if(methodDeclaration.getName().getIdentifier().equals(methodInvocation.getMethodName())) {
+    			List<SingleVariableDeclaration> methodDeclarationParameters = methodDeclaration.parameters();
+    			List<String> methodInvocationTypeParameters = methodInvocation.getParameterList();
+    			if(methodDeclarationParameters.size() == methodInvocationTypeParameters.size()) {
+    				int numberOfSameTypeParameters = 0;
+    				for(int i=0; i<methodDeclarationParameters.size(); i++) {
+    					if(methodDeclarationParameters.get(i).getType().resolveBinding().getQualifiedName().equals(methodInvocationTypeParameters.get(i)))
+    						numberOfSameTypeParameters++;
+    				}
+    				if(numberOfSameTypeParameters == methodDeclarationParameters.size())
+    					return true;
+    			}
+    		}
+    	}
+    	return false;
     }
 
     public TypeDeclaration getSourceClassTypeDeclaration() {

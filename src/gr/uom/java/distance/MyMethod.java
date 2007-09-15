@@ -118,6 +118,12 @@ public class MyMethod extends Entity {
     		this.methodBody.setAttributeInstructionReference(myAttributeInstruction, reference);
     }
 
+    public void addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(MyAttributeInstruction attributeInstruction, MyMethodInvocation methodInvocation) {
+    	if(this.methodBody != null) {
+    		this.methodBody.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(attributeInstruction, methodInvocation);
+    	}
+    }
+
     public void insertMethodInvocationBeforeStatement(MyAbstractStatement parentStatement, MyStatement methodInvocation) {
     	if(this.methodBody != null)
     		this.methodBody.insertMethodInvocationBeforeStatement(parentStatement, methodInvocation);

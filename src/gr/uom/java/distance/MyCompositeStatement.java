@@ -154,6 +154,27 @@ public class MyCompositeStatement extends MyAbstractStatement {
     		parent.update();
     }
 
+    public void addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(MyAttributeInstruction attributeInstruction, MyMethodInvocation methodInvocation) {
+    	for(MyAbstractExpression expression : expressionList) {
+    		if(expression.containsMethodInvocation(methodInvocation)) {
+    			expression.addAttributeInstruction(attributeInstruction);
+    			update();
+    		}
+    	}
+    	for(MyAbstractStatement abstractStatement : statementList) {
+    		if(abstractStatement instanceof MyStatement) {
+    			if(abstractStatement.containsMethodInvocation(methodInvocation)) {
+    				abstractStatement.addAttributeInstruction(attributeInstruction);
+    				update();
+    			}
+    		}
+    		else if(abstractStatement instanceof MyCompositeStatement) {
+    			MyCompositeStatement myCompositeStatement = (MyCompositeStatement)abstractStatement;
+    			myCompositeStatement.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(attributeInstruction, methodInvocation);
+    		}
+    	}
+    }
+
     public void insertMethodInvocationBeforeStatement(MyAbstractStatement parentStatement, MyStatement methodInvocation) {
     	if(statementList.contains(parentStatement)) {
     		int index = statementList.indexOf(parentStatement);

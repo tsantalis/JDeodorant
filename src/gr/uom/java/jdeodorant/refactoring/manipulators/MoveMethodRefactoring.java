@@ -308,6 +308,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
 		insertTargetClassVariableNameAsVariableDeclaration(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
+		replaceThisExpressionWithSourceClassParameterInVariableDeclarationInitializers(newMethodDeclaration);
 
 		ListRewrite targetClassBodyRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		targetClassBodyRewrite.insertLast(newMethodDeclaration, null);
@@ -989,6 +990,30 @@ public class MoveMethodRefactoring implements Refactoring {
 						ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 						argumentRewrite.replace(argument, parameterName, null);
 					}
+				}
+			}
+		}
+	}
+	
+	private void replaceThisExpressionWithSourceClassParameterInVariableDeclarationInitializers(MethodDeclaration newMethodDeclaration) {
+		StatementExtractor extractor = new StatementExtractor();
+		List<Statement> variableDeclarations = extractor.getVariableDeclarations(newMethodDeclaration.getBody());
+		for(Statement declaration : variableDeclarations) {
+			VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)declaration;
+			List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				Expression initializer = fragment.getInitializer();
+				if(initializer instanceof ThisExpression) {
+					SimpleName parameterName = null;
+					if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+						parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+					}
+					else {
+						AST ast = newMethodDeclaration.getAST();
+						String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
+						parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
+					}
+					targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, parameterName, null);
 				}
 			}
 		}

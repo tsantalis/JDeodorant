@@ -93,7 +93,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(canBeMoved() && hasReferenceToTargetClass()) {
+    	if(!isTargetClassAnInterface() && canBeMoved() && hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -102,6 +102,16 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	}
     	else
     		return false;
+    }
+
+    private boolean isTargetClassAnInterface() {
+    	if(targetClass.getClassObject().isInterface()) {
+    		return true;
+    	}
+    	else {
+    		System.out.println(this.toString() + "\tTarget class is an interface");
+    		return false;
+    	}
     }
 
     private boolean canBeMoved() {

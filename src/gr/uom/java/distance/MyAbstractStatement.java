@@ -63,7 +63,7 @@ public abstract class MyAbstractStatement {
     	else if((fieldInstruction = system.containsCollectionAdder(methodInvocation)) != null) {
     	}
     	
-    	if(fieldInstruction != null) {
+    	if(fieldInstruction != null && system.getClassObject(fieldInstruction.getOwnerClass()) != null) {
     		MyAttributeInstruction myAttributeInstruction = 
     			new MyAttributeInstruction(fieldInstruction.getOwnerClass(),fieldInstruction.getType().toString(),fieldInstruction.getName());
             

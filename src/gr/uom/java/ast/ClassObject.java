@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
 
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class ClassObject {
@@ -29,6 +30,22 @@ public class ClassObject {
         this._interface = false;
         this._static = false;
         this.access = Access.NONE;
+    }
+
+    public boolean isInnerClass() {
+    	if(typeDeclaration.getParent() instanceof TypeDeclaration)
+    		return true;
+    	else if(typeDeclaration.getParent() instanceof CompilationUnit)
+    		return false;
+    	return false;
+    }
+
+    public TypeDeclaration getOuterClass() {
+    	if(typeDeclaration.getParent() instanceof TypeDeclaration)
+    		return (TypeDeclaration)typeDeclaration.getParent();
+    	else if(typeDeclaration.getParent() instanceof CompilationUnit)
+    		return null;
+    	return null;
     }
 
     public void setTypeDeclaration(TypeDeclaration typeDeclaration) {

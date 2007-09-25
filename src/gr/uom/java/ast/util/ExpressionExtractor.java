@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -83,6 +84,12 @@ public class ExpressionExtractor {
 	// returns a List of ThisExpression objects
 	public List<Expression> getThisExpressions(Statement statement) {
 		instanceChecker = new InstanceOfThisExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of ThisExpression objects
+	public List<Expression> getTypeLiterals(Statement statement) {
+		instanceChecker = new InstanceOfTypeLiteral();
 		return getExpressions(statement);
 	}
 	
@@ -352,7 +359,11 @@ public class ExpressionExtractor {
 			if(instanceChecker.instanceOf(thisExpression))
 				expressionList.add(thisExpression);
 		}
-		
+		else if(expression instanceof TypeLiteral) {
+			TypeLiteral typeLiteral = (TypeLiteral)expression;
+			if(instanceChecker.instanceOf(typeLiteral))
+				expressionList.add(typeLiteral);
+		}
 		return expressionList;
 	}
 }

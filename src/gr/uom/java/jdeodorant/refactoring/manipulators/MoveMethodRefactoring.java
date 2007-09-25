@@ -41,6 +41,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -179,6 +180,16 @@ public class MoveMethodRefactoring implements Refactoring {
 			if(!typeBindings.contains(classInstanceCreationTypeBinding))
 				typeBindings.add(classInstanceCreationTypeBinding);
 		}
+		
+		List<Expression> typeLiterals = expressionExtractor.getTypeLiterals(sourceMethod.getBody());
+		for(Expression expression : typeLiterals) {
+			TypeLiteral typeLiteral = (TypeLiteral)expression;
+			Type typeLiteralType = typeLiteral.getType();
+			ITypeBinding typeLiteralTypeBinding = typeLiteralType.resolveBinding();
+			if(!typeBindings.contains(typeLiteralTypeBinding))
+				typeBindings.add(typeLiteralTypeBinding);
+		}
+		
 		getSimpleTypeBindings(typeBindings);
 		for(ITypeBinding typeBinding : requiredTargetImportDeclarationSet)
 			addImportDeclaration(typeBinding);

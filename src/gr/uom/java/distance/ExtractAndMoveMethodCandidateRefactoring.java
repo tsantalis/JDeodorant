@@ -106,10 +106,10 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 
     private boolean isTargetClassAnInterface() {
     	if(targetClass.getClassObject().isInterface()) {
+    		System.out.println(this.toString() + "\tTarget class is an interface");
     		return true;
     	}
     	else {
-    		System.out.println(this.toString() + "\tTarget class is an interface");
     		return false;
     	}
     }

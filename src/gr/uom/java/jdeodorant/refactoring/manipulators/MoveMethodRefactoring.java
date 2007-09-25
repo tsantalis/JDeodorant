@@ -305,6 +305,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			modifyTargetPublicFieldInstructions(newMethodDeclaration);
 		}
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
+		modifySourceStaticMethodInvocationsInTargetClass(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
 		insertTargetClassVariableNameAsVariableDeclaration(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
@@ -637,28 +638,53 @@ public class MoveMethodRefactoring implements Refactoring {
 	
 	private void modifySourceStaticFieldInstructionsInTargetClass(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
-		List<Expression> variableInstructions = extractor.getVariableInstructions(newMethodDeclaration.getBody());
-		FieldDeclaration[] fields = sourceTypeDeclaration.getFields();
-		AST ast = newMethodDeclaration.getAST();
-		for(FieldDeclaration field : fields) {
-			if((field.getModifiers() & Modifier.STATIC) != 0) {
-				List<VariableDeclarationFragment> fragments = field.fragments();
-				for(VariableDeclarationFragment fragment : fragments) {
-					SimpleName fragmentName = fragment.getName();
-					for(Expression expression : variableInstructions) {
-						SimpleName expressionName = (SimpleName)expression;
-						if(!(expressionName.getParent() instanceof QualifiedName) && fragmentName.getIdentifier().equals(expressionName.getIdentifier())){
-							SimpleName newSimpleName = ast.newSimpleName(expressionName.getIdentifier());
-							SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
-							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
-							targetRewriter.replace(expressionName, newQualifiedName, null);
-						}
+		List<Expression> sourceVariableInstructions = extractor.getVariableInstructions(sourceMethod.getBody());
+		List<Expression> newVariableInstructions = extractor.getVariableInstructions(newMethodDeclaration.getBody());
+		int i = 0;
+		for(Expression expression : sourceVariableInstructions) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0 && variableBinding.getDeclaringClass() != null &&
+						variableBinding.getDeclaringClass().getQualifiedName().equals(sourceTypeDeclaration.resolveBinding().getQualifiedName())) {
+					AST ast = newMethodDeclaration.getAST();
+					SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+					if(simpleName.getParent() instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
+						targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+					}
+					else if(!(simpleName.getParent() instanceof QualifiedName)) {
+						SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
+						QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
+						targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
 					}
 				}
 			}
+			i++;
 		}
 	}
 	
+	private void modifySourceStaticMethodInvocationsInTargetClass(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();	
+		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
+		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		int i = 0;
+		for(Expression expression : sourceMethodInvocations) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+				if((methodBinding.getModifiers() & Modifier.STATIC) != 0 &&
+						methodBinding.getDeclaringClass().getQualifiedName().equals(sourceTypeDeclaration.resolveBinding().getQualifiedName())) {
+					AST ast = newMethodDeclaration.getAST();
+					SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+					targetRewriter.set(newMethodInvocations.get(i), MethodInvocation.EXPRESSION_PROPERTY, qualifier, null);
+				}
+			}
+			i++;
+		}
+	}
+
 	private void modifySourceMemberAccessesInTargetClass(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();	
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());

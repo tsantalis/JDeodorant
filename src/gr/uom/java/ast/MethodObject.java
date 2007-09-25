@@ -256,14 +256,14 @@ public class MethodObject {
     		if(typeBinding.isInterface()) {
     			IMethodBinding[] interfaceMethodBindings = typeBinding.getDeclaredMethods();
         		for(IMethodBinding interfaceMethodBinding : interfaceMethodBindings) {
-        			if(methodBinding.overrides(interfaceMethodBinding))
+        			if(methodBinding.overrides(interfaceMethodBinding) || methodBinding.toString().equals(interfaceMethodBinding.toString()))
         				return true;
         		}
     		}
     		else {
     			IMethodBinding[] superClassMethodBindings = typeBinding.getDeclaredMethods();
     	    	for(IMethodBinding superClassMethodBinding : superClassMethodBindings) {
-    	    		if(methodBinding.overrides(superClassMethodBinding))
+    	    		if(methodBinding.overrides(superClassMethodBinding) || methodBinding.toString().equals(superClassMethodBinding.toString()))
     	    			return true;
     	    	}
     		}

@@ -68,7 +68,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && canBeMoved() && hasReferenceToTargetClass() && !overridesMethod()) {
+    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() && !overridesMethod()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
     	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -82,6 +82,16 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     private boolean isTargetClassAnInterface() {
     	if(targetClass.getClassObject().isInterface()) {
     		System.out.println(this.toString() + "\tTarget class is an interface");
+    		return true;
+    	}
+    	else {
+    		return false;
+    	}
+    }
+
+    private boolean isTargetClassAnInnerClass() {
+    	if(targetClass.getClassObject().isInnerClass()) {
+    		System.out.println(this.toString() + "\tTarget class is an inner class");
     		return true;
     	}
     	else {

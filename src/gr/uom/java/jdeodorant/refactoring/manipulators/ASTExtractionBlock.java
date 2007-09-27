@@ -14,6 +14,7 @@ public class ASTExtractionBlock {
 	private VariableDeclarationFragment returnVariableDeclarationFragment;
 	private VariableDeclarationStatement returnVariableDeclarationStatement;
 	private List<Statement> statementsForExtraction;
+	private List<String> assignmentOperators;
 	private Statement parentStatementForCopy;
 	//includes variable declaration statements that should be added in extracted method's body
 	//instead of being passed as parameters
@@ -22,12 +23,13 @@ public class ASTExtractionBlock {
 	private List<VariableDeclarationStatement> allVariableDeclarationStatements;
 	
 	public ASTExtractionBlock(String extractedMethodName, VariableDeclarationFragment returnVariableDeclarationFragment, VariableDeclarationStatement returnVariableDeclarationStatement,
-			List<Statement> statementsForExtraction, List<VariableDeclarationStatement> allVariableDeclarationStatements) {
+			List<Statement> statementsForExtraction, List<VariableDeclarationStatement> allVariableDeclarationStatements, List<String> assignmentOperators) {
 		this.extractedMethodName = extractedMethodName;
 		this.returnVariableDeclarationFragment = returnVariableDeclarationFragment;
 		this.returnVariableDeclarationStatement = returnVariableDeclarationStatement;
 		this.statementsForExtraction = statementsForExtraction;
 		this.allVariableDeclarationStatements = allVariableDeclarationStatements;
+		this.assignmentOperators = assignmentOperators;
 		this.parentStatementForCopy = null;
 		this.additionalRequiredVariableDeclarationStatementMap = new LinkedHashMap<VariableDeclarationFragment, VariableDeclarationStatement>();
 	}
@@ -70,5 +72,21 @@ public class ASTExtractionBlock {
 	
 	public VariableDeclarationStatement getAdditionalRequiredVariableDeclarationStatement(VariableDeclarationFragment fragment) {
 		return this.additionalRequiredVariableDeclarationStatementMap.get(fragment);
+	}
+	
+	public boolean allAssignmentOperatorsContainPlus() {
+		for(String operator : assignmentOperators) {
+			if(!operator.contains("+"))
+				return false;
+		}
+		return true;
+	}
+	
+	public boolean allAssignmentOperatorsContainMinus() {
+		for(String operator : assignmentOperators) {
+			if(!operator.contains("-"))
+				return false;
+		}
+		return true;
 	}
 }

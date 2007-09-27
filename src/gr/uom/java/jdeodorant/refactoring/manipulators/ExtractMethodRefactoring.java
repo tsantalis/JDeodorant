@@ -239,10 +239,18 @@ public class ExtractMethodRefactoring implements Refactoring {
 		ASTNode parentBlock = extractionBlock.getStatementsForExtraction().get(0).getParent();
 		Assignment assignment = parentBlock.getAST().newAssignment();
 		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, extractionBlock.getReturnVariableDeclarationFragment().getName(), null);
-		if(extractionBlock.getReturnVariableDeclarationStatement().getType().isPrimitiveType() && parentBlock != extractionBlock.getReturnVariableDeclarationStatement().getParent() && isLoop(parentBlock))
-			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.PLUS_ASSIGN, null);
-		else
+		if(extractionBlock.getReturnVariableDeclarationStatement().getType().isPrimitiveType() && parentBlock != extractionBlock.getReturnVariableDeclarationStatement().getParent() &&
+				isLoop(parentBlock) && extractionBlock.getReturnVariableDeclarationFragment().getInitializer() != null) {
+			if(extractionBlock.allAssignmentOperatorsContainPlus())
+				sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.PLUS_ASSIGN, null);
+			else if(extractionBlock.allAssignmentOperatorsContainMinus())
+				sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.MINUS_ASSIGN, null);
+			else
+				sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+		}
+		else {
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+		}
 		
 		MethodInvocation methodInvocation = assignment.getAST().newMethodInvocation();
 		sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, parentBlock.getAST().newSimpleName(extractionBlock.getExtractedMethodName()), null);

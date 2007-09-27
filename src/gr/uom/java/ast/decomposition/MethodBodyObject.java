@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.AssertStatement;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CatchClause;
@@ -27,6 +28,8 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -70,9 +73,11 @@ public class MethodBodyObject {
 		
 		for(LocalVariableDeclarationObject variableDeclaration : assignmentMap.keySet()) {
 			List<AbstractStatement> localVariableAssignments = assignmentMap.get(variableDeclaration);
+			List<String> assignmentOperators = new ArrayList<String>();
 			//contains the local variable instructions found in the assignment statements
 			Set<LocalVariableInstructionObject> localVariableInstructionsFoundInAssignments = new HashSet<LocalVariableInstructionObject>();
 			for(AbstractStatement localVariableAssignment : localVariableAssignments) {
+				assignmentOperators.add(getAssignmentOperator(localVariableAssignment));
 				List<LocalVariableInstructionObject> instructions = localVariableAssignment.getLocalVariableInstructions();
 				for(LocalVariableInstructionObject instruction : instructions) {
 					if(assignmentMap.containsKey(instruction.generateLocalVariableDeclaration()))
@@ -117,7 +122,7 @@ public class MethodBodyObject {
 			//
 			if( (newLocalVariableAssignments.size() > 1 && belongToTheSameBlock(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
 					(newLocalVariableAssignments.size() == 1 && !(newLocalVariableAssignments.get(0) instanceof StatementObject)) ) {
-				ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
+				ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments, assignmentOperators);
 				for(LocalVariableInstructionObject variableInstruction : localVariableInstructionsFoundInAssignments) {
 					LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
 					if(!lvdo.equals(variableDeclaration) && !hasAssignmentBeforeStatement(lvdo, newLocalVariableAssignments.get(0))) {
@@ -162,7 +167,7 @@ public class MethodBodyObject {
 							}
 						}
 					}
-					ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments);
+					ExtractionBlock block = new ExtractionBlock(variableDeclaration, getVariableDeclarationStatement(variableDeclaration), newLocalVariableAssignments, assignmentOperators);
 					for(LocalVariableInstructionObject variableInstruction : localVariableInstructionsFoundInAssignments) {
 						LocalVariableDeclarationObject lvdo = variableInstruction.generateLocalVariableDeclaration();
 						if(!lvdo.equals(variableDeclaration) && !hasAssignmentBeforeStatement(lvdo, newLocalVariableAssignments.get(0))) {
@@ -278,6 +283,27 @@ public class MethodBodyObject {
 			}
 		}
 		return hasAssignmentBeforeStatement(lvdo, parent);
+	}
+
+	private String getAssignmentOperator(AbstractStatement localVariableAssignment) {
+		Statement statement = localVariableAssignment.getStatement();
+		if(statement instanceof ExpressionStatement) {
+			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+			Expression expression = expressionStatement.getExpression();
+			if(expression instanceof Assignment) {
+				Assignment assignment = (Assignment)expression;
+				return assignment.getOperator().toString();
+			}
+			else if(expression instanceof PostfixExpression) {
+				PostfixExpression postfixExpression = (PostfixExpression)expression;
+				return postfixExpression.getOperator().toString();
+			}
+			else if(expression instanceof PrefixExpression) {
+				PrefixExpression prefixExpression = (PrefixExpression)expression;
+				return prefixExpression.getOperator().toString();
+			}
+		}
+		return null;
 	}
 
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {

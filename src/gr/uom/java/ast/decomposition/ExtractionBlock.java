@@ -23,16 +23,18 @@ public class ExtractionBlock {
 	private LocalVariableDeclarationObject returnVariableDeclaration;
 	private VariableDeclarationStatement returnVariableDeclarationStatement;
 	private List<AbstractStatement> statementsForExtraction;
+	private List<String> assignmentOperators;
 	private AbstractStatement parentStatementForCopy;
 	private Map<LocalVariableDeclarationObject, VariableDeclarationStatement> additionalRequiredVariableDeclarationStatementMap;
 	
 	public ExtractionBlock(LocalVariableDeclarationObject returnVariableDeclaration,
 			VariableDeclarationStatement returnVariableDeclarationStatement,
-			List<AbstractStatement> statementsForExtraction) {
+			List<AbstractStatement> statementsForExtraction, List<String> assignmentOperators) {
 		this.extractedMethodName = returnVariableDeclaration.getName();
 		this.returnVariableDeclaration = returnVariableDeclaration;
 		this.returnVariableDeclarationStatement = returnVariableDeclarationStatement;
 		this.statementsForExtraction = statementsForExtraction;
+		this.assignmentOperators = assignmentOperators;
 		this.parentStatementForCopy = null;
 		this.additionalRequiredVariableDeclarationStatementMap = new LinkedHashMap<LocalVariableDeclarationObject, VariableDeclarationStatement>();
 	}
@@ -55,6 +57,10 @@ public class ExtractionBlock {
 
 	public List<AbstractStatement> getStatementsForExtraction() {
 		return statementsForExtraction;
+	}
+
+	public List<String> getAssignmentOperators() {
+		return assignmentOperators;
 	}
 
 	public AbstractStatement getParentStatementForCopy() {

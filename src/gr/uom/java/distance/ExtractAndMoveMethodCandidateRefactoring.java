@@ -323,7 +323,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 
     public ASTExtractionBlock getASTExtractionBlock() {
     	ASTExtractionBlock astExtractionBlock = new ASTExtractionBlock(extractionBlock.getExtractedMethodName(), getReturnVariableDeclarationFragment(),
-    		getReturnVariableDeclarationStatement(), getStatementsForExtraction(), getAllVariableDeclarationStatements());
+    		getReturnVariableDeclarationStatement(), getStatementsForExtraction(), getAllVariableDeclarationStatements(), extractionBlock.getAssignmentOperators());
     	if(extractionBlock.getParentStatementForCopy() != null)
     		astExtractionBlock.setParentStatementForCopy(extractionBlock.getParentStatementForCopy().getStatement());
     	for(LocalVariableDeclarationObject lvdo : extractionBlock.getAdditionalRequiredVariableDeclarations()) {

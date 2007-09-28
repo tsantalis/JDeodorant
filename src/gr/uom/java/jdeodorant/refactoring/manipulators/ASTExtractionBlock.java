@@ -1,10 +1,17 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.util.ExpressionExtractor;
+
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -72,6 +79,25 @@ public class ASTExtractionBlock {
 	
 	public VariableDeclarationStatement getAdditionalRequiredVariableDeclarationStatement(VariableDeclarationFragment fragment) {
 		return this.additionalRequiredVariableDeclarationStatementMap.get(fragment);
+	}
+	
+	public Set<String> getThrownExceptions() {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		Set<String> thrownExceptions = new LinkedHashSet<String>();
+		for(Statement statement : statementsForExtraction) {
+			List<Expression> methodInvocations = extractor.getMethodInvocations(statement);
+			for(Expression expression : methodInvocations) {
+				if(expression instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation)expression;
+					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+					ITypeBinding[] typeBindings = methodBinding.getExceptionTypes();
+					for(ITypeBinding typeBinding : typeBindings) {
+						thrownExceptions.add(typeBinding.getName());
+					}
+				}
+			}
+		}
+		return thrownExceptions;
 	}
 	
 	public boolean allAssignmentOperatorsContainPlus() {

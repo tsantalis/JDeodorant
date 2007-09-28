@@ -4,6 +4,7 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -148,6 +149,13 @@ public class ExtractMethodRefactoring implements Refactoring {
 				sourceRewriter.set(newParam, SingleVariableDeclaration.TYPE_PROPERTY, argumentVariableDeclarationType, null);
 				paramRewrite.insertLast(newParam, null);
 			}
+		}
+		
+		Set<String> thrownExceptions = extractionBlock.getThrownExceptions();
+		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		for(String thrownException : thrownExceptions) {
+			SimpleName simpleName = ast.newSimpleName(thrownException);
+			thrownExceptionRewrite.insertLast(simpleName, null);
 		}
 		
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();

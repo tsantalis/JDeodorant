@@ -32,6 +32,7 @@ import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -143,6 +144,16 @@ public class MoveMethodRefactoring implements Refactoring {
 			ITypeBinding parameterTypeBinding = parameterType.resolveBinding();
 			if(!typeBindings.contains(parameterTypeBinding))
 				typeBindings.add(parameterTypeBinding);			
+		}
+		
+		List<Name> thrownExceptions = sourceMethod.thrownExceptions();
+		for(Name name : thrownExceptions) {
+			IBinding binding = name.resolveBinding();
+			if(binding.getKind() == IBinding.TYPE) {
+				ITypeBinding typeBinding = (ITypeBinding)binding;
+				if(!typeBindings.contains(typeBinding))
+					typeBindings.add(typeBinding);
+			}
 		}
 		
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();

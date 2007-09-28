@@ -589,6 +589,27 @@ public class MoveMethodRefactoring implements Refactoring {
 		return true;
 	}
 
+	private boolean identicalSignature(IMethodBinding methodBinding, MethodInvocation methodInvocation) {
+		if(!methodInvocation.getName().getIdentifier().equals(methodBinding.getName()))
+			return false;
+		ITypeBinding[] parameters = methodBinding.getParameterTypes();
+		List<Expression> arguments = methodInvocation.arguments();
+		if(arguments.size() != parameters.length) {
+			return false;
+		}
+		else {
+			for(int i=0; i<arguments.size(); i++) {
+				ITypeBinding parameterTypeBinding = parameters[i];
+				Expression argument = arguments.get(i);
+				ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
+				if(!argumentTypeBinding.getQualifiedName().equals(parameterTypeBinding.getQualifiedName()))
+					return false;
+			}
+		}
+		
+		return true;
+	}
+
 	private void modifyTargetMethodInvocations(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
@@ -815,6 +836,7 @@ public class MoveMethodRefactoring implements Refactoring {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
 					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+					ITypeBinding superclassTypeBinding = sourceTypeDeclaration.getSuperclassType().resolveBinding();
 					if(methodBinding.getDeclaringClass().equals(sourceTypeDeclaration.resolveBinding())) {
 						MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
 						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
@@ -834,6 +856,18 @@ public class MoveMethodRefactoring implements Refactoring {
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
 									setPublicModifierToSourceMethod(methodInvocation);
 								}
+							}
+						}
+					}
+					else if(methodBinding.getDeclaringClass().equals(superclassTypeBinding)) {
+						IMethodBinding[] superclassMethodBindings = superclassTypeBinding.getDeclaredMethods();
+						for(IMethodBinding superclassMethodBinding : superclassMethodBindings) {
+							if(identicalSignature(superclassMethodBinding, methodInvocation)) {
+								MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
+								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+									parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+								}
+								targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
 							}
 						}
 					}

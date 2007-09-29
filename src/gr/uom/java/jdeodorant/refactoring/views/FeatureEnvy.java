@@ -467,6 +467,7 @@ public class FeatureEnvy extends ViewPart {
 							undoRefactoringAction.setEnabled(false);
 					}
 				}
+				applyRefactoringAction.setEnabled(false);
 			}
 		};
 		undoRefactoringAction.setToolTipText("Undo Refactoring");

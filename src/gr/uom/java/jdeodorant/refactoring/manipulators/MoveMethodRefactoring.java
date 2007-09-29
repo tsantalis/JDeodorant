@@ -793,7 +793,6 @@ public class MoveMethodRefactoring implements Refactoring {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
 					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-					Type superclassType = sourceTypeDeclaration.getSuperclassType();
 					if(methodBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 						MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
 						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
@@ -816,15 +815,24 @@ public class MoveMethodRefactoring implements Refactoring {
 							}
 						}
 					}
-					else if(superclassType != null && methodBinding.getDeclaringClass().isEqualTo(superclassType.resolveBinding())) {
-						IMethodBinding[] superclassMethodBindings = superclassType.resolveBinding().getDeclaredMethods();
-						for(IMethodBinding superclassMethodBinding : superclassMethodBindings) {
-							if(superclassMethodBinding.isEqualTo(methodInvocation.resolveMethodBinding())) {
-								MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
-								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
-									parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+					else {
+						Type superclassType = sourceTypeDeclaration.getSuperclassType();
+						ITypeBinding superclassTypeBinding = null;
+						if(superclassType != null)
+							superclassTypeBinding = superclassType.resolveBinding();
+						while(superclassTypeBinding != null && !methodBinding.getDeclaringClass().isEqualTo(superclassTypeBinding)) {
+							superclassTypeBinding = superclassTypeBinding.getSuperclass();
+						}
+						if(superclassTypeBinding != null) {
+							IMethodBinding[] superclassMethodBindings = superclassTypeBinding.getDeclaredMethods();
+							for(IMethodBinding superclassMethodBinding : superclassMethodBindings) {
+								if(superclassMethodBinding.isEqualTo(methodInvocation.resolveMethodBinding())) {
+									MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
+									if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+										parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+									}
+									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
 								}
-								targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
 							}
 						}
 					}

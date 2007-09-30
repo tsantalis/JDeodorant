@@ -100,6 +100,31 @@ public class ExtractMethodRefactoring implements Refactoring {
 		List<String> variableDeclarationIdentifiers = new ArrayList<String>();
 		for(VariableDeclarationFragment fragment : extractionBlock.getAdditionalRequiredVariableDeclarationFragments())
 			variableDeclarationIdentifiers.add(fragment.getName().getIdentifier());
+		if(extractionBlock.getParentStatementForCopy() != null) {
+			Statement parentStatementForCopy = extractionBlock.getParentStatementForCopy();
+			if(parentStatementForCopy.getNodeType() == Statement.IF_STATEMENT) {
+				IfStatement ifStatement = (IfStatement)parentStatementForCopy;
+				List<Expression> list = extractor.getVariableInstructions(ifStatement.getExpression());
+				for(Expression expression : list) {
+					SimpleName simpleName = (SimpleName)expression;
+					IBinding binding = simpleName.resolveBinding();
+					if(binding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding variableBinding = (IVariableBinding)binding;
+						String simpleNameIdentifier = simpleName.getIdentifier();
+						if(!variableBinding.isField() && !simpleName.isDeclaration() && !returnVariableSimpleName.getIdentifier().equals(simpleNameIdentifier)) {
+							if(!extractedMethodArgumentIdentifiers.contains(simpleNameIdentifier) && !variableDeclarationIdentifiers.contains(simpleNameIdentifier)) {
+								extractedMethodArgumentIdentifiers.add(simpleNameIdentifier);
+								extractedMethodArguments.add(simpleName);
+							}
+						}
+						else {
+							if(!variableDeclarationIdentifiers.contains(simpleNameIdentifier))
+								variableDeclarationIdentifiers.add(simpleNameIdentifier);
+						}
+					}
+				}
+			}
+		}
 		for(Statement statement : extractionBlock.getStatementsForExtraction()) {
 			List<Expression> list = extractor.getVariableInstructions(statement);
 			for(Expression expression : list) {

@@ -87,9 +87,15 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
-	// returns a List of ThisExpression objects
+	// returns a List of TypeLiteral objects
 	public List<Expression> getTypeLiterals(Statement statement) {
 		instanceChecker = new InstanceOfTypeLiteral();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of CastExpression objects
+	public List<Expression> getCastExpressions(Statement statement) {
+		instanceChecker = new InstanceOfCastExpression();
 		return getExpressions(statement);
 	}
 	
@@ -253,6 +259,8 @@ public class ExpressionExtractor {
 		else if(expression instanceof CastExpression) {
 			CastExpression castExpression = (CastExpression)expression;
 			expressionList.addAll(getExpressions(castExpression.getExpression()));
+			if(instanceChecker.instanceOf(castExpression))
+				expressionList.add(castExpression);
 		}
 		else if(expression instanceof ClassInstanceCreation) {
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;

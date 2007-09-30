@@ -18,6 +18,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -166,9 +167,6 @@ public class MoveMethodRefactoring implements Refactoring {
 				ITypeBinding variableTypeBinding = variableBinding.getType();
 				if(!typeBindings.contains(variableTypeBinding))
 					typeBindings.add(variableTypeBinding);
-				ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
-				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
-					typeBindings.add(declaringClassTypeBinding);
 			}
 		}
 		
@@ -176,10 +174,12 @@ public class MoveMethodRefactoring implements Refactoring {
 		for(Expression expression : methodInvocations) {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
-				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
-					typeBindings.add(declaringClassTypeBinding);
+				if(!additionalMethodsToBeMoved.keySet().contains(methodInvocation)) {
+					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+					ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
+					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
+						typeBindings.add(declaringClassTypeBinding);
+				}
 			}
 		}
 		
@@ -197,6 +197,15 @@ public class MoveMethodRefactoring implements Refactoring {
 			TypeLiteral typeLiteral = (TypeLiteral)expression;
 			Type typeLiteralType = typeLiteral.getType();
 			ITypeBinding typeLiteralTypeBinding = typeLiteralType.resolveBinding();
+			if(!typeBindings.contains(typeLiteralTypeBinding))
+				typeBindings.add(typeLiteralTypeBinding);
+		}
+		
+		List<Expression> castExpressions = expressionExtractor.getCastExpressions(sourceMethod.getBody());
+		for(Expression expression : castExpressions) {
+			CastExpression castExpression = (CastExpression)expression;
+			Type castExpressionType = castExpression.getType();
+			ITypeBinding typeLiteralTypeBinding = castExpressionType.resolveBinding();
 			if(!typeBindings.contains(typeLiteralTypeBinding))
 				typeBindings.add(typeLiteralTypeBinding);
 		}

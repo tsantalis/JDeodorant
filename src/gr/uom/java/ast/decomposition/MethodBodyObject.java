@@ -134,7 +134,7 @@ public class MethodBodyObject {
 				extractionBlockList.add(block);
 			}
 			else if(newLocalVariableAssignments.size() > 1) {
-				AbstractStatement parentStatement = haveRecursivelyTheSameParent(newLocalVariableAssignments);
+				CompositeStatementObject parentStatement = haveRecursivelyTheSameParent(newLocalVariableAssignments);
 				if(parentStatement != null && !(parentStatement.getStatement() instanceof Block)) {
 					List<AbstractStatement> tempLocalVariableAssignments = new ArrayList<AbstractStatement>(newLocalVariableAssignments);
 					for(AbstractStatement statement : tempLocalVariableAssignments) {
@@ -214,9 +214,10 @@ public class MethodBodyObject {
 		return true;
 	}
 
-	private AbstractStatement haveRecursivelyTheSameParent(List<AbstractStatement> list) {
+	private CompositeStatementObject haveRecursivelyTheSameParent(List<AbstractStatement> list) {
+		List<AbstractStatement> copiedList = new ArrayList<AbstractStatement>(list);
 		Map<AbstractStatement, Integer> depthOfNestingMap = new LinkedHashMap<AbstractStatement, Integer>();
-		for(AbstractStatement statement : list) {
+		for(AbstractStatement statement : copiedList) {
 			int depthOfNesting = 0;
 			AbstractStatement parentStatement = statement.getParent();
 			while(parentStatement != null) {
@@ -241,14 +242,14 @@ public class MethodBodyObject {
 					for(int i=0; i<depth-minimumDepthOfNesting; i++) {
 						parentStatement = parentStatement.getParent();
 					}
-					int index = list.indexOf(statement);
-					list.remove(index);
-					list.add(index, parentStatement);
+					int index = copiedList.indexOf(statement);
+					copiedList.remove(index);
+					copiedList.add(index, parentStatement);
 				}
 			}
 		}
 		List<AbstractStatement> parentStatements = new ArrayList<AbstractStatement>();
-		for(AbstractStatement statement : list) {
+		for(AbstractStatement statement : copiedList) {
 			parentStatements.add(statement.getParent());
 		}
 		AbstractStatement parentStatement = parentStatements.get(0);
@@ -258,7 +259,7 @@ public class MethodBodyObject {
 			}	
 		}
 		if(parentStatement.getParent() != null)
-			return parentStatement;
+			return (CompositeStatementObject)parentStatement;
 		else
 			return null;
 	}

@@ -24,7 +24,7 @@ public class ExtractionBlock {
 	private VariableDeclarationStatement returnVariableDeclarationStatement;
 	private List<AbstractStatement> statementsForExtraction;
 	private List<String> assignmentOperators;
-	private AbstractStatement parentStatementForCopy;
+	private CompositeStatementObject parentStatementForCopy;
 	private Map<LocalVariableDeclarationObject, VariableDeclarationStatement> additionalRequiredVariableDeclarationStatementMap;
 	
 	public ExtractionBlock(LocalVariableDeclarationObject returnVariableDeclaration,
@@ -67,7 +67,7 @@ public class ExtractionBlock {
 		return parentStatementForCopy;
 	}
 
-	public void setParentStatementForCopy(AbstractStatement parentStatementForCopy) {
+	public void setParentStatementForCopy(CompositeStatementObject parentStatementForCopy) {
 		this.parentStatementForCopy = parentStatementForCopy;
 	}
 
@@ -85,6 +85,11 @@ public class ExtractionBlock {
 
 	public boolean canBeMovedTo(ClassObject sourceClass, ClassObject targetClass, MethodObject sourceMethod) {
     	List<LocalVariableInstructionObject> localVariableInstructions = new ArrayList<LocalVariableInstructionObject>();
+    	if(parentStatementForCopy != null) {
+    		for(AbstractExpression expression : parentStatementForCopy.getExpressions()) {
+    			localVariableInstructions.addAll(expression.getLocalVariableInstructions());
+    		}
+    	}
     	for(AbstractStatement statement : statementsForExtraction) {
     		localVariableInstructions.addAll(statement.getLocalVariableInstructions());
     	}
@@ -120,6 +125,11 @@ public class ExtractionBlock {
     		}
     	}
     	List<FieldInstructionObject> fieldInstructions = new ArrayList<FieldInstructionObject>();
+    	if(parentStatementForCopy != null) {
+    		for(AbstractExpression expression : parentStatementForCopy.getExpressions()) {
+    			fieldInstructions.addAll(expression.getFieldInstructions());
+    		}
+    	}
     	for(AbstractStatement statement : statementsForExtraction) {
     		fieldInstructions.addAll(statement.getFieldInstructions());
     	}
@@ -134,6 +144,11 @@ public class ExtractionBlock {
     		}
     	}
     	List<MethodInvocationObject> methodInvocations = new ArrayList<MethodInvocationObject>();
+    	if(parentStatementForCopy != null) {
+    		for(AbstractExpression expression : parentStatementForCopy.getExpressions()) {
+    			methodInvocations.addAll(expression.getMethodInvocations());
+    		}
+    	}
     	for(AbstractStatement statement : statementsForExtraction) {
     		methodInvocations.addAll(statement.getMethodInvocations());
     	}

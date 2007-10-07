@@ -212,41 +212,9 @@ public class ExtractMethodRefactoring implements Refactoring {
 			Statement parentStatement = extractionBlock.getParentStatementForCopy();
 			Statement copiedParentStatement = (Statement)ASTNode.copySubtree(ast, parentStatement);
 			if(copiedParentStatement.getNodeType() == ASTNode.IF_STATEMENT) {
-				IfStatement ifStatement = (IfStatement)copiedParentStatement;
-				Statement thenStatement = ifStatement.getThenStatement();
-				if(thenStatement.getNodeType() == ASTNode.BLOCK) {
-					Block oldThenBlock = (Block)((IfStatement)parentStatement).getThenStatement();
-					Block newThenBlock = (Block)thenStatement;
-					ListRewrite oldBlockRewrite = sourceRewriter.getListRewrite(oldThenBlock, Block.STATEMENTS_PROPERTY);
-					ListRewrite newBlockRewrite = sourceRewriter.getListRewrite(newThenBlock, Block.STATEMENTS_PROPERTY);
-					List<Statement> oldStatementList = oldThenBlock.statements();
-					List<Statement> newStatementList = newThenBlock.statements();
-					int i = 0;
-					for(Statement statement : oldStatementList) {
-						if(extractionBlock.getStatementsForExtraction().contains(statement))
-							oldBlockRewrite.remove(statement, null);
-						else
-							newBlockRewrite.remove(newStatementList.get(i), null);
-						i++;
-					}
-				}
-				Statement elseStatement = ifStatement.getElseStatement();
-				if(elseStatement.getNodeType() == ASTNode.BLOCK) {
-					Block oldElseBlock = (Block)((IfStatement)parentStatement).getElseStatement();
-					Block newElseBlock = (Block)elseStatement;
-					ListRewrite oldBlockRewrite = sourceRewriter.getListRewrite(oldElseBlock, Block.STATEMENTS_PROPERTY);
-					ListRewrite newBlockRewrite = sourceRewriter.getListRewrite(newElseBlock, Block.STATEMENTS_PROPERTY);
-					List<Statement> oldStatementList = oldElseBlock.statements();
-					List<Statement> newStatementList = newElseBlock.statements();
-					int i = 0;
-					for(Statement statement : oldStatementList) {
-						if(extractionBlock.getStatementsForExtraction().contains(statement))
-							oldBlockRewrite.remove(statement, null);
-						else
-							newBlockRewrite.remove(newStatementList.get(i), null);
-						i++;
-					}
-				}
+				IfStatement oldIfStatement = (IfStatement)parentStatement;
+				IfStatement newIfStatement = (IfStatement)copiedParentStatement;
+				modifyExtractionBlock(oldIfStatement, newIfStatement);
 			}
 			bodyRewrite.insertLast(copiedParentStatement, null);
 		}
@@ -268,6 +236,48 @@ public class ExtractMethodRefactoring implements Refactoring {
 		}
 	}
 	
+	private void modifyExtractionBlock(IfStatement oldIfStatement, IfStatement newIfStatement) {
+		Statement newThenStatement = newIfStatement.getThenStatement();
+		if(newThenStatement.getNodeType() == ASTNode.BLOCK) {
+			Block oldThenBlock = (Block)oldIfStatement.getThenStatement();
+			Block newThenBlock = (Block)newThenStatement;
+			ListRewrite oldBlockRewrite = sourceRewriter.getListRewrite(oldThenBlock, Block.STATEMENTS_PROPERTY);
+			ListRewrite newBlockRewrite = sourceRewriter.getListRewrite(newThenBlock, Block.STATEMENTS_PROPERTY);
+			List<Statement> oldStatementList = oldThenBlock.statements();
+			List<Statement> newStatementList = newThenBlock.statements();
+			int i = 0;
+			for(Statement statement : oldStatementList) {
+				if(extractionBlock.getStatementsForExtraction().contains(statement))
+					oldBlockRewrite.remove(statement, null);
+				else
+					newBlockRewrite.remove(newStatementList.get(i), null);
+				i++;
+			}
+		}
+		Statement newElseStatement = newIfStatement.getElseStatement();
+		if(newElseStatement.getNodeType() == ASTNode.BLOCK) {
+			Block oldElseBlock = (Block)oldIfStatement.getElseStatement();
+			Block newElseBlock = (Block)newElseStatement;
+			ListRewrite oldBlockRewrite = sourceRewriter.getListRewrite(oldElseBlock, Block.STATEMENTS_PROPERTY);
+			ListRewrite newBlockRewrite = sourceRewriter.getListRewrite(newElseBlock, Block.STATEMENTS_PROPERTY);
+			List<Statement> oldStatementList = oldElseBlock.statements();
+			List<Statement> newStatementList = newElseBlock.statements();
+			int i = 0;
+			for(Statement statement : oldStatementList) {
+				if(extractionBlock.getStatementsForExtraction().contains(statement))
+					oldBlockRewrite.remove(statement, null);
+				else
+					newBlockRewrite.remove(newStatementList.get(i), null);
+				i++;
+			}
+		}
+		else if(newElseStatement.getNodeType() == ASTNode.IF_STATEMENT) {
+			IfStatement oldIfStatement2 = (IfStatement)oldIfStatement.getElseStatement();
+			IfStatement newIfStatement2 = (IfStatement)newElseStatement;
+			modifyExtractionBlock(oldIfStatement2, newIfStatement2);
+		}
+	}
+
 	private void replaceExtractedCodeWithMethodInvocation(List<SimpleName> extractedMethodArguments) {
 		ASTNode parentBlock = extractionBlock.getStatementsForExtraction().get(0).getParent();
 		Assignment assignment = parentBlock.getAST().newAssignment();

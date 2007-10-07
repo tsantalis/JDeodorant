@@ -21,6 +21,7 @@ import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.ExtractionBlock;
+import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTExtractionBlock;
 
 public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefactoring {
@@ -93,7 +94,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass()) {
+    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() && !containsBreakContinueReturnStatement()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -168,6 +169,21 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	}
     	System.out.println(this.toString() + "\thas no reference to Target class");
     	return false;
+    }
+
+    private boolean containsBreakContinueReturnStatement() {
+    	List<Statement> statementList = new ArrayList<Statement>();
+    	StatementExtractor statementExtractor = new StatementExtractor();
+    	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
+    		statementList.addAll(statementExtractor.getBreakContinueReturnStatements(abstractStatement.getStatement()));
+    	}
+    	if(!statementList.isEmpty()) {
+    		System.out.println(this.toString() + "\tcontains break, continue, return statement");
+    		return true;
+    	}
+    	else {
+    		return false;
+    	}
     }
 
     private void virtualApplication(MySystem virtualSystem) {

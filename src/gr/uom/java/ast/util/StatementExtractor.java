@@ -5,8 +5,10 @@ import java.util.List;
 
 import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
+import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
@@ -34,6 +36,11 @@ public class StatementExtractor {
 	
 	public List<Statement> getVariableDeclarations(Statement statement) {
 		instanceChecker = new InstanceOfVariableDeclaration();
+		return getStatements(statement);
+	}
+	
+	public List<Statement> getBreakContinueReturnStatements(Statement statement) {
+		instanceChecker = new InstanceOfBreakContinueReturnStatement();
 		return getStatements(statement);
 	}
 	
@@ -89,6 +96,8 @@ public class StatementExtractor {
 		}
 		else if(statement instanceof ReturnStatement) {
 			ReturnStatement returnStatement = (ReturnStatement)statement;
+			if(instanceChecker.instanceOf(returnStatement))
+				statementList.add(returnStatement);
 		}
 		else if(statement instanceof SynchronizedStatement) {
 			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
@@ -122,6 +131,16 @@ public class StatementExtractor {
 			SuperConstructorInvocation superConstructorInvocation = (SuperConstructorInvocation)statement;
 			if(instanceChecker.instanceOf(superConstructorInvocation))
 				statementList.add(superConstructorInvocation);
+		}
+		else if(statement instanceof BreakStatement) {
+			BreakStatement breakStatement = (BreakStatement)statement;
+			if(instanceChecker.instanceOf(breakStatement))
+				statementList.add(breakStatement);
+		}
+		else if(statement instanceof ContinueStatement) {
+			ContinueStatement continueStatement = (ContinueStatement)statement;
+			if(instanceChecker.instanceOf(continueStatement))
+				statementList.add(continueStatement);
 		}
 		
 		return statementList;

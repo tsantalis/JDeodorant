@@ -94,7 +94,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() && !containsBreakContinueReturnStatement()) {
+    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() && !containsBranchingStatement()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -171,14 +171,19 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	return false;
     }
 
-    private boolean containsBreakContinueReturnStatement() {
+    private boolean containsBranchingStatement() {
     	List<Statement> statementList = new ArrayList<Statement>();
     	StatementExtractor statementExtractor = new StatementExtractor();
     	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
-    		statementList.addAll(statementExtractor.getBreakContinueReturnStatements(abstractStatement.getStatement()));
+    		if(abstractStatement.getStatement().getNodeType() != ASTNode.SWITCH_STATEMENT &&
+    			abstractStatement.getStatement().getNodeType() != ASTNode.WHILE_STATEMENT &&
+    			abstractStatement.getStatement().getNodeType() != ASTNode.FOR_STATEMENT &&
+    			abstractStatement.getStatement().getNodeType() != ASTNode.DO_STATEMENT &&
+    			abstractStatement.getStatement().getNodeType() != ASTNode.ENHANCED_FOR_STATEMENT)
+    			statementList.addAll(statementExtractor.getBranchingStatements(abstractStatement.getStatement()));
     	}
     	if(!statementList.isEmpty()) {
-    		System.out.println(this.toString() + "\tcontains break, continue, return statement");
+    		System.out.println(this.toString() + "\tcontains branching statement");
     		return true;
     	}
     	else {

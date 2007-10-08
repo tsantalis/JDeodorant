@@ -39,8 +39,8 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
-	public List<Statement> getBreakContinueReturnStatements(Statement statement) {
-		instanceChecker = new InstanceOfBreakContinueReturnStatement();
+	public List<Statement> getBranchingStatements(Statement statement) {
+		instanceChecker = new InstanceOfBranchingStatement();
 		return getStatements(statement);
 	}
 	

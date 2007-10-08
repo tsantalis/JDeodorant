@@ -15,12 +15,15 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
+import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.ExtractionBlock;
+import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTExtractionBlock;
 
@@ -94,7 +97,8 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() && !containsBranchingStatement()) {
+    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() &&
+    			!containsBranchingStatement() && !containsFieldAssignment()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -133,6 +137,30 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     		System.out.println(this.toString() + "\tcannot be moved");
     		return false;
     	}
+    }
+
+    private boolean containsFieldAssignment() {
+    	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
+    		List<FieldInstructionObject> fieldInstructions = abstractStatement.getFieldInstructions();
+    		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+    			if(abstractStatement instanceof StatementObject) {
+    				StatementObject statement = (StatementObject)abstractStatement;
+    				if(statement.isFieldAssignment(fieldInstruction)) {
+    					System.out.println(this.toString() + "\tcontains field assignment");
+    	    			return true;
+    				}
+    			}
+    			else if(abstractStatement instanceof CompositeStatementObject) {
+    				CompositeStatementObject compositeStatement = (CompositeStatementObject)abstractStatement;
+    				List<AbstractStatement> fieldAssignments = compositeStatement.getFieldAssignments(fieldInstruction);
+    				if(!fieldAssignments.isEmpty()) {
+    	    			System.out.println(this.toString() + "\tcontains field assignment");
+    	    			return true;
+    	    		}
+    			}
+    		}
+    	}
+    	return false;
     }
 
     private boolean hasReferenceToTargetClass() {

@@ -68,7 +68,8 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() && !overridesMethod()) {
+    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() &&
+    			!overridesMethod() && !containsFieldAssignment()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
     	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -116,6 +117,18 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	}
     	else
     		return false;
+    }
+
+    private boolean containsFieldAssignment() {
+    	List<FieldInstructionObject> fieldInstructions = sourceMethod.getMethodObject().getFieldInstructions();
+    	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+    		List<AbstractStatement> fieldAssignments = sourceMethod.getMethodObject().getFieldAssignments(fieldInstruction);
+    		if(!fieldAssignments.isEmpty()) {
+    			System.out.println(this.toString() + "\tcontains field assignment");
+    			return true;
+    		}
+    	}
+    	return false;
     }
 
     private boolean hasReferenceToTargetClass() {

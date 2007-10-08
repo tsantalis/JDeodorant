@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition;
 import java.util.List;
 import java.util.Set;
 
+import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -65,6 +66,42 @@ public class StatementObject extends AbstractStatement {
 					List<Expression> expressionList = expressionExtractor.getVariableInstructions(prefixExpression.getOperand());
 					for(Expression e : expressionList) {
 						if( ((SimpleName)e).getIdentifier().equals(lvdo.getName()) )
+							return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+	
+	public boolean isFieldAssignment(FieldInstructionObject fio) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		if( getFieldInstructions().contains(fio) ) {
+			Statement statement = getStatement();
+			if(statement instanceof ExpressionStatement) {
+				ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+				Expression expression = expressionStatement.getExpression();
+				if(expression instanceof Assignment) {
+					Assignment assignment = (Assignment)expression;
+					List<Expression> expressionList = expressionExtractor.getVariableInstructions(assignment.getLeftHandSide());
+					for(Expression e : expressionList) {
+						if( ((SimpleName)e).getIdentifier().equals(fio.getName()) )
+							return true;
+					}
+				}
+				else if(expression instanceof PostfixExpression) {
+					PostfixExpression postfixExpression = (PostfixExpression)expression;
+					List<Expression> expressionList = expressionExtractor.getVariableInstructions(postfixExpression.getOperand());
+					for(Expression e : expressionList) {
+						if( ((SimpleName)e).getIdentifier().equals(fio.getName()) )
+							return true;
+					}
+				}
+				else if(expression instanceof PrefixExpression) {
+					PrefixExpression prefixExpression = (PrefixExpression)expression;
+					List<Expression> expressionList = expressionExtractor.getVariableInstructions(prefixExpression.getOperand());
+					for(Expression e : expressionList) {
+						if( ((SimpleName)e).getIdentifier().equals(fio.getName()) )
 							return true;
 					}
 				}

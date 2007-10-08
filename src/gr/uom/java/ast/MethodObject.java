@@ -315,6 +315,10 @@ public class MethodObject {
     	return constructorObject.containsMethodInvocation(methodInvocation);
     }
 
+    public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+    	return constructorObject.getFieldAssignments(fio);
+    }
+
     public List<TypeObject> getParameterTypeList() {
     	return constructorObject.getParameterTypeList();
     }

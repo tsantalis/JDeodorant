@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodInvocationObject;
 
@@ -149,4 +150,21 @@ public class CompositeStatementObject extends AbstractStatement {
 			localVariableAssignments.addAll(getLocalVariableAssignments(lvdo));
 		return localVariableAssignments;
 	}
+
+	public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+		List<AbstractStatement> fieldAssignments = new ArrayList<AbstractStatement>();
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof StatementObject) {
+				StatementObject statementObject = (StatementObject)statement;
+				if(statementObject.isFieldAssignment(fio))
+					fieldAssignments.add(statementObject);
+			}
+			else if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+				fieldAssignments.addAll(compositeStatementObject.getFieldAssignments(fio));
+			}
+		}
+		return fieldAssignments;
+	}
+
 }

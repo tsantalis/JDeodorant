@@ -335,6 +335,10 @@ public class MethodBodyObject {
 		return compositeStatement.containsMethodInvocation(methodInvocation);
 	}
 
+	public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+		return compositeStatement.getFieldAssignments(fio);
+	}
+
 	private void processStatement(CompositeStatementObject parent, Statement statement) {
 		if(statement instanceof Block) {
 			Block block = (Block)statement;

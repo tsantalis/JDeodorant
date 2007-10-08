@@ -112,6 +112,13 @@ public class ConstructorObject {
     		return false;
     }
 
+    public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+    	if(methodBody != null)
+    		return methodBody.getFieldAssignments(fio);
+    	else
+    		return new ArrayList<AbstractStatement>();
+    }
+
     public List<TypeObject> getParameterTypeList() {
     	List<TypeObject> list = new ArrayList<TypeObject>();
     	for(ParameterObject parameterObject : parameterList)

@@ -4,6 +4,9 @@ import gr.uom.java.ast.decomposition.ExtractionBlock;
 
 import java.util.*;
 
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+
 public class DistanceMatrix {
     private Map<String,Integer> entityIndexMap;
     private Map<String,Integer> classIndexMap;
@@ -99,18 +102,41 @@ public class DistanceMatrix {
 
         for(Integer i : minValueMap.keySet()) {
             double minValue = minValueMap.get(i);
-            String rowClass = entityList.get(i).getClassOrigin();
+            String sourceClass = entityList.get(i).getClassOrigin();
             if(minValue != 1) {
                 for(int j=0; j<distanceMatrix[i].length; j++) {
-                    if(distanceMatrix[i][j] == minValue && !rowClass.equals(classNames[j])) {
+                    if(distanceMatrix[i][j] == minValue && !sourceClass.equals(classNames[j])) {
                         Entity entity = entityList.get(i);
                         MyClass targetClass = classList.get(j);
                         if(entity instanceof MyMethod) {
-                            MyMethod method = (MyMethod)entity;
-                            MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,system.getClass(rowClass),targetClass,method);
-                            boolean applicable = candidate.apply();
-                            if(applicable)
-                            	candidateRefactoringList.add(candidate);
+                        	MyMethod method = (MyMethod)entity;
+                        	Set<String> methodEntitySet = entityMap.get(method.toString());
+                        	Set<String> sourceClassEntitySet = classMap.get(sourceClass);
+                        	Set<String> targetClassEntitySet = classMap.get(targetClass.getName());
+                        	Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
+                        	Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
+                            MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,system.getClass(sourceClass),targetClass,method);
+                            Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
+                            Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
+                            Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
+                            if(!values.isEmpty()) {
+                            	for(String s : intersectionWithSourceClass) {
+                            		int entityPosition = entityIndexMap.get(s);
+                            		Entity e = entityList.get(entityPosition);
+                            		if(e instanceof MyMethod) {
+                            			MyMethod invokedMethod = (MyMethod)e;
+                            			if(values.contains(invokedMethod.getMethodObject().getMethodDeclaration())) {
+                            				entitiesToRemoveFromIntersectionWithSourceClass.add(s);
+                            			}
+                            		}
+                            	}
+                            	intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
+                            }
+                            if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
+	                            boolean applicable = candidate.apply();
+	                            if(applicable)
+	                            	candidateRefactoringList.add(candidate);
+                            }
                         }
                     }
                 }

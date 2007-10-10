@@ -99,6 +99,24 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of InfixExpression objects
+	public List<Expression> getInfixExpressions(Statement statement) {
+		instanceChecker = new InstanceOfInfixExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of InstanceofExpression objects
+	public List<Expression> getInstanceofExpressions(Statement statement) {
+		instanceChecker = new InstanceOfInstanceofExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of InstanceofExpression objects
+	public List<Expression> getAssignments(Statement statement) {
+		instanceChecker = new InstanceOfAssignment();
+		return getExpressions(statement);
+	}
+	
 	private List<Expression> getExpressions(Statement statement) {
 		List<Expression> expressionList = new ArrayList<Expression>();
 		if(statement instanceof Block) {
@@ -255,6 +273,8 @@ public class ExpressionExtractor {
 			Assignment assignment = (Assignment)expression;
 			expressionList.addAll(getExpressions(assignment.getLeftHandSide()));
 			expressionList.addAll(getExpressions(assignment.getRightHandSide()));
+			if(instanceChecker.instanceOf(assignment))
+				expressionList.add(assignment);
 		}
 		else if(expression instanceof CastExpression) {
 			CastExpression castExpression = (CastExpression)expression;
@@ -293,10 +313,14 @@ public class ExpressionExtractor {
 			List<Expression> extendedOperands = infixExpression.extendedOperands();
 			for(Expression operand : extendedOperands)
 				expressionList.addAll(getExpressions(operand));
+			if(instanceChecker.instanceOf(infixExpression))
+				expressionList.add(infixExpression);
 		}
 		else if(expression instanceof InstanceofExpression) {
 			InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
 			expressionList.addAll(getExpressions(instanceofExpression.getLeftOperand()));
+			if(instanceChecker.instanceOf(instanceofExpression))
+				expressionList.add(instanceofExpression);
 		}
 		else if(expression instanceof ParenthesizedExpression) {
 			ParenthesizedExpression parenthesizedExpression = (ParenthesizedExpression)expression;

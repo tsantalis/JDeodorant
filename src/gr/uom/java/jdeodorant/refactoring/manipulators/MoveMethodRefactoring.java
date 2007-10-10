@@ -17,6 +17,7 @@ import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -30,6 +31,8 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -338,7 +341,11 @@ public class MoveMethodRefactoring implements Refactoring {
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
 		modifySourceStaticMethodInvocationsInTargetClass(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
-		insertTargetClassVariableNameAsVariableDeclaration(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInVariableDeclarationInitializers(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInInfixExpressions(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInCastExpressions(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInInstanceofExpressions(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInAssignments(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInVariableDeclarationInitializers(newMethodDeclaration);
 
@@ -1012,7 +1019,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 	}
 	
-	private void insertTargetClassVariableNameAsVariableDeclaration(MethodDeclaration newMethodDeclaration) {
+	private void replaceTargetClassVariableNameWithThisExpressionInVariableDeclarationInitializers(MethodDeclaration newMethodDeclaration) {
 		StatementExtractor extractor = new StatementExtractor();
 		List<Statement> variableDeclarations = extractor.getVariableDeclarations(newMethodDeclaration.getBody());
 		for(Statement declaration : variableDeclarations) {
@@ -1024,15 +1031,83 @@ public class MoveMethodRefactoring implements Refactoring {
 					SimpleName simpleNameInitializer = (SimpleName)initializer;
 					if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
 						AST ast = newMethodDeclaration.getAST();
-						VariableDeclarationFragment variableDeclarationFragment = ast.newVariableDeclarationFragment();
-						targetRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, simpleNameInitializer, null);
-						targetRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
-						VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(variableDeclarationFragment);
-						targetRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableDeclaration.getType(), null);
-						ListRewrite bodyRewrite = targetRewriter.getListRewrite(newMethodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
-						bodyRewrite.insertFirst(variableDeclarationStatement, null);
+						targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
 					}
 				}
+			}
+		}
+	}
+	
+	private void replaceTargetClassVariableNameWithThisExpressionInInfixExpressions(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> infixExpressions = extractor.getInfixExpressions(newMethodDeclaration.getBody());
+		for(Expression expression : infixExpressions) {
+			InfixExpression infixExpression = (InfixExpression)expression;
+			if(infixExpression.getLeftOperand() instanceof SimpleName) {
+				SimpleName leftOperand = (SimpleName)infixExpression.getLeftOperand();
+				if(leftOperand.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, ast.newThisExpression(), null);
+				}	
+			}
+			if(infixExpression.getRightOperand() instanceof SimpleName) {
+				SimpleName rightOperand = (SimpleName)infixExpression.getRightOperand();
+				if(rightOperand.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, ast.newThisExpression(), null);
+				}	
+			}
+		}
+	}
+	
+	private void replaceTargetClassVariableNameWithThisExpressionInCastExpressions(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> castExpressions = extractor.getCastExpressions(newMethodDeclaration.getBody());
+		for(Expression expression : castExpressions) {
+			CastExpression castExpression = (CastExpression)expression;
+			if(castExpression.getExpression() instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)castExpression.getExpression();
+				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
+		}
+	}
+	
+	private void replaceTargetClassVariableNameWithThisExpressionInInstanceofExpressions(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> instanceofExpressions = extractor.getInstanceofExpressions(newMethodDeclaration.getBody());
+		for(Expression expression : instanceofExpressions) {
+			InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
+			if(instanceofExpression.getLeftOperand() instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)instanceofExpression.getLeftOperand();
+				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(instanceofExpression, InstanceofExpression.LEFT_OPERAND_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
+		}
+	}
+	
+	private void replaceTargetClassVariableNameWithThisExpressionInAssignments(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> assignments = extractor.getAssignments(newMethodDeclaration.getBody());
+		for(Expression expression : assignments) {
+			Assignment assignment = (Assignment)expression;
+			if(assignment.getLeftHandSide() instanceof SimpleName) {
+				SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
+				if(leftHandSide.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newThisExpression(), null);
+				}	
+			}
+			if(assignment.getRightHandSide() instanceof SimpleName) {
+				SimpleName rightHandSide = (SimpleName)assignment.getRightHandSide();
+				if(rightHandSide.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, ast.newThisExpression(), null);
+				}	
 			}
 		}
 	}

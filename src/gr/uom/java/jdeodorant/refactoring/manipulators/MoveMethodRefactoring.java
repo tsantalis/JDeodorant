@@ -796,6 +796,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			i++;
 		}
 		SimpleName parameterName = null;
+		Set<String> sourceMethodsWithPublicModifier = new LinkedHashSet<String>();
 		int j = 0;
 		for(Expression expression : sourceMethodInvocations) {
 			if(expression instanceof MethodInvocation) {
@@ -819,7 +820,10 @@ public class MoveMethodRefactoring implements Refactoring {
 										parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
 									}
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
-									setPublicModifierToSourceMethod(methodInvocation);
+									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().toString())) {
+										setPublicModifierToSourceMethod(methodInvocation);
+										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().toString());
+									}
 								}
 							}
 						}

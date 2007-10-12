@@ -44,6 +44,11 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
+	public List<Statement> getTryStatements(Statement statement) {
+		instanceChecker = new InstanceOfTryStatement();
+		return getStatements(statement);
+	}
+	
 	private List<Statement> getStatements(Statement statement) {
 		List<Statement> statementList = new ArrayList<Statement>();
 		if(statement instanceof Block) {
@@ -116,6 +121,8 @@ public class StatementExtractor {
 			Block finallyBlock = tryStatement.getFinally();
 			if(finallyBlock != null)
 				statementList.addAll(getStatements(finallyBlock));
+			if(instanceChecker.instanceOf(tryStatement))
+				statementList.add(tryStatement);
 		}
 		else if(statement instanceof VariableDeclarationStatement) {
 			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;

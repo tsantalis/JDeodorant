@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -8,11 +9,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -82,17 +87,30 @@ public class ASTExtractionBlock {
 	}
 	
 	public Set<String> getThrownExceptions() {
-		ExpressionExtractor extractor = new ExpressionExtractor();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		StatementExtractor statementExtractor = new StatementExtractor();
 		Set<String> thrownExceptions = new LinkedHashSet<String>();
-		for(Statement statement : statementsForExtraction) {
-			List<Expression> methodInvocations = extractor.getMethodInvocations(statement);
+		for(Statement statementForExtraction : statementsForExtraction) {
+			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statementForExtraction);
+			List<Statement> tryStatements = statementExtractor.getTryStatements(statementForExtraction);
+			Set<String> catchClauseExceptions = new LinkedHashSet<String>();
+			for(Statement statement : tryStatements) {
+				TryStatement tryStatement = (TryStatement)statement;
+				List<CatchClause> catchClauses = tryStatement.catchClauses();
+				for(CatchClause catchClause : catchClauses) {
+					SingleVariableDeclaration exception = catchClause.getException();
+					Type exceptionType = exception.getType();
+					catchClauseExceptions.add(exceptionType.resolveBinding().getName());
+				}
+			}
 			for(Expression expression : methodInvocations) {
 				if(expression instanceof MethodInvocation) {
 					MethodInvocation methodInvocation = (MethodInvocation)expression;
 					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 					ITypeBinding[] typeBindings = methodBinding.getExceptionTypes();
 					for(ITypeBinding typeBinding : typeBindings) {
-						thrownExceptions.add(typeBinding.getName());
+						if(!catchClauseExceptions.contains(typeBinding.getName()))
+							thrownExceptions.add(typeBinding.getName());
 					}
 				}
 			}

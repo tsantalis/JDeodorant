@@ -813,7 +813,8 @@ public class MoveMethodRefactoring implements Refactoring {
 					if(methodBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 						MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
 						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
-							if(sourceMethodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+							if(sourceMethodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()) &&
+									!sourceMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
 								SimpleName fieldName = isGetter(sourceMethodDeclaration);
 								MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
 								if(fieldName != null) {
@@ -1000,8 +1001,10 @@ public class MoveMethodRefactoring implements Refactoring {
 	
 	private void replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
-		List<Expression> methodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
-		for(Expression invocation : methodInvocations) {
+		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
+		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		int i = 0;
+		for(Expression invocation : newMethodInvocations) {
 			if(invocation instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)invocation;
 				List<Expression> arguments = methodInvocation.arguments();
@@ -1010,12 +1013,19 @@ public class MoveMethodRefactoring implements Refactoring {
 						SimpleName simpleNameArgument = (SimpleName)argument;
 						if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
 							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-							AST ast = newMethodDeclaration.getAST();
-							argumentRewrite.replace(argument, ast.newThisExpression(), null);
+							MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
+							if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
+								argumentRewrite.remove(argument, null);
+							}
+							else {
+								AST ast = newMethodDeclaration.getAST();
+								argumentRewrite.replace(argument, ast.newThisExpression(), null);
+							}
 						}
 					}
 				}
 			}
+			i++;
 		}
 	}
 	

@@ -24,6 +24,15 @@
                toolbarPath="sampleGroup"
                id="gr.uom.java.jdeodorant.actions.FeatureEnvy">
          </action>
+         <action
+         	   label="Switch Statements"
+               icon="icons/sample.gif"
+               class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
+               tooltip="Switch Statements"
+               menubarPath="BadSmellsMenu/sampleGroup"
+               toolbarPath="sampleGroup"
+               id="gr.uom.java.jdeodorant.actions.SwitchStatements">
+         </action>
       </actionSet>
    </extension>
    <extension
@@ -39,6 +48,13 @@
             class="gr.uom.java.jdeodorant.refactoring.views.FeatureEnvy"
             id="gr.uom.java.jdeodorant.views.FeatureEnvy">
       </view>
+      <view
+            category="gr.uom.java.jdeodorant"
+            class="gr.uom.java.jdeodorant.refactoring.views.SwitchStatements"
+            icon="icons/sample.gif"
+            id="gr.uom.java.jdeodorant.views.SwitchStatements"
+            name="Switch Statements">
+      </view>
    </extension>
    <extension
          point="org.eclipse.ui.perspectiveExtensions">
@@ -49,6 +65,15 @@
                relative="org.eclipse.ui.views.TaskList"
                relationship="right"
                id="gr.uom.java.jdeodorant.views.FeatureEnvy">
+         </view>
+      </perspectiveExtension>
+      <perspectiveExtension
+            targetID="org.eclipse.ui.resourcePerspective">
+         <view
+               id="gr.uom.java.jdeodorant.views.SwitchStatements"
+               ratio="0.5"
+               relationship="right"
+               relative="org.eclipse.ui.views.TaskList">
          </view>
       </perspectiveExtension>
    </extension>

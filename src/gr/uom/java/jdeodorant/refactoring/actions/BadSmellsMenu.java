@@ -33,7 +33,12 @@ public class BadSmellsMenu implements IWorkbenchWindowActionDelegate {
 	public void run(IAction action) {
 		IWorkbenchPage page=window.getActivePage();
 		try {
-			page.showView("gr.uom.java.jdeodorant.views.FeatureEnvy");
+			if(action.getId().equals("gr.uom.java.jdeodorant.actions.FeatureEnvy")) {
+				page.showView("gr.uom.java.jdeodorant.views.FeatureEnvy");
+			}
+			else if(action.getId().equals("gr.uom.java.jdeodorant.actions.SwitchStatements")) {
+				page.showView("gr.uom.java.jdeodorant.views.SwitchStatements");
+			}
 		} catch (PartInitException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

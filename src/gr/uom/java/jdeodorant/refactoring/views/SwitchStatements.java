@@ -1,14 +1,26 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
+
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.part.*;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ui.*;
-import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.SWT;
 
 
@@ -34,6 +46,8 @@ public class SwitchStatements extends ViewPart {
 	private TableViewer viewer;
 	private Action identifyBadSmellsAction;
 	private Action doubleClickAction;
+	private IProject selectedProject;
+	private ASTReader astReader;
 
 	/*
 	 * The content provider class is responsible for
@@ -69,11 +83,21 @@ public class SwitchStatements extends ViewPart {
 	class NameSorter extends ViewerSorter {
 	}
 
-	/**
-	 * The constructor.
-	 */
-	public SwitchStatements() {
-	}
+	private ISelectionListener selectionListener = new ISelectionListener() {
+		public void selectionChanged(IWorkbenchPart sourcepart, ISelection selection) {
+			if (selection instanceof IStructuredSelection) {
+				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
+				Object element = structuredSelection.getFirstElement();
+				if(element instanceof IJavaProject) {
+					IJavaProject javaProject = (IJavaProject)element;
+					if(!javaProject.getProject().equals(selectedProject)) {
+						selectedProject = javaProject.getProject();
+						identifyBadSmellsAction.setEnabled(true);
+					}
+				}
+			}
+		}
+	};
 
 	/**
 	 * This is a callback that will allow us
@@ -88,6 +112,7 @@ public class SwitchStatements extends ViewPart {
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
+		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
 	}
 
 
@@ -105,13 +130,13 @@ public class SwitchStatements extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
-				showMessage("Action 1 executed");
+				getTable(selectedProject);
 			}
 		};
-		identifyBadSmellsAction.setText("Action 1");
-		identifyBadSmellsAction.setToolTipText("Action 1 tooltip");
+		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
 		identifyBadSmellsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
+		identifyBadSmellsAction.setEnabled(false);
 		
 		doubleClickAction = new Action() {
 			public void run() {
@@ -141,5 +166,22 @@ public class SwitchStatements extends ViewPart {
 	 */
 	public void setFocus() {
 		viewer.getControl().setFocus();
+	}
+
+	private void getTable(IProject iProject) {
+		astReader = new ASTReader(iProject);
+		SystemObject systemObject = astReader.getSystemObject();
+		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
+		while(classIterator.hasNext()) {
+			ClassObject classObject = classIterator.next();
+			ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+			while(methodIterator.hasNext()) {
+				MethodObject methodObject = methodIterator.next();
+				MethodBodyObject methodBodyObject = methodObject.getMethodBody();
+				if(methodBodyObject != null)
+					typeCheckEliminations.addAll(methodBodyObject.generateTypeCheckEliminations());
+			}
+		}
 	}
 }

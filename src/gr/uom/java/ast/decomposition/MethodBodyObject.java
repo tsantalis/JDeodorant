@@ -4,6 +4,8 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,6 +58,51 @@ public class MethodBodyObject {
 
 	public CompositeStatementObject getCompositeStatement() {
 		return compositeStatement;
+	}
+
+	public List<TypeCheckElimination> generateTypeCheckEliminations() {
+		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<Statement> switchStatements = statementExtractor.getSwitchStatements(compositeStatement.getStatement());
+		for(Statement statement : switchStatements) {
+			SwitchStatement switchStatement = (SwitchStatement)statement;
+			TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
+			List<Statement> statements = switchStatement.statements();
+			Expression switchCaseExpression = null;
+			for(Statement statement2 : statements) {
+				if(statement2 instanceof SwitchCase) {
+					SwitchCase switchCase = (SwitchCase)statement2;
+					switchCaseExpression = switchCase.getExpression();
+				}
+				else {
+					if(!(statement2 instanceof BreakStatement))
+						typeCheckElimination.addTypeCheck(switchCaseExpression, statement2);
+				}
+			}
+			typeCheckEliminations.add(typeCheckElimination);
+		}
+		
+		List<Statement> ifStatements = statementExtractor.getIfStatements(compositeStatement.getStatement());
+		TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
+		int i = 0;
+		for(Statement statement : ifStatements) {
+			IfStatement ifStatement = (IfStatement)statement;
+			Expression ifExpression = ifStatement.getExpression();
+			Statement thenStatement = ifStatement.getThenStatement();
+			typeCheckElimination.addTypeCheck(ifExpression, thenStatement);
+			if(ifStatements.size()-1 > i) {
+				IfStatement nextIfStatement = (IfStatement)ifStatements.get(i+1);
+				if(!ifStatement.getParent().equals(nextIfStatement)) {
+					typeCheckEliminations.add(typeCheckElimination);
+					typeCheckElimination = new TypeCheckElimination();
+				}
+			}
+			else {
+				typeCheckEliminations.add(typeCheckElimination);
+			}
+			i++;
+		}
+		return typeCheckEliminations;
 	}
 
 	public List<ExtractionBlock> generateExtractionBlocks() {

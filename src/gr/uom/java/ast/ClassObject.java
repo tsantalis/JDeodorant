@@ -1,10 +1,16 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class ClassObject {
@@ -90,6 +96,25 @@ public class ClassObject {
                 return true;
         }
         return false;
+    }
+
+    public List<TypeCheckElimination> generateTypeCheckEliminations() {
+    	List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+    	for(MethodObject methodObject : methodList) {
+    		MethodBodyObject methodBodyObject = methodObject.getMethodBody();
+    		if(methodBodyObject != null) {
+    			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
+    			for(TypeCheckElimination typeCheckElimination : list) {
+    				Set<Expression> typeCheckExpressions = typeCheckElimination.getTypeCheckExpressions();
+    				for(Expression typeCheckExpression : typeCheckExpressions) {
+    					if(typeCheckExpression instanceof InfixExpression) {
+    						InfixExpression infixExpression = (InfixExpression)typeCheckExpression;
+    					}
+    				}
+    			}
+    		}
+    	}
+    	return typeCheckEliminations;
     }
 
     public void setAccess(Access access) {

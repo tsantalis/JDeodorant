@@ -49,6 +49,16 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
+	public List<Statement> getSwitchStatements(Statement statement) {
+		instanceChecker = new InstanceOfSwitchStatement();
+		return getStatements(statement);
+	}
+	
+	public List<Statement> getIfStatements(Statement statement) {
+		instanceChecker = new InstanceOfIfStatement();
+		return getStatements(statement);
+	}
+	
 	private List<Statement> getStatements(Statement statement) {
 		List<Statement> statementList = new ArrayList<Statement>();
 		if(statement instanceof Block) {
@@ -63,6 +73,8 @@ public class StatementExtractor {
 			if(ifStatement.getElseStatement() != null) {
 				statementList.addAll(getStatements(ifStatement.getElseStatement()));
 			}
+			if(instanceChecker.instanceOf(ifStatement))
+				statementList.add(ifStatement);
 		}
 		else if(statement instanceof ForStatement) {
 			ForStatement forStatement = (ForStatement)statement;
@@ -85,9 +97,11 @@ public class StatementExtractor {
 		}
 		else if(statement instanceof SwitchStatement) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
-			List<Statement> switchStatements = switchStatement.statements();
-			for(Statement switchStatement2 : switchStatements)
-				statementList.addAll(getStatements(switchStatement2));
+			List<Statement> statements = switchStatement.statements();
+			for(Statement statement2 : statements)
+				statementList.addAll(getStatements(statement2));
+			if(instanceChecker.instanceOf(switchStatement))
+				statementList.add(switchStatement);
 		}
 		else if(statement instanceof SwitchCase) {
 			SwitchCase switchCase = (SwitchCase)statement;

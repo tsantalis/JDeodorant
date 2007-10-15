@@ -17,7 +17,7 @@
          </menu>
          <action
                label="Feature Envy"
-               icon="icons/sample.gif"
+               icon="icons/featureEnvySpray.gif"
                class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
                tooltip="Feature Envy"
                menubarPath="BadSmellsMenu/sampleGroup"
@@ -26,9 +26,9 @@
          </action>
          <action
          	   label="Switch Statements"
-               icon="icons/sample.gif"
+               icon="icons/typeCheckingSpray.gif"
                class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
-               tooltip="Switch Statements"
+               tooltip="Type Checking"
                menubarPath="BadSmellsMenu/sampleGroup"
                toolbarPath="sampleGroup"
                id="gr.uom.java.jdeodorant.actions.SwitchStatements">

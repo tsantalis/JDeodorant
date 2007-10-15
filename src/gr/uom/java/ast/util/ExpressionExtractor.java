@@ -69,9 +69,21 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of SuperMethodInvocation objects
+	public List<Expression> getSuperMethodInvocations(Statement statement) {
+		instanceChecker = new InstanceOfSuperMethodInvocation();
+		return getExpressions(statement);
+	}
+	
 	// returns a List of MethodInvocation and SuperMethodInvocation objects
 	public List<Expression> getMethodInvocations(Expression expression) {
 		instanceChecker = new InstanceOfMethodInvocation();
+		return getExpressions(expression);
+	}
+	
+	// returns a List of SuperMethodInvocation objects
+	public List<Expression> getSuperMethodInvocations(Expression expression) {
+		instanceChecker = new InstanceOfSuperMethodInvocation();
 		return getExpressions(expression);
 	}
 	
@@ -111,7 +123,7 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
-	// returns a List of InstanceofExpression objects
+	// returns a List of Assignment objects
 	public List<Expression> getAssignments(Statement statement) {
 		instanceChecker = new InstanceOfAssignment();
 		return getExpressions(statement);

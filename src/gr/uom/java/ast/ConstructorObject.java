@@ -119,6 +119,13 @@ public class ConstructorObject {
     		return new ArrayList<AbstractStatement>();
     }
 
+    public boolean containsSuperMethodInvocation() {
+    	if(methodBody != null)
+    		return methodBody.containsSuperMethodInvocation();
+    	else
+    		return false;
+    }
+
     public List<TypeObject> getParameterTypeList() {
     	List<TypeObject> list = new ArrayList<TypeObject>();
     	for(ParameterObject parameterObject : parameterList)

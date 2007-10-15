@@ -68,8 +68,8 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() &&
-    			!overridesMethod() && !containsFieldAssignment()) {
+    	if(!containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() && !isTargetClassAnInnerClass() &&
+    			canBeMoved() && hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
     	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -129,6 +129,15 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     		}
     	}
     	return false;
+    }
+
+    private boolean containsSuperMethodInvocation() {
+    	if(sourceMethod.getMethodObject().containsSuperMethodInvocation()) {
+    		System.out.println(this.toString() + "\tcontains super method invocation");
+    		return true;
+    	}
+    	else
+    		return false;
     }
 
     private boolean hasReferenceToTargetClass() {

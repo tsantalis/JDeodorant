@@ -4,6 +4,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
@@ -147,24 +148,26 @@ public class MethodBodyObject {
 					current = parent;
 					parent = current.getParent();
 				}
-				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null)
+				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null && !(current.getStatement() instanceof Block))
 					newLocalVariableAssignments.add(current);
 			}
 			//
-			AbstractStatement currentStatement = newLocalVariableAssignments.get(0);
-			AbstractStatement parent = currentStatement.getParent();
-			if(parent.getParent() == null) {
-				boolean onlyLocalVariableDeclarationsFound = true;
-				AbstractStatement previousStatement = compositeStatement.getPreviousStatement(currentStatement);
-				while(previousStatement != null) {
-					if(!(previousStatement.getStatement() instanceof VariableDeclarationStatement)) {
-						onlyLocalVariableDeclarationsFound = false;
-						break;
+			if(!newLocalVariableAssignments.isEmpty()) {
+				AbstractStatement currentStatement = newLocalVariableAssignments.get(0);
+				AbstractStatement parent = currentStatement.getParent();
+				if(parent.getParent() == null) {
+					boolean onlyLocalVariableDeclarationsFound = true;
+					AbstractStatement previousStatement = compositeStatement.getPreviousStatement(currentStatement);
+					while(previousStatement != null) {
+						if(!(previousStatement.getStatement() instanceof VariableDeclarationStatement)) {
+							onlyLocalVariableDeclarationsFound = false;
+							break;
+						}
+						previousStatement = compositeStatement.getPreviousStatement(previousStatement);
 					}
-					previousStatement = compositeStatement.getPreviousStatement(previousStatement);
+					if(onlyLocalVariableDeclarationsFound)
+						newLocalVariableAssignments.clear();
 				}
-				if(onlyLocalVariableDeclarationsFound)
-					newLocalVariableAssignments.clear();
 			}
 			//
 			if( (newLocalVariableAssignments.size() > 1 && belongToTheSameBlock(newLocalVariableAssignments) && consecutive(newLocalVariableAssignments)) || 
@@ -384,6 +387,15 @@ public class MethodBodyObject {
 
 	public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
 		return compositeStatement.getFieldAssignments(fio);
+	}
+
+	public boolean containsSuperMethodInvocation() {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(compositeStatement.getStatement());
+		if(!superMethodInvocations.isEmpty())
+			return true;
+		else
+			return false;
 	}
 
 	private void processStatement(CompositeStatementObject parent, Statement statement) {

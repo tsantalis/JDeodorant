@@ -319,6 +319,10 @@ public class MethodObject {
     	return constructorObject.getFieldAssignments(fio);
     }
 
+    public boolean containsSuperMethodInvocation() {
+    	return constructorObject.containsSuperMethodInvocation();
+    }
+
     public List<TypeObject> getParameterTypeList() {
     	return constructorObject.getParameterTypeList();
     }

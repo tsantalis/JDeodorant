@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -24,6 +26,7 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.ExtractionBlock;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTExtractionBlock;
 
@@ -97,8 +100,8 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     }
 
     public boolean apply() {
-    	if(!isTargetClassAnInterface() && !isTargetClassAnInnerClass() && canBeMoved() && hasReferenceToTargetClass() &&
-    			!containsBranchingStatement() && !containsFieldAssignment()) {
+    	if(!containsSuperMethodInvocation() && !containsBranchingStatement() && !containsFieldAssignment() && !isTargetClassAnInterface() && !isTargetClassAnInnerClass() &&
+    			canBeMoved() && hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
@@ -158,6 +161,29 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	    			return true;
     	    		}
     			}
+    		}
+    	}
+    	return false;
+    }
+
+    private boolean containsSuperMethodInvocation() {
+    	ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+    	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
+    		List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(abstractStatement.getStatement());
+    		if(!superMethodInvocations.isEmpty()) {
+    			System.out.println(this.toString() + "\tcontains super method invocation");
+    			return true;
+    		}
+    	}
+    	if(extractionBlock.getParentStatementForCopy() != null) {
+    		Statement statement = extractionBlock.getParentStatementForCopy().getStatement();
+    		if(statement instanceof IfStatement) {
+    			IfStatement ifStatement = (IfStatement)statement;
+    			List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(ifStatement.getExpression());
+    			if(!superMethodInvocations.isEmpty()) {
+        			System.out.println(this.toString() + "\tcontains super method invocation");
+        			return true;
+        		}
     		}
     	}
     	return false;

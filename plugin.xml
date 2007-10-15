@@ -43,7 +43,7 @@
       </category>
       <view
             name="Feature Envy"
-            icon="icons/sample.gif"
+            icon="icons/featureEnvySpray.gif"
             category="gr.uom.java.jdeodorant"
             class="gr.uom.java.jdeodorant.refactoring.views.FeatureEnvy"
             id="gr.uom.java.jdeodorant.views.FeatureEnvy">
@@ -51,7 +51,7 @@
       <view
             category="gr.uom.java.jdeodorant"
             class="gr.uom.java.jdeodorant.refactoring.views.SwitchStatements"
-            icon="icons/sample.gif"
+            icon="icons/typeCheckingSpray.gif"
             id="gr.uom.java.jdeodorant.views.SwitchStatements"
             name="Switch Statements">
       </view>
@@ -77,5 +77,4 @@
          </view>
       </perspectiveExtension>
    </extension>
-
 </plugin>

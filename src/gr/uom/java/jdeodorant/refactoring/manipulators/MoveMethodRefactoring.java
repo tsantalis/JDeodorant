@@ -38,6 +38,8 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.ParameterizedType;
+import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -785,19 +787,39 @@ public class MoveMethodRefactoring implements Refactoring {
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.isField() && sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass()) &&
-						(variableBinding.getModifiers() & Modifier.STATIC) == 0) {
-					SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
-					if(expressionName.getParent() instanceof FieldAccess) {
-						FieldAccess fieldAccess = (FieldAccess)expressionName.getParent();
-						if(fieldAccess.getExpression() instanceof ThisExpression && !expressionName.getIdentifier().equals(targetClassVariableName)) {
-							targetRewriter.replace(expressionName.getParent(), expressionName, null);
-							if(!additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
-								addParameterToMovedMethod(newMethodDeclaration, expressionName);
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
+					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+						SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
+						if(expressionName.getParent() instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)expressionName.getParent();
+							if(fieldAccess.getExpression() instanceof ThisExpression && !expressionName.getIdentifier().equals(targetClassVariableName)) {
+								targetRewriter.replace(expressionName.getParent(), expressionName, null);
+								if(!additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
+									addParameterToMovedMethod(newMethodDeclaration, expressionName);
+							}
+						}
+						else if(!expressionName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
+							addParameterToMovedMethod(newMethodDeclaration, expressionName);
+					}
+					else {
+						Type superclassType = sourceTypeDeclaration.getSuperclassType();
+						ITypeBinding superclassTypeBinding = null;
+						if(superclassType != null)
+							superclassTypeBinding = superclassType.resolveBinding();
+						while(superclassTypeBinding != null && !variableBinding.getDeclaringClass().isEqualTo(superclassTypeBinding)) {
+							superclassTypeBinding = superclassTypeBinding.getSuperclass();
+						}
+						if(superclassTypeBinding != null) {
+							IVariableBinding[] superclassFieldBindings = superclassTypeBinding.getDeclaredFields();
+							for(IVariableBinding superclassFieldBinding : superclassFieldBindings) {
+								if(superclassFieldBinding.isEqualTo(variableBinding)) {
+									SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
+									if(!expressionName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
+										addParameterToMovedMethod(newMethodDeclaration, variableBinding);
+								}
+							}
 						}
 					}
-					else if(!expressionName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier()))
-						addParameterToMovedMethod(newMethodDeclaration, expressionName);
 				}
 			}
 			i++;
@@ -847,7 +869,7 @@ public class MoveMethodRefactoring implements Refactoring {
 						if(superclassTypeBinding != null) {
 							IMethodBinding[] superclassMethodBindings = superclassTypeBinding.getDeclaredMethods();
 							for(IMethodBinding superclassMethodBinding : superclassMethodBindings) {
-								if(superclassMethodBinding.isEqualTo(methodInvocation.resolveMethodBinding())) {
+								if(superclassMethodBinding.isEqualTo(methodBinding)) {
 									MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
 									if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
 										parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
@@ -897,6 +919,63 @@ public class MoveMethodRefactoring implements Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add(fieldName.getIdentifier());
+	}
+
+	private void addParameterToMovedMethod(MethodDeclaration newMethodDeclaration, IVariableBinding variableBinding) {
+		AST ast = newMethodDeclaration.getAST();
+		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+		ITypeBinding typeBinding = variableBinding.getType();
+		Type fieldType = null;
+		if(typeBinding.isClass()) {
+			fieldType = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
+		}
+		else if(typeBinding.isPrimitive()) {
+			String primitiveType = typeBinding.getName();
+			if(primitiveType.equals("int"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.INT);
+			else if(primitiveType.equals("double"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.DOUBLE);
+			else if(primitiveType.equals("byte"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.BYTE);
+			else if(primitiveType.equals("short"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.SHORT);
+			else if(primitiveType.equals("char"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.CHAR);
+			else if(primitiveType.equals("long"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.LONG);
+			else if(primitiveType.equals("float"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.FLOAT);
+			else if(primitiveType.equals("boolean"))
+				fieldType = ast.newPrimitiveType(PrimitiveType.BOOLEAN);
+		}
+		else if(typeBinding.isArray()) {
+			ITypeBinding elementTypeBinding = typeBinding.getElementType();
+			Type elementType = ast.newSimpleType(ast.newSimpleName(elementTypeBinding.getName()));
+			fieldType = ast.newArrayType(elementType, typeBinding.getDimensions());
+		}
+		else if(typeBinding.isParameterizedType()) {
+			fieldType = createParameterizedType(ast, typeBinding);
+		}
+		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
+		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+		parametersRewrite.insertLast(parameter, null);
+		this.additionalArgumentsAddedToMovedMethod.add(variableBinding.getName());
+	}
+
+	private ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding) {
+		ITypeBinding erasure = typeBinding.getErasure();
+		ITypeBinding[] typeArguments = typeBinding.getTypeArguments();
+		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(ast.newSimpleName(erasure.getName())));
+		ListRewrite typeArgumentsRewrite = targetRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+		for(ITypeBinding typeArgument : typeArguments) {
+			if(typeArgument.isClass())
+				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
+			else if(typeArgument.isParameterizedType()) {
+				typeArgumentsRewrite.insertLast(createParameterizedType(ast, typeArgument), null);
+			}
+		}
+		return parameterizedType;
 	}
 
 	private void setPublicModifierToSourceField(SimpleName simpleName) {

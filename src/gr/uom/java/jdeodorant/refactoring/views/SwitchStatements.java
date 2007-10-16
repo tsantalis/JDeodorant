@@ -155,7 +155,7 @@ public class SwitchStatements extends ViewPart {
 	private void showMessage(String message) {
 		MessageDialog.openInformation(
 			viewer.getControl().getShell(),
-			"Switch Statements",
+			"Type Checking",
 			message);
 	}
 

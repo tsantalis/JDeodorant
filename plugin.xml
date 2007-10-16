@@ -25,7 +25,7 @@
                id="gr.uom.java.jdeodorant.actions.FeatureEnvy">
          </action>
          <action
-         	   label="Switch Statements"
+         	   label="Type Checking"
                icon="icons/typeCheckingSpray.gif"
                class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
                tooltip="Type Checking"
@@ -53,7 +53,7 @@
             class="gr.uom.java.jdeodorant.refactoring.views.SwitchStatements"
             icon="icons/typeCheckingSpray.gif"
             id="gr.uom.java.jdeodorant.views.SwitchStatements"
-            name="Switch Statements">
+            name="Type Checking">
       </view>
    </extension>
    <extension

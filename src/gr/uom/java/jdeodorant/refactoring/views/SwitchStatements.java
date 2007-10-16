@@ -3,9 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
-import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.ArrayList;
@@ -175,13 +173,7 @@ public class SwitchStatements extends ViewPart {
 		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
 		while(classIterator.hasNext()) {
 			ClassObject classObject = classIterator.next();
-			ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-			while(methodIterator.hasNext()) {
-				MethodObject methodObject = methodIterator.next();
-				MethodBodyObject methodBodyObject = methodObject.getMethodBody();
-				if(methodBodyObject != null)
-					typeCheckEliminations.addAll(methodBodyObject.generateTypeCheckEliminations());
-			}
+			typeCheckEliminations.addAll(classObject.generateTypeCheckEliminations());
 		}
 	}
 }

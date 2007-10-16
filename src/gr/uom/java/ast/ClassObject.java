@@ -3,15 +3,23 @@ package gr.uom.java.ast;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class ClassObject {
 
@@ -105,17 +113,108 @@ public class ClassObject {
     		if(methodBodyObject != null) {
     			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
     			for(TypeCheckElimination typeCheckElimination : list) {
+    				Object[] typeCheckStatements = typeCheckElimination.getTypeCheckStatements().toArray();
+    				ArrayList<Statement> firstBlockOfStatements = (ArrayList<Statement>)typeCheckStatements[0];
+    				Statement firstStatementOfBlock = firstBlockOfStatements.get(0);
+    				if(firstStatementOfBlock.getParent() instanceof SwitchStatement) {
+    					SwitchStatement switchStatement = (SwitchStatement)firstStatementOfBlock.getParent();
+    					Expression switchStatementExpression = switchStatement.getExpression();
+    					String switchStatementExpressionName = null;
+    					if(switchStatementExpression instanceof SimpleName) {
+    						SimpleName simpleName = (SimpleName)switchStatementExpression;
+    						switchStatementExpressionName = simpleName.getIdentifier();
+    					}
+    					else if(switchStatementExpression instanceof FieldAccess) {
+    						FieldAccess fieldAccess = (FieldAccess)switchStatementExpression;
+    						switchStatementExpressionName = fieldAccess.getName().getIdentifier();
+    					}
+    					for(FieldObject field : fieldList) {
+							if(field.getName().equals(switchStatementExpressionName)) {
+								typeCheckElimination.setTypeField(field.getVariableDeclarationFragment());
+								for(MethodObject method : methodList) {
+									FieldInstructionObject fieldInstruction = method.isSetter();
+									if(fieldInstruction != null && field.equals(fieldInstruction)) {
+										typeCheckElimination.setTypeFieldSetterMethod(method.getMethodDeclaration());
+										break;
+									}
+								}
+								break;
+							}
+						}
+    				}
+    				
     				Set<Expression> typeCheckExpressions = typeCheckElimination.getTypeCheckExpressions();
+    				Map<FieldObject, Integer> fieldTypeCounterMap = new LinkedHashMap<FieldObject, Integer>();
     				for(Expression typeCheckExpression : typeCheckExpressions) {
-    					if(typeCheckExpression instanceof InfixExpression) {
+    					if(typeCheckExpression.getParent() instanceof SwitchCase) {
+    						if(typeCheckExpression instanceof SimpleName) {
+    							SimpleName simpleName = (SimpleName)typeCheckExpression;
+    							for(FieldObject field : fieldList) {
+        							if(field.getName().equals(simpleName.getIdentifier()) && field.isStatic()) {
+        								typeCheckElimination.addStaticType(typeCheckExpression, field.getVariableDeclarationFragment());
+        								break;
+        							}
+        						}
+    						}
+    					}
+    					else if(typeCheckExpression instanceof InfixExpression) {
     						InfixExpression infixExpression = (InfixExpression)typeCheckExpression;
+    						if(infixExpression.getOperator().equals(InfixExpression.Operator.EQUALS)) {
+    							Expression leftOperand = infixExpression.getLeftOperand();
+    							Expression rightOperand = infixExpression.getRightOperand();
+    							for(FieldObject field : fieldList) {
+    								infixExpressionHandler(leftOperand, field, typeCheckExpression, fieldTypeCounterMap, typeCheckElimination);
+    								infixExpressionHandler(rightOperand, field, typeCheckExpression, fieldTypeCounterMap, typeCheckElimination);
+    							}
+    						}
     					}
     				}
+    				for(FieldObject field : fieldTypeCounterMap.keySet()) {
+    					if(fieldTypeCounterMap.get(field) == typeCheckExpressions.size()) {
+    						typeCheckElimination.setTypeField(field.getVariableDeclarationFragment());
+    						for(MethodObject method : methodList) {
+								FieldInstructionObject fieldInstruction = method.isSetter();
+								if(fieldInstruction != null && field.equals(fieldInstruction)) {
+									typeCheckElimination.setTypeFieldSetterMethod(method.getMethodDeclaration());
+									break;
+								}
+							}
+    					}
+    				}
+    				if(typeCheckElimination.getTypeField() != null && typeCheckElimination.allTypeChecksContainStaticField())
+    					typeCheckEliminations.add(typeCheckElimination);
     			}
     		}
     	}
     	return typeCheckEliminations;
     }
+
+	private void infixExpressionHandler(Expression operand, FieldObject field,
+			Expression typeCheckExpression, Map<FieldObject, Integer> fieldTypeCounterMap,
+			TypeCheckElimination typeCheckElimination) {
+		String leftOperandName = null;
+		if(operand instanceof SimpleName) {
+			SimpleName leftOperandSimpleName = (SimpleName)operand;
+			leftOperandName = leftOperandSimpleName.getIdentifier();
+		}
+		else if(operand instanceof FieldAccess) {
+			FieldAccess leftOperandFieldAccess = (FieldAccess)operand;
+			leftOperandName = leftOperandFieldAccess.getName().getIdentifier();
+		}
+		if(field.getName().equals(leftOperandName)) {
+			if(field.isStatic()) {
+				typeCheckElimination.addStaticType(typeCheckExpression, field.getVariableDeclarationFragment());
+			}
+			else {
+				if(fieldTypeCounterMap.containsKey(field)) {
+					fieldTypeCounterMap.put(field, fieldTypeCounterMap.get(field)+1);
+				}
+				else {
+					fieldTypeCounterMap.put(field, 1);
+				}
+			}
+		}
+	}
 
     public void setAccess(Access access) {
         this.access = access;

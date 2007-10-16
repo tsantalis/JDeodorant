@@ -9,6 +9,7 @@ public class FieldObject {
     private boolean _static;
     private Access access;
     private VariableDeclarationFragment fragment;
+    private volatile int hashCode = 0;
 
     public FieldObject(TypeObject type, String name) {
         this.type = type;
@@ -63,6 +64,16 @@ public class FieldObject {
 
     public boolean equals(FieldInstructionObject fio) {
         return this.name.equals(fio.getName()) && this.type.equals(fio.getType());
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + type.hashCode();
+    		result = 37*result + name.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

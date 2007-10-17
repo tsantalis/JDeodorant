@@ -40,7 +40,7 @@ import org.eclipse.swt.SWT;
  * <p>
  */
 
-public class SwitchStatements extends ViewPart {
+public class TypeChecking extends ViewPart {
 	private TableViewer viewer;
 	private Action identifyBadSmellsAction;
 	private Action doubleClickAction;

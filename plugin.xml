@@ -31,7 +31,7 @@
                tooltip="Type Checking"
                menubarPath="BadSmellsMenu/sampleGroup"
                toolbarPath="sampleGroup"
-               id="gr.uom.java.jdeodorant.actions.SwitchStatements">
+               id="gr.uom.java.jdeodorant.actions.TypeChecking">
          </action>
       </actionSet>
    </extension>
@@ -50,9 +50,9 @@
       </view>
       <view
             category="gr.uom.java.jdeodorant"
-            class="gr.uom.java.jdeodorant.refactoring.views.SwitchStatements"
+            class="gr.uom.java.jdeodorant.refactoring.views.TypeChecking"
             icon="icons/typeCheckingSpray.gif"
-            id="gr.uom.java.jdeodorant.views.SwitchStatements"
+            id="gr.uom.java.jdeodorant.views.TypeChecking"
             name="Type Checking">
       </view>
    </extension>

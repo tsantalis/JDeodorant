@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 
 public class ConnectivityMetric {
 	private Map<String, Double> classCohesionMap;
@@ -64,8 +65,12 @@ public class ConnectivityMetric {
 		}
 		
 		int m = methods.size();
-		double connectivity = 2.0 * (double)(cohesivePairs - (m-1))/(double)((m-1) * (m-2));
-		classCohesionMap.put(classObject.getName(), connectivity);
+		if(m > 1) {
+			double connectivity = 2.0 * (double)cohesivePairs/(double)(m * (m-1));
+			classCohesionMap.put(classObject.getName(), connectivity);
+		}
+		else
+			classCohesionMap.put(classObject.getName(), null);
 	}
 	
 	private boolean useCommonFieldOrOneInvokesTheOther(MethodObject methodI, MethodObject methodJ, String className, List<MethodObject> accessors) {
@@ -118,5 +123,22 @@ public class ConnectivityMetric {
 		}
 		
 		return false;
+	}
+	
+	public double getSystemAverageConnectivity() {
+		Set<String> keySet = classCohesionMap.keySet();
+		double sum = 0;
+		int notDefined = 0;
+		for(String key : keySet) {
+			Double value = classCohesionMap.get(key);
+			if(value != null)
+				sum += value;
+			else
+				notDefined++;
+		}
+		if(keySet.size() == notDefined)
+			return 0;
+		else
+			return sum/(double)(keySet.size()-notDefined);
 	}
 }

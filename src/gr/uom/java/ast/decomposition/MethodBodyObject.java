@@ -148,10 +148,19 @@ public class MethodBodyObject {
 					current = parent;
 					parent = current.getParent();
 				}
-				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null && !(current.getStatement() instanceof Block))
+				if(!newLocalVariableAssignments.contains(current) && current.getParent() != null)
 					newLocalVariableAssignments.add(current);
 			}
 			//
+			boolean blockStatementFound = false;
+			for(AbstractStatement abstractStatement : newLocalVariableAssignments) {
+				if(abstractStatement.getStatement() instanceof Block) {
+					blockStatementFound = true;
+					break;
+				}
+			}
+			if(blockStatementFound)
+				newLocalVariableAssignments.clear();
 			if(!newLocalVariableAssignments.isEmpty()) {
 				AbstractStatement currentStatement = newLocalVariableAssignments.get(0);
 				AbstractStatement parent = currentStatement.getParent();

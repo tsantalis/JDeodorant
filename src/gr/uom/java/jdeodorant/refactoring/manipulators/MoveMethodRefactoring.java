@@ -664,8 +664,8 @@ public class MoveMethodRefactoring implements Refactoring {
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0 && variableBinding.getDeclaringClass() != null &&
-						variableBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+						sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
 					AST ast = newMethodDeclaration.getAST();
 					SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 					if(simpleName.getParent() instanceof FieldAccess) {
@@ -806,7 +806,7 @@ public class MoveMethodRefactoring implements Refactoring {
 						ITypeBinding superclassTypeBinding = null;
 						if(superclassType != null)
 							superclassTypeBinding = superclassType.resolveBinding();
-						while(superclassTypeBinding != null && !variableBinding.getDeclaringClass().isEqualTo(superclassTypeBinding)) {
+						while(superclassTypeBinding != null && !superclassTypeBinding.isEqualTo(variableBinding.getDeclaringClass())) {
 							superclassTypeBinding = superclassTypeBinding.getSuperclass();
 						}
 						if(superclassTypeBinding != null) {

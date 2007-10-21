@@ -68,6 +68,23 @@ public class ExtractAndMoveMethodRefactoring implements Refactoring {
         		}
         	}
         }
+        CompilationUnit targetCompilationUnit = null;
+        TypeDeclaration targetTypeDeclaration = null;
+        if(this.sourceCompilationUnit.equals(this.targetCompilationUnit)) {
+        	targetCompilationUnit = sourceCompilationUnit;
+        	for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarationList) {
+            	if(abstractTypeDeclaration instanceof TypeDeclaration) {
+            		TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+            		if(typeDeclaration.resolveBinding().getQualifiedName().equals(this.targetTypeDeclaration.resolveBinding().getQualifiedName())) {
+            			targetTypeDeclaration = typeDeclaration;
+            		}
+            	}
+        	}
+        }
+        else {
+        	targetCompilationUnit = this.targetCompilationUnit;
+        	targetTypeDeclaration = this.targetTypeDeclaration;
+        }
 		MoveMethodRefactoring moveMethodRefactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
 			sourceTypeDeclaration, targetTypeDeclaration, extractedMethodDeclaration, new LinkedHashMap<MethodInvocation, MethodDeclaration>(), false);
 		moveMethodRefactoring.apply();

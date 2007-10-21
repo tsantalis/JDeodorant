@@ -17,6 +17,7 @@ import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
@@ -98,8 +99,31 @@ public class MoveMethodRefactoring implements Refactoring {
 	public UndoRefactoring getUndoRefactoring() {
 		return undoRefactoring;
 	}
-	
+
 	public void apply() {
+		if(sourceCompilationUnit.equals(targetCompilationUnit)) {
+			int sourceTypeDeclarationPosition = 0;
+			int targetTypeDeclarationPosition = 0;
+			List<AbstractTypeDeclaration> typeDeclarationList = sourceCompilationUnit.types();
+			int i = 0;
+			for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarationList) {
+				if(abstractTypeDeclaration.equals(sourceTypeDeclaration))
+					sourceTypeDeclarationPosition = i;
+				else if(abstractTypeDeclaration.equals(targetTypeDeclaration))
+					targetTypeDeclarationPosition = i;
+				i++;
+			}
+			if(sourceTypeDeclarationPosition < targetTypeDeclarationPosition)
+				applyTargetFirst();
+			else if(sourceTypeDeclarationPosition > targetTypeDeclarationPosition)
+				applySourceFirst();
+		}
+		else {
+			applyTargetFirst();
+		}
+	}
+
+	public void applyTargetFirst() {
 		addRequiredTargetImportDeclarations();
 		createMovedMethod();
 		moveAdditionalMethods();
@@ -130,6 +154,44 @@ public class MoveMethodRefactoring implements Refactoring {
 		try {
 			UndoEdit undoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
 			undoRefactoring.put(sourceFile, sourceDocument, undoEdit);
+		} catch (MalformedTreeException e) {
+			e.printStackTrace();
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void applySourceFirst() {
+		if(leaveDelegate) {
+			addDelegationInSourceMethod();
+		}
+		else {
+			removeSourceMethod();
+		}
+		modifyMovedMethodInvocationInSourceClass();
+		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
+		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
+		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
+		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
+		try {
+			UndoEdit undoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
+			undoRefactoring.put(sourceFile, sourceDocument, undoEdit);
+		} catch (MalformedTreeException e) {
+			e.printStackTrace();
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+		
+		addRequiredTargetImportDeclarations();
+		createMovedMethod();
+		moveAdditionalMethods();
+		modifyMovedMethodInvocationInTargetClass();
+		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
+		IDocument targetDocument = targetTextFileBuffer.getDocument();
+		TextEdit targetEdit = targetRewriter.rewriteAST(targetDocument, null);
+		try {
+			UndoEdit undoEdit = targetEdit.apply(targetDocument, UndoEdit.CREATE_UNDO);
+			undoRefactoring.put(targetFile, targetDocument, undoEdit);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
 		} catch (BadLocationException e) {
@@ -693,7 +755,8 @@ public class MoveMethodRefactoring implements Refactoring {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0 &&
-						methodBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+						methodBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+						!additionalMethodsToBeMoved.containsKey(methodInvocation)) {
 					AST ast = newMethodDeclaration.getAST();
 					SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 					targetRewriter.set(newMethodInvocations.get(i), MethodInvocation.EXPRESSION_PROPERTY, qualifier, null);
@@ -838,8 +901,17 @@ public class MoveMethodRefactoring implements Refactoring {
 							if(sourceMethodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()) &&
 									!sourceMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
 								SimpleName fieldName = isGetter(sourceMethodDeclaration);
+								int modifiers = sourceMethodDeclaration.getModifiers();
 								MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
-								if(fieldName != null) {
+								if((modifiers & Modifier.STATIC) != 0) {
+									AST ast = newMethodDeclaration.getAST();
+									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier()), null);
+									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().toString())) {
+										setPublicModifierToSourceMethod(methodInvocation);
+										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().toString());
+									}
+								}
+								else if(fieldName != null) {
 									AST ast = newMethodDeclaration.getAST();
 									targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
 									if(!fieldName.getIdentifier().equals(targetClassVariableName) && !additionalArgumentsAddedToMovedMethod.contains(fieldName.getIdentifier()))

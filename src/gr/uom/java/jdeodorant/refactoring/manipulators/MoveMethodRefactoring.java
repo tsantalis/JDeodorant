@@ -234,6 +234,9 @@ public class MoveMethodRefactoring implements Refactoring {
 				ITypeBinding variableTypeBinding = variableBinding.getType();
 				if(!typeBindings.contains(variableTypeBinding))
 					typeBindings.add(variableTypeBinding);
+				ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
+				if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
+					typeBindings.add(declaringClassTypeBinding);
 			}
 		}
 		

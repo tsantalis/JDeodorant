@@ -388,15 +388,26 @@ public class MoveMethodRefactoring implements Refactoring {
 			i++;
 		}
 		if(targetClassVariableName == null) {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newMethodDeclaration.getBody());
 			FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
         	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
         		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
         		for(VariableDeclarationFragment fragment : fragments) {
 	        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
-	        			targetClassVariableName = fragment.getName().getIdentifier();
-	        			break;
+	        			for(Expression expression : newVariableInstructions) {
+	        				SimpleName simpleName = (SimpleName)expression;
+	        				if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+	        					targetClassVariableName = fragment.getName().getIdentifier();
+	        					break;
+	        				}
+	        			}
+	        			if(targetClassVariableName != null)
+	        				break;
 	        		}
         		}
+        		if(targetClassVariableName != null)
+    				break;
         	}
 		}
 		

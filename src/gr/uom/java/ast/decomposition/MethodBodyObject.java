@@ -76,7 +76,7 @@ public class MethodBodyObject {
 					switchCaseExpression = switchCase.getExpression();
 				}
 				else {
-					if(!(statement2 instanceof BreakStatement))
+					if(switchCaseExpression != null && !(statement2 instanceof BreakStatement))
 						typeCheckElimination.addTypeCheck(switchCaseExpression, statement2);
 				}
 			}

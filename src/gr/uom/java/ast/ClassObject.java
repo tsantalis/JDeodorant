@@ -14,12 +14,12 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class ClassObject {
 
@@ -127,6 +127,14 @@ public class ClassObject {
     					else if(switchStatementExpression instanceof FieldAccess) {
     						FieldAccess fieldAccess = (FieldAccess)switchStatementExpression;
     						switchStatementExpressionName = fieldAccess.getName().getIdentifier();
+    					}
+    					else if(switchStatementExpression instanceof MethodInvocation) {
+    						MethodInvocation methodInvocation = (MethodInvocation)switchStatementExpression;
+    						for(MethodObject method : methodList) {
+    							FieldInstructionObject fieldInstruction = method.isGetter();
+    							if(fieldInstruction != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()))
+    								switchStatementExpressionName = fieldInstruction.getName();
+    						}
     					}
     					for(FieldObject field : fieldList) {
 							if(field.getName().equals(switchStatementExpressionName)) {

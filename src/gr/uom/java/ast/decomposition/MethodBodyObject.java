@@ -68,6 +68,7 @@ public class MethodBodyObject {
 		for(Statement statement : switchStatements) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
 			TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
+			typeCheckElimination.setTypeCheckCodeFragment(switchStatement);
 			List<Statement> statements = switchStatement.statements();
 			Expression switchCaseExpression = null;
 			for(Statement statement2 : statements) {
@@ -94,6 +95,7 @@ public class MethodBodyObject {
 			if(ifStatements.size()-1 > i) {
 				IfStatement nextIfStatement = (IfStatement)ifStatements.get(i+1);
 				if(!ifStatement.getParent().equals(nextIfStatement)) {
+					typeCheckElimination.setTypeCheckCodeFragment(ifStatement);
 					typeCheckEliminations.add(typeCheckElimination);
 					typeCheckElimination = new TypeCheckElimination();
 				}

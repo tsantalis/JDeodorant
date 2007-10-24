@@ -16,12 +16,16 @@ public class TypeCheckElimination {
 	private Map<Expression, VariableDeclarationFragment> staticFieldMap;
 	private VariableDeclarationFragment typeField;
 	private MethodDeclaration typeFieldSetterMethod;
+	private Statement typeCheckCodeFragment;
+	private MethodDeclaration typeCheckMethod;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
 		this.staticFieldMap = new LinkedHashMap<Expression, VariableDeclarationFragment>();
 		this.typeField = null;
 		this.typeFieldSetterMethod = null;
+		this.typeCheckCodeFragment = null;
+		this.typeCheckMethod = null;
 	}
 	
 	public void addTypeCheck(Expression expression, Statement statement) {
@@ -62,6 +66,22 @@ public class TypeCheckElimination {
 
 	public void setTypeFieldSetterMethod(MethodDeclaration typeFieldSetterMethod) {
 		this.typeFieldSetterMethod = typeFieldSetterMethod;
+	}
+
+	public Statement getTypeCheckCodeFragment() {
+		return typeCheckCodeFragment;
+	}
+
+	public void setTypeCheckCodeFragment(Statement typeCheckCodeFragment) {
+		this.typeCheckCodeFragment = typeCheckCodeFragment;
+	}
+
+	public MethodDeclaration getTypeCheckMethod() {
+		return typeCheckMethod;
+	}
+
+	public void setTypeCheckMethod(MethodDeclaration typeCheckMethod) {
+		this.typeCheckMethod = typeCheckMethod;
 	}
 
 	public boolean allTypeChecksContainStaticField() {

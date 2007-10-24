@@ -113,6 +113,7 @@ public class ClassObject {
     		if(methodBodyObject != null) {
     			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
     			for(TypeCheckElimination typeCheckElimination : list) {
+    				typeCheckElimination.setTypeCheckMethod(methodObject.getMethodDeclaration());
     				Object[] typeCheckStatements = typeCheckElimination.getTypeCheckStatements().toArray();
     				ArrayList<Statement> firstBlockOfStatements = (ArrayList<Statement>)typeCheckStatements[0];
     				Statement firstStatementOfBlock = firstBlockOfStatements.get(0);

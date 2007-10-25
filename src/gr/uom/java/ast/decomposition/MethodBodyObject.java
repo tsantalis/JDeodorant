@@ -101,6 +101,7 @@ public class MethodBodyObject {
 				}
 			}
 			else {
+				typeCheckElimination.setTypeCheckCodeFragment(ifStatement);
 				typeCheckEliminations.add(typeCheckElimination);
 			}
 			i++;

@@ -3,12 +3,14 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class TypeCheckElimination {
@@ -86,5 +88,36 @@ public class TypeCheckElimination {
 
 	public boolean allTypeChecksContainStaticField() {
 		return typeCheckMap.keySet().size() == staticFieldMap.keySet().size();
+	}
+	
+	public Type getAbstractMethodReturnType() {
+		return typeCheckMethod.getReturnType2();
+	}
+	
+	public String getAbstractMethodName() {
+		return typeCheckMethod.getName().getIdentifier();
+	}
+	
+	public String getAbstractClassName() {
+		String typeFieldName = typeField.getName().getIdentifier();
+		return typeFieldName.replaceFirst(Character.toString(typeFieldName.charAt(0)),
+			Character.toString(Character.toUpperCase(typeFieldName.charAt(0))));
+	}
+	
+	public List<String> getSubclassNames() {
+		List<String> subclassNames = new ArrayList<String>();
+		for(VariableDeclarationFragment fragment : staticFieldMap.values()) {
+			String fragmentName = fragment.getName().getIdentifier();
+			if(!fragmentName.contains("_")) {
+				String subclassName = fragmentName.substring(0,1).toUpperCase() + 
+				fragmentName.substring(1, fragmentName.length()).toLowerCase();
+				subclassNames.add(subclassName);
+			}
+			else {
+				subclassNames.add(fragmentName);
+				// TODO
+			}
+		}
+		return subclassNames;
 	}
 }

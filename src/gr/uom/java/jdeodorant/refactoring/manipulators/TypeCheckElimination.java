@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -108,14 +109,24 @@ public class TypeCheckElimination {
 		List<String> subclassNames = new ArrayList<String>();
 		for(VariableDeclarationFragment fragment : staticFieldMap.values()) {
 			String fragmentName = fragment.getName().getIdentifier();
+			//The case that the type field name is just one word : NAME
 			if(!fragmentName.contains("_")) {
 				String subclassName = fragmentName.substring(0,1).toUpperCase() + 
 				fragmentName.substring(1, fragmentName.length()).toLowerCase();
 				subclassNames.add(subclassName);
 			}
+			//In the case the static field name is like: STATIC_NAME_TEST we must remove the "_" 
+			//and transform all letters to lower case, except the first letter of each word. 
 			else {
-				subclassNames.add(fragmentName);
-				// TODO
+				String tempName = "";
+				String finalName = "";
+				StringTokenizer tokenizer = new StringTokenizer(fragmentName,"_");
+				while(tokenizer.hasMoreTokens()) {
+					tempName = tokenizer.nextToken().toLowerCase().toString();
+					finalName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+									tempName.subSequence(1, tempName.length()).toString();
+				}
+				subclassNames.add(finalName);
 			}
 		}
 		return subclassNames;

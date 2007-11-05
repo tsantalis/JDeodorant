@@ -18,6 +18,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -74,11 +75,12 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private void createStateStrategyHierarchy() {	
 		IFolder contextFolder = (IFolder)sourceFile.getParent();
 		IFile stateStrategyFile = contextFolder.getFile(typeCheckElimination.getAbstractClassName() + ".java");
+		boolean stateStrategyAlreadyExists = false;
 		try {
 			stateStrategyFile.create(new ByteArrayInputStream("".getBytes()), true, null);
 			undoRefactoring.addNewlyCreatedFile(stateStrategyFile);
 		} catch (CoreException e) {
-			e.printStackTrace();
+			stateStrategyAlreadyExists = true;
 		}
 		IJavaElement stateStrategyJavaElement = JavaCore.create(stateStrategyFile);
 		ITextEditor stateStrategyEditor = null;
@@ -100,12 +102,27 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
         ASTRewrite stateStrategyRewriter = ASTRewrite.create(stateStrategyAST);
         ListRewrite stateStrategyTypesRewrite = stateStrategyRewriter.getListRewrite(stateStrategyCompilationUnit, CompilationUnit.TYPES_PROPERTY);
 		
-		TypeDeclaration stateStrategyTypeDeclaration = stateStrategyAST.newTypeDeclaration();
-		SimpleName stateStrategyName = stateStrategyAST.newSimpleName(typeCheckElimination.getAbstractClassName());
-		stateStrategyRewriter.set(stateStrategyTypeDeclaration, TypeDeclaration.NAME_PROPERTY, stateStrategyName, null);
-		ListRewrite stateStrategyModifiersRewrite = stateStrategyRewriter.getListRewrite(stateStrategyTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
-		stateStrategyModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-		stateStrategyModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+		TypeDeclaration stateStrategyTypeDeclaration = null;
+		if(stateStrategyAlreadyExists) {
+			List<AbstractTypeDeclaration> abstractTypeDeclarations = stateStrategyCompilationUnit.types();
+			for(AbstractTypeDeclaration abstractTypeDeclaration : abstractTypeDeclarations) {
+				if(abstractTypeDeclaration instanceof TypeDeclaration) {
+					TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					if(typeDeclaration.getName().getIdentifier().equals(typeCheckElimination.getAbstractClassName())) {
+						stateStrategyTypeDeclaration = typeDeclaration;
+						break;
+					}
+				}
+			}
+		}
+		else {
+			stateStrategyTypeDeclaration = stateStrategyAST.newTypeDeclaration();
+			SimpleName stateStrategyName = stateStrategyAST.newSimpleName(typeCheckElimination.getAbstractClassName());
+			stateStrategyRewriter.set(stateStrategyTypeDeclaration, TypeDeclaration.NAME_PROPERTY, stateStrategyName, null);
+			ListRewrite stateStrategyModifiersRewrite = stateStrategyRewriter.getListRewrite(stateStrategyTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+			stateStrategyModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			stateStrategyModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+		}
 		
 		ListRewrite stateStrategyBodyRewrite = stateStrategyRewriter.getListRewrite(stateStrategyTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		
@@ -119,7 +136,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		
 		stateStrategyBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
-		stateStrategyTypesRewrite.insertLast(stateStrategyTypeDeclaration, null);
+		if(!stateStrategyAlreadyExists)
+			stateStrategyTypesRewrite.insertLast(stateStrategyTypeDeclaration, null);
 		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer stateStrategyTextFileBuffer = bufferManager.getTextFileBuffer(stateStrategyFile.getFullPath(), LocationKind.IFILE);
@@ -141,11 +159,12 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		int i = 0;
 		for(ArrayList<Statement> statements : typeCheckStatements) {
 			IFile subclassFile = contextFolder.getFile(subclassNames.get(i) + ".java");
+			boolean subclassAlreadyExists = false;
 			try {
 				subclassFile.create(new ByteArrayInputStream("".getBytes()), true, null);
 				undoRefactoring.addNewlyCreatedFile(subclassFile);
 			} catch (CoreException e) {
-				e.printStackTrace();
+				subclassAlreadyExists = true;
 			}
 			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
 			ITextEditor subclassEditor = null;
@@ -167,12 +186,27 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	        ASTRewrite subclassRewriter = ASTRewrite.create(subclassAST);
 	        ListRewrite subclassTypesRewrite = subclassRewriter.getListRewrite(subclassCompilationUnit, CompilationUnit.TYPES_PROPERTY);
 			
-			TypeDeclaration subclassTypeDeclaration = subclassAST.newTypeDeclaration();
-			SimpleName subclassName = subclassAST.newSimpleName(subclassNames.get(i));
-			subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, subclassName, null);
-			subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, subclassAST.newSimpleType(subclassAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
-			ListRewrite subclassModifiersRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
-			subclassModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			TypeDeclaration subclassTypeDeclaration = null;
+			if(subclassAlreadyExists) {
+				List<AbstractTypeDeclaration> abstractTypeDeclarations = subclassCompilationUnit.types();
+				for(AbstractTypeDeclaration abstractTypeDeclaration : abstractTypeDeclarations) {
+					if(abstractTypeDeclaration instanceof TypeDeclaration) {
+						TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+						if(typeDeclaration.getName().getIdentifier().equals(subclassNames.get(i))) {
+							subclassTypeDeclaration = typeDeclaration;
+							break;
+						}
+					}
+				}
+			}
+			else {
+				subclassTypeDeclaration = subclassAST.newTypeDeclaration();
+				SimpleName subclassName = subclassAST.newSimpleName(subclassNames.get(i));
+				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, subclassName, null);
+				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, subclassAST.newSimpleType(subclassAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
+				ListRewrite subclassModifiersRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+				subclassModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			}
 			
 			ListRewrite subclassBodyRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 			
@@ -197,7 +231,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			
-			subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
+			if(!subclassAlreadyExists)
+				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
 			ITextFileBuffer subclassTextFileBuffer = bufferManager.getTextFileBuffer(subclassFile.getFullPath(), LocationKind.IFILE);
 			IDocument subclassDocument = subclassTextFileBuffer.getDocument();

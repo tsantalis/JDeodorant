@@ -23,6 +23,7 @@ import org.eclipse.ui.part.*;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
@@ -248,6 +249,13 @@ public class TypeChecking extends ViewPart {
 							} catch (PartInitException e) {
 								e.printStackTrace();
 							} catch (JavaModelException e) {
+								e.printStackTrace();
+							}
+						}
+						for(IFile file : undoRefactoring.getNewlyCreatedFiles()) {
+							try {
+								file.delete(true, null);
+							} catch (CoreException e) {
 								e.printStackTrace();
 							}
 						}

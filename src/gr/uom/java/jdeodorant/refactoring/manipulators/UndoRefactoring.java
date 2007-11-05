@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.text.edits.MalformedTreeException;
@@ -15,10 +16,12 @@ import org.eclipse.text.edits.UndoEdit;
 public class UndoRefactoring {
 	private Map<IDocument, List<UndoEdit>> undoEditMap;
 	private Map<IFile, IDocument> documentMap;
+	private List<IFile> newlyCreatedFiles;
 	
 	public UndoRefactoring() {
 		this.undoEditMap = new LinkedHashMap<IDocument, List<UndoEdit>>();
 		this.documentMap = new LinkedHashMap<IFile, IDocument>();
+		this.newlyCreatedFiles = new ArrayList<IFile>();
 	}
 
 	public Set<IFile> getFileKeySet() {
@@ -27,6 +30,10 @@ public class UndoRefactoring {
 
 	public Set<IDocument> getDocumentKeySet() {
 		return undoEditMap.keySet();
+	}
+
+	public List<IFile> getNewlyCreatedFiles() {
+		return newlyCreatedFiles;
 	}
 
 	public void put(IFile file, IDocument document, UndoEdit undoEdit) {
@@ -63,6 +70,14 @@ public class UndoRefactoring {
 				this.documentMap.put(key, documentMap.get(key));
 			}
 		}
+		for(IFile file : undoRefactoring.getNewlyCreatedFiles()) {
+			if(!newlyCreatedFiles.contains(file))
+				newlyCreatedFiles.add(file);
+		}
+	}
+
+	public void addNewlyCreatedFile(IFile file) {
+		newlyCreatedFiles.add(file);
 	}
 
 	public void apply() {

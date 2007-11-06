@@ -116,6 +116,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 		}
 		else {
+			if(sourceCompilationUnit.getPackage() != null) {
+				stateStrategyRewriter.set(stateStrategyCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, sourceCompilationUnit.getPackage(), null);
+			}
 			stateStrategyTypeDeclaration = stateStrategyAST.newTypeDeclaration();
 			SimpleName stateStrategyName = stateStrategyAST.newSimpleName(typeCheckElimination.getAbstractClassName());
 			stateStrategyRewriter.set(stateStrategyTypeDeclaration, TypeDeclaration.NAME_PROPERTY, stateStrategyName, null);
@@ -200,6 +203,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			else {
+				if(sourceCompilationUnit.getPackage() != null) {
+					subclassRewriter.set(subclassCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, sourceCompilationUnit.getPackage(), null);
+				}
 				subclassTypeDeclaration = subclassAST.newTypeDeclaration();
 				SimpleName subclassName = subclassAST.newSimpleName(subclassNames.get(i));
 				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, subclassName, null);

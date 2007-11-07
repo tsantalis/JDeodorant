@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -17,15 +18,26 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jdt.ui.JavaUI;
@@ -52,12 +64,152 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.typeCheckElimination = typeCheckElimination;
-		this.sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
+		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.undoRefactoring = new UndoRefactoring();
 	}
 
 	public void apply() {
 		createStateStrategyHierarchy();
+		modifyContext();
+	}
+
+	private void modifyContext() {
+		AST contextAST = sourceTypeDeclaration.getAST();
+		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		VariableDeclarationFragment typeFragment = contextAST.newVariableDeclarationFragment();
+		sourceRewriter.set(typeFragment, VariableDeclarationFragment.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+		FieldDeclaration typeFieldDeclaration = contextAST.newFieldDeclaration(typeFragment);
+		String type = typeCheckElimination.getTypeField().getName().getIdentifier();
+		type = type.substring(0,1).toUpperCase() + type.substring(1, type.length());
+		sourceRewriter.set(typeFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(type), null);
+		ListRewrite typeFieldDeclrationModifiersRewrite = sourceRewriter.getListRewrite(typeFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+		typeFieldDeclrationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+		contextBodyRewrite.insertFirst(typeFieldDeclaration, null);
+		
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				if(fragment.equals(typeCheckElimination.getTypeField())) {
+					if(fragments.size() == 1) {
+						contextBodyRewrite.remove(fragment.getParent(), null);
+					}
+					else {
+						ListRewrite fragmentRewrite = sourceRewriter.getListRewrite(fragment.getParent(), FieldDeclaration.FRAGMENTS_PROPERTY);
+						fragmentRewrite.remove(fragment, null);
+					}
+				}
+			}
+		}
+		
+		MethodDeclaration setterMethod = typeCheckElimination.getTypeFieldSetterMethod();
+		List<SingleVariableDeclaration> setterMethodParameters = setterMethod.parameters();
+		Statement setterMethodStatement = (Statement)ASTNode.copySubtree(contextAST, typeCheckElimination.getTypeCheckCodeFragment());
+		if(setterMethodStatement instanceof SwitchStatement) {
+			SwitchStatement switchStatement = (SwitchStatement)setterMethodStatement;
+			List<Statement> switchStatementStatements = switchStatement.statements();
+			if(setterMethodParameters.size() == 1) {
+				sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, setterMethodParameters.get(0).getName(), null);
+			}
+			ListRewrite switchStatementStatementsRewrite = sourceRewriter.getListRewrite(switchStatement, SwitchStatement.STATEMENTS_PROPERTY);
+			List<String> subclassNames = typeCheckElimination.getSubclassNames();
+			Collection<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+			int i = 0;
+			for(ArrayList<Statement> typeCheckStatements : allTypeCheckStatements) {
+				int matches = 0;
+				for(Statement oldStatement : typeCheckStatements) {
+					for(Statement newStatement : switchStatementStatements) {
+						if(oldStatement.toString().equals(newStatement.toString())) {
+							matches++;
+							if(matches == typeCheckStatements.size()) {
+								Assignment assignment = contextAST.newAssignment();
+								sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+								FieldAccess typeFieldAccess = contextAST.newFieldAccess();
+								sourceRewriter.set(typeFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+								sourceRewriter.set(typeFieldAccess, FieldAccess.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+								sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, typeFieldAccess, null);
+								ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+								sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
+								sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
+								switchStatementStatementsRewrite.replace(newStatement, contextAST.newExpressionStatement(assignment), null);
+							}
+							else {
+								switchStatementStatementsRewrite.remove(newStatement, null);
+							}
+						}
+					}
+				}
+				i++;
+			}
+		}
+		else if(setterMethodStatement instanceof IfStatement) {
+			IfStatement typeCheckIfStatement = (IfStatement)setterMethodStatement;
+			
+			List<String> subclassNames = typeCheckElimination.getSubclassNames();
+			Collection<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+			int i = 0;
+			for(ArrayList<Statement> typeCheckStatements : allTypeCheckStatements) {
+				if(typeCheckStatements.size() == 1) {
+					Statement oldStatement = typeCheckStatements.get(0);
+					IfStatement ifStatement = typeCheckIfStatement;
+					Statement newStatement = typeCheckIfStatement.getThenStatement();
+					while(!oldStatement.toString().equals(newStatement.toString())) {
+						Statement elseStatement = ifStatement.getElseStatement();
+						if(elseStatement instanceof IfStatement) {
+							ifStatement = (IfStatement)elseStatement;
+							newStatement = ifStatement.getThenStatement();
+						}
+					}
+					IfStatement parentIfStatement = (IfStatement)newStatement.getParent();
+					Assignment assignment = contextAST.newAssignment();
+					sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+					FieldAccess typeFieldAccess = contextAST.newFieldAccess();
+					sourceRewriter.set(typeFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+					sourceRewriter.set(typeFieldAccess, FieldAccess.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+					sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, typeFieldAccess, null);
+					ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+					sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
+					sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
+					sourceRewriter.set(parentIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, contextAST.newExpressionStatement(assignment), null);
+					
+					InfixExpression infixExpression = (InfixExpression)parentIfStatement.getExpression();
+					Expression leftOperand = infixExpression.getLeftOperand();
+					if(leftOperand instanceof SimpleName) {
+						SimpleName simpleName = (SimpleName)leftOperand;
+						if(simpleName.getIdentifier().equals(typeCheckElimination.getTypeField().getName().getIdentifier())) {
+							sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, setterMethodParameters.get(0).getName(), null);
+						}
+					}
+					else if(leftOperand instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)leftOperand;
+						if(fieldAccess.getName().getIdentifier().equals(typeCheckElimination.getTypeField().getName().getIdentifier())) {
+							sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, setterMethodParameters.get(0).getName(), null);
+						}
+					}
+					Expression rightOperand = infixExpression.getRightOperand();
+					if(rightOperand instanceof SimpleName) {
+						SimpleName simpleName = (SimpleName)rightOperand;
+						if(simpleName.getIdentifier().equals(typeCheckElimination.getTypeField().getName().getIdentifier())) {
+							sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, setterMethodParameters.get(0).getName(), null);
+						}
+					}
+					else if(rightOperand instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)rightOperand;
+						if(fieldAccess.getName().getIdentifier().equals(typeCheckElimination.getTypeField().getName().getIdentifier())) {
+							sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, setterMethodParameters.get(0).getName(), null);
+						}
+					}
+				}
+				i++;
+			}
+		}
+		Block setterMethodBody = setterMethod.getBody();
+		List<Statement> setterMethodBodyStatements = setterMethodBody.statements();
+		ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
+		if(setterMethodBodyStatements.size() == 1) {
+			setterMethodBodyRewrite.replace(setterMethodBodyStatements.get(0), setterMethodStatement, null);
+		}
+		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();

@@ -1,9 +1,12 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.util.ExpressionExtractor;
+
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -321,6 +324,16 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		ListRewrite abstractMethodModifiersRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		abstractMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 		abstractMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+		if(typeCheckElimination.getAccessedFields().size() > 0) {
+			ListRewrite abstractMethodParametersRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+			SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
+			SimpleName parameterType = stateStrategyAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+			stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, stateStrategyAST.newSimpleType(parameterType), null);
+			String parameterName = sourceTypeDeclaration.getName().getIdentifier();
+			parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
+			stateStrategyRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, stateStrategyAST.newSimpleName(parameterName), null);
+			abstractMethodParametersRewrite.insertLast(parameter, null);
+		}
 		
 		stateStrategyBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
@@ -407,15 +420,64 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getAbstractMethodReturnType(), null);
 			ListRewrite concreteMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			concreteMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			Set<VariableDeclarationFragment> accessedFields = typeCheckElimination.getAccessedFields();
+			if(accessedFields.size() > 0) {
+				ListRewrite concreteMethodParametersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+				SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
+				SimpleName parameterType = subclassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+				subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, subclassAST.newSimpleType(parameterType), null);
+				String parameterName = sourceTypeDeclaration.getName().getIdentifier();
+				parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
+				subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(parameterName), null);
+				concreteMethodParametersRewrite.insertLast(parameter, null);
+			}
 			
 			if(statements.size() == 1 && statements.get(0) instanceof Block) {
-				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, statements.get(0), null);
+				Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statements.get(0));
+				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+				List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newStatement);
+				for(Expression expression : variableInstructions) {
+					SimpleName simpleName = (SimpleName)expression;
+					for(VariableDeclarationFragment fragment : accessedFields) {
+						if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+							MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
+							String methodName = fragment.getName().getIdentifier();
+							methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+							subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
+							String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+							subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							subclassRewriter.replace(simpleName, methodInvocation, null);
+							break;
+						}
+					}
+				}
+				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newStatement, null);
 			}
 			else {
 				Block concreteMethodBody = subclassAST.newBlock();
 				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
 				for(Statement statement : statements) {
-					concreteMethodBodyRewrite.insertLast(statement, null);
+					Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
+					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+					List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newStatement);
+					for(Expression expression : variableInstructions) {
+						SimpleName simpleName = (SimpleName)expression;
+						for(VariableDeclarationFragment fragment : accessedFields) {
+							if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+								MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
+								String methodName = fragment.getName().getIdentifier();
+								methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+								subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
+								String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+								invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+								subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								subclassRewriter.replace(simpleName, methodInvocation, null);
+								break;
+							}
+						}
+					}
+					concreteMethodBodyRewrite.insertLast(newStatement, null);
 				}
 				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
 			}

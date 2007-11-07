@@ -1,8 +1,10 @@
 package gr.uom.java.ast;
 
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ArrayList;
@@ -13,6 +15,8 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -190,8 +194,31 @@ public class ClassObject {
 							}
     					}
     				}
-    				if(typeCheckElimination.getTypeField() != null && typeCheckElimination.allTypeChecksContainStaticField())
+    				if(typeCheckElimination.getTypeField() != null && typeCheckElimination.allTypeChecksContainStaticField()) {
+    					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+    					Collection<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+    					for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
+    						for(Statement statement : typeCheckStatementList) {
+    							List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
+    							for(Expression variableInstruction : variableInstructions) {
+    								SimpleName simpleName = (SimpleName)variableInstruction;
+    								IBinding binding = simpleName.resolveBinding();
+    								if(binding.getKind() == IBinding.VARIABLE) {
+    									IVariableBinding variableBinding = (IVariableBinding)binding;
+    									if(variableBinding.isField() && variableBinding.getDeclaringClass() != null) {
+    										if(variableBinding.getDeclaringClass().getQualifiedName().equals(this.name)) {
+    											for(FieldObject field : fieldList) {
+    												if(field.getName().equals(simpleName.getIdentifier()))
+    													typeCheckElimination.addAccessedField(field.getVariableDeclarationFragment());
+    											}
+    										}
+    									}
+    								}
+    							}
+    						}
+    					}
     					typeCheckEliminations.add(typeCheckElimination);
+    				}
     			}
     		}
     	}

@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +22,7 @@ public class TypeCheckElimination {
 	private MethodDeclaration typeFieldSetterMethod;
 	private Statement typeCheckCodeFragment;
 	private MethodDeclaration typeCheckMethod;
+	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
@@ -29,6 +31,7 @@ public class TypeCheckElimination {
 		this.typeFieldSetterMethod = null;
 		this.typeCheckCodeFragment = null;
 		this.typeCheckMethod = null;
+		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
 	}
 	
 	public void addTypeCheck(Expression expression, Statement statement) {
@@ -45,6 +48,14 @@ public class TypeCheckElimination {
 	
 	public void addStaticType(Expression expression, VariableDeclarationFragment fragment) {
 		staticFieldMap.put(expression, fragment);
+	}
+	
+	public void addAccessedField(VariableDeclarationFragment fragment) {
+		accessedFields.add(fragment);
+	}
+	
+	public Set<VariableDeclarationFragment> getAccessedFields() {
+		return accessedFields;
 	}
 	
 	public Set<Expression> getTypeCheckExpressions() {

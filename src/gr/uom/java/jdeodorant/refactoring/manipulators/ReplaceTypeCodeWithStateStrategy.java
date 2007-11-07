@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -26,16 +25,21 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -210,6 +214,35 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			setterMethodBodyRewrite.replace(setterMethodBodyStatements.get(0), setterMethodStatement, null);
 		}
 		
+		MethodDeclaration typeCheckMethod = typeCheckElimination.getTypeCheckMethod();
+		Block typeCheckMethodBody = typeCheckMethod.getBody();
+		ListRewrite typeCheckMethodBodyStatementsRewrite = sourceRewriter.getListRewrite(typeCheckMethodBody, Block.STATEMENTS_PROPERTY);
+		Type typeCheckMethodReturnType = typeCheckMethod.getReturnType2();
+		if(typeCheckMethodReturnType.isPrimitiveType() && ((PrimitiveType)typeCheckMethodReturnType).getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
+			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
+			if(typeCheckElimination.getAccessedFields().size() > 0) {
+				ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
+			}
+			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(abstractMethodInvocation);
+			typeCheckMethodBodyStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
+		}
+		else {
+			ReturnStatement returnStatement = contextAST.newReturnStatement();
+			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
+			if(typeCheckElimination.getAccessedFields().size() > 0) {
+				ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
+			}
+			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, abstractMethodInvocation, null);
+			typeCheckMethodBodyStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), returnStatement, null);
+		}
+		
+		generateGettersForAccessedFields();
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
@@ -406,6 +439,61 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			subclassEditor.doSave(null);
 			i++;
 		}
+	}
+
+	private void generateGettersForAccessedFields() {
+		AST contextAST = sourceTypeDeclaration.getAST();
+		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedFields()) {
+			boolean getterFound = false;
+			for(MethodDeclaration methodDeclaration : contextMethods) {
+				SimpleName simpleName = isGetter(methodDeclaration);
+				if(simpleName != null && simpleName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+					getterFound = true;
+					break;
+				}
+			}
+			if(!getterFound) {
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
+				sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
+				ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+				methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+				String methodName = fragment.getName().getIdentifier();
+				methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+				sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(methodName), null);
+				Block methodDeclarationBody = contextAST.newBlock();
+				ListRewrite methodDeclarationBodyStatementsRewrite = sourceRewriter.getListRewrite(methodDeclarationBody, Block.STATEMENTS_PROPERTY);
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fragment.getName(), null);
+				methodDeclarationBodyStatementsRewrite.insertLast(returnStatement, null);
+				sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
+				ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+				contextBodyRewrite.insertLast(newMethodDeclaration, null);
+			}
+		}
+	}
+
+	private SimpleName isGetter(MethodDeclaration methodDeclaration) {
+		Block methodBody = methodDeclaration.getBody();
+		if(methodBody != null) {
+			List<Statement> statements = methodBody.statements();
+			if(statements.size() == 1) {
+				Statement statement = statements.get(0);
+	    		if(statement instanceof ReturnStatement) {
+	    			ReturnStatement returnStatement = (ReturnStatement)statement;
+	    			Expression returnStatementExpression = returnStatement.getExpression();
+	    			if(returnStatementExpression instanceof SimpleName) {
+	    				return (SimpleName)returnStatementExpression;
+	    			}
+	    			else if(returnStatementExpression instanceof FieldAccess) {
+	    				FieldAccess fieldAccess = (FieldAccess)returnStatementExpression;
+	    				return fieldAccess.getName();
+	    			}
+	    		}
+			}
+		}
+		return null;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {

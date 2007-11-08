@@ -19,6 +19,7 @@ public class TypeCheckElimination {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
 	private Map<Expression, VariableDeclarationFragment> staticFieldMap;
 	private VariableDeclarationFragment typeField;
+	private MethodDeclaration typeFieldGetterMethod;
 	private MethodDeclaration typeFieldSetterMethod;
 	private Statement typeCheckCodeFragment;
 	private MethodDeclaration typeCheckMethod;
@@ -28,6 +29,7 @@ public class TypeCheckElimination {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
 		this.staticFieldMap = new LinkedHashMap<Expression, VariableDeclarationFragment>();
 		this.typeField = null;
+		this.typeFieldGetterMethod = null;
 		this.typeFieldSetterMethod = null;
 		this.typeCheckCodeFragment = null;
 		this.typeCheckMethod = null;
@@ -66,6 +68,10 @@ public class TypeCheckElimination {
 		return typeCheckMap.values();
 	}
 	
+	public Collection<VariableDeclarationFragment> getStaticFields() {
+		return staticFieldMap.values();
+	}
+	
 	public VariableDeclarationFragment getTypeField() {
 		return typeField;
 	}
@@ -74,6 +80,14 @@ public class TypeCheckElimination {
 		this.typeField = typeField;
 	}
 	
+	public MethodDeclaration getTypeFieldGetterMethod() {
+		return typeFieldGetterMethod;
+	}
+
+	public void setTypeFieldGetterMethod(MethodDeclaration typeFieldGetterMethod) {
+		this.typeFieldGetterMethod = typeFieldGetterMethod;
+	}
+
 	public MethodDeclaration getTypeFieldSetterMethod() {
 		return typeFieldSetterMethod;
 	}

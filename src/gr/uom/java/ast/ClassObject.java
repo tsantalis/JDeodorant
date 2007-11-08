@@ -148,7 +148,10 @@ public class ClassObject {
 									FieldInstructionObject fieldInstruction = method.isSetter();
 									if(fieldInstruction != null && field.equals(fieldInstruction)) {
 										typeCheckElimination.setTypeFieldSetterMethod(method.getMethodDeclaration());
-										break;
+									}
+									fieldInstruction = method.isGetter();
+									if(fieldInstruction != null && field.equals(fieldInstruction)) {
+										typeCheckElimination.setTypeFieldGetterMethod(method.getMethodDeclaration());
 									}
 								}
 								break;
@@ -189,7 +192,10 @@ public class ClassObject {
 								FieldInstructionObject fieldInstruction = method.isSetter();
 								if(fieldInstruction != null && field.equals(fieldInstruction)) {
 									typeCheckElimination.setTypeFieldSetterMethod(method.getMethodDeclaration());
-									break;
+								}
+								fieldInstruction = method.isGetter();
+								if(fieldInstruction != null && field.equals(fieldInstruction)) {
+									typeCheckElimination.setTypeFieldGetterMethod(method.getMethodDeclaration());
 								}
 							}
     					}
@@ -236,6 +242,14 @@ public class ClassObject {
 		else if(operand instanceof FieldAccess) {
 			FieldAccess leftOperandFieldAccess = (FieldAccess)operand;
 			leftOperandName = leftOperandFieldAccess.getName().getIdentifier();
+		}
+		else if(operand instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)operand;
+			for(MethodObject method : methodList) {
+				FieldInstructionObject fieldInstruction = method.isGetter();
+				if(fieldInstruction != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()))
+					leftOperandName = fieldInstruction.getName();
+			}
 		}
 		if(field.getName().equals(leftOperandName)) {
 			if(field.isStatic()) {

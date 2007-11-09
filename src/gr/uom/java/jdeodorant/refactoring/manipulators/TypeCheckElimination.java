@@ -68,8 +68,8 @@ public class TypeCheckElimination {
 		return typeCheckMap.values();
 	}
 	
-	public Collection<VariableDeclarationFragment> getStaticFields() {
-		return staticFieldMap.values();
+	public List<VariableDeclarationFragment> getStaticFields() {
+		return new ArrayList<VariableDeclarationFragment>(staticFieldMap.values());
 	}
 	
 	public VariableDeclarationFragment getTypeField() {

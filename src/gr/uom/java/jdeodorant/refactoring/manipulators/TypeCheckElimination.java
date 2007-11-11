@@ -1,5 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.inheritance.InheritanceTree;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -11,29 +13,35 @@ import java.util.StringTokenizer;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class TypeCheckElimination {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
-	private Map<Expression, VariableDeclarationFragment> staticFieldMap;
+	private Map<Expression, SimpleName> staticFieldMap;
 	private VariableDeclarationFragment typeField;
 	private MethodDeclaration typeFieldGetterMethod;
 	private MethodDeclaration typeFieldSetterMethod;
 	private Statement typeCheckCodeFragment;
 	private MethodDeclaration typeCheckMethod;
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
+	private MethodInvocation typeMethodInvocation;
+	private InheritanceTree existingInheritanceTree;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
-		this.staticFieldMap = new LinkedHashMap<Expression, VariableDeclarationFragment>();
+		this.staticFieldMap = new LinkedHashMap<Expression, SimpleName>();
 		this.typeField = null;
 		this.typeFieldGetterMethod = null;
 		this.typeFieldSetterMethod = null;
 		this.typeCheckCodeFragment = null;
 		this.typeCheckMethod = null;
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
+		this.typeMethodInvocation = null;
+		this.existingInheritanceTree = null;
 	}
 	
 	public void addTypeCheck(Expression expression, Statement statement) {
@@ -48,8 +56,8 @@ public class TypeCheckElimination {
 		}
 	}
 	
-	public void addStaticType(Expression expression, VariableDeclarationFragment fragment) {
-		staticFieldMap.put(expression, fragment);
+	public void addStaticType(Expression expression, SimpleName simpleName) {
+		staticFieldMap.put(expression, simpleName);
 	}
 	
 	public void addAccessedField(VariableDeclarationFragment fragment) {
@@ -68,8 +76,8 @@ public class TypeCheckElimination {
 		return typeCheckMap.values();
 	}
 	
-	public List<VariableDeclarationFragment> getStaticFields() {
-		return new ArrayList<VariableDeclarationFragment>(staticFieldMap.values());
+	public List<SimpleName> getStaticFields() {
+		return new ArrayList<SimpleName>(staticFieldMap.values());
 	}
 	
 	public VariableDeclarationFragment getTypeField() {
@@ -112,6 +120,22 @@ public class TypeCheckElimination {
 		this.typeCheckMethod = typeCheckMethod;
 	}
 
+	public MethodInvocation getTypeMethodInvocation() {
+		return typeMethodInvocation;
+	}
+
+	public void setTypeMethodInvocation(MethodInvocation typeMethodInvocation) {
+		this.typeMethodInvocation = typeMethodInvocation;
+	}
+
+	public InheritanceTree getExistingInheritanceTree() {
+		return existingInheritanceTree;
+	}
+
+	public void setExistingInheritanceTree(InheritanceTree existingInheritanceTree) {
+		this.existingInheritanceTree = existingInheritanceTree;
+	}
+
 	public boolean allTypeChecksContainStaticField() {
 		return typeCheckMap.keySet().size() == staticFieldMap.keySet().size();
 	}
@@ -132,12 +156,12 @@ public class TypeCheckElimination {
 	
 	public List<String> getSubclassNames() {
 		List<String> subclassNames = new ArrayList<String>();
-		for(VariableDeclarationFragment fragment : staticFieldMap.values()) {
-			String fragmentName = fragment.getName().getIdentifier();
+		for(SimpleName simpleName : staticFieldMap.values()) {
+			String staticFieldName = simpleName.getIdentifier();
 			//The case that the type field name is just one word : NAME
-			if(!fragmentName.contains("_")) {
-				String subclassName = fragmentName.substring(0,1).toUpperCase() + 
-				fragmentName.substring(1, fragmentName.length()).toLowerCase();
+			if(!staticFieldName.contains("_")) {
+				String subclassName = staticFieldName.substring(0,1).toUpperCase() + 
+				staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
 				subclassNames.add(subclassName);
 			}
 			//In the case the static field name is like: STATIC_NAME_TEST we must remove the "_" 
@@ -145,7 +169,7 @@ public class TypeCheckElimination {
 			else {
 				String tempName = "";
 				String finalName = "";
-				StringTokenizer tokenizer = new StringTokenizer(fragmentName,"_");
+				StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
 				while(tokenizer.hasMoreTokens()) {
 					tempName = tokenizer.nextToken().toLowerCase().toString();
 					finalName += tempName.subSequence(0, 1).toString().toUpperCase() + 

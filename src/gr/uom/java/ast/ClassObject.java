@@ -1,7 +1,9 @@
 package gr.uom.java.ast;
 
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.Collection;
@@ -12,13 +14,19 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
+import javax.swing.tree.DefaultMutableTreeNode;
+
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
@@ -110,7 +118,7 @@ public class ClassObject {
         return false;
     }
 
-    public List<TypeCheckElimination> generateTypeCheckEliminations() {
+    public List<TypeCheckElimination> generateTypeCheckEliminations(List<InheritanceTree> inheritanceTreeList) {
     	List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
     	for(MethodObject methodObject : methodList) {
     		MethodBodyObject methodBodyObject = methodObject.getMethodBody();
@@ -140,6 +148,21 @@ public class ClassObject {
     							if(fieldInstruction != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()))
     								switchStatementExpressionName = fieldInstruction.getName();
     						}
+    						if(switchStatementExpressionName == null) {
+    							IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
+    							if((methodInvocationBinding.getModifiers() & Modifier.ABSTRACT) != 0) {
+	    							for(InheritanceTree tree : inheritanceTreeList) {
+	    								DefaultMutableTreeNode root = tree.getRootNode();
+	    								String rootClassName = (String)root.getUserObject();
+	    								ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
+	    								if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
+	    									typeCheckElimination.setTypeMethodInvocation(methodInvocation);
+	    									typeCheckElimination.setExistingInheritanceTree(tree);
+	    									break;
+	    								}
+	    							}
+    							}
+    						}
     					}
     					for(FieldObject field : fieldList) {
 							if(field.getName().equals(switchStatementExpressionName)) {
@@ -161,16 +184,35 @@ public class ClassObject {
     				
     				Set<Expression> typeCheckExpressions = typeCheckElimination.getTypeCheckExpressions();
     				Map<FieldObject, Integer> fieldTypeCounterMap = new LinkedHashMap<FieldObject, Integer>();
+    				Map<MethodInvocation, Integer> typeMethodInvocationCounterMap = new LinkedHashMap<MethodInvocation, Integer>();
     				for(Expression typeCheckExpression : typeCheckExpressions) {
     					if(typeCheckExpression.getParent() instanceof SwitchCase) {
     						if(typeCheckExpression instanceof SimpleName) {
     							SimpleName simpleName = (SimpleName)typeCheckExpression;
-    							for(FieldObject field : fieldList) {
-        							if(field.getName().equals(simpleName.getIdentifier()) && field.isStatic()) {
-        								typeCheckElimination.addStaticType(typeCheckExpression, field.getVariableDeclarationFragment());
-        								break;
-        							}
-        						}
+    							IBinding binding = simpleName.resolveBinding();
+    							if(binding.getKind() == IBinding.VARIABLE) {
+    								IVariableBinding variableBinding = (IVariableBinding)binding;
+    								if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+    									typeCheckElimination.addStaticType(typeCheckExpression, simpleName);
+    								}
+    							}
+    						}
+    						else if(typeCheckExpression instanceof QualifiedName) {
+    							QualifiedName qualifiedName = (QualifiedName)typeCheckExpression;
+    							IBinding binding = qualifiedName.resolveBinding();
+    							if(binding.getKind() == IBinding.VARIABLE) {
+    								IVariableBinding variableBinding = (IVariableBinding)binding;
+    								if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+    									typeCheckElimination.addStaticType(typeCheckExpression, qualifiedName.getName());
+    								}
+    							}
+    						}
+    						else if(typeCheckExpression instanceof FieldAccess) {
+    							FieldAccess fieldAccess = (FieldAccess)typeCheckExpression;
+    							IVariableBinding variableBinding = fieldAccess.resolveFieldBinding();
+    							if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+    								typeCheckElimination.addStaticType(typeCheckExpression, fieldAccess.getName());
+    							}
     						}
     					}
     					else if(typeCheckExpression instanceof InfixExpression) {
@@ -178,10 +220,8 @@ public class ClassObject {
     						if(infixExpression.getOperator().equals(InfixExpression.Operator.EQUALS)) {
     							Expression leftOperand = infixExpression.getLeftOperand();
     							Expression rightOperand = infixExpression.getRightOperand();
-    							for(FieldObject field : fieldList) {
-    								infixExpressionHandler(leftOperand, field, typeCheckExpression, fieldTypeCounterMap, typeCheckElimination);
-    								infixExpressionHandler(rightOperand, field, typeCheckExpression, fieldTypeCounterMap, typeCheckElimination);
-    							}
+    							infixExpressionHandler(leftOperand, typeCheckExpression, fieldTypeCounterMap, typeMethodInvocationCounterMap, typeCheckElimination, inheritanceTreeList);
+    							infixExpressionHandler(rightOperand, typeCheckExpression, fieldTypeCounterMap, typeMethodInvocationCounterMap, typeCheckElimination, inheritanceTreeList);
     						}
     					}
     				}
@@ -200,7 +240,22 @@ public class ClassObject {
 							}
     					}
     				}
-    				if(typeCheckElimination.getTypeField() != null && typeCheckElimination.allTypeChecksContainStaticField()) {
+    				for(MethodInvocation methodInvocation : typeMethodInvocationCounterMap.keySet()) {
+    					if(typeMethodInvocationCounterMap.get(methodInvocation) == typeCheckExpressions.size()) {
+    						typeCheckElimination.setTypeMethodInvocation(methodInvocation);
+    						IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
+    						for(InheritanceTree tree : inheritanceTreeList) {
+    							DefaultMutableTreeNode root = tree.getRootNode();
+    							String rootClassName = (String)root.getUserObject();
+    							ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
+    							if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
+    								typeCheckElimination.setExistingInheritanceTree(tree);
+    								break;
+    							}
+    						}
+    					}
+    				}
+    				if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeMethodInvocation() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
     					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
     					Collection<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
     					for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
@@ -231,36 +286,68 @@ public class ClassObject {
     	return typeCheckEliminations;
     }
 
-	private void infixExpressionHandler(Expression operand, FieldObject field,
-			Expression typeCheckExpression, Map<FieldObject, Integer> fieldTypeCounterMap,
-			TypeCheckElimination typeCheckElimination) {
-		String leftOperandName = null;
+	private void infixExpressionHandler(Expression operand, Expression typeCheckExpression, Map<FieldObject, Integer> fieldTypeCounterMap,
+			Map<MethodInvocation, Integer> typeMethodInvocationCounterMap, TypeCheckElimination typeCheckElimination, List<InheritanceTree> inheritanceTreeList) {
+		SimpleName leftOperandName = null;
 		if(operand instanceof SimpleName) {
 			SimpleName leftOperandSimpleName = (SimpleName)operand;
-			leftOperandName = leftOperandSimpleName.getIdentifier();
+			leftOperandName = leftOperandSimpleName;
+		}
+		else if(operand instanceof QualifiedName) {
+			QualifiedName leftOperandQualifiedName = (QualifiedName)operand;
+			leftOperandName = leftOperandQualifiedName.getName();
 		}
 		else if(operand instanceof FieldAccess) {
 			FieldAccess leftOperandFieldAccess = (FieldAccess)operand;
-			leftOperandName = leftOperandFieldAccess.getName().getIdentifier();
+			leftOperandName = leftOperandFieldAccess.getName();
 		}
 		else if(operand instanceof MethodInvocation) {
 			MethodInvocation methodInvocation = (MethodInvocation)operand;
 			for(MethodObject method : methodList) {
 				FieldInstructionObject fieldInstruction = method.isGetter();
-				if(fieldInstruction != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()))
-					leftOperandName = fieldInstruction.getName();
+				if(fieldInstruction != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+					leftOperandName = MethodDeclarationUtility.isGetter(method.getMethodDeclaration());
+				}
+			}
+			if(leftOperandName == null) {
+				IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
+				for(InheritanceTree tree : inheritanceTreeList) {
+					DefaultMutableTreeNode root = tree.getRootNode();
+					String rootClassName = (String)root.getUserObject();
+					ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
+					if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
+						boolean found = false;
+						for(MethodInvocation key : typeMethodInvocationCounterMap.keySet()) {
+							if(key.toString().equals(methodInvocation.toString())) {
+								typeMethodInvocationCounterMap.put(key, typeMethodInvocationCounterMap.get(key)+1);
+								found = true;
+							}
+						}
+						if(!found)
+							typeMethodInvocationCounterMap.put(methodInvocation, 1);
+						break;
+					}
+				}
 			}
 		}
-		if(field.getName().equals(leftOperandName)) {
-			if(field.isStatic()) {
-				typeCheckElimination.addStaticType(typeCheckExpression, field.getVariableDeclarationFragment());
-			}
-			else {
-				if(fieldTypeCounterMap.containsKey(field)) {
-					fieldTypeCounterMap.put(field, fieldTypeCounterMap.get(field)+1);
+		if(leftOperandName != null) {
+			IBinding binding = leftOperandName.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+					typeCheckElimination.addStaticType(typeCheckExpression, leftOperandName);
 				}
 				else {
-					fieldTypeCounterMap.put(field, 1);
+					for(FieldObject field : fieldList) {
+						if(field.getName().equals(leftOperandName.getIdentifier())) {
+							if(fieldTypeCounterMap.containsKey(field)) {
+								fieldTypeCounterMap.put(field, fieldTypeCounterMap.get(field)+1);
+							}
+							else {
+								fieldTypeCounterMap.put(field, 1);
+							}
+						}
+					}
 				}
 			}
 		}

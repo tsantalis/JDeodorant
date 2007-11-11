@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
@@ -811,7 +812,7 @@ public class MoveMethodRefactoring implements Refactoring {
 					MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
 					for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
 						if(sourceMethodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
-							MethodInvocation delegation = isDelegate(sourceMethodDeclaration);
+							MethodInvocation delegation = MethodDeclarationUtility.isDelegate(sourceMethodDeclaration);
 							if(delegation != null) {
 								ITypeBinding delegationDeclaringClassTypeBinding = delegation.resolveMethodBinding().getDeclaringClass();
 								if(delegationDeclaringClassTypeBinding.isEqualTo(targetTypeDeclaration.resolveBinding())) {
@@ -834,7 +835,7 @@ public class MoveMethodRefactoring implements Refactoring {
 							MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
 							for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
 								if(sourceMethodDeclaration.resolveBinding().isEqualTo(invoker.resolveMethodBinding())) {
-									SimpleName fieldInstruction = isGetter(sourceMethodDeclaration);
+									SimpleName fieldInstruction = MethodDeclarationUtility.isGetter(sourceMethodDeclaration);
 									if(fieldInstruction != null && fieldInstruction.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
 										int index = sourceMethodInvocations.indexOf(invoker);
 										targetRewriter.remove(newMethodInvocations.get(index), null);
@@ -914,7 +915,7 @@ public class MoveMethodRefactoring implements Refactoring {
 						for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
 							if(sourceMethodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()) &&
 									!sourceMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
-								SimpleName fieldName = isGetter(sourceMethodDeclaration);
+								SimpleName fieldName = MethodDeclarationUtility.isGetter(sourceMethodDeclaration);
 								int modifiers = sourceMethodDeclaration.getModifiers();
 								MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
 								if((modifiers & Modifier.STATIC) != 0) {
@@ -1117,51 +1118,6 @@ public class MoveMethodRefactoring implements Refactoring {
 				}
 			}
 		}
-	}
-
-	private MethodInvocation isDelegate(MethodDeclaration methodDeclaration) {
-		Block methodBody = methodDeclaration.getBody();
-		if(methodBody != null) {
-			List<Statement> statements = methodBody.statements();
-			if(statements.size() == 1) {
-				Statement statement = statements.get(0);
-	    		if(statement instanceof ReturnStatement) {
-	    			ReturnStatement returnStatement = (ReturnStatement)statement;
-	    			if(returnStatement.getExpression() instanceof MethodInvocation) {
-	    				return (MethodInvocation)returnStatement.getExpression();
-	    			}
-	    		}
-	    		else if(statement instanceof ExpressionStatement) {
-	    			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
-	    			if(expressionStatement.getExpression() instanceof MethodInvocation) {
-	    				return (MethodInvocation)expressionStatement.getExpression();
-	    			}
-	    		}
-			}
-		}
-		return null;
-	}
-
-	private SimpleName isGetter(MethodDeclaration methodDeclaration) {
-		Block methodBody = methodDeclaration.getBody();
-		if(methodBody != null) {
-			List<Statement> statements = methodBody.statements();
-			if(statements.size() == 1) {
-				Statement statement = statements.get(0);
-	    		if(statement instanceof ReturnStatement) {
-	    			ReturnStatement returnStatement = (ReturnStatement)statement;
-	    			Expression returnStatementExpression = returnStatement.getExpression();
-	    			if(returnStatementExpression instanceof SimpleName) {
-	    				return (SimpleName)returnStatementExpression;
-	    			}
-	    			else if(returnStatementExpression instanceof FieldAccess) {
-	    				FieldAccess fieldAccess = (FieldAccess)returnStatementExpression;
-	    				return fieldAccess.getName();
-	    			}
-	    		}
-			}
-		}
-		return null;
 	}
 	
 	private void replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(MethodDeclaration newMethodDeclaration) {

@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
@@ -196,7 +197,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 						MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 						for(MethodDeclaration methodDeclaration : contextMethods) {
 							if(methodDeclaration.getName().getIdentifier().equals(methodInvocation.getName().getIdentifier())) {
-								SimpleName simpleName = isGetter(methodDeclaration);
+								SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
 								if(simpleName != null && simpleName.getIdentifier().equals(typeCheckElimination.getTypeField().getName().getIdentifier())) {
 									sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, setterMethodParameters.get(0).getName(), null);
 									break;
@@ -222,7 +223,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 						MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 						for(MethodDeclaration methodDeclaration : contextMethods) {
 							if(methodDeclaration.getName().getIdentifier().equals(methodInvocation.getName().getIdentifier())) {
-								SimpleName simpleName = isGetter(methodDeclaration);
+								SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
 								if(simpleName != null && simpleName.getIdentifier().equals(typeCheckElimination.getTypeField().getName().getIdentifier())) {
 									sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, setterMethodParameters.get(0).getName(), null);
 									break;
@@ -406,7 +407,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		
 		Collection<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
-		List<VariableDeclarationFragment> staticFields = typeCheckElimination.getStaticFields();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		int i = 0;
 		for(ArrayList<Statement> statements : typeCheckStatements) {
 			IFile subclassFile = contextFolder.getFile(subclassNames.get(i) + ".java");
@@ -474,7 +475,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
 				ReturnStatement returnStatement = subclassAST.newReturnStatement();
 				FieldAccess fieldAccess = subclassAST.newFieldAccess();
-				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i).getName(), null);
+				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
 				subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, sourceTypeDeclaration.getName(), null);
 				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
 				concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
@@ -577,7 +578,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedFields()) {
 			boolean getterFound = false;
 			for(MethodDeclaration methodDeclaration : contextMethods) {
-				SimpleName simpleName = isGetter(methodDeclaration);
+				SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
 				if(simpleName != null && simpleName.getIdentifier().equals(fragment.getName().getIdentifier())) {
 					getterFound = true;
 					break;
@@ -602,28 +603,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				contextBodyRewrite.insertLast(newMethodDeclaration, null);
 			}
 		}
-	}
-
-	private SimpleName isGetter(MethodDeclaration methodDeclaration) {
-		Block methodBody = methodDeclaration.getBody();
-		if(methodBody != null) {
-			List<Statement> statements = methodBody.statements();
-			if(statements.size() == 1) {
-				Statement statement = statements.get(0);
-	    		if(statement instanceof ReturnStatement) {
-	    			ReturnStatement returnStatement = (ReturnStatement)statement;
-	    			Expression returnStatementExpression = returnStatement.getExpression();
-	    			if(returnStatementExpression instanceof SimpleName) {
-	    				return (SimpleName)returnStatementExpression;
-	    			}
-	    			else if(returnStatementExpression instanceof FieldAccess) {
-	    				FieldAccess fieldAccess = (FieldAccess)returnStatementExpression;
-	    				return fieldAccess.getName();
-	    			}
-	    		}
-			}
-		}
-		return null;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {

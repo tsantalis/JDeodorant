@@ -158,11 +158,7 @@ public class TypeCheckElimination {
 		}
 		else if(existingInheritanceTree != null) {
 			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
-			String abstractClassName = (String)root.getUserObject();
-			if(abstractClassName.contains("."))
-				return abstractClassName.substring(abstractClassName.lastIndexOf(".")+1, abstractClassName.length());
-			else
-				return abstractClassName;	
+			return (String)root.getUserObject();
 		}
 		else {
 			return null;
@@ -180,16 +176,18 @@ public class TypeCheckElimination {
 				if(existingInheritanceTree != null) {
 					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+					boolean found = false;
 					while(enumeration.hasMoreElements()) {
 						DefaultMutableTreeNode child = enumeration.nextElement();
 						String childClassName = (String)child.getUserObject();
 						if(childClassName.toLowerCase().contains(subclassName.toLowerCase())) {
-							if(childClassName.contains("."))
-								subclassNames.add(childClassName.substring(childClassName.lastIndexOf(".")+1, childClassName.length()));
-							else
-								subclassNames.add(childClassName);
+							subclassNames.add(childClassName);
+							found = true;
+							break;
 						}
 					}
+					if(!found)
+						subclassNames.add(null);
 				}
 				else {
 					subclassNames.add(subclassName);
@@ -208,16 +206,18 @@ public class TypeCheckElimination {
 				if(existingInheritanceTree != null) {
 					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+					boolean found = false;
 					while(enumeration.hasMoreElements()) {
 						DefaultMutableTreeNode child = enumeration.nextElement();
-						String childClassName = (String)root.getUserObject();
+						String childClassName = (String)child.getUserObject();
 						if(childClassName.toLowerCase().contains(finalName.toLowerCase())) {
-							if(childClassName.contains("."))
-								subclassNames.add(childClassName.substring(childClassName.lastIndexOf(".")+1, childClassName.length()));
-							else
-								subclassNames.add(childClassName);
+							subclassNames.add(childClassName);
+							found = true;
+							break;
 						}
 					}
+					if(!found)
+						subclassNames.add(null);
 				}
 				else {
 					subclassNames.add(finalName);

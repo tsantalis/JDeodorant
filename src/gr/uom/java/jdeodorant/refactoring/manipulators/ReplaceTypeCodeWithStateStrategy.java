@@ -66,8 +66,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private UndoRefactoring undoRefactoring;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
-			TypeDeclaration sourceTypeDeclaration,
-			TypeCheckElimination typeCheckElimination) {
+			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
 		this.sourceFile = sourceFile;
 		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
@@ -336,6 +335,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
 					if(typeDeclaration.getName().getIdentifier().equals(typeCheckElimination.getAbstractClassName())) {
 						stateStrategyTypeDeclaration = typeDeclaration;
+						int stateStrategyModifiers = stateStrategyTypeDeclaration.getModifiers();
+						if((stateStrategyModifiers & Modifier.ABSTRACT) == 0) {
+							ListRewrite stateStrategyModifiersRewrite = stateStrategyRewriter.getListRewrite(stateStrategyTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+							stateStrategyModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+						}
 						break;
 					}
 				}

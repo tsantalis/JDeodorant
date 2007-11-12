@@ -4,12 +4,15 @@ import gr.uom.java.ast.inheritance.InheritanceTree;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+
+import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -149,9 +152,21 @@ public class TypeCheckElimination {
 	}
 	
 	public String getAbstractClassName() {
-		String typeFieldName = typeField.getName().getIdentifier();
-		return typeFieldName.replaceFirst(Character.toString(typeFieldName.charAt(0)),
-			Character.toString(Character.toUpperCase(typeFieldName.charAt(0))));
+		if(typeField != null) {
+			String typeFieldName = typeField.getName().getIdentifier();
+			return typeFieldName.substring(0, 1).toUpperCase() + typeFieldName.substring(1, typeFieldName.length());
+		}
+		else if(existingInheritanceTree != null) {
+			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+			String abstractClassName = (String)root.getUserObject();
+			if(abstractClassName.contains("."))
+				return abstractClassName.substring(abstractClassName.lastIndexOf(".")+1, abstractClassName.length());
+			else
+				return abstractClassName;	
+		}
+		else {
+			return null;
+		}
 	}
 	
 	public List<String> getSubclassNames() {
@@ -160,22 +175,53 @@ public class TypeCheckElimination {
 			String staticFieldName = simpleName.getIdentifier();
 			//The case that the type field name is just one word : NAME
 			if(!staticFieldName.contains("_")) {
-				String subclassName = staticFieldName.substring(0,1).toUpperCase() + 
+				String subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
 				staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
-				subclassNames.add(subclassName);
+				if(existingInheritanceTree != null) {
+					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+					while(enumeration.hasMoreElements()) {
+						DefaultMutableTreeNode child = enumeration.nextElement();
+						String childClassName = (String)child.getUserObject();
+						if(childClassName.toLowerCase().contains(subclassName.toLowerCase())) {
+							if(childClassName.contains("."))
+								subclassNames.add(childClassName.substring(childClassName.lastIndexOf(".")+1, childClassName.length()));
+							else
+								subclassNames.add(childClassName);
+						}
+					}
+				}
+				else {
+					subclassNames.add(subclassName);
+				}
 			}
 			//In the case the static field name is like: STATIC_NAME_TEST we must remove the "_" 
 			//and transform all letters to lower case, except the first letter of each word. 
 			else {
-				String tempName = "";
 				String finalName = "";
 				StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
 				while(tokenizer.hasMoreTokens()) {
-					tempName = tokenizer.nextToken().toLowerCase().toString();
+					String tempName = tokenizer.nextToken().toLowerCase().toString();
 					finalName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 									tempName.subSequence(1, tempName.length()).toString();
 				}
-				subclassNames.add(finalName);
+				if(existingInheritanceTree != null) {
+					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+					while(enumeration.hasMoreElements()) {
+						DefaultMutableTreeNode child = enumeration.nextElement();
+						String childClassName = (String)root.getUserObject();
+						if(childClassName.toLowerCase().contains(finalName.toLowerCase())) {
+							if(childClassName.contains("."))
+								subclassNames.add(childClassName.substring(childClassName.lastIndexOf(".")+1, childClassName.length()));
+							else
+								subclassNames.add(childClassName);
+						}
+					}
+				}
+				else {
+					subclassNames.add(finalName);
+				}
 			}
 		}
 		return subclassNames;

@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.inheritance.InheritanceTree;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,10 +18,13 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class TypeCheckElimination {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
@@ -143,12 +147,37 @@ public class TypeCheckElimination {
 		return typeCheckMap.keySet().size() == staticFieldMap.keySet().size();
 	}
 	
-	public Type getAbstractMethodReturnType() {
+	public Type getTypeCheckMethodReturnType() {
 		return typeCheckMethod.getReturnType2();
 	}
 	
-	public String getAbstractMethodName() {
+	public String getTypeCheckMethodName() {
 		return typeCheckMethod.getName().getIdentifier();
+	}
+	
+	public List<SingleVariableDeclaration> getTypeCheckMethodParameters() {
+		return typeCheckMethod.parameters();
+	}
+	
+	public VariableDeclarationFragment getTypeCheckMethodReturnedVariable() {
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<Statement> returnStatements = statementExtractor.getReturnStatements(typeCheckMethod.getBody());
+		if(returnStatements.size() > 0) {
+			ReturnStatement lastReturnStatement = (ReturnStatement)returnStatements.get(returnStatements.size()-1);
+			if(lastReturnStatement.getExpression() instanceof SimpleName) {
+				SimpleName returnExpression = (SimpleName)lastReturnStatement.getExpression();
+				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
+				for(Statement statement : variableDeclarationStatements) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.getName().getIdentifier().equals(returnExpression.getIdentifier()))
+							return fragment;
+					}
+				}
+			}
+		}
+		return null;
 	}
 	
 	public String getAbstractClassName() {

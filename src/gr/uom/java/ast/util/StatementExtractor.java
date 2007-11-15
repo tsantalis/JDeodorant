@@ -59,6 +59,11 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
+	public List<Statement> getReturnStatements(Statement statement) {
+		instanceChecker = new InstanceOfReturnStatement();
+		return getStatements(statement);
+	}
+	
 	private List<Statement> getStatements(Statement statement) {
 		List<Statement> statementList = new ArrayList<Statement>();
 		if(statement instanceof Block) {

@@ -260,8 +260,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 		
 		MethodDeclaration typeCheckMethod = typeCheckElimination.getTypeCheckMethod();
-		Block typeCheckMethodBody = typeCheckMethod.getBody();
-		ListRewrite typeCheckMethodBodyStatementsRewrite = sourceRewriter.getListRewrite(typeCheckMethodBody, Block.STATEMENTS_PROPERTY);
+		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
+		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
 		Type typeCheckMethodReturnType = typeCheckMethod.getReturnType2();
 		if(typeCheckMethodReturnType.isPrimitiveType() && ((PrimitiveType)typeCheckMethodReturnType).getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
@@ -276,10 +276,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(abstractMethodInvocation);
-			typeCheckMethodBodyStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
+			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
 		}
 		else {
-			Assignment assignment = contextAST.newAssignment();
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
@@ -292,11 +291,19 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			VariableDeclarationFragment returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
-			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
-			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariable.getName(), null);
-			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, abstractMethodInvocation, null);
-			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(assignment);
-			typeCheckMethodBodyStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
+			if(returnedVariable != null) {
+				Assignment assignment = contextAST.newAssignment();
+				sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariable.getName(), null);
+				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, abstractMethodInvocation, null);
+				ExpressionStatement expressionStatement = contextAST.newExpressionStatement(assignment);
+				typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
+			}
+			else {
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, abstractMethodInvocation, null);
+				typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), returnStatement, null);
+			}
 		}
 		
 		modifyContextConstructors();

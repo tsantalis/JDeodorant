@@ -192,7 +192,7 @@ public class TypeCheckElimination {
 	
 	public String getAbstractClassName() {
 		if(typeField != null) {
-			String typeFieldName = typeField.getName().getIdentifier();
+			String typeFieldName = typeField.getName().getIdentifier().replaceAll("_", "");
 			return typeFieldName.substring(0, 1).toUpperCase() + typeFieldName.substring(1, typeFieldName.length());
 		}
 		else if(existingInheritanceTree != null) {

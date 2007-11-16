@@ -95,7 +95,6 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
 		}
 		else {
-			Assignment assignment = clientAST.newAssignment();
 			MethodInvocation abstractMethodInvocation = clientAST.newMethodInvocation();
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeCheckElimination.getTypeMethodInvocation().getExpression(), null);
@@ -104,11 +103,19 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
 			}
 			VariableDeclarationFragment returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
-			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
-			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariable.getName(), null);
-			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, abstractMethodInvocation, null);
-			ExpressionStatement expressionStatement = clientAST.newExpressionStatement(assignment);
-			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
+			if(returnedVariable != null) {
+				Assignment assignment = clientAST.newAssignment();
+				sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariable.getName(), null);
+				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, abstractMethodInvocation, null);
+				ExpressionStatement expressionStatement = clientAST.newExpressionStatement(assignment);
+				typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
+			}
+			else {
+				ReturnStatement returnStatement = clientAST.newReturnStatement();
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, abstractMethodInvocation, null);
+				typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), returnStatement, null);
+			}
 		}
 		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();

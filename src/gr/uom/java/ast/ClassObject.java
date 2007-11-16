@@ -274,6 +274,14 @@ public class ClassObject {
     											}
     										}
     									}
+    									else if(variableBinding.isParameter()) {
+    										ListIterator<ParameterObject> parameterIterator = methodObject.getParameterListIterator();
+    										while(parameterIterator.hasNext()) {
+    											ParameterObject parameter = parameterIterator.next();
+    											if(parameter.getName().equals(simpleName.getIdentifier()))
+    												typeCheckElimination.addAccessedParameter(parameter.getSingleVariableDeclaration());
+    										}
+    									}
     								}
     							}
     						}

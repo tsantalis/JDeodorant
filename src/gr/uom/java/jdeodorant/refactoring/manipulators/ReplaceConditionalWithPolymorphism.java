@@ -11,6 +11,7 @@ import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
 import org.eclipse.core.filebuffers.ITextFileBufferManager;
 import org.eclipse.core.filebuffers.LocationKind;
+import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
@@ -23,6 +24,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -85,16 +87,28 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			MethodInvocation abstractMethodInvocation = clientAST.newMethodInvocation();
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeCheckElimination.getTypeMethodInvocation().getExpression(), null);
+			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
+				ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+			}
 			ExpressionStatement expressionStatement = clientAST.newExpressionStatement(abstractMethodInvocation);
 			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
 		}
 		else {
-			ReturnStatement returnStatement = clientAST.newReturnStatement();
+			Assignment assignment = clientAST.newAssignment();
 			MethodInvocation abstractMethodInvocation = clientAST.newMethodInvocation();
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeCheckElimination.getTypeMethodInvocation().getExpression(), null);
-			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, abstractMethodInvocation, null);
-			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), returnStatement, null);
+			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
+				ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+			}
+			VariableDeclarationFragment returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
+			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariable.getName(), null);
+			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, abstractMethodInvocation, null);
+			ExpressionStatement expressionStatement = clientAST.newExpressionStatement(assignment);
+			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
 		}
 		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
@@ -112,17 +126,17 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 	}
 
 	private void modifyInheritanceHierarchy() {
-		IFolder contextFolder = (IFolder)sourceFile.getParent();
+		IContainer contextContainer = (IContainer)sourceFile.getParent();
 		PackageDeclaration contextPackageDeclaration = sourceCompilationUnit.getPackage();
-		IFolder rootFolder = contextFolder;
+		IContainer rootContainer = contextContainer;
 		if(contextPackageDeclaration != null) {
 			String packageName = contextPackageDeclaration.getName().getFullyQualifiedName();
 			String[] subPackages = packageName.split("\\.");
 			for(int i = 0; i<subPackages.length; i++)
-				rootFolder = (IFolder)rootFolder.getParent();
+				rootContainer = (IContainer)rootContainer.getParent();
 		}
 		String abstractClassFullyQualifiedName = typeCheckElimination.getAbstractClassName();
-		IFile abstractClassFile = getFile(rootFolder, abstractClassFullyQualifiedName);
+		IFile abstractClassFile = getFile(rootContainer, abstractClassFullyQualifiedName);
 		
 		IJavaElement abstractJavaElement = JavaCore.create(abstractClassFile);
 		ITextEditor abstractEditor = null;
@@ -170,6 +184,10 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		ListRewrite abstractMethodModifiersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		abstractMethodModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 		abstractMethodModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+		for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
+			ListRewrite abstractMethodParametersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+			abstractMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+		}
 		if(typeCheckElimination.getAccessedFields().size() > 0) {
 			ListRewrite abstractMethodParametersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 			SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
@@ -202,7 +220,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		int i = 0;
 		for(ArrayList<Statement> statements : typeCheckStatements) {
-			IFile subclassFile = getFile(rootFolder, subclassNames.get(i));
+			IFile subclassFile = getFile(rootContainer, subclassNames.get(i));
 			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
 			ITextEditor subclassEditor = null;
 			try {
@@ -242,6 +260,10 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
 			ListRewrite concreteMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			concreteMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
+				ListRewrite concreteMethodParametersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+				concreteMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+			}
 			Set<VariableDeclarationFragment> accessedFields = typeCheckElimination.getAccessedFields();
 			if(accessedFields.size() > 0) {
 				ListRewrite concreteMethodParametersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
@@ -254,8 +276,21 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				concreteMethodParametersRewrite.insertLast(parameter, null);
 			}
 			
+			VariableDeclarationFragment returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 			if(statements.size() == 1 && statements.get(0) instanceof Block) {
 				Block newBlock = (Block)ASTNode.copySubtree(subclassAST, statements.get(0));
+				if(returnedVariable != null) {
+					ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
+					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
+					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
+					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
+					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+					ReturnStatement returnStatement = subclassAST.newReturnStatement();
+					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+					concreteMethodBodyRewrite.insertLast(returnStatement, null);
+				}
 				List<Statement> blockStatements = newBlock.statements();
 				SimpleName invokerSimpleName = null;
 				for(Statement statement : blockStatements) {
@@ -291,6 +326,14 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			else {
 				Block concreteMethodBody = subclassAST.newBlock();
 				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
+				if(returnedVariable != null) {
+					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
+					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
+					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
+					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
+					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+				}
 				SimpleName invokerSimpleName = null;
 				for(Statement statement : statements) {
 					Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
@@ -323,6 +366,11 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 					if(insert)
 						concreteMethodBodyRewrite.insertLast(newStatement, null);
 				}
+				if(returnedVariable != null) {
+					ReturnStatement returnStatement = subclassAST.newReturnStatement();
+					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+					concreteMethodBodyRewrite.insertLast(returnStatement, null);
+				}
 				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
 			}
 			
@@ -344,14 +392,14 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		}
 	}
 
-	private IFile getFile(IFolder rootFolder, String fullyQualifiedClassName) {
+	private IFile getFile(IContainer rootContainer, String fullyQualifiedClassName) {
 		String[] subPackages = fullyQualifiedClassName.split("\\.");
-		IFolder classFolder = rootFolder;
+		IContainer classContainer = rootContainer;
 		IFile classFile = null;
 		for(int i = 0; i<subPackages.length; i++) {
 			try {
 				if(i == subPackages.length-1) {
-					IResource[] resources = classFolder.members();
+					IResource[] resources = classContainer.members();
 					for(IResource resource : resources) {
 						if(resource instanceof IFile) {
 							IFile file = (IFile)resource;
@@ -363,12 +411,12 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 					}
 				}
 				else {
-					IResource[] resources = classFolder.members();
+					IResource[] resources = classContainer.members();
 					for(IResource resource : resources) {
 						if(resource instanceof IFolder) {
-							IFolder folder = (IFolder)resource;
-							if(folder.getName().equals(subPackages[i])) {
-								classFolder = folder;
+							IContainer container = (IContainer)resource;
+							if(container.getName().equals(subPackages[i])) {
+								classContainer = container;
 								break;
 							}
 						}

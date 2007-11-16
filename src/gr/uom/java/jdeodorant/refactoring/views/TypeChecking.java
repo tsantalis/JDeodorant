@@ -179,7 +179,7 @@ public class TypeChecking extends ViewPart {
 		column0.setResizable(true);
 		column0.pack();
 		TableColumn column1 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
-		column1.setText("Type Check Method");
+		column1.setText("Type Checking Method");
 		column1.setResizable(true);
 		column1.pack();
 		makeActions();

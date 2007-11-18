@@ -101,7 +101,6 @@ public class MyClass {
 
     public static MyClass newInstance(MyClass myClass) {
         MyClass newClass = new MyClass(myClass.name);
-        newClass.setClassObject(myClass.classObject);
         newClass.setSuperclass(myClass.superclass);
         ListIterator<MyAttribute> attributeIterator = myClass.getAttributeIterator();
         while(attributeIterator.hasNext()) {

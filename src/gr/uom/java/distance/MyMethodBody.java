@@ -34,8 +34,7 @@ public class MyMethodBody {
 		this.compositeStatement = new MyCompositeStatement(statementList);
 	}
 
-	private MyMethodBody(MethodBodyObject methodBodyObject, MyCompositeStatement compositeStatement) {
-		this.methodBodyObject = methodBodyObject;
+	private MyMethodBody(MyCompositeStatement compositeStatement) {
 		this.compositeStatement = compositeStatement;
 	}
 
@@ -137,6 +136,6 @@ public class MyMethodBody {
 	public static MyMethodBody newInstance(MyMethodBody methodBody) {
 		MyCompositeStatement myCompositeStatement = methodBody.compositeStatement;
 		MyCompositeStatement newMyCompositeStatement = MyCompositeStatement.newInstance(myCompositeStatement);
-		return new MyMethodBody(methodBody.methodBodyObject, newMyCompositeStatement);
+		return new MyMethodBody(newMyCompositeStatement);
 	}
 }

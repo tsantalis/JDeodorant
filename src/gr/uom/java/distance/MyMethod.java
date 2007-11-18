@@ -251,7 +251,6 @@ public class MyMethod extends Entity {
         for(String parameter : method.parameterList)
             newParameterList.add(parameter);
         MyMethod newMethod = new MyMethod(method.classOrigin,method.methodName,method.returnType,newParameterList);
-        newMethod.setMethodObject(method.methodObject);
         if(method.isAbstract)
             newMethod.setAbstract(true);
         if(method.methodBody != null) {

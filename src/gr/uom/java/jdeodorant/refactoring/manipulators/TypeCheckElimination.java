@@ -15,6 +15,8 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -206,20 +208,22 @@ public class TypeCheckElimination {
 	
 	public List<String> getSubclassNames() {
 		List<String> subclassNames = new ArrayList<String>();
-		for(SimpleName simpleName : staticFieldMap.values()) {
+		for(Expression expression : staticFieldMap.keySet()) {
+			SimpleName simpleName = staticFieldMap.get(expression);
 			String staticFieldName = simpleName.getIdentifier();
+			Type castingType = isFirstStatementACastingVariableDeclaration(typeCheckMap.get(expression));
 			//The case that the type field name is just one word : NAME
 			if(!staticFieldName.contains("_")) {
 				String subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
 				staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
-				if(existingInheritanceTree != null) {
+				if(existingInheritanceTree != null && castingType != null) {
 					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
 					boolean found = false;
 					while(enumeration.hasMoreElements()) {
 						DefaultMutableTreeNode child = enumeration.nextElement();
 						String childClassName = (String)child.getUserObject();
-						if(childClassName.toLowerCase().contains(subclassName.toLowerCase())) {
+						if(castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
 							subclassNames.add(childClassName);
 							found = true;
 							break;
@@ -242,14 +246,14 @@ public class TypeCheckElimination {
 					finalName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 									tempName.subSequence(1, tempName.length()).toString();
 				}
-				if(existingInheritanceTree != null) {
+				if(existingInheritanceTree != null && castingType != null) {
 					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
 					boolean found = false;
 					while(enumeration.hasMoreElements()) {
 						DefaultMutableTreeNode child = enumeration.nextElement();
 						String childClassName = (String)child.getUserObject();
-						if(childClassName.toLowerCase().contains(finalName.toLowerCase())) {
+						if(castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
 							subclassNames.add(childClassName);
 							found = true;
 							break;
@@ -264,5 +268,27 @@ public class TypeCheckElimination {
 			}
 		}
 		return subclassNames;
+	}
+	
+	private Type isFirstStatementACastingVariableDeclaration(ArrayList<Statement> typeCheckCodeFragment) {
+		Statement firstStatement = null;
+		if(typeCheckCodeFragment.get(0) instanceof Block) {
+			Block block = (Block)typeCheckCodeFragment.get(0);
+			List<Statement> blockStatements = block.statements();
+			firstStatement = blockStatements.get(0);
+		}
+		else {
+			firstStatement = typeCheckCodeFragment.get(0);
+		}
+		if(firstStatement instanceof VariableDeclarationStatement) {
+			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)firstStatement;
+			List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+			if(fragments.size() == 1) {
+				VariableDeclarationFragment fragment = fragments.get(0);
+				if(fragment.getInitializer() instanceof CastExpression)
+					return variableDeclarationStatement.getType();
+			}
+		}
+		return null;
 	}
 }

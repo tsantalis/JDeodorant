@@ -4,6 +4,7 @@ import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
+import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.Collection;
@@ -32,6 +33,8 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class ClassObject {
 
@@ -258,16 +261,24 @@ public class ClassObject {
     				if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeMethodInvocation() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
     					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
     					Collection<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
-    					for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
+    					StatementExtractor statementExtractor = new StatementExtractor();
+						List<Statement> variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment = statementExtractor.getVariableDeclarations(methodBodyObject.getCompositeStatement().getStatement());
+						for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
+							for(Statement statement : typeCheckStatementList) {
+								variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.removeAll(statementExtractor.getVariableDeclarations(statement));
+    						}
+						}
+						for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
     						for(Statement statement : typeCheckStatementList) {
     							List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
-    							for(Expression variableInstruction : variableInstructions) {
+								for(Expression variableInstruction : variableInstructions) {
     								SimpleName simpleName = (SimpleName)variableInstruction;
     								IBinding binding = simpleName.resolveBinding();
     								if(binding.getKind() == IBinding.VARIABLE) {
     									IVariableBinding variableBinding = (IVariableBinding)binding;
-    									if(variableBinding.isField() && variableBinding.getDeclaringClass() != null) {
-    										if(variableBinding.getDeclaringClass().getQualifiedName().equals(this.name)) {
+    									if(variableBinding.isField()) {
+    										if(variableBinding.getDeclaringClass() != null && 
+    												variableBinding.getDeclaringClass().getQualifiedName().equals(this.name)) {
     											for(FieldObject field : fieldList) {
     												if(field.getName().equals(simpleName.getIdentifier()))
     													typeCheckElimination.addAccessedField(field.getVariableDeclarationFragment());
@@ -280,6 +291,18 @@ public class ClassObject {
     											ParameterObject parameter = parameterIterator.next();
     											if(parameter.getName().equals(simpleName.getIdentifier()))
     												typeCheckElimination.addAccessedParameter(parameter.getSingleVariableDeclaration());
+    										}
+    									}
+    									else {
+    										for(Statement vDStatement : variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
+    											VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+    											List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+    											for(VariableDeclarationFragment fragment : fragments) {
+    												if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+    													typeCheckElimination.addAccessedLocalVariable(fragment);
+    													break;
+    												}
+    											}    											
     										}
     									}
     								}

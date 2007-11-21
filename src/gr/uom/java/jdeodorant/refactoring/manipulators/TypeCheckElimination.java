@@ -166,7 +166,7 @@ public class TypeCheckElimination {
 	}
 
 	public boolean allTypeChecksContainStaticField() {
-		return typeCheckMap.keySet().size() == staticFieldMap.keySet().size();
+		return (typeCheckMap.keySet().size() > 1) && (typeCheckMap.keySet().size() == staticFieldMap.keySet().size());
 	}
 	
 	public Type getTypeCheckMethodReturnType() {

@@ -676,37 +676,39 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	}
 
 	private void modifyContextConstructors() {
-		AST contextAST = sourceTypeDeclaration.getAST();
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		for(MethodDeclaration methodDeclaration : contextMethods) {
-			if(methodDeclaration.isConstructor()) {
-				Block constructorBody = methodDeclaration.getBody();
-				List<Statement> statements = constructorBody.statements();
-				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-				for(Statement statement : statements) {
-					List<Expression> assignments = expressionExtractor.getAssignments(statement);
-					for(Expression expression : assignments) {
-						Assignment assignment = (Assignment)expression;
-						Expression leftHandSide = assignment.getLeftHandSide();
-						SimpleName simpleName = null;
-						if(leftHandSide instanceof SimpleName) {
-							simpleName = (SimpleName)leftHandSide;
-						}
-						else if(leftHandSide instanceof FieldAccess) {
-							FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-							simpleName = fieldAccess.getName();
-						}
-						IBinding binding = simpleName.resolveBinding();
-						if(binding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding variableBinding = (IVariableBinding)binding;
-							if(variableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(simpleName.getIdentifier())) {
-								ListRewrite constructorBodyStatementsRewrite = sourceRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
-								MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
-								sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
-								ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-								setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-								ExpressionStatement expressionStatement = contextAST.newExpressionStatement(setterMethodInvocation);
-								constructorBodyStatementsRewrite.replace(statement, expressionStatement, null);
+		if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
+			AST contextAST = sourceTypeDeclaration.getAST();
+			MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+			for(MethodDeclaration methodDeclaration : contextMethods) {
+				if(methodDeclaration.isConstructor()) {
+					Block constructorBody = methodDeclaration.getBody();
+					List<Statement> statements = constructorBody.statements();
+					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+					for(Statement statement : statements) {
+						List<Expression> assignments = expressionExtractor.getAssignments(statement);
+						for(Expression expression : assignments) {
+							Assignment assignment = (Assignment)expression;
+							Expression leftHandSide = assignment.getLeftHandSide();
+							SimpleName simpleName = null;
+							if(leftHandSide instanceof SimpleName) {
+								simpleName = (SimpleName)leftHandSide;
+							}
+							else if(leftHandSide instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)leftHandSide;
+								simpleName = fieldAccess.getName();
+							}
+							IBinding binding = simpleName.resolveBinding();
+							if(binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								if(variableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(simpleName.getIdentifier())) {
+									ListRewrite constructorBodyStatementsRewrite = sourceRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
+									MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
+									sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
+									ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+									setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+									ExpressionStatement expressionStatement = contextAST.newExpressionStatement(setterMethodInvocation);
+									constructorBodyStatementsRewrite.replace(statement, expressionStatement, null);
+								}
 							}
 						}
 					}

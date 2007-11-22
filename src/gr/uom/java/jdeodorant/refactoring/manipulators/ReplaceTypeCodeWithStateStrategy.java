@@ -6,6 +6,7 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -28,6 +29,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -35,12 +37,16 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -49,6 +55,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -70,6 +77,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private ASTRewrite sourceRewriter;
 	private UndoRefactoring undoRefactoring;
 	private VariableDeclarationFragment returnedVariable;
+	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -80,6 +88,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.undoRefactoring = new UndoRefactoring();
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
+		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 	}
 
 	public void apply() {
@@ -445,6 +454,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		
 		stateStrategyBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
+		generateRequiredImportDeclarationsBasedOnSignature();
+		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+			addImportDeclaration(typeBinding, stateStrategyCompilationUnit, stateStrategyRewriter);
+		}
+		
 		if(!stateStrategyAlreadyExists)
 			stateStrategyTypesRewrite.insertLast(stateStrategyTypeDeclaration, null);
 		
@@ -656,6 +670,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			
+			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+				addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+			}
+			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
+			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+				if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
+					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+			}
+			
 			if(!subclassAlreadyExists)
 				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
@@ -746,6 +769,167 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
 				ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 				contextBodyRewrite.insertLast(newMethodDeclaration, null);
+			}
+		}
+	}
+
+	private void generateRequiredImportDeclarationsBasedOnSignature() {
+		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+		Type returnType = typeCheckElimination.getTypeCheckMethodReturnType();
+		ITypeBinding returnTypeBinding = returnType.resolveBinding();
+		if(!typeBindings.contains(returnTypeBinding))
+			typeBindings.add(returnTypeBinding);
+		
+		Set<SingleVariableDeclaration> parameters = typeCheckElimination.getAccessedParameters();
+		for(SingleVariableDeclaration parameter : parameters) {
+			Type parameterType = parameter.getType();
+			ITypeBinding parameterTypeBinding = parameterType.resolveBinding();
+			if(!typeBindings.contains(parameterTypeBinding))
+				typeBindings.add(parameterTypeBinding);			
+		}
+		
+		Set<VariableDeclarationFragment> accessedLocalVariables = typeCheckElimination.getAccessedLocalVariables();
+		for(VariableDeclarationFragment fragment : accessedLocalVariables) {
+			if(!fragment.equals(returnedVariable)) {
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+				Type variableType = variableDeclarationStatement.getType();
+				ITypeBinding variableTypeBinding = variableType.resolveBinding();
+				if(!typeBindings.contains(variableTypeBinding))
+					typeBindings.add(variableTypeBinding);
+			}
+		}
+		
+		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);
+	}
+
+	private Set<ITypeBinding> generateRequiredImportDeclarationsBasedOnBranch(ArrayList<Statement> statements) {
+		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+		for(Statement statement : statements) {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
+			for(Expression variableInstruction : variableInstructions) {
+				SimpleName simpleName = (SimpleName)variableInstruction;
+				IBinding binding = simpleName.resolveBinding();
+				if(binding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding variableBinding = (IVariableBinding)binding;
+					ITypeBinding variableTypeBinding = variableBinding.getType();
+					if(!typeBindings.contains(variableTypeBinding))
+						typeBindings.add(variableTypeBinding);
+					ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
+					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
+						typeBindings.add(declaringClassTypeBinding);
+				}
+			}
+			
+			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
+			for(Expression expression : methodInvocations) {
+				if(expression instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation)expression;
+					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+					ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
+					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
+						typeBindings.add(declaringClassTypeBinding);
+				}
+			}
+			
+			List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statement);
+			for(Expression expression : classInstanceCreations) {
+				ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+				Type classInstanceCreationType = classInstanceCreation.getType();
+				ITypeBinding classInstanceCreationTypeBinding = classInstanceCreationType.resolveBinding();
+				if(!typeBindings.contains(classInstanceCreationTypeBinding))
+					typeBindings.add(classInstanceCreationTypeBinding);
+			}
+			
+			List<Expression> typeLiterals = expressionExtractor.getTypeLiterals(statement);
+			for(Expression expression : typeLiterals) {
+				TypeLiteral typeLiteral = (TypeLiteral)expression;
+				Type typeLiteralType = typeLiteral.getType();
+				ITypeBinding typeLiteralTypeBinding = typeLiteralType.resolveBinding();
+				if(!typeBindings.contains(typeLiteralTypeBinding))
+					typeBindings.add(typeLiteralTypeBinding);
+			}
+			
+			List<Expression> castExpressions = expressionExtractor.getCastExpressions(statement);
+			for(Expression expression : castExpressions) {
+				CastExpression castExpression = (CastExpression)expression;
+				Type castExpressionType = castExpression.getType();
+				ITypeBinding typeLiteralTypeBinding = castExpressionType.resolveBinding();
+				if(!typeBindings.contains(typeLiteralTypeBinding))
+					typeBindings.add(typeLiteralTypeBinding);
+			}
+		}
+		
+		Set<ITypeBinding> finalTypeBindings = new LinkedHashSet<ITypeBinding>();
+		getSimpleTypeBindings(typeBindings, finalTypeBindings);
+		return finalTypeBindings;
+	}
+
+	private void getSimpleTypeBindings(List<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
+		for(ITypeBinding typeBinding : typeBindings) {
+			if(typeBinding.isPrimitive()) {
+				
+			}
+			else if(typeBinding.isArray()) {
+				ITypeBinding elementTypeBinding = typeBinding.getElementType();
+				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				typeBindingList.add(elementTypeBinding);
+				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
+			}
+			else if(typeBinding.isParameterizedType()) {
+				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				typeBindingList.add(typeBinding.getTypeDeclaration());
+				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
+				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
+					typeBindingList.add(typeArgumentBinding);
+				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
+			}
+			else if(typeBinding.isWildcardType()) {
+				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				typeBindingList.add(typeBinding.getBound());
+				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
+			}
+			else {
+				if(typeBinding.isNested()) {
+					finalTypeBindings.add(typeBinding.getDeclaringClass());
+				}
+				finalTypeBindings.add(typeBinding);
+			}
+		}
+	}
+
+	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {
+		String qualifiedName = typeBinding.getQualifiedName();
+		String qualifiedPackageName = "";
+		if(qualifiedName.contains("."))
+			qualifiedPackageName = qualifiedName.substring(0,qualifiedName.lastIndexOf("."));
+		PackageDeclaration targetPackageDeclaration = targetCompilationUnit.getPackage();
+		String targetPackageDeclarationName = "";
+		if(targetPackageDeclaration != null)
+			targetPackageDeclarationName = targetPackageDeclaration.getName().getFullyQualifiedName();	
+		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(targetPackageDeclarationName)) {
+			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
+			boolean found = false;
+			for(ImportDeclaration importDeclaration : importDeclarationList) {
+				if(!importDeclaration.isOnDemand()) {
+					if(qualifiedName.equals(importDeclaration.getName().getFullyQualifiedName())) {
+						found = true;
+						break;
+					}
+				}
+				else {
+					if(qualifiedPackageName.equals(importDeclaration.getName().getFullyQualifiedName())) {
+						found = true;
+						break;
+					}
+				}
+			}
+			if(!found) {
+				AST ast = targetCompilationUnit.getAST();
+				ImportDeclaration importDeclaration = ast.newImportDeclaration();
+				targetRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(qualifiedName), null);
+				ListRewrite importRewrite = targetRewriter.getListRewrite(targetCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
+				importRewrite.insertLast(importDeclaration, null);
 			}
 		}
 	}

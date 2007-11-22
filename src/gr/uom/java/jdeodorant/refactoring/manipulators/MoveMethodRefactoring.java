@@ -311,6 +311,9 @@ public class MoveMethodRefactoring implements Refactoring {
 				getSimpleTypeBindings(typeBindingList);
 			}
 			else {
+				if(typeBinding.isNested()) {
+					requiredTargetImportDeclarationSet.add(typeBinding.getDeclaringClass());
+				}
 				requiredTargetImportDeclarationSet.add(typeBinding);
 			}
 		}

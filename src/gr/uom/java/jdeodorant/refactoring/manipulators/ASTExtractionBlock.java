@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -86,21 +87,22 @@ public class ASTExtractionBlock {
 		return this.additionalRequiredVariableDeclarationStatementMap.get(fragment);
 	}
 	
-	public Set<String> getThrownExceptions() {
+	public Set<ITypeBinding> getThrownExceptions() {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		StatementExtractor statementExtractor = new StatementExtractor();
-		Set<String> thrownExceptions = new LinkedHashSet<String>();
+		Set<ITypeBinding> thrownExceptions = new LinkedHashSet<ITypeBinding>();
 		for(Statement statementForExtraction : statementsForExtraction) {
 			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statementForExtraction);
+			List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statementForExtraction);
 			List<Statement> tryStatements = statementExtractor.getTryStatements(statementForExtraction);
-			Set<String> catchClauseExceptions = new LinkedHashSet<String>();
+			Set<ITypeBinding> catchClauseExceptions = new LinkedHashSet<ITypeBinding>();
 			for(Statement statement : tryStatements) {
 				TryStatement tryStatement = (TryStatement)statement;
 				List<CatchClause> catchClauses = tryStatement.catchClauses();
 				for(CatchClause catchClause : catchClauses) {
 					SingleVariableDeclaration exception = catchClause.getException();
 					Type exceptionType = exception.getType();
-					catchClauseExceptions.add(exceptionType.resolveBinding().getName());
+					catchClauseExceptions.add(exceptionType.resolveBinding());
 				}
 			}
 			for(Expression expression : methodInvocations) {
@@ -109,9 +111,18 @@ public class ASTExtractionBlock {
 					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 					ITypeBinding[] typeBindings = methodBinding.getExceptionTypes();
 					for(ITypeBinding typeBinding : typeBindings) {
-						if(!catchClauseExceptions.contains(typeBinding.getName()))
-							thrownExceptions.add(typeBinding.getName());
+						if(!catchClauseExceptions.contains(typeBinding))
+							thrownExceptions.add(typeBinding);
 					}
+				}
+			}
+			for(Expression expression : classInstanceCreations) {
+				ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+				IMethodBinding methodBinding = classInstanceCreation.resolveConstructorBinding();
+				ITypeBinding[] typeBindings = methodBinding.getExceptionTypes();
+				for(ITypeBinding typeBinding : typeBindings) {
+					if(!catchClauseExceptions.contains(typeBinding))
+						thrownExceptions.add(typeBinding);
 				}
 			}
 		}

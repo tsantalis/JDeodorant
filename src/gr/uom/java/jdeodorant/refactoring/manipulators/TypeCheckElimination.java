@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.inheritance.InheritanceTree;
+import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
@@ -17,13 +18,18 @@ import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
+import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -300,5 +306,50 @@ public class TypeCheckElimination {
 			}
 		}
 		return null;
+	}
+	
+	public Set<ITypeBinding> getThrownExceptions() {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		Set<ITypeBinding> thrownExceptions = new LinkedHashSet<ITypeBinding>();
+		for(Expression key : typeCheckMap.keySet()) {
+			ArrayList<Statement> statements = typeCheckMap.get(key);
+			for(Statement typeCheckStatement : statements) {
+				List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(typeCheckStatement);
+				List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(typeCheckStatement);
+				List<Statement> tryStatements = statementExtractor.getTryStatements(typeCheckStatement);
+				Set<ITypeBinding> catchClauseExceptions = new LinkedHashSet<ITypeBinding>();
+				for(Statement statement : tryStatements) {
+					TryStatement tryStatement = (TryStatement)statement;
+					List<CatchClause> catchClauses = tryStatement.catchClauses();
+					for(CatchClause catchClause : catchClauses) {
+						SingleVariableDeclaration exception = catchClause.getException();
+						Type exceptionType = exception.getType();
+						catchClauseExceptions.add(exceptionType.resolveBinding());
+					}
+				}
+				for(Expression expression : methodInvocations) {
+					if(expression instanceof MethodInvocation) {
+						MethodInvocation methodInvocation = (MethodInvocation)expression;
+						IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+						ITypeBinding[] typeBindings = methodBinding.getExceptionTypes();
+						for(ITypeBinding typeBinding : typeBindings) {
+							if(!catchClauseExceptions.contains(typeBinding))
+								thrownExceptions.add(typeBinding);
+						}
+					}
+				}
+				for(Expression expression : classInstanceCreations) {
+					ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+					IMethodBinding methodBinding = classInstanceCreation.resolveConstructorBinding();
+					ITypeBinding[] typeBindings = methodBinding.getExceptionTypes();
+					for(ITypeBinding typeBinding : typeBindings) {
+						if(!catchClauseExceptions.contains(typeBinding))
+							thrownExceptions.add(typeBinding);
+					}
+				}
+			}
+		}
+		return thrownExceptions;
 	}
 }

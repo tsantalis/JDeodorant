@@ -78,6 +78,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private UndoRefactoring undoRefactoring;
 	private VariableDeclarationFragment returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
+	Set<ITypeBinding> thrownExceptions;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -89,6 +90,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.undoRefactoring = new UndoRefactoring();
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
+		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
 	}
 
 	public void apply() {
@@ -452,6 +454,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			abstractMethodParametersRewrite.insertLast(parameter, null);
 		}
 		
+		ListRewrite abstractMethodThrownExceptionsRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		for(ITypeBinding typeBinding : thrownExceptions) {
+			abstractMethodThrownExceptionsRewrite.insertLast(stateStrategyAST.newSimpleName(typeBinding.getName()), null);
+		}
+		
 		stateStrategyBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
 		generateRequiredImportDeclarationsBasedOnSignature();
@@ -591,6 +598,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
 				subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(parameterName), null);
 				concreteMethodParametersRewrite.insertLast(parameter, null);
+			}
+			
+			ListRewrite concreteMethodThrownExceptionsRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+			for(ITypeBinding typeBinding : thrownExceptions) {
+				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
 			}
 			
 			if(statements.size() == 1 && statements.get(0) instanceof Block) {
@@ -799,6 +811,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 		}
 		
+		for(ITypeBinding typeBinding : thrownExceptions) {
+			if(!typeBindings.contains(typeBinding))
+				typeBindings.add(typeBinding);
+		}
+		
 		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);
 	}
 
@@ -903,11 +920,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		String qualifiedPackageName = "";
 		if(qualifiedName.contains("."))
 			qualifiedPackageName = qualifiedName.substring(0,qualifiedName.lastIndexOf("."));
-		PackageDeclaration targetPackageDeclaration = targetCompilationUnit.getPackage();
-		String targetPackageDeclarationName = "";
-		if(targetPackageDeclaration != null)
-			targetPackageDeclarationName = targetPackageDeclaration.getName().getFullyQualifiedName();	
-		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(targetPackageDeclarationName)) {
+		PackageDeclaration sourcePackageDeclaration = sourceCompilationUnit.getPackage();
+		String sourcePackageDeclarationName = "";
+		if(sourcePackageDeclaration != null)
+			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();	
+		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(sourcePackageDeclarationName)) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
 			boolean found = false;
 			for(ImportDeclaration importDeclaration : importDeclarationList) {

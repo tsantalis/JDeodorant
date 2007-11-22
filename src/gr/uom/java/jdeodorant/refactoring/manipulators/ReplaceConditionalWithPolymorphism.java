@@ -71,6 +71,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 	private UndoRefactoring undoRefactoring;
 	private VariableDeclarationFragment returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
+	Set<ITypeBinding> thrownExceptions;
 	
 	public ReplaceConditionalWithPolymorphism(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -82,6 +83,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		this.undoRefactoring = new UndoRefactoring();
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
+		this.thrownExceptions = typeCheckElimination.getThrownExceptions(); 
 	}
 
 	public void apply() {
@@ -235,6 +237,11 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			abstractMethodParametersRewrite.insertLast(parameter, null);
 		}
 		
+		ListRewrite abstractMethodThrownExceptionsRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		for(ITypeBinding typeBinding : thrownExceptions) {
+			abstractMethodThrownExceptionsRewrite.insertLast(abstractAST.newSimpleName(typeBinding.getName()), null);
+		}
+		
 		abstractBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
 		generateRequiredImportDeclarationsBasedOnSignature();
@@ -323,6 +330,11 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
 				subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(parameterName), null);
 				concreteMethodParametersRewrite.insertLast(parameter, null);
+			}
+			
+			ListRewrite concreteMethodThrownExceptionsRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+			for(ITypeBinding typeBinding : thrownExceptions) {
+				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
 			}
 			
 			if(statements.size() == 1 && statements.get(0) instanceof Block) {
@@ -510,6 +522,11 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				if(!typeBindings.contains(variableTypeBinding))
 					typeBindings.add(variableTypeBinding);
 			}
+		}
+		
+		for(ITypeBinding typeBinding : thrownExceptions) {
+			if(!typeBindings.contains(typeBinding))
+				typeBindings.add(typeBinding);
 		}
 		
 		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);

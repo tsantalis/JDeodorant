@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -152,10 +153,10 @@ public class ExtractMethodRefactoring implements Refactoring {
 			}
 		}
 		
-		Set<String> thrownExceptions = extractionBlock.getThrownExceptions();
+		Set<ITypeBinding> thrownExceptions = extractionBlock.getThrownExceptions();
 		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
-		for(String thrownException : thrownExceptions) {
-			SimpleName simpleName = ast.newSimpleName(thrownException);
+		for(ITypeBinding thrownException : thrownExceptions) {
+			SimpleName simpleName = ast.newSimpleName(thrownException.getName());
 			thrownExceptionRewrite.insertLast(simpleName, null);
 		}
 		

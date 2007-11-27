@@ -3,12 +3,14 @@ package gr.uom.java.ast.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -24,6 +26,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PostfixExpression;
@@ -303,8 +306,9 @@ public class ExpressionExtractor {
 				expressionList.addAll(getExpressions(argument));
 			if(instanceChecker.instanceOf(classInstanceCreation))
 				expressionList.add(classInstanceCreation);
-			if(classInstanceCreation.getAnonymousClassDeclaration() != null) {
-				System.out.println("AnonymousClassDeclaration");
+			AnonymousClassDeclaration anonymousClassDeclaration = classInstanceCreation.getAnonymousClassDeclaration();
+			if(anonymousClassDeclaration != null) {
+				expressionList.addAll(getExpressions(anonymousClassDeclaration));
 			}
 		}
 		else if(expression instanceof ConditionalExpression) {
@@ -407,6 +411,24 @@ public class ExpressionExtractor {
 			TypeLiteral typeLiteral = (TypeLiteral)expression;
 			if(instanceChecker.instanceOf(typeLiteral))
 				expressionList.add(typeLiteral);
+		}
+		return expressionList;
+	}
+	
+	private List<Expression> getExpressions(AnonymousClassDeclaration anonymousClassDeclaration) {
+		List<Expression> expressionList = new ArrayList<Expression>();
+		List<BodyDeclaration> bodyDeclarations = anonymousClassDeclaration.bodyDeclarations();
+		for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+			if(bodyDeclaration instanceof MethodDeclaration) {
+				MethodDeclaration methodDeclaration = (MethodDeclaration)bodyDeclaration;
+				Block body = methodDeclaration.getBody();
+				if(body != null) {
+					List<Statement> statements = body.statements();
+					for(Statement statement : statements) {
+						expressionList.addAll(getExpressions(statement));
+					}
+				}
+			}
 		}
 		return expressionList;
 	}

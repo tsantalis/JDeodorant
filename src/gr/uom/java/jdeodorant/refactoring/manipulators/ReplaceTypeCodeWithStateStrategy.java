@@ -736,13 +736,13 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							if(binding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding variableBinding = (IVariableBinding)binding;
 								if(variableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(simpleName.getIdentifier())) {
-									ListRewrite constructorBodyStatementsRewrite = sourceRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
 									MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
 									sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
 									ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 									setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
 									ExpressionStatement expressionStatement = contextAST.newExpressionStatement(setterMethodInvocation);
-									constructorBodyStatementsRewrite.replace(statement, expressionStatement, null);
+									if(assignment.getParent() instanceof ExpressionStatement)
+										sourceRewriter.replace(assignment.getParent(), expressionStatement, null);
 								}
 							}
 						}

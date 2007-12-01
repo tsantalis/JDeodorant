@@ -194,6 +194,26 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				getterMethodBodyRewrite.replace(getterMethodBodyStatements.get(0), returnStatement, null);
 			}
 		}
+		else {
+			MethodDeclaration getterMethodDeclaration = contextAST.newMethodDeclaration();
+			sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+			VariableDeclarationFragment typeField = typeCheckElimination.getTypeField();
+			Type returnType = ((FieldDeclaration)typeField.getParent()).getType();
+			sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+			ListRewrite getterMethodModifiersRewrite = sourceRewriter.getListRewrite(getterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+			getterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			
+			ReturnStatement returnStatement = contextAST.newReturnStatement();
+			MethodInvocation abstractGetterMethodInvocation = contextAST.newMethodInvocation();
+			sourceRewriter.set(abstractGetterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+			sourceRewriter.set(abstractGetterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, abstractGetterMethodInvocation, null);
+			Block getterMethodBody = contextAST.newBlock();
+			ListRewrite getterMethodBodyRewrite = sourceRewriter.getListRewrite(getterMethodBody, Block.STATEMENTS_PROPERTY);
+			getterMethodBodyRewrite.insertLast(returnStatement, null);
+			sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, getterMethodBody, null);
+			contextBodyRewrite.insertLast(getterMethodDeclaration, null);
+		}
 		
 		MethodDeclaration typeCheckMethod = typeCheckElimination.getTypeCheckMethod();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
@@ -247,6 +267,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		
 		modifyContextConstructors();
 		generateGettersForAccessedFields();
+		setPublicModifierToStaticFields();
+		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
@@ -341,7 +363,17 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			abstractGetterMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 			stateStrategyBodyRewrite.insertLast(abstractGetterMethodDeclaration, null);
 		}
-		
+		else {
+			MethodDeclaration abstractGetterMethodDeclaration = stateStrategyAST.newMethodDeclaration();
+			stateStrategyRewriter.set(abstractGetterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, stateStrategyAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+			VariableDeclarationFragment typeField = typeCheckElimination.getTypeField();
+			Type returnType = ((FieldDeclaration)typeField.getParent()).getType();
+			stateStrategyRewriter.set(abstractGetterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+			ListRewrite abstractGetterMethodModifiersRewrite = stateStrategyRewriter.getListRewrite(abstractGetterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+			abstractGetterMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			abstractGetterMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+			stateStrategyBodyRewrite.insertLast(abstractGetterMethodDeclaration, null);
+		}
 		
 		MethodDeclaration abstractMethodDeclaration = stateStrategyAST.newMethodDeclaration();
 		String abstractMethodName = typeCheckElimination.getTypeCheckMethodName();
@@ -475,6 +507,25 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				MethodDeclaration concreteGetterMethodDeclaration = subclassAST.newMethodDeclaration();
 				subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, getterMethod.getName(), null);
 				subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, getterMethod.getReturnType2(), null);
+				ListRewrite concreteGetterMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteGetterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+				concreteGetterMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+				Block concreteGetterMethodBody = subclassAST.newBlock();
+				ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
+				ReturnStatement returnStatement = subclassAST.newReturnStatement();
+				FieldAccess fieldAccess = subclassAST.newFieldAccess();
+				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+				subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, sourceTypeDeclaration.getName(), null);
+				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
+				concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
+				subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteGetterMethodBody, null);
+				subclassBodyRewrite.insertLast(concreteGetterMethodDeclaration, null);
+			}
+			else {
+				MethodDeclaration concreteGetterMethodDeclaration = subclassAST.newMethodDeclaration();
+				subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+				VariableDeclarationFragment typeField = typeCheckElimination.getTypeField();
+				Type returnType = ((FieldDeclaration)typeField.getParent()).getType();
+				subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 				ListRewrite concreteGetterMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteGetterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 				concreteGetterMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 				Block concreteGetterMethodBody = subclassAST.newBlock();
@@ -867,6 +918,43 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				targetRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(qualifiedName), null);
 				ListRewrite importRewrite = targetRewriter.getListRewrite(targetCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
 				importRewrite.insertLast(importDeclaration, null);
+			}
+		}
+	}
+
+	private void setPublicModifierToStaticFields() {
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		List<SimpleName> staticFieldNames = typeCheckElimination.getStaticFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				boolean modifierIsReplaced = false;
+				for(SimpleName staticFieldName : staticFieldNames) {
+					if(staticFieldName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+						ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+						Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+						boolean modifierFound = false;
+						List<Modifier> modifiers = fieldDeclaration.modifiers();
+						for(Modifier modifier : modifiers){
+							if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
+								modifierFound = true;
+							}
+							else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+									modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
+								modifierFound = true;
+								modifierRewrite.replace(modifier, publicModifier, null);
+								modifierIsReplaced = true;
+							}
+						}
+						if(!modifierFound){
+							modifierRewrite.insertFirst(publicModifier, null);
+							modifierIsReplaced = true;
+						}
+						break;
+					}
+				}
+				if(modifierIsReplaced)
+					break;
 			}
 		}
 	}

@@ -3,7 +3,6 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -264,7 +263,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		abstractEditor.doSave(null);
 		
 		
-		Collection<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		int i = 0;
 		for(ArrayList<Statement> statements : typeCheckStatements) {

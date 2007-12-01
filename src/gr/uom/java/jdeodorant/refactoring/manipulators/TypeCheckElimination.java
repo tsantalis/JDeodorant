@@ -5,7 +5,6 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -107,12 +106,20 @@ public class TypeCheckElimination {
 		return typeCheckMap.keySet();
 	}
 	
-	public Collection<ArrayList<Statement>> getTypeCheckStatements() {
-		return typeCheckMap.values();
+	public List<ArrayList<Statement>> getTypeCheckStatements() {
+		return new ArrayList<ArrayList<Statement>>(typeCheckMap.values());
 	}
 	
 	public List<SimpleName> getStaticFields() {
 		return new ArrayList<SimpleName>(staticFieldMap.values());
+	}
+	
+	public List<String> getStaticFieldNames() {
+		List<String> staticFieldNames = new ArrayList<String>();
+		for(SimpleName simpleName : staticFieldMap.values()) {
+			staticFieldNames.add(simpleName.getIdentifier());
+		}
+		return staticFieldNames;
 	}
 	
 	public VariableDeclarationFragment getTypeField() {

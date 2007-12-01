@@ -129,8 +129,8 @@ public class ClassObject {
     			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
     			for(TypeCheckElimination typeCheckElimination : list) {
     				typeCheckElimination.setTypeCheckMethod(methodObject.getMethodDeclaration());
-    				Object[] typeCheckStatements = typeCheckElimination.getTypeCheckStatements().toArray();
-    				ArrayList<Statement> firstBlockOfStatements = (ArrayList<Statement>)typeCheckStatements[0];
+    				List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+    				ArrayList<Statement> firstBlockOfStatements = typeCheckStatements.get(0);
     				Statement firstStatementOfBlock = firstBlockOfStatements.get(0);
     				if(firstStatementOfBlock.getParent() instanceof SwitchStatement) {
     					SwitchStatement switchStatement = (SwitchStatement)firstStatementOfBlock.getParent();
@@ -260,7 +260,7 @@ public class ClassObject {
     				}
     				if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeMethodInvocation() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
     					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-    					Collection<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+    					List<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
     					StatementExtractor statementExtractor = new StatementExtractor();
 						List<Statement> variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment = statementExtractor.getVariableDeclarations(methodBodyObject.getCompositeStatement().getStatement());
 						for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {

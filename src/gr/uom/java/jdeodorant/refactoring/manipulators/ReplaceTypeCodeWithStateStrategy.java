@@ -5,10 +5,12 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -46,6 +48,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -77,7 +80,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private UndoRefactoring undoRefactoring;
 	private VariableDeclarationFragment returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
-	Set<ITypeBinding> thrownExceptions;
+	private Set<ITypeBinding> thrownExceptions;
+	private Map<String, String> additionalStaticFields;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -90,11 +94,12 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
+		this.additionalStaticFields = new LinkedHashMap<String, String>();
 	}
 
 	public void apply() {
-		createStateStrategyHierarchy();
 		modifyContext();
+		createStateStrategyHierarchy();
 	}
 
 	private void modifyContext() {
@@ -124,6 +129,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 		}
 		
+		modifyTypeFieldAssignmentsInContextClass();
 		MethodDeclaration setterMethod = typeCheckElimination.getTypeFieldSetterMethod();
 		SwitchStatement switchStatement = contextAST.newSwitchStatement();
 		List<SimpleName> staticFieldNames = typeCheckElimination.getStaticFields();
@@ -145,6 +151,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
 			switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(assignment), null);
 			i++;
+		}
+		for(String staticFieldName : additionalStaticFields.keySet()) {
+			SwitchCase switchCase = contextAST.newSwitchCase();
+			sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldName), null);
+			switchStatementStatementsRewrite.insertLast(switchCase, null);
+			Assignment assignment = contextAST.newAssignment();
+			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+			FieldAccess typeFieldAccess = contextAST.newFieldAccess();
+			sourceRewriter.set(typeFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+			sourceRewriter.set(typeFieldAccess, FieldAccess.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, typeFieldAccess, null);
+			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+			sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(additionalStaticFields.get(staticFieldName)), null);
+			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
+			switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(assignment), null);
 		}
 		if(setterMethod != null) {
 			List<SingleVariableDeclaration> setterMethodParameters = setterMethod.parameters();
@@ -265,7 +286,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 		}
 		
-		modifyContextConstructors();
 		generateGettersForAccessedFields();
 		setPublicModifierToStaticFields();
 		
@@ -435,11 +455,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		stateStrategyEditor.doSave(null);
 		
 		
-		Collection<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
+		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
-		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
-		int i = 0;
-		for(ArrayList<Statement> statements : typeCheckStatements) {
+		subclassNames.addAll(additionalStaticFields.values());
+		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		staticFieldNames.addAll(additionalStaticFields.keySet());
+		for(int i=0; i<staticFieldNames.size(); i++) {
+			ArrayList<Statement> statements = null;
+			if(i < typeCheckStatements.size())
+				statements = typeCheckStatements.get(i);
 			IFile subclassFile = null;
 			if(contextContainer instanceof IProject) {
 				IProject contextProject = (IProject)contextContainer;
@@ -513,7 +537,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
 				ReturnStatement returnStatement = subclassAST.newReturnStatement();
 				FieldAccess fieldAccess = subclassAST.newFieldAccess();
-				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, subclassAST.newSimpleName(staticFieldNames.get(i)), null);
 				subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, sourceTypeDeclaration.getName(), null);
 				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
 				concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
@@ -532,7 +556,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
 				ReturnStatement returnStatement = subclassAST.newReturnStatement();
 				FieldAccess fieldAccess = subclassAST.newFieldAccess();
-				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+				subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, subclassAST.newSimpleName(staticFieldNames.get(i)), null);
 				subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, sourceTypeDeclaration.getName(), null);
 				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
 				concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
@@ -575,55 +599,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
 			}
 			
-			if(statements.size() == 1 && statements.get(0) instanceof Block) {
-				Block newBlock = (Block)ASTNode.copySubtree(subclassAST, statements.get(0));
-				if(returnedVariable != null) {
-					ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
-					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
-					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
-					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
-					ReturnStatement returnStatement = subclassAST.newReturnStatement();
-					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
-					concreteMethodBodyRewrite.insertLast(returnStatement, null);
-				}
-				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-				List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newBlock);
-				for(Expression expression : variableInstructions) {
-					SimpleName simpleName = (SimpleName)expression;
-					for(VariableDeclarationFragment fragment : accessedFields) {
-						if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
-							MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
-							String methodName = fragment.getName().getIdentifier();
-							methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
-							subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
-							String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
-							subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-							subclassRewriter.replace(simpleName, methodInvocation, null);
-							break;
-						}
+			if(statements != null) {
+				if(statements.size() == 1 && statements.get(0) instanceof Block) {
+					Block newBlock = (Block)ASTNode.copySubtree(subclassAST, statements.get(0));
+					if(returnedVariable != null) {
+						ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+						VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
+						subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
+						subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
+						VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
+						subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+						concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+						ReturnStatement returnStatement = subclassAST.newReturnStatement();
+						subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+						concreteMethodBodyRewrite.insertLast(returnStatement, null);
 					}
-				}
-				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newBlock, null);
-			}
-			else {
-				Block concreteMethodBody = subclassAST.newBlock();
-				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
-				if(returnedVariable != null) {
-					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
-					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
-					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
-				}
-				for(Statement statement : statements) {
-					Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
 					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-					List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newStatement);
+					List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newBlock);
 					for(Expression expression : variableInstructions) {
 						SimpleName simpleName = (SimpleName)expression;
 						for(VariableDeclarationFragment fragment : accessedFields) {
@@ -640,11 +632,55 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							}
 						}
 					}
-					concreteMethodBodyRewrite.insertLast(newStatement, null);
+					subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newBlock, null);
 				}
+				else {
+					Block concreteMethodBody = subclassAST.newBlock();
+					ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
+					if(returnedVariable != null) {
+						VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
+						subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
+						subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
+						VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
+						subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+						concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+					}
+					for(Statement statement : statements) {
+						Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
+						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+						List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newStatement);
+						for(Expression expression : variableInstructions) {
+							SimpleName simpleName = (SimpleName)expression;
+							for(VariableDeclarationFragment fragment : accessedFields) {
+								if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+									MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
+									String methodName = fragment.getName().getIdentifier();
+									methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+									subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
+									String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+									invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+									subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+									subclassRewriter.replace(simpleName, methodInvocation, null);
+									break;
+								}
+							}
+						}
+						concreteMethodBodyRewrite.insertLast(newStatement, null);
+					}
+					if(returnedVariable != null) {
+						ReturnStatement returnStatement = subclassAST.newReturnStatement();
+						subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+						concreteMethodBodyRewrite.insertLast(returnStatement, null);
+					}
+					subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
+				}
+			}
+			else {
+				Block concreteMethodBody = subclassAST.newBlock();
+				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
 				if(returnedVariable != null) {
 					ReturnStatement returnStatement = subclassAST.newReturnStatement();
-					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getInitializer(), null);
 					concreteMethodBodyRewrite.insertLast(returnStatement, null);
 				}
 				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
@@ -655,10 +691,12 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
 				addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
 			}
-			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
-			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-				if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
-					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+			if(statements != null) {
+				Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+					if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
+						addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+				}
 			}
 			
 			if(!subclassAlreadyExists)
@@ -676,13 +714,13 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				e.printStackTrace();
 			}
 			subclassEditor.doSave(null);
-			i++;
 		}
 	}
 
-	private void modifyContextConstructors() {
+	private void modifyTypeFieldAssignmentsInContextClass() {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
 			Block methodBody = methodDeclaration.getBody();
 			List<Statement> statements = methodBody.statements();
@@ -692,18 +730,18 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				for(Expression expression : assignments) {
 					Assignment assignment = (Assignment)expression;
 					Expression leftHandSide = assignment.getLeftHandSide();
-					SimpleName simpleName = null;
+					SimpleName assignedVariable = null;
 					if(leftHandSide instanceof SimpleName) {
-						simpleName = (SimpleName)leftHandSide;
+						assignedVariable = (SimpleName)leftHandSide;
 					}
 					else if(leftHandSide instanceof FieldAccess) {
 						FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-						simpleName = fieldAccess.getName();
+						assignedVariable = fieldAccess.getName();
 					}
-					IBinding binding = simpleName.resolveBinding();
-					if(binding.getKind() == IBinding.VARIABLE) {
-						IVariableBinding variableBinding = (IVariableBinding)binding;
-						if(variableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(simpleName.getIdentifier())) {
+					IBinding leftHandBinding = assignedVariable.resolveBinding();
+					if(leftHandBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
+						if(assignedVariableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(assignedVariable.getIdentifier())) {
 							MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
 							if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
 								sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
@@ -713,9 +751,36 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							}
 							ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-							ExpressionStatement expressionStatement = contextAST.newExpressionStatement(setterMethodInvocation);
-							if(assignment.getParent() instanceof ExpressionStatement)
-								sourceRewriter.replace(assignment.getParent(), expressionStatement, null);
+							sourceRewriter.replace(assignment, setterMethodInvocation, null);
+							
+							Expression rightHandSide = assignment.getRightHandSide();
+							SimpleName staticVariable = null;
+							if(rightHandSide instanceof SimpleName) {
+								staticVariable = (SimpleName)rightHandSide;
+							}
+							else if(rightHandSide instanceof QualifiedName) {
+								QualifiedName qualifiedName = (QualifiedName)rightHandSide;
+								staticVariable = qualifiedName.getName();
+							}
+							else if(rightHandSide instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)rightHandSide;
+								staticVariable = fieldAccess.getName();
+							}
+							IBinding rightHandBinding = staticVariable.resolveBinding();
+							if(leftHandBinding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding staticVariableBinding = (IVariableBinding)rightHandBinding;
+								if(staticVariableBinding.isField() && (staticVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+										!staticFieldNames.contains(staticVariable.getIdentifier())) {
+									String subclassName = "";
+									StringTokenizer tokenizer = new StringTokenizer(staticVariable.getIdentifier(),"_");
+									while(tokenizer.hasMoreTokens()) {
+										String tempName = tokenizer.nextToken().toLowerCase().toString();
+										subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+										tempName.subSequence(1, tempName.length()).toString();
+									}
+									additionalStaticFields.put(staticVariable.getIdentifier(), subclassName);
+								}
+							}
 						}
 					}
 				}
@@ -924,13 +989,14 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 
 	private void setPublicModifierToStaticFields() {
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
-		List<SimpleName> staticFieldNames = typeCheckElimination.getStaticFields();
+		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		staticFieldNames.addAll(additionalStaticFields.keySet());
 		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 			for(VariableDeclarationFragment fragment : fragments) {
 				boolean modifierIsReplaced = false;
-				for(SimpleName staticFieldName : staticFieldNames) {
-					if(staticFieldName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+				for(String staticFieldName : staticFieldNames) {
+					if(staticFieldName.equals(fragment.getName().getIdentifier())) {
 						ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
 						Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 						boolean modifierFound = false;

@@ -43,6 +43,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -288,6 +289,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		
 		generateGettersForAccessedFields();
 		setPublicModifierToStaticFields();
+		modifyTypeFieldAccessesInContextClass();
 		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
@@ -779,6 +781,76 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										tempName.subSequence(1, tempName.length()).toString();
 									}
 									additionalStaticFields.put(staticVariable.getIdentifier(), subclassName);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private void modifyTypeFieldAccessesInContextClass() {
+		AST contextAST = sourceTypeDeclaration.getAST();
+		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		for(MethodDeclaration methodDeclaration : contextMethods) {
+			Block methodBody = methodDeclaration.getBody();
+			List<Statement> statements = methodBody.statements();
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			for(Statement statement : statements) {
+				List<Expression> infixExpressions = expressionExtractor.getInfixExpressions(statement);
+				for(Expression expression : infixExpressions) {
+					InfixExpression infixExpression = (InfixExpression)expression;
+					Expression leftOperand = infixExpression.getLeftOperand();
+					Expression rightOperand = infixExpression.getRightOperand();
+					SimpleName accessedVariable = null;
+					boolean typeFieldIsReplaced = false;
+					if(leftOperand instanceof SimpleName) {
+						accessedVariable = (SimpleName)leftOperand;
+					}
+					else if(leftOperand instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)leftOperand;
+						accessedVariable = fieldAccess.getName();
+					}
+					if(accessedVariable != null) {
+						IBinding leftOperandBinding = accessedVariable.resolveBinding();
+						if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding accessedVariableBinding = (IVariableBinding)leftOperandBinding;
+							if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(accessedVariable.getIdentifier())) {
+								MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+								if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+									sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+								}
+								else {
+									sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+								}
+								sourceRewriter.replace(leftOperand, getterMethodInvocation, null);
+								typeFieldIsReplaced = true;
+							}
+						}
+					}
+					if(!typeFieldIsReplaced) {
+						if(rightOperand instanceof SimpleName) {
+							accessedVariable = (SimpleName)rightOperand;
+						}
+						else if(rightOperand instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)rightOperand;
+							accessedVariable = fieldAccess.getName();
+						}
+						if(accessedVariable != null) {
+							IBinding rightOperandBinding = accessedVariable.resolveBinding();
+							if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding accessedVariableBinding = (IVariableBinding)rightOperandBinding;
+								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(accessedVariable.getIdentifier())) {
+									MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+									if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+										sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+									}
+									else {
+										sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+									}
+									sourceRewriter.replace(rightOperand, getterMethodInvocation, null);
 								}
 							}
 						}

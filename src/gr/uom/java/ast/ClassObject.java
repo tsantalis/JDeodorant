@@ -7,7 +7,6 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ArrayList;
@@ -270,6 +269,22 @@ public class ClassObject {
 						}
 						for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
     						for(Statement statement : typeCheckStatementList) {
+    							//Elegxos gia methodous ths context klashs poy kaloyntai mesa ston type-checking code:
+    							List<Expression> contextMethodInvocations = expressionExtractor.getMethodInvocations(statement);
+    							for(Expression expression : contextMethodInvocations) {
+    								if(expression instanceof MethodInvocation) {
+    									MethodInvocation methodInvocation = (MethodInvocation)expression;
+    									IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+    									if(methodBinding.getDeclaringClass().equals(typeDeclaration.resolveBinding())) {
+    										for(MethodObject methodObject2 : methodList) {
+    											if(methodObject2.getMethodDeclaration().resolveBinding().isEqualTo(methodBinding)){
+    												typeCheckElimination.addAccessedMethod(methodObject2.getMethodDeclaration());
+    											}
+    										}
+    									}
+    								}
+    							}
+    							//Elegxos gia local fields or parameters pou prospelaynontai apo to type_checking code:
     							List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
 								for(Expression variableInstruction : variableInstructions) {
     								SimpleName simpleName = (SimpleName)variableInstruction;
@@ -293,6 +308,8 @@ public class ClassObject {
     												typeCheckElimination.addAccessedParameter(parameter.getSingleVariableDeclaration());
     										}
     									}
+    									//Elegxos gia local variables poy dhlonontai EKTOS toy type_Checking code, 
+    									//alla prospelaynontai apo afto:
     									else {
     										for(Statement vDStatement : variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
     											VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;

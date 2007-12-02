@@ -44,6 +44,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
 	private LinkedHashSet<VariableDeclarationFragment> accessedLocalVariables;
+	private LinkedHashSet<MethodDeclaration> accessedMethodsInContextClass;
 	private MethodInvocation typeMethodInvocation;
 	private InheritanceTree existingInheritanceTree;
 	
@@ -58,6 +59,7 @@ public class TypeCheckElimination {
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.accessedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
+		this.accessedMethodsInContextClass = new LinkedHashSet<MethodDeclaration>();
 		this.typeMethodInvocation = null;
 		this.existingInheritanceTree = null;
 	}
@@ -90,6 +92,10 @@ public class TypeCheckElimination {
 		accessedParameters.add(parameter);
 	}
 	
+	public void addAccessedMethod(MethodDeclaration method) {
+		accessedMethodsInContextClass.add(method);
+	}
+	
 	public LinkedHashSet<VariableDeclarationFragment> getAccessedLocalVariables() {
 		return accessedLocalVariables;
 	}
@@ -100,6 +106,10 @@ public class TypeCheckElimination {
 	
 	public Set<SingleVariableDeclaration> getAccessedParameters() {
 		return accessedParameters;
+	}
+	
+	public Set<MethodDeclaration> getAccessedMethodsInContextClass() {
+		return accessedMethodsInContextClass;
 	}
 	
 	public Set<Expression> getTypeCheckExpressions() {

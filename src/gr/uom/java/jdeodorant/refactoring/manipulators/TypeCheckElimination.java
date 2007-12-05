@@ -42,6 +42,7 @@ public class TypeCheckElimination {
 	private Statement typeCheckCodeFragment;
 	private MethodDeclaration typeCheckMethod;
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
+	private LinkedHashSet<VariableDeclarationFragment> assignedFields;
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
 	private LinkedHashSet<VariableDeclarationFragment> accessedLocalVariables;
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
@@ -57,6 +58,7 @@ public class TypeCheckElimination {
 		this.typeCheckCodeFragment = null;
 		this.typeCheckMethod = null;
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
+		this.assignedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.accessedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
@@ -84,6 +86,10 @@ public class TypeCheckElimination {
 		accessedFields.add(fragment);
 	}
 	
+	public void addAssignedField(VariableDeclarationFragment fragment) {
+		assignedFields.add(fragment);
+	}
+	
 	public void addAccessedLocalVariable(VariableDeclarationFragment fragment){
 		accessedLocalVariables.add(fragment);
 	}
@@ -102,6 +108,10 @@ public class TypeCheckElimination {
 
 	public Set<VariableDeclarationFragment> getAccessedFields() {
 		return accessedFields;
+	}
+	
+	public Set<VariableDeclarationFragment> getAssignedFields() {
+		return assignedFields;
 	}
 	
 	public Set<SingleVariableDeclaration> getAccessedParameters() {

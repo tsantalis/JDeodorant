@@ -16,6 +16,7 @@ import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -295,8 +296,41 @@ public class ClassObject {
     										if(variableBinding.getDeclaringClass() != null && 
     												variableBinding.getDeclaringClass().getQualifiedName().equals(this.name)) {
     											for(FieldObject field : fieldList) {
-    												if(field.getName().equals(simpleName.getIdentifier()))
-    													typeCheckElimination.addAccessedField(field.getVariableDeclarationFragment());
+    												if(field.getName().equals(simpleName.getIdentifier())) {
+    													Expression parentExpression = null;
+    													if(simpleName.getParent() instanceof QualifiedName) {
+    														parentExpression = (QualifiedName)simpleName.getParent();
+    													}
+    													else if(simpleName.getParent() instanceof FieldAccess) {
+    														parentExpression = (FieldAccess)simpleName.getParent();
+    													}
+    													else {
+    														parentExpression = simpleName;
+    													}
+    													boolean isLeftHandOfAssignment = false;
+    													if(parentExpression.getParent() instanceof Assignment) {
+    														Assignment assignment = (Assignment)parentExpression.getParent();
+    														Expression leftHandSide = assignment.getLeftHandSide();
+    														SimpleName leftHandSideName = null;
+    														if(leftHandSide instanceof SimpleName) {
+    															leftHandSideName = (SimpleName)leftHandSide;
+    														}
+    														else if(leftHandSide instanceof QualifiedName) {
+    															QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+    															leftHandSideName = leftHandSideQualifiedName.getName();
+    														}
+    														else if(leftHandSide instanceof FieldAccess) {
+    															FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+    															leftHandSideName = leftHandSideFieldAccess.getName();
+    														}
+    														if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
+    															isLeftHandOfAssignment = true;
+    															typeCheckElimination.addAssignedField(field.getVariableDeclarationFragment());
+    														}
+    													}
+    													if(!isLeftHandOfAssignment)
+    														typeCheckElimination.addAccessedField(field.getVariableDeclarationFragment());
+    												}
     											}
     										}
     									}

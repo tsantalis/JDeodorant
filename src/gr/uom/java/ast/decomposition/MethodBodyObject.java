@@ -91,7 +91,16 @@ public class MethodBodyObject {
 			IfStatement ifStatement = (IfStatement)statement;
 			Expression ifExpression = ifStatement.getExpression();
 			Statement thenStatement = ifStatement.getThenStatement();
-			typeCheckElimination.addTypeCheck(ifExpression, thenStatement);
+			if(thenStatement instanceof Block) {
+				Block block = (Block)thenStatement;
+				List<Statement> statements = block.statements();
+				for(Statement statement2 : statements) {
+					typeCheckElimination.addTypeCheck(ifExpression, statement2);
+				}
+			}
+			else {
+				typeCheckElimination.addTypeCheck(ifExpression, thenStatement);
+			}
 			if(ifStatements.size()-1 > i) {
 				IfStatement nextIfStatement = (IfStatement)ifStatements.get(i+1);
 				if(!ifStatement.getParent().equals(nextIfStatement)) {

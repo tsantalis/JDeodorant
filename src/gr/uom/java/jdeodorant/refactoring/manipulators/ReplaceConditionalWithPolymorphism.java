@@ -335,103 +335,55 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			for(ITypeBinding typeBinding : thrownExceptions) {
 				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
 			}
-			
-			if(statements.size() == 1 && statements.get(0) instanceof Block) {
-				Block newBlock = (Block)ASTNode.copySubtree(subclassAST, statements.get(0));
-				if(returnedVariable != null) {
-					ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
-					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
-					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
-					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
-					ReturnStatement returnStatement = subclassAST.newReturnStatement();
-					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
-					concreteMethodBodyRewrite.insertLast(returnStatement, null);
-				}
-				List<Statement> blockStatements = newBlock.statements();
-				SimpleName invokerSimpleName = null;
-				for(Statement statement : blockStatements) {
-					if(statement instanceof VariableDeclarationStatement) {
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
-						List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-						VariableDeclarationFragment fragment = fragments.get(0);
-						if(fragment.getInitializer() instanceof CastExpression) {
-							invokerSimpleName = fragment.getName();
-							ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
-							concreteMethodBodyRewrite.remove(variableDeclarationStatement, null);
-						}
+
+			Block concreteMethodBody = subclassAST.newBlock();
+			ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
+			if(returnedVariable != null) {
+				VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
+				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
+				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
+				VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
+				subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+				concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+			}
+			SimpleName invokerSimpleName = null;
+			for(Statement statement : statements) {
+				Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
+				boolean insert = true;
+				if(newStatement instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)newStatement;
+					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					VariableDeclarationFragment fragment = fragments.get(0);
+					if(fragment.getInitializer() instanceof CastExpression) {
+						invokerSimpleName = fragment.getName();
+						insert = false;
 					}
-					if(invokerSimpleName != null) {
-						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-						List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
-						for(Expression expression : methodInvocations) {
-							if(expression instanceof MethodInvocation) {
-								MethodInvocation methodInvocation = (MethodInvocation)expression;
-								Expression methodInvocationExpression = methodInvocation.getExpression();
-								if(methodInvocationExpression instanceof SimpleName) {
-									SimpleName simpleName = (SimpleName)methodInvocationExpression;
-									if(simpleName.getIdentifier().equals(invokerSimpleName.getIdentifier())) {
-										subclassRewriter.remove(simpleName, null);
-									}
+				}
+				if(invokerSimpleName != null) {
+					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+					List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(newStatement);
+					for(Expression expression : methodInvocations) {
+						if(expression instanceof MethodInvocation) {
+							MethodInvocation methodInvocation = (MethodInvocation)expression;
+							Expression methodInvocationExpression = methodInvocation.getExpression();
+							if(methodInvocationExpression instanceof SimpleName) {
+								SimpleName simpleName = (SimpleName)methodInvocationExpression;
+								if(simpleName.getIdentifier().equals(invokerSimpleName.getIdentifier())) {
+									subclassRewriter.remove(simpleName, null);
 								}
 							}
 						}
 					}
 				}
-				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newBlock, null);
+				if(insert)
+					concreteMethodBodyRewrite.insertLast(newStatement, null);
 			}
-			else {
-				Block concreteMethodBody = subclassAST.newBlock();
-				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
-				if(returnedVariable != null) {
-					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
-					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
-					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
-				}
-				SimpleName invokerSimpleName = null;
-				for(Statement statement : statements) {
-					Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
-					boolean insert = true;
-					if(newStatement instanceof VariableDeclarationStatement) {
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)newStatement;
-						List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-						VariableDeclarationFragment fragment = fragments.get(0);
-						if(fragment.getInitializer() instanceof CastExpression) {
-							invokerSimpleName = fragment.getName();
-							insert = false;
-						}
-					}
-					if(invokerSimpleName != null) {
-						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-						List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(newStatement);
-						for(Expression expression : methodInvocations) {
-							if(expression instanceof MethodInvocation) {
-								MethodInvocation methodInvocation = (MethodInvocation)expression;
-								Expression methodInvocationExpression = methodInvocation.getExpression();
-								if(methodInvocationExpression instanceof SimpleName) {
-									SimpleName simpleName = (SimpleName)methodInvocationExpression;
-									if(simpleName.getIdentifier().equals(invokerSimpleName.getIdentifier())) {
-										subclassRewriter.remove(simpleName, null);
-									}
-								}
-							}
-						}
-					}
-					if(insert)
-						concreteMethodBodyRewrite.insertLast(newStatement, null);
-				}
-				if(returnedVariable != null) {
-					ReturnStatement returnStatement = subclassAST.newReturnStatement();
-					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
-					concreteMethodBodyRewrite.insertLast(returnStatement, null);
-				}
-				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
+			if(returnedVariable != null) {
+				ReturnStatement returnStatement = subclassAST.newReturnStatement();
+				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+				concreteMethodBodyRewrite.insertLast(returnStatement, null);
 			}
+			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			

@@ -388,6 +388,12 @@ public class ClassObject {
 				FieldInstructionObject fieldInstruction = method.isGetter();
 				if(fieldInstruction != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
 					leftOperandName = MethodDeclarationUtility.isGetter(method.getMethodDeclaration());
+					break;
+				}
+				MethodInvocationObject methodInvocationObject = method.isDelegate();
+				if(methodInvocationObject != null && method.getMethodDeclaration().resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+					methodInvocation = methodInvocationObject.getMethodInvocation();
+					break;
 				}
 			}
 			if(leftOperandName == null) {

@@ -71,14 +71,22 @@ public class MethodBodyObject {
 			typeCheckElimination.setTypeCheckCodeFragment(switchStatement);
 			List<Statement> statements = switchStatement.statements();
 			Expression switchCaseExpression = null;
+			boolean isDefaultCase = false;
 			for(Statement statement2 : statements) {
 				if(statement2 instanceof SwitchCase) {
 					SwitchCase switchCase = (SwitchCase)statement2;
 					switchCaseExpression = switchCase.getExpression();
+					isDefaultCase = switchCase.isDefault();
 				}
 				else {
-					if(switchCaseExpression != null && !(statement2 instanceof BreakStatement))
-						typeCheckElimination.addTypeCheck(switchCaseExpression, statement2);
+					if(!isDefaultCase) {
+						if(!(statement2 instanceof BreakStatement))
+							typeCheckElimination.addTypeCheck(switchCaseExpression, statement2);
+					}
+					else {
+						if(!(statement2 instanceof BreakStatement))
+							typeCheckElimination.addDefaultCaseStatement(statement2);
+					}
 				}
 			}
 			typeCheckEliminations.add(typeCheckElimination);
@@ -100,6 +108,17 @@ public class MethodBodyObject {
 			}
 			else {
 				typeCheckElimination.addTypeCheck(ifExpression, thenStatement);
+			}
+			Statement elseStatement = ifStatement.getElseStatement();
+			if(elseStatement instanceof Block) {
+				Block block = (Block)elseStatement;
+				List<Statement> statements = block.statements();
+				for(Statement statement2 : statements) {
+					typeCheckElimination.addDefaultCaseStatement(statement2);
+				}
+			}
+			else if(!(elseStatement instanceof IfStatement)) {
+				typeCheckElimination.addDefaultCaseStatement(elseStatement);
 			}
 			if(ifStatements.size()-1 > i) {
 				IfStatement nextIfStatement = (IfStatement)ifStatements.get(i+1);

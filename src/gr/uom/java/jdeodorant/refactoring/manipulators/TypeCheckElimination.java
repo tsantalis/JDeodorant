@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class TypeCheckElimination {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
+	private ArrayList<Statement> defaultCaseStatements;
 	private Map<Expression, SimpleName> staticFieldMap;
 	private VariableDeclarationFragment typeField;
 	private MethodDeclaration typeFieldGetterMethod;
@@ -51,6 +52,7 @@ public class TypeCheckElimination {
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
+		this.defaultCaseStatements = new ArrayList<Statement>();
 		this.staticFieldMap = new LinkedHashMap<Expression, SimpleName>();
 		this.typeField = null;
 		this.typeFieldGetterMethod = null;
@@ -76,6 +78,10 @@ public class TypeCheckElimination {
 			statements.add(statement);
 			typeCheckMap.put(expression, statements);
 		}
+	}
+	
+	public void addDefaultCaseStatement(Statement statement) {
+		defaultCaseStatements.add(statement);
 	}
 	
 	public void addStaticType(Expression expression, SimpleName simpleName) {
@@ -128,6 +134,10 @@ public class TypeCheckElimination {
 	
 	public List<ArrayList<Statement>> getTypeCheckStatements() {
 		return new ArrayList<ArrayList<Statement>>(typeCheckMap.values());
+	}
+	
+	public ArrayList<Statement> getDefaultCaseStatements() {
+		return defaultCaseStatements;
 	}
 	
 	public List<SimpleName> getStaticFields() {

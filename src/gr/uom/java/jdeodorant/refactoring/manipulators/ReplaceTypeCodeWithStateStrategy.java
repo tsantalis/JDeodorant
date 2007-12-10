@@ -468,6 +468,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			ArrayList<Statement> statements = null;
 			if(i < typeCheckStatements.size())
 				statements = typeCheckStatements.get(i);
+			else
+				statements = typeCheckElimination.getDefaultCaseStatements();
 			IFile subclassFile = null;
 			if(contextContainer instanceof IProject) {
 				IProject contextProject = (IProject)contextContainer;

@@ -291,6 +291,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		generateGettersForAccessedFields();
 		generateSettersForAssignedFields();
 		setPublicModifierToStaticFields();
+		setPublicModifierToAccessedMethods();
 		modifyTypeFieldAccessesInContextClass();
 		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
@@ -1225,6 +1226,28 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 				if(modifierIsReplaced)
 					break;
+			}
+		}
+	}
+
+	private void setPublicModifierToAccessedMethods() {
+		for(MethodDeclaration methodDeclaration : typeCheckElimination.getAccessedMethods()) {
+			List<Modifier> modifiers = methodDeclaration.modifiers();
+			ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+			Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+			boolean modifierFound = false;
+			for(Modifier modifier : modifiers){
+				if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
+					modifierFound = true;
+				}
+				else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+						modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
+					modifierFound = true;
+					modifierRewrite.replace(modifier, publicModifier, null);
+				}
+			}
+			if(!modifierFound){
+				modifierRewrite.insertFirst(publicModifier, null);
 			}
 		}
 	}

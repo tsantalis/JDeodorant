@@ -110,15 +110,17 @@ public class MethodBodyObject {
 				typeCheckElimination.addTypeCheck(ifExpression, thenStatement);
 			}
 			Statement elseStatement = ifStatement.getElseStatement();
-			if(elseStatement instanceof Block) {
-				Block block = (Block)elseStatement;
-				List<Statement> statements = block.statements();
-				for(Statement statement2 : statements) {
-					typeCheckElimination.addDefaultCaseStatement(statement2);
+			if(elseStatement != null) {
+				if(elseStatement instanceof Block) {
+					Block block = (Block)elseStatement;
+					List<Statement> statements = block.statements();
+					for(Statement statement2 : statements) {
+						typeCheckElimination.addDefaultCaseStatement(statement2);
+					}
 				}
-			}
-			else if(!(elseStatement instanceof IfStatement)) {
-				typeCheckElimination.addDefaultCaseStatement(elseStatement);
+				else if(!(elseStatement instanceof IfStatement)) {
+					typeCheckElimination.addDefaultCaseStatement(elseStatement);
+				}
 			}
 			if(ifStatements.size()-1 > i) {
 				IfStatement nextIfStatement = (IfStatement)ifStatements.get(i+1);

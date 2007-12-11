@@ -270,6 +270,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
 				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
 			}
+			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+				if(!fragment.equals(returnedVariable)) {
+					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
+				}
+			}
 			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 || typeCheckElimination.getAccessedMethods().size() > 0) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
@@ -608,158 +613,144 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
 			}
 			
-			if(statements != null) {
-				Block concreteMethodBody = subclassAST.newBlock();
-				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
-				if(returnedVariable != null) {
-					VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
-					subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
-					VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
-					subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
-				}
-				for(Statement statement : statements) {
-					Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
-					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-					List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newStatement);
-					for(Expression expression : variableInstructions) {
-						SimpleName simpleName = (SimpleName)expression;
-						Expression parentExpression = null;
-						if(simpleName.getParent() instanceof QualifiedName) {
-							parentExpression = (QualifiedName)simpleName.getParent();
+			Block concreteMethodBody = subclassAST.newBlock();
+			ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
+			if(returnedVariable != null) {
+				VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
+				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
+				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
+				VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
+				subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+				concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+			}
+			for(Statement statement : statements) {
+				Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
+				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+				List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newStatement);
+				for(Expression expression : variableInstructions) {
+					SimpleName simpleName = (SimpleName)expression;
+					Expression parentExpression = null;
+					if(simpleName.getParent() instanceof QualifiedName) {
+						parentExpression = (QualifiedName)simpleName.getParent();
+					}
+					else if(simpleName.getParent() instanceof FieldAccess) {
+						parentExpression = (FieldAccess)simpleName.getParent();
+					}
+					else {
+						parentExpression = simpleName;
+					}
+					if(parentExpression.getParent() instanceof Assignment) {
+						Assignment assignment = (Assignment)parentExpression.getParent();
+						Expression leftHandSide = assignment.getLeftHandSide();
+						SimpleName leftHandSideName = null;
+						if(leftHandSide instanceof SimpleName) {
+							leftHandSideName = (SimpleName)leftHandSide;
 						}
-						else if(simpleName.getParent() instanceof FieldAccess) {
-							parentExpression = (FieldAccess)simpleName.getParent();
+						else if(leftHandSide instanceof QualifiedName) {
+							QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+							leftHandSideName = leftHandSideQualifiedName.getName();
 						}
-						else {
-							parentExpression = simpleName;
+						else if(leftHandSide instanceof FieldAccess) {
+							FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+							leftHandSideName = leftHandSideFieldAccess.getName();
 						}
-						if(parentExpression.getParent() instanceof Assignment) {
-							Assignment assignment = (Assignment)parentExpression.getParent();
-							Expression leftHandSide = assignment.getLeftHandSide();
-							SimpleName leftHandSideName = null;
-							if(leftHandSide instanceof SimpleName) {
-								leftHandSideName = (SimpleName)leftHandSide;
-							}
-							else if(leftHandSide instanceof QualifiedName) {
-								QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
-								leftHandSideName = leftHandSideQualifiedName.getName();
-							}
-							else if(leftHandSide instanceof FieldAccess) {
-								FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
-								leftHandSideName = leftHandSideFieldAccess.getName();
-							}
-							if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
-								for(VariableDeclarationFragment assignedFragment : assignedFields) {
-									if(assignedFragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
-										MethodInvocation leftHandMethodInvocation = subclassAST.newMethodInvocation();
-										String leftHandMethodName = assignedFragment.getName().getIdentifier();
-										leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
-										subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(leftHandMethodName), null);
-										String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-										invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
-										subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-										ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-										Expression rightHandSide = assignment.getRightHandSide();
-										SimpleName rightHandSideSimpleName = null;
-										if(rightHandSide instanceof SimpleName) {
-											rightHandSideSimpleName = (SimpleName)rightHandSide;
-										}
-										else if(rightHandSide instanceof QualifiedName) {
-											QualifiedName qualifiedName = (QualifiedName)rightHandSide;
-											rightHandSideSimpleName = qualifiedName.getName();
-										}
-										else if(rightHandSide instanceof FieldAccess) {
-											FieldAccess fieldAccess = (FieldAccess)rightHandSide;
-											rightHandSideSimpleName = fieldAccess.getName();
-										}
-										if(rightHandSideSimpleName != null) {
-											for(VariableDeclarationFragment accessedFragment : accessedFields) {
-												if(accessedFragment.getName().getIdentifier().equals(rightHandSideSimpleName.getIdentifier())) {
-													MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
-													String rightHandMethodName = accessedFragment.getName().getIdentifier();
-													rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
-													subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
-													subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-													methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
-													break;
-												}
+						if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
+							for(VariableDeclarationFragment assignedFragment : assignedFields) {
+								if(assignedFragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+									MethodInvocation leftHandMethodInvocation = subclassAST.newMethodInvocation();
+									String leftHandMethodName = assignedFragment.getName().getIdentifier();
+									leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
+									subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(leftHandMethodName), null);
+									String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+									invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+									subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+									ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+									Expression rightHandSide = assignment.getRightHandSide();
+									SimpleName rightHandSideSimpleName = null;
+									if(rightHandSide instanceof SimpleName) {
+										rightHandSideSimpleName = (SimpleName)rightHandSide;
+									}
+									else if(rightHandSide instanceof QualifiedName) {
+										QualifiedName qualifiedName = (QualifiedName)rightHandSide;
+										rightHandSideSimpleName = qualifiedName.getName();
+									}
+									else if(rightHandSide instanceof FieldAccess) {
+										FieldAccess fieldAccess = (FieldAccess)rightHandSide;
+										rightHandSideSimpleName = fieldAccess.getName();
+									}
+									if(rightHandSideSimpleName != null) {
+										for(VariableDeclarationFragment accessedFragment : accessedFields) {
+											if(accessedFragment.getName().getIdentifier().equals(rightHandSideSimpleName.getIdentifier())) {
+												MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
+												String rightHandMethodName = accessedFragment.getName().getIdentifier();
+												rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
+												subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
+												subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+												methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
+												break;
 											}
 										}
-										else {
-											methodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-										}
-										subclassRewriter.replace(assignment, leftHandMethodInvocation, null);
 									}
-								}
-							}
-						}
-						else {
-							for(VariableDeclarationFragment fragment : accessedFields) {
-								if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
-									MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
-									String methodName = fragment.getName().getIdentifier();
-									methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
-									subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
-									String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-									invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
-									subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-									subclassRewriter.replace(simpleName, methodInvocation, null);
-									break;
+									else {
+										methodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+									}
+									subclassRewriter.replace(assignment, leftHandMethodInvocation, null);
 								}
 							}
 						}
 					}
-					List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(statement);
-					List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newStatement);
-					int j = 0;
-					for(Expression expression : newMethodInvocations) {
-						if(expression instanceof MethodInvocation) {
-							MethodInvocation newMethodInvocation = (MethodInvocation)expression;
-							MethodInvocation oldMethodInvocation = (MethodInvocation)oldMethodInvocations.get(j);
-							for(MethodDeclaration methodDeclaration : accessedMethods) {
-								if(oldMethodInvocation.resolveMethodBinding().isEqualTo(methodDeclaration.resolveBinding())) {
-									String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-									invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
-									subclassRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-									break;
-								}
+					else {
+						for(VariableDeclarationFragment fragment : accessedFields) {
+							if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+								MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
+								String methodName = fragment.getName().getIdentifier();
+								methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+								subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
+								String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+								invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+								subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								subclassRewriter.replace(simpleName, methodInvocation, null);
+								break;
 							}
 						}
-						j++;
 					}
-					concreteMethodBodyRewrite.insertLast(newStatement, null);
 				}
-				if(returnedVariable != null) {
-					ReturnStatement returnStatement = subclassAST.newReturnStatement();
-					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
-					concreteMethodBodyRewrite.insertLast(returnStatement, null);
+				List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(statement);
+				List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newStatement);
+				int j = 0;
+				for(Expression expression : newMethodInvocations) {
+					if(expression instanceof MethodInvocation) {
+						MethodInvocation newMethodInvocation = (MethodInvocation)expression;
+						MethodInvocation oldMethodInvocation = (MethodInvocation)oldMethodInvocations.get(j);
+						for(MethodDeclaration methodDeclaration : accessedMethods) {
+							if(oldMethodInvocation.resolveMethodBinding().isEqualTo(methodDeclaration.resolveBinding())) {
+								String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+								invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+								subclassRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								break;
+							}
+						}
+					}
+					j++;
 				}
-				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
+				concreteMethodBodyRewrite.insertLast(newStatement, null);
 			}
-			else {
-				Block concreteMethodBody = subclassAST.newBlock();
-				ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
-				if(returnedVariable != null) {
-					ReturnStatement returnStatement = subclassAST.newReturnStatement();
-					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getInitializer(), null);
-					concreteMethodBodyRewrite.insertLast(returnStatement, null);
-				}
-				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
+			if(returnedVariable != null) {
+				ReturnStatement returnStatement = subclassAST.newReturnStatement();
+				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+				concreteMethodBodyRewrite.insertLast(returnStatement, null);
 			}
+			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
 				addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
 			}
-			if(statements != null) {
-				Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
-				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-					if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
-						addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
-				}
+			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
+			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+				if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
+					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
 			}
 			
 			if(!subclassAlreadyExists)

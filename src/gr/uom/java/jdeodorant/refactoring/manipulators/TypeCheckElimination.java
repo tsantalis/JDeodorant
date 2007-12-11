@@ -265,59 +265,43 @@ public class TypeCheckElimination {
 			SimpleName simpleName = staticFieldMap.get(expression);
 			String staticFieldName = simpleName.getIdentifier();
 			Type castingType = isFirstStatementACastingVariableDeclaration(typeCheckMap.get(expression));
-			//The case that the type field name is just one word : NAME
+			String subclassName = null;
 			if(!staticFieldName.contains("_")) {
-				String subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
+				subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
 				staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
-				if(existingInheritanceTree != null && castingType != null) {
-					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
-					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
-					boolean found = false;
-					while(enumeration.hasMoreElements()) {
-						DefaultMutableTreeNode child = enumeration.nextElement();
-						String childClassName = (String)child.getUserObject();
-						if(castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
-							subclassNames.add(childClassName);
-							found = true;
-							break;
-						}
-					}
-					if(!found)
-						subclassNames.add(null);
-				}
-				else {
-					subclassNames.add(subclassName);
-				}
 			}
-			//In the case the static field name is like: STATIC_NAME_TEST we must remove the "_" 
-			//and transform all letters to lower case, except the first letter of each word. 
 			else {
-				String finalName = "";
+				subclassName = "";
 				StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
 				while(tokenizer.hasMoreTokens()) {
 					String tempName = tokenizer.nextToken().toLowerCase().toString();
-					finalName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-									tempName.subSequence(1, tempName.length()).toString();
+					subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+					tempName.subSequence(1, tempName.length()).toString();
 				}
-				if(existingInheritanceTree != null && castingType != null) {
-					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
-					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
-					boolean found = false;
-					while(enumeration.hasMoreElements()) {
-						DefaultMutableTreeNode child = enumeration.nextElement();
-						String childClassName = (String)child.getUserObject();
-						if(castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
-							subclassNames.add(childClassName);
-							found = true;
-							break;
-						}
+			}
+			if(existingInheritanceTree != null) {
+				DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+				Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+				boolean found = false;
+				while(enumeration.hasMoreElements()) {
+					DefaultMutableTreeNode child = enumeration.nextElement();
+					String childClassName = (String)child.getUserObject();
+					if(childClassName.endsWith(subclassName)) {
+						subclassNames.add(childClassName);
+						found = true;
+						break;
 					}
-					if(!found)
-						subclassNames.add(null);
+					else if(castingType != null && castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
+						subclassNames.add(childClassName);
+						found = true;
+						break;
+					}
 				}
-				else {
-					subclassNames.add(finalName);
-				}
+				if(!found)
+					subclassNames.add(null);
+			}
+			else {
+				subclassNames.add(subclassName);
 			}
 		}
 		return subclassNames;

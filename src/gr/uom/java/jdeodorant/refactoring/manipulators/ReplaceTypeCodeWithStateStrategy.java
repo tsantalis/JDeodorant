@@ -800,40 +800,43 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							assignedVariable = fieldAccess.getName();
 							invoker = fieldAccess.getExpression();
 						}
-						IBinding leftHandBinding = assignedVariable.resolveBinding();
-						if(leftHandBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
-							if(assignedVariableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(assignedVariable.getIdentifier())) {
-								MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
-								if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
-									sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
-								}
-								else {
-									sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + typeCheckElimination.getAbstractClassName()), null);
-								}
-								ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-								setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-								if(invoker != null) {
-									sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
-								}
-								sourceRewriter.replace(assignment, setterMethodInvocation, null);
-								
-								Expression rightHandSide = assignment.getRightHandSide();
-								SimpleName staticVariable = decomposeRightHandSide(rightHandSide);
-								if(staticVariable != null) {
-									IBinding rightHandBinding = staticVariable.resolveBinding();
-									if(leftHandBinding.getKind() == IBinding.VARIABLE) {
-										IVariableBinding staticVariableBinding = (IVariableBinding)rightHandBinding;
-										if(staticVariableBinding.isField() && (staticVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												!staticFieldNames.contains(staticVariable.getIdentifier())) {
-											String subclassName = "";
-											StringTokenizer tokenizer = new StringTokenizer(staticVariable.getIdentifier(),"_");
-											while(tokenizer.hasMoreTokens()) {
-												String tempName = tokenizer.nextToken().toLowerCase().toString();
-												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-												tempName.subSequence(1, tempName.length()).toString();
+						//The case where there are no variable assignments must be handled in order to avoid Null Pointer Exceptions
+						if(assignedVariable != null) {
+							IBinding leftHandBinding = assignedVariable.resolveBinding();
+							if(leftHandBinding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
+								if(assignedVariableBinding.isField() && typeCheckElimination.getTypeField().getName().getIdentifier().equals(assignedVariable.getIdentifier())) {
+									MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
+									if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
+										sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
+									}
+									else {
+										sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + typeCheckElimination.getAbstractClassName()), null);
+									}
+									ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+									setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+									if(invoker != null) {
+										sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
+									}
+									sourceRewriter.replace(assignment, setterMethodInvocation, null);
+
+									Expression rightHandSide = assignment.getRightHandSide();
+									SimpleName staticVariable = decomposeRightHandSide(rightHandSide);
+									if(staticVariable != null) {
+										IBinding rightHandBinding = staticVariable.resolveBinding();
+										if(leftHandBinding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding staticVariableBinding = (IVariableBinding)rightHandBinding;
+											if(staticVariableBinding.isField() && (staticVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+													!staticFieldNames.contains(staticVariable.getIdentifier())) {
+												String subclassName = "";
+												StringTokenizer tokenizer = new StringTokenizer(staticVariable.getIdentifier(),"_");
+												while(tokenizer.hasMoreTokens()) {
+													String tempName = tokenizer.nextToken().toLowerCase().toString();
+													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+													tempName.subSequence(1, tempName.length()).toString();
+												}
+												additionalStaticFields.put(staticVariable.getIdentifier(), subclassName);
 											}
-											additionalStaticFields.put(staticVariable.getIdentifier(), subclassName);
 										}
 									}
 								}

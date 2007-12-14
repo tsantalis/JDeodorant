@@ -9,6 +9,7 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -51,6 +52,10 @@ public class MethodDeclarationUtility {
 	    			if(returnStatementExpression instanceof SimpleName) {
 	    				return (SimpleName)returnStatementExpression;
 	    			}
+	    			else if(returnStatementExpression instanceof QualifiedName) {
+						QualifiedName qualifiedName = (QualifiedName)returnStatementExpression;
+						return qualifiedName.getName();
+					}
 	    			else if(returnStatementExpression instanceof FieldAccess) {
 	    				FieldAccess fieldAccess = (FieldAccess)returnStatementExpression;
 	    				return fieldAccess.getName();
@@ -81,6 +86,10 @@ public class MethodDeclarationUtility {
 	    						if(leftHandSide instanceof SimpleName) {
 	    		    				return (SimpleName)leftHandSide;
 	    		    			}
+	    						else if(leftHandSide instanceof QualifiedName) {
+	    							QualifiedName qualifiedName = (QualifiedName)leftHandSide;
+	    							return qualifiedName.getName();
+	    						}
 	    		    			else if(leftHandSide instanceof FieldAccess) {
 	    		    				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
 	    		    				return fieldAccess.getName();

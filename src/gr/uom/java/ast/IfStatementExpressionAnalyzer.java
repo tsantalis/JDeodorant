@@ -12,10 +12,12 @@ import org.eclipse.jdt.core.dom.InstanceofExpression;
 public class IfStatementExpressionAnalyzer {
 	//parent nodes are CONDITIONAL_AND (&&), CONDITIONAL_OR (||) infix operators, while leaf nodes are expressions
 	private DefaultMutableTreeNode root;
+	private Expression completeExpression;
 	
-	public IfStatementExpressionAnalyzer(Expression fullExpression) {
+	public IfStatementExpressionAnalyzer(Expression completeExpression) {
 		this.root = new DefaultMutableTreeNode();
-		processExpression(root, fullExpression);
+		this.completeExpression = completeExpression;
+		processExpression(root, completeExpression);
 	}
 	
 	private void processExpression(DefaultMutableTreeNode parent, Expression expression) {
@@ -68,5 +70,50 @@ public class IfStatementExpressionAnalyzer {
 			leaf = leaf.getNextLeaf();
 		}
 		return expressionList;
+	}
+	
+	public DefaultMutableTreeNode getRemainingExpression(Expression expressionToBeRemoved) {
+		DefaultMutableTreeNode newRoot = new DefaultMutableTreeNode();
+		processExpression(newRoot, completeExpression);
+		DefaultMutableTreeNode leaf = newRoot.getFirstLeaf();
+		while(leaf != null) {
+			Expression expression = (Expression)leaf.getUserObject();
+			if(expression.equals(expressionToBeRemoved)) {
+				DefaultMutableTreeNode parent = (DefaultMutableTreeNode)leaf.getParent();
+				if(parent != null) {
+					DefaultMutableTreeNode grandParent = (DefaultMutableTreeNode)parent.getParent();
+					DefaultMutableTreeNode sibling = null;
+					if(leaf.getNextSibling() != null) {
+						sibling = leaf.getNextSibling();
+					}
+					else if(leaf.getPreviousSibling() != null) {
+						sibling = leaf.getPreviousSibling();
+					}
+					if(grandParent != null) {
+						int parentIndex = grandParent.getIndex(parent);
+						grandParent.remove(parent);
+						grandParent.insert(sibling, parentIndex);
+					}
+					else {
+						newRoot = sibling;
+					}
+					break;
+				}
+				else {
+					newRoot = null;
+					break;
+				}
+			}
+			leaf = leaf.getNextLeaf();
+		}
+		return newRoot;
+	}
+	
+	public Expression getCompleteExpression() {
+		return completeExpression;
+	}
+
+	public String toString() {
+		return completeExpression.toString();
 	}
 }

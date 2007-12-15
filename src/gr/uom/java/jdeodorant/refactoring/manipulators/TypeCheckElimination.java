@@ -49,6 +49,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
 	private MethodInvocation typeMethodInvocation;
 	private InheritanceTree existingInheritanceTree;
+	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
@@ -66,6 +67,7 @@ public class TypeCheckElimination {
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
 		this.typeMethodInvocation = null;
 		this.existingInheritanceTree = null;
+		this.remainingIfStatementExpressionMap = new LinkedHashMap<Expression, DefaultMutableTreeNode>();
 	}
 	
 	public void addTypeCheck(Expression expression, Statement statement) {
@@ -86,6 +88,10 @@ public class TypeCheckElimination {
 	
 	public void addStaticType(Expression expression, SimpleName simpleName) {
 		staticFieldMap.put(expression, simpleName);
+	}
+	
+	public void addRemainingIfStatementExpression(Expression expression, DefaultMutableTreeNode root) {
+		remainingIfStatementExpressionMap.put(expression, root);
 	}
 	
 	public void addAccessedField(VariableDeclarationFragment fragment) {
@@ -142,6 +148,10 @@ public class TypeCheckElimination {
 	
 	public List<SimpleName> getStaticFields() {
 		return new ArrayList<SimpleName>(staticFieldMap.values());
+	}
+	
+	public List<DefaultMutableTreeNode> getRemainingIfStatementExpressions() {
+		return new ArrayList<DefaultMutableTreeNode>(remainingIfStatementExpressionMap.values());
 	}
 	
 	public List<String> getStaticFieldNames() {

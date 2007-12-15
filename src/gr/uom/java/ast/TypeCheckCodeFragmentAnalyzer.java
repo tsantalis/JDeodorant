@@ -158,12 +158,13 @@ public class TypeCheckCodeFragmentAnalyzer {
 			}
 			else if(typeCheckExpression instanceof InfixExpression) {
 				InfixExpression infixExpression = (InfixExpression)typeCheckExpression;
-				//IfStatementExpressionAnalyzer analyzer = new IfStatementExpressionAnalyzer(infixExpression);
-				if(infixExpression.getOperator().equals(InfixExpression.Operator.EQUALS)) {
-					Expression leftOperand = infixExpression.getLeftOperand();
-					Expression rightOperand = infixExpression.getRightOperand();
-					infixExpressionHandler(leftOperand, typeCheckExpression);
-					infixExpressionHandler(rightOperand, typeCheckExpression);
+				IfStatementExpressionAnalyzer analyzer = new IfStatementExpressionAnalyzer(infixExpression);
+				for(InfixExpression leafInfixExpression : analyzer.getInfixExpressionsWithEqualsOperator()) {
+					analyzer.getRemainingExpression(leafInfixExpression);
+					Expression leftOperand = leafInfixExpression.getLeftOperand();
+					Expression rightOperand = leafInfixExpression.getRightOperand();
+					infixExpressionHandler(leftOperand, leafInfixExpression, analyzer);
+					infixExpressionHandler(rightOperand, leafInfixExpression, analyzer);
 				}
 			}
 		}
@@ -309,7 +310,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 		}
 	}
 	
-	private void infixExpressionHandler(Expression operand, Expression typeCheckExpression) {
+	private void infixExpressionHandler(Expression operand, Expression typeCheckExpression, IfStatementExpressionAnalyzer analyzer) {
 		SimpleName leftOperandName = null;
 		if(operand instanceof SimpleName) {
 			SimpleName leftOperandSimpleName = (SimpleName)operand;
@@ -363,7 +364,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 			if(leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding leftOperandNameVariableBinding = (IVariableBinding)leftOperandNameBinding;
 				if(leftOperandNameVariableBinding.isField() && (leftOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
-					typeCheckElimination.addStaticType(typeCheckExpression, leftOperandName);
+					typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), leftOperandName);
+					typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(), analyzer.getRemainingExpression(typeCheckExpression));
 				}
 				else {
 					for(FieldDeclaration field : fields) {

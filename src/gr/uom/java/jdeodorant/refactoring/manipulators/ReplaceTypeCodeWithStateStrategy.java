@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import javax.swing.tree.DefaultMutableTreeNode;
+
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
 import org.eclipse.core.filebuffers.ITextFileBufferManager;
@@ -42,6 +44,7 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -470,12 +473,17 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		subclassNames.addAll(additionalStaticFields.values());
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
 		staticFieldNames.addAll(additionalStaticFields.keySet());
+		List<DefaultMutableTreeNode> remainingIfStatementExpressions = typeCheckElimination.getRemainingIfStatementExpressions();
 		for(int i=0; i<staticFieldNames.size(); i++) {
 			ArrayList<Statement> statements = null;
-			if(i < typeCheckStatements.size())
+			DefaultMutableTreeNode remainingIfStatementExpression = null;
+			if(i < typeCheckStatements.size()) {
 				statements = typeCheckStatements.get(i);
-			else
+				remainingIfStatementExpression = remainingIfStatementExpressions.get(i);
+			}
+			else {
 				statements = typeCheckElimination.getDefaultCaseStatements();
+			}
 			IFile subclassFile = null;
 			if(contextContainer instanceof IProject) {
 				IProject contextProject = (IProject)contextContainer;
@@ -615,13 +623,26 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			
 			Block concreteMethodBody = subclassAST.newBlock();
 			ListRewrite concreteMethodBodyRewrite = subclassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
+			ListRewrite ifStatementBodyRewrite = null;
+			if(remainingIfStatementExpression != null) {
+				IfStatement enclosingIfStatement = subclassAST.newIfStatement();
+				Expression enclosingIfStatementExpression = constructExpression(subclassAST, subclassRewriter, remainingIfStatementExpression);
+				subclassRewriter.set(enclosingIfStatement, IfStatement.EXPRESSION_PROPERTY, enclosingIfStatementExpression, null);
+				Block ifStatementBody = subclassAST.newBlock();
+				ifStatementBodyRewrite = subclassRewriter.getListRewrite(ifStatementBody, Block.STATEMENTS_PROPERTY);
+				subclassRewriter.set(enclosingIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, ifStatementBody, null);
+				concreteMethodBodyRewrite.insertLast(enclosingIfStatement, null);
+			}
 			if(returnedVariable != null) {
 				VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
 				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
 				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
 				VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
 				subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-				concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
+				if(ifStatementBodyRewrite != null)
+					ifStatementBodyRewrite.insertFirst(variableDeclarationStatement, null);
+				else
+					concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
 			}
 			for(Statement statement : statements) {
 				Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
@@ -733,12 +754,18 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					}
 					j++;
 				}
-				concreteMethodBodyRewrite.insertLast(newStatement, null);
+				if(ifStatementBodyRewrite != null)
+					ifStatementBodyRewrite.insertLast(newStatement, null);
+				else
+					concreteMethodBodyRewrite.insertLast(newStatement, null);
 			}
 			if(returnedVariable != null) {
 				ReturnStatement returnStatement = subclassAST.newReturnStatement();
 				subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
-				concreteMethodBodyRewrite.insertLast(returnStatement, null);
+				if(ifStatementBodyRewrite != null)
+					ifStatementBodyRewrite.insertLast(returnStatement, null);
+				else
+					concreteMethodBodyRewrite.insertLast(returnStatement, null);
 			}
 			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
 			
@@ -1244,6 +1271,25 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				modifierRewrite.insertFirst(publicModifier, null);
 			}
 		}
+	}
+
+	private Expression constructExpression(AST ast, ASTRewrite rewriter, DefaultMutableTreeNode node) {
+		Object object = node.getUserObject();
+		if(object instanceof InfixExpression.Operator) {
+			InfixExpression.Operator operator = (InfixExpression.Operator)object;
+			InfixExpression infixExpression = ast.newInfixExpression();
+			rewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, operator, null);
+			DefaultMutableTreeNode leftChild = (DefaultMutableTreeNode)node.getChildAt(0);
+			DefaultMutableTreeNode rightChild = (DefaultMutableTreeNode)node.getChildAt(1);
+			rewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, constructExpression(ast, rewriter, leftChild), null);
+			rewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, constructExpression(ast, rewriter, rightChild), null);
+			return infixExpression;
+		}
+		else if(object instanceof Expression) {
+			Expression expression = (Expression)object;
+			return expression;
+		}
+		return null;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {

@@ -160,7 +160,6 @@ public class TypeCheckCodeFragmentAnalyzer {
 				InfixExpression infixExpression = (InfixExpression)typeCheckExpression;
 				IfStatementExpressionAnalyzer analyzer = new IfStatementExpressionAnalyzer(infixExpression);
 				for(InfixExpression leafInfixExpression : analyzer.getInfixExpressionsWithEqualsOperator()) {
-					analyzer.getRemainingExpression(leafInfixExpression);
 					Expression leftOperand = leafInfixExpression.getLeftOperand();
 					Expression rightOperand = leafInfixExpression.getRightOperand();
 					infixExpressionHandler(leftOperand, leafInfixExpression, analyzer);

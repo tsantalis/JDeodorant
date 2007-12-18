@@ -479,7 +479,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			DefaultMutableTreeNode remainingIfStatementExpression = null;
 			if(i < typeCheckStatements.size()) {
 				statements = typeCheckStatements.get(i);
-				remainingIfStatementExpression = remainingIfStatementExpressions.get(i);
+				if(!remainingIfStatementExpressions.isEmpty())
+					remainingIfStatementExpression = remainingIfStatementExpressions.get(i);
 			}
 			else {
 				statements = typeCheckElimination.getDefaultCaseStatements();

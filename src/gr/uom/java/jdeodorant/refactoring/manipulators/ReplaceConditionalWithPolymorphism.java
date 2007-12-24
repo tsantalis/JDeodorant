@@ -381,7 +381,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			ListRewrite ifStatementBodyRewrite = null;
 			if(remainingIfStatementExpression != null) {
 				IfStatement enclosingIfStatement = subclassAST.newIfStatement();
-				Expression enclosingIfStatementExpression = constructExpression(subclassAST, subclassRewriter, remainingIfStatementExpression);
+				Expression enclosingIfStatementExpression = constructExpression(subclassAST, remainingIfStatementExpression);
 				Expression newEnclosingIfStatementExpression = (Expression)ASTNode.copySubtree(subclassAST, enclosingIfStatementExpression);
 				List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(newEnclosingIfStatementExpression);
 				modifyVariableInstructionsInSubclass(variableInstructions, subclassAST, subclassRewriter, accessedFields, assignedFields);
@@ -902,21 +902,21 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		}
 	}
 
-	private Expression constructExpression(AST ast, ASTRewrite rewriter, DefaultMutableTreeNode node) {
+	private Expression constructExpression(AST ast, DefaultMutableTreeNode node) {
 		Object object = node.getUserObject();
 		if(object instanceof InfixExpression.Operator) {
 			InfixExpression.Operator operator = (InfixExpression.Operator)object;
 			InfixExpression infixExpression = ast.newInfixExpression();
-			rewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, operator, null);
+			infixExpression.setOperator(operator);
 			DefaultMutableTreeNode leftChild = (DefaultMutableTreeNode)node.getChildAt(0);
 			DefaultMutableTreeNode rightChild = (DefaultMutableTreeNode)node.getChildAt(1);
-			rewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, constructExpression(ast, rewriter, leftChild), null);
-			rewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, constructExpression(ast, rewriter, rightChild), null);
+			infixExpression.setLeftOperand(constructExpression(ast, leftChild));
+			infixExpression.setRightOperand(constructExpression(ast, rightChild));
 			return infixExpression;
 		}
 		else if(object instanceof Expression) {
 			Expression expression = (Expression)object;
-			return expression;
+			return (Expression)ASTNode.copySubtree(ast, expression);
 		}
 		return null;
 	}

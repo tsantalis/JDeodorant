@@ -363,8 +363,10 @@ public class TypeCheckCodeFragmentAnalyzer {
 			if(leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding leftOperandNameVariableBinding = (IVariableBinding)leftOperandNameBinding;
 				if(leftOperandNameVariableBinding.isField() && (leftOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
-					typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), leftOperandName);
-					typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(), analyzer.getRemainingExpression(typeCheckExpression));
+					if(analyzer.allParentNodesAreConditionalAndOperators()) {
+						typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), leftOperandName);
+						typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(), analyzer.getRemainingExpression(typeCheckExpression));
+					}
 				}
 				else {
 					for(FieldDeclaration field : fields) {

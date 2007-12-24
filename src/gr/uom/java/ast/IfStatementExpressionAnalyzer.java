@@ -1,6 +1,7 @@
 package gr.uom.java.ast;
 
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -107,6 +108,19 @@ public class IfStatementExpressionAnalyzer {
 			leaf = leaf.getNextLeaf();
 		}
 		return newRoot;
+	}
+	
+	public boolean allParentNodesAreConditionalAndOperators() {
+		Enumeration<DefaultMutableTreeNode> enumeration = root.breadthFirstEnumeration();
+		while(enumeration.hasMoreElements()) {
+			DefaultMutableTreeNode node = enumeration.nextElement();
+			if(!node.isLeaf()) {
+				InfixExpression.Operator operator = (InfixExpression.Operator)node.getUserObject();
+				if(!operator.equals(InfixExpression.Operator.CONDITIONAL_AND))
+					return false;
+			}
+		}
+		return true;
 	}
 	
 	public Expression getCompleteExpression() {

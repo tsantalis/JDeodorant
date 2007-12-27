@@ -72,6 +72,10 @@ public class TypeCheckCodeFragmentAnalyzer {
 				SimpleName simpleName = (SimpleName)switchStatementExpression;
 				switchStatementExpressionName = simpleName;
 			}
+			else if(switchStatementExpression instanceof QualifiedName) {
+				QualifiedName qualifiedName = (QualifiedName)switchStatementExpression;
+				switchStatementExpressionName = qualifiedName.getName();
+			}
 			else if(switchStatementExpression instanceof FieldAccess) {
 				FieldAccess fieldAccess = (FieldAccess)switchStatementExpression;
 				switchStatementExpressionName = fieldAccess.getName();
@@ -99,27 +103,29 @@ public class TypeCheckCodeFragmentAnalyzer {
 					}
 				}
 			}
-			IBinding switchStatementExpressionNameBinding = switchStatementExpressionName.resolveBinding();
-			IVariableBinding switchStatementExpressionNameVariableBinding = null;
-			if(switchStatementExpressionNameBinding.getKind() == IBinding.VARIABLE)
-				switchStatementExpressionNameVariableBinding = (IVariableBinding)switchStatementExpressionNameBinding;
-			for(FieldDeclaration field : fields) {
-				List<VariableDeclarationFragment> fragments = field.fragments();
-				for(VariableDeclarationFragment fragment : fragments) {
-					IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-					if(fragmentVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
-						typeCheckElimination.setTypeField(fragment);
-						for(MethodDeclaration method : methods) {
-							SimpleName fieldInstruction = MethodDeclarationUtility.isSetter(method);
-							if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
-								typeCheckElimination.setTypeFieldSetterMethod(method);
-							}
-							fieldInstruction = MethodDeclarationUtility.isGetter(method);
-							if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
-								typeCheckElimination.setTypeFieldGetterMethod(method);
+			if(switchStatementExpressionName != null) {
+				IBinding switchStatementExpressionNameBinding = switchStatementExpressionName.resolveBinding();
+				if(switchStatementExpressionNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding switchStatementExpressionNameVariableBinding = (IVariableBinding)switchStatementExpressionNameBinding;
+					for(FieldDeclaration field : fields) {
+						List<VariableDeclarationFragment> fragments = field.fragments();
+						for(VariableDeclarationFragment fragment : fragments) {
+							IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+							if(fragmentVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
+								typeCheckElimination.setTypeField(fragment);
+								for(MethodDeclaration method : methods) {
+									SimpleName fieldInstruction = MethodDeclarationUtility.isSetter(method);
+									if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
+										typeCheckElimination.setTypeFieldSetterMethod(method);
+									}
+									fieldInstruction = MethodDeclarationUtility.isGetter(method);
+									if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
+										typeCheckElimination.setTypeFieldGetterMethod(method);
+									}
+								}
+								break;
 							}
 						}
-						break;
 					}
 				}
 			}

@@ -20,12 +20,8 @@ public class DistanceCalculator {
 
     public static Set<String> intersection(Set<String> set1, Set<String> set2) {
         Set<String> set = new HashSet<String>();
-        for(String s1 : set1) {
-            for(String s2 : set2) {
-                if(s1.equals(s2))
-                    set.add(s1);
-            }
-        }
+        set.addAll(set1);
+        set.retainAll(set2);
         return set;
     }
 }

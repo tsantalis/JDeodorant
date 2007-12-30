@@ -115,7 +115,7 @@ public class DistanceMatrix {
                         	Set<String> targetClassEntitySet = classMap.get(targetClass.getName());
                         	Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
                         	Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
-                            MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,system.getClass(sourceClass),targetClass,method);
+                            MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,system.getClass(sourceClass),targetClass,method,this);
                             Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
                             Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
                             Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
@@ -157,7 +157,7 @@ public class DistanceMatrix {
 	                List<ExtractionBlock> extractionBlockList = method.getMethodObject().getMethodBody().generateExtractionBlocks();
 	                for(ExtractionBlock block : extractionBlockList) {
 	                	ExtractAndMoveMethodCandidateRefactoring candidate = 
-	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,block);
+	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,block,this);
 	                	extractMethodCandidateRefactoringList.add(candidate);
 	                }
                 }
@@ -197,7 +197,7 @@ public class DistanceMatrix {
                         	MyClass targetClass = classList.get(j);
                         	ExtractAndMoveMethodCandidateRefactoring newCandidate = 
                         		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),targetClass,
-                        		candidate.getSourceMethod(),candidate.getExtractionBlock());
+                        		candidate.getSourceMethod(),candidate.getExtractionBlock(),this);
                         	boolean applicable = newCandidate.apply();
                         	if(applicable) {
                         		candidateRefactoringList.add(newCandidate);
@@ -241,7 +241,10 @@ public class DistanceMatrix {
     }
 
     public Double getDistance(String entityName, String className) {
-        return distanceMatrix[entityIndexMap.get(entityName)][classIndexMap.get(className)];
+    	if(entityIndexMap.containsKey(entityName))
+    		return distanceMatrix[entityIndexMap.get(entityName)][classIndexMap.get(className)];
+    	else
+    		return null;
     }
 
     public SystemEntityPlacement getSystemEntityPlacement() {

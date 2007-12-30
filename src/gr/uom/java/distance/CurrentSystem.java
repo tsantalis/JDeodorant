@@ -14,6 +14,10 @@ public class CurrentSystem implements CandidateRefactoring {
 		return "current system";
 	}
 
+	public String getSource() {
+		return "";
+	}
+
 	public String getTarget() {
 		return "";
 	}

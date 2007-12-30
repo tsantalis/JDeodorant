@@ -33,12 +33,14 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     private double entityPlacement;
     //contains source class methods that do not access any field or method and are accessed only by sourceMethod
     private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
+    private DistanceMatrix originalDistanceMatrix;
 
-    public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod) {
+    public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, DistanceMatrix originalDistanceMatrix) {
         this.system = system;
     	this.sourceClass = sourceClass;
         this.targetClass = targetClass;
         this.sourceMethod = sourceMethod;
+        this.originalDistanceMatrix = originalDistanceMatrix;
         this.additionalMethodsToBeMoved = new LinkedHashMap<MethodInvocation, MethodDeclaration>();
         List<MethodInvocationObject> methodInvocations = sourceMethod.getMethodObject().getMethodInvocations();
         for(MethodInvocationObject methodInvocation : methodInvocations) {
@@ -72,8 +74,11 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     			canBeMoved() && hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
     	    virtualApplication(virtualSystem);
-    	    DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-    	    this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+    	    FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
+    	    double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
+    	    //DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
+    	    //double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+    	    this.entityPlacement = fastEntityPlacement;
     	    return true;
     	}
     	else
@@ -82,7 +87,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
     private boolean isTargetClassAnInterface() {
     	if(targetClass.getClassObject().isInterface()) {
-    		System.out.println(this.toString() + "\tTarget class is an interface");
+    		//System.out.println(this.toString() + "\tTarget class is an interface");
     		return true;
     	}
     	else {
@@ -92,7 +97,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
     private boolean isTargetClassAnInnerClass() {
     	if(targetClass.getClassObject().isInnerClass()) {
-    		System.out.println(this.toString() + "\tTarget class is an inner class");
+    		//System.out.println(this.toString() + "\tTarget class is an inner class");
     		return true;
     	}
     	else {
@@ -105,14 +110,14 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     		return true;
     	}
     	else {
-    		System.out.println(this.toString() + "\tcannot be moved");
+    		//System.out.println(this.toString() + "\tcannot be moved");
     		return false;
     	}
     }
 
     private boolean overridesMethod() {
     	if(sourceMethod.getMethodObject().overridesMethod()) {
-    		System.out.println(this.toString() + "\toverrides method of superclass");
+    		//System.out.println(this.toString() + "\toverrides method of superclass");
     		return true;
     	}
     	else
@@ -124,7 +129,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
     		List<AbstractStatement> fieldAssignments = sourceMethod.getMethodObject().getFieldAssignments(fieldInstruction);
     		if(!fieldAssignments.isEmpty()) {
-    			System.out.println(this.toString() + "\tcontains field assignment");
+    			//System.out.println(this.toString() + "\tcontains field assignment");
     			return true;
     		}
     	}
@@ -133,7 +138,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
     private boolean containsSuperMethodInvocation() {
     	if(sourceMethod.getMethodObject().containsSuperMethodInvocation()) {
-    		System.out.println(this.toString() + "\tcontains super method invocation");
+    		//System.out.println(this.toString() + "\tcontains super method invocation");
     		return true;
     	}
     	else
@@ -198,7 +203,7 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     		}
     	}
     	if(numberOfMethodsInvokingSourceMethod > 0 && numberOfMethodsInvokingSourceMethod != numberOfMethodsHavingReferenceToTargetClass) {
-    		System.out.println(this.toString() + "\thas no reference to Target class");
+    		//System.out.println(this.toString() + "\thas no reference to Target class");
     		return false;
     	}
     	else
@@ -333,6 +338,10 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
 	public String getSourceEntity() {
 		return sourceMethod.toString();
+	}
+
+	public String getSource() {
+		return sourceClass.getName();
 	}
 
 	public String getTarget() {

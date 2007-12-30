@@ -41,14 +41,16 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     private List<MyAbstractStatement> extractionStatementList;
     private Set<String> entitySet;
     private double entityPlacement;
+    private DistanceMatrix originalDistanceMatrix;
 
     public ExtractAndMoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass,
-    		MyMethod sourceMethod, ExtractionBlock extractionBlock) {
+    		MyMethod sourceMethod, ExtractionBlock extractionBlock, DistanceMatrix originalDistanceMatrix) {
     	this.system = system;
     	this.sourceClass = sourceClass;
     	this.targetClass = targetClass;
     	this.sourceMethod = sourceMethod;
     	this.extractionBlock = extractionBlock;
+    	this.originalDistanceMatrix = originalDistanceMatrix;
     	
     	this.newMethodBody = null;
     	List<MyAbstractStatement> myAbstractStatementList = new ArrayList<MyAbstractStatement>();
@@ -104,8 +106,11 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			canBeMoved() && hasReferenceToTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
-	    	DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-	    	this.entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+	    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
+	    	double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
+	    	//DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
+	    	//double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+	    	this.entityPlacement = fastEntityPlacement;
 	    	return true;
     	}
     	else
@@ -114,7 +119,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 
     private boolean isTargetClassAnInterface() {
     	if(targetClass.getClassObject().isInterface()) {
-    		System.out.println(this.toString() + "\tTarget class is an interface");
+    		//System.out.println(this.toString() + "\tTarget class is an interface");
     		return true;
     	}
     	else {
@@ -124,7 +129,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 
     private boolean isTargetClassAnInnerClass() {
     	if(targetClass.getClassObject().isInnerClass()) {
-    		System.out.println(this.toString() + "\tTarget class is an inner class");
+    		//System.out.println(this.toString() + "\tTarget class is an inner class");
     		return true;
     	}
     	else {
@@ -137,7 +142,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     		return true;
     	}
     	else {
-    		System.out.println(this.toString() + "\tcannot be moved");
+    		//System.out.println(this.toString() + "\tcannot be moved");
     		return false;
     	}
     }
@@ -149,7 +154,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			if(abstractStatement instanceof StatementObject) {
     				StatementObject statement = (StatementObject)abstractStatement;
     				if(statement.isFieldAssignment(fieldInstruction)) {
-    					System.out.println(this.toString() + "\tcontains field assignment");
+    					//System.out.println(this.toString() + "\tcontains field assignment");
     	    			return true;
     				}
     			}
@@ -157,7 +162,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     				CompositeStatementObject compositeStatement = (CompositeStatementObject)abstractStatement;
     				List<AbstractStatement> fieldAssignments = compositeStatement.getFieldAssignments(fieldInstruction);
     				if(!fieldAssignments.isEmpty()) {
-    	    			System.out.println(this.toString() + "\tcontains field assignment");
+    	    			//System.out.println(this.toString() + "\tcontains field assignment");
     	    			return true;
     	    		}
     			}
@@ -171,7 +176,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
     		List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(abstractStatement.getStatement());
     		if(!superMethodInvocations.isEmpty()) {
-    			System.out.println(this.toString() + "\tcontains super method invocation");
+    			//System.out.println(this.toString() + "\tcontains super method invocation");
     			return true;
     		}
     	}
@@ -181,7 +186,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			IfStatement ifStatement = (IfStatement)statement;
     			List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(ifStatement.getExpression());
     			if(!superMethodInvocations.isEmpty()) {
-        			System.out.println(this.toString() + "\tcontains super method invocation");
+        			//System.out.println(this.toString() + "\tcontains super method invocation");
         			return true;
         		}
     		}
@@ -221,7 +226,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			return true;
     		}
     	}
-    	System.out.println(this.toString() + "\thas no reference to Target class");
+    	//System.out.println(this.toString() + "\thas no reference to Target class");
     	return false;
     }
 
@@ -237,7 +242,7 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     			statementList.addAll(statementExtractor.getBranchingStatements(abstractStatement.getStatement()));
     	}
     	if(!statementList.isEmpty()) {
-    		System.out.println(this.toString() + "\tcontains branching statement");
+    		//System.out.println(this.toString() + "\tcontains branching statement");
     		return true;
     	}
     	else {
@@ -445,6 +450,10 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 	public String getSourceEntity() {
 		LocalVariableDeclarationObject localVariableDeclaration = extractionBlock.getReturnVariableDeclaration();
 		return sourceClass.getName() + "::" + extractionBlock.getExtractedMethodName() + "():" + localVariableDeclaration.getType();
+	}
+
+	public String getSource() {
+		return sourceClass.getName();
 	}
 
 	public String getTarget() {

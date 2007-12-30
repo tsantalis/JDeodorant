@@ -6,6 +6,7 @@ public interface CandidateRefactoring {
 	
 	public double getEntityPlacement();
 	public String getSourceEntity();
+	public String getSource();
 	public String getTarget();
 	public Set<String> getEntitySet();
 }

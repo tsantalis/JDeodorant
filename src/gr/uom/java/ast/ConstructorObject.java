@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class ConstructorObject {
@@ -66,6 +67,13 @@ public class ConstructorObject {
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
 		if(methodBody != null)
 			return methodBody.getVariableDeclarationStatement(lvdo);
+		else
+			return null;
+	}
+
+	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
+		if(methodBody != null)
+			return methodBody.getVariableDeclarationExpression(lvdo);
 		else
 			return null;
 	}

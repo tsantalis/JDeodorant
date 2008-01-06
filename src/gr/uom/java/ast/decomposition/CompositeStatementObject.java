@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 /*
@@ -103,6 +104,21 @@ public class CompositeStatementObject extends AbstractStatement {
 				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
 				if(compositeStatementObject.containsLocalVariableDeclaration(lvdo))
 					return compositeStatementObject.getVariableDeclarationStatement(lvdo);
+			}
+		}
+		return null;
+	}
+
+	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
+		for(AbstractExpression expression : expressionList) {
+			if(expression.containsLocalVariableDeclaration(lvdo)) {
+				return (VariableDeclarationExpression)expression.getExpression();
+			}
+		}
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+				return compositeStatementObject.getVariableDeclarationExpression(lvdo);
 			}
 		}
 		return null;

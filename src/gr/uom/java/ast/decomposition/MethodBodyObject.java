@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -401,6 +402,10 @@ public class MethodBodyObject {
 
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
 		return this.compositeStatement.getVariableDeclarationStatement(lvdo);
+	}
+
+	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
+		return this.compositeStatement.getVariableDeclarationExpression(lvdo);
 	}
 
 	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {

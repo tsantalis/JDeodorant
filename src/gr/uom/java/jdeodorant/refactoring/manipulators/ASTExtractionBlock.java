@@ -19,6 +19,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -34,14 +35,17 @@ public class ASTExtractionBlock {
 	private Map<VariableDeclarationFragment, VariableDeclarationStatement> additionalRequiredVariableDeclarationStatementMap;
 	//includes all variable declaration statements which are related with the extracted method
 	private List<VariableDeclarationStatement> allVariableDeclarationStatements;
+	//includes all variable declaration expressions which are related with the extracted method
+	private List<VariableDeclarationExpression> allVariableDeclarationExpressions;
 	
 	public ASTExtractionBlock(String extractedMethodName, VariableDeclarationFragment returnVariableDeclarationFragment, VariableDeclarationStatement returnVariableDeclarationStatement,
-			List<Statement> statementsForExtraction, List<VariableDeclarationStatement> allVariableDeclarationStatements, List<String> assignmentOperators) {
+			List<Statement> statementsForExtraction, List<VariableDeclarationStatement> allVariableDeclarationStatements, List<VariableDeclarationExpression> allVariableDeclarationExpressions, List<String> assignmentOperators) {
 		this.extractedMethodName = extractedMethodName;
 		this.returnVariableDeclarationFragment = returnVariableDeclarationFragment;
 		this.returnVariableDeclarationStatement = returnVariableDeclarationStatement;
 		this.statementsForExtraction = statementsForExtraction;
 		this.allVariableDeclarationStatements = allVariableDeclarationStatements;
+		this.allVariableDeclarationExpressions = allVariableDeclarationExpressions;
 		this.assignmentOperators = assignmentOperators;
 		this.parentStatementForCopy = null;
 		this.additionalRequiredVariableDeclarationStatementMap = new LinkedHashMap<VariableDeclarationFragment, VariableDeclarationStatement>();
@@ -69,6 +73,10 @@ public class ASTExtractionBlock {
 
 	public List<VariableDeclarationStatement> getAllVariableDeclarationStatements() {
 		return allVariableDeclarationStatements;
+	}
+
+	public List<VariableDeclarationExpression> getAllVariableDeclarationExpressions() {
+		return allVariableDeclarationExpressions;
 	}
 
 	public void setParentStatementForCopy(Statement parentStatementForCopy) {

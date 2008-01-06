@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class MethodObject {
@@ -289,6 +290,10 @@ public class MethodObject {
 
 	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
 		return constructorObject.getVariableDeclarationStatement(lvdo);
+	}
+
+	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
+		return constructorObject.getVariableDeclarationExpression(lvdo);
 	}
 
 	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {

@@ -33,6 +33,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
@@ -133,6 +134,17 @@ public class ExtractMethodRefactoring implements Refactoring {
 					if(fragment.getName().getIdentifier().equals(argument.getIdentifier())) {
 						argumentVariableDeclarationType = statement.getType();
 						break;
+					}
+				}
+			}
+			if(argumentVariableDeclarationType == null) {
+				for(VariableDeclarationExpression expression : extractionBlock.getAllVariableDeclarationExpressions()) {
+					List<VariableDeclarationFragment> fragmentList = expression.fragments();
+					for(VariableDeclarationFragment fragment : fragmentList) {
+						if(fragment.getName().getIdentifier().equals(argument.getIdentifier())) {
+							argumentVariableDeclarationType = expression.getType();
+							break;
+						}
 					}
 				}
 			}

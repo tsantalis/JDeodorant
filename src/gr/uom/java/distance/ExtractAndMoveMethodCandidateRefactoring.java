@@ -14,6 +14,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -393,27 +394,29 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
     	return null;
     }
 
-    private List<VariableDeclarationStatement> getAllVariableDeclarationStatements() {
-    	List<VariableDeclarationStatement> list = new ArrayList<VariableDeclarationStatement>();
+    public ASTExtractionBlock getASTExtractionBlock() {
+    	List<VariableDeclarationStatement> allVariableDeclarationStatements = new ArrayList<VariableDeclarationStatement>();
+    	List<VariableDeclarationExpression> allVariableDeclarationExpressions = new ArrayList<VariableDeclarationExpression>();
     	List<LocalVariableInstructionObject> discreteLocalVariableInstructions = new ArrayList<LocalVariableInstructionObject>();
 		for(AbstractStatement abstractStatement : extractionBlock.getStatementsForExtraction()) {
 			List<LocalVariableInstructionObject> instructionList = abstractStatement.getLocalVariableInstructions();
 			for(LocalVariableInstructionObject instruction : instructionList) {
 				if(!discreteLocalVariableInstructions.contains(instruction)) {
 					discreteLocalVariableInstructions.add(instruction);
-					VariableDeclarationStatement variableDeclarationStatement = 
-						sourceMethod.getMethodObject().getVariableDeclarationStatement(instruction.generateLocalVariableDeclaration());
-					if(variableDeclarationStatement != null)
-						list.add(variableDeclarationStatement);
+					VariableDeclarationStatement variableDeclarationStatement = sourceMethod.getMethodObject().getVariableDeclarationStatement(instruction.generateLocalVariableDeclaration());
+					if(variableDeclarationStatement != null) {
+						allVariableDeclarationStatements.add(variableDeclarationStatement);
+					}
+					else {
+						VariableDeclarationExpression variableDeclarationExpression = sourceMethod.getMethodObject().getVariableDeclarationExpression(instruction.generateLocalVariableDeclaration());
+						if(variableDeclarationExpression != null)
+							allVariableDeclarationExpressions.add(variableDeclarationExpression);
+					}
 				}
 			}
 		}
-		return list;
-    }
-
-    public ASTExtractionBlock getASTExtractionBlock() {
     	ASTExtractionBlock astExtractionBlock = new ASTExtractionBlock(extractionBlock.getExtractedMethodName(), getReturnVariableDeclarationFragment(),
-    		getReturnVariableDeclarationStatement(), getStatementsForExtraction(), getAllVariableDeclarationStatements(), extractionBlock.getAssignmentOperators());
+    		getReturnVariableDeclarationStatement(), getStatementsForExtraction(), allVariableDeclarationStatements, allVariableDeclarationExpressions, extractionBlock.getAssignmentOperators());
     	if(extractionBlock.getParentStatementForCopy() != null)
     		astExtractionBlock.setParentStatementForCopy(extractionBlock.getParentStatementForCopy().getStatement());
     	for(LocalVariableDeclarationObject lvdo : extractionBlock.getAdditionalRequiredVariableDeclarations()) {

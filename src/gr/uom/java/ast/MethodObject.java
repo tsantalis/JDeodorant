@@ -3,6 +3,7 @@ package gr.uom.java.ast;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -11,6 +12,7 @@ import java.util.ListIterator;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -20,6 +22,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -158,6 +161,8 @@ public class MethodObject {
 
     public MethodInvocationObject isDelegate() {
     	if(getMethodBody() != null) {
+    		MethodDeclaration methodDeclaration = getMethodDeclaration();
+    		TypeDeclaration parentClass = (TypeDeclaration)methodDeclaration.getParent();
 	    	List<AbstractStatement> abstractStatements = getMethodBody().getCompositeStatement().getStatements();
 	    	if(abstractStatements.size() == 1 && abstractStatements.get(0) instanceof StatementObject) {
 	    		StatementObject statementObject = (StatementObject)abstractStatements.get(0);
@@ -176,11 +181,35 @@ public class MethodObject {
 	    			}
 	    		}
 	    		if(methodInvocation != null) {
-		    		List<MethodInvocationObject> methodInvocations = statementObject.getMethodInvocations();
-		    		for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-		    			if(methodInvocationObject.getMethodName().equals(methodInvocation.getName().getIdentifier()))
-		    				return methodInvocationObject;
-		    		}
+	    			Expression methodInvocationExpression = methodInvocation.getExpression();
+	    			List<MethodInvocationObject> methodInvocations = statementObject.getMethodInvocations();
+	    			if(methodInvocationExpression instanceof MethodInvocation) {
+	    				MethodInvocation previousChainedMethodInvocation = (MethodInvocation)methodInvocationExpression;
+	    				MethodDeclaration[] parentClassMethods = parentClass.getMethods();
+	    				boolean isDelegationChain = false;
+		    			boolean foundInParentClass = false;
+	    				for(MethodDeclaration parentClassMethod : parentClassMethods) {
+	    					if(parentClassMethod.resolveBinding().isEqualTo(previousChainedMethodInvocation.resolveMethodBinding())) {
+	    						foundInParentClass = true;
+	    						SimpleName getterField = MethodDeclarationUtility.isGetter(parentClassMethod);
+	    						if(getterField == null)
+	    							isDelegationChain = true;
+	    						break;
+	    					}
+	    				}
+	    				if(!isDelegationChain && foundInParentClass) {
+				    		for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+				    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation))
+				    				return methodInvocationObject;
+				    		}
+		    			}
+	    			}
+	    			else {
+	    				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+			    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation))
+			    				return methodInvocationObject;
+			    		}
+	    			}
 	    		}
 	    	}
     	}

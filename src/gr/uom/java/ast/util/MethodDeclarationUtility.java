@@ -14,25 +14,52 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class MethodDeclarationUtility {
 
 	public static MethodInvocation isDelegate(MethodDeclaration methodDeclaration) {
+		TypeDeclaration parentClass = (TypeDeclaration)methodDeclaration.getParent();
 		Block methodBody = methodDeclaration.getBody();
 		if(methodBody != null) {
 			List<Statement> statements = methodBody.statements();
 			if(statements.size() == 1) {
 				Statement statement = statements.get(0);
+				MethodInvocation methodInvocation = null;
 	    		if(statement instanceof ReturnStatement) {
 	    			ReturnStatement returnStatement = (ReturnStatement)statement;
 	    			if(returnStatement.getExpression() instanceof MethodInvocation) {
-	    				return (MethodInvocation)returnStatement.getExpression();
+	    				methodInvocation = (MethodInvocation)returnStatement.getExpression();
 	    			}
 	    		}
 	    		else if(statement instanceof ExpressionStatement) {
 	    			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
 	    			if(expressionStatement.getExpression() instanceof MethodInvocation) {
-	    				return (MethodInvocation)expressionStatement.getExpression();
+	    				methodInvocation = (MethodInvocation)expressionStatement.getExpression();
+	    			}
+	    		}
+	    		if(methodInvocation != null) {
+	    			Expression methodInvocationExpression = methodInvocation.getExpression();
+	    			if(methodInvocationExpression instanceof MethodInvocation) {
+	    				MethodInvocation previousChainedMethodInvocation = (MethodInvocation)methodInvocationExpression;
+	    				MethodDeclaration[] parentClassMethods = parentClass.getMethods();
+	    				boolean isDelegationChain = false;
+		    			boolean foundInParentClass = false;
+	    				for(MethodDeclaration parentClassMethod : parentClassMethods) {
+	    					if(parentClassMethod.resolveBinding().isEqualTo(previousChainedMethodInvocation.resolveMethodBinding())) {
+	    						foundInParentClass = true;
+	    						SimpleName getterField = isGetter(parentClassMethod);
+	    						if(getterField == null)
+	    							isDelegationChain = true;
+	    						break;
+	    					}
+	    				}
+	    				if(!isDelegationChain && foundInParentClass) {
+	    					return methodInvocation;
+	    				}
+	    			}
+	    			else {
+	    				return methodInvocation;
 	    			}
 	    		}
 			}
@@ -42,9 +69,10 @@ public class MethodDeclarationUtility {
 
 	public static SimpleName isGetter(MethodDeclaration methodDeclaration) {
 		Block methodBody = methodDeclaration.getBody();
+		List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
 		if(methodBody != null) {
 			List<Statement> statements = methodBody.statements();
-			if(statements.size() == 1) {
+			if(statements.size() == 1 && parameters.size() == 0) {
 				Statement statement = statements.get(0);
 	    		if(statement instanceof ReturnStatement) {
 	    			ReturnStatement returnStatement = (ReturnStatement)statement;

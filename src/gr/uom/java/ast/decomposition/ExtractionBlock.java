@@ -118,7 +118,7 @@ public class ExtractionBlock {
     				ListIterator<ParameterObject> parameterIterator = sourceMethod.getParameterListIterator();
     				while(parameterIterator.hasNext()) {
     					ParameterObject parameter = parameterIterator.next();
-    					if(localVariableInstruction.getName().equals(parameter.getName()))
+    					if(localVariableInstruction.getName().equals(parameter.getName()) && parameter.getType().getArrayDimension() == 0)
     						return true;
     				}
     			}
@@ -138,7 +138,7 @@ public class ExtractionBlock {
 				ListIterator<FieldObject> fieldIterator = sourceClass.getFieldIterator();
 				while(fieldIterator.hasNext()) {
 					FieldObject field = fieldIterator.next();
-					if(fieldInstruction.getName().equals(field.getName()))
+					if(fieldInstruction.getName().equals(field.getName()) && field.getType().getArrayDimension() == 0)
 						return true;
 				}
     		}

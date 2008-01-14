@@ -88,6 +88,7 @@ public class ASTReader {
         		}
         		for(TypeDeclaration typeDeclaration : typeDeclarations) {
 	        		final ClassObject classObject = new ClassObject();
+	        		boolean extendsTestCase = false;
 		        	fileMap.put(typeDeclaration, iFile);
 		        	compilationUnitMap.put(typeDeclaration, compilationUnit);
 		        	classObject.setName(typeDeclaration.resolveBinding().getQualifiedName());
@@ -115,6 +116,8 @@ public class ASTReader {
 		        	if(superclassType != null) {
 		        		ITypeBinding binding = superclassType.resolveBinding();
 		        		classObject.setSuperclass(binding.getQualifiedName());
+		        		if(binding.getQualifiedName().equals("junit.framework.TestCase"))
+		        			extendsTestCase = true;
 		        	}
 		        	
 		        	List<Type> superInterfaceTypes = typeDeclaration.superInterfaceTypes();
@@ -215,8 +218,8 @@ public class ASTReader {
 		        				systemObject.addDelegate(methodObject.generateMethodInvocation(), methodInvocation);
 		        		}
 		        	}
-	        	
-		        	systemObject.addClass(classObject);
+		        	if(!extendsTestCase)
+		        		systemObject.addClass(classObject);
         		}
         	}
         }	

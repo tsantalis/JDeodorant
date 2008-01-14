@@ -228,7 +228,7 @@ public class MethodObject {
     				ListIterator<ParameterObject> parameterIterator = getParameterListIterator();
     				while(parameterIterator.hasNext()) {
     					ParameterObject parameter = parameterIterator.next();
-    					if(localVariableInstruction.getName().equals(parameter.getName()))
+    					if(localVariableInstruction.getName().equals(parameter.getName()) && parameter.getType().getArrayDimension() == 0)
     						return true;
     				}
     			}
@@ -240,7 +240,7 @@ public class MethodObject {
 				ListIterator<FieldObject> fieldIterator = sourceClass.getFieldIterator();
 				while(fieldIterator.hasNext()) {
 					FieldObject field = fieldIterator.next();
-					if(fieldInstruction.getName().equals(field.getName()))
+					if(fieldInstruction.getName().equals(field.getName()) && field.getType().getArrayDimension() == 0)
 						return true;
 				}
     		}

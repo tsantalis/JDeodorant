@@ -85,11 +85,25 @@ public class ConstructorObject {
 			return new ArrayList<AbstractStatement>();
 	}
 
+	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
+		if(methodBody != null)
+			return methodBody.getSuperMethodInvocationStatements(superMethodInvocation);
+		else
+			return new ArrayList<AbstractStatement>();
+	}
+
 	public List<MethodInvocationObject> getMethodInvocations() {
 		if(methodBody != null)
 			return methodBody.getMethodInvocations();
 		else
 			return new ArrayList<MethodInvocationObject>();
+	}
+
+	public List<SuperMethodInvocationObject> getSuperMethodInvocations() {
+		if(methodBody != null)
+			return methodBody.getSuperMethodInvocations();
+		else
+			return new ArrayList<SuperMethodInvocationObject>();
 	}
 
     public List<FieldInstructionObject> getFieldInstructions() {
@@ -116,6 +130,13 @@ public class ConstructorObject {
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	if(methodBody != null)
     		return methodBody.containsMethodInvocation(methodInvocation);
+    	else
+    		return false;
+    }
+
+    public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
+    	if(methodBody != null)
+    		return methodBody.containsSuperMethodInvocation(superMethodInvocation);
     	else
     		return false;
     }

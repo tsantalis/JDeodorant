@@ -15,13 +15,16 @@ import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -199,15 +202,50 @@ public class MethodObject {
 	    				}
 	    				if(!isDelegationChain && foundInParentClass) {
 				    		for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-				    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation))
+				    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation)) {
 				    				return methodInvocationObject;
+				    			}
 				    		}
 		    			}
 	    			}
-	    			else {
+	    			else if(methodInvocationExpression instanceof FieldAccess) {
+	    				FieldAccess fieldAccess = (FieldAccess)methodInvocationExpression;
+	    				IVariableBinding variableBinding = fieldAccess.resolveFieldBinding();
+	    				if(variableBinding.getDeclaringClass().isEqualTo(parentClass.resolveBinding()) ||
+	    						parentClass.resolveBinding().isSubTypeCompatible(variableBinding.getDeclaringClass())) {
+		    				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+				    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation)) {
+				    				return methodInvocationObject;
+				    			}
+				    		}
+	    				}
+	    			}
+	    			else if(methodInvocationExpression instanceof SimpleName) {
+	    				SimpleName simpleName = (SimpleName)methodInvocationExpression;
+	    				IBinding binding = simpleName.resolveBinding();
+	    				if(binding.getKind() == IBinding.VARIABLE) {
+	    					IVariableBinding variableBinding = (IVariableBinding)binding;
+	    					if(variableBinding.isField() || variableBinding.isParameter()) {
+	    						for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+	    							if(methodInvocationObject.getMethodInvocation().equals(methodInvocation)) {
+	    								return methodInvocationObject;
+	    							}
+	    						}
+	    					}
+	    				}
+	    			}
+	    			else if(methodInvocationExpression instanceof ThisExpression) {
 	    				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-			    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation))
+			    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation)) {
 			    				return methodInvocationObject;
+			    			}
+			    		}
+	    			}
+	    			else if(methodInvocationExpression == null) {
+	    				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+			    			if(methodInvocationObject.getMethodInvocation().equals(methodInvocation)) {
+			    				return methodInvocationObject;
+			    			}
 			    		}
 	    			}
 	    		}
@@ -329,8 +367,16 @@ public class MethodObject {
 		return constructorObject.getMethodInvocationStatements(methodInvocation);
 	}
 
+	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
+		return constructorObject.getSuperMethodInvocationStatements(superMethodInvocation);
+	}
+
     public List<MethodInvocationObject> getMethodInvocations() {
         return constructorObject.getMethodInvocations();
+    }
+
+    public List<SuperMethodInvocationObject> getSuperMethodInvocations() {
+        return constructorObject.getSuperMethodInvocations();
     }
 
     public List<FieldInstructionObject> getFieldInstructions() {
@@ -347,6 +393,10 @@ public class MethodObject {
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	return constructorObject.containsMethodInvocation(methodInvocation);
+    }
+
+    public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
+    	return constructorObject.containsSuperMethodInvocation(superMethodInvocation);
     }
 
     public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {

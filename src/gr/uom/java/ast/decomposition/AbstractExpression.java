@@ -4,6 +4,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
@@ -25,6 +26,7 @@ public class AbstractExpression {
 	private Expression expression;
 	private CompositeStatementObject owner;
 	private List<MethodInvocationObject> methodInvocationList;
+	private List<SuperMethodInvocationObject> superMethodInvocationList;
     private List<FieldInstructionObject> fieldInstructionList;
     private List<LocalVariableDeclarationObject> localVariableDeclarationList;
     private List<LocalVariableInstructionObject> localVariableInstructionList;
@@ -33,6 +35,7 @@ public class AbstractExpression {
     	this.expression = expression;
     	this.owner = null;
     	this.methodInvocationList = new ArrayList<MethodInvocationObject>();
+    	this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
         this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
         this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
         this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
@@ -48,7 +51,7 @@ public class AbstractExpression {
 					if(variableBinding.getDeclaringClass() != null) {
 						String originClassName = variableBinding.getDeclaringClass().getQualifiedName();
 						String qualifiedName = variableBinding.getType().getQualifiedName();
-						TypeObject fieldType = extractTypeObject(qualifiedName);
+						TypeObject fieldType = TypeObject.extractTypeObject(qualifiedName);
 						String fieldName = variableBinding.getName();
 						FieldInstructionObject fieldInstruction = new FieldInstructionObject(originClassName, fieldType, fieldName);
 						fieldInstruction.setSimpleName(simpleName);
@@ -60,7 +63,7 @@ public class AbstractExpression {
 				else {
 					if(variableBinding.getDeclaringClass() == null) {
 						String qualifiedName = variableBinding.getType().getQualifiedName();
-						TypeObject localVariableType = extractTypeObject(qualifiedName);
+						TypeObject localVariableType = TypeObject.extractTypeObject(qualifiedName);
 						String localVariableName = variableBinding.getName();
 						if(simpleName.isDeclaration()) {
 							LocalVariableDeclarationObject localVariable = new LocalVariableDeclarationObject(localVariableType, localVariableName);
@@ -77,25 +80,38 @@ public class AbstractExpression {
 		
 		List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(expression);
 		for(Expression methodInvocation : methodInvocations) {
-			IMethodBinding methodBinding = null;
-			if(methodInvocation instanceof MethodInvocation)
-				methodBinding = ((MethodInvocation)methodInvocation).resolveMethodBinding();
-			else if(methodInvocation instanceof SuperMethodInvocation)
-				methodBinding = ((SuperMethodInvocation)methodInvocation).resolveMethodBinding();
-			String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
-			String methodInvocationName = methodBinding.getName();
-			String qualifiedName = methodBinding.getReturnType().getQualifiedName();
-			TypeObject returnType = extractTypeObject(qualifiedName);
-			MethodInvocationObject methodInvocationObject = new MethodInvocationObject(originClassName, methodInvocationName, returnType);
-			if(methodInvocation instanceof MethodInvocation)
+			if(methodInvocation instanceof MethodInvocation) {
+				IMethodBinding methodBinding = ((MethodInvocation)methodInvocation).resolveMethodBinding();
+				String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
+				String methodInvocationName = methodBinding.getName();
+				String qualifiedName = methodBinding.getReturnType().getQualifiedName();
+				TypeObject returnType = TypeObject.extractTypeObject(qualifiedName);
+				MethodInvocationObject methodInvocationObject = new MethodInvocationObject(originClassName, methodInvocationName, returnType);
 				methodInvocationObject.setMethodInvocation((MethodInvocation)methodInvocation);
-			ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
-			for(ITypeBinding parameterType : parameterTypes) {
-				String qualifiedParameterName = parameterType.getQualifiedName();
-				TypeObject typeObject = extractTypeObject(qualifiedParameterName);
-				methodInvocationObject.addParameter(typeObject);
+				ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
+				for(ITypeBinding parameterType : parameterTypes) {
+					String qualifiedParameterName = parameterType.getQualifiedName();
+					TypeObject typeObject = TypeObject.extractTypeObject(qualifiedParameterName);
+					methodInvocationObject.addParameter(typeObject);
+				}
+				methodInvocationList.add(methodInvocationObject);
 			}
-			methodInvocationList.add(methodInvocationObject);
+			else if(methodInvocation instanceof SuperMethodInvocation) {
+				IMethodBinding methodBinding = ((SuperMethodInvocation)methodInvocation).resolveMethodBinding();
+				String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
+				String methodInvocationName = methodBinding.getName();
+				String qualifiedName = methodBinding.getReturnType().getQualifiedName();
+				TypeObject returnType = TypeObject.extractTypeObject(qualifiedName);
+				SuperMethodInvocationObject superMethodInvocationObject = new SuperMethodInvocationObject(originClassName, methodInvocationName, returnType);
+				superMethodInvocationObject.setSuperMethodInvocation((SuperMethodInvocation)methodInvocation);
+				ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
+				for(ITypeBinding parameterType : parameterTypes) {
+					String qualifiedParameterName = parameterType.getQualifiedName();
+					TypeObject typeObject = TypeObject.extractTypeObject(qualifiedParameterName);
+					superMethodInvocationObject.addParameter(typeObject);
+				}
+				superMethodInvocationList.add(superMethodInvocationObject);
+			}
 		}
     }
     
@@ -127,35 +143,22 @@ public class AbstractExpression {
 		return methodInvocationList;
 	}
 
+	public List<SuperMethodInvocationObject> getSuperMethodInvocations() {
+		return superMethodInvocationList;
+	}
+
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
 		return methodInvocationList.contains(methodInvocation);
+	}
+
+	public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
+		return superMethodInvocationList.contains(superMethodInvocation);
 	}
 
 	public boolean containsLocalVariableDeclaration(LocalVariableDeclarationObject lvdo) {
 		return localVariableDeclarationList.contains(lvdo);
 	}
 
-	private TypeObject extractTypeObject(String qualifiedName) {
-		int arrayDimension = 0;
-		String generic = null;
-		if(qualifiedName.contains("[") && qualifiedName.contains("]")) {
-			String arrayDimensionStr = qualifiedName.substring(qualifiedName.indexOf("["), qualifiedName.lastIndexOf("]")+1);
-			qualifiedName = qualifiedName.substring(0, qualifiedName.indexOf("["));
-			while(arrayDimensionStr.indexOf("[]") != -1) {
-				arrayDimensionStr = arrayDimensionStr.substring(arrayDimensionStr.indexOf("]")+1,arrayDimensionStr.length());
-				arrayDimension++;
-			}
-		}
-		if(qualifiedName.contains("<") && qualifiedName.contains(">")) {
-			generic = qualifiedName.substring(qualifiedName.indexOf("<"), qualifiedName.lastIndexOf(">")+1);
-			qualifiedName = qualifiedName.substring(0, qualifiedName.indexOf("<"));
-		}
-		TypeObject typeObject = new TypeObject(qualifiedName);
-		typeObject.setGeneric(generic);
-		typeObject.setArrayDimension(arrayDimension);
-		return typeObject;
-	}
-	
 	public String toString() {
 		if(expression != null)
 			return expression.toString();

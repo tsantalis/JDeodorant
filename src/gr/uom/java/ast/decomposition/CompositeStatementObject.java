@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperMethodInvocationObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +143,26 @@ public class CompositeStatementObject extends AbstractStatement {
 			}
 		}
 		return methodInvocationStatements;
+	}
+
+	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
+		List<AbstractStatement> superMethodInvocationStatements = new ArrayList<AbstractStatement>();
+		for(AbstractExpression expression : expressionList) {
+			if(expression.containsSuperMethodInvocation(superMethodInvocation))
+				superMethodInvocationStatements.add(this);
+		}
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof StatementObject) {
+				StatementObject statementObject = (StatementObject)statement;
+				if(statementObject.containsSuperMethodInvocation(superMethodInvocation))
+					superMethodInvocationStatements.add(statementObject);
+			}
+			else if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+				superMethodInvocationStatements.addAll(compositeStatementObject.getSuperMethodInvocationStatements(superMethodInvocation));
+			}
+		}
+		return superMethodInvocationStatements;
 	}
 
 	public List<AbstractStatement> getLocalVariableAssignments(LocalVariableDeclarationObject lvdo) {

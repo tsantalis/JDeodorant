@@ -7,13 +7,15 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class MethodDeclarationUtility {
@@ -58,7 +60,28 @@ public class MethodDeclarationUtility {
 	    					return methodInvocation;
 	    				}
 	    			}
-	    			else {
+	    			else if(methodInvocationExpression instanceof FieldAccess) {
+	    				FieldAccess fieldAccess = (FieldAccess)methodInvocationExpression;
+	    				IVariableBinding variableBinding = fieldAccess.resolveFieldBinding();
+	    				if(variableBinding.getDeclaringClass().isEqualTo(parentClass.resolveBinding()) ||
+	    						parentClass.resolveBinding().isSubTypeCompatible(variableBinding.getDeclaringClass())) {
+	    					return methodInvocation;
+	    				}
+	    			}
+	    			else if(methodInvocationExpression instanceof SimpleName) {
+	    				SimpleName simpleName = (SimpleName)methodInvocationExpression;
+	    				IBinding binding = simpleName.resolveBinding();
+	    				if(binding.getKind() == IBinding.VARIABLE) {
+	    					IVariableBinding variableBinding = (IVariableBinding)binding;
+	    					if(variableBinding.isField() || variableBinding.isParameter()) {
+	    						return methodInvocation;
+	    					}
+	    				}
+	    			}
+	    			else if(methodInvocationExpression instanceof ThisExpression) {
+	    				return methodInvocation;
+	    			}
+	    			else if(methodInvocationExpression == null) {
 	    				return methodInvocation;
 	    			}
 	    		}
@@ -80,10 +103,6 @@ public class MethodDeclarationUtility {
 	    			if(returnStatementExpression instanceof SimpleName) {
 	    				return (SimpleName)returnStatementExpression;
 	    			}
-	    			else if(returnStatementExpression instanceof QualifiedName) {
-						QualifiedName qualifiedName = (QualifiedName)returnStatementExpression;
-						return qualifiedName.getName();
-					}
 	    			else if(returnStatementExpression instanceof FieldAccess) {
 	    				FieldAccess fieldAccess = (FieldAccess)returnStatementExpression;
 	    				return fieldAccess.getName();
@@ -114,10 +133,6 @@ public class MethodDeclarationUtility {
 	    						if(leftHandSide instanceof SimpleName) {
 	    		    				return (SimpleName)leftHandSide;
 	    		    			}
-	    						else if(leftHandSide instanceof QualifiedName) {
-	    							QualifiedName qualifiedName = (QualifiedName)leftHandSide;
-	    							return qualifiedName.getName();
-	    						}
 	    		    			else if(leftHandSide instanceof FieldAccess) {
 	    		    				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
 	    		    				return fieldAccess.getName();

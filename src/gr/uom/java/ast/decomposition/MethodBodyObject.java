@@ -4,6 +4,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
@@ -412,6 +413,10 @@ public class MethodBodyObject {
 		return this.compositeStatement.getMethodInvocationStatements(methodInvocation);
 	}
 
+	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
+		return this.compositeStatement.getSuperMethodInvocationStatements(superMethodInvocation);
+	}
+
 	public List<FieldInstructionObject> getFieldInstructions() {
 		return compositeStatement.getFieldInstructions();
 	}
@@ -428,8 +433,16 @@ public class MethodBodyObject {
 		return compositeStatement.getMethodInvocations();
 	}
 
+	public List<SuperMethodInvocationObject> getSuperMethodInvocations() {
+		return compositeStatement.getSuperMethodInvocations();
+	}
+
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
 		return compositeStatement.containsMethodInvocation(methodInvocation);
+	}
+
+	public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
+		return compositeStatement.containsSuperMethodInvocation(superMethodInvocation);
 	}
 
 	public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {

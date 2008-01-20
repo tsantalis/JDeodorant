@@ -133,7 +133,7 @@ public class ASTReader {
 		        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 		        		for(VariableDeclarationFragment fragment : fragments) {
 		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject = extractTypeObject(qualifiedName);
+		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
 		        			typeObject.setArrayDimension(typeObject.getArrayDimension() + fragment.getExtraDimensions());
 		        			FieldObject fieldObject = new FieldObject(typeObject, fragment.getName().getIdentifier());
 		        			fieldObject.setVariableDeclarationFragment(fragment);
@@ -173,7 +173,7 @@ public class ASTReader {
 		        			Type parameterType = parameter.getType();
 		        			ITypeBinding binding = parameterType.resolveBinding();
 		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject = extractTypeObject(qualifiedName);
+		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
 		        			typeObject.setArrayDimension(typeObject.getArrayDimension() + parameter.getExtraDimensions());
 		        			ParameterObject parameterObject = new ParameterObject(typeObject, parameter.getName().getIdentifier());
 		        			parameterObject.setSingleVariableDeclaration(parameter);
@@ -194,7 +194,7 @@ public class ASTReader {
 		        			Type returnType = methodDeclaration.getReturnType2();
 		        			ITypeBinding binding = returnType.resolveBinding();
 		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject = extractTypeObject(qualifiedName);
+		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
 		        			methodObject.setReturnType(typeObject);
 		        			methodObject.setClassName(classObject.getName());
 		        			
@@ -223,27 +223,6 @@ public class ASTReader {
         		}
         	}
         }	
-	}
-
-	private TypeObject extractTypeObject(String qualifiedName) {
-		int arrayDimension = 0;
-		String generic = null;
-		if(qualifiedName.contains("[") && qualifiedName.contains("]")) {
-			String arrayDimensionStr = qualifiedName.substring(qualifiedName.indexOf("["), qualifiedName.lastIndexOf("]")+1);
-			qualifiedName = qualifiedName.substring(0, qualifiedName.indexOf("["));
-			while(arrayDimensionStr.indexOf("[]") != -1) {
-				arrayDimensionStr = arrayDimensionStr.substring(arrayDimensionStr.indexOf("]")+1,arrayDimensionStr.length());
-				arrayDimension++;
-			}
-		}
-		if(qualifiedName.contains("<") && qualifiedName.contains(">")) {
-			generic = qualifiedName.substring(qualifiedName.indexOf("<"), qualifiedName.lastIndexOf(">")+1);
-			qualifiedName = qualifiedName.substring(0, qualifiedName.indexOf("<"));
-		}
-		TypeObject typeObject = new TypeObject(qualifiedName);
-		typeObject.setGeneric(generic);
-		typeObject.setArrayDimension(arrayDimension);
-		return typeObject;
 	}
 
 	public IFile getFile(TypeDeclaration typeDeclaration) {

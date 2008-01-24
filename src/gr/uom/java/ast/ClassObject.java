@@ -102,10 +102,12 @@ public class ClassObject {
     		if(methodBodyObject != null) {
     			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
     			for(TypeCheckElimination typeCheckElimination : list) {
-    				TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceTreeList);
-    				if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeMethodInvocation() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
-    					analyzer.processTypeCheckCodeFragmentBranches();
-    					typeCheckEliminations.add(typeCheckElimination);
+    				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
+    					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceTreeList);
+    					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeMethodInvocation() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
+    						analyzer.processTypeCheckCodeFragmentBranches();
+    						typeCheckEliminations.add(typeCheckElimination);
+    					}
     				}
     			}
     		}

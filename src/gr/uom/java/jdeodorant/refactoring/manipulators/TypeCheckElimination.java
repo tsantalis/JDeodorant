@@ -383,4 +383,13 @@ public class TypeCheckElimination {
 		}
 		return thrownExceptions;
 	}
+	
+	public boolean allTypeCheckBranchesAreEmpty() {
+		for(Expression key : typeCheckMap.keySet()) {
+			ArrayList<Statement> statements = typeCheckMap.get(key);
+			if(!statements.isEmpty())
+				return false;
+		}
+		return true;
+	}
 }

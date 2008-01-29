@@ -4,6 +4,8 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
+import gr.uom.java.ast.TypeObject;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 /*
@@ -98,8 +101,26 @@ public class CompositeStatementObject extends AbstractStatement {
 		for(AbstractStatement statement : statementList) {
 			if(statement instanceof StatementObject) {
 				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.containsLocalVariableDeclaration(lvdo))
-					return (VariableDeclarationStatement)statementObject.getStatement();
+				if(statementObject.containsLocalVariableDeclaration(lvdo)) {
+					if(statementObject.getStatement() instanceof VariableDeclarationStatement)
+						return (VariableDeclarationStatement)statementObject.getStatement();
+					else {
+						StatementExtractor statementExtractor = new StatementExtractor();
+						List<Statement> variableDeclarations = statementExtractor.getVariableDeclarations(statementObject.getStatement());
+						for(Statement variableDeclarationStatement : variableDeclarations) {
+							VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
+							String variableDeclarationType = variableDeclaration.getType().resolveBinding().getQualifiedName();
+							TypeObject variableDeclarationTypeObject = TypeObject.extractTypeObject(variableDeclarationType);
+							if(variableDeclarationTypeObject.equals(lvdo.getType())) {
+								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
+								for(VariableDeclarationFragment fragment : fragments) {
+									if(fragment.getName().getIdentifier().equals(lvdo.getName()))
+										return variableDeclaration;
+								}
+							}
+						}
+					}
+				}
 			}
 			else if(statement instanceof CompositeStatementObject) {
 				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;

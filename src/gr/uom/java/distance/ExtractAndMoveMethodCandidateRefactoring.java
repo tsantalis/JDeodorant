@@ -17,6 +17,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jface.text.Position;
 
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
@@ -31,7 +32,7 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTExtractionBlock;
 
-public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefactoring {
+public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactoring {
 	private MySystem system;
 	private MyClass sourceClass;
     private MyClass targetClass;
@@ -466,7 +467,17 @@ public class ExtractAndMoveMethodCandidateRefactoring implements CandidateRefact
 	public double getEntityPlacement() {
 		return entityPlacement;
 	}
-	
+
+	public List<Position> getPositions() {
+		ArrayList<Position> positions = new ArrayList<Position>();
+		List<Statement> statementList = getStatementsForExtraction();
+		for(Statement statement : statementList) {
+			Position position = new Position(statement.getStartPosition(), statement.getLength());
+			positions.add(position);
+		}
+		return positions;
+	}
+
 	public boolean isSubRefactoringOf(CandidateRefactoring refactoring) {
 		if(this == refactoring)
 			return false;

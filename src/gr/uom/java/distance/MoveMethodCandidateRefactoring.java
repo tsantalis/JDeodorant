@@ -1,5 +1,6 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
@@ -24,8 +25,9 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jface.text.Position;
 
-public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
+public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     private MySystem system;
 	private MyClass sourceClass;
     private MyClass targetClass;
@@ -83,6 +85,13 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
     	}
     	else
     		return false;
+    }
+
+    public boolean leaveDelegate() {
+    	List<ClassObject> excludedClasses = new ArrayList<ClassObject>();
+		excludedClasses.add(getSourceClass().getClassObject());
+		excludedClasses.add(getTargetClass().getClassObject());
+		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
     }
 
     private boolean isTargetClassAnInterface() {
@@ -354,5 +363,12 @@ public class MoveMethodCandidateRefactoring implements CandidateRefactoring {
 
 	public Set<String> getEntitySet() {
 		return sourceMethod.getEntitySet();
+	}
+
+	public List<Position> getPositions() {
+		ArrayList<Position> positions = new ArrayList<Position>();
+		Position position = new Position(getSourceMethodDeclaration().getStartPosition(), getSourceMethodDeclaration().getLength());
+		positions.add(position);
+		return positions;
 	}
 }

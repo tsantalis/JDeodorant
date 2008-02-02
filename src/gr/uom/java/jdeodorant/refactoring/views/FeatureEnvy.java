@@ -1,7 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
-import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.ConnectivityMetric;
 import gr.uom.java.ast.MMImportCoupling;
 import gr.uom.java.ast.SystemObject;
@@ -55,7 +54,6 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.ui.JavaUI;
 
 /**
@@ -314,61 +312,52 @@ public class FeatureEnvy extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				IFile sourceFile = null;
-				IFile targetFile = null;
-				Refactoring refactoring = null;
-				if(entry instanceof MoveMethodCandidateRefactoring) {
-					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
-					sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-					targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
-					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
-					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
-					
-					List<ClassObject> excludedClasses = new ArrayList<ClassObject>();
-					excludedClasses.add(candidate.getSourceClass().getClassObject());
-					excludedClasses.add(candidate.getTargetClass().getClassObject());
-					boolean leaveDelegate = astReader.getSystemObject().containsMethodInvocation(candidate.getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
-					
-					refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), candidate.getAdditionalMethodsToBeMoved(), leaveDelegate);
+				if(entry.getSourceClassTypeDeclaration() != null && entry.getTargetClassTypeDeclaration() != null) {
+					IFile sourceFile = astReader.getFile(entry.getSourceClassTypeDeclaration());
+					IFile targetFile = astReader.getFile(entry.getTargetClassTypeDeclaration());
+					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(entry.getSourceClassTypeDeclaration());
+					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(entry.getTargetClassTypeDeclaration());
+					Refactoring refactoring = null;
+					if(entry instanceof MoveMethodCandidateRefactoring) {
+						MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
+						refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
+								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate());
+					}
+					else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
+						ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
+						refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
+								candidate.getASTExtractionBlock());
+					}
+					IEditorPart targetEditor = null;
+					IEditorPart sourceEditor = null;
+					try {
+						IJavaElement targetJavaElement = JavaCore.create(targetFile);
+						targetEditor = JavaUI.openInEditor(targetJavaElement);
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						sourceEditor = JavaUI.openInEditor(sourceJavaElement);
+					} catch (PartInitException e) {
+						e.printStackTrace();
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
+					refactoring.apply();
+					sourceEditor.doSave(null);
+					targetEditor.doSave(null);
+					UndoRefactoring undoRefactoring = refactoring.getUndoRefactoring();
+					if(undoStackMap.containsKey(selectedProject)) {
+						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
+						undoStack.push(undoRefactoring);
+					}
+					else {
+						Stack<UndoRefactoring> undoStack = new Stack<UndoRefactoring>();
+						undoStack.push(undoRefactoring);
+						undoStackMap.put(selectedProject, undoStack);
+					}
+					applyRefactoringAction.setEnabled(false);
+					undoRefactoringAction.setEnabled(true);
 				}
-				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
-					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-					sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-					targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
-					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(candidate.getSourceClassTypeDeclaration());
-					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(candidate.getTargetClassTypeDeclaration());
-					
-					refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-						candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(), candidate.getASTExtractionBlock());
-				}
-				IEditorPart targetEditor = null;
-				IEditorPart sourceEditor = null;
-				try {
-					IJavaElement targetJavaElement = JavaCore.create(targetFile);
-					targetEditor = JavaUI.openInEditor(targetJavaElement);
-					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-					sourceEditor = JavaUI.openInEditor(sourceJavaElement);
-				} catch (PartInitException e) {
-					e.printStackTrace();
-				} catch (JavaModelException e) {
-					e.printStackTrace();
-				}
-				refactoring.apply();
-				sourceEditor.doSave(null);
-				targetEditor.doSave(null);
-				UndoRefactoring undoRefactoring = refactoring.getUndoRefactoring();
-				if(undoStackMap.containsKey(selectedProject)) {
-					Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-					undoStack.push(undoRefactoring);
-				}
-				else {
-					Stack<UndoRefactoring> undoStack = new Stack<UndoRefactoring>();
-					undoStack.push(undoRefactoring);
-					undoStackMap.put(selectedProject, undoStack);
-				}
-				applyRefactoringAction.setEnabled(false);
-				undoRefactoringAction.setEnabled(true);
 			}
 		};
 		applyRefactoringAction.setToolTipText("Apply Refactoring");
@@ -379,9 +368,8 @@ public class FeatureEnvy extends ViewPart {
 		doubleClickAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				if(entry instanceof MoveMethodCandidateRefactoring) {
-					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
+				CandidateRefactoring candidate = (CandidateRefactoring)selection.getFirstElement();
+				if(candidate.getSourceClassTypeDeclaration() != null && candidate.getTargetClassTypeDeclaration() != null) {
 					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
 					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
 					try {
@@ -389,6 +377,7 @@ public class FeatureEnvy extends ViewPart {
 						JavaUI.openInEditor(targetJavaElement);
 						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
 						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
+						List<Position> positions = candidate.getPositions();
 						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
 						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 						while(annotationIterator.hasNext()) {
@@ -397,43 +386,14 @@ public class FeatureEnvy extends ViewPart {
 								annotationModel.removeAnnotation(currentAnnotation);
 							}
 						}
-						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceEntity());
-						Position position = new Position(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength());
-						annotationModel.addAnnotation(annotation, position);
-						sourceEditor.setHighlightRange(candidate.getSourceMethodDeclaration().getStartPosition(), candidate.getSourceMethodDeclaration().getLength(), true);
-					} catch (PartInitException e) {
-						e.printStackTrace();
-					} catch (JavaModelException e) {
-						e.printStackTrace();
-					}
-				}
-				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
-					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
-					try {
-						IJavaElement targetJavaElement = JavaCore.create(targetFile);
-						JavaUI.openInEditor(targetJavaElement);
-						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
-						List<Statement> statementList = candidate.getStatementsForExtraction();
-						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
-						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
-						while(annotationIterator.hasNext()) {
-							Annotation currentAnnotation = annotationIterator.next();
-							if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
-								annotationModel.removeAnnotation(currentAnnotation);
-							}
-						}
-						for(Statement statement : statementList) {
-							Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getSourceEntity());
-							Position position = new Position(statement.getStartPosition(), statement.getLength());
+						for(Position position : positions) {
+							Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getAnnotationText());
 							annotationModel.addAnnotation(annotation, position);
 						}
-						Statement firstStatement = statementList.get(0);
-						Statement lastStatement = statementList.get(statementList.size()-1);
-						int offset = firstStatement.getStartPosition();
-						int length = lastStatement.getStartPosition() + lastStatement.getLength() - firstStatement.getStartPosition();
+						Position firstPosition = positions.get(0);
+						Position lastPosition = positions.get(positions.size()-1);
+						int offset = firstPosition.getOffset();
+						int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 						sourceEditor.setHighlightRange(offset, length, true);
 					} catch (PartInitException e) {
 						e.printStackTrace();
@@ -586,49 +546,5 @@ public class FeatureEnvy extends ViewPart {
 			counter++;
 		}
 		return table;		
-	}
-	
-	final class TooltipLabelListener implements Listener {
-		private boolean isCTRLDown(Event e) {
-			return (e.stateMask & SWT.CTRL) != 0;
-		}
-		public void handleEvent(Event event) {
-			Label label = (Label)event.widget;
-			Shell shell = label.getShell();
-			switch(event.type) {
-				case SWT.MouseDown:
-					Event e = new Event();
-					e.item = (TableItem)label.getData("_TableItem_");
-					Table table = ((TableItem)e.item).getParent();
-					TableItem[] newSelection = null;
-					if (isCTRLDown(event)) {
-						TableItem[] sel = table.getSelection();
-						for(int i = 0; i < sel.length; ++i) {
-							if(e.item.equals(sel[i])) {
-								newSelection = new TableItem[sel.length - 1];
-								System.arraycopy(sel, 0, newSelection, 0, i);
-								System.arraycopy(sel, i+1, newSelection, i, sel.length - i - 1);
-								break;
-							}
-						}
-						if(newSelection == null) {
-							newSelection = new TableItem[sel.length + 1];
-							System.arraycopy(sel, 0, newSelection, 0, sel.length);
-							newSelection[sel.length] = (TableItem)e.item;
-						}
-					}
-					else {
-						newSelection = new TableItem[] { (TableItem) e.item };
-					}
-					table.setSelection(newSelection);
-					table.notifyListeners(SWT.Selection, e);
-					shell.dispose();
-					table.setFocus();
-					break;
-				case SWT.MouseExit:
-					shell.dispose();
-					break;
-			}
-		}
 	}
 }

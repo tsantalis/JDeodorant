@@ -1,9 +1,14 @@
 package gr.uom.java.distance;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-public class CurrentSystem implements CandidateRefactoring {
+import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jface.text.Position;
+
+public class CurrentSystem extends CandidateRefactoring {
 	private double entityPlacement;
 	
 	public CurrentSystem(DistanceMatrix distanceMatrix) {
@@ -28,5 +33,17 @@ public class CurrentSystem implements CandidateRefactoring {
 
 	public Set<String> getEntitySet() {
 		return new HashSet<String>();
+	}
+
+	public TypeDeclaration getSourceClassTypeDeclaration() {
+		return null;
+	}
+
+	public TypeDeclaration getTargetClassTypeDeclaration() {
+		return null;
+	}
+
+	public List<Position> getPositions() {
+		return new ArrayList<Position>();
 	}
 }

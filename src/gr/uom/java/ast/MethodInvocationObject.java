@@ -12,6 +12,7 @@ public class MethodInvocationObject {
     private String methodName;
     private TypeObject returnType;
     private List<TypeObject> parameterList;
+    private boolean _static;
     private MethodInvocation methodInvocation;
     private volatile int hashCode = 0;
 
@@ -20,6 +21,7 @@ public class MethodInvocationObject {
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = new ArrayList<TypeObject>();
+        this._static = false;
     }
 
     public MethodInvocationObject(String originClassName, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
@@ -27,6 +29,7 @@ public class MethodInvocationObject {
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = parameterList;
+        this._static = false;
     }
 
     public boolean addParameter(TypeObject parameterType) {
@@ -58,6 +61,14 @@ public class MethodInvocationObject {
     	for(TypeObject typeObject : parameterList)
     		list.add(typeObject.toString());
     	return list;
+    }
+
+    public boolean isStatic() {
+        return _static;
+    }
+
+    public void setStatic(boolean s) {
+        _static = s;
     }
 
     public void setMethodInvocation(MethodInvocation methodInvocation) {

@@ -254,7 +254,8 @@ public class MethodObject {
     	return null;
     }
 
-    public boolean canBeMovedTo(ClassObject sourceClass, ClassObject targetClass) {
+    public boolean validTargetObject(ClassObject sourceClass, ClassObject targetClass) {
+    	ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
     	List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
     	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
     		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
@@ -274,7 +275,9 @@ public class MethodObject {
     	}
     	List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
     	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-    		if(fieldInstruction.getType().getClassType().equals(targetClass.getName())) {
+    		ITypeBinding fieldTypeBinding = fieldInstruction.getSimpleName().resolveTypeBinding();
+    		if(fieldInstruction.getType().getClassType().equals(targetClass.getName()) || fieldTypeBinding.isEqualTo(targetClassBinding) ||
+    				targetClassBinding.isEqualTo(fieldTypeBinding.getSuperclass())) {
 				ListIterator<FieldObject> fieldIterator = sourceClass.getFieldIterator();
 				while(fieldIterator.hasNext()) {
 					FieldObject field = fieldIterator.next();

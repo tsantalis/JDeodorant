@@ -7,6 +7,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 import gr.uom.java.ast.ClassObject;
@@ -83,8 +84,9 @@ public class ExtractionBlock {
 		return this.additionalRequiredVariableDeclarationStatementMap.get(key);
 	}
 
-	public boolean canBeMovedTo(ClassObject sourceClass, ClassObject targetClass, MethodObject sourceMethod) {
-    	List<LocalVariableInstructionObject> localVariableInstructions = new ArrayList<LocalVariableInstructionObject>();
+	public boolean validTargetObject(ClassObject sourceClass, ClassObject targetClass, MethodObject sourceMethod) {
+		ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+		List<LocalVariableInstructionObject> localVariableInstructions = new ArrayList<LocalVariableInstructionObject>();
     	if(parentStatementForCopy != null) {
     		for(AbstractExpression expression : parentStatementForCopy.getExpressions()) {
     			localVariableInstructions.addAll(expression.getLocalVariableInstructions());
@@ -134,7 +136,9 @@ public class ExtractionBlock {
     		fieldInstructions.addAll(statement.getFieldInstructions());
     	}
     	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-    		if(fieldInstruction.getType().getClassType().equals(targetClass.getName())) {
+    		ITypeBinding fieldTypeBinding = fieldInstruction.getSimpleName().resolveTypeBinding();
+    		if(fieldInstruction.getType().getClassType().equals(targetClass.getName()) || fieldTypeBinding.isEqualTo(targetClassBinding) ||
+    				targetClassBinding.isEqualTo(fieldTypeBinding.getSuperclass())) {
 				ListIterator<FieldObject> fieldIterator = sourceClass.getFieldIterator();
 				while(fieldIterator.hasNext()) {
 					FieldObject field = fieldIterator.next();

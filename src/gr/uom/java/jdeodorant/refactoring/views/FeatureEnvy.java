@@ -15,6 +15,9 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -423,11 +426,12 @@ public class FeatureEnvy extends ViewPart {
 								e.printStackTrace();
 							}
 						}
-						if(undoStack.empty())
+						if(undoStack.empty()) {
 							undoRefactoringAction.setEnabled(false);
+							applyRefactoringAction.setEnabled(true);
+						}
 					}
 				}
-				applyRefactoringAction.setEnabled(false);
 			}
 		};
 		undoRefactoringAction.setToolTipText("Undo Refactoring");
@@ -509,15 +513,15 @@ public class FeatureEnvy extends ViewPart {
 	private CandidateRefactoring[] getTable(IProject iProject) {
 		astReader = new ASTReader(iProject);
 		SystemObject systemObject = astReader.getSystemObject();
-		MMImportCoupling mmic = new MMImportCoupling(systemObject);
+		/*MMImportCoupling mmic = new MMImportCoupling(systemObject);
 		System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
 		ConnectivityMetric co = new ConnectivityMetric(systemObject);
-		System.out.println("System Average Connectivity: " + co.getSystemAverageConnectivity());
+		System.out.println("System Average Connectivity: " + co.getSystemAverageConnectivity());*/
 		MySystem system = new MySystem(systemObject);
 		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 
-		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactorings();
-		List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactorings();
+		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactoringsByAccess();
+		/*List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactorings();
 		
 		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
 		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
@@ -532,15 +536,15 @@ public class FeatureEnvy extends ViewPart {
 			if(!subRefactoring) {
 				finalExtractMethodCandidateList.add(candidate);
 			}
-		}
+		}*/
 		
-		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + finalExtractMethodCandidateList.size() + 1];
+		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() /*+ finalExtractMethodCandidateList.size()*/ + 1];
 		table[0] = new CurrentSystem(distanceMatrix);
 		int counter = 1;
-		for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
+		/*for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;
-		}
+		}*/
 		for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;

@@ -20,10 +20,8 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jface.text.Position;
 
 import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
-import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.ExtractionBlock;
@@ -104,8 +102,7 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
     }
 
     public boolean apply() {
-    	if(!containsSuperMethodInvocation() && !containsBranchingStatement() && !containsFieldAssignment() && !isTargetClassAnInterface() && !isTargetClassAnInnerClass() &&
-    			canBeMoved() && hasReferenceToTargetClass()) {
+    	if(!containsSuperMethodInvocation() && !containsBranchingStatement() && !containsFieldAssignment() && !isTargetClassAnInterface() && validTargetObject()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
@@ -129,18 +126,8 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
     	}
     }
 
-    private boolean isTargetClassAnInnerClass() {
-    	if(targetClass.getClassObject().isInnerClass()) {
-    		//System.out.println(this.toString() + "\tTarget class is an inner class");
-    		return true;
-    	}
-    	else {
-    		return false;
-    	}
-    }
-
-    private boolean canBeMoved() {
-    	if(extractionBlock.canBeMovedTo(sourceClass.getClassObject(), targetClass.getClassObject(), sourceMethod.getMethodObject())) {
+    private boolean validTargetObject() {
+    	if(extractionBlock.validTargetObject(sourceClass.getClassObject(), targetClass.getClassObject(), sourceMethod.getMethodObject())) {
     		return true;
     	}
     	else {
@@ -193,42 +180,6 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
         		}
     		}
     	}
-    	return false;
-    }
-
-    private boolean hasReferenceToTargetClass() {
-    	List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = sourceMethod.getMethodObject().getLocalVariableDeclarations();
-    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
-    		TypeObject type = localVariableDeclaration.getType();
-    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    			VariableDeclarationStatement variableDeclaration = sourceMethod.getMethodObject().getVariableDeclarationStatement(localVariableDeclaration);
-    			if(variableDeclaration != null) {
-	    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
-	    			Statement statement = extractionBlock.getStatementsForExtraction().get(0).getStatement();
-					ASTNode statementParent = statement.getParent();
-					while(!(statementParent instanceof MethodDeclaration)) {
-						if(statementParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < statement.getStartPosition())
-							return true;
-						statementParent = statementParent.getParent();
-					}
-    			}
-    		}
-    	}
-    	List<TypeObject> sourceMethodParameterTypes = sourceMethod.getMethodObject().getParameterTypeList();
-    	for(TypeObject parameterType : sourceMethodParameterTypes) {
-    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
-    			return true;
-    		}
-    	}
-    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
-    	while(sourceClassFieldIterator.hasNext()) {
-    		FieldObject field = sourceClassFieldIterator.next();
-    		TypeObject type = field.getType();
-    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-    			return true;
-    		}
-    	}
-    	//System.out.println(this.toString() + "\thas no reference to Target class");
     	return false;
     }
 

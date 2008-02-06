@@ -36,7 +36,7 @@ public class MyAbstractExpression {
 
         List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
         for(MethodInvocationObject mio : methodInvocations) {
-            if(system.getClassObject(mio.getOriginClassName()) != null) {
+            if(system.getClassObject(mio.getOriginClassName()) != null && !mio.isStatic()) {
             	MethodInvocationObject methodInvocation;
             	if(isAccessor(mio,system)) {	
             	}

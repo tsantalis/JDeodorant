@@ -103,25 +103,63 @@ public class MoveMethodRefactoring implements Refactoring {
 
 	public void apply() {
 		if(sourceCompilationUnit.equals(targetCompilationUnit)) {
-			int sourceTypeDeclarationPosition = 0;
-			int targetTypeDeclarationPosition = 0;
+			int sourceTypeDeclarationFirstLevelPosition = -1;
+			int targetTypeDeclarationFirstLevelPosition = -1;
+			int sourceTypeDeclarationSecondLevelPosition = -1;
+			int targetTypeDeclarationSecondLevelPosition = -1;
 			List<AbstractTypeDeclaration> typeDeclarationList = sourceCompilationUnit.types();
 			int i = 0;
 			for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarationList) {
-				if(abstractTypeDeclaration.equals(sourceTypeDeclaration))
-					sourceTypeDeclarationPosition = i;
-				else if(abstractTypeDeclaration.equals(targetTypeDeclaration))
-					targetTypeDeclarationPosition = i;
+				if(abstractTypeDeclaration instanceof TypeDeclaration) {
+					TypeDeclaration parentTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					if(parentTypeDeclaration.equals(sourceTypeDeclaration)) {
+						sourceTypeDeclarationFirstLevelPosition = i;
+					}
+					else {
+						int secondLevelPosition = getPositionInParentTypeDeclaration(parentTypeDeclaration, sourceTypeDeclaration);
+						if(secondLevelPosition != -1) {
+							sourceTypeDeclarationFirstLevelPosition = i;
+							sourceTypeDeclarationSecondLevelPosition = secondLevelPosition;
+						}
+					}
+					if(parentTypeDeclaration.equals(targetTypeDeclaration)) {
+						targetTypeDeclarationFirstLevelPosition = i;
+					}
+					else {
+						int secondLevelPosition = getPositionInParentTypeDeclaration(parentTypeDeclaration, targetTypeDeclaration);
+						if(secondLevelPosition != -1) {
+							targetTypeDeclarationFirstLevelPosition = i;
+							targetTypeDeclarationSecondLevelPosition = secondLevelPosition;
+						}
+					}
+				}
 				i++;
 			}
-			if(sourceTypeDeclarationPosition < targetTypeDeclarationPosition)
+			if(sourceTypeDeclarationFirstLevelPosition < targetTypeDeclarationFirstLevelPosition)
 				applyTargetFirst();
-			else if(sourceTypeDeclarationPosition > targetTypeDeclarationPosition)
+			else if(sourceTypeDeclarationFirstLevelPosition > targetTypeDeclarationFirstLevelPosition)
 				applySourceFirst();
+			else {
+				if(sourceTypeDeclarationSecondLevelPosition < targetTypeDeclarationSecondLevelPosition)
+					applyTargetFirst();
+				else if(sourceTypeDeclarationSecondLevelPosition > targetTypeDeclarationSecondLevelPosition)
+					applySourceFirst();
+			}
 		}
 		else {
 			applyTargetFirst();
 		}
+	}
+
+	private int getPositionInParentTypeDeclaration(TypeDeclaration parent, TypeDeclaration child) {
+		TypeDeclaration[] types = parent.getTypes();
+		int i = 0;
+		for(TypeDeclaration type : types) {
+			if(type.equals(child))
+				return i;
+			i++;
+		}
+		return -1;
 	}
 
 	public void applyTargetFirst() {
@@ -391,14 +429,37 @@ public class MoveMethodRefactoring implements Refactoring {
 			}
 			i++;
 		}
+		
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newMethodDeclaration.getBody());
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		
 		if(targetClassVariableName == null) {
-			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newMethodDeclaration.getBody());
-			FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
         	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
         		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
         		for(VariableDeclarationFragment fragment : fragments) {
 	        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+	        			for(Expression expression : newVariableInstructions) {
+	        				SimpleName simpleName = (SimpleName)expression;
+	        				if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+	        					targetClassVariableName = fragment.getName().getIdentifier();
+	        					break;
+	        				}
+	        			}
+	        			if(targetClassVariableName != null)
+	        				break;
+	        		}
+        		}
+        		if(targetClassVariableName != null)
+    				break;
+        	}
+		}
+		
+		if(targetClassVariableName == null) {
+        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+        		for(VariableDeclarationFragment fragment : fragments) {
+	        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass())) {
 	        			for(Expression expression : newVariableInstructions) {
 	        				SimpleName simpleName = (SimpleName)expression;
 	        				if(fragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
@@ -462,12 +523,23 @@ public class MoveMethodRefactoring implements Refactoring {
 				break;
 			}
 		}
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
 		if(targetClassVariableName == null) {
-			FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
         	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
         		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
         		for(VariableDeclarationFragment fragment : fragments) {
 	        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+	        			targetClassVariableName = fragment.getName().getIdentifier();
+	        			break;
+	        		}
+        		}
+        	}
+		}
+		if(targetClassVariableName == null) {
+        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+        		for(VariableDeclarationFragment fragment : fragments) {
+	        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass())) {
 	        			targetClassVariableName = fragment.getName().getIdentifier();
 	        			break;
 	        		}
@@ -544,29 +616,26 @@ public class MoveMethodRefactoring implements Refactoring {
 		    								break;
 		    							}
 		    						}
-		    						boolean foundInLocalVariableDeclarations = false;
+		    						boolean foundInFields = false;
 		    						if(!foundInArguments) {
-		    							StatementExtractor statementExtractor = new StatementExtractor();
-		    							List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(methodBody);
-		    							for(Statement variableDeclarationStatement : variableDeclarationStatements) {
-		    								VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
-		    								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
-		    				        		for(VariableDeclarationFragment fragment : fragments) {
-		    				        			if(variableDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
-		    				        					variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
-		    				        				foundInLocalVariableDeclarations = true;
-		    				        				sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
-		    				        				break;
-		    				        			}
-		    				        		}
-		    							}
-		    						}
-		    						if(!foundInArguments && !foundInLocalVariableDeclarations) {
 		    							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
 		    				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 		    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 		    				        		for(VariableDeclarationFragment fragment : fragments) {
 			    				        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+			    				        			foundInFields = true;
+			    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
+			    				        			break;
+			    				        		}
+		    				        		}
+		    				        	}
+		    						}
+		    						if(!foundInArguments && !foundInFields) {
+		    							FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		    				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+		    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+		    				        		for(VariableDeclarationFragment fragment : fragments) {
+			    				        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass())) {
 			    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
 			    				        			break;
 			    				        		}
@@ -676,7 +745,8 @@ public class MoveMethodRefactoring implements Refactoring {
 				Expression methodInvocationExpression = methodInvocation.getExpression();
 				if(methodInvocationExpression instanceof SimpleName) {
 					SimpleName methodInvocationExpressionSimpleName = (SimpleName)methodInvocationExpression;
-					if(methodInvocationExpressionSimpleName.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+					if( (methodInvocationExpressionSimpleName.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+							targetTypeDeclaration.resolveBinding().isEqualTo(methodInvocationExpressionSimpleName.resolveTypeBinding().getSuperclass()) ) &&
 							methodInvocationExpressionSimpleName.getIdentifier().equals(targetClassVariableName)) {
 						MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(i);
 						targetRewriter.remove(newMethodInvocation.getExpression(), null);
@@ -684,7 +754,8 @@ public class MoveMethodRefactoring implements Refactoring {
 				}
 				else if(methodInvocationExpression instanceof FieldAccess) {
 					FieldAccess methodInvocationExpressionFieldAccess = (FieldAccess)methodInvocationExpression;
-					if(methodInvocationExpressionFieldAccess.getName().resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+					if( (methodInvocationExpressionFieldAccess.getName().resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+							targetTypeDeclaration.resolveBinding().isEqualTo(methodInvocationExpressionFieldAccess.getName().resolveTypeBinding().getSuperclass()) ) &&
 							methodInvocationExpressionFieldAccess.getName().getIdentifier().equals(targetClassVariableName)) {
 						MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(i);
 						targetRewriter.remove(newMethodInvocation.getExpression(), null);
@@ -709,7 +780,8 @@ public class MoveMethodRefactoring implements Refactoring {
 					SimpleName simpleName = (SimpleName)expression;
 					if(simpleName.getParent() instanceof QualifiedName && fragmentName.getIdentifier().equals(simpleName.getIdentifier())) {
 						QualifiedName qualifiedName = (QualifiedName)simpleName.getParent();
-						if(qualifiedName.getQualifier().resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+						if( (qualifiedName.getQualifier().resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+								targetTypeDeclaration.resolveBinding().isEqualTo(qualifiedName.getQualifier().resolveTypeBinding().getSuperclass()) ) &&
 								qualifiedName.getQualifier().getFullyQualifiedName().equals(targetClassVariableName)) {
 							SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
 							targetRewriter.replace(newSimpleName.getParent(), simpleName, null);
@@ -720,7 +792,8 @@ public class MoveMethodRefactoring implements Refactoring {
 						Expression fieldAccessExpression = fieldAccess.getExpression();
 						if(fieldAccessExpression instanceof FieldAccess) {
 							FieldAccess invokerFieldAccess = (FieldAccess)fieldAccessExpression;
-							if(invokerFieldAccess.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+							if( (invokerFieldAccess.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+									targetTypeDeclaration.resolveBinding().isEqualTo(invokerFieldAccess.resolveTypeBinding().getSuperclass())) &&
 									invokerFieldAccess.getName().getIdentifier().equals(targetClassVariableName) && invokerFieldAccess.getExpression() instanceof ThisExpression) {
 								SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
 								FieldAccess newFieldAccess = (FieldAccess)newSimpleName.getParent();

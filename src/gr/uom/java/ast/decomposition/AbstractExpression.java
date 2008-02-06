@@ -94,6 +94,8 @@ public class AbstractExpression {
 					TypeObject typeObject = TypeObject.extractTypeObject(qualifiedParameterName);
 					methodInvocationObject.addParameter(typeObject);
 				}
+				if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
+					methodInvocationObject.setStatic(true);
 				methodInvocationList.add(methodInvocationObject);
 			}
 			else if(methodInvocation instanceof SuperMethodInvocation) {

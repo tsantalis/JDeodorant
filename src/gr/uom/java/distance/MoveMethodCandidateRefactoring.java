@@ -2,11 +2,8 @@ package gr.uom.java.distance;
 
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.FieldObject;
-import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
-import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import java.util.ArrayList;
@@ -18,13 +15,10 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
-import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jface.text.Position;
 
 public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
@@ -71,18 +65,19 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         }
     }
 
-    public boolean apply() {
-    	if(!containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() && !isTargetClassAnInnerClass() &&
-    			canBeMoved() && hasReferenceToTargetClass()) {
-    		MySystem virtualSystem = MySystem.newInstance(system);
-    	    virtualApplication(virtualSystem);
-    	    FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
-    	    double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
-    	    //DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-    	    //double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
-    	    this.entityPlacement = fastEntityPlacement;
-    	    return true;
-    	}
+    public void apply() {
+    	MySystem virtualSystem = MySystem.newInstance(system);
+    	virtualApplication(virtualSystem);
+    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
+    	double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
+    	//DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
+    	//double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+    	this.entityPlacement = fastEntityPlacement;
+    }
+
+    public boolean isApplicable() {
+    	if(!containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() && validTargetObject())
+    		return true;
     	else
     		return false;
     }
@@ -104,18 +99,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     	}
     }
 
-    private boolean isTargetClassAnInnerClass() {
-    	if(targetClass.getClassObject().isInnerClass()) {
-    		//System.out.println(this.toString() + "\tTarget class is an inner class");
-    		return true;
-    	}
-    	else {
-    		return false;
-    	}
-    }
-
-    private boolean canBeMoved() {
-    	if(sourceMethod.getMethodObject().canBeMovedTo(sourceClass.getClassObject(), targetClass.getClassObject())) {
+    private boolean validTargetObject() {
+    	if(sourceMethod.getMethodObject().validTargetObject(sourceClass.getClassObject(), targetClass.getClassObject())) {
     		return true;
     	}
     	else {
@@ -152,71 +137,6 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     	}
     	else
     		return false;
-    }
-
-    private boolean hasReferenceToTargetClass() {
-    	ListIterator<MethodObject> sourceMethodIterator = sourceClass.getClassObject().getMethodIterator();
-    	MethodInvocationObject sourceMethodInvocation = sourceMethod.getMethodObject().generateMethodInvocation();
-    	int numberOfMethodsInvokingSourceMethod = 0;
-    	int numberOfMethodsHavingReferenceToTargetClass = 0;
-    	while(sourceMethodIterator.hasNext()) {
-    		MethodObject method = sourceMethodIterator.next();
-    		if(method.containsMethodInvocation(sourceMethodInvocation)) {
-    			boolean hasReferenceToTargetClass = false;
-    			numberOfMethodsInvokingSourceMethod++;
-    			List<AbstractStatement> methodInvocationStatements = method.getMethodInvocationStatements(sourceMethodInvocation);
-    	    	int sameScopeCounter = 0;
-    	    	for(AbstractStatement methodInvocationStatement : methodInvocationStatements) {
-    	    		List<LocalVariableDeclarationObject> sourceMethodLocalVariableDeclarations = method.getLocalVariableDeclarations();
-        	    	for(LocalVariableDeclarationObject localVariableDeclaration : sourceMethodLocalVariableDeclarations) {
-        	    		TypeObject type = localVariableDeclaration.getType();
-        	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-        	    			VariableDeclarationStatement variableDeclaration = method.getVariableDeclarationStatement(localVariableDeclaration);
-        	    			if(variableDeclaration != null) {
-	        	    			Statement methodInvocation = methodInvocationStatement.getStatement();
-	        	    			ASTNode variableDeclarationParent = variableDeclaration.getParent();
-	    	    				ASTNode methodInvocationParent = methodInvocation.getParent();
-	    	    				while(!(methodInvocationParent instanceof MethodDeclaration)) {
-	    	    					if(methodInvocationParent.equals(variableDeclarationParent) && variableDeclaration.getStartPosition() < methodInvocation.getStartPosition()) {
-	    	    						sameScopeCounter++;
-	    	    						break;
-	    	    					}
-	    	    					methodInvocationParent = methodInvocationParent.getParent();
-	    	    				}
-        	    			}
-        	    		}
-        	    	}
-    	    	}
-    	    	if(sameScopeCounter >= methodInvocationStatements.size())
-    				hasReferenceToTargetClass = true;
-    	    	if(!hasReferenceToTargetClass) {
-	    			List<TypeObject> sourceMethodParameterTypes = method.getParameterTypeList();
-	    	    	for(TypeObject parameterType : sourceMethodParameterTypes) {
-	    	    		if(parameterType.getClassType().equals(targetClass.getClassObject().getName())) {
-	    	    			hasReferenceToTargetClass = true;
-	    	    		}
-	    	    	}
-    	    	}
-    	    	if(!hasReferenceToTargetClass) {
-	    	    	ListIterator<FieldObject> sourceClassFieldIterator = sourceClass.getClassObject().getFieldIterator();
-	    	    	while(sourceClassFieldIterator.hasNext()) {
-	    	    		FieldObject field = sourceClassFieldIterator.next();
-	    	    		TypeObject type = field.getType();
-	    	    		if(type.getClassType().equals(targetClass.getClassObject().getName())) {
-	    	    			hasReferenceToTargetClass = true;
-	    	    		}
-	    	    	}
-    	    	}
-    	    	if(hasReferenceToTargetClass)
-    	    		numberOfMethodsHavingReferenceToTargetClass++;
-    		}
-    	}
-    	if(numberOfMethodsInvokingSourceMethod > 0 && numberOfMethodsInvokingSourceMethod != numberOfMethodsHavingReferenceToTargetClass) {
-    		//System.out.println(this.toString() + "\thas no reference to Target class");
-    		return false;
-    	}
-    	else
-    		return true;
     }
 
     private void virtualApplication(MySystem virtualSystem) {

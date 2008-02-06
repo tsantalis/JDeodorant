@@ -36,7 +36,7 @@ public abstract class MyAbstractStatement {
 
         List<MethodInvocationObject> methodInvocations = statement.getMethodInvocations();
         for(MethodInvocationObject mio : methodInvocations) {
-            if(system.getClassObject(mio.getOriginClassName()) != null) {
+            if(system.getClassObject(mio.getOriginClassName()) != null && !mio.isStatic()) {
             	MethodInvocationObject methodInvocation;
             	if(isAccessor(mio,system)) {	
             	}

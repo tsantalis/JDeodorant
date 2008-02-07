@@ -163,10 +163,20 @@ public class MoveMethodRefactoring implements Refactoring {
 	}
 
 	public void applyTargetFirst() {
-		addRequiredTargetImportDeclarations();
+		if(!sourceCompilationUnit.equals(targetCompilationUnit))
+			addRequiredTargetImportDeclarations();
 		createMovedMethod();
 		moveAdditionalMethods();
 		modifyMovedMethodInvocationInTargetClass();
+		
+		if(leaveDelegate) {
+			addDelegationInSourceMethod();
+		}
+		else {
+			removeSourceMethod();
+		}
+		modifyMovedMethodInvocationInSourceClass();
+		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
 		IDocument targetDocument = targetTextFileBuffer.getDocument();
@@ -180,13 +190,6 @@ public class MoveMethodRefactoring implements Refactoring {
 			e.printStackTrace();
 		}
 		
-		if(leaveDelegate) {
-			addDelegationInSourceMethod();
-		}
-		else {
-			removeSourceMethod();
-		}
-		modifyMovedMethodInvocationInSourceClass();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
 		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
@@ -201,6 +204,12 @@ public class MoveMethodRefactoring implements Refactoring {
 	}
 
 	public void applySourceFirst() {
+		if(!sourceCompilationUnit.equals(targetCompilationUnit))
+			addRequiredTargetImportDeclarations();
+		createMovedMethod();
+		moveAdditionalMethods();
+		modifyMovedMethodInvocationInTargetClass();
+		
 		if(leaveDelegate) {
 			addDelegationInSourceMethod();
 		}
@@ -208,6 +217,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			removeSourceMethod();
 		}
 		modifyMovedMethodInvocationInSourceClass();
+		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
@@ -221,10 +231,6 @@ public class MoveMethodRefactoring implements Refactoring {
 			e.printStackTrace();
 		}
 		
-		addRequiredTargetImportDeclarations();
-		createMovedMethod();
-		moveAdditionalMethods();
-		modifyMovedMethodInvocationInTargetClass();
 		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
 		IDocument targetDocument = targetTextFileBuffer.getDocument();
 		TextEdit targetEdit = targetRewriter.rewriteAST(targetDocument, null);

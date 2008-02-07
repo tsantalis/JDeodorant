@@ -1,8 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
-import gr.uom.java.ast.ConnectivityMetric;
-import gr.uom.java.ast.MMImportCoupling;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.ExtractAndMoveMethodCandidateRefactoring;
@@ -550,5 +548,22 @@ public class FeatureEnvy extends ViewPart {
 			counter++;
 		}
 		return table;		
+	}
+
+	private void saveResults() {
+		try {
+			BufferedWriter out = new BufferedWriter(new FileWriter("C:\\results.txt"));
+			Table table = tableViewer.getTable();
+			for(int i=0; i<table.getItemCount(); i++) {
+				TableItem tableItem = table.getItem(i);
+				for(int j=0; j<table.getColumnCount(); j++) {
+					out.write(tableItem.getText(j) + "\t");
+				}
+				out.newLine();
+			}
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

@@ -85,7 +85,11 @@ public class MyMethod extends Entity {
         return methodName;
     }
 
-    public String getReturnType() {
+    public void setMethodName(String methodName) {
+		this.methodName = methodName;
+	}
+
+	public String getReturnType() {
         return returnType;
     }
 

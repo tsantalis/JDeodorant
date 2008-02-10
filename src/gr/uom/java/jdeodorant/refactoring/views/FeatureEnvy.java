@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-import java.util.regex.Pattern;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
@@ -323,7 +322,7 @@ public class FeatureEnvy extends ViewPart {
 						MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
 						refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
-								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate());
+								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate(), candidate.getMovedMethodName());
 					}
 					else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
 						ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
@@ -444,21 +443,22 @@ public class FeatureEnvy extends ViewPart {
 				if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
 					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
 					String methodName = candidate.getExtractionBlock().getExtractedMethodName();
-					IInputValidator methodNameValidator = new IInputValidator() {
-						public String isValid(String text) {
-							String pattern = "[a-zA-Z\\$_][a-zA-Z0-9\\$_]*";
-							if(Pattern.matches(pattern, text)) {
-								return null;
-							}
-							else {
-								return "Invalid method name";
-							}
-						}
-					};
+					IInputValidator methodNameValidator = new MethodNameValidator();
 					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
 					dialog.open();
 					if(dialog.getValue() != null) {
 						candidate.getExtractionBlock().setExtractedMethodName(dialog.getValue());
+						tableViewer.refresh();
+					}
+				}
+				else if(entry instanceof MoveMethodCandidateRefactoring) {
+					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
+					String methodName = candidate.getMovedMethodName();
+					IInputValidator methodNameValidator = new MethodNameValidator();
+					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+					dialog.open();
+					if(dialog.getValue() != null) {
+						candidate.setMovedMethodName(dialog.getValue());
 						tableViewer.refresh();
 					}
 				}

@@ -77,9 +77,11 @@ public class MoveMethodRefactoring implements Refactoring {
 	private Set<String> additionalArgumentsAddedToMovedMethod;
 	private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
 	private boolean leaveDelegate;
+	private String movedMethodName;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
-			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved, boolean leaveDelegate) {
+			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, Map<MethodInvocation,
+			MethodDeclaration> additionalMethodsToBeMoved, boolean leaveDelegate, String movedMethodName) {
 		this.sourceFile = sourceFile;
 		this.targetFile = targetFile;
 		this.sourceCompilationUnit = sourceCompilationUnit;
@@ -95,6 +97,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		this.additionalArgumentsAddedToMovedMethod = new LinkedHashSet<String>();
 		this.additionalMethodsToBeMoved = additionalMethodsToBeMoved;
 		this.leaveDelegate = leaveDelegate;
+		this.movedMethodName = movedMethodName;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {
@@ -403,6 +406,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		AST ast = targetTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = (MethodDeclaration)ASTNode.copySubtree(ast, sourceMethod);
 		
+		targetRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
 		ListRewrite modifierRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		Modifier publicModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 		boolean modifierFound = false;
@@ -564,7 +568,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		ITypeBinding sourceMethodReturnTypeBinding = sourceMethodReturnType.resolveBinding();
 		AST ast = sourceMethod.getBody().getAST();
 		MethodInvocation delegation = ast.newMethodInvocation();
-		sourceRewriter.set(delegation, MethodInvocation.NAME_PROPERTY, sourceMethod.getName(), null);
+		sourceRewriter.set(delegation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
 		SimpleName expressionName = ast.newSimpleName(targetClassVariableName);
 		sourceRewriter.set(delegation, MethodInvocation.EXPRESSION_PROPERTY, expressionName, null);
 		
@@ -612,6 +616,8 @@ public class MoveMethodRefactoring implements Refactoring {
 		    				if(expression instanceof MethodInvocation) {
 		    					MethodInvocation methodInvocation = (MethodInvocation)expression;
 		    					if(sourceMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+		    						AST ast = methodInvocation.getAST();
+		    						sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
 		    						List<Expression> arguments = methodInvocation.arguments();
 		    						boolean foundInArguments = false;
 		    						for(Expression argument : arguments) {
@@ -651,7 +657,6 @@ public class MoveMethodRefactoring implements Refactoring {
 		    				        	}
 		    						}
 		    						ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-		    						AST ast = methodInvocation.getAST();
 		    						for(String argument : additionalArgumentsAddedToMovedMethod) {
 		    							if(argument.equals("this"))
 		    								argumentRewrite.insertLast(ast.newThisExpression(), null);
@@ -681,6 +686,8 @@ public class MoveMethodRefactoring implements Refactoring {
 	    				if(expression instanceof MethodInvocation) {
 	    					MethodInvocation methodInvocation = (MethodInvocation)expression;
 	    					if(sourceMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+	    						AST ast = methodInvocation.getAST();
+	    						targetRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
 	    						Expression invoker = methodInvocation.getExpression();
 	    						if(invoker instanceof SimpleName) {
 	    							SimpleName simpleName = (SimpleName)invoker;
@@ -1219,11 +1226,12 @@ public class MoveMethodRefactoring implements Refactoring {
 						if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
 							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
+							AST ast = newMethodDeclaration.getAST();
 							if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
+								targetRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
 								argumentRewrite.remove(argument, null);
 							}
 							else {
-								AST ast = newMethodDeclaration.getAST();
 								argumentRewrite.replace(argument, ast.newThisExpression(), null);
 							}
 						}
@@ -1234,11 +1242,12 @@ public class MoveMethodRefactoring implements Refactoring {
 						if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
 							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
+							AST ast = newMethodDeclaration.getAST();
 							if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
+								targetRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
 								argumentRewrite.remove(argument, null);
 							}
 							else {
-								AST ast = newMethodDeclaration.getAST();
 								argumentRewrite.replace(argument, ast.newThisExpression(), null);
 							}
 						}

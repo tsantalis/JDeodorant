@@ -30,6 +30,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     //contains source class methods that do not access any field or method and are accessed only by sourceMethod
     private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
     private DistanceMatrix originalDistanceMatrix;
+    private String movedMethodName;
 
     public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, DistanceMatrix originalDistanceMatrix) {
         this.system = system;
@@ -38,6 +39,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         this.sourceMethod = sourceMethod;
         this.originalDistanceMatrix = originalDistanceMatrix;
         this.additionalMethodsToBeMoved = new LinkedHashMap<MethodInvocation, MethodDeclaration>();
+        this.movedMethodName = sourceMethod.getMethodName();
         List<MethodInvocationObject> methodInvocations = sourceMethod.getMethodObject().getMethodInvocations();
         for(MethodInvocationObject methodInvocation : methodInvocations) {
         	if(methodInvocation.getOriginClassName().equals(sourceClass.getClassObject().getName()) &&
@@ -150,7 +152,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         while(instructionIterator.hasNext()) {
             MyAttributeInstruction instruction = instructionIterator.next();
             if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin())) {
-                newMethod.addParameter(instruction.getClassType());
+            	if(!instruction.getClassType().equals(targetClass.getName()))
+            		newMethod.addParameter(instruction.getClassType());
                 instructionsToBeRemoved.add(instruction);
                 MyClass virtualSourceClass = virtualSystem.getClass(sourceClass.getName());
                 ListIterator<MyMethod> sourceMethodIterator = virtualSourceClass.getMethodIterator();
@@ -170,10 +173,22 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         ListIterator<MyMethodInvocation> invocationIterator = newMethod.getMethodInvocationIterator();
         while(invocationIterator.hasNext()) {
             MyMethodInvocation invocation = invocationIterator.next();
-            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()) && !belongsToAdditionalMethodsToBeMoved(invocation))
+            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()) && !belongsToAdditionalMethodsToBeMoved(invocation)) {
                 newMethod.addParameter(invocation.getClassOrigin());
+                break;
+            }
         }
-
+        
+        if(virtualSystem.getClass(targetClass.getName()).getMethod(newMethod) != null) {
+        	String sourceClassName = null;
+        	if(sourceClass.getName().contains("."))
+        		sourceClassName = sourceClass.getName().substring(sourceClass.getName().lastIndexOf(".")+1, sourceClass.getName().length());
+        	else
+        		sourceClassName = sourceClass.getName();
+        	movedMethodName = newMethod.getMethodName() + sourceClassName;
+        	newMethod.setMethodName(movedMethodName);
+        }
+        
         MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
         MyMethodInvocation newMethodInvocation = newMethod.generateMethodInvocation();
         virtualSystem.getClass(sourceClass.getName()).removeMethod(oldMethod);
@@ -261,12 +276,33 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     	return additionalMethodsToBeMoved;
     }
 
-    public String toString() {
+    public String getMovedMethodName() {
+		return movedMethodName;
+	}
+
+	public void setMovedMethodName(String movedMethodName) {
+		this.movedMethodName = movedMethodName;
+	}
+
+	public String toString() {
         return getSourceEntity() + "->" + getTarget();
     }
 
 	public String getSourceEntity() {
-		return sourceMethod.toString();
+		StringBuilder sb = new StringBuilder();
+        sb.append(sourceMethod.getClassOrigin()).append("::");
+        sb.append(movedMethodName);
+        List<String> parameterList = sourceMethod.getParameterList();
+        sb.append("(");
+        if(!parameterList.isEmpty()) {
+            for(int i=0; i<parameterList.size()-1; i++)
+                sb.append(parameterList.get(i)).append(", ");
+            sb.append(parameterList.get(parameterList.size()-1));
+        }
+        sb.append(")");
+        if(sourceMethod.getReturnType() != null)
+            sb.append(":").append(sourceMethod.getReturnType());
+        return sb.toString();
 	}
 
 	public String getSource() {

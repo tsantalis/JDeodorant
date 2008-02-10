@@ -261,7 +261,8 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
         while(instructionIterator.hasNext()) {
             MyAttributeInstruction instruction = instructionIterator.next();
             if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin())) {
-                newMethod.addParameter(instruction.getClassType());
+            	if(!instruction.getClassType().equals(targetClass.getName()))
+            		newMethod.addParameter(instruction.getClassType());
                 instructionsToBeRemoved.add(instruction);
             }
         }
@@ -271,8 +272,10 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
         ListIterator<MyMethodInvocation> invocationIterator = newMethod.getMethodInvocationIterator();
         while(invocationIterator.hasNext()) {
             MyMethodInvocation invocation = invocationIterator.next();
-            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()))
+            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin())) {
                 newMethod.addParameter(invocation.getClassOrigin());
+                break;
+            }
         }
 
         MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();

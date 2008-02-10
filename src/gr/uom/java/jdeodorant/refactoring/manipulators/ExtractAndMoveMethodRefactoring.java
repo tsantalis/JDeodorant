@@ -86,7 +86,8 @@ public class ExtractAndMoveMethodRefactoring implements Refactoring {
         	targetTypeDeclaration = this.targetTypeDeclaration;
         }
 		MoveMethodRefactoring moveMethodRefactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
-			sourceTypeDeclaration, targetTypeDeclaration, extractedMethodDeclaration, new LinkedHashMap<MethodInvocation, MethodDeclaration>(), false);
+			sourceTypeDeclaration, targetTypeDeclaration, extractedMethodDeclaration, new LinkedHashMap<MethodInvocation, MethodDeclaration>(),
+			false, extractedMethodDeclaration.getName().getIdentifier());
 		moveMethodRefactoring.apply();
 		UndoRefactoring moveMethodUndoRefactoring = moveMethodRefactoring.getUndoRefactoring();
 		undoRefactoring.merge(moveMethodUndoRefactoring);

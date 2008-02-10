@@ -529,7 +529,8 @@ public class MoveMethodRefactoring implements Refactoring {
 		String targetClassVariableName = null;
 		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
 			ITypeBinding parameterTypeBinding = parameter.getType().resolveBinding();
-			if(parameterTypeBinding.isEqualTo(targetTypeDeclaration.resolveBinding())){
+			if(parameterTypeBinding.isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+					parameter.getName().getIdentifier().equals(this.targetClassVariableName)) {
 				targetClassVariableName = parameter.getName().getIdentifier();
 				break;
 			}
@@ -539,7 +540,8 @@ public class MoveMethodRefactoring implements Refactoring {
         	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
         		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
         		for(VariableDeclarationFragment fragment : fragments) {
-	        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+	        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+	        				fragment.getName().getIdentifier().equals(this.targetClassVariableName)) {
 	        			targetClassVariableName = fragment.getName().getIdentifier();
 	        			break;
 	        		}
@@ -550,7 +552,8 @@ public class MoveMethodRefactoring implements Refactoring {
         	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
         		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
         		for(VariableDeclarationFragment fragment : fragments) {
-	        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass())) {
+	        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass()) &&
+	        				fragment.getName().getIdentifier().equals(this.targetClassVariableName)) {
 	        			targetClassVariableName = fragment.getName().getIdentifier();
 	        			break;
 	        		}
@@ -636,7 +639,8 @@ public class MoveMethodRefactoring implements Refactoring {
 		    				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 		    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 		    				        		for(VariableDeclarationFragment fragment : fragments) {
-			    				        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+			    				        		if(fieldDeclaration.getType().resolveBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+			    				        				fragment.getName().getIdentifier().equals(targetClassVariableName)) {
 			    				        			foundInFields = true;
 			    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
 			    				        			break;
@@ -649,7 +653,8 @@ public class MoveMethodRefactoring implements Refactoring {
 		    				        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 		    				        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 		    				        		for(VariableDeclarationFragment fragment : fragments) {
-			    				        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass())) {
+			    				        		if(targetTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaration.getType().resolveBinding().getSuperclass()) &&
+			    				        				fragment.getName().getIdentifier().equals(targetClassVariableName)) {
 			    				        			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, fragment.getName(), null);
 			    				        			break;
 			    				        		}

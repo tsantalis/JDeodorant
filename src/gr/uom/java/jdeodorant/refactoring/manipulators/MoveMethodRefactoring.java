@@ -490,6 +490,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
 		modifySourceStaticMethodInvocationsInTargetClass(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
+		replaceTargetClassVariableNameWithThisExpressionInClassInstanceCreationArguments(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInVariableDeclarationInitializers(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInInfixExpressions(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInCastExpressions(newMethodDeclaration);
@@ -614,7 +615,8 @@ public class MoveMethodRefactoring implements Refactoring {
 		    						List<Expression> arguments = methodInvocation.arguments();
 		    						boolean foundInArguments = false;
 		    						for(Expression argument : arguments) {
-		    							if(argument.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+		    							if(argument.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+		    									targetTypeDeclaration.resolveBinding().isEqualTo(argument.resolveTypeBinding().getSuperclass())) {
 		    								foundInArguments = true;
 		    								ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		    								argumentRewrite.remove(argument, null);
@@ -1226,9 +1228,52 @@ public class MoveMethodRefactoring implements Refactoring {
 							}
 						}
 					}
+					else if(argument instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)argument;
+						SimpleName simpleNameArgument = fieldAccess.getName();
+						if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
+							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+							MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
+							if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
+								argumentRewrite.remove(argument, null);
+							}
+							else {
+								AST ast = newMethodDeclaration.getAST();
+								argumentRewrite.replace(argument, ast.newThisExpression(), null);
+							}
+						}
+					}
 				}
 			}
 			i++;
+		}
+	}
+	
+	private void replaceTargetClassVariableNameWithThisExpressionInClassInstanceCreationArguments(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> classInstanceCreations = extractor.getClassInstanceCreations(newMethodDeclaration.getBody());
+		for(Expression creation : classInstanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)creation;
+			List<Expression> arguments = classInstanceCreation.arguments();
+			for(Expression argument : arguments) {
+				if(argument instanceof SimpleName) {
+					SimpleName simpleNameArgument = (SimpleName)argument;
+					if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
+						ListRewrite argumentRewrite = targetRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+						AST ast = newMethodDeclaration.getAST();
+						argumentRewrite.replace(argument, ast.newThisExpression(), null);
+					}
+				}
+				else if(argument instanceof FieldAccess) {
+					FieldAccess fieldAccess = (FieldAccess)argument;
+					SimpleName simpleNameArgument = fieldAccess.getName();
+					if(simpleNameArgument.getIdentifier().equals(targetClassVariableName)) {
+						ListRewrite argumentRewrite = targetRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+						AST ast = newMethodDeclaration.getAST();
+						argumentRewrite.replace(argument, ast.newThisExpression(), null);
+					}
+				}
+			}
 		}
 	}
 	
@@ -1242,6 +1287,14 @@ public class MoveMethodRefactoring implements Refactoring {
 				Expression initializer = fragment.getInitializer();
 				if(initializer instanceof SimpleName) {
 					SimpleName simpleNameInitializer = (SimpleName)initializer;
+					if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
+						AST ast = newMethodDeclaration.getAST();
+						targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
+					}
+				}
+				else if(initializer instanceof FieldAccess) {
+					FieldAccess fieldAccess = (FieldAccess)initializer;
+					SimpleName simpleNameInitializer = fieldAccess.getName();
 					if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
 						AST ast = newMethodDeclaration.getAST();
 						targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
@@ -1263,12 +1316,28 @@ public class MoveMethodRefactoring implements Refactoring {
 					targetRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, ast.newThisExpression(), null);
 				}	
 			}
+			else if(infixExpression.getLeftOperand() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)infixExpression.getLeftOperand();
+				SimpleName leftOperand = fieldAccess.getName();
+				if(leftOperand.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
 			if(infixExpression.getRightOperand() instanceof SimpleName) {
 				SimpleName rightOperand = (SimpleName)infixExpression.getRightOperand();
 				if(rightOperand.getIdentifier().equals(targetClassVariableName)) {
 					AST ast = newMethodDeclaration.getAST();
 					targetRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, ast.newThisExpression(), null);
 				}	
+			}
+			else if(infixExpression.getRightOperand() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)infixExpression.getRightOperand();
+				SimpleName rightOperand = fieldAccess.getName();
+				if(rightOperand.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, ast.newThisExpression(), null);
+				}
 			}
 		}
 	}
@@ -1280,6 +1349,14 @@ public class MoveMethodRefactoring implements Refactoring {
 			CastExpression castExpression = (CastExpression)expression;
 			if(castExpression.getExpression() instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)castExpression.getExpression();
+				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
+			else if(castExpression.getExpression() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)castExpression.getExpression();
+				SimpleName simpleName = fieldAccess.getName();
 				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
 					AST ast = newMethodDeclaration.getAST();
 					targetRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
@@ -1300,6 +1377,14 @@ public class MoveMethodRefactoring implements Refactoring {
 					targetRewriter.set(instanceofExpression, InstanceofExpression.LEFT_OPERAND_PROPERTY, ast.newThisExpression(), null);
 				}
 			}
+			else if(instanceofExpression.getLeftOperand() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)instanceofExpression.getLeftOperand();
+				SimpleName simpleName = fieldAccess.getName();
+				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(instanceofExpression, InstanceofExpression.LEFT_OPERAND_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
 		}
 	}
 	
@@ -1315,12 +1400,28 @@ public class MoveMethodRefactoring implements Refactoring {
 					targetRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newThisExpression(), null);
 				}	
 			}
+			else if(assignment.getLeftHandSide() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)assignment.getLeftHandSide();
+				SimpleName leftHandSide = fieldAccess.getName();
+				if(leftHandSide.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
 			if(assignment.getRightHandSide() instanceof SimpleName) {
 				SimpleName rightHandSide = (SimpleName)assignment.getRightHandSide();
 				if(rightHandSide.getIdentifier().equals(targetClassVariableName)) {
 					AST ast = newMethodDeclaration.getAST();
 					targetRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, ast.newThisExpression(), null);
 				}	
+			}
+			else if(assignment.getRightHandSide() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)assignment.getRightHandSide();
+				SimpleName rightHandSide = fieldAccess.getName();
+				if(rightHandSide.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, ast.newThisExpression(), null);
+				}
 			}
 		}
 	}

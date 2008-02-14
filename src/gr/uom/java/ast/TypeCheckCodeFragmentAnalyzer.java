@@ -43,8 +43,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 	private List<InheritanceTree> inheritanceTreeList;
 	private FieldDeclaration[] fields;
 	private MethodDeclaration[] methods;
-	private Map<VariableDeclarationFragment, Integer> fieldTypeCounterMap;
-	private Map<MethodInvocation, Integer> typeMethodInvocationCounterMap;
+	private Map<SimpleName, Integer> typeVariableCounterMap;
 	
 	public TypeCheckCodeFragmentAnalyzer(TypeCheckElimination typeCheckElimination, TypeDeclaration typeDeclaration,
 			MethodDeclaration typeCheckMethod, List<InheritanceTree> inheritanceTreeList) {
@@ -54,8 +53,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 		this.fields = typeDeclaration.getFields();
 		this.methods = typeDeclaration.getMethods();
 		this.inheritanceTreeList = inheritanceTreeList;
-		this.fieldTypeCounterMap = new LinkedHashMap<VariableDeclarationFragment, Integer>();
-		this.typeMethodInvocationCounterMap = new LinkedHashMap<MethodInvocation, Integer>();
+		this.typeVariableCounterMap = new LinkedHashMap<SimpleName, Integer>();
 		typeCheckElimination.setTypeCheckMethod(typeCheckMethod);
 		processTypeCheckCodeFragment();
 	}
@@ -95,7 +93,11 @@ public class TypeCheckCodeFragmentAnalyzer {
 							String rootClassName = (String)root.getUserObject();
 							ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
 							if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
-								typeCheckElimination.setTypeMethodInvocation(methodInvocation);
+								Expression methodInvocationExpression = methodInvocation.getExpression();
+								if(methodInvocationExpression instanceof SimpleName) {
+									SimpleName invokerSimpleName = (SimpleName)methodInvocationExpression;
+									typeCheckElimination.setTypeLocalVariable(invokerSimpleName);
+								}
 								typeCheckElimination.setExistingInheritanceTree(tree);
 								break;
 							}
@@ -173,32 +175,44 @@ public class TypeCheckCodeFragmentAnalyzer {
 				}
 			}
 		}
-		for(VariableDeclarationFragment fragment : fieldTypeCounterMap.keySet()) {
-			if(fieldTypeCounterMap.get(fragment) == typeCheckExpressions.size()) {
-				typeCheckElimination.setTypeField(fragment);
-				for(MethodDeclaration method : methods) {
-					SimpleName fieldInstruction = MethodDeclarationUtility.isSetter(method);
-					if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
-						typeCheckElimination.setTypeFieldSetterMethod(method);
+		for(SimpleName typeVariable : typeVariableCounterMap.keySet()) {
+			if(typeVariableCounterMap.get(typeVariable) == typeCheckExpressions.size()) {
+				IBinding binding = typeVariable.resolveBinding();
+				if(binding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding variableBinding = (IVariableBinding)binding;
+					if(variableBinding.isField() && variableBinding.getType().getName().equals("int")) {
+						for(FieldDeclaration field : fields) {
+							List<VariableDeclarationFragment> fragments = field.fragments();
+							for(VariableDeclarationFragment fragment : fragments) {
+								IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+								if(fragmentVariableBinding.isEqualTo(variableBinding)) {
+									typeCheckElimination.setTypeField(fragment);
+									for(MethodDeclaration method : methods) {
+										SimpleName fieldInstruction = MethodDeclarationUtility.isSetter(method);
+										if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
+											typeCheckElimination.setTypeFieldSetterMethod(method);
+										}
+										fieldInstruction = MethodDeclarationUtility.isGetter(method);
+										if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
+											typeCheckElimination.setTypeFieldGetterMethod(method);
+										}
+									}
+									break;
+								}
+							}
+						}
 					}
-					fieldInstruction = MethodDeclarationUtility.isGetter(method);
-					if(fieldInstruction != null && fragment.getName().getIdentifier().equals(fieldInstruction.getIdentifier())) {
-						typeCheckElimination.setTypeFieldGetterMethod(method);
-					}
-				}
-			}
-		}
-		for(MethodInvocation methodInvocation : typeMethodInvocationCounterMap.keySet()) {
-			if(typeMethodInvocationCounterMap.get(methodInvocation) == typeCheckExpressions.size()) {
-				typeCheckElimination.setTypeMethodInvocation(methodInvocation);
-				IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
-				for(InheritanceTree tree : inheritanceTreeList) {
-					DefaultMutableTreeNode root = tree.getRootNode();
-					String rootClassName = (String)root.getUserObject();
-					ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
-					if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
-						typeCheckElimination.setExistingInheritanceTree(tree);
-						break;
+					else {
+						typeCheckElimination.setTypeLocalVariable(typeVariable);
+						for(InheritanceTree tree : inheritanceTreeList) {
+							DefaultMutableTreeNode root = tree.getRootNode();
+							String rootClassName = (String)root.getUserObject();
+							ITypeBinding variableTypeBinding = variableBinding.getType();
+							if(rootClassName.equals(variableTypeBinding.getQualifiedName())) {
+								typeCheckElimination.setExistingInheritanceTree(tree);
+								break;
+							}
+						}
 					}
 				}
 			}
@@ -316,25 +330,25 @@ public class TypeCheckCodeFragmentAnalyzer {
 	}
 	
 	private void infixExpressionHandler(Expression operand, Expression typeCheckExpression, IfStatementExpressionAnalyzer analyzer) {
-		SimpleName leftOperandName = null;
+		SimpleName operandName = null;
 		if(operand instanceof SimpleName) {
-			SimpleName leftOperandSimpleName = (SimpleName)operand;
-			leftOperandName = leftOperandSimpleName;
+			SimpleName operandSimpleName = (SimpleName)operand;
+			operandName = operandSimpleName;
 		}
 		else if(operand instanceof QualifiedName) {
-			QualifiedName leftOperandQualifiedName = (QualifiedName)operand;
-			leftOperandName = leftOperandQualifiedName.getName();
+			QualifiedName operandQualifiedName = (QualifiedName)operand;
+			operandName = operandQualifiedName.getName();
 		}
 		else if(operand instanceof FieldAccess) {
-			FieldAccess leftOperandFieldAccess = (FieldAccess)operand;
-			leftOperandName = leftOperandFieldAccess.getName();
+			FieldAccess operandFieldAccess = (FieldAccess)operand;
+			operandName = operandFieldAccess.getName();
 		}
 		else if(operand instanceof MethodInvocation) {
 			MethodInvocation methodInvocation = (MethodInvocation)operand;
 			for(MethodDeclaration method : methods) {
 				SimpleName fieldInstruction = MethodDeclarationUtility.isGetter(method);
 				if(fieldInstruction != null && method.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
-					leftOperandName = fieldInstruction;
+					operandName = fieldInstruction;
 					break;
 				}
 				MethodInvocation delegateMethodInvocation = MethodDeclarationUtility.isDelegate(method);
@@ -343,54 +357,42 @@ public class TypeCheckCodeFragmentAnalyzer {
 					break;
 				}
 			}
-			if(leftOperandName == null) {
-				IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
-				for(InheritanceTree tree : inheritanceTreeList) {
-					DefaultMutableTreeNode root = tree.getRootNode();
-					String rootClassName = (String)root.getUserObject();
-					ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
-					if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
-						boolean found = false;
-						for(MethodInvocation key : typeMethodInvocationCounterMap.keySet()) {
-							if(key.toString().equals(methodInvocation.toString())) {
-								typeMethodInvocationCounterMap.put(key, typeMethodInvocationCounterMap.get(key)+1);
-								found = true;
-							}
-						}
-						if(!found)
-							typeMethodInvocationCounterMap.put(methodInvocation, 1);
-						break;
-					}
+			if(operandName == null) {
+				Expression methodInvocationExpression = methodInvocation.getExpression();
+				if(methodInvocationExpression instanceof SimpleName) {
+					SimpleName invokerSimpleName = (SimpleName)methodInvocationExpression;
+					operandName = invokerSimpleName;
 				}
 			}
 		}
-		if(leftOperandName != null) {
-			IBinding leftOperandNameBinding = leftOperandName.resolveBinding();
-			if(leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
-				IVariableBinding leftOperandNameVariableBinding = (IVariableBinding)leftOperandNameBinding;
-				if(leftOperandNameVariableBinding.isField() && (leftOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+		if(operandName != null) {
+			IBinding operandNameBinding = operandName.resolveBinding();
+			if(operandNameBinding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding operandNameVariableBinding = (IVariableBinding)operandNameBinding;
+				if(operandNameVariableBinding.isField() && (operandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
 					if(analyzer.allParentNodesAreConditionalAndOperators()) {
-						typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), leftOperandName);
+						typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), operandName);
 						typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(), analyzer.getRemainingExpression(typeCheckExpression));
 					}
 				}
 				else {
-					for(FieldDeclaration field : fields) {
-						List<VariableDeclarationFragment> fragments = field.fragments();
-						for(VariableDeclarationFragment fragment : fragments) {
-							IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-							if(fragmentVariableBinding.isEqualTo(leftOperandNameVariableBinding)) {
-								if(fieldTypeCounterMap.containsKey(fragment)) {
-									fieldTypeCounterMap.put(fragment, fieldTypeCounterMap.get(fragment)+1);
-								}
-								else {
-									fieldTypeCounterMap.put(fragment, 1);
-								}
-							}
-						}
+					SimpleName keySimpleName = containsKey(operandName);
+					if(keySimpleName != null) {
+						typeVariableCounterMap.put(keySimpleName, typeVariableCounterMap.get(keySimpleName)+1);
+					}
+					else {
+						typeVariableCounterMap.put(operandName, 1);
 					}
 				}
 			}
 		}
+	}
+
+	private SimpleName containsKey(SimpleName simpleName) {
+		for(SimpleName keySimpleName : typeVariableCounterMap.keySet()) {
+			if(keySimpleName.resolveBinding().isEqualTo(simpleName.resolveBinding()))
+				return keySimpleName;
+		}
+		return null;
 	}
 }

@@ -104,7 +104,7 @@ public class ClassObject {
     			for(TypeCheckElimination typeCheckElimination : list) {
     				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
     					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceTreeList);
-    					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeMethodInvocation() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
+    					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null) && typeCheckElimination.allTypeChecksContainStaticField()) {
     						analyzer.processTypeCheckCodeFragmentBranches();
     						typeCheckEliminations.add(typeCheckElimination);
     					}

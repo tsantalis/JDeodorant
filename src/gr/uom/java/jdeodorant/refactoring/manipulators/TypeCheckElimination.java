@@ -47,7 +47,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
 	private LinkedHashSet<VariableDeclarationFragment> accessedLocalVariables;
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
-	private MethodInvocation typeMethodInvocation;
+	private SimpleName typeLocalVariable;
 	private InheritanceTree existingInheritanceTree;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
 	
@@ -65,7 +65,7 @@ public class TypeCheckElimination {
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.accessedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
-		this.typeMethodInvocation = null;
+		this.typeLocalVariable = null;
 		this.existingInheritanceTree = null;
 		this.remainingIfStatementExpressionMap = new LinkedHashMap<Expression, DefaultMutableTreeNode>();
 	}
@@ -202,12 +202,12 @@ public class TypeCheckElimination {
 		this.typeCheckMethod = typeCheckMethod;
 	}
 
-	public MethodInvocation getTypeMethodInvocation() {
-		return typeMethodInvocation;
+	public SimpleName getTypeLocalVariable() {
+		return typeLocalVariable;
 	}
 
-	public void setTypeMethodInvocation(MethodInvocation typeMethodInvocation) {
-		this.typeMethodInvocation = typeMethodInvocation;
+	public void setTypeLocalVariable(SimpleName typeLocalVariable) {
+		this.typeLocalVariable = typeLocalVariable;
 	}
 
 	public InheritanceTree getExistingInheritanceTree() {

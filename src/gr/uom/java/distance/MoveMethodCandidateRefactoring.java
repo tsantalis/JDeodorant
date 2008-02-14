@@ -78,7 +78,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     }
 
     public boolean isApplicable() {
-    	if(!containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() && validTargetObject())
+    	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() && validTargetObject())
     		return true;
     	else
     		return false;
@@ -135,6 +135,15 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     private boolean containsSuperMethodInvocation() {
     	if(sourceMethod.getMethodObject().containsSuperMethodInvocation()) {
     		//System.out.println(this.toString() + "\tcontains super method invocation");
+    		return true;
+    	}
+    	else
+    		return false;
+    }
+
+    private boolean isSynchronized() {
+    	if(sourceMethod.getMethodObject().isSynchronized()) {
+    		//System.out.println(this.toString() + "\tis synchronized");
     		return true;
     	}
     	else

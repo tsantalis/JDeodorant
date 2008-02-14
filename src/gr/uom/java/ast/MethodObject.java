@@ -34,6 +34,7 @@ public class MethodObject {
     private TypeObject returnType;
     private boolean _abstract;
     private boolean _static;
+    private boolean _synchronized;
     private String className;
     private ConstructorObject constructorObject;
 
@@ -41,6 +42,7 @@ public class MethodObject {
         this.constructorObject = co;
         this._abstract = false;
         this._static = false;
+        this._synchronized = false;
     }
 
     public void setReturnType(TypeObject returnType) {
@@ -65,6 +67,14 @@ public class MethodObject {
 
     public void setStatic(boolean s) {
         _static = s;
+    }
+
+    public boolean isSynchronized() {
+    	return this._synchronized;
+    }
+
+    public void setSynchronized(boolean s) {
+    	this._synchronized = s;
     }
 
     public void setName(String name) {
@@ -260,17 +270,18 @@ public class MethodObject {
     	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
     		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
     			VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(localVariableInstruction.generateLocalVariableDeclaration());
-    			if(variableDeclarationStatement != null) {
+    			if(variableDeclarationStatement != null)
     				return false;
-    			}
-    			else {
-    				ListIterator<ParameterObject> parameterIterator = getParameterListIterator();
-    				while(parameterIterator.hasNext()) {
-    					ParameterObject parameter = parameterIterator.next();
-    					if(localVariableInstruction.getName().equals(parameter.getName()) && parameter.getType().getArrayDimension() == 0)
-    						return true;
-    				}
-    			}
+    		}
+    	}
+    	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
+    		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
+    			ListIterator<ParameterObject> parameterIterator = getParameterListIterator();
+				while(parameterIterator.hasNext()) {
+					ParameterObject parameter = parameterIterator.next();
+					if(localVariableInstruction.getName().equals(parameter.getName()) && parameter.getType().getArrayDimension() == 0)
+						return true;
+				}
     		}
     	}
     	List<FieldInstructionObject> fieldInstructions = getFieldInstructions();

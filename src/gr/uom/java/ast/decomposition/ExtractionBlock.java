@@ -110,20 +110,22 @@ public class ExtractionBlock {
     						variableDeclarationStatement = (VariableDeclarationStatement)statementObject.getStatement();
     				}
     			}
-    			if(variableDeclarationStatement != null) {
+    			if(variableDeclarationStatement != null)
     				return false;
-    			}
-    			else {
-    				variableDeclarationStatement = sourceMethod.getVariableDeclarationStatement(localVariableDeclaration);
-    				if(variableDeclarationStatement != null)
-    					return true;
-    				ListIterator<ParameterObject> parameterIterator = sourceMethod.getParameterListIterator();
-    				while(parameterIterator.hasNext()) {
-    					ParameterObject parameter = parameterIterator.next();
-    					if(localVariableInstruction.getName().equals(parameter.getName()) && parameter.getType().getArrayDimension() == 0)
-    						return true;
-    				}
-    			}
+    		}
+    	}
+    	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
+    		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
+    			LocalVariableDeclarationObject localVariableDeclaration = localVariableInstruction.generateLocalVariableDeclaration();
+    			VariableDeclarationStatement variableDeclarationStatement = sourceMethod.getVariableDeclarationStatement(localVariableDeclaration);
+				if(variableDeclarationStatement != null)
+					return true;
+				ListIterator<ParameterObject> parameterIterator = sourceMethod.getParameterListIterator();
+				while(parameterIterator.hasNext()) {
+					ParameterObject parameter = parameterIterator.next();
+					if(localVariableInstruction.getName().equals(parameter.getName()) && parameter.getType().getArrayDimension() == 0)
+						return true;
+				}
     		}
     	}
     	List<FieldInstructionObject> fieldInstructions = new ArrayList<FieldInstructionObject>();

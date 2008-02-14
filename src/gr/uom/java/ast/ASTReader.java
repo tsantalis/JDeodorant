@@ -202,6 +202,8 @@ public class ASTReader {
 		        				methodObject.setAbstract(true);
 		        			if((methodModifiers & Modifier.STATIC) != 0)
 		        				methodObject.setStatic(true);
+		        			if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
+		        				methodObject.setSynchronized(true);
 		        			
 		        			classObject.addMethod(methodObject);
 		        			FieldInstructionObject fieldInstruction = methodObject.isGetter();

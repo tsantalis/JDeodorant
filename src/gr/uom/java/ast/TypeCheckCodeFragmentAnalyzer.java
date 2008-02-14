@@ -82,25 +82,30 @@ public class TypeCheckCodeFragmentAnalyzer {
 				MethodInvocation methodInvocation = (MethodInvocation)switchStatementExpression;
 				for(MethodDeclaration method : methods) {
 					SimpleName fieldInstruction = MethodDeclarationUtility.isGetter(method);
-					if(fieldInstruction != null && method.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding()))
+					if(fieldInstruction != null && method.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
 						switchStatementExpressionName = fieldInstruction;
+						break;
+					}					
+					MethodInvocation delegateMethodInvocation = MethodDeclarationUtility.isDelegate(method);
+					if(delegateMethodInvocation != null && method.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+						methodInvocation = delegateMethodInvocation;
+						break;
+					}
 				}
 				if(switchStatementExpressionName == null) {
 					IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
-					if((methodInvocationBinding.getModifiers() & Modifier.ABSTRACT) != 0) {
-						for(InheritanceTree tree : inheritanceTreeList) {
-							DefaultMutableTreeNode root = tree.getRootNode();
-							String rootClassName = (String)root.getUserObject();
-							ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
-							if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
-								Expression methodInvocationExpression = methodInvocation.getExpression();
-								if(methodInvocationExpression instanceof SimpleName) {
-									SimpleName invokerSimpleName = (SimpleName)methodInvocationExpression;
-									typeCheckElimination.setTypeLocalVariable(invokerSimpleName);
-								}
-								typeCheckElimination.setExistingInheritanceTree(tree);
-								break;
+					for(InheritanceTree tree : inheritanceTreeList) {
+						DefaultMutableTreeNode root = tree.getRootNode();
+						String rootClassName = (String)root.getUserObject();
+						ITypeBinding declaringClassTypeBinding = methodInvocationBinding.getDeclaringClass();
+						if(rootClassName.equals(declaringClassTypeBinding.getQualifiedName())) {
+							Expression methodInvocationExpression = methodInvocation.getExpression();
+							if(methodInvocationExpression instanceof SimpleName) {
+								SimpleName invokerSimpleName = (SimpleName)methodInvocationExpression;
+								typeCheckElimination.setTypeLocalVariable(invokerSimpleName);
 							}
+							typeCheckElimination.setExistingInheritanceTree(tree);
+							break;
 						}
 					}
 				}

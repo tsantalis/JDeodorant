@@ -11,6 +11,9 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateS
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -21,7 +24,9 @@ import java.util.Set;
 import java.util.Stack;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
@@ -130,6 +135,33 @@ public class TypeChecking extends ViewPart {
 		}
 	}
 	class NameSorter extends ViewerSorter {
+		public int compare(Viewer viewer, Object obj1, Object obj2) {
+			Refactoring refactoring1 = (Refactoring)obj1;
+			Refactoring refactoring2 = (Refactoring)obj2;
+			String refactoringName1 = null;
+			String refactoringName2 = null;
+			if(refactoring1 instanceof ReplaceTypeCodeWithStateStrategy) {
+				ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
+					(ReplaceTypeCodeWithStateStrategy)refactoring1;
+				refactoringName1 = replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckMethodName();
+			}
+			else if(refactoring1 instanceof ReplaceConditionalWithPolymorphism) {
+				ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
+					(ReplaceConditionalWithPolymorphism)refactoring1;
+				refactoringName1 = replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
+			}
+			if(refactoring2 instanceof ReplaceTypeCodeWithStateStrategy) {
+				ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
+					(ReplaceTypeCodeWithStateStrategy)refactoring2;
+				refactoringName2 = replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckMethodName();
+			}
+			else if(refactoring2 instanceof ReplaceConditionalWithPolymorphism) {
+				ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
+					(ReplaceConditionalWithPolymorphism)refactoring2;
+				refactoringName2 = replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
+			}
+			return refactoringName1.compareTo(refactoringName2);
+		}
 	}
 
 	private ISelectionListener selectionListener = new ISelectionListener() {
@@ -371,12 +403,12 @@ public class TypeChecking extends ViewPart {
 			IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
 			List<TypeCheckElimination> typeCheckEliminations = classObject.generateTypeCheckEliminations(inheritanceDetection.getInheritanceTreeList());
 			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
-				if(typeCheckElimination.getExistingInheritanceTree() == null) {
+				if(typeCheckElimination.getTypeField() != null && typeCheckElimination.getExistingInheritanceTree() == null) {
 					ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
 						new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 					refactorings.add(replaceTypeCodeWithStateStrategyRefactoring);
 				}
-				else {
+				else if(typeCheckElimination.getTypeLocalVariable() != null && typeCheckElimination.getExistingInheritanceTree() != null) {
 					ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
 						new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 					refactorings.add(replaceConditionalWithPolymorphismRefactoring);
@@ -390,5 +422,22 @@ public class TypeChecking extends ViewPart {
 			i++;
 		}
 		return table;
+	}
+
+	private void saveResults() {
+		try {
+			BufferedWriter out = new BufferedWriter(new FileWriter("C:\\results.txt"));
+			Table table = tableViewer.getTable();
+			for(int i=0; i<table.getItemCount(); i++) {
+				TableItem tableItem = table.getItem(i);
+				for(int j=0; j<table.getColumnCount(); j++) {
+					out.write(tableItem.getText(j) + "\t");
+				}
+				out.newLine();
+			}
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }

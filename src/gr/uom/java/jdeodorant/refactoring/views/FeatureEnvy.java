@@ -139,14 +139,14 @@ public class FeatureEnvy extends ViewPart {
 			return null;
 		}
 	}
-	class NameSorter extends ViewerSorter{
+	class NameSorter extends ViewerSorter {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
 			double value1 = ((CandidateRefactoring)obj1).getEntityPlacement();
 			double value2 = ((CandidateRefactoring)obj2).getEntityPlacement();
-			if(value1<value2) {
+			if(value1 < value2) {
 				return -1;
 			}
-			else if(value1>value2) {
+			else if(value1 > value2) {
 				return 1;
 			}
 			else {

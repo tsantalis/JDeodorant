@@ -1336,6 +1336,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	}
 
 	public String getTypeCheckMethodName() {
-		return typeCheckElimination.getTypeCheckMethod().resolveBinding().toString();
+		IMethodBinding typeCheckMethodBinding = typeCheckElimination.getTypeCheckMethod().resolveBinding();
+		ITypeBinding declaringClassTypeBinding = typeCheckMethodBinding.getDeclaringClass();
+		return declaringClassTypeBinding.getQualifiedName() + "::" + typeCheckMethodBinding.toString();
 	}
 }

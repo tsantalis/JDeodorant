@@ -428,20 +428,27 @@ public class MoveMethodRefactoring implements Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		List<SingleVariableDeclaration> sourceMethodParameters = sourceMethod.parameters();
 		List<SingleVariableDeclaration> newMethodParameters = newMethodDeclaration.parameters();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newMethodDeclaration.getBody());
 		
 		int i = 0;
 		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
 			ITypeBinding parameterTypeBinding = parameter.getType().resolveBinding();
 			if(parameterTypeBinding.isEqualTo(targetTypeDeclaration.resolveBinding())){
-				targetClassVariableName = parameter.getName().getIdentifier();
-				parametersRewrite.remove(newMethodParameters.get(i), null);
-				break;
+				for(Expression expression : newVariableInstructions) {
+					SimpleName simpleName = (SimpleName)expression;
+					if(parameter.getName().getIdentifier().equals(simpleName.getIdentifier())) {
+						targetClassVariableName = parameter.getName().getIdentifier();
+						parametersRewrite.remove(newMethodParameters.get(i), null);
+						break;
+					}
+				}
+				if(targetClassVariableName != null)
+    				break;
 			}
 			i++;
 		}
 		
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newMethodDeclaration.getBody());
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
 		
 		if(targetClassVariableName == null) {
@@ -463,6 +470,59 @@ public class MoveMethodRefactoring implements Refactoring {
         		if(targetClassVariableName != null)
     				break;
         	}
+		}
+		
+		List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(sourceMethod.getBody());
+		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
+		
+		if(targetClassVariableName == null) {
+			for(Expression oldMethodInvocation : oldMethodInvocations) {
+				if(oldMethodInvocation instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation)oldMethodInvocation;
+					for(MethodDeclaration methodDeclaration : methodDeclarations) {
+						if(methodInvocation.resolveMethodBinding().isEqualTo(methodDeclaration.resolveBinding())) {
+							SimpleName fieldInstruction = MethodDeclarationUtility.isGetter(methodDeclaration);
+							if(fieldInstruction != null && fieldInstruction.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+								targetClassVariableName = fieldInstruction.getIdentifier();
+								break;
+							}
+						}
+					}
+					if(targetClassVariableName != null)
+        				break;
+				}
+			}
+		}
+		
+		if(targetClassVariableName == null) {
+			for(Expression oldMethodInvocation : oldMethodInvocations) {
+				if(oldMethodInvocation instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation)oldMethodInvocation;
+					for(MethodDeclaration methodDeclaration : methodDeclarations) {
+						if(methodInvocation.resolveMethodBinding().isEqualTo(methodDeclaration.resolveBinding())) {
+							MethodInvocation delegation = MethodDeclarationUtility.isDelegate(methodDeclaration);
+							if(delegation != null && delegation.resolveMethodBinding().getDeclaringClass().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+								List<Expression> delegateMethodVariableInstructions = expressionExtractor.getVariableInstructions(methodDeclaration.getBody());
+								for(Expression expression : delegateMethodVariableInstructions) {
+									SimpleName fieldInstruction = (SimpleName)expression;
+									IBinding fieldInstructionBinding = fieldInstruction.resolveBinding();
+									if(fieldInstructionBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding fieldInstructionVariableBinding = (IVariableBinding)fieldInstructionBinding;
+										if(fieldInstructionVariableBinding.isField() && fieldInstructionVariableBinding.getType().isEqualTo(targetTypeDeclaration.resolveBinding())) {
+											targetClassVariableName = fieldInstruction.getIdentifier();
+											break;
+										}
+									}
+								}
+								if(targetClassVariableName != null)
+			        				break;
+							}
+						}
+					}
+					if(targetClassVariableName != null)
+        				break;
+				}
+			}
 		}
 		
 		if(targetClassVariableName == null) {

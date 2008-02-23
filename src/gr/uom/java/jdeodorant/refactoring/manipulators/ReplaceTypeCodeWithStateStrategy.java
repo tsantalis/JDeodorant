@@ -473,14 +473,13 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		subclassNames.addAll(additionalStaticFields.values());
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
 		staticFieldNames.addAll(additionalStaticFields.keySet());
-		List<DefaultMutableTreeNode> remainingIfStatementExpressions = typeCheckElimination.getRemainingIfStatementExpressions();
 		for(int i=0; i<staticFieldNames.size(); i++) {
 			ArrayList<Statement> statements = null;
 			DefaultMutableTreeNode remainingIfStatementExpression = null;
 			if(i < typeCheckStatements.size()) {
 				statements = typeCheckStatements.get(i);
-				if(!remainingIfStatementExpressions.isEmpty())
-					remainingIfStatementExpression = remainingIfStatementExpressions.get(i);
+				Expression expression = typeCheckElimination.getExpressionCorrespondingToTypeCheckStatementList(statements);
+				remainingIfStatementExpression = typeCheckElimination.getRemainingIfStatementExpression(expression);
 			}
 			else {
 				statements = typeCheckElimination.getDefaultCaseStatements();

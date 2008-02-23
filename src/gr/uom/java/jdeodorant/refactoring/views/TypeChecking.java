@@ -403,12 +403,12 @@ public class TypeChecking extends ViewPart {
 			IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
 			List<TypeCheckElimination> typeCheckEliminations = classObject.generateTypeCheckEliminations(inheritanceDetection.getInheritanceTreeList());
 			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
-				if(typeCheckElimination.getTypeField() != null && typeCheckElimination.getExistingInheritanceTree() == null) {
+				if(typeCheckElimination.getExistingInheritanceTree() == null) {
 					ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
 						new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 					refactorings.add(replaceTypeCodeWithStateStrategyRefactoring);
 				}
-				else if(typeCheckElimination.getTypeLocalVariable() != null && typeCheckElimination.getExistingInheritanceTree() != null) {
+				else {
 					ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
 						new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 					refactorings.add(replaceConditionalWithPolymorphismRefactoring);

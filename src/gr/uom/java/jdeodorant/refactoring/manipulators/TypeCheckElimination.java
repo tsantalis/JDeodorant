@@ -37,6 +37,7 @@ public class TypeCheckElimination {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
 	private ArrayList<Statement> defaultCaseStatements;
 	private Map<Expression, SimpleName> staticFieldMap;
+	private Map<Expression, Type> subclassTypeMap;
 	private VariableDeclarationFragment typeField;
 	private MethodDeclaration typeFieldGetterMethod;
 	private MethodDeclaration typeFieldSetterMethod;
@@ -55,6 +56,7 @@ public class TypeCheckElimination {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
 		this.defaultCaseStatements = new ArrayList<Statement>();
 		this.staticFieldMap = new LinkedHashMap<Expression, SimpleName>();
+		this.subclassTypeMap = new LinkedHashMap<Expression, Type>();
 		this.typeField = null;
 		this.typeFieldGetterMethod = null;
 		this.typeFieldSetterMethod = null;
@@ -88,6 +90,10 @@ public class TypeCheckElimination {
 	
 	public void addStaticType(Expression expression, SimpleName simpleName) {
 		staticFieldMap.put(expression, simpleName);
+	}
+	
+	public void addSubclassType(Expression expression, Type subclassType) {
+		subclassTypeMap.put(expression, subclassType);
 	}
 	
 	public void addRemainingIfStatementExpression(Expression expression, DefaultMutableTreeNode root) {
@@ -150,8 +156,16 @@ public class TypeCheckElimination {
 		return new ArrayList<SimpleName>(staticFieldMap.values());
 	}
 	
-	public List<DefaultMutableTreeNode> getRemainingIfStatementExpressions() {
-		return new ArrayList<DefaultMutableTreeNode>(remainingIfStatementExpressionMap.values());
+	public DefaultMutableTreeNode getRemainingIfStatementExpression(Expression expression) {
+		return remainingIfStatementExpressionMap.get(expression);
+	}
+	
+	public Expression getExpressionCorrespondingToTypeCheckStatementList(ArrayList<Statement> statements) {
+		for(Expression expression : typeCheckMap.keySet()) {
+			if(statements.equals(typeCheckMap.get(expression)))
+				return expression;
+		}
+		return null;
 	}
 	
 	public List<String> getStaticFieldNames() {
@@ -218,8 +232,23 @@ public class TypeCheckElimination {
 		this.existingInheritanceTree = existingInheritanceTree;
 	}
 
-	public boolean allTypeChecksContainStaticField() {
-		return (typeCheckMap.keySet().size() > 1) && (typeCheckMap.keySet().size() == staticFieldMap.keySet().size());
+	public boolean allTypeCheckingsContainStaticFieldOrSubclassType() {
+		return (typeCheckMap.keySet().size() > 1) && 
+			(typeCheckMap.keySet().size() == (staticFieldMap.keySet().size() + subclassTypeMap.keySet().size()));
+	}
+	
+	public boolean isSuperClassTypeInterfaceOrObject() {
+		if(typeField != null) {
+			ITypeBinding typeFieldTypeBinding = typeField.resolveBinding().getType();
+			if(typeFieldTypeBinding.isInterface() || typeFieldTypeBinding.getQualifiedName().equals("java.lang.Object"))
+				return true;
+		}
+		else if(typeLocalVariable != null) {
+			ITypeBinding typeLocalVariableTypeBinding = typeLocalVariable.resolveTypeBinding();
+			if(typeLocalVariableTypeBinding.isInterface() || typeLocalVariableTypeBinding.getQualifiedName().equals("java.lang.Object"))
+				return true;
+		}
+		return false;
 	}
 	
 	public Type getTypeCheckMethodReturnType() {
@@ -256,62 +285,70 @@ public class TypeCheckElimination {
 	}
 	
 	public String getAbstractClassName() {
-		if(typeField != null) {
+		if(typeField != null && existingInheritanceTree == null) {
 			String typeFieldName = typeField.getName().getIdentifier().replaceAll("_", "");
 			return typeFieldName.substring(0, 1).toUpperCase() + typeFieldName.substring(1, typeFieldName.length());
+		}
+		else if(typeLocalVariable != null && existingInheritanceTree == null) {
+			String typeLocalVariableName = typeLocalVariable.getIdentifier().replaceAll("_", "");
+			return typeLocalVariableName.substring(0, 1).toUpperCase() + typeLocalVariableName.substring(1, typeLocalVariableName.length());
 		}
 		else if(existingInheritanceTree != null) {
 			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 			return (String)root.getUserObject();
 		}
-		else {
-			return null;
-		}
+		return null;
 	}
 	
 	public List<String> getSubclassNames() {
 		List<String> subclassNames = new ArrayList<String>();
-		for(Expression expression : staticFieldMap.keySet()) {
+		for(Expression expression : typeCheckMap.keySet()) {
 			SimpleName simpleName = staticFieldMap.get(expression);
-			String staticFieldName = simpleName.getIdentifier();
-			Type castingType = isFirstStatementACastingVariableDeclaration(typeCheckMap.get(expression));
-			String subclassName = null;
-			if(!staticFieldName.contains("_")) {
-				subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
-				staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
-			}
-			else {
-				subclassName = "";
-				StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
-				while(tokenizer.hasMoreTokens()) {
-					String tempName = tokenizer.nextToken().toLowerCase().toString();
-					subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-					tempName.subSequence(1, tempName.length()).toString();
+			if(simpleName != null) {
+				String staticFieldName = simpleName.getIdentifier();
+				Type castingType = isFirstStatementACastingVariableDeclaration(typeCheckMap.get(expression));
+				String subclassName = null;
+				if(!staticFieldName.contains("_")) {
+					subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
+					staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
 				}
-			}
-			if(existingInheritanceTree != null) {
-				DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
-				Enumeration<DefaultMutableTreeNode> enumeration = root.children();
-				boolean found = false;
-				while(enumeration.hasMoreElements()) {
-					DefaultMutableTreeNode child = enumeration.nextElement();
-					String childClassName = (String)child.getUserObject();
-					if(childClassName.endsWith(subclassName)) {
-						subclassNames.add(childClassName);
-						found = true;
-						break;
-					}
-					else if(castingType != null && castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
-						subclassNames.add(childClassName);
-						found = true;
-						break;
+				else {
+					subclassName = "";
+					StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
+					while(tokenizer.hasMoreTokens()) {
+						String tempName = tokenizer.nextToken().toLowerCase().toString();
+						subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+						tempName.subSequence(1, tempName.length()).toString();
 					}
 				}
-				if(!found)
-					subclassNames.add(null);
+				if(existingInheritanceTree != null) {
+					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+					boolean found = false;
+					while(enumeration.hasMoreElements()) {
+						DefaultMutableTreeNode child = enumeration.nextElement();
+						String childClassName = (String)child.getUserObject();
+						if(childClassName.endsWith(subclassName)) {
+							subclassNames.add(childClassName);
+							found = true;
+							break;
+						}
+						else if(castingType != null && castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
+							subclassNames.add(childClassName);
+							found = true;
+							break;
+						}
+					}
+					if(!found)
+						subclassNames.add(null);
+				}
+				else {
+					subclassNames.add(subclassName);
+				}
 			}
-			else {
-				subclassNames.add(subclassName);
+			Type type = subclassTypeMap.get(expression);
+			if(type != null) {
+				subclassNames.add(type.resolveBinding().getQualifiedName());
 			}
 		}
 		return subclassNames;

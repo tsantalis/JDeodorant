@@ -72,15 +72,7 @@ public class SystemObject {
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, List<ClassObject> excludedClasses) {
     	for(ClassObject classObject : classList) {
-    		TypeDeclaration outerTypeDeclaration = classObject.getOuterClass();
-    		boolean isInnerOfExcludedClasses = false;
-    		if(outerTypeDeclaration != null) {
-    			for(ClassObject co : excludedClasses) {
-    				if(outerTypeDeclaration.equals(co.getTypeDeclaration()))
-    					isInnerOfExcludedClasses = true;
-    			}
-    		}
-    		if(!isInnerOfExcludedClasses && !excludedClasses.contains(classObject) && classObject.containsMethodInvocation(methodInvocation))
+    		if(!excludedClasses.contains(classObject) && classObject.containsMethodInvocation(methodInvocation))
     			return true;
     	}
     	return false;
@@ -88,13 +80,7 @@ public class SystemObject {
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, ClassObject excludedClass) {
     	for(ClassObject classObject : classList) {
-    		TypeDeclaration outerTypeDeclaration = classObject.getOuterClass();
-    		boolean isInnerOfExcludedClasses = false;
-    		if(outerTypeDeclaration != null) {
-    			if(outerTypeDeclaration.equals(excludedClass.getTypeDeclaration()))
-    				isInnerOfExcludedClasses = true;
-    		}
-    		if(!isInnerOfExcludedClasses && !excludedClass.equals(classObject) && classObject.containsMethodInvocation(methodInvocation))
+    		if(!excludedClass.equals(classObject) && classObject.containsMethodInvocation(methodInvocation))
     			return true;
     	}
     	return false;

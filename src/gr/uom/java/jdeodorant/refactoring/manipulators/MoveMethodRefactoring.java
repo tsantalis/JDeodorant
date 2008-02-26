@@ -170,7 +170,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			addRequiredTargetImportDeclarations();
 		createMovedMethod();
 		moveAdditionalMethods();
-		modifyMovedMethodInvocationInTargetClass();
+		//modifyMovedMethodInvocationInTargetClass();
 		
 		if(leaveDelegate) {
 			addDelegationInSourceMethod();
@@ -211,7 +211,7 @@ public class MoveMethodRefactoring implements Refactoring {
 			addRequiredTargetImportDeclarations();
 		createMovedMethod();
 		moveAdditionalMethods();
-		modifyMovedMethodInvocationInTargetClass();
+		//modifyMovedMethodInvocationInTargetClass();
 		
 		if(leaveDelegate) {
 			addDelegationInSourceMethod();

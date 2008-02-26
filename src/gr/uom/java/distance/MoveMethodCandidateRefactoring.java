@@ -85,10 +85,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     }
 
     public boolean leaveDelegate() {
-    	List<ClassObject> excludedClasses = new ArrayList<ClassObject>();
-		excludedClasses.add(getSourceClass().getClassObject());
-		excludedClasses.add(getTargetClass().getClassObject());
-		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), excludedClasses);
+		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), getSourceClass().getClassObject());
     }
 
     private boolean isTargetClassAnInterface() {

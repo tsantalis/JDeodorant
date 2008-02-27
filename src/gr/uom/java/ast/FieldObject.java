@@ -8,6 +8,7 @@ public class FieldObject {
     private TypeObject type;
     private boolean _static;
     private Access access;
+    private String className;
     private VariableDeclarationFragment fragment;
     private volatile int hashCode = 0;
 
@@ -57,13 +58,23 @@ public class FieldObject {
 
         if (o instanceof FieldObject) {
             FieldObject fieldObject = (FieldObject)o;
-            return this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type);
+            return this.className.equals(fieldObject.className) &&
+            this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type);
         }
         return false;
     }
 
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    public String getClassName() {
+        return this.className;
+    }
+
     public boolean equals(FieldInstructionObject fio) {
-        return this.name.equals(fio.getName()) && this.type.equals(fio.getType());
+        return this.className.equals(fio.getOwnerClass()) &&
+        this.name.equals(fio.getName()) && this.type.equals(fio.getType());
     }
 
     public int hashCode() {

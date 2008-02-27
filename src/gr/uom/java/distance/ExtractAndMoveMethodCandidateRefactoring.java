@@ -102,7 +102,8 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
     }
 
     public boolean apply() {
-    	if(!containsSuperMethodInvocation() && !containsBranchingStatement() && !containsFieldAssignment() && !isTargetClassAnInterface() && validTargetObject()) {
+    	if(!containsSuperMethodInvocation() && !containsBranchingStatement() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
+    			validTargetObject() && !oneToManyRelationshipWithTargetClass()) {
     		MySystem virtualSystem = MySystem.newInstance(system);
 	    	virtualApplication(virtualSystem);
 	    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
@@ -131,7 +132,17 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
     		return true;
     	}
     	else {
-    		//System.out.println(this.toString() + "\tcannot be moved");
+    		//System.out.println(this.toString() + "\tdoes not contain a valid target object");
+    		return false;
+    	}
+    }
+
+    private boolean oneToManyRelationshipWithTargetClass() {
+    	if(extractionBlock.oneToManyRelationshipWithTargetClass(system.getAssociationsOfClass(sourceClass.getClassObject()), targetClass.getClassObject())) {
+    		//System.out.println(this.toString() + "\thas one-to-many relationship with target class");
+    		return true;
+    	}
+    	else {
     		return false;
     	}
     }

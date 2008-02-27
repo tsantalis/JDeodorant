@@ -42,6 +42,15 @@ public class AssociationDetection {
 		return false;
 	}
 	
+	public List<Association> getAssociationsOfClass(ClassObject classObject) {
+		List<Association> associations = new ArrayList<Association>();
+		for(Association association : associationList) {
+			if(association.getFrom().equals(classObject.getName()))
+				associations.add(association);
+		}
+		return associations;
+	}
+	
 	private void generateAssociations(SystemObject systemObject) {
 		ListIterator<ClassObject> classIt = systemObject.getClassListIterator();
         while(classIt.hasNext()) {

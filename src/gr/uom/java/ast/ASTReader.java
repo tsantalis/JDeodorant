@@ -136,6 +136,7 @@ public class ASTReader {
 		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
 		        			typeObject.setArrayDimension(typeObject.getArrayDimension() + fragment.getExtraDimensions());
 		        			FieldObject fieldObject = new FieldObject(typeObject, fragment.getName().getIdentifier());
+		        			fieldObject.setClassName(classObject.getName());
 		        			fieldObject.setVariableDeclarationFragment(fragment);
 		        			
 		        			int fieldModifiers = fieldDeclaration.getModifiers();

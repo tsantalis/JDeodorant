@@ -18,6 +18,7 @@ import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
+import gr.uom.java.ast.association.Association;
 
 public class ExtractionBlock {
 	private String extractedMethodName;
@@ -171,4 +172,25 @@ public class ExtractionBlock {
     	}
     	return false;
     }
+	
+	public boolean oneToManyRelationshipWithTargetClass(List<Association> associations, ClassObject targetClass) {
+		List<FieldInstructionObject> fieldInstructions = new ArrayList<FieldInstructionObject>();
+    	if(parentStatementForCopy != null) {
+    		for(AbstractExpression expression : parentStatementForCopy.getExpressions()) {
+    			fieldInstructions.addAll(expression.getFieldInstructions());
+    		}
+    	}
+    	for(AbstractStatement statement : statementsForExtraction) {
+    		fieldInstructions.addAll(statement.getFieldInstructions());
+    	}
+    	for(Association association : associations) {
+    		FieldObject fieldObject = association.getFieldObject();
+    		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+    			if(fieldObject.equals(fieldInstruction) && targetClass.getName().equals(association.getTo()) &&
+    					association.isContainer())
+    				return true;
+    		}
+    	}
+    	return false;
+	}
 }

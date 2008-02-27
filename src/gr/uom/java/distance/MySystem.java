@@ -1,6 +1,7 @@
 package gr.uom.java.distance;
 
 import gr.uom.java.ast.*;
+import gr.uom.java.ast.association.Association;
 import gr.uom.java.ast.association.AssociationDetection;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
@@ -98,6 +99,10 @@ public class MySystem {
     public SystemObject getSystemObject() {
 		return systemObject;
 	}
+
+    public List<Association> getAssociationsOfClass(ClassObject classObject) {
+    	return associationDetection.getAssociationsOfClass(classObject);
+    }
 
 	public static MySystem newInstance(MySystem system) {
         Map<String,MyClass> classMap = new HashMap<String,MyClass>();

@@ -1,6 +1,5 @@
 package gr.uom.java.distance;
 
-import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
@@ -78,7 +77,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     }
 
     public boolean isApplicable() {
-    	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() && validTargetObject())
+    	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
+    			validTargetObject() && !oneToManyRelationshipWithTargetClass())
     		return true;
     	else
     		return false;
@@ -103,7 +103,17 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     		return true;
     	}
     	else {
-    		//System.out.println(this.toString() + "\tcannot be moved");
+    		//System.out.println(this.toString() + "\tdoes not contain a valid target object");
+    		return false;
+    	}
+    }
+
+    private boolean oneToManyRelationshipWithTargetClass() {
+    	if(sourceMethod.getMethodObject().oneToManyRelationshipWithTargetClass(system.getAssociationsOfClass(sourceClass.getClassObject()), targetClass.getClassObject())) {
+    		//System.out.println(this.toString() + "\thas one-to-many relationship with target class");
+    		return true;
+    	}
+    	else {
     		return false;
     	}
     }

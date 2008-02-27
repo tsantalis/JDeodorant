@@ -1,5 +1,6 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.ast.association.Association;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
@@ -306,6 +307,19 @@ public class MethodObject {
     				return true;
     			MethodInvocationObject delegation = invokedMethod.isDelegate();
     			if(delegation != null && delegation.getOriginClassName().equals(targetClass.getName()))
+    				return true;
+    		}
+    	}
+    	return false;
+    }
+
+    public boolean oneToManyRelationshipWithTargetClass(List<Association> associations, ClassObject targetClass) {
+    	List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
+    	for(Association association : associations) {
+    		FieldObject fieldObject = association.getFieldObject();
+    		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+    			if(fieldObject.equals(fieldInstruction) && targetClass.getName().equals(association.getTo()) &&
+    					association.isContainer())
     				return true;
     		}
     	}

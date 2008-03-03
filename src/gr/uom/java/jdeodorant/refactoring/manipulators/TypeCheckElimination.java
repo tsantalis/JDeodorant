@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
@@ -15,11 +16,11 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
-import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -30,6 +31,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -263,19 +265,24 @@ public class TypeCheckElimination {
 		return typeCheckMethod.parameters();
 	}
 	
-	public VariableDeclarationFragment getTypeCheckMethodReturnedVariable() {
+	public VariableDeclaration getTypeCheckMethodReturnedVariable() {
 		StatementExtractor statementExtractor = new StatementExtractor();
 		List<Statement> returnStatements = statementExtractor.getReturnStatements(typeCheckMethod.getBody());
 		if(returnStatements.size() > 0) {
 			ReturnStatement lastReturnStatement = (ReturnStatement)returnStatements.get(returnStatements.size()-1);
 			if(lastReturnStatement.getExpression() instanceof SimpleName) {
 				SimpleName returnExpression = (SimpleName)lastReturnStatement.getExpression();
+				List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
+				for(SingleVariableDeclaration parameter : parameters) {
+					if(parameter.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
+						return parameter;
+				}
 				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
 				for(Statement statement : variableDeclarationStatements) {
 					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
 					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
 					for(VariableDeclarationFragment fragment : fragments) {
-						if(fragment.getName().getIdentifier().equals(returnExpression.getIdentifier()))
+						if(fragment.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
 							return fragment;
 					}
 				}
@@ -306,7 +313,7 @@ public class TypeCheckElimination {
 			SimpleName simpleName = staticFieldMap.get(expression);
 			if(simpleName != null) {
 				String staticFieldName = simpleName.getIdentifier();
-				Type castingType = isFirstStatementACastingVariableDeclaration(typeCheckMap.get(expression));
+				Type castingType = getCastingType(typeCheckMap.get(expression));
 				String subclassName = null;
 				if(!staticFieldName.contains("_")) {
 					subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
@@ -354,23 +361,33 @@ public class TypeCheckElimination {
 		return subclassNames;
 	}
 	
-	private Type isFirstStatementACastingVariableDeclaration(ArrayList<Statement> typeCheckCodeFragment) {
-		Statement firstStatement = null;
-		if(typeCheckCodeFragment.get(0) instanceof Block) {
-			Block block = (Block)typeCheckCodeFragment.get(0);
-			List<Statement> blockStatements = block.statements();
-			firstStatement = blockStatements.get(0);
+	private Type getCastingType(ArrayList<Statement> typeCheckCodeFragment) {
+		List<Expression> castExpressions = new ArrayList<Expression>();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		for(Statement statement : typeCheckCodeFragment) {
+			castExpressions.addAll(expressionExtractor.getCastExpressions(statement));
 		}
-		else {
-			firstStatement = typeCheckCodeFragment.get(0);
-		}
-		if(firstStatement instanceof VariableDeclarationStatement) {
-			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)firstStatement;
-			List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-			if(fragments.size() == 1) {
-				VariableDeclarationFragment fragment = fragments.get(0);
-				if(fragment.getInitializer() instanceof CastExpression)
-					return variableDeclarationStatement.getType();
+		for(Expression expression : castExpressions) {
+			CastExpression castExpression = (CastExpression)expression;
+			Expression expressionOfCastExpression = castExpression.getExpression();
+			SimpleName superTypeSimpleName = null;
+			if(expressionOfCastExpression instanceof SimpleName) {
+				superTypeSimpleName = (SimpleName)expressionOfCastExpression;
+			}
+			else if(expressionOfCastExpression instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)expressionOfCastExpression;
+				superTypeSimpleName = fieldAccess.getName();
+			}
+			else if(expressionOfCastExpression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expressionOfCastExpression;
+				if(typeFieldGetterMethod != null && typeFieldGetterMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+					superTypeSimpleName = MethodDeclarationUtility.isGetter(typeFieldGetterMethod);
+				}
+			}
+			if(superTypeSimpleName != null) {
+				if(	(typeField != null && typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding())) ||
+					(typeLocalVariable != null && typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding())) )
+					return castExpression.getType();
 			}
 		}
 		return null;

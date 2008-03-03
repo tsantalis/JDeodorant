@@ -62,6 +62,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -82,10 +83,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private TypeCheckElimination typeCheckElimination;
 	private ASTRewrite sourceRewriter;
 	private UndoRefactoring undoRefactoring;
-	private VariableDeclarationFragment returnedVariable;
+	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> thrownExceptions;
-	private Map<String, String> additionalStaticFields;
+	private Map<SimpleName, String> additionalStaticFields;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -98,7 +99,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
-		this.additionalStaticFields = new LinkedHashMap<String, String>();
+		this.additionalStaticFields = new LinkedHashMap<SimpleName, String>();
 	}
 
 	public void apply() {
@@ -147,7 +148,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		int i = 0;
 		for(SimpleName staticFieldName : staticFieldNames) {
 			SwitchCase switchCase = contextAST.newSwitchCase();
-			sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+			String staticFieldNameDeclaringClass = null;
+			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+				}
+			}
+			if(staticFieldNameDeclaringClass == null) {
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			}
+			else {
+				FieldAccess fieldAccess = contextAST.newFieldAccess();
+				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+			}
 			switchStatementStatementsRewrite.insertLast(switchCase, null);
 			Assignment assignment = contextAST.newAssignment();
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
@@ -162,9 +179,25 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			switchStatementStatementsRewrite.insertLast(contextAST.newBreakStatement(), null);
 			i++;
 		}
-		for(String staticFieldName : additionalStaticFields.keySet()) {
+		for(SimpleName staticFieldName : additionalStaticFields.keySet()) {
 			SwitchCase switchCase = contextAST.newSwitchCase();
-			sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldName), null);
+			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+			String staticFieldNameDeclaringClass = null;
+			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+				}
+			}
+			if(staticFieldNameDeclaringClass == null) {
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			}
+			else {
+				FieldAccess fieldAccess = contextAST.newFieldAccess();
+				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+			}
 			switchStatementStatementsRewrite.insertLast(switchCase, null);
 			Assignment assignment = contextAST.newAssignment();
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
@@ -334,7 +367,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		int i = 0;
 		for(SimpleName staticFieldName : staticFieldNames) {
 			SwitchCase switchCase = contextAST.newSwitchCase();
-			sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+			String staticFieldNameDeclaringClass = null;
+			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+				}
+			}
+			if(staticFieldNameDeclaringClass == null) {
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			}
+			else {
+				FieldAccess fieldAccess = contextAST.newFieldAccess();
+				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+			}
 			switchStatementStatementsRewrite.insertLast(switchCase, null);
 			ReturnStatement returnStatement = contextAST.newReturnStatement();
 			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
@@ -343,9 +392,25 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			switchStatementStatementsRewrite.insertLast(returnStatement, null);
 			i++;
 		}
-		for(String staticFieldName : additionalStaticFields.keySet()) {
+		for(SimpleName staticFieldName : additionalStaticFields.keySet()) {
 			SwitchCase switchCase = contextAST.newSwitchCase();
-			sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldName), null);
+			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+			String staticFieldNameDeclaringClass = null;
+			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+				}
+			}
+			if(staticFieldNameDeclaringClass == null) {
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			}
+			else {
+				FieldAccess fieldAccess = contextAST.newFieldAccess();
+				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+			}
 			switchStatementStatementsRewrite.insertLast(switchCase, null);
 			ReturnStatement returnStatement = contextAST.newReturnStatement();
 			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
@@ -615,7 +680,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		subclassNames.addAll(additionalStaticFields.values());
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
-		staticFieldNames.addAll(additionalStaticFields.keySet());
+		for(SimpleName simpleName : additionalStaticFields.keySet())
+			staticFieldNames.add(simpleName.getIdentifier());
 		for(int i=0; i<staticFieldNames.size(); i++) {
 			ArrayList<Statement> statements = null;
 			DefaultMutableTreeNode remainingIfStatementExpression = null;
@@ -785,7 +851,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				subclassRewriter.set(enclosingIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, ifStatementBody, null);
 				concreteMethodBodyRewrite.insertLast(enclosingIfStatement, null);
 			}
-			if(returnedVariable != null) {
+			if(returnedVariable != null && !returnedVariable.resolveBinding().isParameter()) {
 				VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
 				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
 				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
@@ -896,6 +962,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
 					leftHandSideName = leftHandSideFieldAccess.getName();
 				}
+				Expression rightHandSide = assignment.getRightHandSide();
+				SimpleName rightHandSideName = null;
+				if(rightHandSide instanceof SimpleName) {
+					rightHandSideName = (SimpleName)rightHandSide;
+				}
+				else if(rightHandSide instanceof QualifiedName) {
+					QualifiedName qualifiedName = (QualifiedName)rightHandSide;
+					rightHandSideName = qualifiedName.getName();
+				}
+				else if(rightHandSide instanceof FieldAccess) {
+					FieldAccess fieldAccess = (FieldAccess)rightHandSide;
+					rightHandSideName = fieldAccess.getName();
+				}
+				String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+				invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 				if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 					for(VariableDeclarationFragment assignedFragment : assignedFields) {
 						if(assignedFragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
@@ -903,40 +984,43 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							String leftHandMethodName = assignedFragment.getName().getIdentifier();
 							leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(leftHandMethodName), null);
-							String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 							ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-							Expression rightHandSide = assignment.getRightHandSide();
-							SimpleName rightHandSideSimpleName = null;
-							if(rightHandSide instanceof SimpleName) {
-								rightHandSideSimpleName = (SimpleName)rightHandSide;
-							}
-							else if(rightHandSide instanceof QualifiedName) {
-								QualifiedName qualifiedName = (QualifiedName)rightHandSide;
-								rightHandSideSimpleName = qualifiedName.getName();
-							}
-							else if(rightHandSide instanceof FieldAccess) {
-								FieldAccess fieldAccess = (FieldAccess)rightHandSide;
-								rightHandSideSimpleName = fieldAccess.getName();
-							}
-							if(rightHandSideSimpleName != null) {
+							if(rightHandSideName != null) {
+								boolean accessedFieldFound = false;
 								for(VariableDeclarationFragment accessedFragment : accessedFields) {
-									if(accessedFragment.getName().getIdentifier().equals(rightHandSideSimpleName.getIdentifier())) {
+									if(accessedFragment.getName().getIdentifier().equals(rightHandSideName.getIdentifier())) {
 										MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
 										String rightHandMethodName = accessedFragment.getName().getIdentifier();
 										rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
 										subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
 										subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 										methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
+										accessedFieldFound = true;
 										break;
 									}
 								}
+								if(!accessedFieldFound)
+									methodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
 							}
 							else {
 								methodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
 							}
 							subclassRewriter.replace(assignment, leftHandMethodInvocation, null);
+							break;
+						}
+					}
+				}
+				if(rightHandSideName != null && rightHandSideName.equals(simpleName)) {
+					for(VariableDeclarationFragment accessedFragment : accessedFields) {
+						if(accessedFragment.getName().getIdentifier().equals(rightHandSideName.getIdentifier())) {
+							MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
+							String rightHandMethodName = accessedFragment.getName().getIdentifier();
+							rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
+							subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
+							subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							subclassRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, rightHandMethodInvocation, null);
+							break;
 						}
 					}
 				}
@@ -1021,7 +1105,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 													tempName.subSequence(1, tempName.length()).toString();
 												}
-												additionalStaticFields.put(accessedVariable.getIdentifier(), subclassName);
+												if(!containsStaticFieldKey(accessedVariable))
+													additionalStaticFields.put(accessedVariable, subclassName);
 											}
 										}
 									}
@@ -1079,6 +1164,34 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				List<Statement> statements = methodBody.statements();
 				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 				for(Statement statement : statements) {
+					if(statement instanceof SwitchStatement) {
+						SwitchStatement switchStatement = (SwitchStatement)statement;
+						Expression switchStatementExpression = switchStatement.getExpression();
+						SimpleName accessedVariable = null;
+						if(switchStatementExpression instanceof SimpleName) {
+							accessedVariable = (SimpleName)switchStatementExpression;
+						}
+						else if(switchStatementExpression instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)switchStatementExpression;
+							accessedVariable = fieldAccess.getName();
+						}
+						if(accessedVariable != null) {
+							IBinding switchStatementExpressionBinding = accessedVariable.resolveBinding();
+							if(switchStatementExpressionBinding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding accessedVariableBinding = (IVariableBinding)switchStatementExpressionBinding;
+								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+									MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+									if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+										sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+									}
+									else {
+										sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+									}
+									sourceRewriter.replace(switchStatementExpression, getterMethodInvocation, null);
+								}
+							}
+						}
+					}
 					List<Expression> infixExpressions = expressionExtractor.getInfixExpressions(statement);
 					for(Expression expression : infixExpressions) {
 						InfixExpression infixExpression = (InfixExpression)expression;
@@ -1132,7 +1245,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 													tempName.subSequence(1, tempName.length()).toString();
 												}
-												additionalStaticFields.put(comparedVariable.getIdentifier(), subclassName);
+												if(!containsStaticFieldKey(comparedVariable))
+													additionalStaticFields.put(comparedVariable, subclassName);
 											}
 										}
 									}
@@ -1184,7 +1298,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 														subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 														tempName.subSequence(1, tempName.length()).toString();
 													}
-													additionalStaticFields.put(comparedVariable.getIdentifier(), subclassName);
+													if(!containsStaticFieldKey(comparedVariable))
+														additionalStaticFields.put(comparedVariable, subclassName);
 												}
 											}
 										}
@@ -1206,7 +1321,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				boolean getterFound = false;
 				for(MethodDeclaration methodDeclaration : contextMethods) {
 					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
-					if(simpleName != null && simpleName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+					if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
 						getterFound = true;
 						break;
 					}
@@ -1241,7 +1356,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				boolean setterFound = false;
 				for(MethodDeclaration methodDeclaration : contextMethods) {
 					SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
-					if(simpleName != null && simpleName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+					if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
 						setterFound = true;
 						break;
 					}
@@ -1448,7 +1563,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private void setPublicModifierToStaticFields() {
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
-		staticFieldNames.addAll(additionalStaticFields.keySet());
+		for(SimpleName simpleName : additionalStaticFields.keySet())
+			staticFieldNames.add(simpleName.getIdentifier());
 		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 			for(VariableDeclarationFragment fragment : fragments) {
@@ -1570,7 +1686,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 												tempName.subSequence(1, tempName.length()).toString();
 											}
-											additionalStaticFields.put(accessedVariable.getIdentifier(), subclassName);
+											if(!containsStaticFieldKey(accessedVariable))
+												additionalStaticFields.put(accessedVariable, subclassName);
 										}
 									}
 								}
@@ -1634,7 +1751,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 												tempName.subSequence(1, tempName.length()).toString();
 											}
-											additionalStaticFields.put(comparedVariable.getIdentifier(), subclassName);
+											if(!containsStaticFieldKey(comparedVariable))
+												additionalStaticFields.put(comparedVariable, subclassName);
 										}
 									}
 								}
@@ -1678,7 +1796,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
 													tempName.subSequence(1, tempName.length()).toString();
 												}
-												additionalStaticFields.put(comparedVariable.getIdentifier(), subclassName);
+												if(!containsStaticFieldKey(comparedVariable))
+													additionalStaticFields.put(comparedVariable, subclassName);
 											}
 										}
 									}
@@ -1689,6 +1808,14 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 		}
+	}
+
+	private boolean containsStaticFieldKey(SimpleName simpleName) {
+		for(SimpleName keySimpleName : additionalStaticFields.keySet()) {
+			if(keySimpleName.resolveBinding().isEqualTo(simpleName.resolveBinding()))
+				return true;
+		}
+		return false;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {

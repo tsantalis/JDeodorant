@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -57,6 +58,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -77,7 +79,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 	private TypeCheckElimination typeCheckElimination;
 	private ASTRewrite sourceRewriter;
 	private UndoRefactoring undoRefactoring;
-	private VariableDeclarationFragment returnedVariable;
+	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	Set<ITypeBinding> thrownExceptions;
 	
@@ -407,7 +409,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				subclassRewriter.set(enclosingIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, ifStatementBody, null);
 				concreteMethodBodyRewrite.insertLast(enclosingIfStatement, null);
 			}
-			if(returnedVariable != null) {
+			if(returnedVariable != null && !returnedVariable.resolveBinding().isParameter()) {
 				VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
 				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
 				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
@@ -432,6 +434,26 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 							invokerSimpleName = fragment.getName();
 							insert = false;
 						}
+					}
+				}
+				else {
+					StatementExtractor statementExtractor = new StatementExtractor();
+					List<Statement> oldVariableDeclarations = statementExtractor.getVariableDeclarations(statement);
+					List<Statement> newVariableDeclarations = statementExtractor.getVariableDeclarations(newStatement);
+					int j = 0;
+					for(Statement oldVariableDeclaration : oldVariableDeclarations) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)oldVariableDeclaration;
+						List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+						VariableDeclarationFragment fragment = fragments.get(0);
+						if(fragment.getInitializer() instanceof CastExpression) {
+							CastExpression castExpression = (CastExpression)fragment.getInitializer();
+							if(castExpression.getType().resolveBinding().isEqualTo(subclassTypeDeclaration.resolveBinding())) {
+								invokerSimpleName = fragment.getName();
+								subclassRewriter.remove(newVariableDeclarations.get(j), null);
+								break;
+							}
+						}
+						j++;
 					}
 				}
 				if(invokerSimpleName != null) {
@@ -546,6 +568,21 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 					FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
 					leftHandSideName = leftHandSideFieldAccess.getName();
 				}
+				Expression rightHandSide = assignment.getRightHandSide();
+				SimpleName rightHandSideName = null;
+				if(rightHandSide instanceof SimpleName) {
+					rightHandSideName = (SimpleName)rightHandSide;
+				}
+				else if(rightHandSide instanceof QualifiedName) {
+					QualifiedName qualifiedName = (QualifiedName)rightHandSide;
+					rightHandSideName = qualifiedName.getName();
+				}
+				else if(rightHandSide instanceof FieldAccess) {
+					FieldAccess fieldAccess = (FieldAccess)rightHandSide;
+					rightHandSideName = fieldAccess.getName();
+				}
+				String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+				invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 				if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 					for(VariableDeclarationFragment assignedFragment : assignedFields) {
 						if(assignedFragment.getName().getIdentifier().equals(simpleName.getIdentifier())) {
@@ -553,40 +590,43 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 							String leftHandMethodName = assignedFragment.getName().getIdentifier();
 							leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(leftHandMethodName), null);
-							String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 							ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-							Expression rightHandSide = assignment.getRightHandSide();
-							SimpleName rightHandSideSimpleName = null;
-							if(rightHandSide instanceof SimpleName) {
-								rightHandSideSimpleName = (SimpleName)rightHandSide;
-							}
-							else if(rightHandSide instanceof QualifiedName) {
-								QualifiedName qualifiedName = (QualifiedName)rightHandSide;
-								rightHandSideSimpleName = qualifiedName.getName();
-							}
-							else if(rightHandSide instanceof FieldAccess) {
-								FieldAccess fieldAccess = (FieldAccess)rightHandSide;
-								rightHandSideSimpleName = fieldAccess.getName();
-							}
-							if(rightHandSideSimpleName != null) {
+							if(rightHandSideName != null) {
+								boolean accessedFieldFound = false;
 								for(VariableDeclarationFragment accessedFragment : accessedFields) {
-									if(accessedFragment.getName().getIdentifier().equals(rightHandSideSimpleName.getIdentifier())) {
+									if(accessedFragment.getName().getIdentifier().equals(rightHandSideName.getIdentifier())) {
 										MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
 										String rightHandMethodName = accessedFragment.getName().getIdentifier();
 										rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
 										subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
 										subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 										methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
+										accessedFieldFound = true;
 										break;
 									}
 								}
+								if(!accessedFieldFound)
+									methodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
 							}
 							else {
 								methodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
 							}
 							subclassRewriter.replace(assignment, leftHandMethodInvocation, null);
+							break;
+						}
+					}
+				}
+				if(rightHandSideName != null && rightHandSideName.equals(simpleName)) {
+					for(VariableDeclarationFragment accessedFragment : accessedFields) {
+						if(accessedFragment.getName().getIdentifier().equals(rightHandSideName.getIdentifier())) {
+							MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
+							String rightHandMethodName = accessedFragment.getName().getIdentifier();
+							rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
+							subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
+							subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							subclassRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, rightHandMethodInvocation, null);
+							break;
 						}
 					}
 				}
@@ -654,7 +694,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				boolean getterFound = false;
 				for(MethodDeclaration methodDeclaration : contextMethods) {
 					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
-					if(simpleName != null && simpleName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+					if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
 						getterFound = true;
 						break;
 					}
@@ -689,7 +729,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				boolean setterFound = false;
 				for(MethodDeclaration methodDeclaration : contextMethods) {
 					SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
-					if(simpleName != null && simpleName.getIdentifier().equals(fragment.getName().getIdentifier())) {
+					if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
 						setterFound = true;
 						break;
 					}

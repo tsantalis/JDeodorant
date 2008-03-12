@@ -155,7 +155,12 @@ public class TypeCheckElimination {
 	}
 	
 	public List<SimpleName> getStaticFields() {
-		return new ArrayList<SimpleName>(staticFieldMap.values());
+		ArrayList<SimpleName> staticFields = new ArrayList<SimpleName>();
+		for(Expression expression : typeCheckMap.keySet()) {
+			SimpleName simpleName = staticFieldMap.get(expression);
+			staticFields.add(simpleName);
+		}
+		return staticFields;
 	}
 	
 	public DefaultMutableTreeNode getRemainingIfStatementExpression(Expression expression) {
@@ -172,7 +177,8 @@ public class TypeCheckElimination {
 	
 	public List<String> getStaticFieldNames() {
 		List<String> staticFieldNames = new ArrayList<String>();
-		for(SimpleName simpleName : staticFieldMap.values()) {
+		for(Expression expression : typeCheckMap.keySet()) {
+			SimpleName simpleName = staticFieldMap.get(expression);
 			staticFieldNames.add(simpleName.getIdentifier());
 		}
 		return staticFieldNames;

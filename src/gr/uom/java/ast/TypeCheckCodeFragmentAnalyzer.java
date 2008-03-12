@@ -27,6 +27,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -45,6 +46,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 	private FieldDeclaration[] fields;
 	private MethodDeclaration[] methods;
 	private Map<SimpleName, Integer> typeVariableCounterMap;
+	private Map<Expression, IfStatementExpressionAnalyzer> complexExpressionMap;
 	
 	public TypeCheckCodeFragmentAnalyzer(TypeCheckElimination typeCheckElimination, TypeDeclaration typeDeclaration,
 			MethodDeclaration typeCheckMethod, List<InheritanceTree> inheritanceTreeList) {
@@ -55,6 +57,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 		this.methods = typeDeclaration.getMethods();
 		this.inheritanceTreeList = inheritanceTreeList;
 		this.typeVariableCounterMap = new LinkedHashMap<SimpleName, Integer>();
+		this.complexExpressionMap = new LinkedHashMap<Expression, IfStatementExpressionAnalyzer>();
 		typeCheckElimination.setTypeCheckMethod(typeCheckMethod);
 		processTypeCheckCodeFragment();
 	}
@@ -160,27 +163,78 @@ public class TypeCheckCodeFragmentAnalyzer {
 				for(InfixExpression leafInfixExpression : analyzer.getInfixExpressionsWithEqualsOperator()) {
 					Expression leftOperand = leafInfixExpression.getLeftOperand();
 					Expression rightOperand = leafInfixExpression.getRightOperand();
-					infixExpressionHandler(leftOperand, leafInfixExpression, analyzer);
-					infixExpressionHandler(rightOperand, leafInfixExpression, analyzer);
+					SimpleName leftOperandName = extractOperandName(leftOperand);
+					SimpleName rightOperandName = extractOperandName(rightOperand);
+					SimpleName typeVariableName = null;
+					SimpleName staticFieldName = null;
+					if(leftOperandName != null && rightOperandName != null) {
+						IBinding leftOperandNameBinding = leftOperandName.resolveBinding();
+						if(leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding leftOperandNameVariableBinding = (IVariableBinding)leftOperandNameBinding;
+							if(leftOperandNameVariableBinding.isField() && (leftOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0)
+								staticFieldName = leftOperandName;
+						}
+						IBinding rightOperandNameBinding = rightOperandName.resolveBinding();
+						if(rightOperandNameBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding rightOperandNameVariableBinding = (IVariableBinding)rightOperandNameBinding;
+							if(rightOperandNameVariableBinding.isField() && (rightOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0)
+								staticFieldName = rightOperandName;
+						}
+						if(staticFieldName != null && staticFieldName.equals(leftOperandName))
+							typeVariableName = rightOperandName;
+						else if(staticFieldName != null && staticFieldName.equals(rightOperandName))
+							typeVariableName = leftOperandName;
+					}
+					if(typeVariableName != null && staticFieldName != null) {
+						SimpleName keySimpleName = containsKey(typeVariableName);
+						if(keySimpleName != null) {
+							typeVariableCounterMap.put(keySimpleName, typeVariableCounterMap.get(keySimpleName)+1);
+						}
+						else {
+							typeVariableCounterMap.put(typeVariableName, 1);
+						}
+						if(analyzer.allParentNodesAreConditionalAndOperators()) {
+							analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
+							analyzer.putTypeVariableStaticField(typeVariableName, staticFieldName);
+						}
+					}
 				}
 				for(InstanceofExpression leafInstanceofExpression : analyzer.getInstanceofExpressions()) {
 					SimpleName operandName = extractOperandName(leafInstanceofExpression.getLeftOperand());
 					if(operandName != null) {
 						SimpleName keySimpleName = containsKey(operandName);
-						if(keySimpleName != null && analyzer.allParentNodesAreConditionalAndOperators()) {
+						if(keySimpleName != null) {
 							typeVariableCounterMap.put(keySimpleName, typeVariableCounterMap.get(keySimpleName)+1);
 						}
 						else {
 							typeVariableCounterMap.put(operandName, 1);
 						}
-						typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(), analyzer.getRemainingExpression(leafInstanceofExpression));
-						typeCheckElimination.addSubclassType(typeCheckExpression, leafInstanceofExpression.getRightOperand());
+						if(analyzer.allParentNodesAreConditionalAndOperators()) {
+							analyzer.putTypeVariableExpression(operandName, leafInstanceofExpression);
+							analyzer.putTypeVariableSubclass(operandName, leafInstanceofExpression.getRightOperand());
+						}
 					}
 				}
+				complexExpressionMap.put(typeCheckExpression, analyzer);
 			}
 		}
 		for(SimpleName typeVariable : typeVariableCounterMap.keySet()) {
 			if(typeVariableCounterMap.get(typeVariable) == typeCheckExpressions.size()) {
+				for(Expression complexExpression : complexExpressionMap.keySet()) {
+					IfStatementExpressionAnalyzer analyzer = complexExpressionMap.get(complexExpression);
+					for(SimpleName analyzerTypeVariable : analyzer.getTargetVariables()) {
+						if(analyzerTypeVariable.resolveBinding().isEqualTo(typeVariable.resolveBinding())) {
+							typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(),
+									analyzer.getRemainingExpression(analyzer.getTypeVariableExpression(analyzerTypeVariable)));
+							SimpleName staticField = analyzer.getTypeVariableStaticField(analyzerTypeVariable);
+							if(staticField != null)
+								typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), staticField);
+							Type subclassType = analyzer.getTypeVariableSubclass(analyzerTypeVariable);
+							if(subclassType != null)
+								typeCheckElimination.addSubclassType(analyzer.getCompleteExpression(), subclassType);
+						}
+					}
+				}
 				IBinding binding = typeVariable.resolveBinding();
 				if(binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
@@ -327,31 +381,6 @@ public class TypeCheckCodeFragmentAnalyzer {
 								}    											
 							}
 						}
-					}
-				}
-			}
-		}
-	}
-	
-	private void infixExpressionHandler(Expression operand, Expression typeCheckExpression, IfStatementExpressionAnalyzer analyzer) {
-		SimpleName operandName = extractOperandName(operand);
-		if(operandName != null) {
-			IBinding operandNameBinding = operandName.resolveBinding();
-			if(operandNameBinding.getKind() == IBinding.VARIABLE) {
-				IVariableBinding operandNameVariableBinding = (IVariableBinding)operandNameBinding;
-				if(operandNameVariableBinding.isField() && (operandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
-					if(analyzer.allParentNodesAreConditionalAndOperators()) {
-						typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), operandName);
-						typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(), analyzer.getRemainingExpression(typeCheckExpression));
-					}
-				}
-				else {
-					SimpleName keySimpleName = containsKey(operandName);
-					if(keySimpleName != null) {
-						typeVariableCounterMap.put(keySimpleName, typeVariableCounterMap.get(keySimpleName)+1);
-					}
-					else {
-						typeVariableCounterMap.put(operandName, 1);
 					}
 				}
 			}

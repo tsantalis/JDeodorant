@@ -2,23 +2,65 @@ package gr.uom.java.ast;
 
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.Type;
 
 public class IfStatementExpressionAnalyzer {
 	//parent nodes are CONDITIONAL_AND (&&), CONDITIONAL_OR (||) infix operators, while leaf nodes are expressions
 	private DefaultMutableTreeNode root;
 	private Expression completeExpression;
+	//contains the expressions corresponding to each candidate type variable
+	private Map<SimpleName, Expression> typeVariableExpressionMap;
+	//contains the static fields corresponding to each candidate type variable
+	private Map<SimpleName, SimpleName> typeVariableStaticFieldMap;
+	//contains the subclass types corresponding to each candidate type variable
+	private Map<SimpleName, Type> typeVariableSubclassMap;
 	
 	public IfStatementExpressionAnalyzer(Expression completeExpression) {
 		this.root = new DefaultMutableTreeNode();
 		this.completeExpression = completeExpression;
+		this.typeVariableExpressionMap = new LinkedHashMap<SimpleName, Expression>();
+		this.typeVariableStaticFieldMap = new LinkedHashMap<SimpleName, SimpleName>();
+		this.typeVariableSubclassMap = new LinkedHashMap<SimpleName, Type>();
 		processExpression(root, completeExpression);
+	}
+	
+	public void putTypeVariableExpression(SimpleName typeVariable, Expression expression) {
+		typeVariableExpressionMap.put(typeVariable, expression);
+	}
+	
+	public Set<SimpleName> getTargetVariables() {
+		return typeVariableExpressionMap.keySet();
+	}
+	
+	public Expression getTypeVariableExpression(SimpleName typeVariable) {
+		return typeVariableExpressionMap.get(typeVariable);
+	}
+	
+	public void putTypeVariableStaticField(SimpleName typeVariable, SimpleName staticField) {
+		typeVariableStaticFieldMap.put(typeVariable, staticField);
+	}
+	
+	public SimpleName getTypeVariableStaticField(SimpleName typeVariable) {
+		return typeVariableStaticFieldMap.get(typeVariable);
+	}
+	
+	public void putTypeVariableSubclass(SimpleName typeVariable, Type subclass) {
+		typeVariableSubclassMap.put(typeVariable, subclass);
+	}
+	
+	public Type getTypeVariableSubclass(SimpleName typeVariable) {
+		return typeVariableSubclassMap.get(typeVariable);
 	}
 	
 	private void processExpression(DefaultMutableTreeNode parent, Expression expression) {

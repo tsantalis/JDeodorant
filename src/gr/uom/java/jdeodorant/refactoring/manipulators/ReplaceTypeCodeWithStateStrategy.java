@@ -1002,7 +1002,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 				if(newLeftHandSideName != null && newLeftHandSideName.equals(newSimpleName)) {
 					for(VariableDeclarationFragment assignedFragment : assignedFields) {
-						if(assignedFragment.resolveBinding().isEqualTo(oldLeftHandSideName.resolveBinding())) {
+						if(assignedFragment.resolveBinding().isEqualTo(oldLeftHandSideName.resolveBinding()) ||
+								assignedFragment.getName().getIdentifier().equals(newLeftHandSideName.getIdentifier())) {
 							MethodInvocation leftHandMethodInvocation = subclassAST.newMethodInvocation();
 							String leftHandMethodName = assignedFragment.getName().getIdentifier();
 							leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
@@ -1012,7 +1013,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							if(newRightHandSideName != null) {
 								boolean accessedFieldFound = false;
 								for(VariableDeclarationFragment accessedFragment : accessedFields) {
-									if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding())) {
+									if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding()) ||
+											accessedFragment.getName().getIdentifier().equals(newRightHandSideName.getIdentifier())) {
 										MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
 										String rightHandMethodName = accessedFragment.getName().getIdentifier();
 										rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
@@ -1036,7 +1038,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 				if(newRightHandSideName != null && newRightHandSideName.equals(newSimpleName)) {
 					for(VariableDeclarationFragment accessedFragment : accessedFields) {
-						if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding())) {
+						if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding()) ||
+								accessedFragment.getName().getIdentifier().equals(newRightHandSideName.getIdentifier())) {
 							MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
 							String rightHandMethodName = accessedFragment.getName().getIdentifier();
 							rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
@@ -1050,7 +1053,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 			else {
 				for(VariableDeclarationFragment fragment : accessedFields) {
-					if(fragment.resolveBinding().isEqualTo(oldSimpleName.resolveBinding())) {
+					if(fragment.resolveBinding().isEqualTo(oldSimpleName.resolveBinding()) ||
+							fragment.getName().getIdentifier().equals(newSimpleName.getIdentifier())) {
 						MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
 						String methodName = fragment.getName().getIdentifier();
 						methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());

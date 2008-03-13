@@ -87,6 +87,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> thrownExceptions;
 	private Map<SimpleName, String> additionalStaticFields;
+	private String abstractMethodName;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -100,6 +101,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
 		this.additionalStaticFields = new LinkedHashMap<SimpleName, String>();
+		this.abstractMethodName = typeCheckElimination.getTypeCheckMethodName();
 	}
 
 	public void apply() {
@@ -286,7 +288,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		Type typeCheckMethodReturnType = typeCheckMethod.getReturnType2();
 		if(typeCheckMethodReturnType.isPrimitiveType() && ((PrimitiveType)typeCheckMethodReturnType).getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
-			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -305,7 +307,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 		else {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
-			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -447,7 +449,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		Type typeCheckMethodReturnType = typeCheckMethod.getReturnType2();
 		if(typeCheckMethodReturnType.isPrimitiveType() && ((PrimitiveType)typeCheckMethodReturnType).getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
-			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(invokerMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
 			ListRewrite invokerMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(invokerMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -470,7 +472,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 		else {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
-			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckMethod.getName(), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(invokerMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
 			ListRewrite invokerMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(invokerMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -617,7 +619,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 		
 		MethodDeclaration abstractMethodDeclaration = stateStrategyAST.newMethodDeclaration();
-		String abstractMethodName = typeCheckElimination.getTypeCheckMethodName();
 		stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.NAME_PROPERTY, stateStrategyAST.newSimpleName(abstractMethodName), null);
 		stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
 		ListRewrite abstractMethodModifiersRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -796,8 +797,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 			
 			MethodDeclaration concreteMethodDeclaration = subclassAST.newMethodDeclaration();
-			String concreteMethodName = typeCheckElimination.getTypeCheckMethodName();
-			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(concreteMethodName), null);
+			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(abstractMethodName), null);
 			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
 			ListRewrite concreteMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			concreteMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
@@ -1862,5 +1862,13 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		IMethodBinding typeCheckMethodBinding = typeCheckElimination.getTypeCheckMethod().resolveBinding();
 		ITypeBinding declaringClassTypeBinding = typeCheckMethodBinding.getDeclaringClass();
 		return declaringClassTypeBinding.getQualifiedName() + "::" + typeCheckMethodBinding.toString();
+	}
+
+	public String getAbstractMethodName() {
+		return abstractMethodName;
+	}
+
+	public void setAbstractMethodName(String methodName) {
+		abstractMethodName = methodName;
 	}
 }

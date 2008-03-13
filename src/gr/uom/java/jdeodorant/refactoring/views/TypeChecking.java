@@ -46,6 +46,8 @@ import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
+import org.eclipse.jface.dialogs.IInputValidator;
+import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
 
@@ -74,6 +76,7 @@ public class TypeChecking extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action undoRefactoringAction;
 	private Action doubleClickAction;
+	private Action renameMethodAction;
 	private IProject selectedProject;
 	private ASTReader astReader;
 	private Refactoring[] refactoringTable;
@@ -122,6 +125,17 @@ public class TypeChecking extends ViewPart {
 						ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
 							(ReplaceConditionalWithPolymorphism)refactoring;
 						return replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
+					}
+				case 2:
+					if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
+						ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
+							(ReplaceTypeCodeWithStateStrategy)refactoring;
+						return replaceTypeCodeWithStateStrategyRefactoring.getAbstractMethodName();
+					}
+					else if(refactoring instanceof ReplaceConditionalWithPolymorphism) {
+						ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
+							(ReplaceConditionalWithPolymorphism)refactoring;
+						return replaceConditionalWithPolymorphismRefactoring.getAbstractMethodName();
 					}
 				default:
 					return "";
@@ -201,8 +215,9 @@ public class TypeChecking extends ViewPart {
 		tableViewer.setSorter(new NameSorter());
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
+		layout.addColumnData(new ColumnWeightData(50, true));
 		layout.addColumnData(new ColumnWeightData(100, true));
-		layout.addColumnData(new ColumnWeightData(100, true));
+		layout.addColumnData(new ColumnWeightData(50, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
@@ -214,6 +229,10 @@ public class TypeChecking extends ViewPart {
 		column1.setText("Type Checking Method");
 		column1.setResizable(true);
 		column1.pack();
+		TableColumn column2 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column2.setText("Abstract Method Name");
+		column2.setResizable(true);
+		column2.pack();
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -232,6 +251,7 @@ public class TypeChecking extends ViewPart {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(undoRefactoringAction);
+		manager.add(renameMethodAction);
 	}
 
 	private void makeActions() {
@@ -240,6 +260,7 @@ public class TypeChecking extends ViewPart {
 				refactoringTable = getTable(selectedProject);
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
+				renameMethodAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -329,6 +350,39 @@ public class TypeChecking extends ViewPart {
 		undoRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_TOOL_UNDO));
 		undoRefactoringAction.setEnabled(false);
+		
+		renameMethodAction = new Action() {
+			public void run() {
+				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				Refactoring entry = (Refactoring)selection.getFirstElement();
+				if(entry instanceof ReplaceTypeCodeWithStateStrategy) {
+					ReplaceTypeCodeWithStateStrategy refactoring = (ReplaceTypeCodeWithStateStrategy)entry;
+					String methodName = refactoring.getAbstractMethodName();
+					IInputValidator methodNameValidator = new MethodNameValidator();
+					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+					dialog.open();
+					if(dialog.getValue() != null) {
+						refactoring.setAbstractMethodName(dialog.getValue());
+						tableViewer.refresh();
+					}
+				}
+				else if(entry instanceof ReplaceConditionalWithPolymorphism) {
+					ReplaceConditionalWithPolymorphism refactoring = (ReplaceConditionalWithPolymorphism)entry;
+					String methodName = refactoring.getAbstractMethodName();
+					IInputValidator methodNameValidator = new MethodNameValidator();
+					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+					dialog.open();
+					if(dialog.getValue() != null) {
+						refactoring.setAbstractMethodName(dialog.getValue());
+						tableViewer.refresh();
+					}
+				}
+			}
+		};
+		renameMethodAction.setToolTipText("Rename Abstract Method");
+		renameMethodAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+				getImageDescriptor(ISharedImages.IMG_OBJ_FILE));
+		renameMethodAction.setEnabled(false);
 		
 		doubleClickAction = new Action() {
 			public void run() {

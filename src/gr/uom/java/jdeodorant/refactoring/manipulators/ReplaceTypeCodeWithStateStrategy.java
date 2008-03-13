@@ -1668,7 +1668,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		return null;
 	}
 
-	public void identifyTypeLocalVariableAssignmentsInTypeCheckMethod() {
+	private void identifyTypeLocalVariableAssignmentsInTypeCheckMethod() {
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
 		Block methodBody = typeCheckElimination.getTypeCheckMethod().getBody();
 		if(methodBody != null) {
@@ -1727,7 +1727,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 	}
 
-	public void identifyTypeLocalVariableAccessesInTypeCheckMethod() {
+	private void identifyTypeLocalVariableAccessesInTypeCheckMethod() {
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
 		Block methodBody = typeCheckElimination.getTypeCheckMethod().getBody();
 		if(methodBody != null) {

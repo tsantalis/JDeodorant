@@ -74,20 +74,36 @@ public class MethodBodyObject {
 			List<Statement> statements = switchStatement.statements();
 			Expression switchCaseExpression = null;
 			boolean isDefaultCase = false;
+			//contains the number of statements corresponding to each switch case expression
+			Map<Expression, Integer> switchCaseExpressionStatementCounterMap = new LinkedHashMap<Expression, Integer>();
 			for(Statement statement2 : statements) {
 				if(statement2 instanceof SwitchCase) {
 					SwitchCase switchCase = (SwitchCase)statement2;
 					switchCaseExpression = switchCase.getExpression();
 					isDefaultCase = switchCase.isDefault();
+					if(!isDefaultCase)
+						switchCaseExpressionStatementCounterMap.put(switchCaseExpression, 0);
 				}
 				else {
 					if(!isDefaultCase) {
-						if(!(statement2 instanceof BreakStatement))
+						if(!(statement2 instanceof BreakStatement)) {
+							switchCaseExpressionStatementCounterMap.put(switchCaseExpression,
+									switchCaseExpressionStatementCounterMap.get(switchCaseExpression)+1);
 							typeCheckElimination.addTypeCheck(switchCaseExpression, statement2);
+						}
+						else {
+							switchCaseExpressionStatementCounterMap.clear();
+						}
 					}
 					else {
-						if(!(statement2 instanceof BreakStatement))
+						if(!(statement2 instanceof BreakStatement)) {
+							for(Expression expression : switchCaseExpressionStatementCounterMap.keySet()) {
+								if(switchCaseExpressionStatementCounterMap.get(expression) == 0) {
+									typeCheckElimination.addTypeCheck(expression, statement2);
+								}
+							}
 							typeCheckElimination.addDefaultCaseStatement(statement2);
+						}
 					}
 				}
 			}

@@ -107,6 +107,8 @@ public class ClassObject {
     					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null) &&
     							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && !typeCheckElimination.isSuperClassTypeInterfaceOrObject()) {
     						analyzer.processTypeCheckCodeFragmentBranches();
+    						if(typeCheckElimination.getExistingInheritanceTree() == null)
+    							analyzer.inheritanceHierarchyMatchingWithStaticTypes();
     						typeCheckEliminations.add(typeCheckElimination);
     					}
     				}

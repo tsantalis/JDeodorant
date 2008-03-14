@@ -52,6 +52,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
 	private SimpleName typeLocalVariable;
 	private InheritanceTree existingInheritanceTree;
+	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
 	
 	public TypeCheckElimination() {
@@ -238,6 +239,14 @@ public class TypeCheckElimination {
 
 	public void setExistingInheritanceTree(InheritanceTree existingInheritanceTree) {
 		this.existingInheritanceTree = existingInheritanceTree;
+	}
+
+	public InheritanceTree getInheritanceTreeMatchingWithStaticTypes() {
+		return inheritanceTreeMatchingWithStaticTypes;
+	}
+
+	public void setInheritanceTreeMatchingWithStaticTypes(InheritanceTree inheritanceTree) {
+		this.inheritanceTreeMatchingWithStaticTypes = inheritanceTree;
 	}
 
 	public boolean allTypeCheckingsContainStaticFieldOrSubclassType() {

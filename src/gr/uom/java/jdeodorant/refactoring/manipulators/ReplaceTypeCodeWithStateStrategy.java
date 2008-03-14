@@ -1,10 +1,12 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -362,86 +364,88 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		identifyTypeLocalVariableAssignmentsInTypeCheckMethod();
 		identifyTypeLocalVariableAccessesInTypeCheckMethod();
 		
-		SwitchStatement switchStatement = contextAST.newSwitchStatement();
-		List<SimpleName> staticFieldNames = typeCheckElimination.getStaticFields();
-		List<String> subclassNames = typeCheckElimination.getSubclassNames();
-		ListRewrite switchStatementStatementsRewrite = sourceRewriter.getListRewrite(switchStatement, SwitchStatement.STATEMENTS_PROPERTY);
-		int i = 0;
-		for(SimpleName staticFieldName : staticFieldNames) {
-			SwitchCase switchCase = contextAST.newSwitchCase();
-			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
-			String staticFieldNameDeclaringClass = null;
-			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
-				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
-				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
-					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+		if(!typeObjectGetterMethodAlreadyExists()) {
+			SwitchStatement switchStatement = contextAST.newSwitchStatement();
+			List<SimpleName> staticFieldNames = typeCheckElimination.getStaticFields();
+			List<String> subclassNames = typeCheckElimination.getSubclassNames();
+			ListRewrite switchStatementStatementsRewrite = sourceRewriter.getListRewrite(switchStatement, SwitchStatement.STATEMENTS_PROPERTY);
+			int i = 0;
+			for(SimpleName staticFieldName : staticFieldNames) {
+				SwitchCase switchCase = contextAST.newSwitchCase();
+				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+				String staticFieldNameDeclaringClass = null;
+				if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
 				}
-			}
-			if(staticFieldNameDeclaringClass == null) {
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
-			}
-			else {
-				FieldAccess fieldAccess = contextAST.newFieldAccess();
-				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
-				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
-			}
-			switchStatementStatementsRewrite.insertLast(switchCase, null);
-			ReturnStatement returnStatement = contextAST.newReturnStatement();
-			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
-			sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
-			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
-			switchStatementStatementsRewrite.insertLast(returnStatement, null);
-			i++;
-		}
-		for(SimpleName staticFieldName : additionalStaticFields.keySet()) {
-			SwitchCase switchCase = contextAST.newSwitchCase();
-			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
-			String staticFieldNameDeclaringClass = null;
-			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
-				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
-				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
-					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+				if(staticFieldNameDeclaringClass == null) {
+					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
 				}
+				else {
+					FieldAccess fieldAccess = contextAST.newFieldAccess();
+					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+				}
+				switchStatementStatementsRewrite.insertLast(switchCase, null);
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+				sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
+				switchStatementStatementsRewrite.insertLast(returnStatement, null);
+				i++;
 			}
-			if(staticFieldNameDeclaringClass == null) {
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+			for(SimpleName staticFieldName : additionalStaticFields.keySet()) {
+				SwitchCase switchCase = contextAST.newSwitchCase();
+				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+				String staticFieldNameDeclaringClass = null;
+				if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
+				}
+				if(staticFieldNameDeclaringClass == null) {
+					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+				}
+				else {
+					FieldAccess fieldAccess = contextAST.newFieldAccess();
+					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+				}
+				switchStatementStatementsRewrite.insertLast(switchCase, null);
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+				sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(additionalStaticFields.get(staticFieldName)), null);
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
+				switchStatementStatementsRewrite.insertLast(returnStatement, null);
 			}
-			else {
-				FieldAccess fieldAccess = contextAST.newFieldAccess();
-				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
-				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
-			}
-			switchStatementStatementsRewrite.insertLast(switchCase, null);
-			ReturnStatement returnStatement = contextAST.newReturnStatement();
-			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
-			sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(additionalStaticFields.get(staticFieldName)), null);
-			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
-			switchStatementStatementsRewrite.insertLast(returnStatement, null);
+			
+			MethodDeclaration setterMethodDeclaration = contextAST.newMethodDeclaration();
+			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
+			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newSimpleType(contextAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
+			ListRewrite setterMethodModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+			setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+			ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
+			Type parameterType = contextAST.newPrimitiveType(PrimitiveType.INT);
+			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, typeCheckElimination.getTypeLocalVariable(), null);
+			setterMethodParameterRewrite.insertLast(parameter, null);
+			
+			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, typeCheckElimination.getTypeLocalVariable(), null);
+			Block setterMethodBody = contextAST.newBlock();
+			ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
+			setterMethodBodyRewrite.insertLast(switchStatement, null);
+			ReturnStatement defaultReturnStatement = contextAST.newReturnStatement();
+			sourceRewriter.set(defaultReturnStatement, ReturnStatement.EXPRESSION_PROPERTY, contextAST.newNullLiteral(), null);
+			setterMethodBodyRewrite.insertLast(defaultReturnStatement, null);
+			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, setterMethodBody, null);
+			contextBodyRewrite.insertLast(setterMethodDeclaration, null);
 		}
-		
-		MethodDeclaration setterMethodDeclaration = contextAST.newMethodDeclaration();
-		sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
-		sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newSimpleType(contextAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
-		ListRewrite setterMethodModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-		setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
-		ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-		SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
-		Type parameterType = contextAST.newPrimitiveType(PrimitiveType.INT);
-		sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-		sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, typeCheckElimination.getTypeLocalVariable(), null);
-		setterMethodParameterRewrite.insertLast(parameter, null);
-		
-		sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, typeCheckElimination.getTypeLocalVariable(), null);
-		Block setterMethodBody = contextAST.newBlock();
-		ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
-		setterMethodBodyRewrite.insertLast(switchStatement, null);
-		ReturnStatement defaultReturnStatement = contextAST.newReturnStatement();
-		sourceRewriter.set(defaultReturnStatement, ReturnStatement.EXPRESSION_PROPERTY, contextAST.newNullLiteral(), null);
-		setterMethodBodyRewrite.insertLast(defaultReturnStatement, null);
-		sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, setterMethodBody, null);
-		contextBodyRewrite.insertLast(setterMethodDeclaration, null);
 		
 		MethodDeclaration typeCheckMethod = typeCheckElimination.getTypeCheckMethod();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
@@ -522,6 +526,53 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private boolean typeObjectGetterMethodAlreadyExists() {
+		InheritanceTree tree = typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes();
+		if(tree != null) {
+			MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+			DefaultMutableTreeNode rootNode = tree.getRootNode();
+			String rootClassName = (String)rootNode.getUserObject();
+			Enumeration<DefaultMutableTreeNode> children = rootNode.children();
+			List<String> subclassNames = new ArrayList<String>();
+			while(children.hasMoreElements()) {
+				DefaultMutableTreeNode node = children.nextElement();
+				subclassNames.add((String)node.getUserObject());
+			}
+			for(MethodDeclaration contextMethod : contextMethods) {
+				Type returnType = contextMethod.getReturnType2();
+				if(returnType != null) {
+					if(returnType.resolveBinding().getQualifiedName().equals(rootClassName)) {
+						Block contextMethodBody = contextMethod.getBody();
+						if(contextMethodBody != null) {
+							List<Statement> statements = contextMethodBody.statements();
+							if(statements.size() > 0 && statements.get(0) instanceof SwitchStatement) {
+								SwitchStatement switchStatement = (SwitchStatement)statements.get(0);
+								List<Statement> statements2 = switchStatement.statements();
+								int matchCounter = 0;
+								for(Statement statement2 : statements2) {
+									if(statement2 instanceof ReturnStatement) {
+										ReturnStatement returnStatement = (ReturnStatement)statement2;
+										Expression returnStatementExpression = returnStatement.getExpression();
+										if(returnStatementExpression instanceof ClassInstanceCreation) {
+											ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)returnStatementExpression;
+											Type classInstanceCreationType = classInstanceCreation.getType();
+											if(subclassNames.contains(classInstanceCreationType.resolveBinding().getQualifiedName())) {
+												matchCounter++;
+											}
+										}
+									}
+								}
+								if(matchCounter == subclassNames.size())
+									return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private void createStateStrategyHierarchy() {
@@ -680,10 +731,26 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		subclassNames.addAll(additionalStaticFields.values());
+		InheritanceTree tree = typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes();
+		if(tree != null) {
+			DefaultMutableTreeNode rootNode = tree.getRootNode();
+			Enumeration<DefaultMutableTreeNode> children = rootNode.children();
+			while(children.hasMoreElements()) {
+				DefaultMutableTreeNode node = children.nextElement();
+				String completeSubclassName = (String)node.getUserObject();
+				String subclassName = null;
+				if(completeSubclassName.contains("."))
+					subclassName = completeSubclassName.substring(completeSubclassName.lastIndexOf(".")+1,completeSubclassName.length());
+				else
+					subclassName = completeSubclassName;
+				if(!subclassNames.contains(subclassName))
+					subclassNames.add(subclassName);
+			}
+		}
 		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
 		for(SimpleName simpleName : additionalStaticFields.keySet())
 			staticFieldNames.add(simpleName.getIdentifier());
-		for(int i=0; i<staticFieldNames.size(); i++) {
+		for(int i=0; i<subclassNames.size(); i++) {
 			ArrayList<Statement> statements = null;
 			DefaultMutableTreeNode remainingIfStatementExpression = null;
 			if(i < typeCheckStatements.size()) {

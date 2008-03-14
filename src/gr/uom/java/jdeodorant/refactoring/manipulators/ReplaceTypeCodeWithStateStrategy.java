@@ -747,9 +747,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					subclassNames.add(subclassName);
 			}
 		}
-		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(SimpleName simpleName : additionalStaticFields.keySet())
-			staticFieldNames.add(simpleName.getIdentifier());
+			staticFields.add(simpleName);
 		for(int i=0; i<subclassNames.size(); i++) {
 			ArrayList<Statement> statements = null;
 			DefaultMutableTreeNode remainingIfStatementExpression = null;
@@ -834,9 +834,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					Block concreteGetterMethodBody = subclassAST.newBlock();
 					ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
 					ReturnStatement returnStatement = subclassAST.newReturnStatement();
+					IBinding staticFieldNameBinding = staticFields.get(i).resolveBinding();
+					String staticFieldNameDeclaringClass = null;
+					if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
 					FieldAccess fieldAccess = subclassAST.newFieldAccess();
-					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, subclassAST.newSimpleName(staticFieldNames.get(i)), null);
-					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, sourceTypeDeclaration.getName(), null);
+					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, subclassAST.newSimpleName(staticFieldNameDeclaringClass), null);
 					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
 					concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
 					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteGetterMethodBody, null);
@@ -853,9 +859,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					Block concreteGetterMethodBody = subclassAST.newBlock();
 					ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
 					ReturnStatement returnStatement = subclassAST.newReturnStatement();
+					IBinding staticFieldNameBinding = staticFields.get(i).resolveBinding();
+					String staticFieldNameDeclaringClass = null;
+					if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
 					FieldAccess fieldAccess = subclassAST.newFieldAccess();
-					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, subclassAST.newSimpleName(staticFieldNames.get(i)), null);
-					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, sourceTypeDeclaration.getName(), null);
+					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, subclassAST.newSimpleName(staticFieldNameDeclaringClass), null);
 					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
 					concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
 					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteGetterMethodBody, null);
@@ -1283,6 +1295,40 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
 									}
 									sourceRewriter.replace(switchStatementExpression, getterMethodInvocation, null);
+								}
+							}
+						}
+					}
+					List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
+					for(Expression expression : methodInvocations) {
+						if(expression instanceof MethodInvocation) {
+							MethodInvocation methodInvocation = (MethodInvocation)expression;
+							List<Expression> arguments = methodInvocation.arguments();
+							for(Expression argument : arguments) {
+								SimpleName accessedVariable = null;
+								if(argument instanceof SimpleName) {
+									accessedVariable = (SimpleName)argument;
+								}
+								else if(argument instanceof FieldAccess) {
+									FieldAccess fieldAccess = (FieldAccess)argument;
+									accessedVariable = fieldAccess.getName();
+								}
+								if(accessedVariable != null) {
+									IBinding argumentBinding = accessedVariable.resolveBinding();
+									if(argumentBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding accessedVariableBinding = (IVariableBinding)argumentBinding;
+										if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+											if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+											}
+											ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+											argumentRewrite.replace(argument, getterMethodInvocation, null);
+										}
+									}
 								}
 							}
 						}

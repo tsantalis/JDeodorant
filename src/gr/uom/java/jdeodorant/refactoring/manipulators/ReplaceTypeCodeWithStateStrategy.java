@@ -1295,6 +1295,43 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
 									}
 									sourceRewriter.replace(switchStatementExpression, getterMethodInvocation, null);
+									List<Statement> statements2 = switchStatement.statements();
+									for(Statement statement2 : statements2) {
+										if(statement2 instanceof SwitchCase) {
+											SwitchCase switchCase = (SwitchCase)statement2;
+											Expression switchCaseExpression = switchCase.getExpression();
+											SimpleName comparedVariable = null;
+											if(switchCaseExpression instanceof SimpleName) {
+												comparedVariable = (SimpleName)switchCaseExpression;
+											}
+											else if(switchCaseExpression instanceof QualifiedName) {
+												QualifiedName qualifiedName = (QualifiedName)switchCaseExpression;
+												comparedVariable = qualifiedName.getName();
+											}
+											else if(switchCaseExpression instanceof FieldAccess) {
+												FieldAccess fieldAccess = (FieldAccess)switchCaseExpression;
+												comparedVariable = fieldAccess.getName();
+											}
+											if(comparedVariable != null) {
+												IBinding switchCaseExpressionBinding = comparedVariable.resolveBinding();
+												if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
+													IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
+													if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+															!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+														String subclassName = "";
+														StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
+														while(tokenizer.hasMoreTokens()) {
+															String tempName = tokenizer.nextToken().toLowerCase().toString();
+															subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+															tempName.subSequence(1, tempName.length()).toString();
+														}
+														if(!containsStaticFieldKey(comparedVariable))
+															additionalStaticFields.put(comparedVariable, subclassName);
+													}
+												}
+											}
+										}
+									}
 								}
 							}
 						}
@@ -1847,6 +1884,59 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			List<Statement> statements = methodBody.statements();
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 			for(Statement statement : statements) {
+				if(statement instanceof SwitchStatement) {
+					SwitchStatement switchStatement = (SwitchStatement)statement;
+					Expression switchStatementExpression = switchStatement.getExpression();
+					SimpleName accessedVariable = null;
+					if(switchStatementExpression instanceof SimpleName) {
+						accessedVariable = (SimpleName)switchStatementExpression;
+					}
+					else if(switchStatementExpression instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)switchStatementExpression;
+						accessedVariable = fieldAccess.getName();
+					}
+					if(accessedVariable != null) {
+						if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+							List<Statement> statements2 = switchStatement.statements();
+							for(Statement statement2 : statements2) {
+								if(statement2 instanceof SwitchCase) {
+									SwitchCase switchCase = (SwitchCase)statement2;
+									Expression switchCaseExpression = switchCase.getExpression();
+									SimpleName comparedVariable = null;
+									if(switchCaseExpression instanceof SimpleName) {
+										comparedVariable = (SimpleName)switchCaseExpression;
+									}
+									else if(switchCaseExpression instanceof QualifiedName) {
+										QualifiedName qualifiedName = (QualifiedName)switchCaseExpression;
+										comparedVariable = qualifiedName.getName();
+									}
+									else if(switchCaseExpression instanceof FieldAccess) {
+										FieldAccess fieldAccess = (FieldAccess)switchCaseExpression;
+										comparedVariable = fieldAccess.getName();
+									}
+									if(comparedVariable != null) {
+										IBinding switchCaseExpressionBinding = comparedVariable.resolveBinding();
+										if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
+											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+													!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+												String subclassName = "";
+												StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
+												while(tokenizer.hasMoreTokens()) {
+													String tempName = tokenizer.nextToken().toLowerCase().toString();
+													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+													tempName.subSequence(1, tempName.length()).toString();
+												}
+												if(!containsStaticFieldKey(comparedVariable))
+													additionalStaticFields.put(comparedVariable, subclassName);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 				List<Expression> infixExpressions = expressionExtractor.getInfixExpressions(statement);
 				for(Expression expression : infixExpressions) {
 					InfixExpression infixExpression = (InfixExpression)expression;
@@ -1874,27 +1964,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 						comparedVariable = fieldAccess.getName();
 					}
 					if(accessedVariable != null) {
-						IBinding leftOperandBinding = accessedVariable.resolveBinding();
-						if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding accessedVariableBinding = (IVariableBinding)leftOperandBinding;
-							if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-								typeLocalVariableIsFound = true;
-								if(comparedVariable != null) {
-									IBinding rightOperandBinding = comparedVariable.resolveBinding();
-									if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
-										IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
-										if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-											String subclassName = "";
-											StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-											while(tokenizer.hasMoreTokens()) {
-												String tempName = tokenizer.nextToken().toLowerCase().toString();
-												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-												tempName.subSequence(1, tempName.length()).toString();
-											}
-											if(!containsStaticFieldKey(comparedVariable))
-												additionalStaticFields.put(comparedVariable, subclassName);
+						if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+							typeLocalVariableIsFound = true;
+							if(comparedVariable != null) {
+								IBinding rightOperandBinding = comparedVariable.resolveBinding();
+								if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
+									if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+											!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+										String subclassName = "";
+										StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
+										while(tokenizer.hasMoreTokens()) {
+											String tempName = tokenizer.nextToken().toLowerCase().toString();
+											subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+											tempName.subSequence(1, tempName.length()).toString();
 										}
+										if(!containsStaticFieldKey(comparedVariable))
+											additionalStaticFields.put(comparedVariable, subclassName);
 									}
 								}
 							}
@@ -1920,26 +2006,22 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							comparedVariable = fieldAccess.getName();
 						}
 						if(accessedVariable != null) {
-							IBinding rightOperandBinding = accessedVariable.resolveBinding();
-							if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
-								IVariableBinding accessedVariableBinding = (IVariableBinding)rightOperandBinding;
-								if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-									if(comparedVariable != null) {
-										IBinding leftOperandBinding = comparedVariable.resolveBinding();
-										if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
-											IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
-											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-												String subclassName = "";
-												StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-												while(tokenizer.hasMoreTokens()) {
-													String tempName = tokenizer.nextToken().toLowerCase().toString();
-													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-													tempName.subSequence(1, tempName.length()).toString();
-												}
-												if(!containsStaticFieldKey(comparedVariable))
-													additionalStaticFields.put(comparedVariable, subclassName);
+							if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+								if(comparedVariable != null) {
+									IBinding leftOperandBinding = comparedVariable.resolveBinding();
+									if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
+										if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+												!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+											String subclassName = "";
+											StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
+											while(tokenizer.hasMoreTokens()) {
+												String tempName = tokenizer.nextToken().toLowerCase().toString();
+												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+												tempName.subSequence(1, tempName.length()).toString();
 											}
+											if(!containsStaticFieldKey(comparedVariable))
+												additionalStaticFields.put(comparedVariable, subclassName);
 										}
 									}
 								}

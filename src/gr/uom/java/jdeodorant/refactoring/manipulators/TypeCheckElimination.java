@@ -16,6 +16,8 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -29,6 +31,8 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -460,5 +464,45 @@ public class TypeCheckElimination {
 				return false;
 		}
 		return true;
+	}
+	
+	public boolean isTypeCheckMethodStateSetter() {
+		InheritanceTree tree = null;
+		if(existingInheritanceTree != null)
+			tree = existingInheritanceTree;
+		else if(inheritanceTreeMatchingWithStaticTypes != null)
+			tree = inheritanceTreeMatchingWithStaticTypes;
+		if(tree != null) {
+			DefaultMutableTreeNode root = tree.getRootNode();
+			Enumeration<DefaultMutableTreeNode> children = root.children();
+			List<String> subclassNames = new ArrayList<String>();
+			while(children.hasMoreElements()) {
+				DefaultMutableTreeNode node = children.nextElement();
+				subclassNames.add((String)node.getUserObject());
+			}
+			Block typeCheckMethodBody = typeCheckMethod.getBody();
+			List<Statement> statements = typeCheckMethodBody.statements();
+			if(statements.size() > 0 && statements.get(0) instanceof SwitchStatement) {
+				SwitchStatement switchStatement = (SwitchStatement)statements.get(0);
+				List<Statement> statements2 = switchStatement.statements();
+				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+				int matchCounter = 0;
+				for(Statement statement2 : statements2) {
+					if(!(statement2 instanceof SwitchCase) && !(statement2 instanceof BreakStatement)) {
+						List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statement2);
+						if(classInstanceCreations.size() == 1) {
+							ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreations.get(0);
+							Type classInstanceCreationType = classInstanceCreation.getType();
+							if(subclassNames.contains(classInstanceCreationType.resolveBinding().getQualifiedName())) {
+								matchCounter++;
+							}
+						}
+					}
+				}
+				if(matchCounter == subclassNames.size())
+					return true;
+			}
+		}
+		return false;
 	}
 }

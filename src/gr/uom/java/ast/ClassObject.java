@@ -109,7 +109,8 @@ public class ClassObject {
     						analyzer.processTypeCheckCodeFragmentBranches();
     						if(typeCheckElimination.getExistingInheritanceTree() == null)
     							analyzer.inheritanceHierarchyMatchingWithStaticTypes();
-    						typeCheckEliminations.add(typeCheckElimination);
+    						if(!typeCheckElimination.isTypeCheckMethodStateSetter())
+    							typeCheckEliminations.add(typeCheckElimination);
     					}
     				}
     			}

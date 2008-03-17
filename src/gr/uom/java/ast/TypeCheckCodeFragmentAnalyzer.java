@@ -30,6 +30,7 @@ import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -168,6 +169,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 					SimpleName rightOperandName = extractOperandName(rightOperand);
 					SimpleName typeVariableName = null;
 					SimpleName staticFieldName = null;
+					Type subclassType = null;
 					if(leftOperandName != null && rightOperandName != null) {
 						IBinding leftOperandNameBinding = leftOperandName.resolveBinding();
 						if(leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
@@ -186,6 +188,20 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else if(staticFieldName != null && staticFieldName.equals(rightOperandName))
 							typeVariableName = leftOperandName;
 					}
+					else if(leftOperandName != null && rightOperandName == null) {
+						if(rightOperand instanceof TypeLiteral) {
+							TypeLiteral typeLiteral = (TypeLiteral)rightOperand;
+							subclassType = typeLiteral.getType();
+							typeVariableName = leftOperandName;
+						}
+					}
+					else if(leftOperandName == null && rightOperandName != null) {
+						if(leftOperand instanceof TypeLiteral) {
+							TypeLiteral typeLiteral = (TypeLiteral)leftOperand;
+							subclassType = typeLiteral.getType();
+							typeVariableName = rightOperandName;
+						}
+					}
 					if(typeVariableName != null && staticFieldName != null) {
 						SimpleName keySimpleName = containsKey(typeVariableName);
 						if(keySimpleName != null) {
@@ -197,6 +213,19 @@ public class TypeCheckCodeFragmentAnalyzer {
 						if(analyzer.allParentNodesAreConditionalAndOperators()) {
 							analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
 							analyzer.putTypeVariableStaticField(typeVariableName, staticFieldName);
+						}
+					}
+					if(typeVariableName != null && subclassType != null) {
+						SimpleName keySimpleName = containsKey(typeVariableName);
+						if(keySimpleName != null) {
+							typeVariableCounterMap.put(keySimpleName, typeVariableCounterMap.get(keySimpleName)+1);
+						}
+						else {
+							typeVariableCounterMap.put(typeVariableName, 1);
+						}
+						if(analyzer.allParentNodesAreConditionalAndOperators()) {
+							analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
+							analyzer.putTypeVariableSubclass(typeVariableName, subclassType);
 						}
 					}
 				}

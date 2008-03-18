@@ -105,7 +105,7 @@ public class ClassObject {
     				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
     					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceTreeList);
     					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null) &&
-    							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && !typeCheckElimination.isSuperClassTypeInterfaceOrObject()) {
+    							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
     						analyzer.processTypeCheckCodeFragmentBranches();
     						if(typeCheckElimination.getExistingInheritanceTree() == null)
     							analyzer.inheritanceHierarchyMatchingWithStaticTypes();

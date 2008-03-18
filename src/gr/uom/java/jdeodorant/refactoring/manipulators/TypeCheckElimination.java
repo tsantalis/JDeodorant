@@ -16,6 +16,7 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CastExpression;
@@ -23,10 +24,13 @@ import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -258,20 +262,108 @@ public class TypeCheckElimination {
 			(typeCheckMap.keySet().size() == (staticFieldMap.keySet().size() + subclassTypeMap.keySet().size()));
 	}
 	
-	public boolean isSuperClassTypeInterfaceOrObject() {
-		if(typeField != null) {
-			ITypeBinding typeFieldTypeBinding = typeField.resolveBinding().getType();
-			if(typeFieldTypeBinding.isInterface() || typeFieldTypeBinding.getQualifiedName().equals("java.lang.Object"))
-				return true;
+	public boolean isApplicable() {
+		if(!containsLocalVariableAssignment() && validTypeVariableType())
+			return true;
+		else
+			return false;
+	}
+	
+	private boolean containsLocalVariableAssignment() {
+		VariableDeclaration returnedVariableDeclaration = getTypeCheckMethodReturnedVariable();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<ArrayList<Statement>> allTypeCheckStatements = getTypeCheckStatements();
+		if(!getDefaultCaseStatements().isEmpty()) {
+			allTypeCheckStatements.add(getDefaultCaseStatements());
 		}
-		else if(typeLocalVariable != null) {
-			ITypeBinding typeLocalVariableTypeBinding = typeLocalVariable.resolveTypeBinding();
-			if(typeLocalVariableTypeBinding.isInterface() || typeLocalVariableTypeBinding.getQualifiedName().equals("java.lang.Object"))
-				return true;
+		for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
+			List<Statement> variableDeclarationsInsideBranch = new ArrayList<Statement>();
+			for(Statement statement : typeCheckStatementList) {
+				variableDeclarationsInsideBranch.addAll(statementExtractor.getVariableDeclarations(statement));
+			}
+			for(Statement statement : typeCheckStatementList) {
+				List<Expression> assignments = expressionExtractor.getAssignments(statement);
+				for(Expression expression : assignments) {
+					Assignment assignment = (Assignment)expression;
+					Expression leftHandSide = assignment.getLeftHandSide();
+					SimpleName leftHandSideName = null;
+					if(leftHandSide instanceof SimpleName) {
+						leftHandSideName = (SimpleName)leftHandSide;
+					}
+					else if(leftHandSide instanceof QualifiedName) {
+						QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+						leftHandSideName = leftHandSideQualifiedName.getName();
+					}
+					else if(leftHandSide instanceof FieldAccess) {
+						FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+						leftHandSideName = leftHandSideFieldAccess.getName();
+					}
+					if(leftHandSideName != null) {
+						IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
+						if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
+							if(!leftHandSideVariableBinding.isField()) {
+								boolean variableIsDeclaredInsideBranch = false;
+								for(Statement vDStatement : variableDeclarationsInsideBranch) {
+									VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+									List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+									for(VariableDeclarationFragment fragment : fragments) {
+										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+										if(fragmentVariableBinding.isEqualTo(leftHandSideVariableBinding)) {
+											variableIsDeclaredInsideBranch = true;
+											break;
+										}
+									}
+									if(variableIsDeclaredInsideBranch)
+										break;
+								}
+								if(!variableIsDeclaredInsideBranch) {
+									if(returnedVariableDeclaration == null) {
+										return true;
+									}
+									else if(!returnedVariableDeclaration.resolveBinding().isEqualTo(leftHandSideVariableBinding)) {
+										return true;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 		return false;
 	}
 	
+	private boolean validTypeVariableType() {
+		if(existingInheritanceTree == null) {
+			if(typeField != null) {
+				ITypeBinding typeFieldTypeBinding = typeField.resolveBinding().getType();
+				if(typeFieldTypeBinding.isPrimitive() && typeFieldTypeBinding.getQualifiedName().equals("int"))
+					return true;
+			}
+			else if(typeLocalVariable != null) {
+				ITypeBinding typeLocalVariableTypeBinding = typeLocalVariable.resolveTypeBinding();
+				if(typeLocalVariableTypeBinding.isPrimitive() && typeLocalVariableTypeBinding.getQualifiedName().equals("int"))
+					return true;
+			}
+			return false;
+		}
+		else {
+			if(typeField != null) {
+				ITypeBinding typeFieldTypeBinding = typeField.resolveBinding().getType();
+				if(typeFieldTypeBinding.getQualifiedName().equals("java.lang.Object"))
+					return false;
+			}
+			else if(typeLocalVariable != null) {
+				ITypeBinding typeLocalVariableTypeBinding = typeLocalVariable.resolveTypeBinding();
+				if(typeLocalVariableTypeBinding.getQualifiedName().equals("java.lang.Object"))
+					return false;
+			}
+			return true;
+		}
+	}
+
 	public Type getTypeCheckMethodReturnType() {
 		return typeCheckMethod.getReturnType2();
 	}

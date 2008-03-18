@@ -12,6 +12,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -74,36 +75,27 @@ public class MethodBodyObject {
 			List<Statement> statements = switchStatement.statements();
 			Expression switchCaseExpression = null;
 			boolean isDefaultCase = false;
-			//contains the number of statements corresponding to each switch case expression
-			Map<Expression, Integer> switchCaseExpressionStatementCounterMap = new LinkedHashMap<Expression, Integer>();
+			Set<Expression> switchCaseExpressions = new LinkedHashSet<Expression>();
 			for(Statement statement2 : statements) {
 				if(statement2 instanceof SwitchCase) {
 					SwitchCase switchCase = (SwitchCase)statement2;
 					switchCaseExpression = switchCase.getExpression();
 					isDefaultCase = switchCase.isDefault();
 					if(!isDefaultCase)
-						switchCaseExpressionStatementCounterMap.put(switchCaseExpression, 0);
+						switchCaseExpressions.add(switchCaseExpression);
 				}
 				else {
-					if(!isDefaultCase) {
-						if(!(statement2 instanceof BreakStatement)) {
-							switchCaseExpressionStatementCounterMap.put(switchCaseExpression,
-									switchCaseExpressionStatementCounterMap.get(switchCaseExpression)+1);
-							typeCheckElimination.addTypeCheck(switchCaseExpression, statement2);
+					if(!(statement2 instanceof BreakStatement)) {
+						for(Expression expression : switchCaseExpressions) {
+							typeCheckElimination.addTypeCheck(expression, statement2);
 						}
-						else {
-							switchCaseExpressionStatementCounterMap.clear();
-						}
-					}
-					else {
-						if(!(statement2 instanceof BreakStatement)) {
-							for(Expression expression : switchCaseExpressionStatementCounterMap.keySet()) {
-								if(switchCaseExpressionStatementCounterMap.get(expression) == 0) {
-									typeCheckElimination.addTypeCheck(expression, statement2);
-								}
-							}
+						if(!isDefaultCase) {
 							typeCheckElimination.addDefaultCaseStatement(statement2);
 						}
+					}
+					List<Statement> branchingStatements = statementExtractor.getBranchingStatements(statement2);
+					if(statement2 instanceof BreakStatement || statement2 instanceof ReturnStatement || branchingStatements.size() > 0) {
+						switchCaseExpressions.clear();
 					}
 				}
 			}

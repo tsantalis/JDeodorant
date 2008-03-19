@@ -4,7 +4,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.ast.inheritance.InheritanceDetection;
+import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
 import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
@@ -447,7 +447,7 @@ public class TypeChecking extends ViewPart {
 	private Refactoring[] getTable(IProject iProject) {
 		astReader = new ASTReader(iProject);
 		SystemObject systemObject = astReader.getSystemObject();
-		InheritanceDetection inheritanceDetection = new InheritanceDetection(systemObject);
+		CompleteInheritanceDetection inheritanceDetection = new CompleteInheritanceDetection(systemObject);
 		List<Refactoring> refactorings = new ArrayList<Refactoring>();
 		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
 		while(classIterator.hasNext()) {
@@ -455,7 +455,7 @@ public class TypeChecking extends ViewPart {
 			TypeDeclaration sourceTypeDeclaration = classObject.getTypeDeclaration();
 			CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
 			IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
-			List<TypeCheckElimination> typeCheckEliminations = classObject.generateTypeCheckEliminations(inheritanceDetection.getInheritanceTreeList());
+			List<TypeCheckElimination> typeCheckEliminations = classObject.generateTypeCheckEliminations(inheritanceDetection);
 			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
 				if(typeCheckElimination.getExistingInheritanceTree() == null) {
 					ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =

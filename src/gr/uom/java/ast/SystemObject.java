@@ -2,8 +2,6 @@ package gr.uom.java.ast;
 
 import java.util.*;
 
-import org.eclipse.jdt.core.dom.TypeDeclaration;
-
 public class SystemObject {
 
     private List<ClassObject> classList;

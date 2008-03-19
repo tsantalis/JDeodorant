@@ -1,7 +1,7 @@
 package gr.uom.java.ast;
 
 import gr.uom.java.ast.decomposition.MethodBodyObject;
-import gr.uom.java.ast.inheritance.InheritanceTree;
+import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.List;
@@ -95,7 +95,7 @@ public class ClassObject {
         return false;
     }
 
-    public List<TypeCheckElimination> generateTypeCheckEliminations(List<InheritanceTree> inheritanceTreeList) {
+    public List<TypeCheckElimination> generateTypeCheckEliminations(CompleteInheritanceDetection inheritanceDetection) {
     	List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
     	for(MethodObject methodObject : methodList) {
     		MethodBodyObject methodBodyObject = methodObject.getMethodBody();
@@ -103,7 +103,7 @@ public class ClassObject {
     			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
     			for(TypeCheckElimination typeCheckElimination : list) {
     				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
-    					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceTreeList);
+    					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceDetection);
     					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null) &&
     							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
     						analyzer.processTypeCheckCodeFragmentBranches();

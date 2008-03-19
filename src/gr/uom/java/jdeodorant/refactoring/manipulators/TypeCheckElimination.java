@@ -80,6 +80,7 @@ public class TypeCheckElimination {
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
 		this.typeLocalVariable = null;
 		this.existingInheritanceTree = null;
+		this.inheritanceTreeMatchingWithStaticTypes = null;
 		this.remainingIfStatementExpressionMap = new LinkedHashMap<Expression, DefaultMutableTreeNode>();
 	}
 	

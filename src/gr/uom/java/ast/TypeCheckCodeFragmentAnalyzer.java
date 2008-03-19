@@ -34,6 +34,7 @@ import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
+import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
 import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
@@ -44,20 +45,20 @@ public class TypeCheckCodeFragmentAnalyzer {
 	private TypeCheckElimination typeCheckElimination;
 	private TypeDeclaration typeDeclaration;
 	private MethodDeclaration typeCheckMethod;
-	private List<InheritanceTree> inheritanceTreeList;
+	private CompleteInheritanceDetection inheritanceDetection;
 	private FieldDeclaration[] fields;
 	private MethodDeclaration[] methods;
 	private Map<SimpleName, Integer> typeVariableCounterMap;
 	private Map<Expression, IfStatementExpressionAnalyzer> complexExpressionMap;
 	
 	public TypeCheckCodeFragmentAnalyzer(TypeCheckElimination typeCheckElimination, TypeDeclaration typeDeclaration,
-			MethodDeclaration typeCheckMethod, List<InheritanceTree> inheritanceTreeList) {
+			MethodDeclaration typeCheckMethod, CompleteInheritanceDetection inheritanceDetection) {
 		this.typeCheckElimination = typeCheckElimination;
 		this.typeDeclaration = typeDeclaration;
 		this.typeCheckMethod = typeCheckMethod;
 		this.fields = typeDeclaration.getFields();
 		this.methods = typeDeclaration.getMethods();
-		this.inheritanceTreeList = inheritanceTreeList;
+		this.inheritanceDetection = inheritanceDetection;
 		this.typeVariableCounterMap = new LinkedHashMap<SimpleName, Integer>();
 		this.complexExpressionMap = new LinkedHashMap<Expression, IfStatementExpressionAnalyzer>();
 		typeCheckElimination.setTypeCheckMethod(typeCheckMethod);
@@ -76,15 +77,9 @@ public class TypeCheckCodeFragmentAnalyzer {
 				IBinding switchStatementExpressionNameBinding = switchStatementExpressionName.resolveBinding();
 				if(switchStatementExpressionNameBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding switchStatementExpressionNameVariableBinding = (IVariableBinding)switchStatementExpressionNameBinding;
-					for(InheritanceTree tree : inheritanceTreeList) {
-						DefaultMutableTreeNode root = tree.getRootNode();
-						String rootClassName = (String)root.getUserObject();
-						ITypeBinding variableTypeBinding = switchStatementExpressionNameVariableBinding.getType();
-						if(rootClassName.equals(variableTypeBinding.getQualifiedName())) {
-							typeCheckElimination.setExistingInheritanceTree(tree);
-							break;
-						}
-					}
+					ITypeBinding variableTypeBinding = switchStatementExpressionNameVariableBinding.getType();
+					InheritanceTree tree = inheritanceDetection.getTree(variableTypeBinding.getQualifiedName());
+					typeCheckElimination.setExistingInheritanceTree(tree);
 					if(switchStatementExpressionNameVariableBinding.isField()) {
 						for(FieldDeclaration field : fields) {
 							List<VariableDeclarationFragment> fragments = field.fragments();
@@ -268,15 +263,9 @@ public class TypeCheckCodeFragmentAnalyzer {
 				IBinding binding = typeVariable.resolveBinding();
 				if(binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
-					for(InheritanceTree tree : inheritanceTreeList) {
-						DefaultMutableTreeNode root = tree.getRootNode();
-						String rootClassName = (String)root.getUserObject();
-						ITypeBinding variableTypeBinding = variableBinding.getType();
-						if(rootClassName.equals(variableTypeBinding.getQualifiedName())) {
-							typeCheckElimination.setExistingInheritanceTree(tree);
-							break;
-						}
-					}
+					ITypeBinding variableTypeBinding = variableBinding.getType();
+					InheritanceTree tree = inheritanceDetection.getTree(variableTypeBinding.getQualifiedName());
+					typeCheckElimination.setExistingInheritanceTree(tree);
 					if(variableBinding.isField()) {
 						for(FieldDeclaration field : fields) {
 							List<VariableDeclarationFragment> fragments = field.fragments();
@@ -418,32 +407,29 @@ public class TypeCheckCodeFragmentAnalyzer {
 	}
 
 	public void inheritanceHierarchyMatchingWithStaticTypes() {
-		for(InheritanceTree tree : inheritanceTreeList) {
+		String abstractClassName = typeCheckElimination.getAbstractClassName();
+		InheritanceTree tree = inheritanceDetection.getMatchingTree(abstractClassName);
+		if(tree != null) {
+			List<String> subclassNamesFromStaticFields = typeCheckElimination.getSubclassNames();
 			DefaultMutableTreeNode root = tree.getRootNode();
-			String rootClassName = (String)root.getUserObject();
-			String abstractClassName = typeCheckElimination.getAbstractClassName();
-			if((rootClassName.contains(".") && rootClassName.endsWith("." + abstractClassName)) || rootClassName.equals(abstractClassName)) {
-				List<String> subclassNamesFromStaticFields = typeCheckElimination.getSubclassNames();
-				Enumeration<DefaultMutableTreeNode> children = root.children();
-				List<String> subclassNames = new ArrayList<String>();
-				while(children.hasMoreElements()) {
-					DefaultMutableTreeNode node = children.nextElement();
-					subclassNames.add((String)node.getUserObject());
-				}
-				int matchCounter = 0;
-				for(String subclassNameFromStaticField : subclassNamesFromStaticFields) {
-					for(String subclassName : subclassNames) {
-						if((subclassName.contains(".") && subclassName.endsWith("." + subclassNameFromStaticField)) ||
-								subclassName.equals(subclassNameFromStaticField)) {
-							matchCounter++;
-							break;
-						}
+			Enumeration<DefaultMutableTreeNode> children = root.children();
+			List<String> subclassNames = new ArrayList<String>();
+			while(children.hasMoreElements()) {
+				DefaultMutableTreeNode node = children.nextElement();
+				subclassNames.add((String)node.getUserObject());
+			}
+			int matchCounter = 0;
+			for(String subclassNameFromStaticField : subclassNamesFromStaticFields) {
+				for(String subclassName : subclassNames) {
+					if((subclassName.contains(".") && subclassName.endsWith("." + subclassNameFromStaticField)) ||
+							subclassName.equals(subclassNameFromStaticField)) {
+						matchCounter++;
+						break;
 					}
 				}
-				if(matchCounter == subclassNamesFromStaticFields.size()) {
-					typeCheckElimination.setInheritanceTreeMatchingWithStaticTypes(tree);
-					break;
-				}
+			}
+			if(matchCounter == subclassNamesFromStaticFields.size()) {
+				typeCheckElimination.setInheritanceTreeMatchingWithStaticTypes(tree);
 			}
 		}
 	}

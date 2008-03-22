@@ -323,7 +323,7 @@ public class DistanceMatrix {
     	return candidateRefactoringList;
     }
 
-    public List<ExtractAndMoveMethodCandidateRefactoring> getExtractAndMoveMethodCandidateRefactorings() {
+    public List<ExtractAndMoveMethodCandidateRefactoring> getExtractAndMoveMethodCandidateRefactoringsByAccess() {
     	List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
     	Iterator<MyClass> classIt = system.getClassIterator();
         while(classIt.hasNext()) {
@@ -342,57 +342,92 @@ public class DistanceMatrix {
             }
         }
 
-        Double[][] blockDistanceMatrix = new Double[extractMethodCandidateRefactoringList.size()][classList.size()];
-        
-        for(int i=0; i<extractMethodCandidateRefactoringList.size(); i++) {
-        	ExtractAndMoveMethodCandidateRefactoring candidate = extractMethodCandidateRefactoringList.get(i);
-        	for(int j=0; j<classList.size(); j++) {
-        		blockDistanceMatrix[i][j] = DistanceCalculator.getDistance(candidate.getEntitySet(), classMap.get(classNames[j]));
-        	}
-        }
-        
-    	List<ExtractAndMoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();;
-    	Map<Integer,Double> minValueMap = new LinkedHashMap<Integer,Double>();
-        for(int i=0; i<blockDistanceMatrix.length; i++) {
-            double minValue = 1;
-            for(int j=0; j<blockDistanceMatrix[i].length; j++) {
-                if(blockDistanceMatrix[i][j] < minValue) {
-                    minValue = blockDistanceMatrix[i][j];
-                }
-            }
-            minValueMap.put(i,minValue);
-        }
-        
+        List<ExtractAndMoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
         Map<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>> extractedMethodNameMap = new LinkedHashMap<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>>();
-        for(Integer i : minValueMap.keySet()) {
-            double minValue = minValueMap.get(i);
-            ExtractAndMoveMethodCandidateRefactoring candidate = extractMethodCandidateRefactoringList.get(i);
-            String rowClass = candidate.getSourceClass().getName();
-            if(minValue != 1) {
-                for(int j=0; j<blockDistanceMatrix[i].length; j++) {
-                    if(blockDistanceMatrix[i][j] == minValue) {
-                        if(!rowClass.equals(classNames[j])) {
-                        	MyClass targetClass = classList.get(j);
-                        	ExtractAndMoveMethodCandidateRefactoring newCandidate = 
-                        		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),targetClass,
+        for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateRefactoringList) {
+        	String sourceClass = candidate.getSource();
+        	Set<String> entitySetI = candidate.getEntitySet();
+        	//ArrayList<String> contains the accessed entities per target class (key)
+			Map<String, ArrayList<String>> accessMap = new LinkedHashMap<String, ArrayList<String>>();
+			for(String e : entitySetI) {
+				String[] tokens = e.split("::");
+				String classOrigin = tokens[0];
+				String entityName = tokens[1];
+				if(accessMap.containsKey(classOrigin)) {
+					ArrayList<String> list = accessMap.get(classOrigin);
+					list.add(entityName);
+				}
+				else {
+					ArrayList<String> list = new ArrayList<String>();
+					list.add(entityName);
+					accessMap.put(classOrigin, list);
+				}
+			}
+			//ArrayList<String> contains the target classes from which key number of entities are accessed
+			TreeMap<Integer, ArrayList<String>> sortedByAccessMap = new TreeMap<Integer, ArrayList<String>>();
+			for(String targetClass : accessMap.keySet()) {
+				int numberOfAccessedEntities = accessMap.get(targetClass).size();
+				if(sortedByAccessMap.containsKey(numberOfAccessedEntities)) {
+					ArrayList<String> list = sortedByAccessMap.get(numberOfAccessedEntities);
+					list.add(targetClass);
+				}
+				else {
+					ArrayList<String> list = new ArrayList<String>();
+					list.add(targetClass);
+					sortedByAccessMap.put(numberOfAccessedEntities, list);
+				}
+			}
+			
+			boolean candidateFound = false;
+			boolean sourceClassIsTarget = false;
+			while(!candidateFound && !sourceClassIsTarget && !sortedByAccessMap.isEmpty()) {
+				ArrayList<String> targetClasses = sortedByAccessMap.get(sortedByAccessMap.lastKey());
+				//target classes are sorted by the distance of entity i from them
+				TreeMap<Double, ArrayList<String>> sortedByDistanceMap = new TreeMap<Double, ArrayList<String>>();
+				for(String targetClass : targetClasses) {
+					double distance = DistanceCalculator.getDistance(entitySetI, classMap.get(targetClass));
+					if(sortedByDistanceMap.containsKey(distance)) {
+						ArrayList<String> list = sortedByDistanceMap.get(distance);
+						list.add(targetClass);
+					}
+					else {
+						ArrayList<String> list = new ArrayList<String>();
+    					list.add(targetClass);
+    					sortedByDistanceMap.put(distance, list);
+					}
+				}
+				for(Double distance : sortedByDistanceMap.keySet()) {
+					ArrayList<String> targetClassesPerDistance = sortedByDistanceMap.get(distance);
+					for(String targetClass : targetClassesPerDistance) {
+    					if(sourceClass.equals(targetClass)) {
+    						sourceClassIsTarget = true;
+    					}
+    					else {
+    						MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
+    						ExtractAndMoveMethodCandidateRefactoring newCandidate = 
+                        		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),myTargetClass,
                         		candidate.getSourceMethod(),candidate.getExtractionBlock(),this);
-                        	boolean applicable = newCandidate.apply();
-                        	if(applicable) {
-                        		candidateRefactoringList.add(newCandidate);
-                        		if(!extractedMethodNameMap.containsKey(newCandidate.getExtractionBlock().getExtractedMethodName()+targetClass.getName())) {
+    						if(newCandidate.isApplicable()) {
+    							newCandidate.apply();
+    							candidateRefactoringList.add(newCandidate);
+                        		if(!extractedMethodNameMap.containsKey(newCandidate.getExtractionBlock().getExtractedMethodName()+myTargetClass.getName())) {
         	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
         	                		list.add(newCandidate);
-        	                		extractedMethodNameMap.put(newCandidate.getExtractionBlock().getExtractedMethodName()+targetClass.getName(), list);
+        	                		extractedMethodNameMap.put(newCandidate.getExtractionBlock().getExtractedMethodName()+myTargetClass.getName(), list);
         	                	}
         	                	else {
-        	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(newCandidate.getExtractionBlock().getExtractedMethodName()+targetClass.getName());
+        	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(newCandidate.getExtractionBlock().getExtractedMethodName()+myTargetClass.getName());
         	                		list.add(newCandidate);
         	                	}
-                        	}
-                        }
-                    }
-                }
-            }
+                        		candidateFound = true;
+    						}
+    					}
+					}
+					if(candidateFound || sourceClassIsTarget)
+						break;
+				}
+				sortedByAccessMap.remove(sortedByAccessMap.lastKey());
+			}
         }
 
         for(String extractedMethodName : extractedMethodNameMap.keySet()) {

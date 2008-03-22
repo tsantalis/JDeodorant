@@ -519,7 +519,7 @@ public class FeatureEnvy extends ViewPart {
 		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 
 		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactoringsByAccess();
-		/*List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactorings();
+		List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactoringsByAccess();
 		
 		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
 		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
@@ -534,15 +534,15 @@ public class FeatureEnvy extends ViewPart {
 			if(!subRefactoring) {
 				finalExtractMethodCandidateList.add(candidate);
 			}
-		}*/
+		}
 		
-		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() /*+ finalExtractMethodCandidateList.size()*/ + 1];
+		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() + finalExtractMethodCandidateList.size() + 1];
 		table[0] = new CurrentSystem(distanceMatrix);
 		int counter = 1;
-		/*for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
+		for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;
-		}*/
+		}
 		for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
 			table[counter] = candidate;
 			counter++;

@@ -101,18 +101,20 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
     	return map;
     }
 
-    public boolean apply() {
+    public void apply() {
+    	MySystem virtualSystem = MySystem.newInstance(system);
+	    virtualApplication(virtualSystem);
+	    FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
+	    double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
+	    //DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
+	    //double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
+	    this.entityPlacement = fastEntityPlacement;
+    }
+
+    public boolean isApplicable() {
     	if(!containsSuperMethodInvocation() && !containsBranchingStatement() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
-    			validTargetObject() && !oneToManyRelationshipWithTargetClass()) {
-    		MySystem virtualSystem = MySystem.newInstance(system);
-	    	virtualApplication(virtualSystem);
-	    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
-	    	double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
-	    	//DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-	    	//double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
-	    	this.entityPlacement = fastEntityPlacement;
-	    	return true;
-    	}
+    			validTargetObject() && !oneToManyRelationshipWithTargetClass())
+    		return true;
     	else
     		return false;
     }

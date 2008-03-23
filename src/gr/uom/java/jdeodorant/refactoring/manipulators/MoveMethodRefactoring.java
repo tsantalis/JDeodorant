@@ -41,6 +41,7 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.ParameterizedType;
+import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -78,6 +79,7 @@ public class MoveMethodRefactoring implements Refactoring {
 	private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
 	private boolean leaveDelegate;
 	private String movedMethodName;
+	private boolean isTargetClassVariableParameter;
 	
 	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
 			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, Map<MethodInvocation,
@@ -98,6 +100,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		this.additionalMethodsToBeMoved = additionalMethodsToBeMoved;
 		this.leaveDelegate = leaveDelegate;
 		this.movedMethodName = movedMethodName;
+		this.isTargetClassVariableParameter = false;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {
@@ -440,6 +443,7 @@ public class MoveMethodRefactoring implements Refactoring {
 					if(parameter.getName().getIdentifier().equals(simpleName.getIdentifier())) {
 						targetClassVariableName = parameter.getName().getIdentifier();
 						parametersRewrite.remove(newMethodParameters.get(i), null);
+						isTargetClassVariableParameter = true;
 						break;
 					}
 				}
@@ -685,8 +689,26 @@ public class MoveMethodRefactoring implements Refactoring {
 										foundInArguments = true;
 										ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 										argumentRewrite.remove(argument, null);
-										sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+										if(argument instanceof CastExpression) {
+											ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
+											sourceRewriter.set(parenthesizedExpression, ParenthesizedExpression.EXPRESSION_PROPERTY, argument, null);
+											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parenthesizedExpression, null);
+										}
+										else {
+											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+										}
 										break;
+									}
+								}
+								if(!foundInArguments && isTargetClassVariableParameter) {
+									for(Expression argument : arguments) {
+										if(targetTypeDeclaration.resolveBinding().isEqualTo(argument.resolveTypeBinding().getSuperclass())) {
+											foundInArguments = true;
+											ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+											argumentRewrite.remove(argument, null);
+											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+											break;
+										}
 									}
 								}
 								boolean foundInFields = false;

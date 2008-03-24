@@ -11,11 +11,13 @@ public class MyClass {
     private List<MyAttribute> attributeList;
     private List<MyMethod> methodList;
     private ClassObject classObject;
+    private Set<String> newEntitySet;
 
     public MyClass(String name) {
         this.name = name;
         this.attributeList = new ArrayList<MyAttribute>();
         this.methodList = new ArrayList<MyMethod>();
+        this.newEntitySet = null;
     }
 
     public String getName() {
@@ -68,11 +70,21 @@ public class MyClass {
     }
 
     public void addMethod(MyMethod method) {
-        methodList.add(method);
+        if(newEntitySet != null) {
+        	newEntitySet.add(method.toString());
+        }
+        else {
+        	methodList.add(method);
+        }
     }
 
     public void removeMethod(MyMethod method) {
-        methodList.remove(method);
+    	if(newEntitySet != null) {
+    		newEntitySet.remove(method.toString());
+    	}
+    	else {
+    		methodList.remove(method);
+    	}
     }
 
     public void removeAttribute(MyAttribute attribute) {
@@ -117,5 +129,18 @@ public class MyClass {
 
     public String toString() {
         return name;
+    }
+
+    public void initializeNewEntitySet() {
+    	if(newEntitySet == null)
+    		this.newEntitySet = getEntitySet();
+    }
+
+    public void resetNewEntitySet() {
+    	this.newEntitySet = null;
+    }
+
+    public Set<String> getNewEntitySet() {
+    	return this.newEntitySet;
     }
 }

@@ -15,7 +15,8 @@ public class FastDistanceMatrix {
 	private Map<String,Set<String>> classMap;
 	private SystemEntityPlacement virtualSystemEntityPlacement;
 	
-	public FastDistanceMatrix(MySystem virtualSystem, DistanceMatrix originalDistanceMatrix, CandidateRefactoring candidate) {
+	public FastDistanceMatrix(MySystem virtualSystem, DistanceMatrix originalDistanceMatrix, CandidateRefactoring candidate,
+			Set<MyMethod> oldMovedMethods, Set<MyMethod> newMovedMethods) {
 		String sourceClass = candidate.getSource();
 		String targetClass = candidate.getTarget();
 		entityMap = new LinkedHashMap<String,Set<String>>();
@@ -34,15 +35,29 @@ public class FastDistanceMatrix {
             while(attributeIterator.hasNext()) {
                 MyAttribute attribute = attributeIterator.next();
                 if(!attribute.isReference()) {
-                    entityMap.put(attribute.toString(),attribute.getEntitySet());
+                	if(attribute.getNewEntitySet() != null)
+                		entityMap.put(attribute.toString(),attribute.getNewEntitySet());
+                	else
+                		entityMap.put(attribute.toString(),attribute.getEntitySet());
                 }
             }
             ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
             while(methodIterator.hasNext()) {
                 MyMethod method = methodIterator.next();
-                entityMap.put(method.toString(),method.getEntitySet());
+                if(!oldMovedMethods.contains(method)) {
+                	if(method.getNewEntitySet() != null)
+                		entityMap.put(method.toString(),method.getNewEntitySet());
+                	else
+                		entityMap.put(method.toString(),method.getEntitySet());
+                }
             }
-            classMap.put(myClass.getName(),myClass.getEntitySet());
+            if(myClass.getNewEntitySet() != null)
+            	classMap.put(myClass.getName(),myClass.getNewEntitySet());
+            else
+            	classMap.put(myClass.getName(),myClass.getEntitySet());
+        }
+        for(MyMethod newMovedMethod : newMovedMethods) {
+        	entityMap.put(newMovedMethod.toString(),newMovedMethod.getEntitySet());
         }
         
         for(String entityName : entityMap.keySet()) {

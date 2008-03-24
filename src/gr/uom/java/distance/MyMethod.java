@@ -15,6 +15,7 @@ public class MyMethod extends Entity {
     private boolean isAbstract;
     private String access;
     private MethodObject methodObject;
+    private Set<String> newEntitySet;
 
     public MyMethod(String classOrigin, String methodName, String returnType, List<String> parameterList) {
         this.classOrigin = classOrigin;
@@ -22,6 +23,7 @@ public class MyMethod extends Entity {
         this.returnType = returnType;
         this.parameterList = parameterList;
         this.isAbstract = false;
+        this.newEntitySet = null;
     }
 
     public void setMethodObject(MethodObject methodObject) {
@@ -103,8 +105,16 @@ public class MyMethod extends Entity {
     }
 
     public void replaceMethodInvocation(MyMethodInvocation oldMethodInvocation, MyMethodInvocation newMethodInvocation) {
-    	if(this.methodBody != null)
-    		this.methodBody.replaceMethodInvocation(oldMethodInvocation, newMethodInvocation);
+    	if(newEntitySet != null) {
+    		if(newEntitySet.contains(oldMethodInvocation.toString())) {
+    			newEntitySet.remove(oldMethodInvocation.toString());
+        		newEntitySet.add(newMethodInvocation.toString());
+    		}
+    	}
+    	else {
+	    	if(this.methodBody != null)
+	    		this.methodBody.replaceMethodInvocation(oldMethodInvocation, newMethodInvocation);
+    	}
     }
 
     public void replaceAttributeInstruction(MyAttributeInstruction oldInstruction, MyAttributeInstruction newInstruction) {
@@ -123,8 +133,14 @@ public class MyMethod extends Entity {
     }
 
     public void addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(MyAttributeInstruction attributeInstruction, MyMethodInvocation methodInvocation) {
-    	if(this.methodBody != null) {
-    		this.methodBody.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(attributeInstruction, methodInvocation);
+    	if(newEntitySet != null) {
+    		if(newEntitySet.contains(methodInvocation.toString()) && !attributeInstruction.isReference())
+    			newEntitySet.add(attributeInstruction.toString());
+    	}
+    	else {
+	    	if(this.methodBody != null) {
+	    		this.methodBody.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(attributeInstruction, methodInvocation);
+	    	}
     	}
     }
 
@@ -262,5 +278,18 @@ public class MyMethod extends Entity {
         	newMethod.setMethodBody(newMethodBody);
         }
         return newMethod;
+    }
+
+    public void initializeNewEntitySet() {
+    	if(newEntitySet == null)
+    		this.newEntitySet = getEntitySet();
+    }
+
+    public void resetNewEntitySet() {
+    	this.newEntitySet = null;
+    }
+
+    public Set<String> getNewEntitySet() {
+    	return this.newEntitySet;
     }
 }

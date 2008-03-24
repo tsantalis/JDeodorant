@@ -10,6 +10,7 @@ public class MyAttribute extends Entity {
     private List<MyMethod> methodList;
     private boolean reference;
     private String access;
+    private Set<String> newEntitySet;
 
     public MyAttribute(String classOrigin, String classType, String name) {
         this.classOrigin = classOrigin;
@@ -17,6 +18,7 @@ public class MyAttribute extends Entity {
         this.name = name;
         this.methodList = new ArrayList<MyMethod>();
         this.reference = false;
+        this.newEntitySet = null;
     }
 
     public String getAccess() {
@@ -33,11 +35,23 @@ public class MyAttribute extends Entity {
         return instruction;
     }
 
+    public boolean containsMethod(MyMethod method) {
+    	return methodList.contains(method);
+    }
+
     public void replaceMethod(MyMethod oldMethod, MyMethod newMethod) {
-        if(methodList.contains(oldMethod)) {
-            int index = methodList.indexOf(oldMethod);
-            methodList.remove(index);
-            methodList.add(index,newMethod);
+        if(newEntitySet != null) {
+        	if(newEntitySet.contains(oldMethod.toString())) {
+        		newEntitySet.remove(oldMethod.toString());
+        		newEntitySet.add(newMethod.toString());
+        	}
+        }
+        else {
+	    	if(methodList.contains(oldMethod)) {
+	            int index = methodList.indexOf(oldMethod);
+	            methodList.remove(index);
+	            methodList.add(index,newMethod);
+	        }
         }
     }
 
@@ -70,12 +84,22 @@ public class MyAttribute extends Entity {
     }
 
     public void addMethod(MyMethod method) {
-        if(!methodList.contains(method))
-            methodList.add(method);
+    	if(newEntitySet != null) {
+    		newEntitySet.add(method.toString());
+    	}
+    	else {
+	        if(!methodList.contains(method))
+	            methodList.add(method);
+    	}
     }
 
     public void removeMethod(MyMethod method) {
-        methodList.remove(method);
+    	if(newEntitySet != null) {
+    		newEntitySet.remove(method.toString());
+    	}
+    	else {
+    		methodList.remove(method);
+    	}
     }
 
     public ListIterator<MyMethod> getMethodIterator() {
@@ -128,5 +152,18 @@ public class MyAttribute extends Entity {
             newAttribute.addMethod(MyMethod.newInstance(method));
         }
         return newAttribute;
+    }
+
+    public void initializeNewEntitySet() {
+    	if(newEntitySet == null)
+    		this.newEntitySet = getEntitySet();
+    }
+
+    public void resetNewEntitySet() {
+    	this.newEntitySet = null;
+    }
+
+    public Set<String> getNewEntitySet() {
+    	return this.newEntitySet;
     }
 }

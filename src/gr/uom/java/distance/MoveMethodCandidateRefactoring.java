@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -30,6 +31,10 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
     private DistanceMatrix originalDistanceMatrix;
     private String movedMethodName;
+    private List<Entity> changedEntities;
+    private List<MyClass> changedClasses;
+    private Set<MyMethod> oldMovedMethods;
+    private Set<MyMethod> newMovedMethods;
 
     public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, DistanceMatrix originalDistanceMatrix) {
         this.system = system;
@@ -64,16 +69,25 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         			additionalMethodsToBeMoved.put(methodInvocation.getMethodInvocation(), invokedMethod.getMethodDeclaration());
         	}
         }
+        this.changedEntities = new ArrayList<Entity>();
+        this.changedClasses = new ArrayList<MyClass>();
+        this.oldMovedMethods = new LinkedHashSet<MyMethod>();
+        this.newMovedMethods = new LinkedHashSet<MyMethod>();
     }
 
     public void apply() {
-    	MySystem virtualSystem = MySystem.newInstance(system);
-    	virtualApplication(virtualSystem);
-    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
+    	//MySystem virtualSystem = MySystem.newInstance(system);
+    	virtualApplication(system);
+    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(system, originalDistanceMatrix, this, oldMovedMethods, newMovedMethods);
     	double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
     	//DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
     	//double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
     	this.entityPlacement = fastEntityPlacement;
+    	for(Entity entity : changedEntities) {
+    		entity.resetNewEntitySet();
+    	}
+    	for(MyClass myClass : changedClasses)
+    		myClass.resetNewEntitySet();
     }
 
     public boolean isApplicable() {
@@ -173,12 +187,19 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
                 instructionsToBeRemoved.add(instruction);
                 MyClass virtualSourceClass = virtualSystem.getClass(sourceClass.getName());
                 ListIterator<MyMethod> sourceMethodIterator = virtualSourceClass.getMethodIterator();
+                MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
                 while(sourceMethodIterator.hasNext()) {
                 	MyMethod myMethod = sourceMethodIterator.next();
-                	MyMethodInvocation myMethodInvocation = oldMethod.generateMethodInvocation();
-                	if(myMethod.containsMethodInvocation(myMethodInvocation)) {
-                		virtualSourceClass.getAttribute(instruction).addMethod(myMethod);
-                		myMethod.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(instruction, myMethodInvocation);
+                	//if a method of the source class invokes the method to be moved,
+                	//the fields accessed by the method to be moved should be passed as arguments to the modified method invocation of the moved method
+                	if(myMethod.containsMethodInvocation(oldMethodInvocation)) {
+                		MyAttribute mySourceAttribute = virtualSourceClass.getAttribute(instruction);
+                		mySourceAttribute.initializeNewEntitySet();
+                		changedEntities.add(mySourceAttribute);
+                		mySourceAttribute.addMethod(myMethod);
+                		myMethod.initializeNewEntitySet();
+                		changedEntities.add(myMethod);
+                		myMethod.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(instruction, oldMethodInvocation);
                 	}
                 }
             }
@@ -207,41 +228,65 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         
         MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
         MyMethodInvocation newMethodInvocation = newMethod.generateMethodInvocation();
-        virtualSystem.getClass(sourceClass.getName()).removeMethod(oldMethod);
-        virtualSystem.getClass(targetClass.getName()).addMethod(newMethod);
+        MyClass mySourceClass = virtualSystem.getClass(sourceClass.getName());
+        mySourceClass.initializeNewEntitySet();
+        changedClasses.add(mySourceClass);
+        mySourceClass.removeMethod(oldMethod);
+        
+        MyClass myTargetClass = virtualSystem.getClass(targetClass.getName());
+        myTargetClass.initializeNewEntitySet();
+        changedClasses.add(myTargetClass);
+        myTargetClass.addMethod(newMethod);
+        
         Iterator<MyClass> classIterator = virtualSystem.getClassIterator();
         while(classIterator.hasNext()) {
             MyClass myClass = classIterator.next();
             ListIterator<MyAttribute> attributeIterator = myClass.getAttributeIterator();
             while(attributeIterator.hasNext()) {
                 MyAttribute attribute = attributeIterator.next();
-                if(attribute.getClassOrigin().equals(sourceClass.getName()))
-                	attribute.removeMethod(oldMethod);
-                attribute.replaceMethod(oldMethod,newMethod);
+                if(attribute.containsMethod(oldMethod)) {
+                	attribute.initializeNewEntitySet();
+                	changedEntities.add(attribute);
+	                if(attribute.getClassOrigin().equals(sourceClass.getName()))
+	                	attribute.removeMethod(oldMethod);
+	                attribute.replaceMethod(oldMethod,newMethod);
+                }
             }
             ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
             while(methodIterator.hasNext()) {
                 MyMethod myMethod = methodIterator.next();
-                myMethod.replaceMethodInvocation(oldMethodInvocation,newMethodInvocation);
+                if(myMethod.containsMethodInvocation(oldMethodInvocation)) {
+                	myMethod.initializeNewEntitySet();
+                	changedEntities.add(myMethod);
+                	myMethod.replaceMethodInvocation(oldMethodInvocation,newMethodInvocation);
+                }
             }
         }
+        oldMovedMethods.add(oldMethod);
+        newMovedMethods.add(newMethod);
         
         List<MyMethod> methodsToBeMoved = new ArrayList<MyMethod>();
         Collection<MethodDeclaration> methodDeclarationsToBeMoved = additionalMethodsToBeMoved.values();
         ListIterator<MyMethod> sourceClassMethodIterator = sourceClass.getMethodIterator();
-        while(sourceClassMethodIterator.hasNext()) {
-        	MyMethod sourceMethod = sourceClassMethodIterator.next();
-        	if(methodDeclarationsToBeMoved.contains(sourceMethod.getMethodObject().getMethodDeclaration()) && !methodsToBeMoved.contains(sourceMethod))
-        		methodsToBeMoved.add(sourceMethod);
+        if(!methodDeclarationsToBeMoved.isEmpty()) {
+	        while(sourceClassMethodIterator.hasNext()) {
+	        	MyMethod sourceMethod = sourceClassMethodIterator.next();
+	        	if(methodDeclarationsToBeMoved.contains(sourceMethod.getMethodObject().getMethodDeclaration()) && !methodsToBeMoved.contains(sourceMethod))
+	        		methodsToBeMoved.add(sourceMethod);
+	        }
         }
         for(MyMethod oldMyMethod : methodsToBeMoved) {
         	MyMethod newMyMethod = MyMethod.newInstance(oldMyMethod);
         	newMyMethod.setClassOrigin(targetClass.getName());
         	MyMethodInvocation oldMyMethodInvocation = oldMyMethod.generateMethodInvocation();
         	MyMethodInvocation newMyMethodInvocation = newMyMethod.generateMethodInvocation();
-        	virtualSystem.getClass(sourceClass.getName()).removeMethod(oldMyMethod);
-            virtualSystem.getClass(targetClass.getName()).addMethod(newMyMethod);
+        	//virtualSystem.getClass(sourceClass.getName()).removeMethod(oldMyMethod);
+            //virtualSystem.getClass(targetClass.getName()).addMethod(newMyMethod);
+        	mySourceClass.removeMethod(oldMyMethod);
+        	myTargetClass.addMethod(newMyMethod);
             newMethod.replaceMethodInvocation(oldMyMethodInvocation, newMyMethodInvocation);
+            oldMovedMethods.add(oldMyMethod);
+            newMovedMethods.add(newMyMethod);
         }
     }
 

@@ -6,4 +6,8 @@ public abstract class Entity {
 
     public abstract Set<String> getEntitySet();
     public abstract String getClassOrigin();
+
+    public abstract void initializeNewEntitySet();
+    public abstract void resetNewEntitySet();
+    public abstract Set<String> getNewEntitySet();
 }

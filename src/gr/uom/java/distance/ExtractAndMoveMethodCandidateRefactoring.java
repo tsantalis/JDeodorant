@@ -102,13 +102,13 @@ public class ExtractAndMoveMethodCandidateRefactoring extends CandidateRefactori
     }
 
     public void apply() {
-    	MySystem virtualSystem = MySystem.newInstance(system);
+    	/*MySystem virtualSystem = MySystem.newInstance(system);
 	    virtualApplication(virtualSystem);
 	    FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(virtualSystem, originalDistanceMatrix, this);
 	    double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
 	    //DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
 	    //double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
-	    this.entityPlacement = fastEntityPlacement;
+	    this.entityPlacement = fastEntityPlacement;*/
     }
 
     public boolean isApplicable() {

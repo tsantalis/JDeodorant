@@ -561,6 +561,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 		modifySourceStaticFieldInstructionsInTargetClass(newMethodDeclaration);
 		modifySourceStaticMethodInvocationsInTargetClass(newMethodDeclaration);
+		modifyRecursiveMethodInvocationsOfTheMovedMethod(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInClassInstanceCreationArguments(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInVariableDeclarationInitializers(newMethodDeclaration);
@@ -1293,6 +1294,68 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 	}
 	
+	private void modifyRecursiveMethodInvocationsOfTheMovedMethod(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
+		List<Expression> newMethodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());
+		int i = 0;
+		for(Expression invocation : newMethodInvocations) {
+			if(invocation instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)invocation;
+				MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
+				AST ast = newMethodDeclaration.getAST();
+				if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
+					targetRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
+					List<Expression> arguments = methodInvocation.arguments();
+					boolean argumentFound = false;
+					for(Expression argument : arguments) {
+						SimpleName argumentSimpleName = null;
+						if(argument instanceof SimpleName) {
+							argumentSimpleName = (SimpleName)argument;
+						}
+						else if(argument instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)argument;
+							argumentSimpleName = fieldAccess.getName();
+						}
+						if(argumentSimpleName != null) {
+							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+							if(argumentSimpleName.getIdentifier().equals(targetClassVariableName)) {
+								argumentRewrite.remove(argument, null);
+								argumentFound = true;
+								break;
+							}
+						}
+					}
+					if(!argumentFound && isTargetClassVariableParameter) {
+						List<Expression> sourceMethodInvocationArguments = sourceMethodInvocation.arguments();
+						int j = 0;
+						for(Expression argument : sourceMethodInvocationArguments) {
+							SimpleName argumentSimpleName = null;
+							if(argument instanceof SimpleName) {
+								argumentSimpleName = (SimpleName)argument;
+							}
+							else if(argument instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)argument;
+								argumentSimpleName = fieldAccess.getName();
+							}
+							if(argumentSimpleName != null) {
+								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+								if(argumentSimpleName.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+										targetTypeDeclaration.resolveBinding().isEqualTo(argumentSimpleName.resolveTypeBinding().getSuperclass())) {
+									argumentRewrite.remove(arguments.get(j), null);
+									targetRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, arguments.get(j), null);
+									break;
+								}
+							}
+							j++;
+						}
+					}
+				}
+			}
+			i++;
+		}
+	}
+	
 	private void replaceTargetClassVariableNameWithThisExpressionInMethodInvocationArguments(MethodDeclaration newMethodDeclaration) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());
@@ -1309,11 +1372,7 @@ public class MoveMethodRefactoring implements Refactoring {
 							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
 							AST ast = newMethodDeclaration.getAST();
-							if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
-								targetRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
-								argumentRewrite.remove(argument, null);
-							}
-							else {
+							if(!sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
 								argumentRewrite.replace(argument, ast.newThisExpression(), null);
 							}
 						}
@@ -1325,11 +1384,7 @@ public class MoveMethodRefactoring implements Refactoring {
 							ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							MethodInvocation sourceMethodInvocation = (MethodInvocation)sourceMethodInvocations.get(i);
 							AST ast = newMethodDeclaration.getAST();
-							if(sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
-								targetRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(movedMethodName), null);
-								argumentRewrite.remove(argument, null);
-							}
-							else {
+							if(!sourceMethod.resolveBinding().isEqualTo(sourceMethodInvocation.resolveMethodBinding())) {
 								argumentRewrite.replace(argument, ast.newThisExpression(), null);
 							}
 						}

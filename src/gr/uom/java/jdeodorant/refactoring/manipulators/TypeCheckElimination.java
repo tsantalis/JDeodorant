@@ -58,6 +58,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
 	private LinkedHashSet<VariableDeclarationFragment> accessedLocalVariables;
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
+	private LinkedHashSet<IMethodBinding> superAccessedMethods;
 	private SimpleName typeLocalVariable;
 	private InheritanceTree existingInheritanceTree;
 	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
@@ -78,6 +79,7 @@ public class TypeCheckElimination {
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.accessedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
+		this.superAccessedMethods = new LinkedHashSet<IMethodBinding>();
 		this.typeLocalVariable = null;
 		this.existingInheritanceTree = null;
 		this.inheritanceTreeMatchingWithStaticTypes = null;
@@ -131,6 +133,10 @@ public class TypeCheckElimination {
 	public void addAccessedMethod(MethodDeclaration method) {
 		accessedMethods.add(method);
 	}
+
+	public void addSuperAccessedMethod(IMethodBinding method) {
+		superAccessedMethods.add(method);
+	}
 	
 	public LinkedHashSet<VariableDeclarationFragment> getAccessedLocalVariables() {
 		return accessedLocalVariables;
@@ -150,6 +156,10 @@ public class TypeCheckElimination {
 	
 	public Set<MethodDeclaration> getAccessedMethods() {
 		return accessedMethods;
+	}
+
+	public Set<IMethodBinding> getSuperAccessedMethods() {
+		return superAccessedMethods;
 	}
 	
 	public Set<Expression> getTypeCheckExpressions() {

@@ -173,7 +173,7 @@ public class AssociationDetection {
         return list;
     }
 
-    private Association getAssociation(String from, String to) {
+    public Association getAssociation(String from, String to) {
          for(Association association : associationList) {
             if(association.getFrom().equals(from) && association.getTo().equals(to))
                 return association;

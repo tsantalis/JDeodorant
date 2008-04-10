@@ -60,11 +60,9 @@ public class SystemObject {
     }
     
     public MethodObject getMethod(MethodInvocationObject mio) {
-    	for(ClassObject classObject : classList) {
-    		MethodObject methodObject = classObject.getMethod(mio);
-    		if(methodObject != null)
-    			return methodObject;
-    	}
+    	ClassObject classObject = getClassObject(mio.getOriginClassName());
+    	if(classObject != null)
+    		return classObject.getMethod(mio);
     	return null;
     }
 

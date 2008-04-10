@@ -104,6 +104,13 @@ public class MySystem {
     	return associationDetection.getAssociationsOfClass(classObject);
     }
 
+    public Association containsAssociationWithMultiplicityBetweenClasses(String from, String to) {
+    	Association association = associationDetection.getAssociation(from, to);
+    	if(association != null && association.isContainer())
+    		return association;
+    	return null;
+    }
+
 	public static MySystem newInstance(MySystem system) {
         Map<String,MyClass> classMap = new HashMap<String,MyClass>();
         Iterator<MyClass> classIterator = system.getClassIterator();

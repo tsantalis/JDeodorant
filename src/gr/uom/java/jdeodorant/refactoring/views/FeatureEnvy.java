@@ -51,6 +51,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -82,6 +83,7 @@ public class FeatureEnvy extends ViewPart {
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private IProject selectedProject;
+	private IPackageFragment selectedPackage;
 	private CandidateRefactoring[] candidateRefactoringTable;
 	private ASTReader astReader;
 	private Map<IProject, Stack<UndoRefactoring>> undoStackMap = new HashMap<IProject, Stack<UndoRefactoring>>();
@@ -160,25 +162,32 @@ public class FeatureEnvy extends ViewPart {
 			if (selection instanceof IStructuredSelection) {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 				Object element = structuredSelection.getFirstElement();
+				IJavaProject javaProject = null;
 				if(element instanceof IJavaProject) {
-					IJavaProject javaProject = (IJavaProject)element;
-					if(!javaProject.getProject().equals(selectedProject)) {
-						selectedProject = javaProject.getProject();
-						if(candidateRefactoringTable != null)
-							tableViewer.remove(candidateRefactoringTable);
-						identifyBadSmellsAction.setEnabled(true);
-						applyRefactoringAction.setEnabled(false);
-						renameMethodAction.setEnabled(false);
-						if(undoStackMap.containsKey(selectedProject)) {
-							Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-							if(undoStack.empty())
-								undoRefactoringAction.setEnabled(false);
-							else
-								undoRefactoringAction.setEnabled(true);
-						}
-						else
+					javaProject = (IJavaProject)element;
+					selectedPackage = null;
+				}
+				else if(element instanceof IPackageFragment) {
+					IPackageFragment packageFragment = (IPackageFragment)element;
+					javaProject = packageFragment.getJavaProject();
+					selectedPackage = packageFragment;
+				}
+				if(!javaProject.getProject().equals(selectedProject)) {
+					selectedProject = javaProject.getProject();
+					if(candidateRefactoringTable != null)
+						tableViewer.remove(candidateRefactoringTable);
+					identifyBadSmellsAction.setEnabled(true);
+					applyRefactoringAction.setEnabled(false);
+					renameMethodAction.setEnabled(false);
+					if(undoStackMap.containsKey(selectedProject)) {
+						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
+						if(undoStack.empty())
 							undoRefactoringAction.setEnabled(false);
+						else
+							undoRefactoringAction.setEnabled(true);
 					}
+					else
+						undoRefactoringAction.setEnabled(false);
 				}
 			}
 		}
@@ -297,7 +306,7 @@ public class FeatureEnvy extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
-				candidateRefactoringTable = getTable(selectedProject);
+				candidateRefactoringTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
@@ -508,8 +517,11 @@ public class FeatureEnvy extends ViewPart {
 			return extractMethodPrerequisiteRefactorings;
 	}
 	
-	private CandidateRefactoring[] getTable(IProject iProject) {
-		astReader = new ASTReader(iProject);
+	private CandidateRefactoring[] getTable() {
+		if(selectedPackage != null)
+			astReader = new ASTReader(selectedPackage);
+		else
+			astReader = new ASTReader(selectedProject);
 		SystemObject systemObject = astReader.getSystemObject();
 		/*MMImportCoupling mmic = new MMImportCoupling(systemObject);
 		System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());

@@ -7,7 +7,9 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
@@ -42,6 +44,20 @@ public class ASTReader {
 		recurse(iProject);
 	}
 	
+	public ASTReader(IPackageFragment packageFragment) {
+		this.systemObject = new SystemObject();
+		this.fileMap = new LinkedHashMap<TypeDeclaration, IFile>();
+		this.compilationUnitMap = new LinkedHashMap<TypeDeclaration, CompilationUnit>();
+		try {
+			ICompilationUnit[] compilationUnits = packageFragment.getCompilationUnits();
+			for(ICompilationUnit iCompilationUnit : compilationUnits) {
+				parseAST(iCompilationUnit);
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	private void recurse(IResource resource) {
 		try {
 			if(resource.getType() == IResource.PROJECT) {
@@ -49,8 +65,11 @@ public class ASTReader {
 				for(IResource member : members) {
 					if(member.getType() == IResource.FOLDER)
 						recurse(member);
-					else if(member.getType() == IResource.FILE && member.getFileExtension() != null && member.getFileExtension().equalsIgnoreCase("java"))
-						parseAST((IFile)member);
+					else if(member.getType() == IResource.FILE && member.getFileExtension() != null && member.getFileExtension().equalsIgnoreCase("java")) {
+						IJavaElement iJavaElement = JavaCore.create((IFile)member);
+				        ICompilationUnit iCompilationUnit = (ICompilationUnit)iJavaElement;
+						parseAST(iCompilationUnit);
+					}
 				}
 			}
 			else if(resource.getType() == IResource.FOLDER) {
@@ -58,8 +77,11 @@ public class ASTReader {
 				for(IResource member : members) {
 					if(member.getType() == IResource.FOLDER)
 						recurse(member);
-					else if(member.getType() == IResource.FILE && member.getFileExtension() != null && member.getFileExtension().equalsIgnoreCase("java"))
-						parseAST((IFile)member);
+					else if(member.getType() == IResource.FILE && member.getFileExtension() != null && member.getFileExtension().equalsIgnoreCase("java")) {
+						IJavaElement iJavaElement = JavaCore.create((IFile)member);
+				        ICompilationUnit iCompilationUnit = (ICompilationUnit)iJavaElement;
+						parseAST(iCompilationUnit);
+					}
 				}
 			}
 		} catch (CoreException e) {
@@ -67,9 +89,8 @@ public class ASTReader {
 		}
 	}
 	
-	private void parseAST(IFile iFile) {
-        IJavaElement iJavaElement = JavaCore.create(iFile);
-        ICompilationUnit iCompilationUnit = (ICompilationUnit)iJavaElement;
+	private void parseAST(ICompilationUnit iCompilationUnit) {
+		IFile iFile = (IFile)iCompilationUnit.getResource();
         ASTParser parser = ASTParser.newParser(AST.JLS3);
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
         parser.setSource(iCompilationUnit);

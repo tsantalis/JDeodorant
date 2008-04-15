@@ -172,7 +172,7 @@ public class FeatureEnvy extends ViewPart {
 					javaProject = packageFragment.getJavaProject();
 					selectedPackage = packageFragment;
 				}
-				if(!javaProject.getProject().equals(selectedProject)) {
+				if(javaProject != null && !javaProject.getProject().equals(selectedProject)) {
 					selectedProject = javaProject.getProject();
 					if(candidateRefactoringTable != null)
 						tableViewer.remove(candidateRefactoringTable);

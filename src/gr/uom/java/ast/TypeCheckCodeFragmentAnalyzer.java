@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
@@ -294,9 +295,10 @@ public class TypeCheckCodeFragmentAnalyzer {
 				}
 			}
 		}
+		processTypeCheckCodeFragmentBranches();
 	}
 	
-	public void processTypeCheckCodeFragmentBranches() {
+	private void processTypeCheckCodeFragmentBranches() {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<ArrayList<Statement>> allTypeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		if(!typeCheckElimination.getDefaultCaseStatements().isEmpty()) {
@@ -324,7 +326,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 								}
 							}
 						}
-						else {
+						else if(methodInvocation.getExpression() == null || (methodInvocation.getExpression() != null && methodInvocation.getExpression() instanceof ThisExpression)) {
 							ITypeBinding superclassTypeBinding = typeDeclaration.resolveBinding().getSuperclass();
 							while(superclassTypeBinding != null && !superclassTypeBinding.isEqualTo(methodBinding.getDeclaringClass())) {
 								superclassTypeBinding = superclassTypeBinding.getSuperclass();
@@ -390,8 +392,23 @@ public class TypeCheckCodeFragmentAnalyzer {
 							List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
 							for(SingleVariableDeclaration parameter : parameters) {
 								IVariableBinding parameterVariableBinding = parameter.resolveBinding();
-								if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding))
-									typeCheckElimination.addAccessedParameter(parameter);
+								if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+									boolean isLeftHandOfAssignment = false;
+									if(simpleName.getParent() instanceof Assignment) {
+										Assignment assignment = (Assignment)simpleName.getParent();
+										Expression leftHandSide = assignment.getLeftHandSide();
+										if(leftHandSide instanceof SimpleName) {
+											SimpleName leftHandSideName = (SimpleName)leftHandSide;
+											if(leftHandSideName.equals(simpleName)) {
+												isLeftHandOfAssignment = true;
+												typeCheckElimination.addAssignedParameter(parameter);
+											}
+										}
+									}
+									if(!isLeftHandOfAssignment)
+										typeCheckElimination.addAccessedParameter(parameter);
+									break;
+								}
 							}
 						}
 						//checking for local variables accessed inside the type-checking code branches, but declared outside them
@@ -402,7 +419,20 @@ public class TypeCheckCodeFragmentAnalyzer {
 								for(VariableDeclarationFragment fragment : fragments) {
 									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
 									if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-										typeCheckElimination.addAccessedLocalVariable(fragment);
+										boolean isLeftHandOfAssignment = false;
+										if(simpleName.getParent() instanceof Assignment) {
+											Assignment assignment = (Assignment)simpleName.getParent();
+											Expression leftHandSide = assignment.getLeftHandSide();
+											if(leftHandSide instanceof SimpleName) {
+												SimpleName leftHandSideName = (SimpleName)leftHandSide;
+												if(leftHandSideName.equals(simpleName)) {
+													isLeftHandOfAssignment = true;
+													typeCheckElimination.addAssignedLocalVariable(fragment);
+												}
+											}
+										}
+										if(!isLeftHandOfAssignment)
+											typeCheckElimination.addAccessedLocalVariable(fragment);
 										break;
 									}
 								}    											
@@ -436,7 +466,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 									}
 								}
 							}
-							else {
+							else if(methodInvocation.getExpression() == null || (methodInvocation.getExpression() != null && methodInvocation.getExpression() instanceof ThisExpression)) {
 								ITypeBinding superclassTypeBinding = typeDeclaration.resolveBinding().getSuperclass();
 								while(superclassTypeBinding != null && !superclassTypeBinding.isEqualTo(methodBinding.getDeclaringClass())) {
 									superclassTypeBinding = superclassTypeBinding.getSuperclass();
@@ -502,8 +532,23 @@ public class TypeCheckCodeFragmentAnalyzer {
 								List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
 								for(SingleVariableDeclaration parameter : parameters) {
 									IVariableBinding parameterVariableBinding = parameter.resolveBinding();
-									if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding))
-										typeCheckElimination.addAccessedParameter(parameter);
+									if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+										boolean isLeftHandOfAssignment = false;
+										if(simpleName.getParent() instanceof Assignment) {
+											Assignment assignment = (Assignment)simpleName.getParent();
+											Expression leftHandSide = assignment.getLeftHandSide();
+											if(leftHandSide instanceof SimpleName) {
+												SimpleName leftHandSideName = (SimpleName)leftHandSide;
+												if(leftHandSideName.equals(simpleName)) {
+													isLeftHandOfAssignment = true;
+													typeCheckElimination.addAssignedParameter(parameter);
+												}
+											}
+										}
+										if(!isLeftHandOfAssignment)
+											typeCheckElimination.addAccessedParameter(parameter);
+										break;
+									}
 								}
 							}
 							//checking for local variables accessed inside the type-checking code branches, but declared outside them
@@ -514,7 +559,20 @@ public class TypeCheckCodeFragmentAnalyzer {
 									for(VariableDeclarationFragment fragment : fragments) {
 										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
 										if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-											typeCheckElimination.addAccessedLocalVariable(fragment);
+											boolean isLeftHandOfAssignment = false;
+											if(simpleName.getParent() instanceof Assignment) {
+												Assignment assignment = (Assignment)simpleName.getParent();
+												Expression leftHandSide = assignment.getLeftHandSide();
+												if(leftHandSide instanceof SimpleName) {
+													SimpleName leftHandSideName = (SimpleName)leftHandSide;
+													if(leftHandSideName.equals(simpleName)) {
+														isLeftHandOfAssignment = true;
+														typeCheckElimination.addAssignedLocalVariable(fragment);
+													}
+												}
+											}
+											if(!isLeftHandOfAssignment)
+												typeCheckElimination.addAccessedLocalVariable(fragment);
 											break;
 										}
 									}    											

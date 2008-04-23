@@ -89,7 +89,7 @@ public class MethodBodyObject {
 						for(Expression expression : switchCaseExpressions) {
 							typeCheckElimination.addTypeCheck(expression, statement2);
 						}
-						if(!isDefaultCase) {
+						if(isDefaultCase) {
 							typeCheckElimination.addDefaultCaseStatement(statement2);
 						}
 					}

@@ -106,7 +106,6 @@ public class ClassObject {
     					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceDetection);
     					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null) &&
     							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
-    						analyzer.processTypeCheckCodeFragmentBranches();
     						if(typeCheckElimination.getExistingInheritanceTree() == null)
     							analyzer.inheritanceHierarchyMatchingWithStaticTypes();
     						if(!typeCheckElimination.isTypeCheckMethodStateSetter())

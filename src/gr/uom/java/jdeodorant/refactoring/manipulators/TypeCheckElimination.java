@@ -56,7 +56,9 @@ public class TypeCheckElimination {
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	private LinkedHashSet<VariableDeclarationFragment> assignedFields;
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
+	private LinkedHashSet<SingleVariableDeclaration> assignedParameters;
 	private LinkedHashSet<VariableDeclarationFragment> accessedLocalVariables;
+	private LinkedHashSet<VariableDeclarationFragment> assignedLocalVariables;
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
 	private LinkedHashSet<IMethodBinding> superAccessedMethods;
 	private SimpleName typeLocalVariable;
@@ -77,7 +79,9 @@ public class TypeCheckElimination {
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.assignedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
+		this.assignedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.accessedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
+		this.assignedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
 		this.superAccessedMethods = new LinkedHashSet<IMethodBinding>();
 		this.typeLocalVariable = null;
@@ -122,12 +126,20 @@ public class TypeCheckElimination {
 		assignedFields.add(fragment);
 	}
 	
-	public void addAccessedLocalVariable(VariableDeclarationFragment fragment){
+	public void addAccessedLocalVariable(VariableDeclarationFragment fragment) {
 		accessedLocalVariables.add(fragment);
+	}
+
+	public void addAssignedLocalVariable(VariableDeclarationFragment fragment) {
+		assignedLocalVariables.add(fragment);
 	}
 	
 	public void addAccessedParameter(SingleVariableDeclaration parameter) {
 		accessedParameters.add(parameter);
+	}
+	
+	public void addAssignedParameter(SingleVariableDeclaration parameter) {
+		assignedParameters.add(parameter);
 	}
 	
 	public void addAccessedMethod(MethodDeclaration method) {
@@ -389,11 +401,11 @@ public class TypeCheckElimination {
 	
 	public VariableDeclaration getTypeCheckMethodReturnedVariable() {
 		StatementExtractor statementExtractor = new StatementExtractor();
-		List<Statement> returnStatements = statementExtractor.getReturnStatements(typeCheckMethod.getBody());
-		if(returnStatements.size() > 0) {
-			ReturnStatement lastReturnStatement = (ReturnStatement)returnStatements.get(returnStatements.size()-1);
-			if(lastReturnStatement.getExpression() instanceof SimpleName) {
-				SimpleName returnExpression = (SimpleName)lastReturnStatement.getExpression();
+		List<Statement> typeCheckCodeFragmentReturnStatements = statementExtractor.getReturnStatements(typeCheckCodeFragment);
+		if(!typeCheckCodeFragmentReturnStatements.isEmpty()) {
+			ReturnStatement firstReturnStatement = (ReturnStatement)typeCheckCodeFragmentReturnStatements.get(0);
+			if(firstReturnStatement.getExpression() instanceof SimpleName) {
+				SimpleName returnExpression = (SimpleName)firstReturnStatement.getExpression();
 				List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
 				for(SingleVariableDeclaration parameter : parameters) {
 					if(parameter.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
@@ -406,6 +418,23 @@ public class TypeCheckElimination {
 					for(VariableDeclarationFragment fragment : fragments) {
 						if(fragment.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
 							return fragment;
+					}
+				}
+			}
+		}
+		else {
+			List<Statement> allReturnStatements = statementExtractor.getReturnStatements(typeCheckMethod.getBody());
+			if(!allReturnStatements.isEmpty()) {
+				ReturnStatement lastReturnStatement = (ReturnStatement)allReturnStatements.get(allReturnStatements.size()-1);
+				if(lastReturnStatement.getExpression() instanceof SimpleName) {
+					SimpleName returnExpression = (SimpleName)lastReturnStatement.getExpression();
+					for(SingleVariableDeclaration assignedParameter : assignedParameters) {
+						if(assignedParameter.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
+							return assignedParameter;
+					}
+					for(VariableDeclarationFragment assignedLocalVariable : assignedLocalVariables) {
+						if(assignedLocalVariable.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
+							return assignedLocalVariable;
 					}
 				}
 			}
@@ -507,8 +536,8 @@ public class TypeCheckElimination {
 				}
 			}
 			if(superTypeSimpleName != null) {
-				if(	(typeField != null && typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding())) ||
-					(typeLocalVariable != null && typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding())) )
+				if(	(typeField != null && (typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) || typeField.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier()))) ||
+					(typeLocalVariable != null && (typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) || typeLocalVariable.getIdentifier().equals(superTypeSimpleName.getIdentifier()))) )
 					return castExpression.getType();
 			}
 		}
@@ -607,5 +636,14 @@ public class TypeCheckElimination {
 			}
 		}
 		return false;
+	}
+	
+	public boolean typeCheckCodeFragmentContainsReturnStatement() {
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<Statement> typeCheckCodeFragmentReturnStatements = statementExtractor.getReturnStatements(typeCheckCodeFragment);
+		if(typeCheckCodeFragmentReturnStatements.isEmpty())
+			return false;
+		else
+			return true;
 	}
 }

@@ -61,6 +61,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
@@ -284,11 +285,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			contextBodyRewrite.insertLast(getterMethodDeclaration, null);
 		}
 		
-		MethodDeclaration typeCheckMethod = typeCheckElimination.getTypeCheckMethod();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
 		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
-		Type typeCheckMethodReturnType = typeCheckMethod.getReturnType2();
-		if(typeCheckMethodReturnType.isPrimitiveType() && ((PrimitiveType)typeCheckMethodReturnType).getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
+		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
@@ -449,11 +448,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			contextBodyRewrite.insertLast(setterMethodDeclaration, null);
 		}
 		
-		MethodDeclaration typeCheckMethod = typeCheckElimination.getTypeCheckMethod();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
 		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
-		Type typeCheckMethodReturnType = typeCheckMethod.getReturnType2();
-		if(typeCheckMethodReturnType.isPrimitiveType() && ((PrimitiveType)typeCheckMethodReturnType).getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
+		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
 			MethodInvocation abstractMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
@@ -675,7 +672,27 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		
 		MethodDeclaration abstractMethodDeclaration = stateStrategyAST.newMethodDeclaration();
 		stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.NAME_PROPERTY, stateStrategyAST.newSimpleName(abstractMethodName), null);
-		stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
+			stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, stateStrategyAST.newPrimitiveType(PrimitiveType.VOID), null);
+		}
+		else {
+			if(returnedVariable != null) {
+				Type returnType = null;
+				if(returnedVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+					returnType = singleVariableDeclaration.getType();
+				}
+				else if(returnedVariable instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					returnType = variableDeclarationStatement.getType();
+				}
+				stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+			}
+			else {
+				stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+			}
+		}
 		ListRewrite abstractMethodModifiersRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		abstractMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 		abstractMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
@@ -882,7 +899,27 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			
 			MethodDeclaration concreteMethodDeclaration = subclassAST.newMethodDeclaration();
 			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(abstractMethodName), null);
-			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+			if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
+				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, subclassAST.newPrimitiveType(PrimitiveType.VOID), null);
+			}
+			else {
+				if(returnedVariable != null) {
+					Type returnType = null;
+					if(returnedVariable instanceof SingleVariableDeclaration) {
+						SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+						returnType = singleVariableDeclaration.getType();
+					}
+					else if(returnedVariable instanceof VariableDeclarationFragment) {
+						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationStatement.getType();
+					}
+					subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+				}
+				else {
+					subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+				}
+			}
 			ListRewrite concreteMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			concreteMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 			ListRewrite concreteMethodParametersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
@@ -1011,10 +1048,13 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 				for(IMethodBinding superMethodBinding : superAccessedMethods) {
 					if(superMethodBinding.isEqualTo(oldMethodInvocation.resolveMethodBinding())) {
-						String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-						invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
-						subclassRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-						break;
+						if(oldMethodInvocation.getExpression() == null ||
+								(oldMethodInvocation.getExpression() != null && oldMethodInvocation.getExpression() instanceof ThisExpression)) {
+							String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+							subclassRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							break;
+						}
 					}
 				}
 			}

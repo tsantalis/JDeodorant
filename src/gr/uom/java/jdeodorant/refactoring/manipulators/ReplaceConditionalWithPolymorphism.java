@@ -116,7 +116,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				typeVariableName = typeCheckElimination.getTypeField().getName();
 			}
 			else if(typeCheckElimination.getTypeLocalVariable() != null) {
-				typeVariableName = typeCheckElimination.getTypeLocalVariable();
+				typeVariableName = typeCheckElimination.getTypeLocalVariable().getName();
 			}
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeVariableName, null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -143,7 +143,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				typeVariableName = typeCheckElimination.getTypeField().getName();
 			}
 			else if(typeCheckElimination.getTypeLocalVariable() != null) {
-				typeVariableName = typeCheckElimination.getTypeLocalVariable();
+				typeVariableName = typeCheckElimination.getTypeLocalVariable().getName();
 			}
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeVariableName, null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);

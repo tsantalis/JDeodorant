@@ -10,6 +10,7 @@ import java.util.Set;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
@@ -103,8 +104,40 @@ public class TypeCheckCodeFragmentAnalyzer {
 							}
 						}
 					}
+					else if(switchStatementExpressionNameVariableBinding.isParameter()) {
+						List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
+						for(SingleVariableDeclaration parameter : parameters) {
+							IVariableBinding parameterVariableBinding = parameter.resolveBinding();
+							if(parameterVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
+								typeCheckElimination.setTypeLocalVariable(parameter);
+								break;
+							}
+						}
+					}
 					else {
-						typeCheckElimination.setTypeLocalVariable(switchStatementExpressionName);
+						StatementExtractor statementExtractor = new StatementExtractor();
+						List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
+						for(Statement vDStatement : variableDeclarationStatements) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+							List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+							for(VariableDeclarationFragment fragment : fragments) {
+								IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+								if(fragmentVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
+									typeCheckElimination.setTypeLocalVariable(fragment);
+									break;
+								}
+							}
+						}
+						List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethod.getBody());
+						for(Statement eFStatement : enhancedForStatements) {
+							EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
+							SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
+							IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
+							if(parameterVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
+								typeCheckElimination.setTypeLocalVariable(formalParameter);
+								break;
+							}
+						}
 					}
 				}
 			}
@@ -289,8 +322,40 @@ public class TypeCheckCodeFragmentAnalyzer {
 							}
 						}
 					}
+					else if(variableBinding.isParameter()) {
+						List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
+						for(SingleVariableDeclaration parameter : parameters) {
+							IVariableBinding parameterVariableBinding = parameter.resolveBinding();
+							if(parameterVariableBinding.isEqualTo(variableBinding)) {
+								typeCheckElimination.setTypeLocalVariable(parameter);
+								break;
+							}
+						}
+					}
 					else {
-						typeCheckElimination.setTypeLocalVariable(typeVariable);
+						StatementExtractor statementExtractor = new StatementExtractor();
+						List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
+						for(Statement vDStatement : variableDeclarationStatements) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+							List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+							for(VariableDeclarationFragment fragment : fragments) {
+								IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+								if(fragmentVariableBinding.isEqualTo(variableBinding)) {
+									typeCheckElimination.setTypeLocalVariable(fragment);
+									break;
+								}
+							}
+						}
+						List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethod.getBody());
+						for(Statement eFStatement : enhancedForStatements) {
+							EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
+							SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
+							IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
+							if(parameterVariableBinding.isEqualTo(variableBinding)) {
+								typeCheckElimination.setTypeLocalVariable(formalParameter);
+								break;
+							}
+						}
 					}
 				}
 			}

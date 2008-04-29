@@ -64,6 +64,11 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
+	public List<Statement> getEnhancedForStatements(Statement statement) {
+		instanceChecker = new InstanceOfEnhancedForStatement();
+		return getStatements(statement);
+	}
+	
 	private List<Statement> getStatements(Statement statement) {
 		List<Statement> statementList = new ArrayList<Statement>();
 		if(statement instanceof Block) {
@@ -88,6 +93,8 @@ public class StatementExtractor {
 		else if(statement instanceof EnhancedForStatement) {
 			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
 			statementList.addAll(getStatements(enhancedForStatement.getBody()));
+			if(instanceChecker.instanceOf(enhancedForStatement))
+				statementList.add(enhancedForStatement);
 		}
 		else if(statement instanceof WhileStatement) {
 			WhileStatement whileStatement = (WhileStatement)statement;

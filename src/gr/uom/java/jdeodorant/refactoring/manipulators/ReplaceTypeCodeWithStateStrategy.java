@@ -155,13 +155,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			SwitchCase switchCase = contextAST.newSwitchCase();
 			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
 			String staticFieldNameDeclaringClass = null;
+			boolean isEnumConstant = false;
 			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+				isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
 				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
 					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
 				}
 			}
-			if(staticFieldNameDeclaringClass == null) {
+			if(staticFieldNameDeclaringClass == null || isEnumConstant) {
 				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
 			}
 			else {
@@ -188,13 +190,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			SwitchCase switchCase = contextAST.newSwitchCase();
 			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
 			String staticFieldNameDeclaringClass = null;
+			boolean isEnumConstant = false;
 			if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+				isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
 				if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
 					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
 				}
 			}
-			if(staticFieldNameDeclaringClass == null) {
+			if(staticFieldNameDeclaringClass == null || isEnumConstant) {
 				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
 			}
 			else {
@@ -375,13 +379,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				SwitchCase switchCase = contextAST.newSwitchCase();
 				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
 				String staticFieldNameDeclaringClass = null;
+				boolean isEnumConstant = false;
 				if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
 					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
 						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
 					}
 				}
-				if(staticFieldNameDeclaringClass == null) {
+				if(staticFieldNameDeclaringClass == null || isEnumConstant) {
 					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
 				}
 				else {
@@ -402,13 +408,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				SwitchCase switchCase = contextAST.newSwitchCase();
 				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
 				String staticFieldNameDeclaringClass = null;
+				boolean isEnumConstant = false;
 				if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
 					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
 						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
 					}
 				}
-				if(staticFieldNameDeclaringClass == null) {
+				if(staticFieldNameDeclaringClass == null || isEnumConstant) {
 					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
 				}
 				else {
@@ -432,12 +440,22 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
 			ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
-			Type parameterType = contextAST.newPrimitiveType(PrimitiveType.INT);
+			VariableDeclaration typeLocalVariable = typeCheckElimination.getTypeLocalVariable();
+			Type parameterType = null;
+			if(typeLocalVariable instanceof SingleVariableDeclaration) {
+				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)typeLocalVariable;
+				parameterType = singleVariableDeclaration.getType();
+			}
+			else if(typeLocalVariable instanceof VariableDeclarationFragment) {
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)typeLocalVariable;
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+				parameterType = variableDeclarationStatement.getType();
+			}
 			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, typeCheckElimination.getTypeLocalVariable(), null);
+			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, typeLocalVariable.getName(), null);
 			setterMethodParameterRewrite.insertLast(parameter, null);
 			
-			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, typeCheckElimination.getTypeLocalVariable(), null);
+			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, typeLocalVariable.getName(), null);
 			Block setterMethodBody = contextAST.newBlock();
 			ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
 			setterMethodBodyRewrite.insertLast(switchStatement, null);
@@ -456,7 +474,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(invokerMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
 			ListRewrite invokerMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(invokerMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable(), null);
+			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invokerMethodInvocation, null);
 			ListRewrite abstractMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -480,7 +498,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(invokerMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
 			ListRewrite invokerMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(invokerMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable(), null);
+			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invokerMethodInvocation, null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {

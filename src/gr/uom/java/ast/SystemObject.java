@@ -1,6 +1,11 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
+import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
+
 import java.util.*;
+
+import org.eclipse.jdt.core.dom.SimpleName;
 
 public class SystemObject {
 
@@ -109,6 +114,100 @@ public class SystemObject {
             names.add(getClassObject(i).getName());
         }
         return names;
+    }
+
+    public List<TypeCheckElimination> generateTypeCheckEliminations() {
+    	List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+    	Map<TypeCheckElimination, List<SimpleName>> staticFieldMap = new LinkedHashMap<TypeCheckElimination, List<SimpleName>>();
+    	Map<Integer, ArrayList<TypeCheckElimination>> staticFieldRankMap = new TreeMap<Integer, ArrayList<TypeCheckElimination>>();
+    	CompleteInheritanceDetection inheritanceDetection = new CompleteInheritanceDetection(this);
+    	for(ClassObject classObject : classList) {
+    		List<TypeCheckElimination> eliminations = classObject.generateTypeCheckEliminations(inheritanceDetection);
+    		for(TypeCheckElimination elimination : eliminations) {
+    			List<SimpleName> staticFields = elimination.getStaticFields();
+    			if(!staticFields.isEmpty()) {
+    				staticFieldMap.put(elimination, staticFields);
+    				int size = staticFields.size();
+    				if(staticFieldRankMap.containsKey(size)) {
+    					ArrayList<TypeCheckElimination> rank = staticFieldRankMap.get(size);
+    					rank.add(elimination);
+    				}
+    				else {
+    					ArrayList<TypeCheckElimination> rank = new ArrayList<TypeCheckElimination>();
+    					rank.add(elimination);
+    					staticFieldRankMap.put(size, rank);
+    				}
+    			}
+    		}
+    		typeCheckEliminations.addAll(eliminations);
+    	}
+    	List<TypeCheckElimination> sortedEliminations = new ArrayList<TypeCheckElimination>();
+    	List<Integer> keyList = new ArrayList<Integer>(staticFieldRankMap.keySet());
+    	ListIterator<Integer> keyListIterator = keyList.listIterator(keyList.size());
+    	while(keyListIterator.hasPrevious()) {
+			Integer states = keyListIterator.previous();
+			sortedEliminations.addAll(staticFieldRankMap.get(states));
+    	}
+    	
+    	while(!sortedEliminations.isEmpty()) {
+    		TypeCheckElimination selectedElimination = sortedEliminations.get(0);
+    		List<TypeCheckElimination> affectedEliminations = new ArrayList<TypeCheckElimination>();
+    		affectedEliminations.add(selectedElimination);
+    		List<SimpleName> staticFieldUnion = staticFieldMap.get(selectedElimination);
+    		for(TypeCheckElimination elimination : sortedEliminations) {
+    			List<SimpleName> staticFields = staticFieldMap.get(elimination);
+    			if(!selectedElimination.equals(elimination) && nonEmptyIntersection(staticFieldUnion, staticFields)) {
+    				staticFieldUnion = constructUnion(staticFieldUnion, staticFields);
+    				affectedEliminations.add(elimination);
+    			}
+    		}
+    		if(affectedEliminations.size() > 1) {
+    			for(TypeCheckElimination elimination : affectedEliminations) {
+    				List<SimpleName> staticFields = staticFieldMap.get(elimination);
+    				for(SimpleName simpleName1 : staticFieldUnion) {
+    					boolean isContained = false;
+    					for(SimpleName simpleName2 : staticFields) {
+    						if(simpleName1.resolveBinding().isEqualTo(simpleName2.resolveBinding())) {
+    		    				isContained = true;
+    		    				break;
+    		    			}
+    					}
+    					if(!isContained)
+    						elimination.addAdditionalStaticField(simpleName1);
+    				}
+    			}
+    		}
+    		sortedEliminations.removeAll(affectedEliminations);
+    	}
+    	return typeCheckEliminations;
+    }
+
+    private boolean nonEmptyIntersection(List<SimpleName> staticFieldUnion ,List<SimpleName> staticFields) {
+    	for(SimpleName simpleName1 : staticFields) {
+    		for(SimpleName simpleName2 : staticFieldUnion) {
+    			if(simpleName1.resolveBinding().isEqualTo(simpleName2.resolveBinding()))
+    				return true;
+    		}
+    	}
+    	return false;
+    }
+
+    private List<SimpleName> constructUnion(List<SimpleName> staticFieldUnion ,List<SimpleName> staticFields) {
+    	List<SimpleName> initialStaticFields = new ArrayList<SimpleName>(staticFieldUnion);
+    	List<SimpleName> staticFieldsToBeAdded = new ArrayList<SimpleName>();
+    	for(SimpleName simpleName1 : staticFields) {
+    		boolean isContained = false;
+    		for(SimpleName simpleName2 : staticFieldUnion) {
+    			if(simpleName1.resolveBinding().isEqualTo(simpleName2.resolveBinding())) {
+    				isContained = true;
+    				break;
+    			}
+    		}
+    		if(!isContained)
+    			staticFieldsToBeAdded.add(simpleName1);
+    	}
+    	initialStaticFields.addAll(staticFieldsToBeAdded);
+    	return initialStaticFields;
     }
 
     public String toString() {

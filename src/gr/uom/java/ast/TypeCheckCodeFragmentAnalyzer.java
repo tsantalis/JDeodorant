@@ -63,6 +63,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 		this.inheritanceDetection = inheritanceDetection;
 		this.typeVariableCounterMap = new LinkedHashMap<SimpleName, Integer>();
 		this.complexExpressionMap = new LinkedHashMap<Expression, IfStatementExpressionAnalyzer>();
+		typeCheckElimination.setTypeCheckClass(typeDeclaration);
 		typeCheckElimination.setTypeCheckMethod(typeCheckMethod);
 		processTypeCheckCodeFragment();
 	}

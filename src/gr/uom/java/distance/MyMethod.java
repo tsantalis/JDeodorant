@@ -261,7 +261,8 @@ public class MyMethod extends Entity {
         ListIterator<MyMethodInvocation> methodInvocationIterator = getMethodInvocationIterator();
         while(methodInvocationIterator.hasNext()) {
         	MyMethodInvocation methodInvocation = methodInvocationIterator.next();
-            set.add(methodInvocation.toString());
+            if(!this.equals(methodInvocation))
+            	set.add(methodInvocation.toString());
         }
         return set;
     }

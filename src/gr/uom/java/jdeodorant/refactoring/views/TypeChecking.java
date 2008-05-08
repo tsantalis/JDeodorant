@@ -2,9 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 
 import gr.uom.java.ast.ASTReader;
-import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
 import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
@@ -18,7 +16,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
@@ -447,26 +444,21 @@ public class TypeChecking extends ViewPart {
 	private Refactoring[] getTable(IProject iProject) {
 		astReader = new ASTReader(iProject);
 		SystemObject systemObject = astReader.getSystemObject();
-		CompleteInheritanceDetection inheritanceDetection = new CompleteInheritanceDetection(systemObject);
+		List<TypeCheckElimination> typeCheckEliminations = systemObject.generateTypeCheckEliminations();
 		List<Refactoring> refactorings = new ArrayList<Refactoring>();
-		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
-		while(classIterator.hasNext()) {
-			ClassObject classObject = classIterator.next();
-			TypeDeclaration sourceTypeDeclaration = classObject.getTypeDeclaration();
+		for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
+			TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
 			CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
 			IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
-			List<TypeCheckElimination> typeCheckEliminations = classObject.generateTypeCheckEliminations(inheritanceDetection);
-			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
-				if(typeCheckElimination.getExistingInheritanceTree() == null) {
-					ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-						new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-					refactorings.add(replaceTypeCodeWithStateStrategyRefactoring);
-				}
-				else {
-					ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-						new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-					refactorings.add(replaceConditionalWithPolymorphismRefactoring);
-				}
+			if(typeCheckElimination.getExistingInheritanceTree() == null) {
+				ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
+					new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
+				refactorings.add(replaceTypeCodeWithStateStrategyRefactoring);
+			}
+			else {
+				ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
+					new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
+				refactorings.add(replaceConditionalWithPolymorphismRefactoring);
 			}
 		}
 		Refactoring[] table = new Refactoring[refactorings.size()];

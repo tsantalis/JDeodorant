@@ -104,6 +104,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
 		this.additionalStaticFields = new LinkedHashMap<SimpleName, String>();
+		for(SimpleName simpleName : typeCheckElimination.getAdditionalStaticFields()) {
+			this.additionalStaticFields.put(simpleName, generateSubclassName(simpleName));
+		}
 		this.abstractMethodName = typeCheckElimination.getTypeCheckMethodName();
 	}
 
@@ -1267,15 +1270,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 											IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 											if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 													!staticFieldNames.contains(accessedVariable.getIdentifier())) {
-												String subclassName = "";
-												StringTokenizer tokenizer = new StringTokenizer(accessedVariable.getIdentifier(),"_");
-												while(tokenizer.hasMoreTokens()) {
-													String tempName = tokenizer.nextToken().toLowerCase().toString();
-													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-													tempName.subSequence(1, tempName.length()).toString();
-												}
 												if(!containsStaticFieldKey(accessedVariable))
-													additionalStaticFields.put(accessedVariable, subclassName);
+													additionalStaticFields.put(accessedVariable, generateSubclassName(accessedVariable));
 											}
 										}
 									}
@@ -1380,15 +1376,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 													IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
 													if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 															!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-														String subclassName = "";
-														StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-														while(tokenizer.hasMoreTokens()) {
-															String tempName = tokenizer.nextToken().toLowerCase().toString();
-															subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-															tempName.subSequence(1, tempName.length()).toString();
-														}
 														if(!containsStaticFieldKey(comparedVariable))
-															additionalStaticFields.put(comparedVariable, subclassName);
+															additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 													}
 												}
 											}
@@ -1478,15 +1467,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 											IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
 											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 													!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-												String subclassName = "";
-												StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-												while(tokenizer.hasMoreTokens()) {
-													String tempName = tokenizer.nextToken().toLowerCase().toString();
-													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-													tempName.subSequence(1, tempName.length()).toString();
-												}
 												if(!containsStaticFieldKey(comparedVariable))
-													additionalStaticFields.put(comparedVariable, subclassName);
+													additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 											}
 										}
 									}
@@ -1531,15 +1513,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 												IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
 												if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 														!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-													String subclassName = "";
-													StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-													while(tokenizer.hasMoreTokens()) {
-														String tempName = tokenizer.nextToken().toLowerCase().toString();
-														subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-														tempName.subSequence(1, tempName.length()).toString();
-													}
 													if(!containsStaticFieldKey(comparedVariable))
-														additionalStaticFields.put(comparedVariable, subclassName);
+														additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 												}
 											}
 										}
@@ -1925,15 +1900,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 										if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 												!staticFieldNames.contains(accessedVariable.getIdentifier())) {
-											String subclassName = "";
-											StringTokenizer tokenizer = new StringTokenizer(accessedVariable.getIdentifier(),"_");
-											while(tokenizer.hasMoreTokens()) {
-												String tempName = tokenizer.nextToken().toLowerCase().toString();
-												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-												tempName.subSequence(1, tempName.length()).toString();
-											}
 											if(!containsStaticFieldKey(accessedVariable))
-												additionalStaticFields.put(accessedVariable, subclassName);
+												additionalStaticFields.put(accessedVariable, generateSubclassName(accessedVariable));
 										}
 									}
 								}
@@ -1988,15 +1956,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 											IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
 											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 													!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-												String subclassName = "";
-												StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-												while(tokenizer.hasMoreTokens()) {
-													String tempName = tokenizer.nextToken().toLowerCase().toString();
-													subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-													tempName.subSequence(1, tempName.length()).toString();
-												}
 												if(!containsStaticFieldKey(comparedVariable))
-													additionalStaticFields.put(comparedVariable, subclassName);
+													additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 											}
 										}
 									}
@@ -2040,15 +2001,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 									IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
 									if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 											!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-										String subclassName = "";
-										StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-										while(tokenizer.hasMoreTokens()) {
-											String tempName = tokenizer.nextToken().toLowerCase().toString();
-											subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-											tempName.subSequence(1, tempName.length()).toString();
-										}
 										if(!containsStaticFieldKey(comparedVariable))
-											additionalStaticFields.put(comparedVariable, subclassName);
+											additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 									}
 								}
 							}
@@ -2081,15 +2035,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
 										if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
 												!staticFieldNames.contains(comparedVariable.getIdentifier())) {
-											String subclassName = "";
-											StringTokenizer tokenizer = new StringTokenizer(comparedVariable.getIdentifier(),"_");
-											while(tokenizer.hasMoreTokens()) {
-												String tempName = tokenizer.nextToken().toLowerCase().toString();
-												subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-												tempName.subSequence(1, tempName.length()).toString();
-											}
 											if(!containsStaticFieldKey(comparedVariable))
-												additionalStaticFields.put(comparedVariable, subclassName);
+												additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 										}
 									}
 								}
@@ -2107,6 +2054,17 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				return true;
 		}
 		return false;
+	}
+
+	private String generateSubclassName(SimpleName variable) {
+		String subclassName = "";
+		StringTokenizer tokenizer = new StringTokenizer(variable.getIdentifier(),"_");
+		while(tokenizer.hasMoreTokens()) {
+			String tempName = tokenizer.nextToken().toLowerCase().toString();
+			subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+			tempName.subSequence(1, tempName.length()).toString();
+		}
+		return subclassName;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {

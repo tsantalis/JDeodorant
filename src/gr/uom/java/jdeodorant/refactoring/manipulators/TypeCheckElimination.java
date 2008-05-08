@@ -39,6 +39,7 @@ import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -53,6 +54,8 @@ public class TypeCheckElimination {
 	private MethodDeclaration typeFieldSetterMethod;
 	private Statement typeCheckCodeFragment;
 	private MethodDeclaration typeCheckMethod;
+	private TypeDeclaration typeCheckClass;
+	private LinkedHashSet<SimpleName> additionalStaticFields;
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	private LinkedHashSet<VariableDeclarationFragment> assignedFields;
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
@@ -65,6 +68,7 @@ public class TypeCheckElimination {
 	private InheritanceTree existingInheritanceTree;
 	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
+	private volatile int hashCode = 0;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
@@ -76,6 +80,8 @@ public class TypeCheckElimination {
 		this.typeFieldSetterMethod = null;
 		this.typeCheckCodeFragment = null;
 		this.typeCheckMethod = null;
+		this.typeCheckClass = null;
+		this.additionalStaticFields = new LinkedHashSet<SimpleName>();
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.assignedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
@@ -116,6 +122,10 @@ public class TypeCheckElimination {
 	
 	public void addRemainingIfStatementExpression(Expression expression, DefaultMutableTreeNode root) {
 		remainingIfStatementExpressionMap.put(expression, root);
+	}
+	
+	public void addAdditionalStaticField(SimpleName staticField) {
+		additionalStaticFields.add(staticField);
 	}
 	
 	public void addAccessedField(VariableDeclarationFragment fragment) {
@@ -190,9 +200,14 @@ public class TypeCheckElimination {
 		ArrayList<SimpleName> staticFields = new ArrayList<SimpleName>();
 		for(Expression expression : typeCheckMap.keySet()) {
 			SimpleName simpleName = staticFieldMap.get(expression);
-			staticFields.add(simpleName);
+			if(simpleName != null)
+				staticFields.add(simpleName);
 		}
 		return staticFields;
+	}
+	
+	public Set<SimpleName> getAdditionalStaticFields() {
+		return additionalStaticFields;
 	}
 	
 	public DefaultMutableTreeNode getRemainingIfStatementExpression(Expression expression) {
@@ -211,7 +226,8 @@ public class TypeCheckElimination {
 		List<String> staticFieldNames = new ArrayList<String>();
 		for(Expression expression : typeCheckMap.keySet()) {
 			SimpleName simpleName = staticFieldMap.get(expression);
-			staticFieldNames.add(simpleName.getIdentifier());
+			if(simpleName != null)
+				staticFieldNames.add(simpleName.getIdentifier());
 		}
 		return staticFieldNames;
 	}
@@ -254,6 +270,14 @@ public class TypeCheckElimination {
 
 	public void setTypeCheckMethod(MethodDeclaration typeCheckMethod) {
 		this.typeCheckMethod = typeCheckMethod;
+	}
+
+	public TypeDeclaration getTypeCheckClass() {
+		return typeCheckClass;
+	}
+
+	public void setTypeCheckClass(TypeDeclaration typeCheckClass) {
+		this.typeCheckClass = typeCheckClass;
 	}
 
 	public VariableDeclaration getTypeLocalVariable() {
@@ -645,5 +669,35 @@ public class TypeCheckElimination {
 			return false;
 		else
 			return true;
+	}
+	
+	public boolean equals(Object o) {
+		if(this == o) {
+            return true;
+        }
+		
+		if(o instanceof TypeCheckElimination) {
+			TypeCheckElimination typeCheckElimination = (TypeCheckElimination)o;
+			return this.typeCheckClass.equals(typeCheckElimination.typeCheckClass) &&
+				this.typeCheckMethod.equals(typeCheckElimination.typeCheckMethod) &&
+				this.typeCheckCodeFragment.equals(typeCheckElimination.typeCheckCodeFragment);
+		}
+		return false;
+	}
+	
+	public int hashCode() {
+		if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + typeCheckClass.hashCode();
+    		result = 37*result + typeCheckMethod.hashCode();
+    		result = 37*result + typeCheckCodeFragment.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
+	}
+	
+	public String toString() {
+		return typeCheckClass.resolveBinding().getQualifiedName() + "::" +
+			typeCheckMethod.resolveBinding().toString();
 	}
 }

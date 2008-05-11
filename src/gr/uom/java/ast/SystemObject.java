@@ -1,11 +1,22 @@
 package gr.uom.java.ast;
 
 import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
+import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.*;
 
+import javax.swing.tree.DefaultMutableTreeNode;
+
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.Javadoc;
+import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.TagElement;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class SystemObject {
 
@@ -138,8 +149,11 @@ public class SystemObject {
     					staticFieldRankMap.put(size, rank);
     				}
     			}
+    			else {
+    				typeCheckEliminations.add(elimination);
+    			}
     		}
-    		typeCheckEliminations.addAll(eliminations);
+    		//typeCheckEliminations.addAll(eliminations);
     	}
     	List<TypeCheckElimination> sortedEliminations = new ArrayList<TypeCheckElimination>();
     	List<Integer> keyList = new ArrayList<Integer>(staticFieldRankMap.keySet());
@@ -177,6 +191,11 @@ public class SystemObject {
     				}
     			}
     		}
+    		for(TypeCheckElimination elimination : affectedEliminations) {
+    			inheritanceHierarchyMatchingWithStaticTypes(elimination, inheritanceDetection);
+    			if(!elimination.isTypeCheckMethodStateSetter())
+    				typeCheckEliminations.add(elimination);
+    		}
     		sortedEliminations.removeAll(affectedEliminations);
     	}
     	return typeCheckEliminations;
@@ -209,6 +228,62 @@ public class SystemObject {
     	initialStaticFields.addAll(staticFieldsToBeAdded);
     	return initialStaticFields;
     }
+
+	private void inheritanceHierarchyMatchingWithStaticTypes(TypeCheckElimination typeCheckElimination,
+			CompleteInheritanceDetection inheritanceDetection) {
+		List<String> subclassNames = typeCheckElimination.getSubclassNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
+		Set<InheritanceTree> inheritanceTrees = new LinkedHashSet<InheritanceTree>();
+		for(String subclassName: subclassNames) {
+			Set<InheritanceTree> tempInheritanceTrees = inheritanceDetection.getMatchingTrees(subclassName);
+			inheritanceTrees.addAll(tempInheritanceTrees);
+		}
+		for(InheritanceTree tree : inheritanceTrees) {
+			DefaultMutableTreeNode root = tree.getRootNode();
+			Enumeration<DefaultMutableTreeNode> children = root.children();
+			List<String> inheritanceHierarchySubclassNames = new ArrayList<String>();
+			while(children.hasMoreElements()) {
+				DefaultMutableTreeNode node = children.nextElement();
+				inheritanceHierarchySubclassNames.add((String)node.getUserObject());
+			}
+			int matchCounter = 0;
+			for(SimpleName staticField : staticFields) {
+				for(String subclassName : inheritanceHierarchySubclassNames) {
+					ClassObject classObject = getClassObject(subclassName);
+					TypeDeclaration typeDeclaration = classObject.getTypeDeclaration();
+					Javadoc javadoc = typeDeclaration.getJavadoc();
+					if(javadoc != null) {
+						List<TagElement> tagElements = javadoc.tags();
+						for(TagElement tagElement : tagElements) {
+							if(tagElement.getTagName().equals(TagElement.TAG_SEE)) {
+								List<ASTNode> fragments = tagElement.fragments();
+								for(ASTNode fragment : fragments) {
+									if(fragment instanceof MemberRef) {
+										MemberRef memberRef = (MemberRef)fragment;
+										IBinding staticFieldNameBinding = staticField.resolveBinding();
+										ITypeBinding staticFieldNameDeclaringClass = null;
+										if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+											staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
+										}
+										if(staticFieldNameBinding.getName().equals(memberRef.getName().getIdentifier()) &&
+												staticFieldNameDeclaringClass.getQualifiedName().equals(memberRef.getQualifier().getFullyQualifiedName())) {
+											matchCounter++;
+											break;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if(matchCounter == staticFields.size()) {
+				typeCheckElimination.setInheritanceTreeMatchingWithStaticTypes(tree);
+				return;
+			}
+		}
+	}
 
     public String toString() {
         StringBuilder sb = new StringBuilder();

@@ -24,6 +24,7 @@ import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -49,6 +50,8 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.Javadoc;
+import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -61,6 +64,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -300,7 +304,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
-				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				if(!abstractMethodParameter.equals(returnedVariable)) {
+					methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				}
 			}
 			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
@@ -319,8 +325,20 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(abstractMethodName), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getTypeField().getName().getIdentifier()), null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+			if(returnedVariable != null) {
+				if(returnedVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+					methodInvocationArgumentsRewrite.insertLast(singleVariableDeclaration.getName(), null);
+				}
+				else if(returnedVariable instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+					methodInvocationArgumentsRewrite.insertLast(variableDeclarationFragment.getName(), null);
+				}
+			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
-				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				if(!abstractMethodParameter.equals(returnedVariable)) {
+					methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				}
 			}
 			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
@@ -441,6 +459,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newSimpleType(contextAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
 			ListRewrite setterMethodModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+			if((typeCheckElimination.getTypeCheckMethod().resolveBinding().getModifiers() & Modifier.STATIC) != 0)
+				setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
 			ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
 			VariableDeclaration typeLocalVariable = typeCheckElimination.getTypeLocalVariable();
@@ -481,7 +501,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invokerMethodInvocation, null);
 			ListRewrite abstractMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
-				abstractMethodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				if(!abstractMethodParameter.equals(returnedVariable)) {
+					abstractMethodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				}
 			}
 			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
@@ -504,8 +526,20 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invokerMethodInvocation, null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+			if(returnedVariable != null) {
+				if(returnedVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+					methodInvocationArgumentsRewrite.insertLast(singleVariableDeclaration.getName(), null);
+				}
+				else if(returnedVariable instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+					methodInvocationArgumentsRewrite.insertLast(variableDeclarationFragment.getName(), null);
+				}
+			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
-				methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				if(!abstractMethodParameter.equals(returnedVariable)) {
+					methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
+				}
 			}
 			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
@@ -599,14 +633,29 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 
 	private void createStateStrategyHierarchy() {
 		IContainer contextContainer = (IContainer)sourceFile.getParent();
-		IFile stateStrategyFile = null;
-		if(contextContainer instanceof IProject) {
-			IProject contextProject = (IProject)contextContainer;
-			stateStrategyFile = contextProject.getFile(typeCheckElimination.getAbstractClassName() + ".java");
+		PackageDeclaration contextPackageDeclaration = sourceCompilationUnit.getPackage();
+		IContainer rootContainer = contextContainer;
+		if(contextPackageDeclaration != null) {
+			String packageName = contextPackageDeclaration.getName().getFullyQualifiedName();
+			String[] subPackages = packageName.split("\\.");
+			for(int i = 0; i<subPackages.length; i++)
+				rootContainer = (IContainer)rootContainer.getParent();
 		}
-		else if(contextContainer instanceof IFolder) {
-			IFolder contextFolder = (IFolder)contextContainer;
-			stateStrategyFile = contextFolder.getFile(typeCheckElimination.getAbstractClassName() + ".java");
+		InheritanceTree tree = typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes();
+		IFile stateStrategyFile = null;
+		if(tree != null) {
+			DefaultMutableTreeNode rootNode = tree.getRootNode();
+			stateStrategyFile = getFile(rootContainer, (String)rootNode.getUserObject());
+		}
+		else {
+			if(contextContainer instanceof IProject) {
+				IProject contextProject = (IProject)contextContainer;
+				stateStrategyFile = contextProject.getFile(typeCheckElimination.getAbstractClassName() + ".java");
+			}
+			else if(contextContainer instanceof IFolder) {
+				IFolder contextFolder = (IFolder)contextContainer;
+				stateStrategyFile = contextFolder.getFile(typeCheckElimination.getAbstractClassName() + ".java");
+			}
 		}
 		boolean stateStrategyAlreadyExists = false;
 		try {
@@ -718,8 +767,24 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		abstractMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 		abstractMethodModifiersRewrite.insertLast(stateStrategyAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 		ListRewrite abstractMethodParametersRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+		if(returnedVariable != null) {
+			if(returnedVariable instanceof SingleVariableDeclaration) {
+				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+				abstractMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+			}
+			else if(returnedVariable instanceof VariableDeclarationFragment) {
+				SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+				abstractMethodParametersRewrite.insertLast(parameter, null);
+			}
+		}
 		for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
-			abstractMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+			if(!abstractMethodParameter.equals(returnedVariable)) {
+				abstractMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+			}
 		}
 		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
 			if(!fragment.equals(returnedVariable)) {
@@ -774,18 +839,17 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		subclassNames.addAll(additionalStaticFields.values());
-		InheritanceTree tree = typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes();
 		if(tree != null) {
 			DefaultMutableTreeNode rootNode = tree.getRootNode();
 			Enumeration<DefaultMutableTreeNode> children = rootNode.children();
 			while(children.hasMoreElements()) {
 				DefaultMutableTreeNode node = children.nextElement();
-				String completeSubclassName = (String)node.getUserObject();
+				String qualifiedSubclassName = (String)node.getUserObject();
 				String subclassName = null;
-				if(completeSubclassName.contains("."))
-					subclassName = completeSubclassName.substring(completeSubclassName.lastIndexOf(".")+1,completeSubclassName.length());
+				if(qualifiedSubclassName.contains("."))
+					subclassName = qualifiedSubclassName.substring(qualifiedSubclassName.lastIndexOf(".")+1,qualifiedSubclassName.length());
 				else
-					subclassName = completeSubclassName;
+					subclassName = qualifiedSubclassName;
 				if(!subclassNames.contains(subclassName))
 					subclassNames.add(subclassName);
 			}
@@ -805,13 +869,27 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				statements = typeCheckElimination.getDefaultCaseStatements();
 			}
 			IFile subclassFile = null;
-			if(contextContainer instanceof IProject) {
-				IProject contextProject = (IProject)contextContainer;
-				subclassFile = contextProject.getFile(subclassNames.get(i) + ".java");
+			if(tree != null) {
+				DefaultMutableTreeNode rootNode = tree.getRootNode();
+				Enumeration<DefaultMutableTreeNode> children = rootNode.children();
+				while(children.hasMoreElements()) {
+					DefaultMutableTreeNode node = children.nextElement();
+					String qualifiedSubclassName = (String)node.getUserObject();
+					if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + subclassNames.get(i))) || qualifiedSubclassName.equals(subclassNames.get(i))) {
+						subclassFile = getFile(rootContainer, qualifiedSubclassName);
+						break;
+					}
+				}
 			}
-			else if(contextContainer instanceof IFolder) {
-				IFolder contextFolder = (IFolder)contextContainer;
-				subclassFile = contextFolder.getFile(subclassNames.get(i) + ".java");
+			else {
+				if(contextContainer instanceof IProject) {
+					IProject contextProject = (IProject)contextContainer;
+					subclassFile = contextProject.getFile(subclassNames.get(i) + ".java");
+				}
+				else if(contextContainer instanceof IFolder) {
+					IFolder contextFolder = (IFolder)contextContainer;
+					subclassFile = contextFolder.getFile(subclassNames.get(i) + ".java");
+				}
 			}
 			boolean subclassAlreadyExists = false;
 			try {
@@ -857,12 +935,33 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				if(sourceCompilationUnit.getPackage() != null) {
 					subclassRewriter.set(subclassCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, sourceCompilationUnit.getPackage(), null);
 				}
+				Javadoc subclassJavaDoc = subclassAST.newJavadoc();
+				TagElement subclassTagElement = subclassAST.newTagElement();
+				subclassRewriter.set(subclassTagElement, TagElement.TAG_NAME_PROPERTY, TagElement.TAG_SEE, null);
+				
+				MemberRef subclassMemberRef = subclassAST.newMemberRef();
+				IBinding staticFieldNameBinding = staticFields.get(i).resolveBinding();
+				ITypeBinding staticFieldNameDeclaringClass = null;
+				if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
+				}
+				subclassRewriter.set(subclassMemberRef, MemberRef.NAME_PROPERTY, subclassAST.newSimpleName(staticFieldNameBinding.getName()), null);
+				subclassRewriter.set(subclassMemberRef, MemberRef.QUALIFIER_PROPERTY, subclassAST.newName(staticFieldNameDeclaringClass.getQualifiedName()), null);
+				
+				ListRewrite subclassTagElementFragmentsRewrite = subclassRewriter.getListRewrite(subclassTagElement, TagElement.FRAGMENTS_PROPERTY);
+				subclassTagElementFragmentsRewrite.insertLast(subclassMemberRef, null);
+				
+				ListRewrite subclassJavaDocTagsRewrite = subclassRewriter.getListRewrite(subclassJavaDoc, Javadoc.TAGS_PROPERTY);
+				subclassJavaDocTagsRewrite.insertLast(subclassTagElement, null);
+				
 				subclassTypeDeclaration = subclassAST.newTypeDeclaration();
 				SimpleName subclassName = subclassAST.newSimpleName(subclassNames.get(i));
 				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, subclassName, null);
 				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, subclassAST.newSimpleType(subclassAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
 				ListRewrite subclassModifiersRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
 				subclassModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.JAVADOC_PROPERTY, subclassJavaDoc, null);
 			}
 			
 			ListRewrite subclassBodyRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
@@ -944,8 +1043,24 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			ListRewrite concreteMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			concreteMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 			ListRewrite concreteMethodParametersRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+			if(returnedVariable != null) {
+				if(returnedVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+					concreteMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+				}
+				else if(returnedVariable instanceof VariableDeclarationFragment) {
+					SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+					concreteMethodParametersRewrite.insertLast(parameter, null);
+				}
+			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
-				concreteMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+				if(!abstractMethodParameter.equals(returnedVariable)) {
+					concreteMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+				}
 			}
 			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
@@ -994,14 +1109,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				ifStatementBodyRewrite = subclassRewriter.getListRewrite(ifStatementBody, Block.STATEMENTS_PROPERTY);
 				subclassRewriter.set(enclosingIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, ifStatementBody, null);
 				concreteMethodBodyRewrite.insertLast(enclosingIfStatement, null);
-			}
-			if(returnedVariable != null && !returnedVariable.resolveBinding().isParameter()) {
-				VariableDeclarationFragment variableDeclarationFragment = subclassAST.newVariableDeclarationFragment();
-				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariable.getName(), null);
-				subclassRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, returnedVariable.getInitializer(), null);
-				VariableDeclarationStatement variableDeclarationStatement = subclassAST.newVariableDeclarationStatement(variableDeclarationFragment);
-				subclassRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-				concreteMethodBodyRewrite.insertFirst(variableDeclarationStatement, null);
 			}
 			for(Statement statement : statements) {
 				Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
@@ -1528,6 +1635,43 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 	}
 
+	private IFile getFile(IContainer rootContainer, String fullyQualifiedClassName) {
+		String[] subPackages = fullyQualifiedClassName.split("\\.");
+		IContainer classContainer = rootContainer;
+		IFile classFile = null;
+		for(int i = 0; i<subPackages.length; i++) {
+			try {
+				if(i == subPackages.length-1) {
+					IResource[] resources = classContainer.members();
+					for(IResource resource : resources) {
+						if(resource instanceof IFile) {
+							IFile file = (IFile)resource;
+							if(file.getName().equals(subPackages[i] + ".java")) {
+								classFile = file;
+								break;
+							}
+						}
+					}
+				}
+				else {
+					IResource[] resources = classContainer.members();
+					for(IResource resource : resources) {
+						if(resource instanceof IFolder) {
+							IContainer container = (IContainer)resource;
+							if(container.getName().equals(subPackages[i])) {
+								classContainer = container;
+								break;
+							}
+						}
+					}
+				}
+			} catch (CoreException e) {
+				e.printStackTrace();
+			}
+		}
+		return classFile;
+	}
+
 	private void generateGettersForAccessedFields() {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
@@ -1611,10 +1755,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 
 	private void generateRequiredImportDeclarationsBasedOnSignature() {
 		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
-		Type returnType = typeCheckElimination.getTypeCheckMethodReturnType();
-		ITypeBinding returnTypeBinding = returnType.resolveBinding();
-		if(!typeBindings.contains(returnTypeBinding))
-			typeBindings.add(returnTypeBinding);
+		if(returnedVariable != null) {
+			Type returnType = null;
+			if(returnedVariable instanceof SingleVariableDeclaration) {
+				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+				returnType = singleVariableDeclaration.getType();
+			}
+			else if(returnedVariable instanceof VariableDeclarationFragment) {
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+				returnType = variableDeclarationStatement.getType();
+			}
+			ITypeBinding returnTypeBinding = returnType.resolveBinding();
+			if(!typeBindings.contains(returnTypeBinding))
+				typeBindings.add(returnTypeBinding);
+		}
 		
 		Set<SingleVariableDeclaration> parameters = typeCheckElimination.getAccessedParameters();
 		for(SingleVariableDeclaration parameter : parameters) {

@@ -467,13 +467,21 @@ public class TypeCheckElimination {
 	}
 	
 	public String getAbstractClassName() {
-		if(typeField != null && existingInheritanceTree == null) {
+		if(typeField != null && existingInheritanceTree == null && inheritanceTreeMatchingWithStaticTypes == null) {
 			String typeFieldName = typeField.getName().getIdentifier().replaceAll("_", "");
 			return typeFieldName.substring(0, 1).toUpperCase() + typeFieldName.substring(1, typeFieldName.length());
 		}
-		else if(typeLocalVariable != null && existingInheritanceTree == null) {
+		else if(typeLocalVariable != null && existingInheritanceTree == null && inheritanceTreeMatchingWithStaticTypes == null) {
 			String typeLocalVariableName = typeLocalVariable.getName().getIdentifier().replaceAll("_", "");
 			return typeLocalVariableName.substring(0, 1).toUpperCase() + typeLocalVariableName.substring(1, typeLocalVariableName.length());
+		}
+		else if(inheritanceTreeMatchingWithStaticTypes != null) {
+			DefaultMutableTreeNode root = inheritanceTreeMatchingWithStaticTypes.getRootNode();
+			String rootClassName = (String)root.getUserObject();
+			if(rootClassName.contains("."))
+				return rootClassName.substring(rootClassName.lastIndexOf(".")+1,rootClassName.length());
+			else
+				return rootClassName;
 		}
 		else if(existingInheritanceTree != null) {
 			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();

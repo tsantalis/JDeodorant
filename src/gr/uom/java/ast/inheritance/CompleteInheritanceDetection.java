@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.SystemObject;
@@ -60,17 +61,20 @@ public class CompleteInheritanceDetection {
 		}
 	}
 	
-	public InheritanceTree getMatchingTree(String className) {
+	public Set<InheritanceTree> getMatchingTrees(String subclassName) {
+		Set<InheritanceTree> inheritanceTrees = new LinkedHashSet<InheritanceTree>();
 		for(String superclass : subclassMap.keySet()) {
-			if((superclass.contains(".") && superclass.endsWith("." + className)) || superclass.equals(className)) {
-				LinkedHashSet<String> subclasses = subclassMap.get(superclass);
-				InheritanceTree tree = new InheritanceTree();
-				for(String subclass : subclasses) {
-					tree.addChildToParent(subclass, superclass);
+			LinkedHashSet<String> subclasses = subclassMap.get(superclass);
+			boolean matchingInheritanceHierarchy = false;
+			for(String subclass : subclasses) {
+				if((subclass.contains(".") && subclass.endsWith("." + subclassName)) || subclass.equals(subclassName)) {
+					matchingInheritanceHierarchy = true;
+					break;
 				}
-				return tree;
 			}
+			if(matchingInheritanceHierarchy)
+				inheritanceTrees.add(getTree(superclass));
 		}
-		return null;
+		return inheritanceTrees;
 	}
 }

@@ -106,10 +106,7 @@ public class ClassObject {
     					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration(), inheritanceDetection);
     					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null) &&
     							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
-    						if(typeCheckElimination.getExistingInheritanceTree() == null)
-    							analyzer.inheritanceHierarchyMatchingWithStaticTypes();
-    						if(!typeCheckElimination.isTypeCheckMethodStateSetter())
-    							typeCheckEliminations.add(typeCheckElimination);
+    						typeCheckEliminations.add(typeCheckElimination);
     					}
     				}
     			}

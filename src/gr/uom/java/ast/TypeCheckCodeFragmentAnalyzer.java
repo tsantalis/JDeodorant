@@ -1,7 +1,6 @@
 package gr.uom.java.ast;
 
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -648,34 +647,6 @@ public class TypeCheckCodeFragmentAnalyzer {
 					}
 					leaf = leaf.getNextLeaf();
 				}
-			}
-		}
-	}
-
-	public void inheritanceHierarchyMatchingWithStaticTypes() {
-		String abstractClassName = typeCheckElimination.getAbstractClassName();
-		InheritanceTree tree = inheritanceDetection.getMatchingTree(abstractClassName);
-		if(tree != null) {
-			List<String> subclassNamesFromStaticFields = typeCheckElimination.getSubclassNames();
-			DefaultMutableTreeNode root = tree.getRootNode();
-			Enumeration<DefaultMutableTreeNode> children = root.children();
-			List<String> subclassNames = new ArrayList<String>();
-			while(children.hasMoreElements()) {
-				DefaultMutableTreeNode node = children.nextElement();
-				subclassNames.add((String)node.getUserObject());
-			}
-			int matchCounter = 0;
-			for(String subclassNameFromStaticField : subclassNamesFromStaticFields) {
-				for(String subclassName : subclassNames) {
-					if((subclassName.contains(".") && subclassName.endsWith("." + subclassNameFromStaticField)) ||
-							subclassName.equals(subclassNameFromStaticField)) {
-						matchCounter++;
-						break;
-					}
-				}
-			}
-			if(matchCounter == subclassNamesFromStaticFields.size()) {
-				typeCheckElimination.setInheritanceTreeMatchingWithStaticTypes(tree);
 			}
 		}
 	}

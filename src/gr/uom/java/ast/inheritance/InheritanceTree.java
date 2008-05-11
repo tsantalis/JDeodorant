@@ -5,6 +5,7 @@ import java.util.Enumeration;
 
 public class InheritanceTree {
     private DefaultMutableTreeNode rootNode;
+    private volatile int hashCode = 0;
 
     public InheritanceTree() {
         this.rootNode = null;
@@ -59,4 +60,13 @@ public class InheritanceTree {
         }
         return false;
     }
+
+    public int hashCode() {
+		if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + rootNode.getUserObject().hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
+	}
 }

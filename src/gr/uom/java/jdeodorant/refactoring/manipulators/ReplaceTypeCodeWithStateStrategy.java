@@ -227,6 +227,18 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(assignment), null);
 			switchStatementStatementsRewrite.insertLast(contextAST.newBreakStatement(), null);
 		}
+		SwitchCase switchCase = contextAST.newSwitchCase();
+		sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, null, null);
+		switchStatementStatementsRewrite.insertLast(switchCase, null);
+		Assignment nullAssignment = contextAST.newAssignment();
+		sourceRewriter.set(nullAssignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+		FieldAccess typeFieldAccess = contextAST.newFieldAccess();
+		sourceRewriter.set(typeFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+		sourceRewriter.set(typeFieldAccess, FieldAccess.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+		sourceRewriter.set(nullAssignment, Assignment.LEFT_HAND_SIDE_PROPERTY, typeFieldAccess, null);
+		sourceRewriter.set(nullAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, contextAST.newNullLiteral(), null);
+		switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(nullAssignment), null);
+		switchStatementStatementsRewrite.insertLast(contextAST.newBreakStatement(), null);
 		if(setterMethod != null) {
 			List<SingleVariableDeclaration> setterMethodParameters = setterMethod.parameters();
 			if(setterMethodParameters.size() == 1) {

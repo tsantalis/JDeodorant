@@ -153,7 +153,6 @@ public class SystemObject {
     				typeCheckEliminations.add(elimination);
     			}
     		}
-    		//typeCheckEliminations.addAll(eliminations);
     	}
     	List<TypeCheckElimination> sortedEliminations = new ArrayList<TypeCheckElimination>();
     	List<Integer> keyList = new ArrayList<Integer>(staticFieldRankMap.keySet());

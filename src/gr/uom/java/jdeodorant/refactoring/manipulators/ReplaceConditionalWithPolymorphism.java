@@ -737,6 +737,23 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 							break;
 						}
 					}
+					IBinding oldRightHandSideNameBinding = oldRightHandSideName.resolveBinding();
+					if(oldRightHandSideNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding oldRightHandSideNameVariableBinding = (IVariableBinding)oldRightHandSideNameBinding;
+						if((oldRightHandSideNameVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+								(oldRightHandSideNameVariableBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+							SimpleName qualifier = subclassAST.newSimpleName(oldRightHandSideNameVariableBinding.getDeclaringClass().getName());
+							if(newRightHandSideName.getParent() instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)newRightHandSideName.getParent();
+								subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+							}
+							else if(!(newRightHandSideName.getParent() instanceof QualifiedName)) {
+								SimpleName simpleName = subclassAST.newSimpleName(newRightHandSideName.getIdentifier());
+								QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+								subclassRewriter.replace(newRightHandSideName, newQualifiedName, null);
+							}
+						}
+					}
 				}
 			}
 			else {
@@ -751,6 +768,23 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 						subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 						subclassRewriter.replace(newSimpleName, methodInvocation, null);
 						break;
+					}
+				}
+				IBinding oldSimpleNameBinding = oldSimpleName.resolveBinding();
+				if(oldSimpleNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding oldSimpleNameVariableBinding = (IVariableBinding)oldSimpleNameBinding;
+					if((oldSimpleNameVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+							(oldSimpleNameVariableBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+						SimpleName qualifier = subclassAST.newSimpleName(oldSimpleNameVariableBinding.getDeclaringClass().getName());
+						if(newSimpleName.getParent() instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
+							subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+						}
+						else if(!(newSimpleName.getParent() instanceof QualifiedName)) {
+							SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
+							QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+							subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+						}
 					}
 				}
 			}

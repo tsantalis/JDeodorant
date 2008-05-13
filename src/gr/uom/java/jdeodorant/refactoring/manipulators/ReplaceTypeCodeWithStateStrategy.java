@@ -92,6 +92,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private UndoRefactoring undoRefactoring;
 	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
+	private Set<ITypeBinding> requiredImportDeclarationsForContext;
 	private Set<ITypeBinding> thrownExceptions;
 	private Map<SimpleName, String> additionalStaticFields;
 	private String abstractMethodName;
@@ -106,6 +107,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.undoRefactoring = new UndoRefactoring();
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
+		this.requiredImportDeclarationsForContext = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
 		this.additionalStaticFields = new LinkedHashMap<SimpleName, String>();
 		for(SimpleName simpleName : typeCheckElimination.getAdditionalStaticFields()) {
@@ -115,11 +117,19 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	}
 
 	public void apply() {
+		if(typeCheckElimination.getTypeField() != null) {
+			modifyTypeFieldAssignmentsInContextClass();
+			modifyTypeFieldAccessesInContextClass();
+		}
+		else if(typeCheckElimination.getTypeLocalVariable() != null) {
+			identifyTypeLocalVariableAssignmentsInTypeCheckMethod();
+			identifyTypeLocalVariableAccessesInTypeCheckMethod();
+		}
+		createStateStrategyHierarchy();
 		if(typeCheckElimination.getTypeField() != null)
 			modifyContext();
 		else if(typeCheckElimination.getTypeLocalVariable() != null)
 			modifyTypeCheckMethod();
-		createStateStrategyHierarchy();
 	}
 
 	private void modifyContext() {
@@ -148,9 +158,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 		}
-		
-		modifyTypeFieldAssignmentsInContextClass();
-		modifyTypeFieldAccessesInContextClass();
 		
 		MethodDeclaration setterMethod = typeCheckElimination.getTypeFieldSetterMethod();
 		SwitchStatement switchStatement = contextAST.newSwitchStatement();
@@ -381,6 +388,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		setPublicModifierToStaticFields();
 		setPublicModifierToAccessedMethods();
 		
+		for(ITypeBinding typeBinding : requiredImportDeclarationsForContext) {
+			addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
+		}
+		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
@@ -398,9 +409,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private void modifyTypeCheckMethod() {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		
-		identifyTypeLocalVariableAssignmentsInTypeCheckMethod();
-		identifyTypeLocalVariableAccessesInTypeCheckMethod();
 		
 		if(!typeObjectGetterMethodAlreadyExists()) {
 			SwitchStatement switchStatement = contextAST.newSwitchStatement();
@@ -582,6 +590,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		setPublicModifierToStaticFields();
 		setPublicModifierToAccessedMethods();
 		
+		for(ITypeBinding typeBinding : requiredImportDeclarationsForContext) {
+			addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
+		}
+		
 		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
 		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
 		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
@@ -704,6 +716,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
 					if(typeDeclaration.getName().getIdentifier().equals(typeCheckElimination.getAbstractClassName())) {
 						stateStrategyTypeDeclaration = typeDeclaration;
+						requiredImportDeclarationsForContext.add(stateStrategyTypeDeclaration.resolveBinding());
 						int stateStrategyModifiers = stateStrategyTypeDeclaration.getModifiers();
 						if((stateStrategyModifiers & Modifier.ABSTRACT) == 0) {
 							ListRewrite stateStrategyModifiersRewrite = stateStrategyRewriter.getListRewrite(stateStrategyTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
@@ -938,6 +951,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 						TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
 						if(typeDeclaration.getName().getIdentifier().equals(subclassNames.get(i))) {
 							subclassTypeDeclaration = typeDeclaration;
+							requiredImportDeclarationsForContext.add(subclassTypeDeclaration.resolveBinding());
 							break;
 						}
 					}
@@ -1313,6 +1327,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							break;
 						}
 					}
+					IBinding oldRightHandSideNameBinding = oldRightHandSideName.resolveBinding();
+					if(oldRightHandSideNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding oldRightHandSideNameVariableBinding = (IVariableBinding)oldRightHandSideNameBinding;
+						if((oldRightHandSideNameVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+								(oldRightHandSideNameVariableBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+							SimpleName qualifier = subclassAST.newSimpleName(oldRightHandSideNameVariableBinding.getDeclaringClass().getName());
+							if(newRightHandSideName.getParent() instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)newRightHandSideName.getParent();
+								subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+							}
+							else if(!(newRightHandSideName.getParent() instanceof QualifiedName)) {
+								SimpleName simpleName = subclassAST.newSimpleName(newRightHandSideName.getIdentifier());
+								QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+								subclassRewriter.replace(newRightHandSideName, newQualifiedName, null);
+							}
+						}
+					}
 				}
 			}
 			else {
@@ -1327,6 +1358,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 						subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 						subclassRewriter.replace(newSimpleName, methodInvocation, null);
 						break;
+					}
+				}
+				IBinding oldSimpleNameBinding = oldSimpleName.resolveBinding();
+				if(oldSimpleNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding oldSimpleNameVariableBinding = (IVariableBinding)oldSimpleNameBinding;
+					if((oldSimpleNameVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+							(oldSimpleNameVariableBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+						SimpleName qualifier = subclassAST.newSimpleName(oldSimpleNameVariableBinding.getDeclaringClass().getName());
+						if(newSimpleName.getParent() instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
+							subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+						}
+						else if(!(newSimpleName.getParent() instanceof QualifiedName)) {
+							SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
+							QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+							subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+						}
 					}
 				}
 			}

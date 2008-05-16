@@ -128,7 +128,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		createStateStrategyHierarchy();
 		if(typeCheckElimination.getTypeField() != null)
 			modifyContext();
-		else if(typeCheckElimination.getTypeLocalVariable() != null)
+		else if(typeCheckElimination.getTypeLocalVariable() != null || typeCheckElimination.getTypeMethodInvocation() != null)
 			modifyTypeCheckMethod();
 	}
 
@@ -483,22 +483,34 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
 			ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
-			VariableDeclaration typeLocalVariable = typeCheckElimination.getTypeLocalVariable();
 			Type parameterType = null;
-			if(typeLocalVariable instanceof SingleVariableDeclaration) {
-				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)typeLocalVariable;
-				parameterType = singleVariableDeclaration.getType();
+			SimpleName parameterName = null;
+			if(typeCheckElimination.getTypeLocalVariable() != null) {
+				VariableDeclaration typeLocalVariable = typeCheckElimination.getTypeLocalVariable();
+				if(typeLocalVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)typeLocalVariable;
+					parameterType = singleVariableDeclaration.getType();
+					parameterName = singleVariableDeclaration.getName();
+				}
+				else if(typeLocalVariable instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)typeLocalVariable;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					parameterType = variableDeclarationStatement.getType();
+					parameterName = variableDeclarationFragment.getName();
+				}
 			}
-			else if(typeLocalVariable instanceof VariableDeclarationFragment) {
-				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)typeLocalVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				parameterType = variableDeclarationStatement.getType();
+			else if(typeCheckElimination.getForeignTypeField() != null) {
+				VariableDeclarationFragment foreignTypeField = typeCheckElimination.getForeignTypeField();
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)foreignTypeField.getParent();
+				parameterType = fieldDeclaration.getType();
+				parameterName = foreignTypeField.getName();
+				
 			}
 			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, typeLocalVariable.getName(), null);
+			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterName, null);
 			setterMethodParameterRewrite.insertLast(parameter, null);
 			
-			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, typeLocalVariable.getName(), null);
+			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, parameterName, null);
 			Block setterMethodBody = contextAST.newBlock();
 			ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
 			setterMethodBodyRewrite.insertLast(switchStatement, null);
@@ -517,7 +529,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(invokerMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
 			ListRewrite invokerMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(invokerMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
+			if(typeCheckElimination.getTypeLocalVariable() != null)
+				invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
+			else if(typeCheckElimination.getTypeMethodInvocation() != null)
+				invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeMethodInvocation(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invokerMethodInvocation, null);
 			ListRewrite abstractMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -543,7 +558,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			MethodInvocation invokerMethodInvocation = contextAST.newMethodInvocation();
 			sourceRewriter.set(invokerMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName() + "Object"), null);
 			ListRewrite invokerMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(invokerMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-			invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
+			if(typeCheckElimination.getTypeLocalVariable() != null)
+				invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeLocalVariable().getName(), null);
+			else if(typeCheckElimination.getTypeMethodInvocation() != null)
+				invokerMethodInvocationArgumentsRewrite.insertLast(typeCheckElimination.getTypeMethodInvocation(), null);
 			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invokerMethodInvocation, null);
 			ListRewrite methodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(abstractMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			if(returnedVariable != null) {

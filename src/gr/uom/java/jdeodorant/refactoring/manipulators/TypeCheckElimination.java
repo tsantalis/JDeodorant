@@ -66,6 +66,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<IMethodBinding> superAccessedMethods;
 	private VariableDeclaration typeLocalVariable;
 	private MethodInvocation typeMethodInvocation;
+	private VariableDeclarationFragment foreignTypeField;
 	private InheritanceTree existingInheritanceTree;
 	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
@@ -93,6 +94,7 @@ public class TypeCheckElimination {
 		this.superAccessedMethods = new LinkedHashSet<IMethodBinding>();
 		this.typeLocalVariable = null;
 		this.typeMethodInvocation = null;
+		this.foreignTypeField = null;
 		this.existingInheritanceTree = null;
 		this.inheritanceTreeMatchingWithStaticTypes = null;
 		this.remainingIfStatementExpressionMap = new LinkedHashMap<Expression, DefaultMutableTreeNode>();
@@ -298,6 +300,14 @@ public class TypeCheckElimination {
 		this.typeMethodInvocation = typeMethodInvocation;
 	}
 
+	public VariableDeclarationFragment getForeignTypeField() {
+		return foreignTypeField;
+	}
+
+	public void setForeignTypeField(VariableDeclarationFragment foreignTypeField) {
+		this.foreignTypeField = foreignTypeField;
+	}
+
 	public InheritanceTree getExistingInheritanceTree() {
 		return existingInheritanceTree;
 	}
@@ -456,6 +466,10 @@ public class TypeCheckElimination {
 			String typeLocalVariableName = typeLocalVariable.getName().getIdentifier().replaceAll("_", "");
 			return typeLocalVariableName.substring(0, 1).toUpperCase() + typeLocalVariableName.substring(1, typeLocalVariableName.length());
 		}
+		else if(foreignTypeField != null && existingInheritanceTree == null && inheritanceTreeMatchingWithStaticTypes == null) {
+			String foreignTypeFieldName = foreignTypeField.getName().getIdentifier().replaceAll("_", "");
+			return foreignTypeFieldName.substring(0, 1).toUpperCase() + foreignTypeFieldName.substring(1, foreignTypeFieldName.length());
+		}
 		else if(existingInheritanceTree != null) {
 			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 			return (String)root.getUserObject();
@@ -548,11 +562,11 @@ public class TypeCheckElimination {
 			}
 			if(superTypeSimpleName != null) {
 				if(typeField != null) {
-					if(typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) /*|| typeField.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier())*/)
+					if(typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()))
 						return castExpression.getType();
 				}
 				else if(typeLocalVariable != null) {
-					if(typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) /*|| typeLocalVariable.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier())*/)
+					if(typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()))
 						return castExpression.getType();
 				}
 				else if(typeMethodInvocation != null) {

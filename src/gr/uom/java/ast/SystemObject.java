@@ -188,6 +188,15 @@ public class SystemObject {
     						}
     						SimpleName fieldInstruction = MethodDeclarationUtility.isGetter(invokedMethodDeclaration);
     						if(fieldInstruction != null) {
+    							ListIterator<FieldObject> fieldIterator = declaringClassObject.getFieldIterator();
+    							while(fieldIterator.hasNext()) {
+    								FieldObject fieldObject = fieldIterator.next();
+    								VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+    								if(fieldInstruction.resolveBinding().isEqualTo(fragment.resolveBinding())) {
+    									elimination.setForeignTypeField(fragment);
+    									break;
+    								}
+    							}
     							isValid = true;
     						}
     						else if(invokedMethodDeclaration.getBody() == null) {

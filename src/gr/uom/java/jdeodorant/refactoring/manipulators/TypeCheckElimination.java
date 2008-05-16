@@ -65,6 +65,7 @@ public class TypeCheckElimination {
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
 	private LinkedHashSet<IMethodBinding> superAccessedMethods;
 	private VariableDeclaration typeLocalVariable;
+	private MethodInvocation typeMethodInvocation;
 	private InheritanceTree existingInheritanceTree;
 	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
@@ -91,6 +92,7 @@ public class TypeCheckElimination {
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
 		this.superAccessedMethods = new LinkedHashSet<IMethodBinding>();
 		this.typeLocalVariable = null;
+		this.typeMethodInvocation = null;
 		this.existingInheritanceTree = null;
 		this.inheritanceTreeMatchingWithStaticTypes = null;
 		this.remainingIfStatementExpressionMap = new LinkedHashMap<Expression, DefaultMutableTreeNode>();
@@ -288,6 +290,14 @@ public class TypeCheckElimination {
 		this.typeLocalVariable = typeLocalVariable;
 	}
 
+	public MethodInvocation getTypeMethodInvocation() {
+		return typeMethodInvocation;
+	}
+
+	public void setTypeMethodInvocation(MethodInvocation typeMethodInvocation) {
+		this.typeMethodInvocation = typeMethodInvocation;
+	}
+
 	public InheritanceTree getExistingInheritanceTree() {
 		return existingInheritanceTree;
 	}
@@ -310,7 +320,7 @@ public class TypeCheckElimination {
 	}
 	
 	public boolean isApplicable() {
-		if(!containsLocalVariableAssignment() && validTypeVariableType())
+		if(!containsLocalVariableAssignment())
 			return true;
 		else
 			return false;
@@ -382,35 +392,6 @@ public class TypeCheckElimination {
 		return false;
 	}
 	
-	private boolean validTypeVariableType() {
-		if(existingInheritanceTree == null) {
-			if(typeField != null) {
-				ITypeBinding typeFieldTypeBinding = typeField.resolveBinding().getType();
-				if((typeFieldTypeBinding.isPrimitive() && typeFieldTypeBinding.getQualifiedName().equals("int")) || typeFieldTypeBinding.isEnum())
-					return true;
-			}
-			else if(typeLocalVariable != null) {
-				ITypeBinding typeLocalVariableTypeBinding = typeLocalVariable.resolveBinding().getType();
-				if((typeLocalVariableTypeBinding.isPrimitive() && typeLocalVariableTypeBinding.getQualifiedName().equals("int")) || typeLocalVariableTypeBinding.isEnum())
-					return true;
-			}
-			return false;
-		}
-		else {
-			if(typeField != null) {
-				ITypeBinding typeFieldTypeBinding = typeField.resolveBinding().getType();
-				if(typeFieldTypeBinding.getQualifiedName().equals("java.lang.Object"))
-					return false;
-			}
-			else if(typeLocalVariable != null) {
-				ITypeBinding typeLocalVariableTypeBinding = typeLocalVariable.resolveBinding().getType();
-				if(typeLocalVariableTypeBinding.getQualifiedName().equals("java.lang.Object"))
-					return false;
-			}
-			return true;
-		}
-	}
-
 	public Type getTypeCheckMethodReturnType() {
 		return typeCheckMethod.getReturnType2();
 	}
@@ -475,6 +456,10 @@ public class TypeCheckElimination {
 			String typeLocalVariableName = typeLocalVariable.getName().getIdentifier().replaceAll("_", "");
 			return typeLocalVariableName.substring(0, 1).toUpperCase() + typeLocalVariableName.substring(1, typeLocalVariableName.length());
 		}
+		else if(existingInheritanceTree != null) {
+			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+			return (String)root.getUserObject();
+		}
 		else if(inheritanceTreeMatchingWithStaticTypes != null) {
 			DefaultMutableTreeNode root = inheritanceTreeMatchingWithStaticTypes.getRootNode();
 			String rootClassName = (String)root.getUserObject();
@@ -482,10 +467,6 @@ public class TypeCheckElimination {
 				return rootClassName.substring(rootClassName.lastIndexOf(".")+1,rootClassName.length());
 			else
 				return rootClassName;
-		}
-		else if(existingInheritanceTree != null) {
-			DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
-			return (String)root.getUserObject();
 		}
 		return null;
 	}
@@ -514,23 +495,21 @@ public class TypeCheckElimination {
 				if(existingInheritanceTree != null) {
 					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
-					boolean found = false;
 					while(enumeration.hasMoreElements()) {
 						DefaultMutableTreeNode child = enumeration.nextElement();
 						String childClassName = (String)child.getUserObject();
 						if(childClassName.endsWith(subclassName)) {
 							subclassNames.add(childClassName);
-							found = true;
 							break;
 						}
 						else if(castingType != null && castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
 							subclassNames.add(childClassName);
-							found = true;
 							break;
 						}
 					}
-					if(!found)
-						subclassNames.add(null);
+				}
+				else if(castingType != null) {
+					subclassNames.add(castingType.resolveBinding().getQualifiedName());
 				}
 				else {
 					subclassNames.add(subclassName);
@@ -568,9 +547,27 @@ public class TypeCheckElimination {
 				}
 			}
 			if(superTypeSimpleName != null) {
-				if(	(typeField != null && (typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) || typeField.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier()))) ||
-					(typeLocalVariable != null && (typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) || typeLocalVariable.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier()))) )
-					return castExpression.getType();
+				if(typeField != null) {
+					if(typeField.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) /*|| typeField.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier())*/)
+						return castExpression.getType();
+				}
+				else if(typeLocalVariable != null) {
+					if(typeLocalVariable.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()) /*|| typeLocalVariable.getName().getIdentifier().equals(superTypeSimpleName.getIdentifier())*/)
+						return castExpression.getType();
+				}
+				else if(typeMethodInvocation != null) {
+					Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();
+					SimpleName invoker = null;
+					if(typeMethodInvocationExpression instanceof SimpleName) {
+						invoker = (SimpleName)typeMethodInvocationExpression;
+					}
+					else if(typeMethodInvocationExpression instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)typeMethodInvocationExpression;
+						invoker = fieldAccess.getName();
+					}
+					if(invoker != null && invoker.resolveBinding().isEqualTo(superTypeSimpleName.resolveBinding()))
+						return castExpression.getType();
+				}
 			}
 		}
 		return null;

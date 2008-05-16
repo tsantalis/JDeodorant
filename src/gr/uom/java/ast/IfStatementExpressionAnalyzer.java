@@ -12,6 +12,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Type;
 
@@ -26,12 +27,22 @@ public class IfStatementExpressionAnalyzer {
 	//contains the subclass types corresponding to each candidate type variable
 	private Map<SimpleName, Type> typeVariableSubclassMap;
 	
+	//contains the expressions corresponding to each candidate type method invocation
+	private Map<MethodInvocation, Expression> typeMethodInvocationExpressionMap;
+	//contains the static fields corresponding to each candidate type method invocation
+	private Map<MethodInvocation, SimpleName> typeMethodInvocationStaticFieldMap;
+	//contains the subclass types corresponding to each candidate type method invocation
+	private Map<MethodInvocation, Type> typeMethodInvocationSubclassMap;
+	
 	public IfStatementExpressionAnalyzer(Expression completeExpression) {
 		this.root = new DefaultMutableTreeNode();
 		this.completeExpression = completeExpression;
 		this.typeVariableExpressionMap = new LinkedHashMap<SimpleName, Expression>();
 		this.typeVariableStaticFieldMap = new LinkedHashMap<SimpleName, SimpleName>();
 		this.typeVariableSubclassMap = new LinkedHashMap<SimpleName, Type>();
+		this.typeMethodInvocationExpressionMap = new LinkedHashMap<MethodInvocation, Expression>();
+		this.typeMethodInvocationStaticFieldMap = new LinkedHashMap<MethodInvocation, SimpleName>();
+		this.typeMethodInvocationSubclassMap = new LinkedHashMap<MethodInvocation, Type>();
 		processExpression(root, completeExpression);
 	}
 	
@@ -61,6 +72,34 @@ public class IfStatementExpressionAnalyzer {
 	
 	public Type getTypeVariableSubclass(SimpleName typeVariable) {
 		return typeVariableSubclassMap.get(typeVariable);
+	}
+	
+	public void putTypeMethodInvocationExpression(MethodInvocation typeMethodInvocation, Expression expression) {
+		typeMethodInvocationExpressionMap.put(typeMethodInvocation, expression);
+	}
+	
+	public Set<MethodInvocation> getTargetMethodInvocations() {
+		return typeMethodInvocationExpressionMap.keySet();
+	}
+	
+	public Expression getTypeMethodInvocationExpression(MethodInvocation typeMethodInvocation) {
+		return typeMethodInvocationExpressionMap.get(typeMethodInvocation);
+	}
+	
+	public void putTypeMethodInvocationStaticField(MethodInvocation typeMethodInvocation, SimpleName staticField) {
+		typeMethodInvocationStaticFieldMap.put(typeMethodInvocation, staticField);
+	}
+	
+	public SimpleName getTypeMethodInvocationStaticField(MethodInvocation typeMethodInvocation) {
+		return typeMethodInvocationStaticFieldMap.get(typeMethodInvocation);
+	}
+	
+	public void putTypeMethodInvocationSubclass(MethodInvocation typeMethodInvocation, Type subclass) {
+		typeMethodInvocationSubclassMap.put(typeMethodInvocation, subclass);
+	}
+	
+	public Type getTypeMethodInvocationSubclass(MethodInvocation typeMethodInvocation) {
+		return typeMethodInvocationSubclassMap.get(typeMethodInvocation);
 	}
 	
 	private void processExpression(DefaultMutableTreeNode parent, Expression expression) {

@@ -16,6 +16,8 @@ import gr.uom.java.ast.decomposition.StatementObject;
 
 import java.util.*;
 
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 
@@ -219,9 +221,12 @@ public class DistanceMatrix {
     	return candidateRefactoringList;
     }
 
-    public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByAccess() {
+    public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByAccess(IProgressMonitor monitor) {
     	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
+    	monitor.beginTask("Identification and virtual application of Move Method refactoring opportunities", distanceMatrix.length);
     	for(int i=0; i<distanceMatrix.length; i++) {
+    		if(monitor.isCanceled())
+    			throw new OperationCanceledException();
     		Entity entity = entityList.get(i);
     		if(entity instanceof MyMethod) {
     			String sourceClass = entity.getClassOrigin();
@@ -328,7 +333,9 @@ public class DistanceMatrix {
 	    			}
     			}
     		}
+    		monitor.worked(1);
     	}
+    	monitor.done();
     	return candidateRefactoringList;
     }
 

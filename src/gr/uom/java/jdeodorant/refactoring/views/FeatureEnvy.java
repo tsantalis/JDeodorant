@@ -16,6 +16,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -35,6 +36,8 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -528,9 +531,21 @@ public class FeatureEnvy extends ViewPart {
 		ConnectivityMetric co = new ConnectivityMetric(systemObject);
 		System.out.println("System Average Connectivity: " + co.getSystemAverageConnectivity());*/
 		MySystem system = new MySystem(systemObject);
-		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+		final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 
-		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = distanceMatrix.getMoveMethodCandidateRefactoringsByAccess();
+		final List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
+		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		try {
+			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
+			     public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+			    	 moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(monitor));
+			     }
+			});
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		/*List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactoringsByAccess();
 		
 		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();

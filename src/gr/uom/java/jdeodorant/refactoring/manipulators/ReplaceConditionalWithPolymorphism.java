@@ -502,9 +502,14 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 					VariableDeclarationFragment fragment = fragments.get(0);
 					if(fragment.getInitializer() instanceof CastExpression) {
 						CastExpression castExpression = (CastExpression)fragment.getInitializer();
-						if(castExpression.getType().resolveBinding().isEqualTo(subclassTypeDeclaration.resolveBinding())) {
-							invokerSimpleName = fragment.getName();
-							insert = false;
+						if(castExpression.getExpression() instanceof SimpleName) {
+							SimpleName castSimpleName = (SimpleName)castExpression.getExpression();
+							if(castExpression.getType().resolveBinding().isEqualTo(subclassTypeDeclaration.resolveBinding())) {
+								if(typeVariable.getName().resolveBinding().isEqualTo(castSimpleName.resolveBinding())) {
+									invokerSimpleName = fragment.getName();
+									insert = false;
+								}
+							}
 						}
 					}
 				}
@@ -519,11 +524,14 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 						VariableDeclarationFragment fragment = fragments.get(0);
 						if(fragment.getInitializer() instanceof CastExpression) {
 							CastExpression castExpression = (CastExpression)fragment.getInitializer();
-							if(castExpression.getType().resolveBinding().isEqualTo(subclassTypeDeclaration.resolveBinding())) {
-								if(typeVariable.getName().resolveBinding().isEqualTo(fragment.getName().resolveBinding())) {
-									invokerSimpleName = fragment.getName();
-									subclassRewriter.remove(newVariableDeclarations.get(j), null);
-									break;
+							if(castExpression.getExpression() instanceof SimpleName) {
+								SimpleName castSimpleName = (SimpleName)castExpression.getExpression();
+								if(castExpression.getType().resolveBinding().isEqualTo(subclassTypeDeclaration.resolveBinding())) {
+									if(typeVariable.getName().resolveBinding().isEqualTo(castSimpleName.resolveBinding())) {
+										invokerSimpleName = fragment.getName();
+										subclassRewriter.remove(newVariableDeclarations.get(j), null);
+										break;
+									}
 								}
 							}
 						}

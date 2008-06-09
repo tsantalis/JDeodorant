@@ -304,73 +304,10 @@ public class SystemObject {
     				}
     				else if(elimination.getTypeMethodInvocation() != null) {
     					MethodInvocation typeMethodInvocation = elimination.getTypeMethodInvocation();
-    					Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();
-    					ITypeBinding typeCheckClassBinding = elimination.getTypeCheckClass().resolveBinding();
-						ClassObject typeCheckClassObject = getClassObject(typeCheckClassBinding.getQualifiedName());
-    					SimpleName invoker = null;
-						if(typeMethodInvocationExpression instanceof SimpleName) {
-							invoker = (SimpleName)typeMethodInvocationExpression;
-						}
-						else if(typeMethodInvocationExpression instanceof FieldAccess) {
-							FieldAccess fieldAccess = (FieldAccess)typeMethodInvocationExpression;
-							invoker = fieldAccess.getName();
-						}
-    					if(invoker != null) {
-    						IBinding binding = invoker.resolveBinding();
-    						if(binding.getKind() == IBinding.VARIABLE) {
-    							IVariableBinding variableBinding = (IVariableBinding)binding;
-    							if(variableBinding.isField()) {
-    								ListIterator<FieldObject> fieldIterator = typeCheckClassObject.getFieldIterator();
-    								while(fieldIterator.hasNext()) {
-    									FieldObject fieldObject = fieldIterator.next();
-    									VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-    									if(variableBinding.isEqualTo(fragment.resolveBinding())) {
-    										elimination.setTypeField(fragment);
-    										break;
-    									}
-    								}
-    							}
-    							else if(variableBinding.isParameter()) {
-    								List<SingleVariableDeclaration> parameters = elimination.getTypeCheckMethodParameters();
-    								for(SingleVariableDeclaration parameter : parameters) {
-    									IVariableBinding parameterVariableBinding = parameter.resolveBinding();
-    									if(parameterVariableBinding.isEqualTo(variableBinding)) {
-    										elimination.setTypeLocalVariable(parameter);
-    										break;
-    									}
-    								}
-    							}
-    							else {
-    								StatementExtractor statementExtractor = new StatementExtractor();
-    								Block typeCheckMethodBody = elimination.getTypeCheckMethod().getBody();
-    								List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethodBody);
-    								for(Statement vDStatement : variableDeclarationStatements) {
-    									VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-    									List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-    									for(VariableDeclarationFragment fragment : fragments) {
-    										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-    										if(fragmentVariableBinding.isEqualTo(variableBinding)) {
-    											elimination.setTypeLocalVariable(fragment);
-    											break;
-    										}
-    									}
-    								}
-    								List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethodBody);
-    								for(Statement eFStatement : enhancedForStatements) {
-    									EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
-    									SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
-    									IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
-    									if(parameterVariableBinding.isEqualTo(variableBinding)) {
-    										elimination.setTypeLocalVariable(formalParameter);
-    										break;
-    									}
-    								}
-    							}
-    							ITypeBinding invokerType = variableBinding.getType();
-    							InheritanceTree tree = inheritanceDetection.getTree(invokerType.getQualifiedName());
-    	    					elimination.setExistingInheritanceTree(tree);
-    						}
-    					}
+    					IMethodBinding typeMethodInvocationBinding = typeMethodInvocation.resolveMethodBinding();
+    					ITypeBinding typeMethodInvocationReturnType = typeMethodInvocationBinding.getReturnType();
+    					InheritanceTree tree = inheritanceDetection.getTree(typeMethodInvocationReturnType.getQualifiedName());
+    					elimination.setExistingInheritanceTree(tree);
     				}
     				if(elimination.getExistingInheritanceTree() != null)
     					typeCheckEliminations.add(elimination);

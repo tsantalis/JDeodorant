@@ -85,17 +85,45 @@ public class MethodBodyObject {
 						switchCaseExpressions.add(switchCaseExpression);
 				}
 				else {
-					if(!(statement2 instanceof BreakStatement)) {
-						for(Expression expression : switchCaseExpressions) {
-							typeCheckElimination.addTypeCheck(expression, statement2);
+					if(statement2 instanceof Block) {
+						Block block = (Block)statement2;
+						List<Statement> blockStatements = block.statements();
+						for(Statement blockStatement : blockStatements) {
+							if(!(blockStatement instanceof BreakStatement)) {
+								for(Expression expression : switchCaseExpressions) {
+									typeCheckElimination.addTypeCheck(expression, blockStatement);
+								}
+								if(isDefaultCase) {
+									typeCheckElimination.addDefaultCaseStatement(blockStatement);
+								}
+							}
 						}
-						if(isDefaultCase) {
-							typeCheckElimination.addDefaultCaseStatement(statement2);
+						List<Statement> branchingStatements = statementExtractor.getBranchingStatements(statement2);
+						if(branchingStatements.size() > 0) {
+							for(Expression expression : switchCaseExpressions) {
+								if(!typeCheckElimination.containsTypeCheckExpression(expression))
+									typeCheckElimination.addEmptyTypeCheck(expression);
+							}
+							switchCaseExpressions.clear();
 						}
 					}
-					List<Statement> branchingStatements = statementExtractor.getBranchingStatements(statement2);
-					if(statement2 instanceof BreakStatement || statement2 instanceof ReturnStatement || branchingStatements.size() > 0) {
-						switchCaseExpressions.clear();
+					else {
+						if(!(statement2 instanceof BreakStatement)) {
+							for(Expression expression : switchCaseExpressions) {
+								typeCheckElimination.addTypeCheck(expression, statement2);
+							}
+							if(isDefaultCase) {
+								typeCheckElimination.addDefaultCaseStatement(statement2);
+							}
+						}
+						List<Statement> branchingStatements = statementExtractor.getBranchingStatements(statement2);
+						if(statement2 instanceof BreakStatement || statement2 instanceof ReturnStatement || branchingStatements.size() > 0) {
+							for(Expression expression : switchCaseExpressions) {
+								if(!typeCheckElimination.containsTypeCheckExpression(expression))
+									typeCheckElimination.addEmptyTypeCheck(expression);
+							}
+							switchCaseExpressions.clear();
+						}
 					}
 				}
 			}

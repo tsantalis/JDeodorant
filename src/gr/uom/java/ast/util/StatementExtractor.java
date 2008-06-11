@@ -178,4 +178,102 @@ public class StatementExtractor {
 		
 		return statementList;
 	}
+	
+	public int getTotalNumberOfStatements(Statement statement) {
+		int statementCounter = 0;
+		if(statement instanceof Block) {
+			Block block = (Block)statement;
+			List<Statement> blockStatements = block.statements();
+			for(Statement blockStatement : blockStatements)
+				statementCounter += getTotalNumberOfStatements(blockStatement);
+		}
+		else if(statement instanceof IfStatement) {
+			IfStatement ifStatement = (IfStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(ifStatement.getThenStatement());
+			if(ifStatement.getElseStatement() != null) {
+				statementCounter += getTotalNumberOfStatements(ifStatement.getElseStatement());
+			}
+		}
+		else if(statement instanceof ForStatement) {
+			ForStatement forStatement = (ForStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(forStatement.getBody());
+		}
+		else if(statement instanceof EnhancedForStatement) {
+			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(enhancedForStatement.getBody());
+		}
+		else if(statement instanceof WhileStatement) {
+			WhileStatement whileStatement = (WhileStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(whileStatement.getBody());
+		}
+		else if(statement instanceof DoStatement) {
+			DoStatement doStatement = (DoStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(doStatement.getBody());
+		}
+		else if(statement instanceof ExpressionStatement) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof SwitchStatement) {
+			SwitchStatement switchStatement = (SwitchStatement)statement;
+			statementCounter += 1;
+			List<Statement> statements = switchStatement.statements();
+			for(Statement statement2 : statements)
+				statementCounter += getTotalNumberOfStatements(statement2);
+		}
+		else if(statement instanceof SwitchCase) {
+		}
+		else if(statement instanceof AssertStatement) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof LabeledStatement) {
+			LabeledStatement labeledStatement = (LabeledStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(labeledStatement.getBody());
+		}
+		else if(statement instanceof ReturnStatement) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof SynchronizedStatement) {
+			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(synchronizedStatement.getBody());
+		}
+		else if(statement instanceof ThrowStatement) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof TryStatement) {
+			TryStatement tryStatement = (TryStatement)statement;
+			statementCounter += 1;
+			statementCounter += getTotalNumberOfStatements(tryStatement.getBody());
+			List<CatchClause> catchClauses = tryStatement.catchClauses();
+			for(CatchClause catchClause : catchClauses) {
+				statementCounter += getTotalNumberOfStatements(catchClause.getBody());
+			}
+			Block finallyBlock = tryStatement.getFinally();
+			if(finallyBlock != null)
+				statementCounter += getTotalNumberOfStatements(finallyBlock);
+		}
+		else if(statement instanceof VariableDeclarationStatement) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof ConstructorInvocation) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof SuperConstructorInvocation) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof BreakStatement) {
+			statementCounter += 1;
+		}
+		else if(statement instanceof ContinueStatement) {
+			statementCounter += 1;
+		}
+		
+		return statementCounter;
+	}
 }

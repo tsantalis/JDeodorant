@@ -66,11 +66,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 	}
 	
 	private void processTypeCheckCodeFragment() {
-		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
-		ArrayList<Statement> firstBlockOfStatements = typeCheckStatements.get(0);
-		Statement firstStatementOfBlock = firstBlockOfStatements.get(0);
-		if(firstStatementOfBlock.getParent() instanceof SwitchStatement) {
-			SwitchStatement switchStatement = (SwitchStatement)firstStatementOfBlock.getParent();
+		if(typeCheckElimination.getTypeCheckCodeFragment() instanceof SwitchStatement) {
+			SwitchStatement switchStatement = (SwitchStatement)typeCheckElimination.getTypeCheckCodeFragment();
 			Expression switchStatementExpression = switchStatement.getExpression();
 			Expression switchStatementExpressionName = extractOperand(switchStatementExpression);
 			if(switchStatementExpressionName != null) {

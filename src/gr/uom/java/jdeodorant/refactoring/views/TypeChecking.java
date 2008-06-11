@@ -7,12 +7,12 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
+import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationResults;
 import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -76,7 +76,8 @@ public class TypeChecking extends ViewPart {
 	private Action renameMethodAction;
 	private IProject selectedProject;
 	private ASTReader astReader;
-	private Refactoring[] refactoringTable;
+	private TypeCheckElimination[] typeCheckEliminationTable;
+	private TypeCheckEliminationResults typeCheckEliminationResults;
 	private Map<IProject, Stack<UndoRefactoring>> undoStackMap = new HashMap<IProject, Stack<UndoRefactoring>>();
 
 	/*
@@ -95,45 +96,33 @@ public class TypeChecking extends ViewPart {
 		public void dispose() {
 		}
 		public Object[] getElements(Object parent) {
-			if(refactoringTable != null) {
-				return refactoringTable;
+			if(typeCheckEliminationTable != null) {
+				return typeCheckEliminationTable;
 			}
 			else {
-				return new ReplaceTypeCodeWithStateStrategy[] {};
+				return new TypeCheckElimination[] {};
 			}
 		}
 	}
 	class ViewLabelProvider extends LabelProvider implements ITableLabelProvider {
 		public String getColumnText(Object obj, int index) {
-			Refactoring refactoring = (Refactoring)obj;
+			TypeCheckElimination typeCheckElimination = (TypeCheckElimination)obj;
 			switch(index) {
 				case 0:
-					if(refactoring instanceof ReplaceTypeCodeWithStateStrategy)
+					if(typeCheckElimination.getExistingInheritanceTree() == null)
 						return "Replace Type Code with State/Strategy";
-					else if(refactoring instanceof ReplaceConditionalWithPolymorphism)
+					else
 						return "Replace Conditional with Polymorphism";
 				case 1:
-					if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
-						ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-							(ReplaceTypeCodeWithStateStrategy)refactoring;
-						return replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckMethodName();
-					}
-					else if(refactoring instanceof ReplaceConditionalWithPolymorphism) {
-						ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-							(ReplaceConditionalWithPolymorphism)refactoring;
-						return replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
-					}
+					return typeCheckElimination.toString();
 				case 2:
-					if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
-						ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-							(ReplaceTypeCodeWithStateStrategy)refactoring;
-						return replaceTypeCodeWithStateStrategyRefactoring.getAbstractMethodName();
-					}
-					else if(refactoring instanceof ReplaceConditionalWithPolymorphism) {
-						ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-							(ReplaceConditionalWithPolymorphism)refactoring;
-						return replaceConditionalWithPolymorphismRefactoring.getAbstractMethodName();
-					}
+					return typeCheckElimination.getAbstractMethodName();
+				case 3:
+					return Integer.toString(typeCheckEliminationResults.getSystemOccurrences(typeCheckElimination));
+				case 4:
+					return Integer.toString(typeCheckEliminationResults.getClassOccurrences(typeCheckElimination));
+				case 5:
+					return Double.toString(typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination));
 				default:
 					return "";
 			}
@@ -147,31 +136,34 @@ public class TypeChecking extends ViewPart {
 	}
 	class NameSorter extends ViewerSorter {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
-			Refactoring refactoring1 = (Refactoring)obj1;
-			Refactoring refactoring2 = (Refactoring)obj2;
-			String refactoringName1 = null;
-			String refactoringName2 = null;
-			if(refactoring1 instanceof ReplaceTypeCodeWithStateStrategy) {
-				ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-					(ReplaceTypeCodeWithStateStrategy)refactoring1;
-				refactoringName1 = replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckMethodName();
-			}
-			else if(refactoring1 instanceof ReplaceConditionalWithPolymorphism) {
-				ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-					(ReplaceConditionalWithPolymorphism)refactoring1;
-				refactoringName1 = replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
-			}
-			if(refactoring2 instanceof ReplaceTypeCodeWithStateStrategy) {
-				ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-					(ReplaceTypeCodeWithStateStrategy)refactoring2;
-				refactoringName2 = replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckMethodName();
-			}
-			else if(refactoring2 instanceof ReplaceConditionalWithPolymorphism) {
-				ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-					(ReplaceConditionalWithPolymorphism)refactoring2;
-				refactoringName2 = replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
-			}
-			return refactoringName1.compareTo(refactoringName2);
+			TypeCheckElimination typeCheckElimination1 = (TypeCheckElimination)obj1;
+			TypeCheckElimination typeCheckElimination2 = (TypeCheckElimination)obj2;
+			int systemOccurrences1 = typeCheckEliminationResults.getSystemOccurrences(typeCheckElimination1);
+			int systemOccurrences2 = typeCheckEliminationResults.getSystemOccurrences(typeCheckElimination2);
+			int classOccurrences1 = typeCheckEliminationResults.getClassOccurrences(typeCheckElimination1);
+			int classOccurrences2 = typeCheckEliminationResults.getClassOccurrences(typeCheckElimination2);
+			double averageNumberOfStatements1 = typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination1);
+			double averageNumberOfStatements2 = typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination2);
+			String refactoringName1 = typeCheckElimination1.toString();
+			String refactoringName2 = typeCheckElimination2.toString();
+			if(systemOccurrences1 > systemOccurrences2)
+				return -1;
+			else if(systemOccurrences1 < systemOccurrences2)
+				return 1;
+			else {
+				if(classOccurrences1 > classOccurrences2)
+					return -1;
+				else if(classOccurrences1 < classOccurrences2)
+					return 1;
+				else {
+					if(averageNumberOfStatements1 > averageNumberOfStatements2)
+						return -1;
+					else if(averageNumberOfStatements1 < averageNumberOfStatements2)
+						return 1;
+					else
+						return refactoringName1.compareTo(refactoringName2);
+				}
+			}	
 		}
 	}
 
@@ -214,7 +206,10 @@ public class TypeChecking extends ViewPart {
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(50, true));
 		layout.addColumnData(new ColumnWeightData(100, true));
-		layout.addColumnData(new ColumnWeightData(50, true));
+		layout.addColumnData(new ColumnWeightData(30, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
@@ -230,20 +225,29 @@ public class TypeChecking extends ViewPart {
 		column2.setText("Abstract Method Name");
 		column2.setResizable(true);
 		column2.pack();
+		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column3.setText("System-Level Occurrences");
+		column3.setResizable(true);
+		column3.pack();
+		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column4.setText("Class-Level Occurrences");
+		column4.setResizable(true);
+		column4.pack();
+		TableColumn column5 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column5.setText("Average #statements per case");
+		column5.setResizable(true);
+		column5.pack();
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
 	}
 
-
 	private void contributeToActionBars() {
 		IActionBars bars = getViewSite().getActionBars();
 		fillLocalToolBar(bars.getToolBarManager());
 	}
 
-
-	
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
@@ -254,7 +258,7 @@ public class TypeChecking extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
-				refactoringTable = getTable(selectedProject);
+				typeCheckEliminationTable = getTable(selectedProject);
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
@@ -268,18 +272,17 @@ public class TypeChecking extends ViewPart {
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				Refactoring refactoring = (Refactoring)selection.getFirstElement();
+				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
+				Refactoring refactoring = null;
 				IEditorPart sourceEditor = null;
-				IFile sourceFile = null;
-				if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
-					ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-						(ReplaceTypeCodeWithStateStrategy)refactoring;
-					sourceFile = replaceTypeCodeWithStateStrategyRefactoring.getSourceFile();
+				TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
+				CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
+				IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
+				if(typeCheckElimination.getExistingInheritanceTree() == null) {
+					refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 				}
-				else if(refactoring instanceof ReplaceConditionalWithPolymorphism) {
-					ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-						(ReplaceConditionalWithPolymorphism)refactoring;
-					sourceFile = replaceConditionalWithPolymorphismRefactoring.getSourceFile();
+				else {
+					refactoring = new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 				}
 				try {
 					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
@@ -351,28 +354,14 @@ public class TypeChecking extends ViewPart {
 		renameMethodAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				Refactoring entry = (Refactoring)selection.getFirstElement();
-				if(entry instanceof ReplaceTypeCodeWithStateStrategy) {
-					ReplaceTypeCodeWithStateStrategy refactoring = (ReplaceTypeCodeWithStateStrategy)entry;
-					String methodName = refactoring.getAbstractMethodName();
-					IInputValidator methodNameValidator = new MethodNameValidator();
-					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
-					dialog.open();
-					if(dialog.getValue() != null) {
-						refactoring.setAbstractMethodName(dialog.getValue());
-						tableViewer.refresh();
-					}
-				}
-				else if(entry instanceof ReplaceConditionalWithPolymorphism) {
-					ReplaceConditionalWithPolymorphism refactoring = (ReplaceConditionalWithPolymorphism)entry;
-					String methodName = refactoring.getAbstractMethodName();
-					IInputValidator methodNameValidator = new MethodNameValidator();
-					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
-					dialog.open();
-					if(dialog.getValue() != null) {
-						refactoring.setAbstractMethodName(dialog.getValue());
-						tableViewer.refresh();
-					}
+				TypeCheckElimination entry = (TypeCheckElimination)selection.getFirstElement();
+				String methodName = entry.getAbstractMethodName();
+				IInputValidator methodNameValidator = new MethodNameValidator();
+				InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+				dialog.open();
+				if(dialog.getValue() != null) {
+					entry.setAbstractMethodName(dialog.getValue());
+					tableViewer.refresh();
 				}
 			}
 		};
@@ -384,24 +373,10 @@ public class TypeChecking extends ViewPart {
 		doubleClickAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				Refactoring refactoring = (Refactoring)selection.getFirstElement();
-				IFile sourceFile = null;
-				String typeCheckMethodName = null;
-				Statement typeCheckCodeFragment = null;
-				if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
-					ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-						(ReplaceTypeCodeWithStateStrategy)refactoring;
-					sourceFile = replaceTypeCodeWithStateStrategyRefactoring.getSourceFile();
-					typeCheckMethodName = replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckMethodName();
-					typeCheckCodeFragment = replaceTypeCodeWithStateStrategyRefactoring.getTypeCheckCodeFragment();
-				}
-				else if(refactoring instanceof ReplaceConditionalWithPolymorphism) {
-					ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-						(ReplaceConditionalWithPolymorphism)refactoring;
-					sourceFile = replaceConditionalWithPolymorphismRefactoring.getSourceFile();
-					typeCheckMethodName = replaceConditionalWithPolymorphismRefactoring.getTypeCheckMethodName();
-					typeCheckCodeFragment = replaceConditionalWithPolymorphismRefactoring.getTypeCheckCodeFragment();
-				}
+				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
+				IFile sourceFile = astReader.getFile(typeCheckElimination.getTypeCheckClass());
+				String typeCheckMethodName = typeCheckElimination.toString();
+				Statement typeCheckCodeFragment = typeCheckElimination.getTypeCheckCodeFragment();
 				try {
 					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
 					ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
@@ -441,30 +416,15 @@ public class TypeChecking extends ViewPart {
 		tableViewer.getControl().setFocus();
 	}
 
-	private Refactoring[] getTable(IProject iProject) {
+	private TypeCheckElimination[] getTable(IProject iProject) {
 		astReader = new ASTReader(iProject);
 		SystemObject systemObject = astReader.getSystemObject();
-		List<TypeCheckElimination> typeCheckEliminations = systemObject.generateTypeCheckEliminations();
-		List<Refactoring> refactorings = new ArrayList<Refactoring>();
-		for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
-			TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
-			CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
-			IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
-			if(typeCheckElimination.getExistingInheritanceTree() == null) {
-				ReplaceTypeCodeWithStateStrategy replaceTypeCodeWithStateStrategyRefactoring =
-					new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-				refactorings.add(replaceTypeCodeWithStateStrategyRefactoring);
-			}
-			else {
-				ReplaceConditionalWithPolymorphism replaceConditionalWithPolymorphismRefactoring =
-					new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-				refactorings.add(replaceConditionalWithPolymorphismRefactoring);
-			}
-		}
-		Refactoring[] table = new Refactoring[refactorings.size()];
+		typeCheckEliminationResults = systemObject.generateTypeCheckEliminations();
+		List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();
+		TypeCheckElimination[] table = new TypeCheckElimination[typeCheckEliminations.size()];
 		int i = 0;
-		for(Refactoring refactoring : refactorings) {
-			table[i] = refactoring;
+		for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
+			table[i] = typeCheckElimination;
 			i++;
 		}
 		return table;

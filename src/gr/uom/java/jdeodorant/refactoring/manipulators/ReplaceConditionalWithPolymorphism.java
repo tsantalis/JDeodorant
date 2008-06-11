@@ -85,7 +85,6 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> thrownExceptions;
-	private String abstractMethodName;
 	private VariableDeclaration typeVariable;
 	private MethodInvocation typeMethodInvocation;
 	
@@ -100,7 +99,6 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
-		this.abstractMethodName = typeCheckElimination.getTypeCheckMethodName();
 		if(typeCheckElimination.getTypeField() != null) {
 			this.typeVariable = typeCheckElimination.getTypeField();
 		}
@@ -121,7 +119,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
 		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
 			MethodInvocation abstractMethodInvocation = clientAST.newMethodInvocation();
-			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, clientAST.newSimpleName(abstractMethodName), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, clientAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
 			if(typeVariable != null)
 				sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeVariable.getName(), null);
 			else if(typeMethodInvocation != null)
@@ -146,7 +144,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		}
 		else {
 			MethodInvocation abstractMethodInvocation = clientAST.newMethodInvocation();
-			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, clientAST.newSimpleName(abstractMethodName), null);
+			sourceRewriter.set(abstractMethodInvocation, MethodInvocation.NAME_PROPERTY, clientAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
 			if(typeVariable != null)
 				sourceRewriter.set(abstractMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeVariable.getName(), null);
 			else if(typeMethodInvocation != null)
@@ -262,7 +260,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		ListRewrite abstractBodyRewrite = abstractRewriter.getListRewrite(abstractClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		
 		MethodDeclaration abstractMethodDeclaration = abstractAST.newMethodDeclaration();
-		abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.NAME_PROPERTY, abstractAST.newSimpleName(abstractMethodName), null);
+		abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.NAME_PROPERTY, abstractAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
 		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
 			abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, abstractAST.newPrimitiveType(PrimitiveType.VOID), null);
 		}
@@ -413,7 +411,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			ListRewrite subclassBodyRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 			
 			MethodDeclaration concreteMethodDeclaration = subclassAST.newMethodDeclaration();
-			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(abstractMethodName), null);
+			subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
 			if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
 				subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, subclassAST.newPrimitiveType(PrimitiveType.VOID), null);
 			}
@@ -1221,21 +1219,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		return sourceFile;
 	}
 
-	public Statement getTypeCheckCodeFragment() {
-		return typeCheckElimination.getTypeCheckCodeFragment();
-	}
-
-	public String getTypeCheckMethodName() {
-		IMethodBinding typeCheckMethodBinding = typeCheckElimination.getTypeCheckMethod().resolveBinding();
-		ITypeBinding declaringClassTypeBinding = typeCheckMethodBinding.getDeclaringClass();
-		return declaringClassTypeBinding.getQualifiedName() + "::" + typeCheckMethodBinding.toString();
-	}
-
-	public String getAbstractMethodName() {
-		return abstractMethodName;
-	}
-
-	public void setAbstractMethodName(String methodName) {
-		abstractMethodName = methodName;
+	public TypeCheckElimination getTypeCheckElimination() {
+		return typeCheckElimination;
 	}
 }

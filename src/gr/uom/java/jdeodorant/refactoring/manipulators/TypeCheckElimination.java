@@ -70,6 +70,7 @@ public class TypeCheckElimination {
 	private InheritanceTree existingInheritanceTree;
 	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
+	private String abstractMethodName;
 	private volatile int hashCode = 0;
 	
 	public TypeCheckElimination() {
@@ -110,6 +111,17 @@ public class TypeCheckElimination {
 			statements.add(statement);
 			typeCheckMap.put(expression, statements);
 		}
+	}
+	
+	public void addEmptyTypeCheck(Expression expression) {
+		if(!typeCheckMap.containsKey(expression)) {
+			ArrayList<Statement> statements = new ArrayList<Statement>();
+			typeCheckMap.put(expression, statements);
+		}
+	}
+	
+	public boolean containsTypeCheckExpression(Expression expression) {
+		return typeCheckMap.containsKey(expression);
 	}
 	
 	public void addDefaultCaseStatement(Statement statement) {
@@ -274,6 +286,7 @@ public class TypeCheckElimination {
 
 	public void setTypeCheckMethod(MethodDeclaration typeCheckMethod) {
 		this.typeCheckMethod = typeCheckMethod;
+		this.abstractMethodName = typeCheckMethod.getName().getIdentifier();
 	}
 
 	public TypeDeclaration getTypeCheckClass() {
@@ -404,10 +417,6 @@ public class TypeCheckElimination {
 	
 	public Type getTypeCheckMethodReturnType() {
 		return typeCheckMethod.getReturnType2();
-	}
-	
-	public String getTypeCheckMethodName() {
-		return typeCheckMethod.getName().getIdentifier();
 	}
 	
 	public List<SingleVariableDeclaration> getTypeCheckMethodParameters() {
@@ -688,6 +697,14 @@ public class TypeCheckElimination {
 			return false;
 		else
 			return true;
+	}
+	
+	public String getAbstractMethodName() {
+		return abstractMethodName;
+	}
+
+	public void setAbstractMethodName(String methodName) {
+		abstractMethodName = methodName;
 	}
 	
 	public boolean equals(Object o) {

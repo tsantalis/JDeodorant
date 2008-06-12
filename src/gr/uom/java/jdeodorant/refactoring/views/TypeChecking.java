@@ -138,32 +138,31 @@ public class TypeChecking extends ViewPart {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
 			TypeCheckElimination typeCheckElimination1 = (TypeCheckElimination)obj1;
 			TypeCheckElimination typeCheckElimination2 = (TypeCheckElimination)obj2;
-			int systemOccurrences1 = typeCheckEliminationResults.getSystemOccurrences(typeCheckElimination1);
-			int systemOccurrences2 = typeCheckEliminationResults.getSystemOccurrences(typeCheckElimination2);
+			int positionOfGroup1 = typeCheckEliminationResults.getPositionOfTypeCheckEliminationGroup(typeCheckElimination1);
+			int positionOfGroup2 = typeCheckEliminationResults.getPositionOfTypeCheckEliminationGroup(typeCheckElimination2);
 			int classOccurrences1 = typeCheckEliminationResults.getClassOccurrences(typeCheckElimination1);
 			int classOccurrences2 = typeCheckEliminationResults.getClassOccurrences(typeCheckElimination2);
 			double averageNumberOfStatements1 = typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination1);
 			double averageNumberOfStatements2 = typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination2);
 			String refactoringName1 = typeCheckElimination1.toString();
 			String refactoringName2 = typeCheckElimination2.toString();
-			if(systemOccurrences1 > systemOccurrences2)
-				return -1;
-			else if(systemOccurrences1 < systemOccurrences2)
+			
+			if(positionOfGroup1 > positionOfGroup2)
 				return 1;
-			else {
-				if(classOccurrences1 > classOccurrences2)
-					return -1;
-				else if(classOccurrences1 < classOccurrences2)
-					return 1;
-				else {
-					if(averageNumberOfStatements1 > averageNumberOfStatements2)
-						return -1;
-					else if(averageNumberOfStatements1 < averageNumberOfStatements2)
-						return 1;
-					else
-						return refactoringName1.compareTo(refactoringName2);
-				}
-			}	
+			if(positionOfGroup1 < positionOfGroup2)
+				return -1;
+			
+			if(classOccurrences1 > classOccurrences2)
+				return -1;
+			if(classOccurrences1 < classOccurrences2)
+				return 1;
+			
+			if(averageNumberOfStatements1 > averageNumberOfStatements2)
+				return -1;
+			else if(averageNumberOfStatements1 < averageNumberOfStatements2)
+				return 1;
+			
+			return refactoringName1.compareTo(refactoringName2);	
 		}
 	}
 

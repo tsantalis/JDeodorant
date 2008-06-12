@@ -2302,10 +2302,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		return undoRefactoring;
 	}
 
-	public IFile getSourceFile() {
-		return sourceFile;
-	}
-
 	public TypeCheckElimination getTypeCheckElimination() {
 		return typeCheckElimination;
 	}

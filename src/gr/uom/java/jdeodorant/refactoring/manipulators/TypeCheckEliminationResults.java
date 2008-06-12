@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -15,17 +17,20 @@ public class TypeCheckEliminationResults {
 	private Map<TypeCheckElimination, Integer> classOccurrencesMap;
 	private Map<TypeCheckElimination, Double> averageNumberOfStatementsMap;
 	private List<TypeCheckElimination> typeCheckEliminations;
+	private Set<TypeCheckEliminationGroup> typeCheckEliminationGroups;
 	
 	public TypeCheckEliminationResults() {
 		this.systemOccurrencesMap = new HashMap<TypeCheckElimination, Integer>();
 		this.classOccurrencesMap = new HashMap<TypeCheckElimination, Integer>();
 		this.averageNumberOfStatementsMap = new HashMap<TypeCheckElimination, Double>();
 		this.typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		this.typeCheckEliminationGroups = new TreeSet<TypeCheckEliminationGroup>();
 	}
 	
 	public void addGroup(List<TypeCheckElimination> typeCheckEliminations) {
 		this.typeCheckEliminations.addAll(typeCheckEliminations);
 		Map<TypeDeclaration, ArrayList<TypeCheckElimination>> typeDeclarationMap = new HashMap<TypeDeclaration, ArrayList<TypeCheckElimination>>();
+		double totalNumberOfAverageStatements = 0;
 		for(TypeCheckElimination elimination : typeCheckEliminations) {
 			TypeDeclaration typeCheckClass = elimination.getTypeCheckClass();
 			if(typeDeclarationMap.containsKey(typeCheckClass)) {
@@ -38,8 +43,12 @@ public class TypeCheckEliminationResults {
 				typeDeclarationMap.put(typeCheckClass, tempTypeCheckEliminations);
 			}
 			systemOccurrencesMap.put(elimination, typeCheckEliminations.size());
-			averageNumberOfStatementsMap.put(elimination, getAvgNumberOfStatements(elimination));
+			double avgNumberOfStatements = getAvgNumberOfStatements(elimination);
+			averageNumberOfStatementsMap.put(elimination, avgNumberOfStatements);
+			totalNumberOfAverageStatements += avgNumberOfStatements;
 		}
+		TypeCheckEliminationGroup group = new TypeCheckEliminationGroup(typeCheckEliminations, totalNumberOfAverageStatements/typeCheckEliminations.size());
+		typeCheckEliminationGroups.add(group);
 		for(TypeDeclaration typeCheckClass : typeDeclarationMap.keySet()) {
 			ArrayList<TypeCheckElimination> tempTypeCheckEliminations = typeDeclarationMap.get(typeCheckClass);
 			for(TypeCheckElimination elimination : tempTypeCheckEliminations) {
@@ -80,4 +89,21 @@ public class TypeCheckEliminationResults {
 		return typeCheckEliminations;
 	}
 	
+	public TypeCheckEliminationGroup getTypeCheckEliminationGroup(TypeCheckElimination elimination) {
+		for(TypeCheckEliminationGroup group : typeCheckEliminationGroups) {
+			if(group.containsTypeCheckElimination(elimination))
+				return group;
+		}
+		return null;
+	}
+	
+	public int getPositionOfTypeCheckEliminationGroup(TypeCheckElimination elimination) {
+		int counter = 0;
+		for(TypeCheckEliminationGroup group : typeCheckEliminationGroups) {
+			if(group.containsTypeCheckElimination(elimination))
+				return counter;
+			counter++;
+		}
+		return -1;
+	}
 }

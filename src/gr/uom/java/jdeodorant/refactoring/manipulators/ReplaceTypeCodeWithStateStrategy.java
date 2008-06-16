@@ -1147,6 +1147,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(enclosingIfStatementExpression);
 				List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newEnclosingIfStatementExpression);
 				modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, subclassAST, subclassRewriter, accessedMethods, superAccessedMethods);
+				replaceThisExpressionWithContextParameterInMethodInvocationArguments(newMethodInvocations, subclassAST, subclassRewriter);
 				subclassRewriter.set(enclosingIfStatement, IfStatement.EXPRESSION_PROPERTY, newEnclosingIfStatementExpression, null);
 				Block ifStatementBody = subclassAST.newBlock();
 				ifStatementBodyRewrite = subclassRewriter.getListRewrite(ifStatementBody, Block.STATEMENTS_PROPERTY);
@@ -1161,6 +1162,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(statement);
 				List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newStatement);
 				modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, subclassAST, subclassRewriter, accessedMethods, superAccessedMethods);
+				replaceThisExpressionWithContextParameterInMethodInvocationArguments(newMethodInvocations, subclassAST, subclassRewriter);
+				replaceThisExpressionWithContextParameterInClassInstanceCreationArguments(newStatement, subclassAST, subclassRewriter);
 				if(ifStatementBodyRewrite != null)
 					ifStatementBodyRewrite.insertLast(newStatement, null);
 				else
@@ -1230,6 +1233,40 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			j++;
+		}
+	}
+
+	private void replaceThisExpressionWithContextParameterInMethodInvocationArguments(List<Expression> newMethodInvocations, AST subclassAST, ASTRewrite subclassRewriter) {
+		for(Expression expression : newMethodInvocations) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation newMethodInvocation = (MethodInvocation)expression;
+				List<Expression> arguments = newMethodInvocation.arguments();
+				for(Expression argument : arguments) {
+					if(argument instanceof ThisExpression) {
+						String parameterName = sourceTypeDeclaration.getName().getIdentifier();
+						parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
+						ListRewrite argumentsRewrite = subclassRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+						argumentsRewrite.replace(argument, subclassAST.newSimpleName(parameterName), null);
+					}
+				}
+			}
+		}
+	}
+
+	private void replaceThisExpressionWithContextParameterInClassInstanceCreationArguments(Statement newStatement, AST subclassAST, ASTRewrite subclassRewriter) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(newStatement);
+		for(Expression creation : classInstanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)creation;
+			List<Expression> arguments = classInstanceCreation.arguments();
+			for(Expression argument : arguments) {
+				if(argument instanceof ThisExpression) {
+					String parameterName = sourceTypeDeclaration.getName().getIdentifier();
+					parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
+					ListRewrite argumentsRewrite = subclassRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+					argumentsRewrite.replace(argument, subclassAST.newSimpleName(parameterName), null);
+				}
+			}
 		}
 	}
 

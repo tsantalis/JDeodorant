@@ -581,6 +581,7 @@ public class MoveMethodRefactoring implements Refactoring {
 		replaceTargetClassVariableNameWithThisExpressionInInstanceofExpressions(newMethodDeclaration);
 		replaceTargetClassVariableNameWithThisExpressionInAssignments(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration);
+		replaceThisExpressionWithSourceClassParameterInClassInstanceCreationArguments(newMethodDeclaration);
 		replaceThisExpressionWithSourceClassParameterInVariableDeclarationInitializers(newMethodDeclaration);
 
 		ListRewrite targetClassBodyRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
@@ -1610,6 +1611,30 @@ public class MoveMethodRefactoring implements Refactoring {
 						ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 						argumentRewrite.replace(argument, parameterName, null);
 					}
+				}
+			}
+		}
+	}
+	
+	private void replaceThisExpressionWithSourceClassParameterInClassInstanceCreationArguments(MethodDeclaration newMethodDeclaration) {
+		ExpressionExtractor extractor = new ExpressionExtractor();
+		List<Expression> classInstanceCreations = extractor.getClassInstanceCreations(newMethodDeclaration.getBody());
+		for(Expression creation : classInstanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)creation;
+			List<Expression> arguments = classInstanceCreation.arguments();
+			for(Expression argument : arguments) {
+				if(argument instanceof ThisExpression) {
+					SimpleName parameterName = null;
+					if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+						parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration);
+					}
+					else {
+						AST ast = newMethodDeclaration.getAST();
+						String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
+						parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
+					}
+					ListRewrite argumentRewrite = targetRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+					argumentRewrite.replace(argument, parameterName, null);
 				}
 			}
 		}

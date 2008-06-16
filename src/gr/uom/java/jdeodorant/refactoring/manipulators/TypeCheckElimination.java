@@ -16,6 +16,7 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
@@ -343,7 +344,7 @@ public class TypeCheckElimination {
 	}
 	
 	public boolean isApplicable() {
-		if(!containsLocalVariableAssignment())
+		if(!containsLocalVariableAssignment() && !containsBranchingStatement())
 			return true;
 		else
 			return false;
@@ -413,6 +414,30 @@ public class TypeCheckElimination {
 			}
 		}
 		return false;
+	}
+	
+	private boolean containsBranchingStatement() {
+		List<Statement> statementList = new ArrayList<Statement>();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<ArrayList<Statement>> typeCheckStatements = getTypeCheckStatements();
+		if(!defaultCaseStatements.isEmpty())
+			typeCheckStatements.add(defaultCaseStatements);
+		for(ArrayList<Statement> statements : typeCheckStatements) {
+			for(Statement statement : statements) {
+				if(statement.getNodeType() != ASTNode.SWITCH_STATEMENT &&
+						statement.getNodeType() != ASTNode.WHILE_STATEMENT &&
+						statement.getNodeType() != ASTNode.FOR_STATEMENT &&
+						statement.getNodeType() != ASTNode.DO_STATEMENT &&
+						statement.getNodeType() != ASTNode.ENHANCED_FOR_STATEMENT) {
+		    		statementList.addAll(statementExtractor.getBreakStatements(statement));
+		    		statementList.addAll(statementExtractor.getContinueStatements(statement));
+				}
+			}
+		}
+		if(!statementList.isEmpty())
+			return true;
+		else
+			return false;
 	}
 	
 	public Type getTypeCheckMethodReturnType() {

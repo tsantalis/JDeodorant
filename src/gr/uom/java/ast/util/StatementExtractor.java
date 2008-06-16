@@ -63,6 +63,16 @@ public class StatementExtractor {
 		instanceChecker = new InstanceOfReturnStatement();
 		return getStatements(statement);
 	}
+
+	public List<Statement> getBreakStatements(Statement statement) {
+		instanceChecker = new InstanceOfBreakStatement();
+		return getStatements(statement);
+	}
+
+	public List<Statement> getContinueStatements(Statement statement) {
+		instanceChecker = new InstanceOfContinueStatement();
+		return getStatements(statement);
+	}
 	
 	public List<Statement> getEnhancedForStatements(Statement statement) {
 		instanceChecker = new InstanceOfEnhancedForStatement();

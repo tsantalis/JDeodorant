@@ -29,6 +29,7 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -420,18 +421,21 @@ public class MoveMethodRefactoring implements Refactoring {
 		ListRewrite modifierRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		Modifier publicModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 		boolean modifierFound = false;
-		List<Modifier> modifiers = newMethodDeclaration.modifiers();
-		for(Modifier modifier : modifiers){
-			if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
-				modifierFound = true;
-			}
-			else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
-					modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
-				modifierFound = true;
-				modifierRewrite.replace(modifier, publicModifier, null);
+		List<IExtendedModifier> modifiers = newMethodDeclaration.modifiers();
+		for(IExtendedModifier extendedModifier : modifiers) {
+			if(extendedModifier.isModifier()) {
+				Modifier modifier = (Modifier)extendedModifier;
+				if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+					modifierFound = true;
+				}
+				else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+						modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+					modifierFound = true;
+					modifierRewrite.replace(modifier, publicModifier, null);
+				}
 			}
 		}
-		if(!modifierFound){
+		if(!modifierFound) {
 			modifierRewrite.insertFirst(publicModifier, null);
 		}
 		
@@ -1256,18 +1260,21 @@ public class MoveMethodRefactoring implements Refactoring {
 						ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
 						Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 						boolean modifierFound = false;
-						List<Modifier> modifiers = fieldDeclaration.modifiers();
-						for(Modifier modifier : modifiers){
-							if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
-								modifierFound = true;
-							}
-							else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
-									modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
-								modifierFound = true;
-								modifierRewrite.replace(modifier, publicModifier, null);
+						List<IExtendedModifier> modifiers = fieldDeclaration.modifiers();
+						for(IExtendedModifier extendedModifier : modifiers) {
+							if(extendedModifier.isModifier()) {
+								Modifier modifier = (Modifier)extendedModifier;
+								if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+									modifierFound = true;
+								}
+								else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+										modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+									modifierFound = true;
+									modifierRewrite.replace(modifier, publicModifier, null);
+								}
 							}
 						}
-						if(!modifierFound){
+						if(!modifierFound) {
 							modifierRewrite.insertFirst(publicModifier, null);
 						}
 					}
@@ -1283,18 +1290,21 @@ public class MoveMethodRefactoring implements Refactoring {
 				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 				Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 				boolean modifierFound = false;
-				List<Modifier> modifiers = methodDeclaration.modifiers();
-				for(Modifier modifier : modifiers){
-					if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
-						modifierFound = true;
-					}
-					else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
-							modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
-						modifierFound = true;
-						modifierRewrite.replace(modifier, publicModifier, null);
+				List<IExtendedModifier> modifiers = methodDeclaration.modifiers();
+				for(IExtendedModifier extendedModifier : modifiers) {
+					if(extendedModifier.isModifier()) {
+						Modifier modifier = (Modifier)extendedModifier;
+						if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+							modifierFound = true;
+						}
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+								modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+							modifierFound = true;
+							modifierRewrite.replace(modifier, publicModifier, null);
+						}
 					}
 				}
-				if(!modifierFound){
+				if(!modifierFound) {
 					modifierRewrite.insertFirst(publicModifier, null);
 				}
 			}

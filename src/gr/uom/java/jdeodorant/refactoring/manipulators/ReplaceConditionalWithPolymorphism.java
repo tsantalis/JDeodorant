@@ -40,6 +40,7 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -769,9 +770,16 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				if(newLeftHandSideName != null && newLeftHandSideName.equals(newSimpleName)) {
 					for(VariableDeclarationFragment assignedFragment : assignedFields) {
 						if(assignedFragment.resolveBinding().isEqualTo(oldLeftHandSideName.resolveBinding())) {
+							MethodDeclaration setterMethod = findSetterMethodInContext(assignedFragment);
+							String leftHandMethodName;
+							if(setterMethod != null) {
+								leftHandMethodName = setterMethod.getName().getIdentifier();
+							}
+							else {
+								leftHandMethodName = assignedFragment.getName().getIdentifier();
+								leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
+							}
 							MethodInvocation leftHandMethodInvocation = subclassAST.newMethodInvocation();
-							String leftHandMethodName = assignedFragment.getName().getIdentifier();
-							leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(leftHandMethodName), null);
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 							ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -779,9 +787,16 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 								boolean accessedFieldFound = false;
 								for(VariableDeclarationFragment accessedFragment : accessedFields) {
 									if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding())) {
+										MethodDeclaration getterMethod = findGetterMethodInContext(accessedFragment);
+										String rightHandMethodName;
+										if(getterMethod != null) {
+											rightHandMethodName = getterMethod.getName().getIdentifier();
+										}
+										else {
+											rightHandMethodName = accessedFragment.getName().getIdentifier();
+											rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
+										}
 										MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
-										String rightHandMethodName = accessedFragment.getName().getIdentifier();
-										rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
 										subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
 										subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 										methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
@@ -803,9 +818,16 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 				if(newRightHandSideName != null && newRightHandSideName.equals(newSimpleName)) {
 					for(VariableDeclarationFragment accessedFragment : accessedFields) {
 						if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding())) {
+							MethodDeclaration getterMethod = findGetterMethodInContext(accessedFragment);
+							String rightHandMethodName;
+							if(getterMethod != null) {
+								rightHandMethodName = getterMethod.getName().getIdentifier();
+							}
+							else {
+								rightHandMethodName = accessedFragment.getName().getIdentifier();
+								rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
+							}
 							MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
-							String rightHandMethodName = accessedFragment.getName().getIdentifier();
-							rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
 							subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
 							subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 							subclassRewriter.set(newAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, rightHandMethodInvocation, null);
@@ -834,9 +856,16 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			else {
 				for(VariableDeclarationFragment fragment : accessedFields) {
 					if(fragment.resolveBinding().isEqualTo(oldSimpleName.resolveBinding())) {
+						MethodDeclaration getterMethod = findGetterMethodInContext(fragment);
+						String methodName;
+						if(getterMethod != null) {
+							methodName = getterMethod.getName().getIdentifier();
+						}
+						else {
+							methodName = fragment.getName().getIdentifier();
+							methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+						}
 						MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
-						String methodName = fragment.getName().getIdentifier();
-						methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
 						subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
 						String invokerName = sourceTypeDeclaration.getName().getIdentifier();
 						invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
@@ -865,6 +894,28 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			}
 			j++;
 		}
+	}
+
+	private MethodDeclaration findSetterMethodInContext(VariableDeclarationFragment fragment) {
+		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		for(MethodDeclaration methodDeclaration : contextMethods) {
+			SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
+			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
+				return methodDeclaration;
+			}
+		}
+		return null;
+	}
+
+	private MethodDeclaration findGetterMethodInContext(VariableDeclarationFragment fragment) {
+		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		for(MethodDeclaration methodDeclaration : contextMethods) {
+			SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
+			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
+				return methodDeclaration;
+			}
+		}
+		return null;
 	}
 
 	private IFile getFile(IContainer rootContainer, String fullyQualifiedClassName) {
@@ -908,7 +959,10 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedFields()) {
-			if(!fragment.equals(typeCheckElimination.getTypeField())) {
+			FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+			int modifiers = fieldDeclaration.getModifiers();
+			if(!fragment.equals(typeCheckElimination.getTypeField()) &&
+					!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
 				boolean getterFound = false;
 				for(MethodDeclaration methodDeclaration : contextMethods) {
 					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
@@ -918,7 +972,6 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 					}
 				}
 				if(!getterFound) {
-					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -1172,21 +1225,24 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 
 	private void setPublicModifierToAccessedMethods() {
 		for(MethodDeclaration methodDeclaration : typeCheckElimination.getAccessedMethods()) {
-			List<Modifier> modifiers = methodDeclaration.modifiers();
+			List<IExtendedModifier> modifiers = methodDeclaration.modifiers();
 			ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 			boolean modifierFound = false;
-			for(Modifier modifier : modifiers){
-				if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)){
-					modifierFound = true;
-				}
-				else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
-						modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)){
-					modifierFound = true;
-					modifierRewrite.replace(modifier, publicModifier, null);
+			for(IExtendedModifier extendedModifier : modifiers) {
+				if(extendedModifier.isModifier()) {
+					Modifier modifier = (Modifier)extendedModifier;
+					if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+						modifierFound = true;
+					}
+					else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+							modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+						modifierFound = true;
+						modifierRewrite.replace(modifier, publicModifier, null);
+					}
 				}
 			}
-			if(!modifierFound){
+			if(!modifierFound) {
 				modifierRewrite.insertFirst(publicModifier, null);
 			}
 		}

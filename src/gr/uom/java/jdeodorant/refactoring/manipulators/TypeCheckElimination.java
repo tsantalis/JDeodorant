@@ -6,7 +6,6 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,8 +47,8 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 public class TypeCheckElimination {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
 	private ArrayList<Statement> defaultCaseStatements;
-	private Map<Expression, SimpleName> staticFieldMap;
-	private Map<Expression, Type> subclassTypeMap;
+	private Map<Expression, List<SimpleName>> staticFieldMap;
+	private Map<Expression, List<Type>> subclassTypeMap;
 	private VariableDeclarationFragment typeField;
 	private MethodDeclaration typeFieldGetterMethod;
 	private MethodDeclaration typeFieldSetterMethod;
@@ -77,8 +76,8 @@ public class TypeCheckElimination {
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
 		this.defaultCaseStatements = new ArrayList<Statement>();
-		this.staticFieldMap = new LinkedHashMap<Expression, SimpleName>();
-		this.subclassTypeMap = new LinkedHashMap<Expression, Type>();
+		this.staticFieldMap = new LinkedHashMap<Expression, List<SimpleName>>();
+		this.subclassTypeMap = new LinkedHashMap<Expression, List<Type>>();
 		this.typeField = null;
 		this.typeFieldGetterMethod = null;
 		this.typeFieldSetterMethod = null;
@@ -129,12 +128,12 @@ public class TypeCheckElimination {
 		defaultCaseStatements.add(statement);
 	}
 	
-	public void addStaticType(Expression expression, SimpleName simpleName) {
-		staticFieldMap.put(expression, simpleName);
+	public void addStaticType(Expression expression, List<SimpleName> simpleNameGroup) {
+		staticFieldMap.put(expression, simpleNameGroup);
 	}
 	
-	public void addSubclassType(Expression expression, Type subclassType) {
-		subclassTypeMap.put(expression, subclassType);
+	public void addSubclassType(Expression expression, List<Type> subclassTypeGroup) {
+		subclassTypeMap.put(expression, subclassTypeGroup);
 	}
 	
 	public void addRemainingIfStatementExpression(Expression expression, DefaultMutableTreeNode root) {
@@ -216,9 +215,11 @@ public class TypeCheckElimination {
 	public List<SimpleName> getStaticFields() {
 		ArrayList<SimpleName> staticFields = new ArrayList<SimpleName>();
 		for(Expression expression : typeCheckMap.keySet()) {
-			SimpleName simpleName = staticFieldMap.get(expression);
-			if(simpleName != null)
-				staticFields.add(simpleName);
+			List<SimpleName> simpleNameGroup = staticFieldMap.get(expression);
+			if(simpleNameGroup != null) {
+				for(SimpleName simpleName : simpleNameGroup)
+					staticFields.add(simpleName);
+			}
 		}
 		return staticFields;
 	}
@@ -237,16 +238,6 @@ public class TypeCheckElimination {
 				return expression;
 		}
 		return null;
-	}
-	
-	public List<String> getStaticFieldNames() {
-		List<String> staticFieldNames = new ArrayList<String>();
-		for(Expression expression : typeCheckMap.keySet()) {
-			SimpleName simpleName = staticFieldMap.get(expression);
-			if(simpleName != null)
-				staticFieldNames.add(simpleName.getIdentifier());
-		}
-		return staticFieldNames;
 	}
 	
 	public VariableDeclarationFragment getTypeField() {
@@ -522,50 +513,53 @@ public class TypeCheckElimination {
 	public List<String> getSubclassNames() {
 		List<String> subclassNames = new ArrayList<String>();
 		for(Expression expression : typeCheckMap.keySet()) {
-			SimpleName simpleName = staticFieldMap.get(expression);
-			if(simpleName != null) {
-				String staticFieldName = simpleName.getIdentifier();
-				Type castingType = getCastingType(typeCheckMap.get(expression));
-				String subclassName = null;
-				if(!staticFieldName.contains("_")) {
-					subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
-					staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
-				}
-				else {
-					subclassName = "";
-					StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
-					while(tokenizer.hasMoreTokens()) {
-						String tempName = tokenizer.nextToken().toLowerCase().toString();
-						subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
-						tempName.subSequence(1, tempName.length()).toString();
+			List<SimpleName> simpleNameGroup = staticFieldMap.get(expression);
+			if(simpleNameGroup != null) {
+				for(SimpleName simpleName : simpleNameGroup) {
+					String staticFieldName = simpleName.getIdentifier();
+					Type castingType = getCastingType(typeCheckMap.get(expression));
+					String subclassName = null;
+					if(!staticFieldName.contains("_")) {
+						subclassName = staticFieldName.substring(0, 1).toUpperCase() + 
+						staticFieldName.substring(1, staticFieldName.length()).toLowerCase();
 					}
-				}
-				if(existingInheritanceTree != null) {
-					DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
-					Enumeration<DefaultMutableTreeNode> enumeration = root.children();
-					while(enumeration.hasMoreElements()) {
-						DefaultMutableTreeNode child = enumeration.nextElement();
-						String childClassName = (String)child.getUserObject();
-						if(childClassName.endsWith(subclassName)) {
-							subclassNames.add(childClassName);
-							break;
-						}
-						else if(castingType != null && castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
-							subclassNames.add(childClassName);
-							break;
+					else {
+						subclassName = "";
+						StringTokenizer tokenizer = new StringTokenizer(staticFieldName,"_");
+						while(tokenizer.hasMoreTokens()) {
+							String tempName = tokenizer.nextToken().toLowerCase().toString();
+							subclassName += tempName.subSequence(0, 1).toString().toUpperCase() + 
+							tempName.subSequence(1, tempName.length()).toString();
 						}
 					}
-				}
-				else if(castingType != null) {
-					subclassNames.add(castingType.resolveBinding().getQualifiedName());
-				}
-				else {
-					subclassNames.add(subclassName);
+					if(existingInheritanceTree != null) {
+						DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
+						DefaultMutableTreeNode leaf = root.getFirstLeaf();
+						while(leaf != null) {
+							String childClassName = (String)leaf.getUserObject();
+							if(childClassName.endsWith(subclassName)) {
+								subclassNames.add(childClassName);
+								break;
+							}
+							else if(castingType != null && castingType.resolveBinding().getQualifiedName().equals(childClassName)) {
+								subclassNames.add(childClassName);
+								break;
+							}
+							leaf = leaf.getNextLeaf();
+						}
+					}
+					else if(castingType != null) {
+						subclassNames.add(castingType.resolveBinding().getQualifiedName());
+					}
+					else {
+						subclassNames.add(subclassName);
+					}
 				}
 			}
-			Type type = subclassTypeMap.get(expression);
-			if(type != null) {
-				subclassNames.add(type.resolveBinding().getQualifiedName());
+			List<Type> typeGroup = subclassTypeMap.get(expression);
+			if(typeGroup != null) {
+				for(Type type : typeGroup)
+					subclassNames.add(type.resolveBinding().getQualifiedName());
 			}
 		}
 		return subclassNames;
@@ -683,11 +677,11 @@ public class TypeCheckElimination {
 			tree = inheritanceTreeMatchingWithStaticTypes;
 		if(tree != null) {
 			DefaultMutableTreeNode root = tree.getRootNode();
-			Enumeration<DefaultMutableTreeNode> children = root.children();
+			DefaultMutableTreeNode leaf = root.getFirstLeaf();
 			List<String> subclassNames = new ArrayList<String>();
-			while(children.hasMoreElements()) {
-				DefaultMutableTreeNode node = children.nextElement();
-				subclassNames.add((String)node.getUserObject());
+			while(leaf != null) {
+				subclassNames.add((String)leaf.getUserObject());
+				leaf = leaf.getNextLeaf();
 			}
 			Block typeCheckMethodBody = typeCheckMethod.getBody();
 			List<Statement> statements = typeCheckMethodBody.statements();

@@ -49,15 +49,22 @@ public class CompleteInheritanceDetection {
 	
 	public InheritanceTree getTree(String className) {
 		if(subclassMap.containsKey(className)) {
-			LinkedHashSet<String> subclasses = subclassMap.get(className);
 			InheritanceTree tree = new InheritanceTree();
-			for(String subclass : subclasses) {
-				tree.addChildToParent(subclass, className);
-			}
+			recursivelyConstructTree(tree, className);
 			return tree;
 		}
 		else {
 			return null;
+		}
+	}
+	
+	private void recursivelyConstructTree(InheritanceTree tree, String className) {
+		if(subclassMap.containsKey(className)) {
+			LinkedHashSet<String> subclasses = subclassMap.get(className);
+			for(String subclass : subclasses) {
+				tree.addChildToParent(subclass, className);
+				recursivelyConstructTree(tree, subclass);
+			}
 		}
 	}
 	

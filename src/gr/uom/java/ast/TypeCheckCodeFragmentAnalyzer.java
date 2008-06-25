@@ -156,7 +156,9 @@ public class TypeCheckCodeFragmentAnalyzer {
 					if(binding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableBinding = (IVariableBinding)binding;
 						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
-							typeCheckElimination.addStaticType(typeCheckExpression, simpleName);
+							ArrayList<SimpleName> staticTypes = new ArrayList<SimpleName>();
+							staticTypes.add(simpleName);
+							typeCheckElimination.addStaticType(typeCheckExpression, staticTypes);
 						}
 					}
 				}
@@ -166,7 +168,9 @@ public class TypeCheckCodeFragmentAnalyzer {
 					if(binding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableBinding = (IVariableBinding)binding;
 						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
-							typeCheckElimination.addStaticType(typeCheckExpression, qualifiedName.getName());
+							ArrayList<SimpleName> staticTypes = new ArrayList<SimpleName>();
+							staticTypes.add(qualifiedName.getName());
+							typeCheckElimination.addStaticType(typeCheckExpression, staticTypes);
 						}
 					}
 				}
@@ -174,12 +178,15 @@ public class TypeCheckCodeFragmentAnalyzer {
 					FieldAccess fieldAccess = (FieldAccess)typeCheckExpression;
 					IVariableBinding variableBinding = fieldAccess.resolveFieldBinding();
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
-						typeCheckElimination.addStaticType(typeCheckExpression, fieldAccess.getName());
+						ArrayList<SimpleName> staticTypes = new ArrayList<SimpleName>();
+						staticTypes.add(fieldAccess.getName());
+						typeCheckElimination.addStaticType(typeCheckExpression, staticTypes);
 					}
 				}
 			}
 			else if(typeCheckExpression instanceof InstanceofExpression) {
 				InstanceofExpression instanceofExpression = (InstanceofExpression)typeCheckExpression;
+				IfStatementExpressionAnalyzer analyzer = new IfStatementExpressionAnalyzer(instanceofExpression);
 				Expression operandExpression = extractOperand(instanceofExpression.getLeftOperand());
 				if(operandExpression != null) {
 					if(operandExpression instanceof SimpleName) {
@@ -191,6 +198,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else {
 							typeVariableCounterMap.put(operandName, 1);
 						}
+						analyzer.putTypeVariableExpression(operandName, instanceofExpression);
+						analyzer.putTypeVariableSubclass(operandName, instanceofExpression.getRightOperand());
 					}
 					else if(operandExpression instanceof MethodInvocation) {
 						MethodInvocation operandMethodInvocation = (MethodInvocation)operandExpression;
@@ -201,8 +210,11 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else {
 							typeMethodInvocationCounterMap.put(operandMethodInvocation, 1);
 						}
+						analyzer.putTypeMethodInvocationExpression(operandMethodInvocation, instanceofExpression);
+						analyzer.putTypeMethodInvocationSubclass(operandMethodInvocation, instanceofExpression.getRightOperand());
 					}
-					typeCheckElimination.addSubclassType(typeCheckExpression, instanceofExpression.getRightOperand());
+					//typeCheckElimination.addSubclassType(typeCheckExpression, instanceofExpression.getRightOperand());
+					complexExpressionMap.put(typeCheckExpression, analyzer);
 				}
 			}
 			else if(typeCheckExpression instanceof InfixExpression) {
@@ -293,10 +305,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else {
 							typeVariableCounterMap.put(typeVariableName, 1);
 						}
-						if(analyzer.allParentNodesAreConditionalAndOperators()) {
-							analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
-							analyzer.putTypeVariableStaticField(typeVariableName, staticFieldName);
-						}
+						analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
+						analyzer.putTypeVariableStaticField(typeVariableName, staticFieldName);
 					}
 					if(typeMethodInvocation != null && staticFieldName != null) {
 						MethodInvocation keyMethodInvocation = containsTypeMethodInvocationKey(typeMethodInvocation);
@@ -306,10 +316,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else {
 							typeMethodInvocationCounterMap.put(typeMethodInvocation, 1);
 						}
-						if(analyzer.allParentNodesAreConditionalAndOperators()) {
-							analyzer.putTypeMethodInvocationExpression(typeMethodInvocation, leafInfixExpression);
-							analyzer.putTypeMethodInvocationStaticField(typeMethodInvocation, staticFieldName);
-						}
+						analyzer.putTypeMethodInvocationExpression(typeMethodInvocation, leafInfixExpression);
+						analyzer.putTypeMethodInvocationStaticField(typeMethodInvocation, staticFieldName);
 					}
 					if(typeVariableName != null && subclassType != null) {
 						SimpleName keySimpleName = containsTypeVariableKey(typeVariableName);
@@ -319,10 +327,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else {
 							typeVariableCounterMap.put(typeVariableName, 1);
 						}
-						if(analyzer.allParentNodesAreConditionalAndOperators()) {
-							analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
-							analyzer.putTypeVariableSubclass(typeVariableName, subclassType);
-						}
+						analyzer.putTypeVariableExpression(typeVariableName, leafInfixExpression);
+						analyzer.putTypeVariableSubclass(typeVariableName, subclassType);
 					}
 					if(typeMethodInvocation != null && subclassType != null) {
 						MethodInvocation keyMethodInvocation = containsTypeMethodInvocationKey(typeMethodInvocation);
@@ -332,10 +338,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 						else {
 							typeMethodInvocationCounterMap.put(typeMethodInvocation, 1);
 						}
-						if(analyzer.allParentNodesAreConditionalAndOperators()) {
-							analyzer.putTypeMethodInvocationExpression(typeMethodInvocation, leafInfixExpression);
-							analyzer.putTypeMethodInvocationSubclass(typeMethodInvocation, subclassType);
-						}
+						analyzer.putTypeMethodInvocationExpression(typeMethodInvocation, leafInfixExpression);
+						analyzer.putTypeMethodInvocationSubclass(typeMethodInvocation, subclassType);
 					}
 				}
 				for(InstanceofExpression leafInstanceofExpression : analyzer.getInstanceofExpressions()) {
@@ -350,10 +354,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 							else {
 								typeVariableCounterMap.put(operandName, 1);
 							}
-							if(analyzer.allParentNodesAreConditionalAndOperators()) {
-								analyzer.putTypeVariableExpression(operandName, leafInstanceofExpression);
-								analyzer.putTypeVariableSubclass(operandName, leafInstanceofExpression.getRightOperand());
-							}
+							analyzer.putTypeVariableExpression(operandName, leafInstanceofExpression);
+							analyzer.putTypeVariableSubclass(operandName, leafInstanceofExpression.getRightOperand());
 						}
 						else if(operandExpression instanceof MethodInvocation) {
 							MethodInvocation operandMethodInvocation = (MethodInvocation)operandExpression;
@@ -364,10 +366,8 @@ public class TypeCheckCodeFragmentAnalyzer {
 							else {
 								typeMethodInvocationCounterMap.put(operandMethodInvocation, 1);
 							}
-							if(analyzer.allParentNodesAreConditionalAndOperators()) {
-								analyzer.putTypeMethodInvocationExpression(operandMethodInvocation, leafInstanceofExpression);
-								analyzer.putTypeMethodInvocationSubclass(operandMethodInvocation, leafInstanceofExpression.getRightOperand());
-							}
+							analyzer.putTypeMethodInvocationExpression(operandMethodInvocation, leafInstanceofExpression);
+							analyzer.putTypeMethodInvocationSubclass(operandMethodInvocation, leafInstanceofExpression.getRightOperand());
 						}
 					}
 				}
@@ -375,19 +375,23 @@ public class TypeCheckCodeFragmentAnalyzer {
 			}
 		}
 		for(SimpleName typeVariable : typeVariableCounterMap.keySet()) {
-			if(typeVariableCounterMap.get(typeVariable) == typeCheckExpressions.size()) {
+			if(isValidTypeVariable(typeVariable, typeCheckExpressions)) {
 				for(Expression complexExpression : complexExpressionMap.keySet()) {
 					IfStatementExpressionAnalyzer analyzer = complexExpressionMap.get(complexExpression);
 					for(SimpleName analyzerTypeVariable : analyzer.getTargetVariables()) {
 						if(analyzerTypeVariable.resolveBinding().isEqualTo(typeVariable.resolveBinding())) {
-							typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(),
-									analyzer.getRemainingExpression(analyzer.getTypeVariableExpression(analyzerTypeVariable)));
-							SimpleName staticField = analyzer.getTypeVariableStaticField(analyzerTypeVariable);
-							if(staticField != null)
-								typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), staticField);
-							Type subclassType = analyzer.getTypeVariableSubclass(analyzerTypeVariable);
-							if(subclassType != null)
-								typeCheckElimination.addSubclassType(analyzer.getCompleteExpression(), subclassType);
+							if(typeVariableCounterMap.get(typeVariable) == typeCheckExpressions.size()) {
+								typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(),
+								analyzer.getRemainingExpression(analyzer.getTypeVariableExpression(analyzerTypeVariable)));
+							}
+							List<SimpleName> staticFields = analyzer.getTypeVariableStaticField(analyzerTypeVariable);
+							if(staticFields != null) {
+								typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), staticFields);
+							}
+							List<Type> subclassTypes = analyzer.getTypeVariableSubclass(analyzerTypeVariable);
+							if(subclassTypes != null) {
+								typeCheckElimination.addSubclassType(analyzer.getCompleteExpression(), subclassTypes);
+							}
 						}
 					}
 				}
@@ -455,19 +459,23 @@ public class TypeCheckCodeFragmentAnalyzer {
 			}
 		}
 		for(MethodInvocation typeMethodInvocation : typeMethodInvocationCounterMap.keySet()) {
-			if(typeMethodInvocationCounterMap.get(typeMethodInvocation) == typeCheckExpressions.size()) {
+			if(isValidTypeMethodInvocation(typeMethodInvocation, typeCheckExpressions)) {
 				for(Expression complexExpression : complexExpressionMap.keySet()) {
 					IfStatementExpressionAnalyzer analyzer = complexExpressionMap.get(complexExpression);
 					for(MethodInvocation analyzerTypeMethodInvocation : analyzer.getTargetMethodInvocations()) {
 						if(analyzerTypeMethodInvocation.resolveMethodBinding().isEqualTo(typeMethodInvocation.resolveMethodBinding())) {
-							typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(),
-									analyzer.getRemainingExpression(analyzer.getTypeMethodInvocationExpression(analyzerTypeMethodInvocation)));
-							SimpleName staticField = analyzer.getTypeMethodInvocationStaticField(analyzerTypeMethodInvocation);
-							if(staticField != null)
-								typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), staticField);
-							Type subclassType = analyzer.getTypeMethodInvocationSubclass(analyzerTypeMethodInvocation);
-							if(subclassType != null)
-								typeCheckElimination.addSubclassType(analyzer.getCompleteExpression(), subclassType);
+							if(typeMethodInvocationCounterMap.get(typeMethodInvocation) == typeCheckExpressions.size()) {
+								typeCheckElimination.addRemainingIfStatementExpression(analyzer.getCompleteExpression(),
+								analyzer.getRemainingExpression(analyzer.getTypeMethodInvocationExpression(analyzerTypeMethodInvocation)));
+							}
+							List<SimpleName> staticFields = analyzer.getTypeMethodInvocationStaticField(analyzerTypeMethodInvocation);
+							if(staticFields != null) {
+								typeCheckElimination.addStaticType(analyzer.getCompleteExpression(), staticFields);
+							}
+							List<Type> subclassTypes = analyzer.getTypeMethodInvocationSubclass(analyzerTypeMethodInvocation);
+							if(subclassTypes != null) {
+								typeCheckElimination.addSubclassType(analyzer.getCompleteExpression(), subclassTypes);
+							}
 						}
 					}
 				}
@@ -798,6 +806,80 @@ public class TypeCheckCodeFragmentAnalyzer {
 			return methodInvocation;
 		}
 		return null;
+	}
+
+	private boolean isValidTypeVariable(SimpleName typeVariable, Set<Expression> typeCheckExpressions) {
+		int validTypeCheckExpressions = 0;
+		int typeVariableCounter = 0;
+		for(Expression complexExpression : complexExpressionMap.keySet()) {
+			IfStatementExpressionAnalyzer analyzer = complexExpressionMap.get(complexExpression);
+			for(SimpleName analyzerTypeVariable : analyzer.getTargetVariables()) {
+				if(analyzerTypeVariable.resolveBinding().isEqualTo(typeVariable.resolveBinding())) {
+					List<SimpleName> staticFields = analyzer.getTypeVariableStaticField(analyzerTypeVariable);
+					if(staticFields != null && staticFields.size() == 1 && analyzer.allParentNodesAreConditionalAndOperators()) {
+						validTypeCheckExpressions++;
+						typeVariableCounter++;
+					}
+					if(staticFields != null && analyzer.getNumberOfConditionalOperatorNodes() == staticFields.size()-1 &&
+							staticFields.size() > 1 && analyzer.allParentNodesAreConditionalOrOperators()) {
+						validTypeCheckExpressions++;
+						typeVariableCounter += staticFields.size();
+					}
+					List<Type> subclasses = analyzer.getTypeVariableSubclass(analyzerTypeVariable);
+					if(subclasses != null && subclasses.size() == 1 && analyzer.allParentNodesAreConditionalAndOperators()) {
+						validTypeCheckExpressions++;
+						typeVariableCounter++;
+					}
+					if(subclasses != null && analyzer.getNumberOfConditionalOperatorNodes() == subclasses.size()-1 &&
+							subclasses.size() > 1 && analyzer.allParentNodesAreConditionalOrOperators()) {
+						validTypeCheckExpressions++;
+						typeVariableCounter += subclasses.size();
+					}
+				}
+			}
+		}
+		if(validTypeCheckExpressions == typeCheckExpressions.size() &&
+				typeVariableCounter == typeVariableCounterMap.get(typeVariable))
+			return true;
+		else
+			return false;
+	}
+
+	private boolean isValidTypeMethodInvocation(MethodInvocation typeMethodInvocation, Set<Expression> typeCheckExpressions) {
+		int validTypeCheckExpressions = 0;
+		int typeMethodInvocationCounter = 0;
+		for(Expression complexExpression : complexExpressionMap.keySet()) {
+			IfStatementExpressionAnalyzer analyzer = complexExpressionMap.get(complexExpression);
+			for(MethodInvocation analyzerTypeMethodInvocation : analyzer.getTargetMethodInvocations()) {
+				if(analyzerTypeMethodInvocation.resolveMethodBinding().isEqualTo(typeMethodInvocation.resolveMethodBinding())) {
+					List<SimpleName> staticFields = analyzer.getTypeMethodInvocationStaticField(analyzerTypeMethodInvocation);
+					if(staticFields != null && staticFields.size() == 1 && analyzer.allParentNodesAreConditionalAndOperators()) {
+						validTypeCheckExpressions++;
+						typeMethodInvocationCounter++;
+					}
+					if(staticFields != null && analyzer.getNumberOfConditionalOperatorNodes() == staticFields.size()-1 &&
+							staticFields.size() > 1 && analyzer.allParentNodesAreConditionalOrOperators()) {
+						validTypeCheckExpressions++;
+						typeMethodInvocationCounter += staticFields.size();
+					}
+					List<Type> subclasses = analyzer.getTypeMethodInvocationSubclass(analyzerTypeMethodInvocation);
+					if(subclasses != null && subclasses.size() == 1 && analyzer.allParentNodesAreConditionalAndOperators()) {
+						validTypeCheckExpressions++;
+						typeMethodInvocationCounter++;
+					}
+					if(subclasses != null && analyzer.getNumberOfConditionalOperatorNodes() == subclasses.size()-1 &&
+							subclasses.size() > 1 && analyzer.allParentNodesAreConditionalOrOperators()) {
+						validTypeCheckExpressions++;
+						typeMethodInvocationCounter += subclasses.size();
+					}
+				}
+			}
+		}
+		if(validTypeCheckExpressions == typeCheckExpressions.size() &&
+				typeMethodInvocationCounter == typeMethodInvocationCounterMap.get(typeMethodInvocation))
+			return true;
+		else
+			return false;
 	}
 
 	private SimpleName containsTypeVariableKey(SimpleName simpleName) {

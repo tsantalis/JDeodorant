@@ -6,7 +6,6 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -631,11 +630,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 			DefaultMutableTreeNode rootNode = tree.getRootNode();
 			String rootClassName = (String)rootNode.getUserObject();
-			Enumeration<DefaultMutableTreeNode> children = rootNode.children();
+			DefaultMutableTreeNode leaf = rootNode.getFirstLeaf();
 			List<String> subclassNames = new ArrayList<String>();
-			while(children.hasMoreElements()) {
-				DefaultMutableTreeNode node = children.nextElement();
-				subclassNames.add((String)node.getUserObject());
+			while(leaf != null) {
+				subclassNames.add((String)leaf.getUserObject());
+				leaf = leaf.getNextLeaf();
 			}
 			for(MethodDeclaration contextMethod : contextMethods) {
 				Type returnType = contextMethod.getReturnType2();
@@ -883,10 +882,9 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		subclassNames.addAll(additionalStaticFields.values());
 		if(tree != null) {
 			DefaultMutableTreeNode rootNode = tree.getRootNode();
-			Enumeration<DefaultMutableTreeNode> children = rootNode.children();
-			while(children.hasMoreElements()) {
-				DefaultMutableTreeNode node = children.nextElement();
-				String qualifiedSubclassName = (String)node.getUserObject();
+			DefaultMutableTreeNode leaf = rootNode.getFirstLeaf();
+			while(leaf != null) {
+				String qualifiedSubclassName = (String)leaf.getUserObject();
 				String subclassName = null;
 				if(qualifiedSubclassName.contains("."))
 					subclassName = qualifiedSubclassName.substring(qualifiedSubclassName.lastIndexOf(".")+1,qualifiedSubclassName.length());
@@ -894,6 +892,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					subclassName = qualifiedSubclassName;
 				if(!subclassNames.contains(subclassName))
 					subclassNames.add(subclassName);
+				leaf = leaf.getNextLeaf();
 			}
 		}
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
@@ -913,14 +912,14 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			IFile subclassFile = null;
 			if(tree != null) {
 				DefaultMutableTreeNode rootNode = tree.getRootNode();
-				Enumeration<DefaultMutableTreeNode> children = rootNode.children();
-				while(children.hasMoreElements()) {
-					DefaultMutableTreeNode node = children.nextElement();
-					String qualifiedSubclassName = (String)node.getUserObject();
+				DefaultMutableTreeNode leaf = rootNode.getFirstLeaf();
+				while(leaf != null) {
+					String qualifiedSubclassName = (String)leaf.getUserObject();
 					if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + subclassNames.get(i))) || qualifiedSubclassName.equals(subclassNames.get(i))) {
 						subclassFile = getFile(rootContainer, qualifiedSubclassName);
 						break;
 					}
+					leaf = leaf.getNextLeaf();
 				}
 			}
 			else {
@@ -1489,7 +1488,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private void modifyTypeFieldAssignmentsInContextClass() {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
 			Block methodBody = methodDeclaration.getBody();
 			if(methodBody != null) {
@@ -1540,7 +1539,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 											if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!staticFieldNames.contains(accessedVariable.getIdentifier())) {
+													!containsVariable(staticFields, accessedVariable)) {
 												if(!containsStaticFieldKey(accessedVariable))
 													additionalStaticFields.put(accessedVariable, generateSubclassName(accessedVariable));
 											}
@@ -1593,7 +1592,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private void modifyTypeFieldAccessesInContextClass() {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
 			Block methodBody = methodDeclaration.getBody();
 			if(methodBody != null) {
@@ -1646,7 +1645,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 												if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
 													IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
 													if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-															!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+															!containsVariable(staticFields, comparedVariable)) {
 														if(!containsStaticFieldKey(comparedVariable))
 															additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 													}
@@ -1737,7 +1736,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
 											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+													!containsVariable(staticFields, comparedVariable)) {
 												if(!containsStaticFieldKey(comparedVariable))
 													additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 											}
@@ -1783,7 +1782,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 											if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
 												IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
 												if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-														!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+														!containsVariable(staticFields, comparedVariable)) {
 													if(!containsStaticFieldKey(comparedVariable))
 														additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 												}
@@ -2104,15 +2103,15 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 
 	private void setPublicModifierToStaticFields() {
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
-		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(SimpleName simpleName : additionalStaticFields.keySet())
-			staticFieldNames.add(simpleName.getIdentifier());
+			staticFields.add(simpleName);
 		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 			for(VariableDeclarationFragment fragment : fragments) {
 				boolean modifierIsReplaced = false;
-				for(String staticFieldName : staticFieldNames) {
-					if(staticFieldName.equals(fragment.getName().getIdentifier())) {
+				for(SimpleName staticField : staticFields) {
+					if(staticField.resolveBinding().isEqualTo(fragment.getName().resolveBinding())) {
 						ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
 						Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 						boolean modifierFound = false;
@@ -2189,7 +2188,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	}
 
 	private void identifyTypeLocalVariableAssignmentsInTypeCheckMethod() {
-		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		Block methodBody = typeCheckElimination.getTypeCheckMethod().getBody();
 		if(methodBody != null) {
 			List<Statement> statements = methodBody.statements();
@@ -2226,7 +2225,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 									if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 										if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												!staticFieldNames.contains(accessedVariable.getIdentifier())) {
+												!containsVariable(staticFields, accessedVariable)) {
 											if(!containsStaticFieldKey(accessedVariable))
 												additionalStaticFields.put(accessedVariable, generateSubclassName(accessedVariable));
 										}
@@ -2241,7 +2240,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	}
 
 	private void identifyTypeLocalVariableAccessesInTypeCheckMethod() {
-		List<String> staticFieldNames = typeCheckElimination.getStaticFieldNames();
+		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		Block methodBody = typeCheckElimination.getTypeCheckMethod().getBody();
 		if(methodBody != null) {
 			List<Statement> statements = methodBody.statements();
@@ -2282,7 +2281,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 										if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
 											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+													!containsVariable(staticFields, comparedVariable)) {
 												if(!containsStaticFieldKey(comparedVariable))
 													additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 											}
@@ -2327,7 +2326,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 								if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
 									IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
 									if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-											!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+											!containsVariable(staticFields, comparedVariable)) {
 										if(!containsStaticFieldKey(comparedVariable))
 											additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 									}
@@ -2361,7 +2360,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 									if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
 										if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												!staticFieldNames.contains(comparedVariable.getIdentifier())) {
+												!containsVariable(staticFields, comparedVariable)) {
 											if(!containsStaticFieldKey(comparedVariable))
 												additionalStaticFields.put(comparedVariable, generateSubclassName(comparedVariable));
 										}
@@ -2378,6 +2377,14 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	private boolean containsStaticFieldKey(SimpleName simpleName) {
 		for(SimpleName keySimpleName : additionalStaticFields.keySet()) {
 			if(keySimpleName.resolveBinding().isEqualTo(simpleName.resolveBinding()))
+				return true;
+		}
+		return false;
+	}
+
+	private boolean containsVariable(List<SimpleName> staticFields, SimpleName variable) {
+		for(SimpleName staticField : staticFields) {
+			if(staticField.resolveBinding().isEqualTo(variable.resolveBinding()))
 				return true;
 		}
 		return false;

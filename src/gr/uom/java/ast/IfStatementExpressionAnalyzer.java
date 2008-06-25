@@ -3,6 +3,7 @@ package gr.uom.java.ast;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,26 +24,26 @@ public class IfStatementExpressionAnalyzer {
 	//contains the expressions corresponding to each candidate type variable
 	private Map<SimpleName, Expression> typeVariableExpressionMap;
 	//contains the static fields corresponding to each candidate type variable
-	private Map<SimpleName, SimpleName> typeVariableStaticFieldMap;
+	private Map<SimpleName, ArrayList<SimpleName>> typeVariableStaticFieldMap;
 	//contains the subclass types corresponding to each candidate type variable
-	private Map<SimpleName, Type> typeVariableSubclassMap;
+	private Map<SimpleName, ArrayList<Type>> typeVariableSubclassMap;
 	
 	//contains the expressions corresponding to each candidate type method invocation
 	private Map<MethodInvocation, Expression> typeMethodInvocationExpressionMap;
 	//contains the static fields corresponding to each candidate type method invocation
-	private Map<MethodInvocation, SimpleName> typeMethodInvocationStaticFieldMap;
+	private Map<MethodInvocation, ArrayList<SimpleName>> typeMethodInvocationStaticFieldMap;
 	//contains the subclass types corresponding to each candidate type method invocation
-	private Map<MethodInvocation, Type> typeMethodInvocationSubclassMap;
+	private Map<MethodInvocation, ArrayList<Type>> typeMethodInvocationSubclassMap;
 	
 	public IfStatementExpressionAnalyzer(Expression completeExpression) {
 		this.root = new DefaultMutableTreeNode();
 		this.completeExpression = completeExpression;
 		this.typeVariableExpressionMap = new LinkedHashMap<SimpleName, Expression>();
-		this.typeVariableStaticFieldMap = new LinkedHashMap<SimpleName, SimpleName>();
-		this.typeVariableSubclassMap = new LinkedHashMap<SimpleName, Type>();
+		this.typeVariableStaticFieldMap = new LinkedHashMap<SimpleName, ArrayList<SimpleName>>();
+		this.typeVariableSubclassMap = new LinkedHashMap<SimpleName, ArrayList<Type>>();
 		this.typeMethodInvocationExpressionMap = new LinkedHashMap<MethodInvocation, Expression>();
-		this.typeMethodInvocationStaticFieldMap = new LinkedHashMap<MethodInvocation, SimpleName>();
-		this.typeMethodInvocationSubclassMap = new LinkedHashMap<MethodInvocation, Type>();
+		this.typeMethodInvocationStaticFieldMap = new LinkedHashMap<MethodInvocation, ArrayList<SimpleName>>();
+		this.typeMethodInvocationSubclassMap = new LinkedHashMap<MethodInvocation, ArrayList<Type>>();
 		processExpression(root, completeExpression);
 	}
 	
@@ -51,7 +52,13 @@ public class IfStatementExpressionAnalyzer {
 	}
 	
 	public Set<SimpleName> getTargetVariables() {
-		return typeVariableExpressionMap.keySet();
+		Set<SimpleName> targetVariables = new LinkedHashSet<SimpleName>();
+		for(SimpleName targetVariable : typeVariableExpressionMap.keySet()) {
+			if(typeVariableStaticFieldMap.keySet().contains(targetVariable) ||
+					typeVariableSubclassMap.keySet().contains(targetVariable))
+				targetVariables.add(targetVariable);
+		}
+		return targetVariables;
 	}
 	
 	public Expression getTypeVariableExpression(SimpleName typeVariable) {
@@ -59,18 +66,36 @@ public class IfStatementExpressionAnalyzer {
 	}
 	
 	public void putTypeVariableStaticField(SimpleName typeVariable, SimpleName staticField) {
-		typeVariableStaticFieldMap.put(typeVariable, staticField);
+		for(SimpleName keySimpleName : typeVariableStaticFieldMap.keySet()) {
+			if(keySimpleName.resolveBinding().isEqualTo(typeVariable.resolveBinding())) {
+				ArrayList<SimpleName> staticFields = typeVariableStaticFieldMap.get(keySimpleName);
+				staticFields.add(staticField);
+				return;
+			}
+		}
+		ArrayList<SimpleName> staticFields = new ArrayList<SimpleName>();
+		staticFields.add(staticField);
+		typeVariableStaticFieldMap.put(typeVariable, staticFields);
 	}
 	
-	public SimpleName getTypeVariableStaticField(SimpleName typeVariable) {
+	public List<SimpleName> getTypeVariableStaticField(SimpleName typeVariable) {
 		return typeVariableStaticFieldMap.get(typeVariable);
 	}
 	
 	public void putTypeVariableSubclass(SimpleName typeVariable, Type subclass) {
-		typeVariableSubclassMap.put(typeVariable, subclass);
+		for(SimpleName keySimpleName : typeVariableSubclassMap.keySet()) {
+			if(keySimpleName.resolveBinding().isEqualTo(typeVariable.resolveBinding())) {
+				ArrayList<Type> subclasses = typeVariableSubclassMap.get(keySimpleName);
+				subclasses.add(subclass);
+				return;
+			}
+		}
+		ArrayList<Type> subclasses = new ArrayList<Type>();
+		subclasses.add(subclass);
+		typeVariableSubclassMap.put(typeVariable, subclasses);
 	}
 	
-	public Type getTypeVariableSubclass(SimpleName typeVariable) {
+	public List<Type> getTypeVariableSubclass(SimpleName typeVariable) {
 		return typeVariableSubclassMap.get(typeVariable);
 	}
 	
@@ -79,7 +104,13 @@ public class IfStatementExpressionAnalyzer {
 	}
 	
 	public Set<MethodInvocation> getTargetMethodInvocations() {
-		return typeMethodInvocationExpressionMap.keySet();
+		Set<MethodInvocation> targetMethodInvocations = new LinkedHashSet<MethodInvocation>();
+		for(MethodInvocation targetMethodInvocation : typeMethodInvocationExpressionMap.keySet()) {
+			if(typeMethodInvocationStaticFieldMap.keySet().contains(targetMethodInvocation) ||
+					typeMethodInvocationSubclassMap.keySet().contains(targetMethodInvocation))
+				targetMethodInvocations.add(targetMethodInvocation);
+		}
+		return targetMethodInvocations;
 	}
 	
 	public Expression getTypeMethodInvocationExpression(MethodInvocation typeMethodInvocation) {
@@ -87,18 +118,36 @@ public class IfStatementExpressionAnalyzer {
 	}
 	
 	public void putTypeMethodInvocationStaticField(MethodInvocation typeMethodInvocation, SimpleName staticField) {
-		typeMethodInvocationStaticFieldMap.put(typeMethodInvocation, staticField);
+		for(MethodInvocation keyMethodInvocation : typeMethodInvocationStaticFieldMap.keySet()) {
+			if(keyMethodInvocation.resolveMethodBinding().isEqualTo(typeMethodInvocation.resolveMethodBinding())) {
+				ArrayList<SimpleName> staticFields = typeMethodInvocationStaticFieldMap.get(keyMethodInvocation);
+				staticFields.add(staticField);
+				return;
+			}
+		}
+		ArrayList<SimpleName> staticFields = new ArrayList<SimpleName>();
+		staticFields.add(staticField);
+		typeMethodInvocationStaticFieldMap.put(typeMethodInvocation, staticFields);
 	}
 	
-	public SimpleName getTypeMethodInvocationStaticField(MethodInvocation typeMethodInvocation) {
+	public List<SimpleName> getTypeMethodInvocationStaticField(MethodInvocation typeMethodInvocation) {
 		return typeMethodInvocationStaticFieldMap.get(typeMethodInvocation);
 	}
 	
 	public void putTypeMethodInvocationSubclass(MethodInvocation typeMethodInvocation, Type subclass) {
-		typeMethodInvocationSubclassMap.put(typeMethodInvocation, subclass);
+		for(MethodInvocation keyMethodInvocation : typeMethodInvocationSubclassMap.keySet()) {
+			if(keyMethodInvocation.resolveMethodBinding().isEqualTo(typeMethodInvocation.resolveMethodBinding())) {
+				ArrayList<Type> subclasses = typeMethodInvocationSubclassMap.get(keyMethodInvocation);
+				subclasses.add(subclass);
+				return;
+			}
+		}
+		ArrayList<Type> subclasses = new ArrayList<Type>();
+		subclasses.add(subclass);
+		typeMethodInvocationSubclassMap.put(typeMethodInvocation, subclasses);
 	}
 	
-	public Type getTypeMethodInvocationSubclass(MethodInvocation typeMethodInvocation) {
+	public List<Type> getTypeMethodInvocationSubclass(MethodInvocation typeMethodInvocation) {
 		return typeMethodInvocationSubclassMap.get(typeMethodInvocation);
 	}
 	
@@ -229,6 +278,31 @@ public class IfStatementExpressionAnalyzer {
 			}
 		}
 		return true;
+	}
+
+	public boolean allParentNodesAreConditionalOrOperators() {
+		Enumeration<DefaultMutableTreeNode> enumeration = root.breadthFirstEnumeration();
+		while(enumeration.hasMoreElements()) {
+			DefaultMutableTreeNode node = enumeration.nextElement();
+			if(!node.isLeaf()) {
+				InfixExpression.Operator operator = (InfixExpression.Operator)node.getUserObject();
+				if(!operator.equals(InfixExpression.Operator.CONDITIONAL_OR))
+					return false;
+			}
+		}
+		return true;
+	}
+	
+	public int getNumberOfConditionalOperatorNodes() {
+		int counter = 0;
+		Enumeration<DefaultMutableTreeNode> enumeration = root.breadthFirstEnumeration();
+		while(enumeration.hasMoreElements()) {
+			DefaultMutableTreeNode node = enumeration.nextElement();
+			if(!node.isLeaf()) {
+				counter++;
+			}
+		}
+		return counter;
 	}
 	
 	public Expression getCompleteExpression() {

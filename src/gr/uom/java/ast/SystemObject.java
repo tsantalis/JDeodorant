@@ -496,11 +496,11 @@ public class SystemObject {
 		}
 		for(InheritanceTree tree : inheritanceTrees) {
 			DefaultMutableTreeNode root = tree.getRootNode();
-			Enumeration<DefaultMutableTreeNode> children = root.children();
+			DefaultMutableTreeNode leaf = root.getFirstLeaf();
 			List<String> inheritanceHierarchySubclassNames = new ArrayList<String>();
-			while(children.hasMoreElements()) {
-				DefaultMutableTreeNode node = children.nextElement();
-				inheritanceHierarchySubclassNames.add((String)node.getUserObject());
+			while(leaf != null) {
+				inheritanceHierarchySubclassNames.add((String)leaf.getUserObject());
+				leaf = leaf.getNextLeaf();
 			}
 			int matchCounter = 0;
 			for(SimpleName staticField : staticFields) {

@@ -325,7 +325,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
 				}
 			}
-			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+			for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
@@ -357,7 +357,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
 				}
 			}
-			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+			for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
@@ -538,7 +538,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					abstractMethodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
 				}
 			}
-			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+			for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
 					abstractMethodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
@@ -577,7 +577,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					methodInvocationArgumentsRewrite.insertLast(abstractMethodParameter.getName(), null);
 				}
 			}
-			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+			for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
@@ -827,13 +827,20 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				abstractMethodParametersRewrite.insertLast(abstractMethodParameter, null);
 			}
 		}
-		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+		for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
 			if(!fragment.equals(returnedVariable)) {
-				SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
-				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, fragment.getName(), null);
-				abstractMethodParametersRewrite.insertLast(parameter, null);
+				if(fragment instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)fragment;
+					abstractMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+				}
+				else if(fragment instanceof VariableDeclarationFragment) {
+					SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					stateStrategyRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+					abstractMethodParametersRewrite.insertLast(parameter, null);
+				}
 			}
 		}
 		if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
@@ -898,6 +905,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(SimpleName simpleName : additionalStaticFields.keySet())
 			staticFields.add(simpleName);
+		
+		for(Expression expression : typeCheckElimination.getTypeCheckExpressions()) {
+			List<SimpleName> leafStaticFields = typeCheckElimination.getStaticFields(expression);
+			if(leafStaticFields.size() > 1) {
+				List<String> leafSubclassNames = new ArrayList<String>();
+				for(SimpleName leafStaticField : leafStaticFields) {
+					leafSubclassNames.add(generateSubclassName(leafStaticField));
+				}
+				ArrayList<Statement> typeCheckStatements2 = typeCheckElimination.getTypeCheckStatements(expression);
+				createIntermediateClassAndItsSubclasses(leafStaticFields, leafSubclassNames, typeCheckStatements2,
+						tree, rootContainer, contextContainer);
+				staticFields.removeAll(leafStaticFields);
+				subclassNames.removeAll(leafSubclassNames);
+				typeCheckStatements.remove(typeCheckStatements2);
+			}
+		}
+		
 		for(int i=0; i<subclassNames.size(); i++) {
 			ArrayList<Statement> statements = null;
 			DefaultMutableTreeNode remainingIfStatementExpression = null;
@@ -1104,13 +1128,20 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					concreteMethodParametersRewrite.insertLast(abstractMethodParameter, null);
 				}
 			}
-			for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedLocalVariables()) {
+			for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
 				if(!fragment.equals(returnedVariable)) {
-					SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-					subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
-					subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, fragment.getName(), null);
-					concreteMethodParametersRewrite.insertLast(parameter, null);
+					if(fragment instanceof SingleVariableDeclaration) {
+						SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)fragment;
+						concreteMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+					}
+					else if(fragment instanceof VariableDeclarationFragment) {
+						SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
+						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+						subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+						concreteMethodParametersRewrite.insertLast(parameter, null);
+					}
 				}
 			}
 			Set<VariableDeclarationFragment> accessedFields = typeCheckElimination.getAccessedFields();
@@ -1184,6 +1215,408 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
 				if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
 					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+			}
+			
+			if(!subclassAlreadyExists)
+				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
+			
+			ITextFileBuffer subclassTextFileBuffer = bufferManager.getTextFileBuffer(subclassFile.getFullPath(), LocationKind.IFILE);
+			IDocument subclassDocument = subclassTextFileBuffer.getDocument();
+			TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
+			try {
+				UndoEdit subclassUndoEdit = subclassEdit.apply(subclassDocument, UndoEdit.CREATE_UNDO);
+				undoRefactoring.put(subclassFile, subclassDocument, subclassUndoEdit);
+			} catch (MalformedTreeException e) {
+				e.printStackTrace();
+			} catch (BadLocationException e) {
+				e.printStackTrace();
+			}
+			subclassEditor.doSave(null);
+		}
+	}
+
+	private void createIntermediateClassAndItsSubclasses(List<SimpleName> staticFields, List<String> subclassNames, ArrayList<Statement> typeCheckStatements,
+			InheritanceTree tree, IContainer rootContainer, IContainer contextContainer) {
+		String intermediateClassName = commonSubstring(subclassNames);
+		Expression expression = typeCheckElimination.getExpressionCorrespondingToTypeCheckStatementList(typeCheckStatements);
+		DefaultMutableTreeNode remainingIfStatementExpression = typeCheckElimination.getRemainingIfStatementExpression(expression);
+		IFile intermediateClassFile = null;
+		if(tree != null) {
+			DefaultMutableTreeNode rootNode = tree.getRootNode();
+			DefaultMutableTreeNode leaf = rootNode.getFirstLeaf();
+			while(leaf != null) {
+				String qualifiedSubclassName = (String)leaf.getUserObject();
+				if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + intermediateClassName)) || qualifiedSubclassName.equals(intermediateClassName)) {
+					intermediateClassFile = getFile(rootContainer, qualifiedSubclassName);
+					break;
+				}
+				leaf = leaf.getNextLeaf();
+			}
+		}
+		else {
+			if(contextContainer instanceof IProject) {
+				IProject contextProject = (IProject)contextContainer;
+				intermediateClassFile = contextProject.getFile(intermediateClassName + ".java");
+			}
+			else if(contextContainer instanceof IFolder) {
+				IFolder contextFolder = (IFolder)contextContainer;
+				intermediateClassFile = contextFolder.getFile(intermediateClassName + ".java");
+			}
+		}
+		boolean intermediateClassAlreadyExists = false;
+		try {
+			intermediateClassFile.create(new ByteArrayInputStream("".getBytes()), true, null);
+			undoRefactoring.addNewlyCreatedFile(intermediateClassFile);
+		} catch (CoreException e) {
+			intermediateClassAlreadyExists = true;
+		}
+		IJavaElement intermediateClassJavaElement = JavaCore.create(intermediateClassFile);
+		ITextEditor intermediateClassEditor = null;
+		try {
+			intermediateClassEditor = (ITextEditor)JavaUI.openInEditor(intermediateClassJavaElement);
+		} catch (PartInitException e) {
+			e.printStackTrace();
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+		ICompilationUnit intermediateClassICompilationUnit = (ICompilationUnit)intermediateClassJavaElement;
+        ASTParser intermediateClassParser = ASTParser.newParser(AST.JLS3);
+        intermediateClassParser.setKind(ASTParser.K_COMPILATION_UNIT);
+        intermediateClassParser.setSource(intermediateClassICompilationUnit);
+        intermediateClassParser.setResolveBindings(true); // we need bindings later on
+        CompilationUnit intermediateClassCompilationUnit = (CompilationUnit)intermediateClassParser.createAST(null);
+        
+        AST intermediateClassAST = intermediateClassCompilationUnit.getAST();
+        ASTRewrite intermediateClassRewriter = ASTRewrite.create(intermediateClassAST);
+        ListRewrite intermediateClassTypesRewrite = intermediateClassRewriter.getListRewrite(intermediateClassCompilationUnit, CompilationUnit.TYPES_PROPERTY);
+        
+        TypeDeclaration intermediateClassTypeDeclaration = null;
+		if(intermediateClassAlreadyExists) {
+			List<AbstractTypeDeclaration> abstractTypeDeclarations = intermediateClassCompilationUnit.types();
+			for(AbstractTypeDeclaration abstractTypeDeclaration : abstractTypeDeclarations) {
+				if(abstractTypeDeclaration instanceof TypeDeclaration) {
+					TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					if(typeDeclaration.getName().getIdentifier().equals(intermediateClassName)) {
+						intermediateClassTypeDeclaration = typeDeclaration;
+						requiredImportDeclarationsForContext.add(intermediateClassTypeDeclaration.resolveBinding());
+						break;
+					}
+				}
+			}
+		}
+		else {
+			if(sourceCompilationUnit.getPackage() != null) {
+				intermediateClassRewriter.set(intermediateClassCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, sourceCompilationUnit.getPackage(), null);
+			}
+			intermediateClassTypeDeclaration = intermediateClassAST.newTypeDeclaration();
+			intermediateClassRewriter.set(intermediateClassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, intermediateClassAST.newSimpleName(intermediateClassName), null);
+			intermediateClassRewriter.set(intermediateClassTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, intermediateClassAST.newSimpleType(intermediateClassAST.newSimpleName(typeCheckElimination.getAbstractClassName())), null);
+			ListRewrite intermediateClassModifiersRewrite = intermediateClassRewriter.getListRewrite(intermediateClassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+			intermediateClassModifiersRewrite.insertLast(intermediateClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			intermediateClassModifiersRewrite.insertLast(intermediateClassAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+		}
+		
+		ListRewrite intermediateClassBodyRewrite = intermediateClassRewriter.getListRewrite(intermediateClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		MethodDeclaration concreteMethodDeclaration = intermediateClassAST.newMethodDeclaration();
+		intermediateClassRewriter.set(concreteMethodDeclaration, MethodDeclaration.NAME_PROPERTY, intermediateClassAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
+		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
+			intermediateClassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, intermediateClassAST.newPrimitiveType(PrimitiveType.VOID), null);
+		}
+		else {
+			if(returnedVariable != null) {
+				Type returnType = null;
+				if(returnedVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+					returnType = singleVariableDeclaration.getType();
+				}
+				else if(returnedVariable instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					returnType = variableDeclarationStatement.getType();
+				}
+				intermediateClassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+			}
+			else {
+				intermediateClassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
+			}
+		}
+		ListRewrite concreteMethodModifiersRewrite = intermediateClassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+		concreteMethodModifiersRewrite.insertLast(intermediateClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+		ListRewrite concreteMethodParametersRewrite = intermediateClassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+		if(returnedVariable != null) {
+			if(returnedVariable instanceof SingleVariableDeclaration) {
+				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+				concreteMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+			}
+			else if(returnedVariable instanceof VariableDeclarationFragment) {
+				SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+				intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+				intermediateClassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+				concreteMethodParametersRewrite.insertLast(parameter, null);
+			}
+		}
+		for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
+			if(!abstractMethodParameter.equals(returnedVariable)) {
+				concreteMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+			}
+		}
+		for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
+			if(!fragment.equals(returnedVariable)) {
+				if(fragment instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)fragment;
+					concreteMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+				}
+				else if(fragment instanceof VariableDeclarationFragment) {
+					SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					intermediateClassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+					concreteMethodParametersRewrite.insertLast(parameter, null);
+				}
+			}
+		}
+		Set<VariableDeclarationFragment> accessedFields = typeCheckElimination.getAccessedFields();
+		Set<VariableDeclarationFragment> assignedFields = typeCheckElimination.getAssignedFields();
+		Set<MethodDeclaration> accessedMethods = typeCheckElimination.getAccessedMethods();
+		Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
+		if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0) {
+			SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
+			SimpleName parameterType = intermediateClassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+			intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, intermediateClassAST.newSimpleType(parameterType), null);
+			String parameterName = sourceTypeDeclaration.getName().getIdentifier();
+			parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
+			intermediateClassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, intermediateClassAST.newSimpleName(parameterName), null);
+			concreteMethodParametersRewrite.insertLast(parameter, null);
+		}
+		
+		ListRewrite concreteMethodThrownExceptionsRewrite = intermediateClassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		for(ITypeBinding typeBinding : thrownExceptions) {
+			concreteMethodThrownExceptionsRewrite.insertLast(intermediateClassAST.newSimpleName(typeBinding.getName()), null);
+		}
+		
+		Block concreteMethodBody = intermediateClassAST.newBlock();
+		ListRewrite concreteMethodBodyRewrite = intermediateClassRewriter.getListRewrite(concreteMethodBody, Block.STATEMENTS_PROPERTY);
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		ListRewrite ifStatementBodyRewrite = null;
+		if(remainingIfStatementExpression != null) {
+			IfStatement enclosingIfStatement = intermediateClassAST.newIfStatement();
+			Expression enclosingIfStatementExpression = constructExpression(intermediateClassAST, remainingIfStatementExpression);
+			Expression newEnclosingIfStatementExpression = (Expression)ASTNode.copySubtree(intermediateClassAST, enclosingIfStatementExpression);
+			List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(enclosingIfStatementExpression);
+			List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newEnclosingIfStatementExpression);
+			modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, intermediateClassAST, intermediateClassRewriter, accessedFields, assignedFields);
+			List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(enclosingIfStatementExpression);
+			List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newEnclosingIfStatementExpression);
+			modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, intermediateClassAST, intermediateClassRewriter, accessedMethods, superAccessedMethods);
+			replaceThisExpressionWithContextParameterInMethodInvocationArguments(newMethodInvocations, intermediateClassAST, intermediateClassRewriter);
+			intermediateClassRewriter.set(enclosingIfStatement, IfStatement.EXPRESSION_PROPERTY, newEnclosingIfStatementExpression, null);
+			Block ifStatementBody = intermediateClassAST.newBlock();
+			ifStatementBodyRewrite = intermediateClassRewriter.getListRewrite(ifStatementBody, Block.STATEMENTS_PROPERTY);
+			intermediateClassRewriter.set(enclosingIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, ifStatementBody, null);
+			concreteMethodBodyRewrite.insertLast(enclosingIfStatement, null);
+		}
+		for(Statement statement : typeCheckStatements) {
+			Statement newStatement = (Statement)ASTNode.copySubtree(intermediateClassAST, statement);
+			List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(statement);
+			List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newStatement);
+			modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, intermediateClassAST, intermediateClassRewriter, accessedFields, assignedFields);
+			List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(statement);
+			List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newStatement);
+			modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, intermediateClassAST, intermediateClassRewriter, accessedMethods, superAccessedMethods);
+			replaceThisExpressionWithContextParameterInMethodInvocationArguments(newMethodInvocations, intermediateClassAST, intermediateClassRewriter);
+			replaceThisExpressionWithContextParameterInClassInstanceCreationArguments(newStatement, intermediateClassAST, intermediateClassRewriter);
+			if(ifStatementBodyRewrite != null)
+				ifStatementBodyRewrite.insertLast(newStatement, null);
+			else
+				concreteMethodBodyRewrite.insertLast(newStatement, null);
+		}
+		if(returnedVariable != null) {
+			ReturnStatement returnStatement = intermediateClassAST.newReturnStatement();
+			intermediateClassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariable.getName(), null);
+			concreteMethodBodyRewrite.insertLast(returnStatement, null);
+		}
+		intermediateClassRewriter.set(concreteMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteMethodBody, null);
+		
+		intermediateClassBodyRewrite.insertLast(concreteMethodDeclaration, null);
+		
+		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+			addImportDeclaration(typeBinding, intermediateClassCompilationUnit, intermediateClassRewriter);
+		}
+		Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(typeCheckStatements);
+		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+			if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
+				addImportDeclaration(typeBinding, intermediateClassCompilationUnit, intermediateClassRewriter);
+		}
+		
+		if(!intermediateClassAlreadyExists)
+			intermediateClassTypesRewrite.insertLast(intermediateClassTypeDeclaration, null);
+		
+		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
+		ITextFileBuffer intermediateClassTextFileBuffer = bufferManager.getTextFileBuffer(intermediateClassFile.getFullPath(), LocationKind.IFILE);
+		IDocument intermediateClassDocument = intermediateClassTextFileBuffer.getDocument();
+		TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST(intermediateClassDocument, null);
+		try {
+			UndoEdit intermediateClassUndoEdit = intermediateClassEdit.apply(intermediateClassDocument, UndoEdit.CREATE_UNDO);
+			undoRefactoring.put(intermediateClassFile, intermediateClassDocument, intermediateClassUndoEdit);
+		} catch (MalformedTreeException e) {
+			e.printStackTrace();
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+		intermediateClassEditor.doSave(null);
+		
+		for(int i=0; i<subclassNames.size(); i++) {
+			IFile subclassFile = null;
+			if(tree != null) {
+				DefaultMutableTreeNode rootNode = tree.getRootNode();
+				DefaultMutableTreeNode leaf = rootNode.getFirstLeaf();
+				while(leaf != null) {
+					String qualifiedSubclassName = (String)leaf.getUserObject();
+					if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + subclassNames.get(i))) || qualifiedSubclassName.equals(subclassNames.get(i))) {
+						subclassFile = getFile(rootContainer, qualifiedSubclassName);
+						break;
+					}
+					leaf = leaf.getNextLeaf();
+				}
+			}
+			else {
+				if(contextContainer instanceof IProject) {
+					IProject contextProject = (IProject)contextContainer;
+					subclassFile = contextProject.getFile(subclassNames.get(i) + ".java");
+				}
+				else if(contextContainer instanceof IFolder) {
+					IFolder contextFolder = (IFolder)contextContainer;
+					subclassFile = contextFolder.getFile(subclassNames.get(i) + ".java");
+				}
+			}
+			boolean subclassAlreadyExists = false;
+			try {
+				subclassFile.create(new ByteArrayInputStream("".getBytes()), true, null);
+				undoRefactoring.addNewlyCreatedFile(subclassFile);
+			} catch (CoreException e) {
+				subclassAlreadyExists = true;
+			}
+			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
+			ITextEditor subclassEditor = null;
+			try {
+				subclassEditor = (ITextEditor)JavaUI.openInEditor(subclassJavaElement);
+			} catch (PartInitException e) {
+				e.printStackTrace();
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+			ICompilationUnit subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
+	        ASTParser subclassParser = ASTParser.newParser(AST.JLS3);
+	        subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
+	        subclassParser.setSource(subclassICompilationUnit);
+	        subclassParser.setResolveBindings(true); // we need bindings later on
+	        CompilationUnit subclassCompilationUnit = (CompilationUnit)subclassParser.createAST(null);
+	        
+	        AST subclassAST = subclassCompilationUnit.getAST();
+	        ASTRewrite subclassRewriter = ASTRewrite.create(subclassAST);
+	        ListRewrite subclassTypesRewrite = subclassRewriter.getListRewrite(subclassCompilationUnit, CompilationUnit.TYPES_PROPERTY);
+			
+			TypeDeclaration subclassTypeDeclaration = null;
+			if(subclassAlreadyExists) {
+				List<AbstractTypeDeclaration> abstractTypeDeclarations = subclassCompilationUnit.types();
+				for(AbstractTypeDeclaration abstractTypeDeclaration : abstractTypeDeclarations) {
+					if(abstractTypeDeclaration instanceof TypeDeclaration) {
+						TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+						if(typeDeclaration.getName().getIdentifier().equals(subclassNames.get(i))) {
+							subclassTypeDeclaration = typeDeclaration;
+							requiredImportDeclarationsForContext.add(subclassTypeDeclaration.resolveBinding());
+							break;
+						}
+					}
+				}
+			}
+			else {
+				if(sourceCompilationUnit.getPackage() != null) {
+					subclassRewriter.set(subclassCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, sourceCompilationUnit.getPackage(), null);
+				}
+				Javadoc subclassJavaDoc = subclassAST.newJavadoc();
+				TagElement subclassTagElement = subclassAST.newTagElement();
+				subclassRewriter.set(subclassTagElement, TagElement.TAG_NAME_PROPERTY, TagElement.TAG_SEE, null);
+				
+				MemberRef subclassMemberRef = subclassAST.newMemberRef();
+				IBinding staticFieldNameBinding = staticFields.get(i).resolveBinding();
+				ITypeBinding staticFieldNameDeclaringClass = null;
+				if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
+				}
+				subclassRewriter.set(subclassMemberRef, MemberRef.NAME_PROPERTY, subclassAST.newSimpleName(staticFieldNameBinding.getName()), null);
+				subclassRewriter.set(subclassMemberRef, MemberRef.QUALIFIER_PROPERTY, subclassAST.newName(staticFieldNameDeclaringClass.getQualifiedName()), null);
+				
+				ListRewrite subclassTagElementFragmentsRewrite = subclassRewriter.getListRewrite(subclassTagElement, TagElement.FRAGMENTS_PROPERTY);
+				subclassTagElementFragmentsRewrite.insertLast(subclassMemberRef, null);
+				
+				ListRewrite subclassJavaDocTagsRewrite = subclassRewriter.getListRewrite(subclassJavaDoc, Javadoc.TAGS_PROPERTY);
+				subclassJavaDocTagsRewrite.insertLast(subclassTagElement, null);
+				
+				subclassTypeDeclaration = subclassAST.newTypeDeclaration();
+				SimpleName subclassName = subclassAST.newSimpleName(subclassNames.get(i));
+				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, subclassName, null);
+				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, subclassAST.newSimpleType(subclassAST.newSimpleName(intermediateClassName)), null);
+				ListRewrite subclassModifiersRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+				subclassModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+				subclassRewriter.set(subclassTypeDeclaration, TypeDeclaration.JAVADOC_PROPERTY, subclassJavaDoc, null);
+			}
+			
+			ListRewrite subclassBodyRewrite = subclassRewriter.getListRewrite(subclassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			MethodDeclaration getterMethod = typeCheckElimination.getTypeFieldGetterMethod();
+			if(typeCheckElimination.getTypeField() != null) {
+				if(getterMethod != null) {
+					MethodDeclaration concreteGetterMethodDeclaration = subclassAST.newMethodDeclaration();
+					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, getterMethod.getName(), null);
+					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, getterMethod.getReturnType2(), null);
+					ListRewrite concreteGetterMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteGetterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+					concreteGetterMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+					Block concreteGetterMethodBody = subclassAST.newBlock();
+					ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
+					ReturnStatement returnStatement = subclassAST.newReturnStatement();
+					IBinding staticFieldNameBinding = staticFields.get(i).resolveBinding();
+					String staticFieldNameDeclaringClass = null;
+					if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
+					FieldAccess fieldAccess = subclassAST.newFieldAccess();
+					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, subclassAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
+					concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
+					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteGetterMethodBody, null);
+					subclassBodyRewrite.insertLast(concreteGetterMethodDeclaration, null);
+				}
+				else {
+					MethodDeclaration concreteGetterMethodDeclaration = subclassAST.newMethodDeclaration();
+					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, subclassAST.newSimpleName("get" + typeCheckElimination.getAbstractClassName()), null);
+					VariableDeclarationFragment typeField = typeCheckElimination.getTypeField();
+					Type returnType = ((FieldDeclaration)typeField.getParent()).getType();
+					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+					ListRewrite concreteGetterMethodModifiersRewrite = subclassRewriter.getListRewrite(concreteGetterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+					concreteGetterMethodModifiersRewrite.insertLast(subclassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+					Block concreteGetterMethodBody = subclassAST.newBlock();
+					ListRewrite concreteGetterMethodBodyRewrite = subclassRewriter.getListRewrite(concreteGetterMethodBody, Block.STATEMENTS_PROPERTY);
+					ReturnStatement returnStatement = subclassAST.newReturnStatement();
+					IBinding staticFieldNameBinding = staticFields.get(i).resolveBinding();
+					String staticFieldNameDeclaringClass = null;
+					if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
+					FieldAccess fieldAccess = subclassAST.newFieldAccess();
+					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
+					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, subclassAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
+					concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
+					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteGetterMethodBody, null);
+					subclassBodyRewrite.insertLast(concreteGetterMethodDeclaration, null);
+				}
 			}
 			
 			if(!subclassAlreadyExists)
@@ -1944,11 +2377,19 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				typeBindings.add(parameterTypeBinding);			
 		}
 		
-		Set<VariableDeclarationFragment> accessedLocalVariables = typeCheckElimination.getAccessedLocalVariables();
-		for(VariableDeclarationFragment fragment : accessedLocalVariables) {
+		Set<VariableDeclaration> accessedLocalVariables = typeCheckElimination.getAccessedLocalVariables();
+		for(VariableDeclaration fragment : accessedLocalVariables) {
 			if(!fragment.equals(returnedVariable)) {
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-				Type variableType = variableDeclarationStatement.getType();
+				Type variableType = null;
+				if(fragment instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)fragment;
+					variableType = singleVariableDeclaration.getType();
+				}
+				else if(fragment instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					variableType = variableDeclarationStatement.getType();
+				}
 				ITypeBinding variableTypeBinding = variableType.resolveBinding();
 				if(!typeBindings.contains(variableTypeBinding))
 					typeBindings.add(variableTypeBinding);
@@ -2399,6 +2840,69 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			tempName.subSequence(1, tempName.length()).toString();
 		}
 		return subclassName;
+	}
+
+	private String commonSubstring(List<String> subclassNames) {
+		Map<String, Integer> rankMap = new LinkedHashMap<String, Integer>();
+		for(int i=0; i<subclassNames.size(); i++) {
+			for(int j=i+1; j<subclassNames.size(); j++) {
+				List<String> commonSubstrings = commonSubstrings(subclassNames.get(i), subclassNames.get(j));
+				for(String s : commonSubstrings) {
+					if(rankMap.containsKey(s)) {
+						rankMap.put(s, rankMap.get(s)+1);
+					}
+					else {
+						rankMap.put(s, 1);
+					}
+				}
+			}
+		}
+		int maxRank = 0;
+		String mostCommonSubstring = null;
+		for(String s : rankMap.keySet()) {
+			int rank = rankMap.get(s);
+			if(rank > maxRank) {
+				maxRank = rank;
+				mostCommonSubstring = s;
+			}
+		}
+		return mostCommonSubstring;
+	}
+
+	private List<String> commonSubstrings(String s1, String s2) {
+		List<String> commonSubstrings = new ArrayList<String>();
+		int m = s1.length();
+		int n = s2.length();
+		int[][] num = new int[m][n];
+		int maxlen = 0;
+		int lastSubsBegin = 0;
+		StringBuilder sequence = new StringBuilder();
+		for(int i=0; i<m; i++) {
+			for(int j=0; j<n; j++) {
+				if(s1.charAt(i) != s2.charAt(j))
+					num[i][j] = 0;
+				else {
+					if ((i == 0) || (j == 0))
+						num[i][j] = 1;
+					else
+						num[i][j] = 1 + num[i-1][j-1];
+					if(num[i][j] > maxlen) {
+						maxlen = num[i][j];
+						int thisSubsBegin = i - num[i][j] + 1;
+						if (lastSubsBegin == thisSubsBegin)
+							sequence.append(s1.charAt(i));
+						else {
+							lastSubsBegin = thisSubsBegin;
+							commonSubstrings.add(sequence.toString());
+							sequence = new StringBuilder();
+							sequence.append(s1.substring(lastSubsBegin, i+1));
+						}
+					}
+				}
+			}
+		}
+		commonSubstrings.add(sequence.toString());
+		return commonSubstrings;
 	}
 
 	public UndoRefactoring getUndoRefactoring() {

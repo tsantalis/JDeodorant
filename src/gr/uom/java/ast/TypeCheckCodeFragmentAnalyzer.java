@@ -503,6 +503,12 @@ public class TypeCheckCodeFragmentAnalyzer {
 				variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.removeAll(statementExtractor.getVariableDeclarations(statement));
 			}
 		}
+		List<Statement> enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment = statementExtractor.getEnhancedForStatements(typeCheckMethod.getBody());
+		for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
+			for(Statement statement : typeCheckStatementList) {
+				enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.removeAll(statementExtractor.getEnhancedForStatements(statement));
+			}
+		}
 		for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
 			for(Statement statement : typeCheckStatementList) {
 				//checking for methods of the Source class invoked inside the type-checking branches
@@ -536,46 +542,89 @@ public class TypeCheckCodeFragmentAnalyzer {
 					if(variableInstructionBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableInstructionVariableBinding = (IVariableBinding)variableInstructionBinding;
 						if(variableInstructionVariableBinding.isField()) {
-							if(variableInstructionVariableBinding.getDeclaringClass() != null && variableInstructionVariableBinding.getDeclaringClass().isEqualTo(typeDeclaration.resolveBinding())) {
-								for(FieldDeclaration field : fields) {
-									List<VariableDeclarationFragment> fragments = field.fragments();
-									for(VariableDeclarationFragment fragment : fragments) {
-										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-										if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-											Expression parentExpression = null;
-											if(simpleName.getParent() instanceof QualifiedName) {
-												parentExpression = (QualifiedName)simpleName.getParent();
-											}
-											else if(simpleName.getParent() instanceof FieldAccess) {
-												parentExpression = (FieldAccess)simpleName.getParent();
-											}
-											else {
-												parentExpression = simpleName;
-											}
-											boolean isLeftHandOfAssignment = false;
-											if(parentExpression.getParent() instanceof Assignment) {
-												Assignment assignment = (Assignment)parentExpression.getParent();
-												Expression leftHandSide = assignment.getLeftHandSide();
-												SimpleName leftHandSideName = null;
-												if(leftHandSide instanceof SimpleName) {
-													leftHandSideName = (SimpleName)leftHandSide;
+							if(variableInstructionVariableBinding.getDeclaringClass() != null) {
+								if(variableInstructionVariableBinding.getDeclaringClass().isEqualTo(typeDeclaration.resolveBinding())) {
+									for(FieldDeclaration field : fields) {
+										List<VariableDeclarationFragment> fragments = field.fragments();
+										for(VariableDeclarationFragment fragment : fragments) {
+											IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+											if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+												Expression parentExpression = null;
+												if(simpleName.getParent() instanceof QualifiedName) {
+													parentExpression = (QualifiedName)simpleName.getParent();
 												}
-												else if(leftHandSide instanceof QualifiedName) {
-													QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
-													leftHandSideName = leftHandSideQualifiedName.getName();
+												else if(simpleName.getParent() instanceof FieldAccess) {
+													parentExpression = (FieldAccess)simpleName.getParent();
 												}
-												else if(leftHandSide instanceof FieldAccess) {
-													FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
-													leftHandSideName = leftHandSideFieldAccess.getName();
+												else {
+													parentExpression = simpleName;
 												}
-												if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
-													isLeftHandOfAssignment = true;
-													typeCheckElimination.addAssignedField(fragment);
+												boolean isLeftHandOfAssignment = false;
+												if(parentExpression.getParent() instanceof Assignment) {
+													Assignment assignment = (Assignment)parentExpression.getParent();
+													Expression leftHandSide = assignment.getLeftHandSide();
+													SimpleName leftHandSideName = null;
+													if(leftHandSide instanceof SimpleName) {
+														leftHandSideName = (SimpleName)leftHandSide;
+													}
+													else if(leftHandSide instanceof QualifiedName) {
+														QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+														leftHandSideName = leftHandSideQualifiedName.getName();
+													}
+													else if(leftHandSide instanceof FieldAccess) {
+														FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+														leftHandSideName = leftHandSideFieldAccess.getName();
+													}
+													if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
+														isLeftHandOfAssignment = true;
+														typeCheckElimination.addAssignedField(fragment);
+													}
 												}
+												if(!isLeftHandOfAssignment)
+													typeCheckElimination.addAccessedField(fragment);
 											}
-											if(!isLeftHandOfAssignment)
-												typeCheckElimination.addAccessedField(fragment);
 										}
+									}
+								}
+								else {
+									ITypeBinding superclassTypeBinding = typeDeclaration.resolveBinding().getSuperclass();
+									while(superclassTypeBinding != null && !superclassTypeBinding.isEqualTo(variableInstructionVariableBinding.getDeclaringClass())) {
+										superclassTypeBinding = superclassTypeBinding.getSuperclass();
+									}
+									if(variableInstructionVariableBinding.getDeclaringClass().isEqualTo(superclassTypeBinding)) {
+										Expression parentExpression = null;
+										if(simpleName.getParent() instanceof QualifiedName) {
+											parentExpression = (QualifiedName)simpleName.getParent();
+										}
+										else if(simpleName.getParent() instanceof FieldAccess) {
+											parentExpression = (FieldAccess)simpleName.getParent();
+										}
+										else {
+											parentExpression = simpleName;
+										}
+										boolean isLeftHandOfAssignment = false;
+										if(parentExpression.getParent() instanceof Assignment) {
+											Assignment assignment = (Assignment)parentExpression.getParent();
+											Expression leftHandSide = assignment.getLeftHandSide();
+											SimpleName leftHandSideName = null;
+											if(leftHandSide instanceof SimpleName) {
+												leftHandSideName = (SimpleName)leftHandSide;
+											}
+											else if(leftHandSide instanceof QualifiedName) {
+												QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+												leftHandSideName = leftHandSideQualifiedName.getName();
+											}
+											else if(leftHandSide instanceof FieldAccess) {
+												FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+												leftHandSideName = leftHandSideFieldAccess.getName();
+											}
+											if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
+												isLeftHandOfAssignment = true;
+												typeCheckElimination.addSuperAssignedField(variableInstructionVariableBinding);
+											}
+										}
+										if(!isLeftHandOfAssignment)
+											typeCheckElimination.addSuperAccessedField(variableInstructionVariableBinding);
 									}
 								}
 							}
@@ -628,6 +677,28 @@ public class TypeCheckCodeFragmentAnalyzer {
 										break;
 									}
 								}    											
+							}
+							for(Statement eFStatement : enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
+								EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
+								SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
+								IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
+								if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+									boolean isLeftHandOfAssignment = false;
+									if(simpleName.getParent() instanceof Assignment) {
+										Assignment assignment = (Assignment)simpleName.getParent();
+										Expression leftHandSide = assignment.getLeftHandSide();
+										if(leftHandSide instanceof SimpleName) {
+											SimpleName leftHandSideName = (SimpleName)leftHandSide;
+											if(leftHandSideName.equals(simpleName)) {
+												isLeftHandOfAssignment = true;
+												typeCheckElimination.addAssignedLocalVariable(formalParameter);
+											}
+										}
+									}
+									if(!isLeftHandOfAssignment)
+										typeCheckElimination.addAccessedLocalVariable(formalParameter);
+									break;
+								}
 							}
 						}
 					}

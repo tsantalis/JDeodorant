@@ -58,10 +58,12 @@ public class TypeCheckElimination {
 	private LinkedHashSet<SimpleName> additionalStaticFields;
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	private LinkedHashSet<VariableDeclarationFragment> assignedFields;
+	private LinkedHashSet<IVariableBinding> superAccessedFields;
+	private LinkedHashSet<IVariableBinding> superAssignedFields;
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
 	private LinkedHashSet<SingleVariableDeclaration> assignedParameters;
-	private LinkedHashSet<VariableDeclarationFragment> accessedLocalVariables;
-	private LinkedHashSet<VariableDeclarationFragment> assignedLocalVariables;
+	private LinkedHashSet<VariableDeclaration> accessedLocalVariables;
+	private LinkedHashSet<VariableDeclaration> assignedLocalVariables;
 	private LinkedHashSet<MethodDeclaration> accessedMethods;
 	private LinkedHashSet<IMethodBinding> superAccessedMethods;
 	private VariableDeclaration typeLocalVariable;
@@ -87,10 +89,12 @@ public class TypeCheckElimination {
 		this.additionalStaticFields = new LinkedHashSet<SimpleName>();
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.assignedFields = new LinkedHashSet<VariableDeclarationFragment>();
+		this.superAccessedFields = new LinkedHashSet<IVariableBinding>();
+		this.superAssignedFields = new LinkedHashSet<IVariableBinding>();
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.assignedParameters = new LinkedHashSet<SingleVariableDeclaration>();
-		this.accessedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
-		this.assignedLocalVariables = new LinkedHashSet<VariableDeclarationFragment>();
+		this.accessedLocalVariables = new LinkedHashSet<VariableDeclaration>();
+		this.assignedLocalVariables = new LinkedHashSet<VariableDeclaration>();
 		this.accessedMethods = new LinkedHashSet<MethodDeclaration>();
 		this.superAccessedMethods = new LinkedHashSet<IMethodBinding>();
 		this.typeLocalVariable = null;
@@ -151,12 +155,20 @@ public class TypeCheckElimination {
 	public void addAssignedField(VariableDeclarationFragment fragment) {
 		assignedFields.add(fragment);
 	}
+
+	public void addSuperAccessedField(IVariableBinding variableBinding) {
+		superAccessedFields.add(variableBinding);
+	}
 	
-	public void addAccessedLocalVariable(VariableDeclarationFragment fragment) {
+	public void addSuperAssignedField(IVariableBinding variableBinding) {
+		superAssignedFields.add(variableBinding);
+	}
+	
+	public void addAccessedLocalVariable(VariableDeclaration fragment) {
 		accessedLocalVariables.add(fragment);
 	}
 
-	public void addAssignedLocalVariable(VariableDeclarationFragment fragment) {
+	public void addAssignedLocalVariable(VariableDeclaration fragment) {
 		assignedLocalVariables.add(fragment);
 	}
 	
@@ -176,7 +188,7 @@ public class TypeCheckElimination {
 		superAccessedMethods.add(method);
 	}
 	
-	public LinkedHashSet<VariableDeclarationFragment> getAccessedLocalVariables() {
+	public LinkedHashSet<VariableDeclaration> getAccessedLocalVariables() {
 		return accessedLocalVariables;
 	}
 
@@ -204,12 +216,20 @@ public class TypeCheckElimination {
 		return typeCheckMap.keySet();
 	}
 	
+	public ArrayList<Statement> getTypeCheckStatements(Expression expression) {
+		return typeCheckMap.get(expression);
+	}
+	
 	public List<ArrayList<Statement>> getTypeCheckStatements() {
 		return new ArrayList<ArrayList<Statement>>(typeCheckMap.values());
 	}
 	
 	public ArrayList<Statement> getDefaultCaseStatements() {
 		return defaultCaseStatements;
+	}
+	
+	public List<SimpleName> getStaticFields(Expression expression) {
+		return staticFieldMap.get(expression);
 	}
 	
 	public List<SimpleName> getStaticFields() {
@@ -472,7 +492,7 @@ public class TypeCheckElimination {
 						if(assignedParameter.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
 							return assignedParameter;
 					}
-					for(VariableDeclarationFragment assignedLocalVariable : assignedLocalVariables) {
+					for(VariableDeclaration assignedLocalVariable : assignedLocalVariables) {
 						if(assignedLocalVariable.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
 							return assignedLocalVariable;
 					}

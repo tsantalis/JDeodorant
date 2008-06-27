@@ -31,6 +31,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -75,6 +76,7 @@ public class TypeChecking extends ViewPart {
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private IProject selectedProject;
+	private IPackageFragment selectedPackage;
 	private ASTReader astReader;
 	private TypeCheckElimination[] typeCheckEliminationTable;
 	private TypeCheckEliminationResults typeCheckEliminationResults;
@@ -171,22 +173,29 @@ public class TypeChecking extends ViewPart {
 			if (selection instanceof IStructuredSelection) {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 				Object element = structuredSelection.getFirstElement();
+				IJavaProject javaProject = null;
 				if(element instanceof IJavaProject) {
-					IJavaProject javaProject = (IJavaProject)element;
-					if(!javaProject.getProject().equals(selectedProject)) {
-						selectedProject = javaProject.getProject();
-						identifyBadSmellsAction.setEnabled(true);
-						applyRefactoringAction.setEnabled(false);
-						if(undoStackMap.containsKey(selectedProject)) {
-							Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-							if(undoStack.empty())
-								undoRefactoringAction.setEnabled(false);
-							else
-								undoRefactoringAction.setEnabled(true);
-						}
-						else
+					javaProject = (IJavaProject)element;
+					selectedPackage = null;
+				}
+				else if(element instanceof IPackageFragment) {
+					IPackageFragment packageFragment = (IPackageFragment)element;
+					javaProject = packageFragment.getJavaProject();
+					selectedPackage = packageFragment;
+				}
+				if(javaProject != null && !javaProject.getProject().equals(selectedProject)) {
+					selectedProject = javaProject.getProject();
+					identifyBadSmellsAction.setEnabled(true);
+					applyRefactoringAction.setEnabled(false);
+					if(undoStackMap.containsKey(selectedProject)) {
+						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
+						if(undoStack.empty())
 							undoRefactoringAction.setEnabled(false);
+						else
+							undoRefactoringAction.setEnabled(true);
 					}
+					else
+						undoRefactoringAction.setEnabled(false);
 				}
 			}
 		}
@@ -416,7 +425,10 @@ public class TypeChecking extends ViewPart {
 	}
 
 	private TypeCheckElimination[] getTable(IProject iProject) {
-		astReader = new ASTReader(iProject);
+		if(selectedPackage != null)
+			astReader = new ASTReader(selectedPackage);
+		else
+			astReader = new ASTReader(selectedProject);
 		SystemObject systemObject = astReader.getSystemObject();
 		typeCheckEliminationResults = systemObject.generateTypeCheckEliminations();
 		List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();

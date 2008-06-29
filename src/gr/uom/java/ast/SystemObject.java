@@ -456,6 +456,7 @@ public class SystemObject {
     		typeCheckEliminationResults.addGroup(typeCheckEliminations);
     		sortedEliminations.removeAll(affectedEliminations);
     	}
+    	identifySuperFieldAccessorMethods(typeCheckEliminationResults.getTypeCheckEliminations());
     	return typeCheckEliminationResults;
     }
 
@@ -556,6 +557,65 @@ public class SystemObject {
 			}
 		}
 		return true;
+	}
+
+	private void identifySuperFieldAccessorMethods(List<TypeCheckElimination> typeCheckEliminations) {
+		for(TypeCheckElimination elimination : typeCheckEliminations) {
+			Set<IVariableBinding> superAccessedFields = elimination.getSuperAccessedFieldBindings();
+			for(IVariableBinding superAccessedField : superAccessedFields) {
+				ITypeBinding declaringClassTypeBinding = superAccessedField.getDeclaringClass();
+				ClassObject declaringClass = getClassObject(declaringClassTypeBinding.getQualifiedName());
+				ListIterator<FieldObject> fieldIterator = declaringClass.getFieldIterator();
+				VariableDeclarationFragment fieldFragment = null;
+				while(fieldIterator.hasNext()) {
+					FieldObject fieldObject = fieldIterator.next();
+					VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+					if(fragment.resolveBinding().isEqualTo(superAccessedField)) {
+						fieldFragment = fragment;
+						elimination.addSuperAccessedField(fragment, null);
+						break;
+					}
+				}
+				ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
+				while(methodIterator.hasNext()) {
+					MethodObject methodObject = methodIterator.next();
+					MethodDeclaration methodDeclaration = methodObject.getMethodDeclaration();
+					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
+					if(simpleName != null && simpleName.resolveBinding().isEqualTo(superAccessedField)) {
+						elimination.addSuperAccessedFieldBinding(superAccessedField, methodDeclaration.resolveBinding());
+						elimination.addSuperAccessedField(fieldFragment, methodDeclaration);
+						break;
+					}
+				}
+			}
+			Set<IVariableBinding> superAssignedFields = elimination.getSuperAssignedFieldBindings();
+			for(IVariableBinding superAssignedField : superAssignedFields) {
+				ITypeBinding declaringClassTypeBinding = superAssignedField.getDeclaringClass();
+				ClassObject declaringClass = getClassObject(declaringClassTypeBinding.getQualifiedName());
+				ListIterator<FieldObject> fieldIterator = declaringClass.getFieldIterator();
+				VariableDeclarationFragment fieldFragment = null;
+				while(fieldIterator.hasNext()) {
+					FieldObject fieldObject = fieldIterator.next();
+					VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+					if(fragment.resolveBinding().isEqualTo(superAssignedField)) {
+						fieldFragment = fragment;
+						elimination.addSuperAssignedField(fragment, null);
+						break;
+					}
+				}
+				ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
+				while(methodIterator.hasNext()) {
+					MethodObject methodObject = methodIterator.next();
+					MethodDeclaration methodDeclaration = methodObject.getMethodDeclaration();
+					SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
+					if(simpleName != null && simpleName.resolveBinding().isEqualTo(superAssignedField)) {
+						elimination.addSuperAssignedFieldBinding(superAssignedField, methodDeclaration.resolveBinding());
+						elimination.addSuperAssignedField(fieldFragment, methodDeclaration);
+						break;
+					}
+				}
+			}
+		}
 	}
 
     public String toString() {

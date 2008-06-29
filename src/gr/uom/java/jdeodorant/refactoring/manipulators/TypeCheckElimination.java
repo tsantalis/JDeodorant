@@ -58,8 +58,10 @@ public class TypeCheckElimination {
 	private LinkedHashSet<SimpleName> additionalStaticFields;
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	private LinkedHashSet<VariableDeclarationFragment> assignedFields;
-	private LinkedHashSet<IVariableBinding> superAccessedFields;
-	private LinkedHashSet<IVariableBinding> superAssignedFields;
+	private LinkedHashMap<VariableDeclarationFragment, MethodDeclaration> superAccessedFieldMap;
+	private LinkedHashMap<IVariableBinding, IMethodBinding> superAccessedFieldBindingMap;
+	private LinkedHashMap<VariableDeclarationFragment, MethodDeclaration> superAssignedFieldMap;
+	private LinkedHashMap<IVariableBinding, IMethodBinding> superAssignedFieldBindingMap;
 	private LinkedHashSet<SingleVariableDeclaration> accessedParameters;
 	private LinkedHashSet<SingleVariableDeclaration> assignedParameters;
 	private LinkedHashSet<VariableDeclaration> accessedLocalVariables;
@@ -89,8 +91,10 @@ public class TypeCheckElimination {
 		this.additionalStaticFields = new LinkedHashSet<SimpleName>();
 		this.accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
 		this.assignedFields = new LinkedHashSet<VariableDeclarationFragment>();
-		this.superAccessedFields = new LinkedHashSet<IVariableBinding>();
-		this.superAssignedFields = new LinkedHashSet<IVariableBinding>();
+		this.superAccessedFieldMap = new LinkedHashMap<VariableDeclarationFragment, MethodDeclaration>();
+		this.superAccessedFieldBindingMap = new LinkedHashMap<IVariableBinding, IMethodBinding>();
+		this.superAssignedFieldMap = new LinkedHashMap<VariableDeclarationFragment, MethodDeclaration>();
+		this.superAssignedFieldBindingMap = new LinkedHashMap<IVariableBinding, IMethodBinding>();
 		this.accessedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.assignedParameters = new LinkedHashSet<SingleVariableDeclaration>();
 		this.accessedLocalVariables = new LinkedHashSet<VariableDeclaration>();
@@ -155,13 +159,45 @@ public class TypeCheckElimination {
 	public void addAssignedField(VariableDeclarationFragment fragment) {
 		assignedFields.add(fragment);
 	}
-
-	public void addSuperAccessedField(IVariableBinding variableBinding) {
-		superAccessedFields.add(variableBinding);
+	
+	public void addSuperAccessedField(VariableDeclarationFragment fragment, MethodDeclaration method) {
+		superAccessedFieldMap.put(fragment, method);
 	}
 	
-	public void addSuperAssignedField(IVariableBinding variableBinding) {
-		superAssignedFields.add(variableBinding);
+	public void addSuperAccessedFieldBinding(IVariableBinding variableBinding, IMethodBinding methodBinding) {
+		superAccessedFieldBindingMap.put(variableBinding, methodBinding);
+	}
+	
+	public IMethodBinding getGetterMethodBindingOfSuperAccessedField(IVariableBinding variableBinding) {
+		return superAccessedFieldBindingMap.get(variableBinding);
+	}
+
+	public Set<VariableDeclarationFragment> getSuperAccessedFields() {
+		return superAccessedFieldMap.keySet();
+	}
+	
+	public Set<IVariableBinding> getSuperAccessedFieldBindings() {
+		return superAccessedFieldBindingMap.keySet();
+	}
+	
+	public void addSuperAssignedField(VariableDeclarationFragment fragment, MethodDeclaration method) {
+		superAssignedFieldMap.put(fragment, method);
+	}
+	
+	public void addSuperAssignedFieldBinding(IVariableBinding variableBinding, IMethodBinding methodBinding) {
+		superAssignedFieldBindingMap.put(variableBinding, methodBinding);
+	}
+
+	public IMethodBinding getSetterMethodBindingOfSuperAssignedField(IVariableBinding variableBinding) {
+		return superAssignedFieldBindingMap.get(variableBinding);
+	}
+
+	public Set<VariableDeclarationFragment> getSuperAssignedFields() {
+		return superAssignedFieldMap.keySet();
+	}
+	
+	public Set<IVariableBinding> getSuperAssignedFieldBindings() {
+		return superAssignedFieldBindingMap.keySet();
 	}
 	
 	public void addAccessedLocalVariable(VariableDeclaration fragment) {

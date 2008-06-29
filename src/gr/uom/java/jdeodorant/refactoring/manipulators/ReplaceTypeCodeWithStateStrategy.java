@@ -331,7 +331,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0  || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+					typeCheckElimination.getAccessedMethods().size() > 0  || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(abstractMethodInvocation);
@@ -363,7 +364,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			if(returnedVariable != null) {
@@ -544,7 +546,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 				abstractMethodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(abstractMethodInvocation);
@@ -583,7 +586,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			if(returnedVariable != null) {
@@ -844,7 +848,8 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			}
 		}
 		if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+				typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 			SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
 			SimpleName parameterType = stateStrategyAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 			stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, stateStrategyAST.newSimpleType(parameterType), null);
@@ -1148,7 +1153,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			Set<VariableDeclarationFragment> assignedFields = typeCheckElimination.getAssignedFields();
 			Set<MethodDeclaration> accessedMethods = typeCheckElimination.getAccessedMethods();
 			Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
-			if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0) {
+			Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
+			Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
+			if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0 ||
+					superAccessedFields.size() > 0 || superAssignedFields.size() > 0) {
 				SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 				SimpleName parameterType = subclassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 				subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, subclassAST.newSimpleType(parameterType), null);
@@ -1173,7 +1181,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				Expression newEnclosingIfStatementExpression = (Expression)ASTNode.copySubtree(subclassAST, enclosingIfStatementExpression);
 				List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(enclosingIfStatementExpression);
 				List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newEnclosingIfStatementExpression);
-				modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, subclassAST, subclassRewriter, accessedFields, assignedFields);
+				modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, subclassAST, subclassRewriter, accessedFields, assignedFields, superAccessedFields, superAssignedFields);
 				List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(enclosingIfStatementExpression);
 				List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newEnclosingIfStatementExpression);
 				modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, subclassAST, subclassRewriter, accessedMethods, superAccessedMethods);
@@ -1188,7 +1196,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				Statement newStatement = (Statement)ASTNode.copySubtree(subclassAST, statement);
 				List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(statement);
 				List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newStatement);
-				modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, subclassAST, subclassRewriter, accessedFields, assignedFields);
+				modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, subclassAST, subclassRewriter, accessedFields, assignedFields, superAccessedFields, superAssignedFields);
 				List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(statement);
 				List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newStatement);
 				modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, subclassAST, subclassRewriter, accessedMethods, superAccessedMethods);
@@ -1382,7 +1390,10 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		Set<VariableDeclarationFragment> assignedFields = typeCheckElimination.getAssignedFields();
 		Set<MethodDeclaration> accessedMethods = typeCheckElimination.getAccessedMethods();
 		Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
-		if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0) {
+		Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
+		Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
+		if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0 ||
+				superAccessedFields.size() > 0 || superAssignedFields.size() > 0) {
 			SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
 			SimpleName parameterType = intermediateClassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 			intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, intermediateClassAST.newSimpleType(parameterType), null);
@@ -1407,7 +1418,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			Expression newEnclosingIfStatementExpression = (Expression)ASTNode.copySubtree(intermediateClassAST, enclosingIfStatementExpression);
 			List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(enclosingIfStatementExpression);
 			List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newEnclosingIfStatementExpression);
-			modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, intermediateClassAST, intermediateClassRewriter, accessedFields, assignedFields);
+			modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, intermediateClassAST, intermediateClassRewriter, accessedFields, assignedFields, superAccessedFields, superAssignedFields);
 			List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(enclosingIfStatementExpression);
 			List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newEnclosingIfStatementExpression);
 			modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, intermediateClassAST, intermediateClassRewriter, accessedMethods, superAccessedMethods);
@@ -1422,7 +1433,7 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			Statement newStatement = (Statement)ASTNode.copySubtree(intermediateClassAST, statement);
 			List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(statement);
 			List<Expression> newVariableInstructions = expressionExtractor.getVariableInstructions(newStatement);
-			modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, intermediateClassAST, intermediateClassRewriter, accessedFields, assignedFields);
+			modifyVariableInstructionsInSubclass(oldVariableInstructions, newVariableInstructions, intermediateClassAST, intermediateClassRewriter, accessedFields, assignedFields, superAccessedFields, superAssignedFields);
 			List<Expression> oldMethodInvocations = expressionExtractor.getMethodInvocations(statement);
 			List<Expression> newMethodInvocations = expressionExtractor.getMethodInvocations(newStatement);
 			modifyMethodInvocationsInSubclass(oldMethodInvocations, newMethodInvocations, intermediateClassAST, intermediateClassRewriter, accessedMethods, superAccessedMethods);
@@ -1703,8 +1714,19 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 	}
 
 	private void modifyVariableInstructionsInSubclass(List<Expression> oldVariableInstructions, List<Expression> newVariableInstructions, AST subclassAST, ASTRewrite subclassRewriter,
-			Set<VariableDeclarationFragment> accessedFields, Set<VariableDeclarationFragment> assignedFields) {
+			Set<VariableDeclarationFragment> accessedFields, Set<VariableDeclarationFragment> assignedFields, Set<IVariableBinding> superAccessedFields, Set<IVariableBinding> superAssignedFields) {
 		int j = 0;
+		Set<IVariableBinding> accessedFieldBindings = new LinkedHashSet<IVariableBinding>();
+		for(VariableDeclarationFragment fragment : accessedFields) {
+			accessedFieldBindings.add(fragment.resolveBinding());
+		}
+		accessedFieldBindings.addAll(superAccessedFields);
+		Set<IVariableBinding> assignedFieldBindings = new LinkedHashSet<IVariableBinding>();
+		for(VariableDeclarationFragment fragment : assignedFields) {
+			assignedFieldBindings.add(fragment.resolveBinding());
+		}
+		assignedFieldBindings.addAll(superAccessedFields);
+		
 		for(Expression expression : newVariableInstructions) {
 			SimpleName newSimpleName = (SimpleName)expression;
 			SimpleName oldSimpleName = (SimpleName)oldVariableInstructions.get(j);
@@ -1768,15 +1790,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				String invokerName = sourceTypeDeclaration.getName().getIdentifier();
 				invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 				if(newLeftHandSideName != null && newLeftHandSideName.equals(newSimpleName)) {
-					for(VariableDeclarationFragment assignedFragment : assignedFields) {
-						if(assignedFragment.resolveBinding().isEqualTo(oldLeftHandSideName.resolveBinding())) {
-							MethodDeclaration setterMethod = findSetterMethodInContext(assignedFragment);
-							String leftHandMethodName;
-							if(setterMethod != null) {
-								leftHandMethodName = setterMethod.getName().getIdentifier();
+					for(IVariableBinding assignedFieldBinding : assignedFieldBindings) {
+						if(assignedFieldBinding.isEqualTo(oldLeftHandSideName.resolveBinding())) {
+							IMethodBinding setterMethodBinding = null;
+							if(superAssignedFields.contains(assignedFieldBinding)) {
+								setterMethodBinding = typeCheckElimination.getSetterMethodBindingOfSuperAssignedField(assignedFieldBinding);
 							}
 							else {
-								leftHandMethodName = assignedFragment.getName().getIdentifier();
+								setterMethodBinding = findSetterMethodInContext(assignedFieldBinding);
+							}
+							String leftHandMethodName;
+							if(setterMethodBinding != null) {
+								leftHandMethodName = setterMethodBinding.getName();
+							}
+							else {
+								leftHandMethodName = assignedFieldBinding.getName();
 								leftHandMethodName = "set" + leftHandMethodName.substring(0,1).toUpperCase() + leftHandMethodName.substring(1,leftHandMethodName.length());
 							}
 							MethodInvocation leftHandMethodInvocation = subclassAST.newMethodInvocation();
@@ -1785,15 +1813,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 							ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							if(newRightHandSideName != null) {
 								boolean accessedFieldFound = false;
-								for(VariableDeclarationFragment accessedFragment : accessedFields) {
-									if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding())) {
-										MethodDeclaration getterMethod = findGetterMethodInContext(accessedFragment);
-										String rightHandMethodName;
-										if(getterMethod != null) {
-											rightHandMethodName = getterMethod.getName().getIdentifier();
+								for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
+									if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
+										IMethodBinding getterMethodBinding = null;
+										if(superAccessedFields.contains(accessedFieldBinding)) {
+											getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(accessedFieldBinding);
 										}
 										else {
-											rightHandMethodName = accessedFragment.getName().getIdentifier();
+											getterMethodBinding = findGetterMethodInContext(accessedFieldBinding);
+										}
+										String rightHandMethodName;
+										if(getterMethodBinding != null) {
+											rightHandMethodName = getterMethodBinding.getName();
+										}
+										else {
+											rightHandMethodName = accessedFieldBinding.getName();
 											rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
 										}
 										MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
@@ -1816,15 +1850,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 					}
 				}
 				if(newRightHandSideName != null && newRightHandSideName.equals(newSimpleName)) {
-					for(VariableDeclarationFragment accessedFragment : accessedFields) {
-						if(accessedFragment.resolveBinding().isEqualTo(oldRightHandSideName.resolveBinding())) {
-							MethodDeclaration getterMethod = findGetterMethodInContext(accessedFragment);
-							String rightHandMethodName;
-							if(getterMethod != null) {
-								rightHandMethodName = getterMethod.getName().getIdentifier();
+					for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
+						if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
+							IMethodBinding getterMethodBinding = null;
+							if(superAccessedFields.contains(accessedFieldBinding)) {
+								getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(accessedFieldBinding);
 							}
 							else {
-								rightHandMethodName = accessedFragment.getName().getIdentifier();
+								getterMethodBinding = findGetterMethodInContext(accessedFieldBinding);
+							}
+							String rightHandMethodName;
+							if(getterMethodBinding != null) {
+								rightHandMethodName = getterMethodBinding.getName();
+							}
+							else {
+								rightHandMethodName = accessedFieldBinding.getName();
 								rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
 							}
 							MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
@@ -1854,15 +1894,21 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 				}
 			}
 			else {
-				for(VariableDeclarationFragment fragment : accessedFields) {
-					if(fragment.resolveBinding().isEqualTo(oldSimpleName.resolveBinding())) {
-						MethodDeclaration getterMethod = findGetterMethodInContext(fragment);
-						String methodName;
-						if(getterMethod != null) {
-							methodName = getterMethod.getName().getIdentifier();
+				for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
+					if(accessedFieldBinding.isEqualTo(oldSimpleName.resolveBinding())) {
+						IMethodBinding getterMethodBinding = null;
+						if(superAccessedFields.contains(accessedFieldBinding)) {
+							getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(accessedFieldBinding);
 						}
 						else {
-							methodName = fragment.getName().getIdentifier();
+							getterMethodBinding = findGetterMethodInContext(accessedFieldBinding);
+						}
+						String methodName;
+						if(getterMethodBinding != null) {
+							methodName = getterMethodBinding.getName();
+						}
+						else {
+							methodName = accessedFieldBinding.getName();
 							methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
 						}
 						MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
@@ -1896,23 +1942,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		}
 	}
 
-	private MethodDeclaration findSetterMethodInContext(VariableDeclarationFragment fragment) {
+	private IMethodBinding findSetterMethodInContext(IVariableBinding fieldBinding) {
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
 			SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
-			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
-				return methodDeclaration;
+			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fieldBinding)) {
+				return methodDeclaration.resolveBinding();
 			}
 		}
 		return null;
 	}
 
-	private MethodDeclaration findGetterMethodInContext(VariableDeclarationFragment fragment) {
+	private IMethodBinding findGetterMethodInContext(IVariableBinding fieldBinding) {
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
 			SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
-			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
-				return methodDeclaration;
+			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fieldBinding)) {
+				return methodDeclaration.resolveBinding();
 			}
 		}
 		return null;
@@ -2270,21 +2316,22 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 
 	private void generateGettersForAccessedFields() {
 		AST contextAST = sourceTypeDeclaration.getAST();
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedFields()) {
-			FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
-			int modifiers = fieldDeclaration.getModifiers();
-			if(!fragment.equals(typeCheckElimination.getTypeField()) &&
-					!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
-				boolean getterFound = false;
-				for(MethodDeclaration methodDeclaration : contextMethods) {
-					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
-					if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
-						getterFound = true;
-						break;
-					}
-				}
-				if(!getterFound) {
+		Set<VariableDeclarationFragment> accessedFields = new LinkedHashSet<VariableDeclarationFragment>();
+		accessedFields.addAll(typeCheckElimination.getAccessedFields());
+		accessedFields.addAll(typeCheckElimination.getSuperAccessedFields());
+		for(VariableDeclarationFragment fragment : accessedFields) {
+			IMethodBinding getterMethodBinding = null;
+			if(typeCheckElimination.getSuperAccessedFields().contains(fragment)) {
+				getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(fragment.resolveBinding());
+			}
+			else {
+				getterMethodBinding = findGetterMethodInContext(fragment.resolveBinding());
+			}
+			if(getterMethodBinding == null) {
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				int modifiers = fieldDeclaration.getModifiers();
+				if(!fragment.equals(typeCheckElimination.getTypeField()) &&
+						!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -2307,19 +2354,20 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 
 	private void generateSettersForAssignedFields() {
 		AST contextAST = sourceTypeDeclaration.getAST();
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		for(VariableDeclarationFragment fragment : typeCheckElimination.getAssignedFields()) {
-			if(!fragment.equals(typeCheckElimination.getTypeField())) {
-				boolean setterFound = false;
-				for(MethodDeclaration methodDeclaration : contextMethods) {
-					SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
-					if(simpleName != null && simpleName.resolveBinding().isEqualTo(fragment.resolveBinding())) {
-						setterFound = true;
-						break;
-					}
-				}
-				if(!setterFound) {
-					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+		Set<VariableDeclarationFragment> assignedFields = new LinkedHashSet<VariableDeclarationFragment>();
+		assignedFields.addAll(typeCheckElimination.getAssignedFields());
+		assignedFields.addAll(typeCheckElimination.getSuperAssignedFields());
+		for(VariableDeclarationFragment fragment : assignedFields) {
+			IMethodBinding setterMethodBinding = null;
+			if(typeCheckElimination.getSuperAssignedFields().contains(fragment)) {
+				setterMethodBinding = typeCheckElimination.getSetterMethodBindingOfSuperAssignedField(fragment.resolveBinding());
+			}
+			else {
+				setterMethodBinding = findSetterMethodInContext(fragment.resolveBinding());
+			}
+			if(setterMethodBinding == null) {
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				if(!fragment.equals(typeCheckElimination.getTypeField())) {
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);

@@ -620,11 +620,11 @@ public class TypeCheckCodeFragmentAnalyzer {
 											}
 											if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 												isLeftHandOfAssignment = true;
-												typeCheckElimination.addSuperAssignedField(variableInstructionVariableBinding);
+												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
 											}
 										}
 										if(!isLeftHandOfAssignment)
-											typeCheckElimination.addSuperAccessedField(variableInstructionVariableBinding);
+											typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 									}
 								}
 							}

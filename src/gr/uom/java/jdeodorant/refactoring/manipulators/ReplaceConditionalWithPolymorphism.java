@@ -1057,7 +1057,12 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		for(VariableDeclarationFragment fragment : accessedFields) {
 			IMethodBinding getterMethodBinding = null;
 			if(typeCheckElimination.getSuperAccessedFields().contains(fragment)) {
-				getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(fragment.resolveBinding());
+				for(IVariableBinding fieldBinding : typeCheckElimination.getSuperAccessedFieldBindings()) {
+					if(fieldBinding.isEqualTo(fragment.resolveBinding())) {
+						getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(fieldBinding);
+						break;
+					}
+				}
 			}
 			else {
 				getterMethodBinding = findGetterMethodInContext(fragment.resolveBinding());
@@ -1095,7 +1100,12 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		for(VariableDeclarationFragment fragment : assignedFields) {
 			IMethodBinding setterMethodBinding = null;
 			if(typeCheckElimination.getSuperAssignedFields().contains(fragment)) {
-				setterMethodBinding = typeCheckElimination.getSetterMethodBindingOfSuperAssignedField(fragment.resolveBinding());
+				for(IVariableBinding fieldBinding : typeCheckElimination.getSuperAssignedFieldBindings()) {
+					if(fieldBinding.isEqualTo(fragment.resolveBinding())) {
+						setterMethodBinding = typeCheckElimination.getSetterMethodBindingOfSuperAssignedField(fieldBinding);
+						break;
+					}
+				}
 			}
 			else {
 				setterMethodBinding = findSetterMethodInContext(fragment.resolveBinding());

@@ -26,10 +26,10 @@ import java.util.Set;
 import java.util.Stack;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
@@ -38,14 +38,20 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
+import org.eclipse.jface.util.Policy;
 import org.eclipse.jface.viewers.*;
+import org.eclipse.jface.window.ToolTip;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FillLayout;
+import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
@@ -234,64 +240,12 @@ public class FeatureEnvy extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
-		final TooltipLabelListener tooltipLabelListener = new TooltipLabelListener();
-		Listener tableListener = new Listener() {
-			Shell tooltip = null;
-			Label label = null;
-			public void handleEvent(Event event) {
-				switch(event.type) {
-					case SWT.KeyDown:
-					case SWT.Dispose:
-					case SWT.MouseMove: {
-						if(tooltip == null)
-							break;
-						tooltip.dispose();
-						tooltip = null;
-						label = null;
-						break;
-					}
-					case SWT.MouseHover: {
-						Table table = tableViewer.getTable();
-						Point coords = new Point(event.x, event.y);
-						TableItem item = table.getItem(coords);
-						if(item != null) {
-							List<CandidateRefactoring> prerequisiteRefactorings = getPrerequisiteRefactorings((CandidateRefactoring)item.getData());
-							if(!prerequisiteRefactorings.isEmpty()) {
-								int columnCount = table.getColumnCount();
-								for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-									if(item.getBounds(columnIndex).contains(coords)) {
-										if(tooltip != null && !tooltip.isDisposed())
-											tooltip.dispose();
-										tooltip = new Shell(table.getShell(), SWT.ON_TOP | SWT.NO_FOCUS | SWT.TOOL);
-										tooltip.setBackground(table.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
-										FillLayout layout = new FillLayout();
-										layout.marginWidth = 2;
-										tooltip.setLayout(layout);
-										label = new Label(tooltip, SWT.NONE);
-										label.setForeground(table.getDisplay().getSystemColor(SWT.COLOR_INFO_FOREGROUND));
-										label.setBackground(table.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
-										label.setData("_TableItem_", item);
-										label.setText("APPLY FIRST " + prerequisiteRefactorings.get(0));
-										label.addListener(SWT.MouseExit, tooltipLabelListener);
-										label.addListener(SWT.MouseDown, tooltipLabelListener);
-										Point size = tooltip.computeSize(SWT.DEFAULT, SWT.DEFAULT);
-										Rectangle rect = item.getBounds(columnIndex);
-										Point pt = table.toDisplay(rect.x, rect.y);
-										tooltip.setBounds(pt.x, pt.y, size.x, size.y);
-										tooltip.setVisible(true);
-										break;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		};
-		tableViewer.getTable().addListener(SWT.Dispose, tableListener);
-		tableViewer.getTable().addListener(SWT.KeyDown, tableListener);
-		tableViewer.getTable().addListener(SWT.MouseMove, tableListener);
-		tableViewer.getTable().addListener(SWT.MouseHover, tableListener);
+		
+		JFaceResources.getFontRegistry().put(MyToolTip.HEADER_FONT, JFaceResources.getFontRegistry().getBold(JFaceResources.getDefaultFont().getFontData()[0].getName()).getFontData());
+		MyToolTip toolTip = new MyToolTip(tableViewer.getControl());
+		toolTip.setShift(new Point(-5, -5));
+		toolTip.setHideOnMouseDown(false);
+		toolTip.activate();
 	}
 
 	private void contributeToActionBars() {
@@ -576,7 +530,98 @@ public class FeatureEnvy extends ViewPart {
 		}
 		return table;		
 	}
-
+	
+	protected class MyToolTip extends ToolTip {
+		//public static final String HEADER_BG_COLOR = Policy.JFACE + ".TOOLTIP_HEAD_BG_COLOR";
+		//public static final String HEADER_FG_COLOR = Policy.JFACE + ".TOOLTIP_HEAD_FG_COLOR";
+		public static final String HEADER_FONT = Policy.JFACE + ".TOOLTIP_HEAD_FONT";
+		
+		public MyToolTip(Control control) {
+			super(control);
+		}
+		
+		protected Composite createToolTipContentArea(Event event, Composite parent) {
+			Composite comp = new Composite(parent,SWT.NONE);
+			GridLayout gl = new GridLayout(1,false);
+			gl.marginBottom=0;
+			gl.marginTop=0;
+			gl.marginHeight=0;
+			gl.marginWidth=0;
+			gl.marginLeft=0;
+			gl.marginRight=0;
+			gl.verticalSpacing=1;
+			comp.setLayout(gl);
+			
+			Composite topArea = new Composite(comp,SWT.NONE);
+			GridData data = new GridData(SWT.FILL,SWT.FILL,true,false);
+			data.widthHint=200;
+			topArea.setLayoutData(data);
+			topArea.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_WHITE));
+			
+			gl = new GridLayout(1,false);
+			gl.marginBottom=2;
+			gl.marginTop=2;
+			gl.marginHeight=0;
+			gl.marginWidth=0;
+			gl.marginLeft=5;
+			gl.marginRight=2;
+			
+			topArea.setLayout(gl);
+			
+			Label label = new Label(topArea,SWT.NONE);
+			label.setText("APPLY FIRST");
+			label.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_WHITE));
+			label.setFont(JFaceResources.getFontRegistry().get(HEADER_FONT));
+			//label.setForeground(JFaceResources.getColorRegistry().get(HEADER_FG_COLOR));
+			label.setLayoutData(new GridData(GridData.FILL_BOTH));
+			
+			Table table = tableViewer.getTable();
+			Point coords = new Point(event.x, event.y);
+			TableItem item = table.getItem(coords);
+			if(item != null) {
+				List<CandidateRefactoring> prerequisiteRefactorings = getPrerequisiteRefactorings((CandidateRefactoring)item.getData());
+				if(!prerequisiteRefactorings.isEmpty()) {
+					final CandidateRefactoring firstPrerequisite = prerequisiteRefactorings.get(0);
+					Composite comp2 = new Composite(comp,SWT.NONE);
+					comp2.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
+					FillLayout layout = new FillLayout();
+					layout.marginWidth=5;
+					comp2.setLayout(layout);
+					Link link = new Link(comp2,SWT.NONE);
+					link.setText("<a>" + firstPrerequisite.getSourceEntity() + "\n->" + firstPrerequisite.getTarget() + "</a>");
+					link.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
+					link.addSelectionListener(new SelectionAdapter() {
+						public void widgetSelected(SelectionEvent e) {
+							Table table = tableViewer.getTable();
+							for(int i=0; i<table.getItemCount(); i++) {
+								Object tableElement = tableViewer.getElementAt(i);
+								CandidateRefactoring candidate = (CandidateRefactoring)tableElement;
+								if(candidate.equals(firstPrerequisite)) {
+									table.setSelection(i);
+									break;
+								}
+							}
+						}
+					});
+					comp2.setLayoutData(new GridData(GridData.FILL_BOTH));
+				}
+			}
+			return comp;
+		}
+		
+		protected boolean shouldCreateToolTip(Event event) {
+			Table table = tableViewer.getTable();
+			Point coords = new Point(event.x, event.y);
+			TableItem item = table.getItem(coords);
+			if(item != null) {
+				List<CandidateRefactoring> prerequisiteRefactorings = getPrerequisiteRefactorings((CandidateRefactoring)item.getData());
+				if(!prerequisiteRefactorings.isEmpty())
+					return true;
+			}
+			return false;
+		}
+	}
+	
 	private void saveResults() {
 		try {
 			BufferedWriter out = new BufferedWriter(new FileWriter("C:\\results.txt"));

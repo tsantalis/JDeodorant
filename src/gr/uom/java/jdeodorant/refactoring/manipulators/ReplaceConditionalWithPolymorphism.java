@@ -4,23 +4,25 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
-import org.eclipse.core.filebuffers.FileBuffers;
-import org.eclipse.core.filebuffers.ITextFileBuffer;
-import org.eclipse.core.filebuffers.ITextFileBufferManager;
-import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.JavaCore;
@@ -67,27 +69,29 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
-import org.eclipse.jdt.ui.JavaUI;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
+import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
+import org.eclipse.ltk.core.refactoring.CompositeChange;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
-import org.eclipse.text.edits.UndoEdit;
-import org.eclipse.ui.PartInitException;
-import org.eclipse.ui.texteditor.ITextEditor;
 
-public class ReplaceConditionalWithPolymorphism implements Refactoring {
+public class ReplaceConditionalWithPolymorphism extends Refactoring {
 	private IFile sourceFile;
 	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private TypeCheckElimination typeCheckElimination;
 	private ASTRewrite sourceRewriter;
-	private UndoRefactoring undoRefactoring;
 	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> thrownExceptions;
 	private VariableDeclaration typeVariable;
 	private MethodInvocation typeMethodInvocation;
+	private Map<ICompilationUnit, TextFileChange> fChanges;
+	private Set<IJavaElement> javaElementsToOpenInEditor;
 	
 	public ReplaceConditionalWithPolymorphism(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -96,7 +100,6 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.typeCheckElimination = typeCheckElimination;
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-		this.undoRefactoring = new UndoRefactoring();
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
@@ -107,6 +110,12 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			this.typeVariable = typeCheckElimination.getTypeLocalVariable();
 		}
 		this.typeMethodInvocation = typeCheckElimination.getTypeMethodInvocation();
+		this.fChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
+		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
+	}
+
+	public Set<IJavaElement> getJavaElementsToOpenInEditor() {
+		return javaElementsToOpenInEditor;
 	}
 
 	public void apply() {
@@ -196,16 +205,22 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		generateSettersForAssignedFields();
 		setPublicModifierToAccessedMethods();
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
-		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
 		try {
-			UndoEdit sourceUndoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(sourceFile, sourceDocument, sourceUndoEdit);
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			TextFileChange change = fChanges.get(sourceICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(sourceEdit);
+			} else
+				change.getEdit().addChild(sourceEdit);
+			fChanges.put(sourceICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -224,15 +239,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		IFile abstractClassFile = getFile(rootContainer, abstractClassFullyQualifiedName);
 		
 		IJavaElement abstractJavaElement = JavaCore.create(abstractClassFile);
-		ITextEditor abstractEditor = null;
-		try {
-			abstractEditor = (ITextEditor)JavaUI.openInEditor(abstractJavaElement);
-		} catch (PartInitException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		}
-		
+		javaElementsToOpenInEditor.add(abstractJavaElement);
 		ICompilationUnit abstractICompilationUnit = (ICompilationUnit)abstractJavaElement;
         ASTParser abstractParser = ASTParser.newParser(AST.JLS3);
         abstractParser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -353,19 +360,23 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			addImportDeclaration(typeBinding, abstractCompilationUnit, abstractRewriter);
 		}
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer abstractTextFileBuffer = bufferManager.getTextFileBuffer(abstractClassFile.getFullPath(), LocationKind.IFILE);
-		IDocument abstractDocument = abstractTextFileBuffer.getDocument();
-		TextEdit abstractEdit = abstractRewriter.rewriteAST(abstractDocument, null);
 		try {
-			UndoEdit abstractUndoEdit = abstractEdit.apply(abstractDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(abstractClassFile, abstractDocument, abstractUndoEdit);
+			TextEdit abstractEdit = abstractRewriter.rewriteAST();
+			TextFileChange change = fChanges.get(abstractICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(abstractICompilationUnit.getElementName(), (IFile)abstractICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(abstractEdit);
+			} else
+				change.getEdit().addChild(abstractEdit);
+			fChanges.put(abstractICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
-		abstractEditor.doSave(null);
 		
 		
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
@@ -391,14 +402,7 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 			}
 			IFile subclassFile = getFile(rootContainer, subclassNames.get(i));
 			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
-			ITextEditor subclassEditor = null;
-			try {
-				subclassEditor = (ITextEditor)JavaUI.openInEditor(subclassJavaElement);
-			} catch (PartInitException e) {
-				e.printStackTrace();
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			}
+			javaElementsToOpenInEditor.add(subclassJavaElement);
 			ICompilationUnit subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
 	        ASTParser subclassParser = ASTParser.newParser(AST.JLS3);
 	        subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -619,18 +623,23 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
 			}
 			
-			ITextFileBuffer subclassTextFileBuffer = bufferManager.getTextFileBuffer(subclassFile.getFullPath(), LocationKind.IFILE);
-			IDocument subclassDocument = subclassTextFileBuffer.getDocument();
-			TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
 			try {
-				UndoEdit subclassUndoEdit = subclassEdit.apply(subclassDocument, UndoEdit.CREATE_UNDO);
-				undoRefactoring.put(subclassFile, subclassDocument, subclassUndoEdit);
+				TextEdit subclassEdit = subclassRewriter.rewriteAST();
+				TextFileChange change = fChanges.get(subclassICompilationUnit);
+				if (change == null) {
+					change = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
+					change.setTextType("java");
+					change.setEdit(subclassEdit);
+				} else
+					change.getEdit().addChild(subclassEdit);
+				fChanges.put(subclassICompilationUnit, change);
 			} catch (MalformedTreeException e) {
 				e.printStackTrace();
-			} catch (BadLocationException e) {
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			}
-			subclassEditor.doSave(null);
 		}
 	}
 
@@ -1381,11 +1390,60 @@ public class ReplaceConditionalWithPolymorphism implements Refactoring {
 		return null;
 	}
 
-	public UndoRefactoring getUndoRefactoring() {
-		return undoRefactoring;
-	}
-
 	public TypeCheckElimination getTypeCheckElimination() {
 		return typeCheckElimination;
+	}
+
+	@Override
+	public RefactoringStatus checkFinalConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		final RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 2);
+			apply();
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 1);
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public Change createChange(IProgressMonitor pm) throws CoreException,
+			OperationCanceledException {
+		try {
+			pm.beginTask("Creating change...", 1);
+			final Collection<TextFileChange> changes = fChanges.values();
+			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
+				@Override
+				public ChangeDescriptor getDescriptor() {
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					String project = sourceICompilationUnit.getJavaProject().getElementName();
+					String description = MessageFormat.format("Replace Conditional with Polymorphism in method ''{0}''", new Object[] { typeCheckElimination.getTypeCheckMethod().getName().getIdentifier()});
+					String comment = null;
+					return new RefactoringChangeDescriptor(new ReplaceConditionalWithPolymorphismDescriptor(project, description, comment,
+							sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination));
+				}
+			};
+			return change;
+		} finally {
+			pm.done();
+		}
+	}
+
+	@Override
+	public String getName() {
+		return "Replace Conditional with Polymorphism";
 	}
 }

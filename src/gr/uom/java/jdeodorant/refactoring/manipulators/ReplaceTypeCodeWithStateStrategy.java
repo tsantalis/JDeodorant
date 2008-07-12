@@ -5,7 +5,9 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.io.ByteArrayInputStream;
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,16 +17,14 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
-import org.eclipse.core.filebuffers.FileBuffers;
-import org.eclipse.core.filebuffers.ITextFileBuffer;
-import org.eclipse.core.filebuffers.ITextFileBufferManager;
-import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.JavaCore;
@@ -74,27 +74,29 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
-import org.eclipse.jdt.ui.JavaUI;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
+import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
+import org.eclipse.ltk.core.refactoring.CompositeChange;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
-import org.eclipse.text.edits.UndoEdit;
-import org.eclipse.ui.PartInitException;
-import org.eclipse.ui.texteditor.ITextEditor;
 
-public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
+public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 	private IFile sourceFile;
 	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private TypeCheckElimination typeCheckElimination;
 	private ASTRewrite sourceRewriter;
-	private UndoRefactoring undoRefactoring;
 	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> requiredImportDeclarationsForContext;
 	private Set<ITypeBinding> thrownExceptions;
 	private Map<SimpleName, String> additionalStaticFields;
+	private Map<ICompilationUnit, TextFileChange> fChanges;
+	private Set<IJavaElement> javaElementsToOpenInEditor;
 	
 	public ReplaceTypeCodeWithStateStrategy(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -103,7 +105,6 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.typeCheckElimination = typeCheckElimination;
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-		this.undoRefactoring = new UndoRefactoring();
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.requiredImportDeclarationsForContext = new LinkedHashSet<ITypeBinding>();
@@ -112,6 +113,12 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		for(SimpleName simpleName : typeCheckElimination.getAdditionalStaticFields()) {
 			this.additionalStaticFields.put(simpleName, generateSubclassName(simpleName));
 		}
+		this.fChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
+		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
+	}
+
+	public Set<IJavaElement> getJavaElementsToOpenInEditor() {
+		return javaElementsToOpenInEditor;
 	}
 
 	public void apply() {
@@ -392,16 +399,22 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
 		}
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
-		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
 		try {
-			UndoEdit sourceUndoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(sourceFile, sourceDocument, sourceUndoEdit);
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			TextFileChange change = fChanges.get(sourceICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(sourceEdit);
+			} else
+				change.getEdit().addChild(sourceEdit);
+			fChanges.put(sourceICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -614,16 +627,22 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
 		}
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
-		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
 		try {
-			UndoEdit sourceUndoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(sourceFile, sourceDocument, sourceUndoEdit);
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			TextFileChange change = fChanges.get(sourceICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(sourceEdit);
+			} else
+				change.getEdit().addChild(sourceEdit);
+			fChanges.put(sourceICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -704,19 +723,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		boolean stateStrategyAlreadyExists = false;
 		try {
 			stateStrategyFile.create(new ByteArrayInputStream("".getBytes()), true, null);
-			undoRefactoring.addNewlyCreatedFile(stateStrategyFile);
 		} catch (CoreException e) {
 			stateStrategyAlreadyExists = true;
 		}
 		IJavaElement stateStrategyJavaElement = JavaCore.create(stateStrategyFile);
-		ITextEditor stateStrategyEditor = null;
-		try {
-			stateStrategyEditor = (ITextEditor)JavaUI.openInEditor(stateStrategyJavaElement);
-		} catch (PartInitException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		}
+		javaElementsToOpenInEditor.add(stateStrategyJavaElement);
         ICompilationUnit stateStrategyICompilationUnit = (ICompilationUnit)stateStrategyJavaElement;
         ASTParser stateStrategyParser = ASTParser.newParser(AST.JLS3);
         stateStrategyParser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -874,19 +885,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		if(!stateStrategyAlreadyExists)
 			stateStrategyTypesRewrite.insertLast(stateStrategyTypeDeclaration, null);
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer stateStrategyTextFileBuffer = bufferManager.getTextFileBuffer(stateStrategyFile.getFullPath(), LocationKind.IFILE);
-		IDocument stateStrategyDocument = stateStrategyTextFileBuffer.getDocument();
-		TextEdit stateStrategyEdit = stateStrategyRewriter.rewriteAST(stateStrategyDocument, null);
 		try {
-			UndoEdit stateStrategyUndoEdit = stateStrategyEdit.apply(stateStrategyDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(stateStrategyFile, stateStrategyDocument, stateStrategyUndoEdit);
+			TextEdit stateStrategyEdit = stateStrategyRewriter.rewriteAST();
+			TextFileChange change = fChanges.get(stateStrategyICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(stateStrategyICompilationUnit.getElementName(), (IFile)stateStrategyICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(stateStrategyEdit);
+			} else
+				change.getEdit().addChild(stateStrategyEdit);
+			fChanges.put(stateStrategyICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
-		stateStrategyEditor.doSave(null);
 		
 		
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
@@ -964,19 +979,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			boolean subclassAlreadyExists = false;
 			try {
 				subclassFile.create(new ByteArrayInputStream("".getBytes()), true, null);
-				undoRefactoring.addNewlyCreatedFile(subclassFile);
 			} catch (CoreException e) {
 				subclassAlreadyExists = true;
 			}
 			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
-			ITextEditor subclassEditor = null;
-			try {
-				subclassEditor = (ITextEditor)JavaUI.openInEditor(subclassJavaElement);
-			} catch (PartInitException e) {
-				e.printStackTrace();
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			}
+			javaElementsToOpenInEditor.add(subclassJavaElement);
 			ICompilationUnit subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
 	        ASTParser subclassParser = ASTParser.newParser(AST.JLS3);
 	        subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -1228,18 +1235,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			if(!subclassAlreadyExists)
 				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
-			ITextFileBuffer subclassTextFileBuffer = bufferManager.getTextFileBuffer(subclassFile.getFullPath(), LocationKind.IFILE);
-			IDocument subclassDocument = subclassTextFileBuffer.getDocument();
-			TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
 			try {
-				UndoEdit subclassUndoEdit = subclassEdit.apply(subclassDocument, UndoEdit.CREATE_UNDO);
-				undoRefactoring.put(subclassFile, subclassDocument, subclassUndoEdit);
+				TextEdit subclassEdit = subclassRewriter.rewriteAST();
+				TextFileChange change = fChanges.get(subclassICompilationUnit);
+				if (change == null) {
+					change = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
+					change.setTextType("java");
+					change.setEdit(subclassEdit);
+				} else
+					change.getEdit().addChild(subclassEdit);
+				fChanges.put(subclassICompilationUnit, change);
 			} catch (MalformedTreeException e) {
 				e.printStackTrace();
-			} catch (BadLocationException e) {
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			}
-			subclassEditor.doSave(null);
 		}
 	}
 
@@ -1274,19 +1286,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		boolean intermediateClassAlreadyExists = false;
 		try {
 			intermediateClassFile.create(new ByteArrayInputStream("".getBytes()), true, null);
-			undoRefactoring.addNewlyCreatedFile(intermediateClassFile);
 		} catch (CoreException e) {
 			intermediateClassAlreadyExists = true;
 		}
 		IJavaElement intermediateClassJavaElement = JavaCore.create(intermediateClassFile);
-		ITextEditor intermediateClassEditor = null;
-		try {
-			intermediateClassEditor = (ITextEditor)JavaUI.openInEditor(intermediateClassJavaElement);
-		} catch (PartInitException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		}
+		javaElementsToOpenInEditor.add(intermediateClassJavaElement);
 		ICompilationUnit intermediateClassICompilationUnit = (ICompilationUnit)intermediateClassJavaElement;
         ASTParser intermediateClassParser = ASTParser.newParser(AST.JLS3);
         intermediateClassParser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -1465,19 +1469,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		if(!intermediateClassAlreadyExists)
 			intermediateClassTypesRewrite.insertLast(intermediateClassTypeDeclaration, null);
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer intermediateClassTextFileBuffer = bufferManager.getTextFileBuffer(intermediateClassFile.getFullPath(), LocationKind.IFILE);
-		IDocument intermediateClassDocument = intermediateClassTextFileBuffer.getDocument();
-		TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST(intermediateClassDocument, null);
 		try {
-			UndoEdit intermediateClassUndoEdit = intermediateClassEdit.apply(intermediateClassDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(intermediateClassFile, intermediateClassDocument, intermediateClassUndoEdit);
+			TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST();
+			TextFileChange change = fChanges.get(intermediateClassICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(intermediateClassICompilationUnit.getElementName(), (IFile)intermediateClassICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(intermediateClassEdit);
+			} else
+				change.getEdit().addChild(intermediateClassEdit);
+			fChanges.put(intermediateClassICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
-		intermediateClassEditor.doSave(null);
 		
 		for(int i=0; i<subclassNames.size(); i++) {
 			IFile subclassFile = null;
@@ -1506,19 +1514,11 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			boolean subclassAlreadyExists = false;
 			try {
 				subclassFile.create(new ByteArrayInputStream("".getBytes()), true, null);
-				undoRefactoring.addNewlyCreatedFile(subclassFile);
 			} catch (CoreException e) {
 				subclassAlreadyExists = true;
 			}
 			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
-			ITextEditor subclassEditor = null;
-			try {
-				subclassEditor = (ITextEditor)JavaUI.openInEditor(subclassJavaElement);
-			} catch (PartInitException e) {
-				e.printStackTrace();
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			}
+			javaElementsToOpenInEditor.add(subclassJavaElement);
 			ICompilationUnit subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
 	        ASTParser subclassParser = ASTParser.newParser(AST.JLS3);
 	        subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -1633,18 +1633,23 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 			if(!subclassAlreadyExists)
 				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
-			ITextFileBuffer subclassTextFileBuffer = bufferManager.getTextFileBuffer(subclassFile.getFullPath(), LocationKind.IFILE);
-			IDocument subclassDocument = subclassTextFileBuffer.getDocument();
-			TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
 			try {
-				UndoEdit subclassUndoEdit = subclassEdit.apply(subclassDocument, UndoEdit.CREATE_UNDO);
-				undoRefactoring.put(subclassFile, subclassDocument, subclassUndoEdit);
+				TextEdit subclassEdit = subclassRewriter.rewriteAST();
+				TextFileChange change = fChanges.get(subclassICompilationUnit);
+				if (change == null) {
+					change = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
+					change.setTextType("java");
+					change.setEdit(subclassEdit);
+				} else
+					change.getEdit().addChild(subclassEdit);
+				fChanges.put(subclassICompilationUnit, change);
 			} catch (MalformedTreeException e) {
 				e.printStackTrace();
-			} catch (BadLocationException e) {
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			}
-			subclassEditor.doSave(null);
 		}
 	}
 
@@ -2963,11 +2968,60 @@ public class ReplaceTypeCodeWithStateStrategy implements Refactoring {
 		return commonSubstrings;
 	}
 
-	public UndoRefactoring getUndoRefactoring() {
-		return undoRefactoring;
-	}
-
 	public TypeCheckElimination getTypeCheckElimination() {
 		return typeCheckElimination;
+	}
+
+	@Override
+	public RefactoringStatus checkFinalConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		final RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 2);
+			apply();
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 1);
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public Change createChange(IProgressMonitor pm) throws CoreException,
+			OperationCanceledException {
+		try {
+			pm.beginTask("Creating change...", 1);
+			final Collection<TextFileChange> changes = fChanges.values();
+			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
+				@Override
+				public ChangeDescriptor getDescriptor() {
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					String project = sourceICompilationUnit.getJavaProject().getElementName();
+					String description = MessageFormat.format("Replace Type Code with State/Strategy in method ''{0}''", new Object[] { typeCheckElimination.getTypeCheckMethod().getName().getIdentifier()});
+					String comment = null;
+					return new RefactoringChangeDescriptor(new ReplaceTypeCodeWithStateStrategyDescriptor(project, description, comment,
+							sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination));
+				}
+			};
+			return change;
+		} finally {
+			pm.done();
+		}
+	}
+
+	@Override
+	public String getName() {
+		return "Replace Type Code with State/Strategy";
 	}
 }

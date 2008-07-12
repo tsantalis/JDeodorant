@@ -8,22 +8,16 @@ import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
-import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractAndMoveMethodRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
-import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
-import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -65,6 +59,8 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.ui.JavaUI;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 
 /**
  * This sample class demonstrates how to plug-in a new
@@ -88,14 +84,12 @@ public class FeatureEnvy extends ViewPart {
 	private TableViewer tableViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
-	private Action undoRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private IProject selectedProject;
 	private IPackageFragment selectedPackage;
 	private CandidateRefactoring[] candidateRefactoringTable;
 	private ASTReader astReader;
-	private Map<IProject, Stack<UndoRefactoring>> undoStackMap = new HashMap<IProject, Stack<UndoRefactoring>>();
 
 	/*
 	 * The content provider class is responsible for
@@ -188,15 +182,6 @@ public class FeatureEnvy extends ViewPart {
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
-					if(undoStackMap.containsKey(selectedProject)) {
-						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-						if(undoStack.empty())
-							undoRefactoringAction.setEnabled(false);
-						else
-							undoRefactoringAction.setEnabled(true);
-					}
-					else
-						undoRefactoringAction.setEnabled(false);
 				}
 			}
 		}
@@ -256,7 +241,6 @@ public class FeatureEnvy extends ViewPart {
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
-		manager.add(undoRefactoringAction);
 		manager.add(renameMethodAction);
 	}
 
@@ -286,43 +270,35 @@ public class FeatureEnvy extends ViewPart {
 					Refactoring refactoring = null;
 					if(entry instanceof MoveMethodCandidateRefactoring) {
 						MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
-						refactoring = new MoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+						refactoring = new MoveMethodRefactoring(sourceCompilationUnit, targetCompilationUnit,
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
 								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate(), candidate.getMovedMethodName());
 					}
-					else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
+					/*else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
 						ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-						refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, targetFile, sourceCompilationUnit, targetCompilationUnit,
+						refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, sourceCompilationUnit, targetCompilationUnit,
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
 								candidate.getASTExtractionBlock());
+					}*/
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(getSite().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
+						e.printStackTrace();
 					}
-					IEditorPart targetEditor = null;
-					IEditorPart sourceEditor = null;
 					try {
 						IJavaElement targetJavaElement = JavaCore.create(targetFile);
-						targetEditor = JavaUI.openInEditor(targetJavaElement);
+						JavaUI.openInEditor(targetJavaElement);
 						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-						sourceEditor = JavaUI.openInEditor(sourceJavaElement);
+						JavaUI.openInEditor(sourceJavaElement);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
 						e.printStackTrace();
 					}
-					refactoring.apply();
-					sourceEditor.doSave(null);
-					targetEditor.doSave(null);
-					UndoRefactoring undoRefactoring = refactoring.getUndoRefactoring();
-					if(undoStackMap.containsKey(selectedProject)) {
-						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-						undoStack.push(undoRefactoring);
-					}
-					else {
-						Stack<UndoRefactoring> undoStack = new Stack<UndoRefactoring>();
-						undoStack.push(undoRefactoring);
-						undoStackMap.put(selectedProject, undoStack);
-					}
 					applyRefactoringAction.setEnabled(false);
-					undoRefactoringAction.setEnabled(true);
 				}
 			}
 		};
@@ -369,38 +345,6 @@ public class FeatureEnvy extends ViewPart {
 				}
 			}
 		};
-		
-		undoRefactoringAction = new Action() {
-			public void run() {
-				if(undoStackMap.containsKey(selectedProject)) {
-					Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-					if(!undoStack.empty()) {
-						UndoRefactoring undoRefactoring = undoStack.pop();
-						undoRefactoring.apply();
-						Set<IFile> fileKeySet = undoRefactoring.getFileKeySet();
-						for(IFile key : fileKeySet) {
-							try {
-								IJavaElement iJavaElement = JavaCore.create(key);
-								IEditorPart editor = JavaUI.openInEditor(iJavaElement);
-								editor.doSave(null);
-							} catch (PartInitException e) {
-								e.printStackTrace();
-							} catch (JavaModelException e) {
-								e.printStackTrace();
-							}
-						}
-						if(undoStack.empty()) {
-							undoRefactoringAction.setEnabled(false);
-							applyRefactoringAction.setEnabled(true);
-						}
-					}
-				}
-			}
-		};
-		undoRefactoringAction.setToolTipText("Undo Refactoring");
-		undoRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-			getImageDescriptor(ISharedImages.IMG_TOOL_UNDO));
-		undoRefactoringAction.setEnabled(false);
 		
 		renameMethodAction = new Action() {
 			public void run() {

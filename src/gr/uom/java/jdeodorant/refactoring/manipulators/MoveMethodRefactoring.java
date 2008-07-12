@@ -4,21 +4,23 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.core.filebuffers.FileBuffers;
-import org.eclipse.core.filebuffers.ITextFileBuffer;
-import org.eclipse.core.filebuffers.ITextFileBufferManager;
-import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
@@ -57,15 +59,19 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
-import org.eclipse.text.edits.UndoEdit;
 
-public class MoveMethodRefactoring implements Refactoring {
-	private IFile sourceFile;
-	private IFile targetFile;
+import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
+import org.eclipse.ltk.core.refactoring.CompositeChange;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
+
+public class MoveMethodRefactoring extends Refactoring {
+	
 	private CompilationUnit sourceCompilationUnit;
 	private CompilationUnit targetCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
@@ -73,7 +79,6 @@ public class MoveMethodRefactoring implements Refactoring {
 	private MethodDeclaration sourceMethod;
 	private ASTRewrite sourceRewriter;
 	private ASTRewrite targetRewriter;
-	private UndoRefactoring undoRefactoring;
 	private Set<ITypeBinding> requiredTargetImportDeclarationSet;
 	private String targetClassVariableName;
 	private Set<String> additionalArgumentsAddedToMovedMethod;
@@ -81,18 +86,16 @@ public class MoveMethodRefactoring implements Refactoring {
 	private boolean leaveDelegate;
 	private String movedMethodName;
 	private boolean isTargetClassVariableParameter;
+	private Map<ICompilationUnit, TextFileChange> fChanges;
 	
-	public MoveMethodRefactoring(IFile sourceFile, IFile targetFile, CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
-			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod, Map<MethodInvocation,
-			MethodDeclaration> additionalMethodsToBeMoved, boolean leaveDelegate, String movedMethodName) {
-		this.sourceFile = sourceFile;
-		this.targetFile = targetFile;
+	public MoveMethodRefactoring(CompilationUnit sourceCompilationUnit, CompilationUnit targetCompilationUnit, 
+			TypeDeclaration sourceTypeDeclaration, TypeDeclaration targetTypeDeclaration, MethodDeclaration sourceMethod,
+			Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved, boolean leaveDelegate, String movedMethodName) {
 		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.targetCompilationUnit = targetCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.targetTypeDeclaration = targetTypeDeclaration;
 		this.sourceMethod = sourceMethod;
-		this.undoRefactoring = new UndoRefactoring();
 		this.requiredTargetImportDeclarationSet = new LinkedHashSet<ITypeBinding>();
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
@@ -102,74 +105,14 @@ public class MoveMethodRefactoring implements Refactoring {
 		this.leaveDelegate = leaveDelegate;
 		this.movedMethodName = movedMethodName;
 		this.isTargetClassVariableParameter = false;
+		this.fChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
 	}
 
-	public UndoRefactoring getUndoRefactoring() {
-		return undoRefactoring;
+	public Map<ICompilationUnit, TextFileChange> getChanges() {
+		return fChanges;
 	}
 
 	public void apply() {
-		if(sourceCompilationUnit.equals(targetCompilationUnit)) {
-			int sourceTypeDeclarationFirstLevelPosition = -1;
-			int targetTypeDeclarationFirstLevelPosition = -1;
-			int sourceTypeDeclarationSecondLevelPosition = -1;
-			int targetTypeDeclarationSecondLevelPosition = -1;
-			List<AbstractTypeDeclaration> typeDeclarationList = sourceCompilationUnit.types();
-			int i = 0;
-			for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarationList) {
-				if(abstractTypeDeclaration instanceof TypeDeclaration) {
-					TypeDeclaration parentTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
-					if(parentTypeDeclaration.equals(sourceTypeDeclaration)) {
-						sourceTypeDeclarationFirstLevelPosition = i;
-					}
-					else {
-						int secondLevelPosition = getPositionInParentTypeDeclaration(parentTypeDeclaration, sourceTypeDeclaration);
-						if(secondLevelPosition != -1) {
-							sourceTypeDeclarationFirstLevelPosition = i;
-							sourceTypeDeclarationSecondLevelPosition = secondLevelPosition;
-						}
-					}
-					if(parentTypeDeclaration.equals(targetTypeDeclaration)) {
-						targetTypeDeclarationFirstLevelPosition = i;
-					}
-					else {
-						int secondLevelPosition = getPositionInParentTypeDeclaration(parentTypeDeclaration, targetTypeDeclaration);
-						if(secondLevelPosition != -1) {
-							targetTypeDeclarationFirstLevelPosition = i;
-							targetTypeDeclarationSecondLevelPosition = secondLevelPosition;
-						}
-					}
-				}
-				i++;
-			}
-			if(sourceTypeDeclarationFirstLevelPosition < targetTypeDeclarationFirstLevelPosition)
-				applyTargetFirst();
-			else if(sourceTypeDeclarationFirstLevelPosition > targetTypeDeclarationFirstLevelPosition)
-				applySourceFirst();
-			else {
-				if(sourceTypeDeclarationSecondLevelPosition < targetTypeDeclarationSecondLevelPosition)
-					applyTargetFirst();
-				else if(sourceTypeDeclarationSecondLevelPosition > targetTypeDeclarationSecondLevelPosition)
-					applySourceFirst();
-			}
-		}
-		else {
-			applyTargetFirst();
-		}
-	}
-
-	private int getPositionInParentTypeDeclaration(TypeDeclaration parent, TypeDeclaration child) {
-		TypeDeclaration[] types = parent.getTypes();
-		int i = 0;
-		for(TypeDeclaration type : types) {
-			if(type.equals(child))
-				return i;
-			i++;
-		}
-		return -1;
-	}
-
-	public void applyTargetFirst() {
 		if(!sourceCompilationUnit.equals(targetCompilationUnit))
 			addRequiredTargetImportDeclarations();
 		createMovedMethod();
@@ -184,69 +127,41 @@ public class MoveMethodRefactoring implements Refactoring {
 		}
 		modifyMovedMethodInvocationInSourceClass();
 		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
-		IDocument targetDocument = targetTextFileBuffer.getDocument();
-		TextEdit targetEdit = targetRewriter.rewriteAST(targetDocument, null);
 		try {
-			UndoEdit undoEdit = targetEdit.apply(targetDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(targetFile, targetDocument, undoEdit);
+			TextEdit targetEdit = targetRewriter.rewriteAST();
+			ICompilationUnit targetICompilationUnit = (ICompilationUnit)targetCompilationUnit.getJavaElement();
+			TextFileChange change = fChanges.get(targetICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(targetICompilationUnit.getElementName(), (IFile)targetICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(targetEdit);
+			} else
+				change.getEdit().addChild(targetEdit);
+			fChanges.put(targetICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 		
-		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
-		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
 		try {
-			UndoEdit undoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(sourceFile, sourceDocument, undoEdit);
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			TextFileChange change = fChanges.get(sourceICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(sourceEdit);
+			} else
+				change.getEdit().addChild(sourceEdit);
+			fChanges.put(sourceICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
 			e.printStackTrace();
-		}
-	}
-
-	public void applySourceFirst() {
-		if(!sourceCompilationUnit.equals(targetCompilationUnit))
-			addRequiredTargetImportDeclarations();
-		createMovedMethod();
-		moveAdditionalMethods();
-		//modifyMovedMethodInvocationInTargetClass();
-		
-		if(leaveDelegate) {
-			addDelegationInSourceMethod();
-		}
-		else {
-			removeSourceMethod();
-		}
-		modifyMovedMethodInvocationInSourceClass();
-		
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
-		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
-		try {
-			UndoEdit undoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(sourceFile, sourceDocument, undoEdit);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
-		
-		ITextFileBuffer targetTextFileBuffer = bufferManager.getTextFileBuffer(targetFile.getFullPath(), LocationKind.IFILE);
-		IDocument targetDocument = targetTextFileBuffer.getDocument();
-		TextEdit targetEdit = targetRewriter.rewriteAST(targetDocument, null);
-		try {
-			UndoEdit undoEdit = targetEdit.apply(targetDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(targetFile, targetDocument, undoEdit);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -1662,5 +1577,60 @@ public class MoveMethodRefactoring implements Refactoring {
 				}
 			}
 		}
+	}
+
+	@Override
+	public RefactoringStatus checkFinalConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		final RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 2);
+			apply();
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 1);
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public Change createChange(IProgressMonitor pm) throws CoreException,
+			OperationCanceledException {
+		try {
+			pm.beginTask("Creating change...", 1);
+			final Collection<TextFileChange> changes = fChanges.values();
+			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
+				@Override
+				public ChangeDescriptor getDescriptor() {
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					String project = sourceICompilationUnit.getJavaProject().getElementName();
+					String description = MessageFormat.format("Move method ''{0}''", new Object[] { sourceMethod.getName().getIdentifier()});
+					String comment = MessageFormat.format("Move method ''{0}'' to ''{1}''", new Object[] { sourceMethod.getName().getIdentifier(), targetTypeDeclaration.getName().getIdentifier()});
+					return new RefactoringChangeDescriptor(new MoveMethodRefactoringDescriptor(project, description, comment,
+							sourceCompilationUnit, targetCompilationUnit,
+							sourceTypeDeclaration, targetTypeDeclaration, sourceMethod,
+							additionalMethodsToBeMoved, leaveDelegate, movedMethodName));
+				}
+			};
+			return change;
+		} finally {
+			pm.done();
+		}
+	}
+
+	@Override
+	public String getName() {
+		return "Move Method";
 	}
 }

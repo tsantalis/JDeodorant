@@ -3,18 +3,22 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.core.filebuffers.FileBuffers;
-import org.eclipse.core.filebuffers.ITextFileBuffer;
-import org.eclipse.core.filebuffers.ITextFileBufferManager;
-import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -39,46 +43,54 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
+import org.eclipse.ltk.core.refactoring.Change;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.TextFileChange;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.TextEdit;
-import org.eclipse.text.edits.UndoEdit;
 
-public class ExtractMethodRefactoring implements Refactoring {
-	private IFile sourceFile;
+public class ExtractMethodRefactoring extends Refactoring {
+	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
 	private ASTExtractionBlock extractionBlock;
 	private ASTRewrite sourceRewriter;
-	private UndoRefactoring undoRefactoring;
+	private Map<ICompilationUnit, TextFileChange> fChanges;
 	
-	public ExtractMethodRefactoring(IFile sourceFile, TypeDeclaration sourceTypeDeclaration, MethodDeclaration sourceMethodDeclaration, 
+	public ExtractMethodRefactoring(CompilationUnit sourceCompilationUnit, TypeDeclaration sourceTypeDeclaration, MethodDeclaration sourceMethodDeclaration, 
 			ASTExtractionBlock extractionBlock) {
-		this.sourceFile = sourceFile;
+		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.sourceMethodDeclaration = sourceMethodDeclaration;
 		this.extractionBlock = extractionBlock;
 		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-		this.undoRefactoring = new UndoRefactoring();
+		this.fChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
 	}
 
-	public UndoRefactoring getUndoRefactoring() {
-		return undoRefactoring;
+	public Map<ICompilationUnit, TextFileChange> getChanges() {
+		return fChanges;
 	}
 
 	public void apply() {
 		extractMethod();
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		ITextFileBuffer sourceTextFileBuffer = bufferManager.getTextFileBuffer(sourceFile.getFullPath(), LocationKind.IFILE);
-		IDocument sourceDocument = sourceTextFileBuffer.getDocument();
-		TextEdit sourceEdit = sourceRewriter.rewriteAST(sourceDocument, null);
+		
 		try {
-			UndoEdit sourceUndoEdit = sourceEdit.apply(sourceDocument, UndoEdit.CREATE_UNDO);
-			undoRefactoring.put(sourceFile, sourceDocument, sourceUndoEdit);
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			TextFileChange change = fChanges.get(sourceICompilationUnit);
+			if (change == null) {
+				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
+				change.setTextType("java");
+				change.setEdit(sourceEdit);
+			} else
+				change.getEdit().addChild(sourceEdit);
+			fChanges.put(sourceICompilationUnit, change);
 		} catch (MalformedTreeException e) {
 			e.printStackTrace();
-		} catch (BadLocationException e) {
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -359,5 +371,32 @@ public class ExtractMethodRefactoring implements Refactoring {
 		else if(node instanceof DoStatement)
 			return true;
 		return false;
+	}
+
+	@Override
+	public RefactoringStatus checkFinalConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Change createChange(IProgressMonitor pm) throws CoreException,
+			OperationCanceledException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getName() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

@@ -3,22 +3,17 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.jdeodorant.refactoring.manipulators.Refactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationResults;
-import gr.uom.java.jdeodorant.refactoring.manipulators.UndoRefactoring;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Table;
@@ -28,7 +23,6 @@ import org.eclipse.ui.part.*;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -46,6 +40,8 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
 
@@ -72,7 +68,6 @@ public class TypeChecking extends ViewPart {
 	private TableViewer tableViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
-	private Action undoRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private IProject selectedProject;
@@ -80,7 +75,6 @@ public class TypeChecking extends ViewPart {
 	private ASTReader astReader;
 	private TypeCheckElimination[] typeCheckEliminationTable;
 	private TypeCheckEliminationResults typeCheckEliminationResults;
-	private Map<IProject, Stack<UndoRefactoring>> undoStackMap = new HashMap<IProject, Stack<UndoRefactoring>>();
 
 	/*
 	 * The content provider class is responsible for
@@ -187,15 +181,6 @@ public class TypeChecking extends ViewPart {
 					selectedProject = javaProject.getProject();
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
-					if(undoStackMap.containsKey(selectedProject)) {
-						Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-						if(undoStack.empty())
-							undoRefactoringAction.setEnabled(false);
-						else
-							undoRefactoringAction.setEnabled(true);
-					}
-					else
-						undoRefactoringAction.setEnabled(false);
 				}
 			}
 		}
@@ -259,7 +244,6 @@ public class TypeChecking extends ViewPart {
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
-		manager.add(undoRefactoringAction);
 		manager.add(renameMethodAction);
 	}
 
@@ -281,83 +265,45 @@ public class TypeChecking extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
-				Refactoring refactoring = null;
-				IEditorPart sourceEditor = null;
 				TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
 				CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
 				IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
+				Refactoring refactoring = null;
+				Set<IJavaElement> javaElementsToOpenInEditor = null;
 				if(typeCheckElimination.getExistingInheritanceTree() == null) {
 					refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
+					javaElementsToOpenInEditor = ((ReplaceTypeCodeWithStateStrategy)refactoring).getJavaElementsToOpenInEditor();
 				}
 				else {
 					refactoring = new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
+					javaElementsToOpenInEditor = ((ReplaceConditionalWithPolymorphism)refactoring).getJavaElementsToOpenInEditor();
+				}
+				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring);
+				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+				try { 
+					String titleForFailedChecks = ""; //$NON-NLS-1$ 
+					op.run(getSite().getShell(), titleForFailedChecks); 
+				} catch(InterruptedException e) {
+					e.printStackTrace();
 				}
 				try {
 					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-					sourceEditor = JavaUI.openInEditor(sourceJavaElement);
+					JavaUI.openInEditor(sourceJavaElement);
+					for(IJavaElement javaElement : javaElementsToOpenInEditor) {
+						JavaUI.openInEditor(javaElement);
+					}
 				} catch (PartInitException e) {
 					e.printStackTrace();
 				} catch (JavaModelException e) {
 					e.printStackTrace();
 				}
-				refactoring.apply();
-				sourceEditor.doSave(null);
-				UndoRefactoring undoRefactoring = refactoring.getUndoRefactoring();
-				if(undoStackMap.containsKey(selectedProject)) {
-					Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-					undoStack.push(undoRefactoring);
-				}
-				else {
-					Stack<UndoRefactoring> undoStack = new Stack<UndoRefactoring>();
-					undoStack.push(undoRefactoring);
-					undoStackMap.put(selectedProject, undoStack);
-				}
 				applyRefactoringAction.setEnabled(false);
-				undoRefactoringAction.setEnabled(true);
 			}
 		};
 		applyRefactoringAction.setToolTipText("Apply Refactoring");
 		applyRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 				getImageDescriptor(ISharedImages.IMG_DEF_VIEW));
 		applyRefactoringAction.setEnabled(false);
-		
-		undoRefactoringAction = new Action() {
-			public void run() {
-				if(undoStackMap.containsKey(selectedProject)) {
-					Stack<UndoRefactoring> undoStack = undoStackMap.get(selectedProject);
-					if(!undoStack.empty()) {
-						UndoRefactoring undoRefactoring = undoStack.pop();
-						undoRefactoring.apply();
-						Set<IFile> fileKeySet = undoRefactoring.getFileKeySet();
-						for(IFile key : fileKeySet) {
-							try {
-								IJavaElement iJavaElement = JavaCore.create(key);
-								IEditorPart editor = JavaUI.openInEditor(iJavaElement);
-								editor.doSave(null);
-							} catch (PartInitException e) {
-								e.printStackTrace();
-							} catch (JavaModelException e) {
-								e.printStackTrace();
-							}
-						}
-						for(IFile file : undoRefactoring.getNewlyCreatedFiles()) {
-							try {
-								file.delete(true, null);
-							} catch (CoreException e) {
-								e.printStackTrace();
-							}
-						}
-						if(undoStack.empty())
-							undoRefactoringAction.setEnabled(false);
-					}
-				}
-				applyRefactoringAction.setEnabled(false);
-			}
-		};
-		undoRefactoringAction.setToolTipText("Undo Refactoring");
-		undoRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-			getImageDescriptor(ISharedImages.IMG_TOOL_UNDO));
-		undoRefactoringAction.setEnabled(false);
 		
 		renameMethodAction = new Action() {
 			public void run() {

@@ -280,7 +280,7 @@ public class FeatureEnvy extends ViewPart {
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
 								candidate.getASTExtractionBlock());
 					}*/
-					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring);
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
 					try { 
 						String titleForFailedChecks = ""; //$NON-NLS-1$ 
@@ -298,7 +298,6 @@ public class FeatureEnvy extends ViewPart {
 					} catch (JavaModelException e) {
 						e.printStackTrace();
 					}
-					applyRefactoringAction.setEnabled(false);
 				}
 			}
 		};

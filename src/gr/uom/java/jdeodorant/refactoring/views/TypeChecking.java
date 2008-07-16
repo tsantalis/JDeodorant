@@ -269,16 +269,13 @@ public class TypeChecking extends ViewPart {
 				CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
 				IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
 				Refactoring refactoring = null;
-				Set<IJavaElement> javaElementsToOpenInEditor = null;
 				if(typeCheckElimination.getExistingInheritanceTree() == null) {
 					refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-					javaElementsToOpenInEditor = ((ReplaceTypeCodeWithStateStrategy)refactoring).getJavaElementsToOpenInEditor();
 				}
 				else {
 					refactoring = new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-					javaElementsToOpenInEditor = ((ReplaceConditionalWithPolymorphism)refactoring).getJavaElementsToOpenInEditor();
 				}
-				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring);
+				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
 				try { 
 					String titleForFailedChecks = ""; //$NON-NLS-1$ 
@@ -289,15 +286,11 @@ public class TypeChecking extends ViewPart {
 				try {
 					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
 					JavaUI.openInEditor(sourceJavaElement);
-					for(IJavaElement javaElement : javaElementsToOpenInEditor) {
-						JavaUI.openInEditor(javaElement);
-					}
 				} catch (PartInitException e) {
 					e.printStackTrace();
 				} catch (JavaModelException e) {
 					e.printStackTrace();
 				}
-				applyRefactoringAction.setEnabled(false);
 			}
 		};
 		applyRefactoringAction.setToolTipText("Apply Refactoring");

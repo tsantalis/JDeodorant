@@ -927,6 +927,47 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 						}
 					}
 				}
+				if(newRightHandSideName != null && newRightHandSideName.equals(newSimpleName)) {
+					for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
+						if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
+							if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
+									(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+								SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
+								if(newSimpleName.getParent() instanceof FieldAccess) {
+									FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
+									subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+								}
+								else if(!(newSimpleName.getParent() instanceof QualifiedName)) {
+									SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
+									QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+									subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+								}
+							}
+							else {
+								IMethodBinding getterMethodBinding = null;
+								if(superAccessedFields.contains(accessedFieldBinding)) {
+									getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(accessedFieldBinding);
+								}
+								else {
+									getterMethodBinding = findGetterMethodInContext(accessedFieldBinding);
+								}
+								String rightHandMethodName;
+								if(getterMethodBinding != null) {
+									rightHandMethodName = getterMethodBinding.getName();
+								}
+								else {
+									rightHandMethodName = accessedFieldBinding.getName();
+									rightHandMethodName = "get" + rightHandMethodName.substring(0,1).toUpperCase() + rightHandMethodName.substring(1,rightHandMethodName.length());
+								}
+								MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
+								subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
+								subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								subclassRewriter.set(newAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, rightHandMethodInvocation, null);
+							}
+							break;
+						}
+					}
+				}
 			}
 			else {
 				for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {

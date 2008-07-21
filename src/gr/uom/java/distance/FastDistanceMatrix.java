@@ -60,12 +60,16 @@ public class FastDistanceMatrix {
         	entityMap.put(newMovedMethod.toString(),newMovedMethod.getEntitySet());
         }
         
+        int recalculated = 0;
+        int false_rec = 0;
         for(String entityName : entityMap.keySet()) {
+        	Set<String> entitySet = entityMap.get(entityName);
         	Set<String> entityDependencies = new HashSet<String>();
         	for(String s : entityMap.get(entityName)) {
         		entityDependencies.add(s.substring(0,s.indexOf("::")));
         	}
         	for(String className : classMap.keySet()) {
+        		Set<String> classEntitySet = classMap.get(className);
         		ClassEntityPlacement entityPlacement = virtualSystemEntityPlacement.getClassEntityPlacement(className);
         		if(entityName.startsWith(className + "::")) {
         			Double d = originalDistanceMatrix.getDistance(entityName,className);
@@ -74,9 +78,12 @@ public class FastDistanceMatrix {
         					|| ((className.equals(sourceClass) || className.equals(targetClass) || entityDependencies.contains(className)) && (!entityName.startsWith(sourceClass + "::") && !entityName.startsWith(targetClass + "::")) && (entityDependencies.contains(sourceClass) || entityDependencies.contains(targetClass)))
         					|| d == null || (sourceMethod != null && entityName.equals(sourceMethod)) ) {
         				Set<String> tempClassSet = new HashSet<String>();
-                        tempClassSet.addAll(classMap.get(className));
+                        tempClassSet.addAll(classEntitySet);
                         tempClassSet.remove(entityName);
-        				distance = DistanceCalculator.getDistance(entityMap.get(entityName),tempClassSet);
+        				distance = DistanceCalculator.getDistance(entitySet,tempClassSet);
+        				recalculated++;
+        				if(d!=null && d==distance)
+        					false_rec++;
         			}
         			else {
         				distance = d;
@@ -90,7 +97,10 @@ public class FastDistanceMatrix {
         			if( ((className.startsWith(sourceClass) || className.startsWith(targetClass) || entityDependencies.contains(className)) && (entityName.startsWith(sourceClass + "::") || entityName.startsWith(targetClass + "::"))) 
         					|| ((className.equals(sourceClass) || className.equals(targetClass) || entityDependencies.contains(className)) && (!entityName.startsWith(sourceClass + "::") && !entityName.startsWith(targetClass + "::")) && (entityDependencies.contains(sourceClass) || entityDependencies.contains(targetClass)))
         					|| d == null || (sourceMethod != null && entityName.equals(sourceMethod)) ) {
-        				distance = DistanceCalculator.getDistance(entityMap.get(entityName),classMap.get(className));
+        				distance = DistanceCalculator.getDistance(entitySet,classEntitySet);
+        				recalculated++;
+        				if(d!=null && d==distance)
+        					false_rec++;
         			}
         			else {
         				distance = d;
@@ -100,6 +110,7 @@ public class FastDistanceMatrix {
         		}
         	}
         }
+        System.out.println(recalculated + "\t" + false_rec);
 	}
 
 	public double getSystemEntityPlacementValue() {

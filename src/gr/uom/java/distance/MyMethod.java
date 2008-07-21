@@ -15,6 +15,7 @@ public class MyMethod extends Entity {
     private boolean isAbstract;
     private String access;
     private MethodObject methodObject;
+    private volatile int hashCode = 0;
     private Set<String> newEntitySet;
 
     public MyMethod(String classOrigin, String methodName, String returnType, List<String> parameterList) {
@@ -231,6 +232,20 @@ public class MyMethod extends Entity {
                 this.parameterList.equals(method.parameterList);
         }
         return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + classOrigin.hashCode();
+    		result = 37*result + methodName.hashCode();
+    		result = 37*result + returnType.hashCode();
+    		for(String parameter : parameterList) {
+    			result = 37*result + parameter.hashCode();
+    		}
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

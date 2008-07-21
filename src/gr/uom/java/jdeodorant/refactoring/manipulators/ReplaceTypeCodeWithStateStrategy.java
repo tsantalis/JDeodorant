@@ -74,6 +74,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
+import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
@@ -891,37 +892,38 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		if(!stateStrategyAlreadyExists)
 			stateStrategyTypesRewrite.insertLast(stateStrategyTypeDeclaration, null);
 		
-		try {
-			TextEdit stateStrategyEdit = null;
-			if(stateStrategyDocument != null) {
-				stateStrategyEdit = stateStrategyRewriter.rewriteAST(stateStrategyDocument, null);
-				try {
-					CreateCompilationUnitChange createCompilationUnitChange =
-						new CreateCompilationUnitChange(stateStrategyICompilationUnit, "", stateStrategyFile.getCharset());
-					createCompilationUnitChanges.put(stateStrategyICompilationUnit, createCompilationUnitChange);
-				} catch (CoreException e) {
-					e.printStackTrace();
-				}
+		if(stateStrategyDocument != null) {
+			try {
+				TextEdit stateStrategyEdit = stateStrategyRewriter.rewriteAST(stateStrategyDocument, null);
+				stateStrategyEdit.apply(stateStrategyDocument);
+				CreateCompilationUnitChange createCompilationUnitChange =
+					new CreateCompilationUnitChange(stateStrategyICompilationUnit, stateStrategyDocument.get(), stateStrategyFile.getCharset());
+				createCompilationUnitChanges.put(stateStrategyICompilationUnit, createCompilationUnitChange);
+			} catch (MalformedTreeException e) {
+				e.printStackTrace();
+			} catch (BadLocationException e) {
+				e.printStackTrace();
+			} catch (CoreException e) {
+				e.printStackTrace();
 			}
-			else {
-				stateStrategyEdit = stateStrategyRewriter.rewriteAST();
-			}
-			TextFileChange textFileChange = textFileChanges.get(stateStrategyICompilationUnit);
-			if (textFileChange == null) {
-				textFileChange = new TextFileChange(stateStrategyICompilationUnit.getElementName(), (IFile)stateStrategyICompilationUnit.getResource());
-				textFileChange.setTextType("java");
-				textFileChange.setEdit(stateStrategyEdit);
-			} else
-				textFileChange.getEdit().addChild(stateStrategyEdit);
-			textFileChanges.put(stateStrategyICompilationUnit, textFileChange);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
 		}
-		
+		else {
+			try {
+				TextEdit stateStrategyEdit = stateStrategyRewriter.rewriteAST();
+				TextFileChange textFileChange = textFileChanges.get(stateStrategyICompilationUnit);
+				if (textFileChange == null) {
+					textFileChange = new TextFileChange(stateStrategyICompilationUnit.getElementName(), (IFile)stateStrategyICompilationUnit.getResource());
+					textFileChange.setTextType("java");
+					textFileChange.setEdit(stateStrategyEdit);
+				} else
+					textFileChange.getEdit().addChild(stateStrategyEdit);
+				textFileChanges.put(stateStrategyICompilationUnit, textFileChange);
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			}
+		}
 		
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
@@ -1256,35 +1258,37 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			if(!subclassAlreadyExists)
 				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
-			try {
-				TextEdit subclassEdit = null;
-				if(subclassDocument != null) {
-					subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
-					try {
-						CreateCompilationUnitChange createCompilationUnitChange =
-							new CreateCompilationUnitChange(subclassICompilationUnit, "", subclassFile.getCharset());
-						createCompilationUnitChanges.put(subclassICompilationUnit, createCompilationUnitChange);
-					} catch (CoreException e) {
-						e.printStackTrace();
-					}
+			if(subclassDocument != null) {
+				try {
+					TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
+					subclassEdit.apply(subclassDocument);
+					CreateCompilationUnitChange createCompilationUnitChange =
+						new CreateCompilationUnitChange(subclassICompilationUnit, subclassDocument.get(), subclassFile.getCharset());
+					createCompilationUnitChanges.put(subclassICompilationUnit, createCompilationUnitChange);
+				} catch (MalformedTreeException e) {
+					e.printStackTrace();
+				} catch (BadLocationException e) {
+					e.printStackTrace();
+				} catch (CoreException e) {
+					e.printStackTrace();
 				}
-				else {
-					subclassEdit = subclassRewriter.rewriteAST();
+			}
+			else {
+				try {
+					TextEdit subclassEdit = subclassRewriter.rewriteAST();
+					TextFileChange textFileChange = textFileChanges.get(subclassICompilationUnit);
+					if (textFileChange == null) {
+						textFileChange = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
+						textFileChange.setTextType("java");
+						textFileChange.setEdit(subclassEdit);
+					} else
+						textFileChange.getEdit().addChild(subclassEdit);
+					textFileChanges.put(subclassICompilationUnit, textFileChange);
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				} catch (IllegalArgumentException e) {
+					e.printStackTrace();
 				}
-				TextFileChange textFileChange = textFileChanges.get(subclassICompilationUnit);
-				if (textFileChange == null) {
-					textFileChange = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
-					textFileChange.setTextType("java");
-					textFileChange.setEdit(subclassEdit);
-				} else
-					textFileChange.getEdit().addChild(subclassEdit);
-				textFileChanges.put(subclassICompilationUnit, textFileChange);
-			} catch (MalformedTreeException e) {
-				e.printStackTrace();
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			} catch (IllegalArgumentException e) {
-				e.printStackTrace();
 			}
 		}
 	}
@@ -1505,35 +1509,37 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		if(!intermediateClassAlreadyExists)
 			intermediateClassTypesRewrite.insertLast(intermediateClassTypeDeclaration, null);
 		
-		try {
-			TextEdit intermediateClassEdit = null;
-			if(intermediateClassDocument != null) {
-				intermediateClassEdit = intermediateClassRewriter.rewriteAST(intermediateClassDocument, null);
-				try {
-					CreateCompilationUnitChange createCompilationUnitChange =
-						new CreateCompilationUnitChange(intermediateClassICompilationUnit, "", intermediateClassFile.getCharset());
-					createCompilationUnitChanges.put(intermediateClassICompilationUnit, createCompilationUnitChange);
-				} catch (CoreException e) {
-					e.printStackTrace();
-				}
+		if(intermediateClassDocument != null) {
+			try {
+				TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST(intermediateClassDocument, null);
+				intermediateClassEdit.apply(intermediateClassDocument);
+				CreateCompilationUnitChange createCompilationUnitChange =
+					new CreateCompilationUnitChange(intermediateClassICompilationUnit, intermediateClassDocument.get(), intermediateClassFile.getCharset());
+				createCompilationUnitChanges.put(intermediateClassICompilationUnit, createCompilationUnitChange);
+			} catch (MalformedTreeException e) {
+				e.printStackTrace();
+			} catch (BadLocationException e) {
+				e.printStackTrace();
+			} catch (CoreException e) {
+				e.printStackTrace();
 			}
-			else {
-				intermediateClassEdit = intermediateClassRewriter.rewriteAST();
+		}
+		else {
+			try {
+				TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST();
+				TextFileChange textFileChange = textFileChanges.get(intermediateClassICompilationUnit);
+				if (textFileChange == null) {
+					textFileChange = new TextFileChange(intermediateClassICompilationUnit.getElementName(), (IFile)intermediateClassICompilationUnit.getResource());
+					textFileChange.setTextType("java");
+					textFileChange.setEdit(intermediateClassEdit);
+				} else
+					textFileChange.getEdit().addChild(intermediateClassEdit);
+				textFileChanges.put(intermediateClassICompilationUnit, textFileChange);
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
 			}
-			TextFileChange textFileChange = textFileChanges.get(intermediateClassICompilationUnit);
-			if (textFileChange == null) {
-				textFileChange = new TextFileChange(intermediateClassICompilationUnit.getElementName(), (IFile)intermediateClassICompilationUnit.getResource());
-				textFileChange.setTextType("java");
-				textFileChange.setEdit(intermediateClassEdit);
-			} else
-				textFileChange.getEdit().addChild(intermediateClassEdit);
-			textFileChanges.put(intermediateClassICompilationUnit, textFileChange);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
 		}
 		
 		for(int i=0; i<subclassNames.size(); i++) {
@@ -1684,35 +1690,37 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			if(!subclassAlreadyExists)
 				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
-			try {
-				TextEdit subclassEdit = null;
-				if(subclassDocument != null) {
-					subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
-					try {
-						CreateCompilationUnitChange createCompilationUnitChange =
-							new CreateCompilationUnitChange(subclassICompilationUnit, "", subclassFile.getCharset());
-						createCompilationUnitChanges.put(subclassICompilationUnit, createCompilationUnitChange);
-					} catch (CoreException e) {
-						e.printStackTrace();
-					}
+			if(subclassDocument != null) {
+				try {
+					TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
+					subclassEdit.apply(subclassDocument);
+					CreateCompilationUnitChange createCompilationUnitChange =
+						new CreateCompilationUnitChange(subclassICompilationUnit, subclassDocument.get(), subclassFile.getCharset());
+					createCompilationUnitChanges.put(subclassICompilationUnit, createCompilationUnitChange);
+				} catch (MalformedTreeException e) {
+					e.printStackTrace();
+				} catch (BadLocationException e) {
+					e.printStackTrace();
+				} catch (CoreException e) {
+					e.printStackTrace();
 				}
-				else {
-					subclassEdit = subclassRewriter.rewriteAST();
+			}
+			else {
+				try {
+					TextEdit subclassEdit = subclassRewriter.rewriteAST();
+					TextFileChange textFileChange = textFileChanges.get(subclassICompilationUnit);
+					if (textFileChange == null) {
+						textFileChange = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
+						textFileChange.setTextType("java");
+						textFileChange.setEdit(subclassEdit);
+					} else
+						textFileChange.getEdit().addChild(subclassEdit);
+					textFileChanges.put(subclassICompilationUnit, textFileChange);
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				} catch (IllegalArgumentException e) {
+					e.printStackTrace();
 				}
-				TextFileChange textFileChange = textFileChanges.get(subclassICompilationUnit);
-				if (textFileChange == null) {
-					textFileChange = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
-					textFileChange.setTextType("java");
-					textFileChange.setEdit(subclassEdit);
-				} else
-					textFileChange.getEdit().addChild(subclassEdit);
-				textFileChanges.put(subclassICompilationUnit, textFileChange);
-			} catch (MalformedTreeException e) {
-				e.printStackTrace();
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			} catch (IllegalArgumentException e) {
-				e.printStackTrace();
 			}
 		}
 	}

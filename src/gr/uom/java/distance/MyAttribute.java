@@ -10,6 +10,7 @@ public class MyAttribute extends Entity {
     private List<MyMethod> methodList;
     private boolean reference;
     private String access;
+    private volatile int hashCode = 0;
     private Set<String> newEntitySet;
 
     public MyAttribute(String classOrigin, String classType, String name) {
@@ -123,6 +124,17 @@ public class MyAttribute extends Entity {
                 this.name.equals(attribute.name);
         }
         return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + classOrigin.hashCode();
+    		result = 37*result + classType.hashCode();
+    		result = 37*result + name.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

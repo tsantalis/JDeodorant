@@ -31,8 +31,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
     private DistanceMatrix originalDistanceMatrix;
     private String movedMethodName;
-    private List<Entity> changedEntities;
-    private List<MyClass> changedClasses;
+    private Set<Entity> changedEntities;
+    private Set<MyClass> changedClasses;
     private Set<MyMethod> oldMovedMethods;
     private Set<MyMethod> newMovedMethods;
 
@@ -69,19 +69,17 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         			additionalMethodsToBeMoved.put(methodInvocation.getMethodInvocation(), invokedMethod.getMethodDeclaration());
         	}
         }
-        this.changedEntities = new ArrayList<Entity>();
-        this.changedClasses = new ArrayList<MyClass>();
+        this.changedEntities = new LinkedHashSet<Entity>();
+        this.changedClasses = new LinkedHashSet<MyClass>();
         this.oldMovedMethods = new LinkedHashSet<MyMethod>();
         this.newMovedMethods = new LinkedHashSet<MyMethod>();
     }
 
-    public void apply() {
-    	//MySystem virtualSystem = MySystem.newInstance(system);
+	public void apply() {
     	virtualApplication(system);
-    	FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(system, originalDistanceMatrix, this, oldMovedMethods, newMovedMethods);
+    	//FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(system, originalDistanceMatrix, this, oldMovedMethods, newMovedMethods);
+    	MoveMethodFastDistanceMatrix fastDistanceMatrix = new MoveMethodFastDistanceMatrix(system, originalDistanceMatrix, this);
     	double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
-    	//DistanceMatrix distanceMatrix = new DistanceMatrix(virtualSystem);
-    	//double entityPlacement = distanceMatrix.getSystemEntityPlacementValue();
     	this.entityPlacement = fastEntityPlacement;
     	for(Entity entity : changedEntities) {
     		entity.resetNewEntitySet();
@@ -343,6 +341,22 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
 
 	public void setMovedMethodName(String movedMethodName) {
 		this.movedMethodName = movedMethodName;
+	}
+
+    public Set<Entity> getChangedEntities() {
+		return changedEntities;
+	}
+
+	public Set<MyClass> getChangedClasses() {
+		return changedClasses;
+	}
+
+	public Set<MyMethod> getOldMovedMethods() {
+		return oldMovedMethods;
+	}
+
+	public Set<MyMethod> getNewMovedMethods() {
+		return newMovedMethods;
 	}
 
 	public String toString() {

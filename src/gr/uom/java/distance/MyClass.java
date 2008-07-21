@@ -11,6 +11,7 @@ public class MyClass {
     private List<MyAttribute> attributeList;
     private List<MyMethod> methodList;
     private ClassObject classObject;
+    private volatile int hashCode = 0;
     private Set<String> newEntitySet;
 
     public MyClass(String name) {
@@ -125,6 +126,27 @@ public class MyClass {
             newClass.addMethod(MyMethod.newInstance(method));
         }
         return newClass;
+    }
+
+    public boolean equals(Object o) {
+    	if(this == o) {
+            return true;
+        }
+    	
+    	if (o instanceof MyClass) {
+    		MyClass myClass = (MyClass)o;
+    		return this.name.equals(myClass.name);
+    	}
+    	return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + name.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

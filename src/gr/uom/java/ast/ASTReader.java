@@ -8,6 +8,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
@@ -52,6 +53,20 @@ public class ASTReader {
 			ICompilationUnit[] compilationUnits = packageFragment.getCompilationUnits();
 			for(ICompilationUnit iCompilationUnit : compilationUnits) {
 				parseAST(iCompilationUnit);
+			}
+			IPackageFragmentRoot iPackageFragmentRoot = (IPackageFragmentRoot)packageFragment.getParent();
+			IJavaElement[] children = iPackageFragmentRoot.getChildren();
+			for(IJavaElement child : children) {
+				if(child.getElementType() == IJavaElement.PACKAGE_FRAGMENT) {
+					IPackageFragment rootPackageFragment = (IPackageFragment)child;
+					if(!rootPackageFragment.getElementName().equals(packageFragment.getElementName()) &&
+							rootPackageFragment.getElementName().contains(packageFragment.getElementName())) {
+						ICompilationUnit[] subPackageCompilationUnits = rootPackageFragment.getCompilationUnits();
+						for(ICompilationUnit iCompilationUnit : subPackageCompilationUnits) {
+							parseAST(iCompilationUnit);
+						}
+					}
+				}
 			}
 		} catch (JavaModelException e) {
 			e.printStackTrace();

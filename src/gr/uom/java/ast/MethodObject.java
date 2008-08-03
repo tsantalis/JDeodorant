@@ -38,12 +38,14 @@ public class MethodObject {
     private boolean _synchronized;
     private String className;
     private ConstructorObject constructorObject;
+    private boolean testAnnotation;
 
     public MethodObject(ConstructorObject co) {
         this.constructorObject = co;
         this._abstract = false;
         this._static = false;
         this._synchronized = false;
+        this.testAnnotation = false;
     }
 
     public void setReturnType(TypeObject returnType) {
@@ -86,7 +88,15 @@ public class MethodObject {
         return constructorObject.getName();
     }
 
-    public Access getAccess() {
+    public boolean hasTestAnnotation() {
+		return testAnnotation;
+	}
+
+	public void setTestAnnotation(boolean testAnnotation) {
+		this.testAnnotation = testAnnotation;
+	}
+
+	public Access getAccess() {
         return constructorObject.getAccess();
     }
 

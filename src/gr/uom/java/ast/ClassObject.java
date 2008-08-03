@@ -58,6 +58,14 @@ public class ClassObject {
     	return this.typeDeclaration;
     }
 
+    public boolean containsMethodWithTestAnnotation() {
+    	for(MethodObject method : methodList) {
+    		if(method.hasTestAnnotation())
+    			return true;
+    	}
+    	return false;
+    }
+
     public MethodObject getMethod(MethodInvocationObject mio) {
         ListIterator<MethodObject> mi = getMethodIterator();
         while(mi.hasNext()) {

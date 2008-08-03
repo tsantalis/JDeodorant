@@ -28,64 +28,81 @@ public class MySystem {
         ListIterator<ClassObject> classIterator1 = systemObject.getClassListIterator();
         while(classIterator1.hasNext()) {
             ClassObject co = classIterator1.next();
-            MyClass myClass = new MyClass(co.getName());
-            myClass.setClassObject(co);
-            if(systemObject.getClassObject(co.getSuperclass()) != null) {
-                myClass.setSuperclass(co.getSuperclass());
+            if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
+	            MyClass myClass = new MyClass(co.getName());
+	            myClass.setClassObject(co);
+	            if(systemObject.getClassObject(co.getSuperclass()) != null) {
+	                myClass.setSuperclass(co.getSuperclass());
+	            }
+	
+	            ListIterator<FieldObject> fieldIt = co.getFieldIterator();
+	            while(fieldIt.hasNext()) {
+	                FieldObject fo = fieldIt.next();
+	                if(!fo.isStatic()) {
+	                    MyAttribute myAttribute = new MyAttribute(co.getName(),fo.getType().toString(),fo.getName());
+	                    myAttribute.setAccess(fo.getAccess().toString());
+	                    if(associationDetection.containsFieldObject(fo))
+	                    	myAttribute.setReference(true);
+	                    myClass.addAttribute(myAttribute);
+	                }
+	            }
+	            classMap.put(co.getName(),myClass);
             }
-
-            ListIterator<FieldObject> fieldIt = co.getFieldIterator();
-            while(fieldIt.hasNext()) {
-                FieldObject fo = fieldIt.next();
-                if(!fo.isStatic()) {
-                    MyAttribute myAttribute = new MyAttribute(co.getName(),fo.getType().toString(),fo.getName());
-                    myAttribute.setAccess(fo.getAccess().toString());
-                    if(associationDetection.containsFieldObject(fo))
-                    	myAttribute.setReference(true);
-                    myClass.addAttribute(myAttribute);
-                }
-            }
-            classMap.put(co.getName(),myClass);
         }
         
         ListIterator<ClassObject> classIterator2 = systemObject.getClassListIterator();
         while(classIterator2.hasNext()) {
             ClassObject co = classIterator2.next();
-            MyClass myClass = classMap.get(co.getName());
-            ListIterator<MethodObject> methodIt = co.getMethodIterator();
-            while(methodIt.hasNext()) {
-                MethodObject mo = methodIt.next();
-                if(!mo.isStatic() && systemObject.containsGetter(mo.generateMethodInvocation()) == null &&
-                		systemObject.containsSetter(mo.generateMethodInvocation()) == null && systemObject.containsCollectionAdder(mo.generateMethodInvocation()) == null) {
-                    MethodInvocationObject delegation = systemObject.containsDelegate(mo.generateMethodInvocation());
-                    if(delegation == null || (delegation != null && systemObject.getClassObject(delegation.getOriginClassName()) == null)) {
-	                	MyMethod myMethod = new MyMethod(mo.getClassName(),mo.getName(),
-	                        mo.getReturnType().toString(),mo.getParameterList());
-	                    if(mo.isAbstract())
-	                        myMethod.setAbstract(true);
-	                    myMethod.setAccess(mo.getAccess().toString());
-	                    myMethod.setMethodObject(mo);
-	                    MethodBodyObject methodBodyObject = mo.getMethodBody();
-	                    if(methodBodyObject != null) {
-	                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, systemObject);
-	                    	myMethod.setMethodBody(myMethodBody);
+            if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
+	            MyClass myClass = classMap.get(co.getName());
+	            ListIterator<MethodObject> methodIt = co.getMethodIterator();
+	            while(methodIt.hasNext()) {
+	                MethodObject mo = methodIt.next();
+	                if(!mo.isStatic() && systemObject.containsGetter(mo.generateMethodInvocation()) == null &&
+	                		systemObject.containsSetter(mo.generateMethodInvocation()) == null && systemObject.containsCollectionAdder(mo.generateMethodInvocation()) == null) {
+	                    MethodInvocationObject delegation = systemObject.containsDelegate(mo.generateMethodInvocation());
+	                    if(delegation == null || (delegation != null && systemObject.getClassObject(delegation.getOriginClassName()) == null)) {
+		                	MyMethod myMethod = new MyMethod(mo.getClassName(),mo.getName(),
+		                        mo.getReturnType().toString(),mo.getParameterList());
+		                    if(mo.isAbstract())
+		                        myMethod.setAbstract(true);
+		                    myMethod.setAccess(mo.getAccess().toString());
+		                    myMethod.setMethodObject(mo);
+		                    MethodBodyObject methodBodyObject = mo.getMethodBody();
+		                    if(methodBodyObject != null) {
+		                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, systemObject);
+		                    	myMethod.setMethodBody(myMethodBody);
+		                    }
+		                    myClass.addMethod(myMethod);
+		                    ListIterator<MyAttributeInstruction> attributeInstructionIterator = myMethod.getAttributeInstructionIterator();
+		                    while(attributeInstructionIterator.hasNext()) {
+		                        MyAttributeInstruction myInstruction = attributeInstructionIterator.next();
+		                        MyClass ownerClass = classMap.get(myInstruction.getClassOrigin());
+		                        MyAttribute accessedAttribute = ownerClass.getAttribute(myInstruction);
+		                        if(accessedAttribute != null) {
+		                            if(accessedAttribute.isReference())
+		                                myMethod.setAttributeInstructionReference(myInstruction, true);
+		                            accessedAttribute.addMethod(myMethod);
+		                        }
+		                    }
 	                    }
-	                    myClass.addMethod(myMethod);
-	                    ListIterator<MyAttributeInstruction> attributeInstructionIterator = myMethod.getAttributeInstructionIterator();
-	                    while(attributeInstructionIterator.hasNext()) {
-	                        MyAttributeInstruction myInstruction = attributeInstructionIterator.next();
-	                        MyClass ownerClass = classMap.get(myInstruction.getClassOrigin());
-	                        MyAttribute accessedAttribute = ownerClass.getAttribute(myInstruction);
-	                        if(accessedAttribute != null) {
-	                            if(accessedAttribute.isReference())
-	                                myMethod.setAttributeInstructionReference(myInstruction, true);
-	                            accessedAttribute.addMethod(myMethod);
-	                        }
-	                    }
-                    }
-                }
+	                }
+	            }
             }
         }
+    }
+
+    private boolean extendsTestCase(ClassObject classObject) {
+    	if(classObject.getSuperclass() == null)
+    		return false;
+    	else if(classObject.getSuperclass().equals("junit.framework.TestCase"))
+    		return true;
+    	else {
+    		ClassObject superClassObject = systemObject.getClassObject(classObject.getSuperclass());
+    		if(superClassObject != null)
+    			return extendsTestCase(superClassObject);
+    	}
+    	return false;
     }
 
     public Iterator<MyClass> getClassIterator() {

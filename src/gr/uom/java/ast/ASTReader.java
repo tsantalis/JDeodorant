@@ -14,9 +14,11 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -124,7 +126,6 @@ public class ASTReader {
         		}
         		for(TypeDeclaration typeDeclaration : typeDeclarations) {
 	        		final ClassObject classObject = new ClassObject();
-	        		boolean extendsTestCase = false;
 		        	fileMap.put(typeDeclaration, iFile);
 		        	compilationUnitMap.put(typeDeclaration, compilationUnit);
 		        	classObject.setName(typeDeclaration.resolveBinding().getQualifiedName());
@@ -152,8 +153,6 @@ public class ASTReader {
 		        	if(superclassType != null) {
 		        		ITypeBinding binding = superclassType.resolveBinding();
 		        		classObject.setSuperclass(binding.getQualifiedName());
-		        		if(binding.getQualifiedName().equals("junit.framework.TestCase"))
-		        			extendsTestCase = true;
 		        	}
 		        	
 		        	List<Type> superInterfaceTypes = typeDeclaration.superInterfaceTypes();
@@ -228,6 +227,16 @@ public class ASTReader {
 		        		}
 		        		else {
 		        			MethodObject methodObject = new MethodObject(constructorObject);
+		        			List<IExtendedModifier> extendedModifiers = methodDeclaration.modifiers();
+			        		for(IExtendedModifier extendedModifier : extendedModifiers) {
+			        			if(extendedModifier.isAnnotation()) {
+			        				Annotation annotation = (Annotation)extendedModifier;
+			        				if(annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
+			        					methodObject.setTestAnnotation(true);
+			        					break;
+			        				}
+			        			}
+			        		}
 		        			Type returnType = methodDeclaration.getReturnType2();
 		        			ITypeBinding binding = returnType.resolveBinding();
 		        			String qualifiedName = binding.getQualifiedName();
@@ -257,8 +266,7 @@ public class ASTReader {
 		        				systemObject.addDelegate(methodObject.generateMethodInvocation(), methodInvocation);
 		        		}
 		        	}
-		        	if(!extendsTestCase)
-		        		systemObject.addClass(classObject);
+		        	systemObject.addClass(classObject);
         		}
         	}
         }	

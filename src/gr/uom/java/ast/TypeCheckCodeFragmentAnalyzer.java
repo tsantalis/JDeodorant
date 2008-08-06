@@ -22,6 +22,8 @@ import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -559,7 +561,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 												else {
 													parentExpression = simpleName;
 												}
-												boolean isLeftHandOfAssignment = false;
+												boolean isAssigned = false;
 												if(parentExpression.getParent() instanceof Assignment) {
 													Assignment assignment = (Assignment)parentExpression.getParent();
 													Expression leftHandSide = assignment.getLeftHandSide();
@@ -576,11 +578,24 @@ public class TypeCheckCodeFragmentAnalyzer {
 														leftHandSideName = leftHandSideFieldAccess.getName();
 													}
 													if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
-														isLeftHandOfAssignment = true;
+														isAssigned = true;
 														typeCheckElimination.addAssignedField(fragment);
 													}
 												}
-												if(!isLeftHandOfAssignment)
+												else if(parentExpression.getParent() instanceof PostfixExpression) {
+													//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
+													isAssigned = true;
+													typeCheckElimination.addAssignedField(fragment);
+												}
+												else if(parentExpression.getParent() instanceof PrefixExpression) {
+													PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
+													PrefixExpression.Operator operator = prefixExpression.getOperator();
+													if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+														isAssigned = true;
+														typeCheckElimination.addAssignedField(fragment);
+													}
+												}
+												if(!isAssigned)
 													typeCheckElimination.addAccessedField(fragment);
 											}
 										}
@@ -602,7 +617,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 										else {
 											parentExpression = simpleName;
 										}
-										boolean isLeftHandOfAssignment = false;
+										boolean isAssigned = false;
 										if(parentExpression.getParent() instanceof Assignment) {
 											Assignment assignment = (Assignment)parentExpression.getParent();
 											Expression leftHandSide = assignment.getLeftHandSide();
@@ -619,11 +634,24 @@ public class TypeCheckCodeFragmentAnalyzer {
 												leftHandSideName = leftHandSideFieldAccess.getName();
 											}
 											if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
-												isLeftHandOfAssignment = true;
+												isAssigned = true;
 												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
 											}
 										}
-										if(!isLeftHandOfAssignment)
+										else if(parentExpression.getParent() instanceof PostfixExpression) {
+											//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
+											isAssigned = true;
+											typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+										}
+										else if(parentExpression.getParent() instanceof PrefixExpression) {
+											PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
+											PrefixExpression.Operator operator = prefixExpression.getOperator();
+											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+												isAssigned = true;
+												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+											}
+										}
+										if(!isAssigned)
 											typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 									}
 								}
@@ -634,19 +662,32 @@ public class TypeCheckCodeFragmentAnalyzer {
 							for(SingleVariableDeclaration parameter : parameters) {
 								IVariableBinding parameterVariableBinding = parameter.resolveBinding();
 								if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-									boolean isLeftHandOfAssignment = false;
+									boolean isAssigned = false;
 									if(simpleName.getParent() instanceof Assignment) {
 										Assignment assignment = (Assignment)simpleName.getParent();
 										Expression leftHandSide = assignment.getLeftHandSide();
 										if(leftHandSide instanceof SimpleName) {
 											SimpleName leftHandSideName = (SimpleName)leftHandSide;
 											if(leftHandSideName.equals(simpleName)) {
-												isLeftHandOfAssignment = true;
+												isAssigned = true;
 												typeCheckElimination.addAssignedParameter(parameter);
 											}
 										}
 									}
-									if(!isLeftHandOfAssignment)
+									else if(simpleName.getParent() instanceof PostfixExpression) {
+										//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+										isAssigned = true;
+										typeCheckElimination.addAssignedParameter(parameter);
+									}
+									else if(simpleName.getParent() instanceof PrefixExpression) {
+										PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+										PrefixExpression.Operator operator = prefixExpression.getOperator();
+										if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+											isAssigned = true;
+											typeCheckElimination.addAssignedParameter(parameter);
+										}
+									}
+									if(!isAssigned)
 										typeCheckElimination.addAccessedParameter(parameter);
 									break;
 								}
@@ -660,19 +701,32 @@ public class TypeCheckCodeFragmentAnalyzer {
 								for(VariableDeclarationFragment fragment : fragments) {
 									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
 									if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-										boolean isLeftHandOfAssignment = false;
+										boolean isAssigned = false;
 										if(simpleName.getParent() instanceof Assignment) {
 											Assignment assignment = (Assignment)simpleName.getParent();
 											Expression leftHandSide = assignment.getLeftHandSide();
 											if(leftHandSide instanceof SimpleName) {
 												SimpleName leftHandSideName = (SimpleName)leftHandSide;
 												if(leftHandSideName.equals(simpleName)) {
-													isLeftHandOfAssignment = true;
+													isAssigned = true;
 													typeCheckElimination.addAssignedLocalVariable(fragment);
 												}
 											}
 										}
-										if(!isLeftHandOfAssignment)
+										else if(simpleName.getParent() instanceof PostfixExpression) {
+											//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+											isAssigned = true;
+											typeCheckElimination.addAssignedLocalVariable(fragment);
+										}
+										else if(simpleName.getParent() instanceof PrefixExpression) {
+											PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+											PrefixExpression.Operator operator = prefixExpression.getOperator();
+											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+												isAssigned = true;
+												typeCheckElimination.addAssignedLocalVariable(fragment);
+											}
+										}
+										if(!isAssigned)
 											typeCheckElimination.addAccessedLocalVariable(fragment);
 										break;
 									}
@@ -683,19 +737,32 @@ public class TypeCheckCodeFragmentAnalyzer {
 								SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
 								IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
 								if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-									boolean isLeftHandOfAssignment = false;
+									boolean isAssigned = false;
 									if(simpleName.getParent() instanceof Assignment) {
 										Assignment assignment = (Assignment)simpleName.getParent();
 										Expression leftHandSide = assignment.getLeftHandSide();
 										if(leftHandSide instanceof SimpleName) {
 											SimpleName leftHandSideName = (SimpleName)leftHandSide;
 											if(leftHandSideName.equals(simpleName)) {
-												isLeftHandOfAssignment = true;
+												isAssigned = true;
 												typeCheckElimination.addAssignedLocalVariable(formalParameter);
 											}
 										}
 									}
-									if(!isLeftHandOfAssignment)
+									else if(simpleName.getParent() instanceof PostfixExpression) {
+										//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+										isAssigned = true;
+										typeCheckElimination.addAssignedLocalVariable(formalParameter);
+									}
+									else if(simpleName.getParent() instanceof PrefixExpression) {
+										PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+										PrefixExpression.Operator operator = prefixExpression.getOperator();
+										if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+											isAssigned = true;
+											typeCheckElimination.addAssignedLocalVariable(formalParameter);
+										}
+									}
+									if(!isAssigned)
 										typeCheckElimination.addAccessedLocalVariable(formalParameter);
 									break;
 								}
@@ -705,10 +772,12 @@ public class TypeCheckCodeFragmentAnalyzer {
 				}
 			}
 		}
-		processRemainingIfStatementExpressions(variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment);
+		processRemainingIfStatementExpressions(variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment,
+				enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment);
 	}
 
-	private void processRemainingIfStatementExpressions(List<Statement> variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
+	private void processRemainingIfStatementExpressions(List<Statement> variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment,
+			List<Statement> enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		for(Expression complexExpression : complexExpressionMap.keySet()) {
 			DefaultMutableTreeNode root = typeCheckElimination.getRemainingIfStatementExpression(complexExpression);
@@ -747,46 +816,115 @@ public class TypeCheckCodeFragmentAnalyzer {
 						if(variableInstructionBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableInstructionVariableBinding = (IVariableBinding)variableInstructionBinding;
 							if(variableInstructionVariableBinding.isField()) {
-								if(variableInstructionVariableBinding.getDeclaringClass() != null && variableInstructionVariableBinding.getDeclaringClass().isEqualTo(typeDeclaration.resolveBinding())) {
-									for(FieldDeclaration field : fields) {
-										List<VariableDeclarationFragment> fragments = field.fragments();
-										for(VariableDeclarationFragment fragment : fragments) {
-											IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-											if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-												Expression parentExpression = null;
-												if(simpleName.getParent() instanceof QualifiedName) {
-													parentExpression = (QualifiedName)simpleName.getParent();
-												}
-												else if(simpleName.getParent() instanceof FieldAccess) {
-													parentExpression = (FieldAccess)simpleName.getParent();
-												}
-												else {
-													parentExpression = simpleName;
-												}
-												boolean isLeftHandOfAssignment = false;
-												if(parentExpression.getParent() instanceof Assignment) {
-													Assignment assignment = (Assignment)parentExpression.getParent();
-													Expression leftHandSide = assignment.getLeftHandSide();
-													SimpleName leftHandSideName = null;
-													if(leftHandSide instanceof SimpleName) {
-														leftHandSideName = (SimpleName)leftHandSide;
+								if(variableInstructionVariableBinding.getDeclaringClass() != null) {
+									if(variableInstructionVariableBinding.getDeclaringClass().isEqualTo(typeDeclaration.resolveBinding())) {
+										for(FieldDeclaration field : fields) {
+											List<VariableDeclarationFragment> fragments = field.fragments();
+											for(VariableDeclarationFragment fragment : fragments) {
+												IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+												if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+													Expression parentExpression = null;
+													if(simpleName.getParent() instanceof QualifiedName) {
+														parentExpression = (QualifiedName)simpleName.getParent();
 													}
-													else if(leftHandSide instanceof QualifiedName) {
-														QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
-														leftHandSideName = leftHandSideQualifiedName.getName();
+													else if(simpleName.getParent() instanceof FieldAccess) {
+														parentExpression = (FieldAccess)simpleName.getParent();
 													}
-													else if(leftHandSide instanceof FieldAccess) {
-														FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
-														leftHandSideName = leftHandSideFieldAccess.getName();
+													else {
+														parentExpression = simpleName;
 													}
-													if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
-														isLeftHandOfAssignment = true;
+													boolean isAssigned = false;
+													if(parentExpression.getParent() instanceof Assignment) {
+														Assignment assignment = (Assignment)parentExpression.getParent();
+														Expression leftHandSide = assignment.getLeftHandSide();
+														SimpleName leftHandSideName = null;
+														if(leftHandSide instanceof SimpleName) {
+															leftHandSideName = (SimpleName)leftHandSide;
+														}
+														else if(leftHandSide instanceof QualifiedName) {
+															QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+															leftHandSideName = leftHandSideQualifiedName.getName();
+														}
+														else if(leftHandSide instanceof FieldAccess) {
+															FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+															leftHandSideName = leftHandSideFieldAccess.getName();
+														}
+														if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
+															isAssigned = true;
+															typeCheckElimination.addAssignedField(fragment);
+														}
+													}
+													else if(parentExpression.getParent() instanceof PostfixExpression) {
+														//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
+														isAssigned = true;
 														typeCheckElimination.addAssignedField(fragment);
 													}
+													else if(parentExpression.getParent() instanceof PrefixExpression) {
+														PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
+														PrefixExpression.Operator operator = prefixExpression.getOperator();
+														if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+															isAssigned = true;
+															typeCheckElimination.addAssignedField(fragment);
+														}
+													}
+													if(!isAssigned)
+														typeCheckElimination.addAccessedField(fragment);
 												}
-												if(!isLeftHandOfAssignment)
-													typeCheckElimination.addAccessedField(fragment);
 											}
+										}
+									}
+									else {
+										ITypeBinding superclassTypeBinding = typeDeclaration.resolveBinding().getSuperclass();
+										while(superclassTypeBinding != null && !superclassTypeBinding.isEqualTo(variableInstructionVariableBinding.getDeclaringClass())) {
+											superclassTypeBinding = superclassTypeBinding.getSuperclass();
+										}
+										if(variableInstructionVariableBinding.getDeclaringClass().isEqualTo(superclassTypeBinding)) {
+											Expression parentExpression = null;
+											if(simpleName.getParent() instanceof QualifiedName) {
+												parentExpression = (QualifiedName)simpleName.getParent();
+											}
+											else if(simpleName.getParent() instanceof FieldAccess) {
+												parentExpression = (FieldAccess)simpleName.getParent();
+											}
+											else {
+												parentExpression = simpleName;
+											}
+											boolean isAssigned = false;
+											if(parentExpression.getParent() instanceof Assignment) {
+												Assignment assignment = (Assignment)parentExpression.getParent();
+												Expression leftHandSide = assignment.getLeftHandSide();
+												SimpleName leftHandSideName = null;
+												if(leftHandSide instanceof SimpleName) {
+													leftHandSideName = (SimpleName)leftHandSide;
+												}
+												else if(leftHandSide instanceof QualifiedName) {
+													QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
+													leftHandSideName = leftHandSideQualifiedName.getName();
+												}
+												else if(leftHandSide instanceof FieldAccess) {
+													FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
+													leftHandSideName = leftHandSideFieldAccess.getName();
+												}
+												if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
+													isAssigned = true;
+													typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+												}
+											}
+											else if(parentExpression.getParent() instanceof PostfixExpression) {
+												//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
+												isAssigned = true;
+												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+											}
+											else if(parentExpression.getParent() instanceof PrefixExpression) {
+												PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
+												PrefixExpression.Operator operator = prefixExpression.getOperator();
+												if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+													isAssigned = true;
+													typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+												}
+											}
+											if(!isAssigned)
+												typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 										}
 									}
 								}
@@ -796,19 +934,32 @@ public class TypeCheckCodeFragmentAnalyzer {
 								for(SingleVariableDeclaration parameter : parameters) {
 									IVariableBinding parameterVariableBinding = parameter.resolveBinding();
 									if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-										boolean isLeftHandOfAssignment = false;
+										boolean isAssigned = false;
 										if(simpleName.getParent() instanceof Assignment) {
 											Assignment assignment = (Assignment)simpleName.getParent();
 											Expression leftHandSide = assignment.getLeftHandSide();
 											if(leftHandSide instanceof SimpleName) {
 												SimpleName leftHandSideName = (SimpleName)leftHandSide;
 												if(leftHandSideName.equals(simpleName)) {
-													isLeftHandOfAssignment = true;
+													isAssigned = true;
 													typeCheckElimination.addAssignedParameter(parameter);
 												}
 											}
 										}
-										if(!isLeftHandOfAssignment)
+										else if(simpleName.getParent() instanceof PostfixExpression) {
+											//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+											isAssigned = true;
+											typeCheckElimination.addAssignedParameter(parameter);
+										}
+										else if(simpleName.getParent() instanceof PrefixExpression) {
+											PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+											PrefixExpression.Operator operator = prefixExpression.getOperator();
+											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+												isAssigned = true;
+												typeCheckElimination.addAssignedParameter(parameter);
+											}
+										}
+										if(!isAssigned)
 											typeCheckElimination.addAccessedParameter(parameter);
 										break;
 									}
@@ -822,23 +973,71 @@ public class TypeCheckCodeFragmentAnalyzer {
 									for(VariableDeclarationFragment fragment : fragments) {
 										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
 										if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-											boolean isLeftHandOfAssignment = false;
+											boolean isAssigned = false;
 											if(simpleName.getParent() instanceof Assignment) {
 												Assignment assignment = (Assignment)simpleName.getParent();
 												Expression leftHandSide = assignment.getLeftHandSide();
 												if(leftHandSide instanceof SimpleName) {
 													SimpleName leftHandSideName = (SimpleName)leftHandSide;
 													if(leftHandSideName.equals(simpleName)) {
-														isLeftHandOfAssignment = true;
+														isAssigned = true;
 														typeCheckElimination.addAssignedLocalVariable(fragment);
 													}
 												}
 											}
-											if(!isLeftHandOfAssignment)
+											else if(simpleName.getParent() instanceof PostfixExpression) {
+												//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+												isAssigned = true;
+												typeCheckElimination.addAssignedLocalVariable(fragment);
+											}
+											else if(simpleName.getParent() instanceof PrefixExpression) {
+												PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+												PrefixExpression.Operator operator = prefixExpression.getOperator();
+												if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+													isAssigned = true;
+													typeCheckElimination.addAssignedLocalVariable(fragment);
+												}
+											}
+											if(!isAssigned)
 												typeCheckElimination.addAccessedLocalVariable(fragment);
 											break;
 										}
 									}    											
+								}
+								for(Statement eFStatement : enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
+									EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
+									SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
+									IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
+									if(parameterVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+										boolean isAssigned = false;
+										if(simpleName.getParent() instanceof Assignment) {
+											Assignment assignment = (Assignment)simpleName.getParent();
+											Expression leftHandSide = assignment.getLeftHandSide();
+											if(leftHandSide instanceof SimpleName) {
+												SimpleName leftHandSideName = (SimpleName)leftHandSide;
+												if(leftHandSideName.equals(simpleName)) {
+													isAssigned = true;
+													typeCheckElimination.addAssignedLocalVariable(formalParameter);
+												}
+											}
+										}
+										else if(simpleName.getParent() instanceof PostfixExpression) {
+											//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+											isAssigned = true;
+											typeCheckElimination.addAssignedLocalVariable(formalParameter);
+										}
+										else if(simpleName.getParent() instanceof PrefixExpression) {
+											PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+											PrefixExpression.Operator operator = prefixExpression.getOperator();
+											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+												isAssigned = true;
+												typeCheckElimination.addAssignedLocalVariable(formalParameter);
+											}
+										}
+										if(!isAssigned)
+											typeCheckElimination.addAccessedLocalVariable(formalParameter);
+										break;
+									}
 								}
 							}
 						}

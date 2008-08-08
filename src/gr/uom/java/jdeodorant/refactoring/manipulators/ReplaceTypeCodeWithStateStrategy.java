@@ -55,6 +55,8 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -1802,7 +1804,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		for(VariableDeclarationFragment fragment : assignedFields) {
 			assignedFieldBindings.add(fragment.resolveBinding());
 		}
-		assignedFieldBindings.addAll(superAccessedFields);
+		assignedFieldBindings.addAll(superAssignedFields);
 		
 		for(Expression expression : newVariableInstructions) {
 			SimpleName newSimpleName = (SimpleName)expression;
@@ -1887,6 +1889,63 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 							MethodInvocation leftHandMethodInvocation = subclassAST.newMethodInvocation();
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(leftHandMethodName), null);
 							subclassRewriter.set(leftHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							InfixExpression infixArgument = null;
+							if(!newAssignment.getOperator().equals(Assignment.Operator.ASSIGN)) {
+								IMethodBinding getterMethodBinding = null;
+								if(superAccessedFields.contains(assignedFieldBinding)) {
+									getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(assignedFieldBinding);
+								}
+								else {
+									getterMethodBinding = findGetterMethodInContext(assignedFieldBinding);
+								}
+								String getterMethodName;
+								if(getterMethodBinding != null) {
+									getterMethodName = getterMethodBinding.getName();
+								}
+								else {
+									getterMethodName = assignedFieldBinding.getName();
+									getterMethodName = "get" + getterMethodName.substring(0,1).toUpperCase() + getterMethodName.substring(1,getterMethodName.length());
+								}
+								MethodInvocation getterMethodInvocation = subclassAST.newMethodInvocation();
+								subclassRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(getterMethodName), null);
+								subclassRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								
+								infixArgument = subclassAST.newInfixExpression();
+								subclassRewriter.set(infixArgument, InfixExpression.LEFT_OPERAND_PROPERTY, getterMethodInvocation, null);
+								if(newAssignment.getOperator().equals(Assignment.Operator.PLUS_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.PLUS, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.MINUS_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.MINUS, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.TIMES_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.TIMES, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.DIVIDE_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.DIVIDE, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.REMAINDER_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.REMAINDER, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.BIT_AND_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.AND, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.BIT_OR_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.OR, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.BIT_XOR_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.XOR, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.LEFT_SHIFT_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.LEFT_SHIFT, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.RIGHT_SHIFT_SIGNED_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.RIGHT_SHIFT_SIGNED, null);
+								}
+								else if(newAssignment.getOperator().equals(Assignment.Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN)) {
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.RIGHT_SHIFT_UNSIGNED, null);
+								}
+							}
 							ListRewrite methodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(leftHandMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 							if(newRightHandSideName != null) {
 								boolean accessedFieldFound = false;
@@ -1898,17 +1957,32 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 											if(newRightHandSideName.getParent() instanceof FieldAccess) {
 												FieldAccess fieldAccess = (FieldAccess)newRightHandSideName.getParent();
 												subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
-												methodInvocationArgumentsRewrite.insertLast(fieldAccess, null);
+												if(infixArgument != null) {
+													subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, fieldAccess, null);
+													methodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+												}
+												else
+													methodInvocationArgumentsRewrite.insertLast(fieldAccess, null);
 											}
 											else if(newRightHandSideName.getParent() instanceof QualifiedName) {
 												QualifiedName qualifiedName = (QualifiedName)newRightHandSideName.getParent();
-												methodInvocationArgumentsRewrite.insertLast(qualifiedName, null);
+												if(infixArgument != null) {
+													subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, qualifiedName, null);
+													methodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+												}
+												else
+													methodInvocationArgumentsRewrite.insertLast(qualifiedName, null);
 											}
 											else {
 												SimpleName simpleName = subclassAST.newSimpleName(newRightHandSideName.getIdentifier());
 												QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
 												subclassRewriter.replace(newRightHandSideName, newQualifiedName, null);
-												methodInvocationArgumentsRewrite.insertLast(newQualifiedName, null);
+												if(infixArgument != null) {
+													subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, newQualifiedName, null);
+													methodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+												}
+												else
+													methodInvocationArgumentsRewrite.insertLast(newQualifiedName, null);
 											}
 										}
 										else {
@@ -1930,17 +2004,33 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 											MethodInvocation rightHandMethodInvocation = subclassAST.newMethodInvocation();
 											subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(rightHandMethodName), null);
 											subclassRewriter.set(rightHandMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
-											methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
+											if(infixArgument != null) {
+												subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, rightHandMethodInvocation, null);
+												methodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+											}
+											else
+												methodInvocationArgumentsRewrite.insertLast(rightHandMethodInvocation, null);
 										}
 										accessedFieldFound = true;
 										break;
 									}
 								}
-								if(!accessedFieldFound)
-									methodInvocationArgumentsRewrite.insertLast(newAssignment.getRightHandSide(), null);
+								if(!accessedFieldFound) {
+									if(infixArgument != null) {
+										subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, newAssignment.getRightHandSide(), null);
+										methodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+									}
+									else
+										methodInvocationArgumentsRewrite.insertLast(newAssignment.getRightHandSide(), null);
+								}
 							}
 							else {
-								methodInvocationArgumentsRewrite.insertLast(newAssignment.getRightHandSide(), null);
+								if(infixArgument != null) {
+									subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, newAssignment.getRightHandSide(), null);
+									methodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+								}
+								else
+									methodInvocationArgumentsRewrite.insertLast(newAssignment.getRightHandSide(), null);
 							}
 							subclassRewriter.replace(newAssignment, leftHandMethodInvocation, null);
 							break;
@@ -1985,6 +2075,169 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 								subclassRewriter.set(newAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, rightHandMethodInvocation, null);
 							}
 							break;
+						}
+					}
+				}
+			}
+			else if(newParentExpression.getParent() instanceof PostfixExpression) {
+				PostfixExpression newPostfixExpression = (PostfixExpression)newParentExpression.getParent();
+				PostfixExpression oldPostfixExpression = (PostfixExpression)oldParentExpression.getParent();
+				Expression newOperand = newPostfixExpression.getOperand();
+				Expression oldOperand = oldPostfixExpression.getOperand();
+				SimpleName newOperandSimpleName = null;
+				SimpleName oldOperandSimpleName = null;
+				if(newOperand instanceof SimpleName) {
+					newOperandSimpleName = (SimpleName)newOperand;
+					oldOperandSimpleName = (SimpleName)oldOperand;
+				}
+				else if(newOperand instanceof QualifiedName) {
+					QualifiedName newOperandQualifiedName = (QualifiedName)newOperand;
+					newOperandSimpleName = newOperandQualifiedName.getName();
+					QualifiedName oldOperandQualifiedName = (QualifiedName)oldOperand;
+					oldOperandSimpleName = oldOperandQualifiedName.getName();
+				}
+				else if(newOperand instanceof FieldAccess) {
+					FieldAccess newOperandFieldAccess = (FieldAccess)newOperand;
+					newOperandSimpleName = newOperandFieldAccess.getName();
+					FieldAccess oldOperandFieldAccess = (FieldAccess)oldOperand;
+					oldOperandSimpleName = oldOperandFieldAccess.getName();
+				}
+				String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+				invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+				if(newOperandSimpleName != null && newOperandSimpleName.equals(newSimpleName)) {
+					for(IVariableBinding assignedFieldBinding : assignedFieldBindings) {
+						if(assignedFieldBinding.isEqualTo(oldOperandSimpleName.resolveBinding())) {
+							IMethodBinding setterMethodBinding = null;
+							if(superAssignedFields.contains(assignedFieldBinding)) {
+								setterMethodBinding = typeCheckElimination.getSetterMethodBindingOfSuperAssignedField(assignedFieldBinding);
+							}
+							else {
+								setterMethodBinding = findSetterMethodInContext(assignedFieldBinding);
+							}
+							String setterMethodName;
+							if(setterMethodBinding != null) {
+								setterMethodName = setterMethodBinding.getName();
+							}
+							else {
+								setterMethodName = assignedFieldBinding.getName();
+								setterMethodName = "set" + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
+							}
+							MethodInvocation setterMethodInvocation = subclassAST.newMethodInvocation();
+							subclassRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(setterMethodName), null);
+							subclassRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							
+							IMethodBinding getterMethodBinding = null;
+							if(superAccessedFields.contains(assignedFieldBinding)) {
+								getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(assignedFieldBinding);
+							}
+							else {
+								getterMethodBinding = findGetterMethodInContext(assignedFieldBinding);
+							}
+							String getterMethodName;
+							if(getterMethodBinding != null) {
+								getterMethodName = getterMethodBinding.getName();
+							}
+							else {
+								getterMethodName = assignedFieldBinding.getName();
+								getterMethodName = "get" + getterMethodName.substring(0,1).toUpperCase() + getterMethodName.substring(1,getterMethodName.length());
+							}
+							MethodInvocation getterMethodInvocation = subclassAST.newMethodInvocation();
+							subclassRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(getterMethodName), null);
+							subclassRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+							
+							InfixExpression infixArgument = subclassAST.newInfixExpression();
+							subclassRewriter.set(infixArgument, InfixExpression.LEFT_OPERAND_PROPERTY, getterMethodInvocation, null);
+							if(newPostfixExpression.getOperator().equals(PostfixExpression.Operator.INCREMENT))
+								subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.PLUS, null);
+							else if(newPostfixExpression.getOperator().equals(PostfixExpression.Operator.DECREMENT))
+								subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.MINUS, null);
+							subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, subclassAST.newNumberLiteral("1"), null);
+							ListRewrite setterMethodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+							setterMethodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+							subclassRewriter.replace(newPostfixExpression, setterMethodInvocation, null);
+						}
+					}
+				}
+			}
+			else if(newParentExpression.getParent() instanceof PrefixExpression) {
+				PrefixExpression newPrefixExpression = (PrefixExpression)newParentExpression.getParent();
+				PrefixExpression oldPrefixExpression = (PrefixExpression)oldParentExpression.getParent();
+				if(newPrefixExpression.getOperator().equals(PrefixExpression.Operator.INCREMENT) ||
+						newPrefixExpression.getOperator().equals(PrefixExpression.Operator.DECREMENT)) {
+					Expression newOperand = newPrefixExpression.getOperand();
+					Expression oldOperand = oldPrefixExpression.getOperand();
+					SimpleName newOperandSimpleName = null;
+					SimpleName oldOperandSimpleName = null;
+					if(newOperand instanceof SimpleName) {
+						newOperandSimpleName = (SimpleName)newOperand;
+						oldOperandSimpleName = (SimpleName)oldOperand;
+					}
+					else if(newOperand instanceof QualifiedName) {
+						QualifiedName newOperandQualifiedName = (QualifiedName)newOperand;
+						newOperandSimpleName = newOperandQualifiedName.getName();
+						QualifiedName oldOperandQualifiedName = (QualifiedName)oldOperand;
+						oldOperandSimpleName = oldOperandQualifiedName.getName();
+					}
+					else if(newOperand instanceof FieldAccess) {
+						FieldAccess newOperandFieldAccess = (FieldAccess)newOperand;
+						newOperandSimpleName = newOperandFieldAccess.getName();
+						FieldAccess oldOperandFieldAccess = (FieldAccess)oldOperand;
+						oldOperandSimpleName = oldOperandFieldAccess.getName();
+					}
+					String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+					invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+					if(newOperandSimpleName != null && newOperandSimpleName.equals(newSimpleName)) {
+						for(IVariableBinding assignedFieldBinding : assignedFieldBindings) {
+							if(assignedFieldBinding.isEqualTo(oldOperandSimpleName.resolveBinding())) {
+								IMethodBinding setterMethodBinding = null;
+								if(superAssignedFields.contains(assignedFieldBinding)) {
+									setterMethodBinding = typeCheckElimination.getSetterMethodBindingOfSuperAssignedField(assignedFieldBinding);
+								}
+								else {
+									setterMethodBinding = findSetterMethodInContext(assignedFieldBinding);
+								}
+								String setterMethodName;
+								if(setterMethodBinding != null) {
+									setterMethodName = setterMethodBinding.getName();
+								}
+								else {
+									setterMethodName = assignedFieldBinding.getName();
+									setterMethodName = "set" + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
+								}
+								MethodInvocation setterMethodInvocation = subclassAST.newMethodInvocation();
+								subclassRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(setterMethodName), null);
+								subclassRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								
+								IMethodBinding getterMethodBinding = null;
+								if(superAccessedFields.contains(assignedFieldBinding)) {
+									getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(assignedFieldBinding);
+								}
+								else {
+									getterMethodBinding = findGetterMethodInContext(assignedFieldBinding);
+								}
+								String getterMethodName;
+								if(getterMethodBinding != null) {
+									getterMethodName = getterMethodBinding.getName();
+								}
+								else {
+									getterMethodName = assignedFieldBinding.getName();
+									getterMethodName = "get" + getterMethodName.substring(0,1).toUpperCase() + getterMethodName.substring(1,getterMethodName.length());
+								}
+								MethodInvocation getterMethodInvocation = subclassAST.newMethodInvocation();
+								subclassRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(getterMethodName), null);
+								subclassRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+								
+								InfixExpression infixArgument = subclassAST.newInfixExpression();
+								subclassRewriter.set(infixArgument, InfixExpression.LEFT_OPERAND_PROPERTY, getterMethodInvocation, null);
+								if(newPrefixExpression.getOperator().equals(PrefixExpression.Operator.INCREMENT))
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.PLUS, null);
+								else if(newPrefixExpression.getOperator().equals(PrefixExpression.Operator.DECREMENT))
+									subclassRewriter.set(infixArgument, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.MINUS, null);
+								subclassRewriter.set(infixArgument, InfixExpression.RIGHT_OPERAND_PROPERTY, subclassAST.newNumberLiteral("1"), null);
+								ListRewrite setterMethodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+								setterMethodInvocationArgumentsRewrite.insertLast(infixArgument, null);
+								subclassRewriter.replace(newPrefixExpression, setterMethodInvocation, null);
+							}
 						}
 					}
 				}

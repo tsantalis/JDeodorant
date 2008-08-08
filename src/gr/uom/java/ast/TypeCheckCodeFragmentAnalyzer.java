@@ -580,12 +580,15 @@ public class TypeCheckCodeFragmentAnalyzer {
 													if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 														isAssigned = true;
 														typeCheckElimination.addAssignedField(fragment);
+														if(!assignment.getOperator().equals(Assignment.Operator.ASSIGN))
+															typeCheckElimination.addAccessedField(fragment);
 													}
 												}
 												else if(parentExpression.getParent() instanceof PostfixExpression) {
 													//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
 													isAssigned = true;
 													typeCheckElimination.addAssignedField(fragment);
+													typeCheckElimination.addAccessedField(fragment);
 												}
 												else if(parentExpression.getParent() instanceof PrefixExpression) {
 													PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
@@ -593,6 +596,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 													if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
 														isAssigned = true;
 														typeCheckElimination.addAssignedField(fragment);
+														typeCheckElimination.addAccessedField(fragment);
 													}
 												}
 												if(!isAssigned)
@@ -636,12 +640,15 @@ public class TypeCheckCodeFragmentAnalyzer {
 											if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 												isAssigned = true;
 												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+												if(!assignment.getOperator().equals(Assignment.Operator.ASSIGN))
+													typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 											}
 										}
 										else if(parentExpression.getParent() instanceof PostfixExpression) {
 											//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
 											isAssigned = true;
 											typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+											typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 										}
 										else if(parentExpression.getParent() instanceof PrefixExpression) {
 											PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
@@ -649,6 +656,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
 												isAssigned = true;
 												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+												typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 											}
 										}
 										if(!isAssigned)
@@ -852,12 +860,15 @@ public class TypeCheckCodeFragmentAnalyzer {
 														if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 															isAssigned = true;
 															typeCheckElimination.addAssignedField(fragment);
+															if(!assignment.getOperator().equals(Assignment.Operator.ASSIGN))
+																typeCheckElimination.addAccessedField(fragment);
 														}
 													}
 													else if(parentExpression.getParent() instanceof PostfixExpression) {
 														//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
 														isAssigned = true;
 														typeCheckElimination.addAssignedField(fragment);
+														typeCheckElimination.addAccessedField(fragment);
 													}
 													else if(parentExpression.getParent() instanceof PrefixExpression) {
 														PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
@@ -865,6 +876,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 														if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
 															isAssigned = true;
 															typeCheckElimination.addAssignedField(fragment);
+															typeCheckElimination.addAccessedField(fragment);
 														}
 													}
 													if(!isAssigned)
@@ -908,12 +920,15 @@ public class TypeCheckCodeFragmentAnalyzer {
 												if(leftHandSideName != null && leftHandSideName.equals(simpleName)) {
 													isAssigned = true;
 													typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+													if(!assignment.getOperator().equals(Assignment.Operator.ASSIGN))
+														typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 												}
 											}
 											else if(parentExpression.getParent() instanceof PostfixExpression) {
 												//PostfixExpression postfixExpression = (PostfixExpression)parentExpression.getParent();
 												isAssigned = true;
 												typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+												typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 											}
 											else if(parentExpression.getParent() instanceof PrefixExpression) {
 												PrefixExpression prefixExpression = (PrefixExpression)parentExpression.getParent();
@@ -921,6 +936,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 												if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
 													isAssigned = true;
 													typeCheckElimination.addSuperAssignedFieldBinding(variableInstructionVariableBinding, null);
+													typeCheckElimination.addSuperAccessedFieldBinding(variableInstructionVariableBinding, null);
 												}
 											}
 											if(!isAssigned)

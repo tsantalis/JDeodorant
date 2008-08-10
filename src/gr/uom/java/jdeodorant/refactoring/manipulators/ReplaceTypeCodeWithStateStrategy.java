@@ -54,6 +54,7 @@ import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
@@ -149,10 +150,70 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		VariableDeclarationFragment typeFragment = contextAST.newVariableDeclarationFragment();
 		sourceRewriter.set(typeFragment, VariableDeclarationFragment.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
+		Expression typeFieldInitializer = typeCheckElimination.getTypeField().getInitializer();
+		Set<SimpleName> allStaticFieldNames = new LinkedHashSet<SimpleName>(typeCheckElimination.getStaticFields());
+		allStaticFieldNames.addAll(additionalStaticFields.keySet());
+		if(typeFieldInitializer != null) {
+			SimpleName typeFieldInitializerSimpleName = null;
+			if(typeFieldInitializer instanceof SimpleName) {
+				typeFieldInitializerSimpleName = (SimpleName)typeFieldInitializer;
+			}
+			else if(typeFieldInitializer instanceof QualifiedName) {
+				QualifiedName typeFieldInitializerQualifiedName = (QualifiedName)typeFieldInitializer;
+				typeFieldInitializerSimpleName = typeFieldInitializerQualifiedName.getName();
+			}
+			else if(typeFieldInitializer instanceof FieldAccess) {
+				FieldAccess typeFieldInitializerFieldAccess = (FieldAccess)typeFieldInitializer;
+				typeFieldInitializerSimpleName = typeFieldInitializerFieldAccess.getName();
+			}
+			else if(typeFieldInitializer instanceof NumberLiteral) {
+				NumberLiteral typeFieldInitializerNumberLiteral = (NumberLiteral)typeFieldInitializer;
+				for(SimpleName staticFieldName : allStaticFieldNames) {
+					Object constantValue = ((IVariableBinding)staticFieldName.resolveBinding()).getConstantValue();
+					if(constantValue != null && constantValue instanceof Integer) {
+						Integer constantIntegerValue = (Integer)constantValue;
+						if(constantIntegerValue.toString().equals(typeFieldInitializerNumberLiteral.getToken())) {
+							ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+							String subclassName = generateSubclassName(staticFieldName);
+							sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassName), null);
+							sourceRewriter.set(typeFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, classInstanceCreation, null);
+							break;
+						}
+					}
+				}
+			}
+			if(typeFieldInitializerSimpleName != null) {
+				for(SimpleName staticFieldName : allStaticFieldNames) {
+					if(staticFieldName.resolveBinding().isEqualTo(typeFieldInitializerSimpleName.resolveBinding())) {
+						ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+						String subclassName = generateSubclassName(staticFieldName);
+						sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassName), null);
+						sourceRewriter.set(typeFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, classInstanceCreation, null);
+						break;
+					}
+				}
+			}
+		}
+		else {
+			for(SimpleName staticFieldName : allStaticFieldNames) {
+				Object constantValue = ((IVariableBinding)staticFieldName.resolveBinding()).getConstantValue();
+				if(constantValue != null && constantValue instanceof Integer) {
+					Integer constantIntegerValue = (Integer)constantValue;
+					if(constantIntegerValue.toString().equals("0")) {
+						ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+						String subclassName = generateSubclassName(staticFieldName);
+						sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassName), null);
+						sourceRewriter.set(typeFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, classInstanceCreation, null);
+						break;
+					}
+				}
+			}
+		}
+		
 		FieldDeclaration typeFieldDeclaration = contextAST.newFieldDeclaration(typeFragment);
 		sourceRewriter.set(typeFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(typeCheckElimination.getAbstractClassName()), null);
-		ListRewrite typeFieldDeclrationModifiersRewrite = sourceRewriter.getListRewrite(typeFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
-		typeFieldDeclrationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+		ListRewrite typeFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(typeFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+		typeFieldDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
 		contextBodyRewrite.insertFirst(typeFieldDeclaration, null);
 		
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();

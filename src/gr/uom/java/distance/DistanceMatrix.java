@@ -11,7 +11,6 @@ import gr.uom.java.ast.association.Association;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
-import gr.uom.java.ast.decomposition.ExtractionBlock;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 import java.util.*;
@@ -448,7 +447,7 @@ public class DistanceMatrix {
     	}
     	return candidateRefactoringList;
     }
-
+/*
     public List<ExtractAndMoveMethodCandidateRefactoring> getExtractAndMoveMethodCandidateRefactoringsByAccess() {
     	List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
     	Iterator<MyClass> classIt = system.getClassIterator();
@@ -566,7 +565,7 @@ public class DistanceMatrix {
         }
         return candidateRefactoringList;
     }
-
+*/
     public String[] getClassNames() {
         return classNames;
     }

@@ -1,5 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import org.eclipse.jdt.core.dom.Statement;
 
 import gr.uom.java.ast.decomposition.AbstractStatement;
@@ -60,6 +63,22 @@ public class CFGNode extends GraphNode {
 
 	public BasicBlock getBasicBlock() {
 		return basicBlock;
+	}
+
+	public Set<CFGBranchConditionalNode> getBackwardReachableConditionalNodes() {
+		Set<CFGBranchConditionalNode> conditionalNodes = new LinkedHashSet<CFGBranchConditionalNode>();
+		if(this instanceof CFGBranchConditionalNode) {
+			CFGBranchConditionalNode conditionalNode = (CFGBranchConditionalNode)this;
+			conditionalNodes.add(conditionalNode);
+		}
+		for(GraphEdge edge : incomingEdges) {
+			Flow flow = (Flow)edge;
+			if(!flow.isLoopbackFlow()) {
+				CFGNode srcNode = (CFGNode)flow.src;
+				conditionalNodes.addAll(srcNode.getBackwardReachableConditionalNodes());
+			}
+		}
+		return conditionalNodes;
 	}
 
 	public boolean equals(Object o) {

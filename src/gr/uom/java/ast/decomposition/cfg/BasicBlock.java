@@ -8,6 +8,8 @@ public class BasicBlock {
 	private int id;
 	private CFGNode leader;
 	private List<CFGNode> nodes;
+	private BasicBlock previousBasicBlock;
+	private BasicBlock nextBasicBlock;
 	
 	public BasicBlock(CFGNode node) {
 		blockNum++;
@@ -29,9 +31,39 @@ public class BasicBlock {
 		return nodes;
 	}
 
+	public List<CFGNode> getAllNodes() {
+		List<CFGNode> allNodes = new ArrayList<CFGNode>();
+		allNodes.add(leader);
+		allNodes.addAll(nodes);
+		return allNodes;
+	}
+
+	public CFGNode getLastNode() {
+		if(!nodes.isEmpty())
+			return nodes.get(nodes.size()-1);
+		else
+			return leader;
+	}
+
 	public void add(CFGNode node) {
 		nodes.add(node);
 		node.setBasicBlock(this);
+	}
+
+	public BasicBlock getPreviousBasicBlock() {
+		return previousBasicBlock;
+	}
+
+	public void setPreviousBasicBlock(BasicBlock previousBasicBlock) {
+		this.previousBasicBlock = previousBasicBlock;
+	}
+
+	public BasicBlock getNextBasicBlock() {
+		return nextBasicBlock;
+	}
+
+	public void setNextBasicBlock(BasicBlock nextBasicBlock) {
+		this.nextBasicBlock = nextBasicBlock;
 	}
 
 	public static void resetBlockNum() {

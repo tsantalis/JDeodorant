@@ -11,19 +11,33 @@ import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
+import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 public class CFG extends Graph {
+	private MethodObject method;
+	private List<CFGBranchConditionalNode> unjoinedConditionalNodes;
+	private BasicBlockCFG basicBlockCFG;
 	
-	public CFG(MethodBodyObject methodBody) {
-		CompositeStatementObject composite = methodBody.getCompositeStatement();
-		process(new ArrayList<CFGNode>(), composite);
-		GraphNode.resetNodeNum();
+	public CFG(MethodObject method) {
+		this.method = method;
+		this.unjoinedConditionalNodes = new ArrayList<CFGBranchConditionalNode>();
+		MethodBodyObject methodBody = method.getMethodBody();
+		if(methodBody != null) {
+			CompositeStatementObject composite = methodBody.getCompositeStatement();
+			process(new ArrayList<CFGNode>(), composite);
+			GraphNode.resetNodeNum();
+			this.basicBlockCFG = new BasicBlockCFG(this);
+		}
 	}
-	
+
+	public MethodObject getMethod() {
+		return method;
+	}
+
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
 		for(AbstractStatement abstractStatement : composite.getStatements()) {
 			if(abstractStatement instanceof StatementObject) {
@@ -42,7 +56,7 @@ public class CFG extends Graph {
 					previousNodes = process(previousNodes, compositeStatement);
 				}
 				else if(isLoop(compositeStatement)) {
-					CFGBranchNode currentNode = new CFGBranchNode(compositeStatement);
+					CFGBranchNode currentNode = new CFGBranchLoopNode(compositeStatement);
 					nodes.add(currentNode);
 					createTopDownFlow(previousNodes, currentNode);
 					previousNodes = new ArrayList<CFGNode>();
@@ -57,12 +71,18 @@ public class CFG extends Graph {
 						flow.setLoopbackFlow(true);
 						edges.add(flow);
 					}
+					if(previousNodes.size() > 1) {
+						for(CFGBranchConditionalNode conditionalNode : unjoinedConditionalNodes) {
+							conditionalNode.setJoinNode(currentNode);
+						}
+						unjoinedConditionalNodes.clear();
+					}
 					previousNodes = currentNodes;
 				}
 				else if(compositeStatement.getStatement() instanceof DoStatement) {
 					List<CFGNode> tmpNodes = previousNodes;
 					previousNodes = process(previousNodes, compositeStatement);
-					CFGBranchNode currentNode = new CFGBranchNode(compositeStatement);
+					CFGBranchNode currentNode = new CFGBranchDoLoopNode(compositeStatement);
 					nodes.add(currentNode);
 					createTopDownFlow(previousNodes, currentNode);
 					CFGNode topNode = getCommonNextNode(tmpNodes);
@@ -83,7 +103,8 @@ public class CFG extends Graph {
 	}
 
 	private List<CFGNode> processIfStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement) {
-		CFGBranchNode currentNode = new CFGBranchNode(compositeStatement);
+		CFGBranchConditionalNode currentNode = new CFGBranchConditionalNode(compositeStatement);
+		unjoinedConditionalNodes.add(currentNode);
 		nodes.add(currentNode);
 		createTopDownFlow(previousNodes, currentNode);
 		previousNodes = new ArrayList<CFGNode>();
@@ -145,6 +166,12 @@ public class CFG extends Graph {
 					flow.setFalseControlFlow(true);
 			}
 			edges.add(flow);
+		}
+		if(previousNodes.size() > 1) {
+			for(CFGBranchConditionalNode conditionalNode : unjoinedConditionalNodes) {
+				conditionalNode.setJoinNode(currentNode);
+			}
+			unjoinedConditionalNodes.clear();
 		}
 	}
 

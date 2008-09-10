@@ -16,6 +16,11 @@ public class BasicBlockCFG {
 			CFGNode node = (CFGNode)nodeIterator.next();
 			if(node.isLeader()) {
 				BasicBlock basicBlock = new BasicBlock(node);
+				if(!basicBlocks.isEmpty()) {
+					BasicBlock previousBlock = basicBlocks.get(basicBlocks.size()-1);
+					previousBlock.setNextBasicBlock(basicBlock);
+					basicBlock.setPreviousBasicBlock(previousBlock);
+				}
 				basicBlocks.add(basicBlock);
 			}
 			else {
@@ -29,12 +34,7 @@ public class BasicBlockCFG {
 	public Set<BasicBlock> forwardReach(BasicBlock basicBlock) {
 		Set<BasicBlock> reachableBlocks = new LinkedHashSet<BasicBlock>();
 		reachableBlocks.add(basicBlock);
-		List<CFGNode> basicBlockNodes = basicBlock.getNodes();
-		CFGNode lastNode = null;
-		if(!basicBlockNodes.isEmpty())
-			lastNode = basicBlockNodes.get(basicBlockNodes.size()-1);
-		else
-			lastNode = basicBlock.getLeader();
+		CFGNode lastNode = basicBlock.getLastNode();
 		for(GraphEdge edge : lastNode.outgoingEdges) {
 			Flow flow = (Flow)edge;
 			if(!flow.isLoopbackFlow()) {

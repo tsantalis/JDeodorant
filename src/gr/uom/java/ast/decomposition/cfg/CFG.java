@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Stack;
 
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.DoStatement;
@@ -18,13 +19,17 @@ import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 public class CFG extends Graph {
+	private static final int PUSH_NEW_LIST = 0;
+	private static final int JOIN_TOP_LIST = 1;
+	private static final int PLACE_NEW_LIST_SECOND_FROM_TOP = 2;
+	private static final int JOIN_SECOND_FROM_TOP_LIST = 3;
 	private MethodObject method;
-	private List<CFGBranchConditionalNode> unjoinedConditionalNodes;
+	private Stack<List<CFGBranchConditionalNode>> unjoinedConditionalNodes;
 	private BasicBlockCFG basicBlockCFG;
 	
 	public CFG(MethodObject method) {
 		this.method = method;
-		this.unjoinedConditionalNodes = new ArrayList<CFGBranchConditionalNode>();
+		this.unjoinedConditionalNodes = new Stack<List<CFGBranchConditionalNode>>();
 		MethodBodyObject methodBody = method.getMethodBody();
 		if(methodBody != null) {
 			CompositeStatementObject composite = methodBody.getCompositeStatement();
@@ -39,6 +44,7 @@ public class CFG extends Graph {
 	}
 
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
+		int i = 0;
 		for(AbstractStatement abstractStatement : composite.getStatements()) {
 			if(abstractStatement instanceof StatementObject) {
 				StatementObject statement = (StatementObject)abstractStatement;
@@ -72,10 +78,10 @@ public class CFG extends Graph {
 						edges.add(flow);
 					}
 					if(previousNodes.size() > 1) {
-						for(CFGBranchConditionalNode conditionalNode : unjoinedConditionalNodes) {
+						List<CFGBranchConditionalNode> conditionalNodes = unjoinedConditionalNodes.pop();
+						for(CFGBranchConditionalNode conditionalNode : conditionalNodes) {
 							conditionalNode.setJoinNode(currentNode);
 						}
-						unjoinedConditionalNodes.clear();
 					}
 					previousNodes = currentNodes;
 				}
@@ -95,16 +101,59 @@ public class CFG extends Graph {
 					previousNodes = currentNodes;
 				}
 				else if(compositeStatement.getStatement() instanceof IfStatement) {
-					previousNodes = processIfStatement(previousNodes, compositeStatement);
+					int action = PUSH_NEW_LIST;
+					List<AbstractStatement> statements = composite.getStatements();
+					if(statements.size() == 1)
+						action = JOIN_TOP_LIST;
+					else if(statements.size() > 1) {
+						AbstractStatement previousStatement = null;
+						if(i >= 1)
+							previousStatement = statements.get(i-1);
+						//current if statement is the last statement of the composite statement
+						if(statements.get(statements.size()-1).equals(compositeStatement)) {
+							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
+								action = JOIN_SECOND_FROM_TOP_LIST;
+							else
+								action = JOIN_TOP_LIST;
+						}
+						else {
+							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
+								action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+							else
+								action = PUSH_NEW_LIST;
+						}
+					}
+					previousNodes = processIfStatement(previousNodes, compositeStatement, action);
 				}
 			}
+			i++;
 		}
 		return previousNodes;
 	}
 
-	private List<CFGNode> processIfStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement) {
+	private List<CFGNode> processIfStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement, int action) {
 		CFGBranchConditionalNode currentNode = new CFGBranchConditionalNode(compositeStatement);
-		unjoinedConditionalNodes.add(currentNode);
+		if(action == JOIN_TOP_LIST && !unjoinedConditionalNodes.empty()) {
+			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.peek();
+			topList.add(currentNode);
+		}
+		else if(action == JOIN_SECOND_FROM_TOP_LIST) {
+			List<CFGBranchConditionalNode> list = unjoinedConditionalNodes.elementAt(unjoinedConditionalNodes.size()-2);
+			list.add(currentNode);
+		}
+		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP) {
+			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
+			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
+			list.add(currentNode);
+			unjoinedConditionalNodes.push(list);
+			unjoinedConditionalNodes.push(topList);
+		}
+		else {
+			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
+			list.add(currentNode);
+			unjoinedConditionalNodes.push(list);
+		}
+		
 		nodes.add(currentNode);
 		createTopDownFlow(previousNodes, currentNode);
 		previousNodes = new ArrayList<CFGNode>();
@@ -124,7 +173,7 @@ public class CFG extends Graph {
 			ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
 			currentNodes.add(currentNode);
 			if(thenClauseCompositeStatement.getStatement() instanceof IfStatement)
-				previousNodes.addAll(processIfStatement(currentNodes, thenClauseCompositeStatement));
+				previousNodes.addAll(processIfStatement(currentNodes, thenClauseCompositeStatement, JOIN_TOP_LIST));
 			else
 				previousNodes.addAll(process(currentNodes, thenClauseCompositeStatement));
 		}
@@ -144,7 +193,7 @@ public class CFG extends Graph {
 				ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
 				currentNodes.add(currentNode);
 				if(elseClauseCompositeStatement.getStatement() instanceof IfStatement)
-					previousNodes.addAll(processIfStatement(currentNodes, elseClauseCompositeStatement));
+					previousNodes.addAll(processIfStatement(currentNodes, elseClauseCompositeStatement, JOIN_TOP_LIST));
 				else
 					previousNodes.addAll(process(currentNodes, elseClauseCompositeStatement));
 			}
@@ -168,10 +217,10 @@ public class CFG extends Graph {
 			edges.add(flow);
 		}
 		if(previousNodes.size() > 1) {
-			for(CFGBranchConditionalNode conditionalNode : unjoinedConditionalNodes) {
+			List<CFGBranchConditionalNode> conditionalNodes = unjoinedConditionalNodes.pop();
+			for(CFGBranchConditionalNode conditionalNode : conditionalNodes) {
 				conditionalNode.setJoinNode(currentNode);
 			}
-			unjoinedConditionalNodes.clear();
 		}
 	}
 

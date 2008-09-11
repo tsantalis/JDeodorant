@@ -138,8 +138,10 @@ public class CFG extends Graph {
 			topList.add(currentNode);
 		}
 		else if(action == JOIN_SECOND_FROM_TOP_LIST) {
-			List<CFGBranchConditionalNode> list = unjoinedConditionalNodes.elementAt(unjoinedConditionalNodes.size()-2);
-			list.add(currentNode);
+			if(unjoinedConditionalNodes.size() > 1) {
+				List<CFGBranchConditionalNode> list = unjoinedConditionalNodes.elementAt(unjoinedConditionalNodes.size()-2);
+				list.add(currentNode);
+			}
 		}
 		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP) {
 			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();

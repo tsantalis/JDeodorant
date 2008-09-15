@@ -1,10 +1,5 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
-
-import org.eclipse.jdt.core.dom.Statement;
-
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGNode extends GraphNode {
@@ -18,10 +13,6 @@ public class CFGNode extends GraphNode {
 
 	public AbstractStatement getStatement() {
 		return statement;
-	}
-
-	public Statement getASTStatement() {
-		return statement.getStatement();
 	}
 
 	public boolean isLeader() {
@@ -40,7 +31,13 @@ public class CFGNode extends GraphNode {
 	}
 
 	public boolean isFirst() {
-		if(incomingEdges.size() == 0)
+		int numberOfNonLoopbackFlows = 0;
+		for(GraphEdge edge : incomingEdges) {
+			Flow flow = (Flow)edge;
+			if(!flow.isLoopbackFlow())
+				numberOfNonLoopbackFlows++;
+		}
+		if(numberOfNonLoopbackFlows == 0)
 			return true;
 		return false;
 	}
@@ -63,22 +60,6 @@ public class CFGNode extends GraphNode {
 
 	public BasicBlock getBasicBlock() {
 		return basicBlock;
-	}
-
-	public Set<CFGBranchConditionalNode> getBackwardReachableConditionalNodes() {
-		Set<CFGBranchConditionalNode> conditionalNodes = new LinkedHashSet<CFGBranchConditionalNode>();
-		if(this instanceof CFGBranchConditionalNode) {
-			CFGBranchConditionalNode conditionalNode = (CFGBranchConditionalNode)this;
-			conditionalNodes.add(conditionalNode);
-		}
-		for(GraphEdge edge : incomingEdges) {
-			Flow flow = (Flow)edge;
-			if(!flow.isLoopbackFlow()) {
-				CFGNode srcNode = (CFGNode)flow.src;
-				conditionalNodes.addAll(srcNode.getBackwardReachableConditionalNodes());
-			}
-		}
-		return conditionalNodes;
 	}
 
 	public boolean equals(Object o) {

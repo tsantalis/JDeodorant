@@ -1,10 +1,14 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.Block;
+
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 
 public abstract class CFGBranchNode extends CFGNode {
 
@@ -43,5 +47,37 @@ public abstract class CFGBranchNode extends CFGNode {
 
 	public abstract CFGNode getJoinNode();
 	
-	public abstract Set<CFGNode> getImmediatelyNestedNodes();
+	public abstract List<BasicBlock> getNestedBasicBlocks();
+
+	public Set<CFGNode> getImmediatelyNestedNodesFromAST() {
+		Set<CFGNode> nestedNodes = new LinkedHashSet<CFGNode>();
+		AbstractStatement abstractStatement = getStatement();
+		if(abstractStatement instanceof CompositeStatementObject) {
+			Set<AbstractStatement> nestedStatements = new LinkedHashSet<AbstractStatement>();
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			List<AbstractStatement> statements = composite.getStatements();
+			for(AbstractStatement statement : statements) {
+				if(statement.getStatement() instanceof Block) {
+					CompositeStatementObject blockStatement = (CompositeStatementObject)statement;
+					nestedStatements.addAll(blockStatement.getStatements());
+				}
+				else
+					nestedStatements.add(statement);
+			}
+			List<BasicBlock> nestedBasicBlocks = getNestedBasicBlocks();
+			if(this instanceof CFGBranchDoLoopNode)
+				nestedBasicBlocks.add(getBasicBlock());
+			else
+				nestedBasicBlocks.add(0, getBasicBlock());
+			for(BasicBlock nestedBlock : nestedBasicBlocks) {
+				List<CFGNode> nodes = nestedBlock.getAllNodes();
+				for(CFGNode node : nodes) {
+					if(nestedStatements.contains(node.getStatement())) {
+						nestedNodes.add(node);
+					}
+				}
+			}
+		}
+		return nestedNodes;
+	}
 }

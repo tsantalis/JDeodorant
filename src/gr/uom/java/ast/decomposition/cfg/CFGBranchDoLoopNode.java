@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
@@ -15,7 +16,19 @@ public class CFGBranchDoLoopNode extends CFGBranchNode {
 		return (CFGNode)flow.dst;
 	}
 
-	public Set<CFGNode> getImmediatelyNestedNodes() {
-		return null;
+	public List<BasicBlock> getNestedBasicBlocks() {
+		List<BasicBlock> blocksBetween = new ArrayList<BasicBlock>();
+		BasicBlock srcBlock = getBasicBlock();
+		BasicBlock joinBlock = getJoinNode().getBasicBlock();
+		//join node is always before do-loop node
+		blocksBetween.add(joinBlock);
+		BasicBlock nextBlock = joinBlock;
+		if(!joinBlock.equals(srcBlock)) {
+			while(!nextBlock.getNextBasicBlock().equals(srcBlock)) {
+				nextBlock = nextBlock.getNextBasicBlock();
+				blocksBetween.add(nextBlock);
+			}
+		}
+		return blocksBetween;
 	}
 }

@@ -142,6 +142,13 @@ public class CFG extends Graph {
 				List<CFGBranchConditionalNode> list = unjoinedConditionalNodes.elementAt(unjoinedConditionalNodes.size()-2);
 				list.add(currentNode);
 			}
+			else {
+				List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
+				List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
+				list.add(currentNode);
+				unjoinedConditionalNodes.push(list);
+				unjoinedConditionalNodes.push(topList);
+			}
 		}
 		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP) {
 			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
@@ -211,7 +218,7 @@ public class CFG extends Graph {
 			Flow flow = new Flow(previousNode, currentNode);
 			if(previousNode instanceof CFGBranchNode) {
 				if(currentNode.getId() == previousNode.getId() + 1 &&
-						!(previousNode.getASTStatement() instanceof DoStatement))
+						!(previousNode instanceof CFGBranchDoLoopNode))
 					flow.setTrueControlFlow(true);
 				else
 					flow.setFalseControlFlow(true);

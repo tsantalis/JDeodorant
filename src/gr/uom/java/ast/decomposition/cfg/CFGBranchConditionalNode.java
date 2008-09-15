@@ -1,10 +1,14 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.Block;
+
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 
 public class CFGBranchConditionalNode extends CFGBranchNode {
 	private CFGNode joinNode;
@@ -21,25 +25,18 @@ public class CFGBranchConditionalNode extends CFGBranchNode {
 		return joinNode;
 	}
 
-	public Set<CFGNode> getImmediatelyNestedNodes() {
-		return null;
-	}
-
 	public List<BasicBlock> getNestedBasicBlocks() {
 		List<BasicBlock> blocksBetween = new ArrayList<BasicBlock>();
 		BasicBlock srcBlock = getBasicBlock();
 		if(joinNode != null) {
-			CFGNode dstNode = null;
-			if(joinNode instanceof CFGBranchLoopNode) {
+			CFGNode dstNode = joinNode;
+			if(dstNode.getBasicBlock().getId() < srcBlock.getId() && joinNode instanceof CFGBranchLoopNode) {
 				CFGBranchLoopNode loopNode = (CFGBranchLoopNode)joinNode;
 				Flow falseControlFlow = loopNode.getFalseControlFlow();
 				if(falseControlFlow != null)
 					dstNode = (CFGNode)falseControlFlow.dst;
 				else
 					return getNestedBasicBlocksToEnd();
-			}
-			else {
-				dstNode = joinNode;
 			}
 			BasicBlock dstBlock = dstNode.getBasicBlock();
 			if(srcBlock.getId() < dstBlock.getId()) {
@@ -49,7 +46,7 @@ public class CFGBranchConditionalNode extends CFGBranchNode {
 					blocksBetween.add(nextBlock);
 				}
 			}
-			else if(srcBlock.getId() > dstBlock.getId()) {
+			else if(srcBlock.getId() >= dstBlock.getId()) {
 				return getNestedBasicBlocksToEnd();
 			}
 		}
@@ -57,5 +54,63 @@ public class CFGBranchConditionalNode extends CFGBranchNode {
 			return getNestedBasicBlocksToEnd();
 		}
 		return blocksBetween;
+	}
+
+	public Set<CFGNode> getImmediatelyNestedNodesInTrueControlFlow() {
+		Set<CFGNode> nestedNodes = new LinkedHashSet<CFGNode>();
+		AbstractStatement abstractStatement = getStatement();
+		if(abstractStatement instanceof CompositeStatementObject) {
+			Set<AbstractStatement> nestedStatements = new LinkedHashSet<AbstractStatement>();
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			List<AbstractStatement> statements = composite.getStatements();
+			AbstractStatement trueControlFlowStatement = statements.get(0);
+			if(trueControlFlowStatement.getStatement() instanceof Block) {
+				CompositeStatementObject blockStatement = (CompositeStatementObject)trueControlFlowStatement;
+				nestedStatements.addAll(blockStatement.getStatements());
+			}
+			else
+				nestedStatements.add(trueControlFlowStatement);
+			List<BasicBlock> nestedBasicBlocks = getNestedBasicBlocks();
+			nestedBasicBlocks.add(0, getBasicBlock());
+			for(BasicBlock nestedBlock : nestedBasicBlocks) {
+				List<CFGNode> nodes = nestedBlock.getAllNodes();
+				for(CFGNode node : nodes) {
+					if(nestedStatements.contains(node.getStatement())) {
+						nestedNodes.add(node);
+					}
+				}
+			}
+		}
+		return nestedNodes;
+	}
+
+	public Set<CFGNode> getImmediatelyNestedNodesInFalseControlFlow() {
+		Set<CFGNode> nestedNodes = new LinkedHashSet<CFGNode>();
+		AbstractStatement abstractStatement = getStatement();
+		if(abstractStatement instanceof CompositeStatementObject) {
+			Set<AbstractStatement> nestedStatements = new LinkedHashSet<AbstractStatement>();
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			List<AbstractStatement> statements = composite.getStatements();
+			if(statements.size() == 2) {
+				AbstractStatement falseControlFlowStatement = statements.get(1);
+				if(falseControlFlowStatement.getStatement() instanceof Block) {
+					CompositeStatementObject blockStatement = (CompositeStatementObject)falseControlFlowStatement;
+					nestedStatements.addAll(blockStatement.getStatements());
+				}
+				else
+					nestedStatements.add(falseControlFlowStatement);
+				List<BasicBlock> nestedBasicBlocks = getNestedBasicBlocks();
+				nestedBasicBlocks.add(0, getBasicBlock());
+				for(BasicBlock nestedBlock : nestedBasicBlocks) {
+					List<CFGNode> nodes = nestedBlock.getAllNodes();
+					for(CFGNode node : nodes) {
+						if(nestedStatements.contains(node.getStatement())) {
+							nestedNodes.add(node);
+						}
+					}
+				}
+			}
+		}
+		return nestedNodes;
 	}
 }

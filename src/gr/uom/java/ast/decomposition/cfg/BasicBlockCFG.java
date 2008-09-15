@@ -30,8 +30,12 @@ public class BasicBlockCFG {
 		}
 		BasicBlock.resetBlockNum();
 	}
-	
-	public Set<BasicBlock> forwardReach(BasicBlock basicBlock) {
+
+	public List<BasicBlock> getBasicBlocks() {
+		return basicBlocks;
+	}
+
+	public Set<BasicBlock> forwardReachableBlocks(BasicBlock basicBlock) {
 		Set<BasicBlock> reachableBlocks = new LinkedHashSet<BasicBlock>();
 		reachableBlocks.add(basicBlock);
 		CFGNode lastNode = basicBlock.getLastNode();
@@ -41,7 +45,7 @@ public class BasicBlockCFG {
 				CFGNode dstNode = (CFGNode)flow.dst;
 				BasicBlock dstBasicBlock = dstNode.getBasicBlock();
 				reachableBlocks.add(dstBasicBlock);
-				reachableBlocks.addAll(forwardReach(dstBasicBlock));
+				reachableBlocks.addAll(forwardReachableBlocks(dstBasicBlock));
 			}
 		}
 		return reachableBlocks;

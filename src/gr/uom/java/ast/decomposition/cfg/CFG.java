@@ -43,6 +43,14 @@ public class CFG extends Graph {
 		return method;
 	}
 
+	public BasicBlockCFG getBasicBlockCFG() {
+		return basicBlockCFG;
+	}
+
+	public List<BasicBlock> getBasicBlocks() {
+		return basicBlockCFG.getBasicBlocks();
+	}
+
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
 		int i = 0;
 		for(AbstractStatement abstractStatement : composite.getStatements()) {

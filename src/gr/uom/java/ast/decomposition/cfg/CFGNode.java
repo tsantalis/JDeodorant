@@ -5,6 +5,7 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 public class CFGNode extends GraphNode {
 	private AbstractStatement statement;
 	private BasicBlock basicBlock;
+	private PDGNode pdgNode;
 
 	public CFGNode(AbstractStatement statement) {
 		super();
@@ -60,6 +61,14 @@ public class CFGNode extends GraphNode {
 
 	public BasicBlock getBasicBlock() {
 		return basicBlock;
+	}
+
+	public PDGNode getPDGNode() {
+		return pdgNode;
+	}
+
+	public void setPDGNode(PDGNode pdgNode) {
+		this.pdgNode = pdgNode;
 	}
 
 	public boolean equals(Object o) {

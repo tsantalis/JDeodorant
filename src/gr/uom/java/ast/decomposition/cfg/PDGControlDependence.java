@@ -23,4 +23,13 @@ public class PDGControlDependence extends PDGDependence {
 	public void setFalseControlDependence(boolean falseControlDependence) {
 		this.falseControlDependence = falseControlDependence;
 	}
+
+	public String toString() {
+		StringBuilder type = new StringBuilder();
+		if(trueControlDependence)
+			type.append("T");
+		else if(falseControlDependence)
+			type.append("F");
+		return src.toString() + "-->" + type.toString() + "\n" + dst.toString();
+	}
 }

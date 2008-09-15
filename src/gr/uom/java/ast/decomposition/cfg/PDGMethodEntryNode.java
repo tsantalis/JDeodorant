@@ -9,4 +9,12 @@ public class PDGMethodEntryNode extends PDGNode {
 		this.method = method;
 		this.id = 0;
 	}
+
+	public BasicBlock getBasicBlock() {
+		return null;
+	}
+
+	public String toString() {
+		return id + "\t" + method.getName();
+	}
 }

@@ -132,6 +132,36 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of Assignment objects
+	public List<Expression> getAssignments(Expression expression) {
+		instanceChecker = new InstanceOfAssignment();
+		return getExpressions(expression);
+	}
+	
+	// returns a List of PostfixExpression objects
+	public List<Expression> getPostfixExpressions(Statement statement) {
+		instanceChecker = new InstanceOfPostfixExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of PostfixExpression objects
+	public List<Expression> getPostfixExpressions(Expression expression) {
+		instanceChecker = new InstanceOfPostfixExpression();
+		return getExpressions(expression);
+	}
+	
+	// returns a List of PrefixExpression objects
+	public List<Expression> getPrefixExpressions(Statement statement) {
+		instanceChecker = new InstanceOfPrefixExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of PrefixExpression objects
+	public List<Expression> getPrefixExpressions(Expression expression) {
+		instanceChecker = new InstanceOfPrefixExpression();
+		return getExpressions(expression);
+	}
+	
 	private List<Expression> getExpressions(Statement statement) {
 		List<Expression> expressionList = new ArrayList<Expression>();
 		if(statement instanceof Block) {
@@ -345,10 +375,14 @@ public class ExpressionExtractor {
 		else if(expression instanceof PostfixExpression) {
 			PostfixExpression postfixExpression = (PostfixExpression)expression;
 			expressionList.addAll(getExpressions(postfixExpression.getOperand()));
+			if(instanceChecker.instanceOf(postfixExpression))
+				expressionList.add(postfixExpression);
 		}
 		else if(expression instanceof PrefixExpression) {
 			PrefixExpression prefixExpression = (PrefixExpression)expression;
 			expressionList.addAll(getExpressions(prefixExpression.getOperand()));
+			if(instanceChecker.instanceOf(prefixExpression))
+				expressionList.add(prefixExpression);
 		}
 		else if(expression instanceof SuperMethodInvocation) {
 			SuperMethodInvocation superMethodInvocation = (SuperMethodInvocation)expression;

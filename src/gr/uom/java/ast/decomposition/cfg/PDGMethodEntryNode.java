@@ -6,6 +6,7 @@ public class PDGMethodEntryNode extends PDGNode {
 	private MethodObject method;
 	
 	public PDGMethodEntryNode(MethodObject method) {
+		super();
 		this.method = method;
 		this.id = 0;
 	}

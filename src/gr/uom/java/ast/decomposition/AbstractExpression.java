@@ -11,13 +11,19 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.ArrayAccess;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 
@@ -116,7 +122,103 @@ public class AbstractExpression {
 			}
 		}
     }
-    
+
+	public Assignment containsLocalVariableAssignment(LocalVariableInstructionObject lvio) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> assignments = expressionExtractor.getAssignments(expression);
+		for(Expression expression : assignments) {
+			Assignment assignment = (Assignment)expression;
+			Expression leftHandSide = assignment.getLeftHandSide();
+			SimpleName leftHandSideName = processExpression(leftHandSide);
+			if(leftHandSideName != null) {
+				IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
+				if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
+					if(!leftHandSideVariableBinding.isField() && !leftHandSideVariableBinding.isParameter()) {
+						if(leftHandSideName.getIdentifier().equals(lvio.getName()))
+							return assignment;
+					}
+				}
+			}
+		}
+		return null;
+	}
+	
+	public PostfixExpression containsLocalVariablePostfixAssignment(LocalVariableInstructionObject lvio) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(expression);
+		for(Expression expression : postfixExpressions) {
+			PostfixExpression postfixExpression = (PostfixExpression)expression;
+			Expression operand = postfixExpression.getOperand();
+			SimpleName operandName = processExpression(operand);
+			if(operandName != null) {
+				IBinding operandBinding = operandName.resolveBinding();
+				if(operandBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+					if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
+						if(operandName.getIdentifier().equals(lvio.getName()))
+							return postfixExpression;
+					}
+				}
+			}
+		}
+		return null;
+	}
+	
+	public PrefixExpression containsLocalVariablePrefixAssignment(LocalVariableInstructionObject lvio) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(expression);
+		for(Expression expression : prefixExpressions) {
+			PrefixExpression prefixExpression = (PrefixExpression)expression;
+			Expression operand = prefixExpression.getOperand();
+			PrefixExpression.Operator operator = prefixExpression.getOperator();
+			SimpleName operandName = processExpression(operand);
+			if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+					operator.equals(PrefixExpression.Operator.DECREMENT))) {
+				IBinding operandBinding = operandName.resolveBinding();
+				if(operandBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+					if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
+						if(operandName.getIdentifier().equals(lvio.getName()))
+							return prefixExpression;
+					}
+				}
+			}
+		}
+		return null;
+	}
+	
+	private SimpleName processExpression(Expression expression) {
+		SimpleName simpleName = null;
+		if(expression instanceof SimpleName) {
+			simpleName = (SimpleName)expression;
+		}
+		else if(expression instanceof QualifiedName) {
+			QualifiedName leftHandSideQualifiedName = (QualifiedName)expression;
+			simpleName = leftHandSideQualifiedName.getName();
+		}
+		else if(expression instanceof FieldAccess) {
+			FieldAccess leftHandSideFieldAccess = (FieldAccess)expression;
+			simpleName = leftHandSideFieldAccess.getName();
+		}
+		else if(expression instanceof ArrayAccess) {
+			ArrayAccess leftHandSideArrayAccess = (ArrayAccess)expression;
+			Expression array = leftHandSideArrayAccess.getArray();
+			if(array instanceof SimpleName) {
+				simpleName = (SimpleName)array;
+			}
+			else if(array instanceof QualifiedName) {
+				QualifiedName arrayQualifiedName = (QualifiedName)array;
+				simpleName = arrayQualifiedName.getName();
+			}
+			else if(array instanceof FieldAccess) {
+				FieldAccess arrayFieldAccess = (FieldAccess)array;
+				simpleName = arrayFieldAccess.getName();
+			}
+		}
+		return simpleName;
+	}
+	
     public void setOwner(CompositeStatementObject owner) {
     	this.owner = owner;
     }

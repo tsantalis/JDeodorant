@@ -1,10 +1,19 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.LocalVariableInstructionObject;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 public class PDGNode extends GraphNode {
 	private CFGNode cfgNode;
+	protected Set<LocalVariableInstructionObject> definedVariables;
+	protected Set<LocalVariableInstructionObject> usedVariables;
 	
 	public PDGNode() {
 		super();
+		this.definedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
+		this.usedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
 	}
 	
 	public PDGNode(CFGNode cfgNode) {
@@ -12,6 +21,8 @@ public class PDGNode extends GraphNode {
 		this.cfgNode = cfgNode;
 		this.id = cfgNode.id;
 		cfgNode.setPDGNode(this);
+		this.definedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
+		this.usedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
 	}
 
 	public CFGNode getCFGNode() {

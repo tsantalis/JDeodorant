@@ -1,10 +1,10 @@
 package gr.uom.java.ast.decomposition;
 
-import java.util.Set;
+import java.util.List;
 
 import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
@@ -40,8 +40,7 @@ public class StatementObject extends AbstractStatement {
 		super(statement);
 	}
 	
-	public boolean isLocalVariableAssignment(LocalVariableDeclarationObject lvdo) {
-		LocalVariableInstructionObject lvio = lvdo.generateLocalVariableInstruction();
+	public boolean isLocalVariableAssignment(LocalVariableInstructionObject lvio) {
 		if( getLocalVariableInstructions().contains(lvio) ) {
 			Statement statement = getStatement();
 			if(statement instanceof ExpressionStatement) {
@@ -50,13 +49,13 @@ public class StatementObject extends AbstractStatement {
 				if(expression instanceof Assignment) {
 					Assignment assignment = (Assignment)expression;
 					Expression leftHandSide = assignment.getLeftHandSide();
-					if(leftHandSide instanceof SimpleName) {
-						SimpleName leftHandSideSimpleName = (SimpleName)leftHandSide;
-						IBinding leftHandSideBinding = leftHandSideSimpleName.resolveBinding();
+					SimpleName leftHandSideName = processExpression(leftHandSide);
+					if(leftHandSideName != null) {
+						IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
 						if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
 							if(!leftHandSideVariableBinding.isField() && !leftHandSideVariableBinding.isParameter()) {
-								if(leftHandSideSimpleName.getIdentifier().equals(lvdo.getName()))
+								if(leftHandSideName.getIdentifier().equals(lvio.getName()))
 									return true;
 							}
 						}
@@ -65,13 +64,13 @@ public class StatementObject extends AbstractStatement {
 				else if(expression instanceof PostfixExpression) {
 					PostfixExpression postfixExpression = (PostfixExpression)expression;
 					Expression operand = postfixExpression.getOperand();
-					if(operand instanceof SimpleName) {
-						SimpleName operandSimpleName = (SimpleName)operand;
-						IBinding operandBinding = operandSimpleName.resolveBinding();
+					SimpleName operandName = processExpression(operand);
+					if(operandName != null) {
+						IBinding operandBinding = operandName.resolveBinding();
 						if(operandBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
 							if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
-								if(operandSimpleName.getIdentifier().equals(lvdo.getName()))
+								if(operandName.getIdentifier().equals(lvio.getName()))
 									return true;
 							}
 						}
@@ -80,13 +79,15 @@ public class StatementObject extends AbstractStatement {
 				else if(expression instanceof PrefixExpression) {
 					PrefixExpression prefixExpression = (PrefixExpression)expression;
 					Expression operand = prefixExpression.getOperand();
-					if(operand instanceof SimpleName) {
-						SimpleName operandSimpleName = (SimpleName)operand;
-						IBinding operandBinding = operandSimpleName.resolveBinding();
+					PrefixExpression.Operator operator = prefixExpression.getOperator();
+					SimpleName operandName = processExpression(operand);
+					if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+							operator.equals(PrefixExpression.Operator.DECREMENT))) {
+						IBinding operandBinding = operandName.resolveBinding();
 						if(operandBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
 							if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
-								if(operandSimpleName.getIdentifier().equals(lvdo.getName()))
+								if(operandName.getIdentifier().equals(lvio.getName()))
 									return true;
 							}
 						}
@@ -95,6 +96,74 @@ public class StatementObject extends AbstractStatement {
 			}
 		}
 		return false;
+	}
+	
+	public Assignment containsLocalVariableAssignment(LocalVariableInstructionObject lvio) {
+		Statement statement = getStatement();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> assignments = expressionExtractor.getAssignments(statement);
+		for(Expression expression : assignments) {
+			Assignment assignment = (Assignment)expression;
+			Expression leftHandSide = assignment.getLeftHandSide();
+			SimpleName leftHandSideName = processExpression(leftHandSide);
+			if(leftHandSideName != null) {
+				IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
+				if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
+					if(!leftHandSideVariableBinding.isField() && !leftHandSideVariableBinding.isParameter()) {
+						if(leftHandSideName.getIdentifier().equals(lvio.getName()))
+							return assignment;
+					}
+				}
+			}
+		}
+		return null;
+	}
+	
+	public PostfixExpression containsLocalVariablePostfixAssignment(LocalVariableInstructionObject lvio) {
+		Statement statement = getStatement();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(statement);
+		for(Expression expression : postfixExpressions) {
+			PostfixExpression postfixExpression = (PostfixExpression)expression;
+			Expression operand = postfixExpression.getOperand();
+			SimpleName operandName = processExpression(operand);
+			if(operandName != null) {
+				IBinding operandBinding = operandName.resolveBinding();
+				if(operandBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+					if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
+						if(operandName.getIdentifier().equals(lvio.getName()))
+							return postfixExpression;
+					}
+				}
+			}
+		}
+		return null;
+	}
+	
+	public PrefixExpression containsLocalVariablePrefixAssignment(LocalVariableInstructionObject lvio) {
+		Statement statement = getStatement();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(statement);
+		for(Expression expression : prefixExpressions) {
+			PrefixExpression prefixExpression = (PrefixExpression)expression;
+			Expression operand = prefixExpression.getOperand();
+			PrefixExpression.Operator operator = prefixExpression.getOperator();
+			SimpleName operandName = processExpression(operand);
+			if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+					operator.equals(PrefixExpression.Operator.DECREMENT))) {
+				IBinding operandBinding = operandName.resolveBinding();
+				if(operandBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+					if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
+						if(operandName.getIdentifier().equals(lvio.getName()))
+							return prefixExpression;
+					}
+				}
+			}
+		}
+		return null;
 	}
 	
 	public boolean isFieldAssignment(FieldInstructionObject fio) {
@@ -106,33 +175,7 @@ public class StatementObject extends AbstractStatement {
 				if(expression instanceof Assignment) {
 					Assignment assignment = (Assignment)expression;
 					Expression leftHandSide = assignment.getLeftHandSide();
-					SimpleName leftHandSideName = null;
-					if(leftHandSide instanceof SimpleName) {
-						leftHandSideName = (SimpleName)leftHandSide;
-					}
-					else if(leftHandSide instanceof QualifiedName) {
-						QualifiedName leftHandSideQualifiedName = (QualifiedName)leftHandSide;
-						leftHandSideName = leftHandSideQualifiedName.getName();
-					}
-					else if(leftHandSide instanceof FieldAccess) {
-						FieldAccess leftHandSideFieldAccess = (FieldAccess)leftHandSide;
-						leftHandSideName = leftHandSideFieldAccess.getName();
-					}
-					else if(leftHandSide instanceof ArrayAccess) {
-						ArrayAccess leftHandSideArrayAccess = (ArrayAccess)leftHandSide;
-						Expression array = leftHandSideArrayAccess.getArray();
-						if(array instanceof SimpleName) {
-							leftHandSideName = (SimpleName)array;
-						}
-						else if(array instanceof QualifiedName) {
-							QualifiedName arrayQualifiedName = (QualifiedName)array;
-							leftHandSideName = arrayQualifiedName.getName();
-						}
-						else if(array instanceof FieldAccess) {
-							FieldAccess arrayFieldAccess = (FieldAccess)array;
-							leftHandSideName = arrayFieldAccess.getName();
-						}
-					}
+					SimpleName leftHandSideName = processExpression(leftHandSide);
 					if(leftHandSideName != null) {
 						IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
 						if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
@@ -147,37 +190,11 @@ public class StatementObject extends AbstractStatement {
 				else if(expression instanceof PostfixExpression) {
 					PostfixExpression postfixExpression = (PostfixExpression)expression;
 					Expression operand = postfixExpression.getOperand();
-					SimpleName operandName = null;
-					if(operand instanceof SimpleName) {
-						operandName = (SimpleName)operand;
-					}
-					else if(operand instanceof QualifiedName) {
-						QualifiedName operandQualifiedName = (QualifiedName)operand;
-						operandName = operandQualifiedName.getName();
-					}
-					else if(operand instanceof FieldAccess) {
-						FieldAccess operandFieldAccess = (FieldAccess)operand;
-						operandName = operandFieldAccess.getName();
-					}
-					else if(operand instanceof ArrayAccess) {
-						ArrayAccess operandArrayAccess = (ArrayAccess)operand;
-						Expression array = operandArrayAccess.getArray();
-						if(array instanceof SimpleName) {
-							operandName = (SimpleName)array;
-						}
-						else if(array instanceof QualifiedName) {
-							QualifiedName arrayQualifiedName = (QualifiedName)array;
-							operandName = arrayQualifiedName.getName();
-						}
-						else if(array instanceof FieldAccess) {
-							FieldAccess arrayFieldAccess = (FieldAccess)array;
-							operandName = arrayFieldAccess.getName();
-						}
-					}
+					SimpleName operandName = processExpression(operand);
 					if(operandName != null) {
-						IBinding opernadBinding = operandName.resolveBinding();
-						if(opernadBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding operandVariableBinding = (IVariableBinding)opernadBinding;
+						IBinding operandBinding = operandName.resolveBinding();
+						if(operandBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
 							if(operandVariableBinding.isField()) {
 								if(operandName.getIdentifier().equals(fio.getName()))
 									return true;
@@ -188,37 +205,13 @@ public class StatementObject extends AbstractStatement {
 				else if(expression instanceof PrefixExpression) {
 					PrefixExpression prefixExpression = (PrefixExpression)expression;
 					Expression operand = prefixExpression.getOperand();
-					SimpleName operandName = null;
-					if(operand instanceof SimpleName) {
-						operandName = (SimpleName)operand;
-					}
-					else if(operand instanceof QualifiedName) {
-						QualifiedName operandQualifiedName = (QualifiedName)operand;
-						operandName = operandQualifiedName.getName();
-					}
-					else if(operand instanceof FieldAccess) {
-						FieldAccess operandFieldAccess = (FieldAccess)operand;
-						operandName = operandFieldAccess.getName();
-					}
-					else if(operand instanceof ArrayAccess) {
-						ArrayAccess operandArrayAccess = (ArrayAccess)operand;
-						Expression array = operandArrayAccess.getArray();
-						if(array instanceof SimpleName) {
-							operandName = (SimpleName)array;
-						}
-						else if(array instanceof QualifiedName) {
-							QualifiedName arrayQualifiedName = (QualifiedName)array;
-							operandName = arrayQualifiedName.getName();
-						}
-						else if(array instanceof FieldAccess) {
-							FieldAccess arrayFieldAccess = (FieldAccess)array;
-							operandName = arrayFieldAccess.getName();
-						}
-					}
-					if(operandName != null) {
-						IBinding opernadBinding = operandName.resolveBinding();
-						if(opernadBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding operandVariableBinding = (IVariableBinding)opernadBinding;
+					PrefixExpression.Operator operator = prefixExpression.getOperator();
+					SimpleName operandName = processExpression(operand);
+					if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+							operator.equals(PrefixExpression.Operator.DECREMENT))) {
+						IBinding operandBinding = operandName.resolveBinding();
+						if(operandBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
 							if(operandVariableBinding.isField()) {
 								if(operandName.getIdentifier().equals(fio.getName()))
 									return true;
@@ -231,11 +224,34 @@ public class StatementObject extends AbstractStatement {
 		return false;
 	}
 
-	public boolean isLocalVariableAssignment(Set<LocalVariableDeclarationObject> set) {
-		for(LocalVariableDeclarationObject lvdo : set) {
-			if(isLocalVariableAssignment(lvdo))
-				return true;
+	private SimpleName processExpression(Expression expression) {
+		SimpleName simpleName = null;
+		if(expression instanceof SimpleName) {
+			simpleName = (SimpleName)expression;
 		}
-		return false;
+		else if(expression instanceof QualifiedName) {
+			QualifiedName leftHandSideQualifiedName = (QualifiedName)expression;
+			simpleName = leftHandSideQualifiedName.getName();
+		}
+		else if(expression instanceof FieldAccess) {
+			FieldAccess leftHandSideFieldAccess = (FieldAccess)expression;
+			simpleName = leftHandSideFieldAccess.getName();
+		}
+		else if(expression instanceof ArrayAccess) {
+			ArrayAccess leftHandSideArrayAccess = (ArrayAccess)expression;
+			Expression array = leftHandSideArrayAccess.getArray();
+			if(array instanceof SimpleName) {
+				simpleName = (SimpleName)array;
+			}
+			else if(array instanceof QualifiedName) {
+				QualifiedName arrayQualifiedName = (QualifiedName)array;
+				simpleName = arrayQualifiedName.getName();
+			}
+			else if(array instanceof FieldAccess) {
+				FieldAccess arrayFieldAccess = (FieldAccess)array;
+				simpleName = arrayFieldAccess.getName();
+			}
+		}
+		return simpleName;
 	}
 }

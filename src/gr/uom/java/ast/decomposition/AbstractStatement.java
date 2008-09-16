@@ -10,7 +10,6 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -161,14 +160,6 @@ public abstract class AbstractStatement {
 
 	public boolean containsLocalVariableDeclaration(LocalVariableDeclarationObject lvdo) {
 		return localVariableDeclarationList.contains(lvdo);
-	}
-
-	public boolean containsLocalVariableInstruction(Set<LocalVariableDeclarationObject> variableDeclarations) {
-		for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations) {
-			if(localVariableInstructionList.contains(variableDeclaration.generateLocalVariableInstruction()))
-				return true;
-		}
-		return false;
 	}
 
 	public boolean equals(Object o) {

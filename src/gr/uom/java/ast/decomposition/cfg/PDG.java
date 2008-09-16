@@ -49,7 +49,7 @@ public class PDG extends Graph {
 			processControlPredicate(predicateNode);
 		}
 		else {
-			PDGNode pdgNode = new PDGNode(cfgNode);
+			PDGNode pdgNode = new PDGStatementNode(cfgNode);
 			nodes.add(pdgNode);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode);
 			if(controlType)

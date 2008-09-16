@@ -9,7 +9,6 @@ import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
@@ -191,7 +190,7 @@ public class CompositeStatementObject extends AbstractStatement {
 		for(AbstractStatement statement : statementList) {
 			if(statement instanceof StatementObject) {
 				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.isLocalVariableAssignment(lvdo))
+				if(statementObject.isLocalVariableAssignment(lvdo.generateLocalVariableInstruction()))
 					localVariableAssignments.add(statementObject);
 			}
 			else if(statement instanceof CompositeStatementObject) {
@@ -199,13 +198,6 @@ public class CompositeStatementObject extends AbstractStatement {
 				localVariableAssignments.addAll(compositeStatementObject.getLocalVariableAssignments(lvdo));
 			}
 		}
-		return localVariableAssignments;
-	}
-
-	public List<AbstractStatement> getLocalVariableAssignments(Set<LocalVariableDeclarationObject> set) {
-		List<AbstractStatement> localVariableAssignments = new ArrayList<AbstractStatement>();
-		for(LocalVariableDeclarationObject lvdo : set)
-			localVariableAssignments.addAll(getLocalVariableAssignments(lvdo));
 		return localVariableAssignments;
 	}
 

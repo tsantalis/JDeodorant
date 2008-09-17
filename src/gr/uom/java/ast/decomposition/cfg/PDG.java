@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.LocalVariableInstructionObject;
+
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,6 +26,7 @@ public class PDG extends Graph {
 			}
 		}
 		createControlDependenciesFromEntryNode();
+		createDataDependencies();
 		GraphNode.resetNodeNum();
 	}
 
@@ -40,22 +43,14 @@ public class PDG extends Graph {
 		if(cfgNode instanceof CFGBranchNode) {
 			PDGControlPredicateNode predicateNode = new PDGControlPredicateNode(cfgNode);
 			nodes.add(predicateNode);
-			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, predicateNode);
-			if(controlType)
-				controlDependence.setTrueControlDependence(true);
-			else
-				controlDependence.setFalseControlDependence(true);
+			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, predicateNode, controlType);
 			edges.add(controlDependence);
 			processControlPredicate(predicateNode);
 		}
 		else {
 			PDGNode pdgNode = new PDGStatementNode(cfgNode);
 			nodes.add(pdgNode);
-			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode);
-			if(controlType)
-				controlDependence.setTrueControlDependence(true);
-			else
-				controlDependence.setFalseControlDependence(true);
+			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode, controlType);
 			edges.add(controlDependence);
 		}
 	}
@@ -88,6 +83,50 @@ public class PDG extends Graph {
 				return true;
 		}
 		return false;
+	}
+
+	private void createDataDependencies() {
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			for(LocalVariableInstructionObject variableInstruction : pdgNode.definedVariables) {
+				dataDependenceSearch(pdgNode, variableInstruction, pdgNode);
+			}
+		}
+	}
+
+	private void dataDependenceSearch(PDGNode initialNode, LocalVariableInstructionObject variableInstruction, PDGNode currentNode) {
+		CFGNode currentCFGNode = currentNode.getCFGNode();
+		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
+			Flow flow = (Flow)edge;
+			CFGNode dstCFGNode = (CFGNode)flow.dst;
+			if(!flow.isLoopbackFlow()) {
+				PDGNode dstPDGNode = dstCFGNode.getPDGNode();
+				if(dstPDGNode.usesLocalVariable(variableInstruction)) {
+					PDGDataDependence dataDependence = new PDGDataDependence(initialNode, dstPDGNode, variableInstruction);
+					edges.add(dataDependence);
+				}
+				if(!dstPDGNode.definesLocalVariable(variableInstruction)) {
+					dataDependenceSearch(initialNode, variableInstruction, dstPDGNode);
+				}
+			}
+			else {
+				if(!(currentCFGNode instanceof CFGBranchDoLoopNode) && dstCFGNode instanceof CFGBranchLoopNode) {
+					CFGBranchLoopNode loopCFGNode = (CFGBranchLoopNode)dstCFGNode;
+					Flow falseControlFlow = loopCFGNode.getFalseControlFlow();
+					if(falseControlFlow != null) {
+						CFGNode dstFalseCFGNode = (CFGNode)falseControlFlow.dst;
+						PDGNode dstFalsePDGNode = dstFalseCFGNode.getPDGNode();
+						if(dstFalsePDGNode.usesLocalVariable(variableInstruction)) {
+							PDGDataDependence dataDependence = new PDGDataDependence(initialNode, dstFalsePDGNode, variableInstruction);
+							edges.add(dataDependence);
+						}
+						if(!dstFalsePDGNode.definesLocalVariable(variableInstruction)) {
+							dataDependenceSearch(initialNode, variableInstruction, dstFalsePDGNode);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	public List<BasicBlock> getBasicBlocks() {

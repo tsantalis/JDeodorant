@@ -1,19 +1,19 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class GraphNode {
 	private static int nodeNum = 0;
 	protected int id;
-	protected List<GraphEdge> incomingEdges;
-	protected List<GraphEdge> outgoingEdges;
+	protected Set<GraphEdge> incomingEdges;
+	protected Set<GraphEdge> outgoingEdges;
 	
 	public GraphNode() {
 		nodeNum++;
 		this.id = nodeNum;
-		this.incomingEdges = new ArrayList<GraphEdge>();
-		this.outgoingEdges = new ArrayList<GraphEdge>();
+		this.incomingEdges = new LinkedHashSet<GraphEdge>();
+		this.outgoingEdges = new LinkedHashSet<GraphEdge>();
 	}
 	
 	public int getId() {

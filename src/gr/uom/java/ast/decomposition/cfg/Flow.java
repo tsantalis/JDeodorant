@@ -7,6 +7,8 @@ public class Flow extends GraphEdge {
 	
 	public Flow(CFGNode src, CFGNode dst) {
 		super(src, dst);
+		src.addOutgoingEdge(this);
+		dst.addIncomingEdge(this);
 	}
 
 	public boolean isLoopbackFlow() {

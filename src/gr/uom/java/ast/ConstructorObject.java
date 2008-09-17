@@ -18,6 +18,7 @@ public class ConstructorObject {
     protected Access access;
     protected MethodBodyObject methodBody;
     protected MethodDeclaration methodDeclaration;
+    private volatile int hashCode = 0;
 
     public ConstructorObject() {
 		this.parameterList = new ArrayList<ParameterObject>();
@@ -181,6 +182,16 @@ public class ConstructorObject {
 				this.parameterList.equals(constructorObject.parameterList);
 		}
 		return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + name.hashCode();
+    		result = 37*result + parameterList.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

@@ -39,6 +39,7 @@ public class MethodObject {
     private String className;
     private ConstructorObject constructorObject;
     private boolean testAnnotation;
+    private volatile int hashCode = 0;
 
     public MethodObject(ConstructorObject co) {
         this.constructorObject = co;
@@ -470,6 +471,17 @@ public class MethodObject {
                 this.constructorObject.equals(methodObject.constructorObject);
         }
         return false;
+    }
+
+    public int hashCode() {
+    	if(hashCode == 0) {
+    		int result = 17;
+    		result = 37*result + className.hashCode();
+    		result = 37*result + returnType.hashCode();
+    		result = 37*result + constructorObject.hashCode();
+    		hashCode = result;
+    	}
+    	return hashCode;
     }
 
     public String toString() {

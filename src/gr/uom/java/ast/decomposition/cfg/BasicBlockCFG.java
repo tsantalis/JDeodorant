@@ -3,7 +3,6 @@ package gr.uom.java.ast.decomposition.cfg;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Set;
 
 public class BasicBlockCFG {
@@ -11,11 +10,10 @@ public class BasicBlockCFG {
 	
 	public BasicBlockCFG(CFG cfg) {
 		this.basicBlocks = new ArrayList<BasicBlock>();
-		ListIterator<GraphNode> nodeIterator = cfg.nodes.listIterator();
-		while(nodeIterator.hasNext()) {
-			CFGNode node = (CFGNode)nodeIterator.next();
-			if(node.isLeader()) {
-				BasicBlock basicBlock = new BasicBlock(node);
+		for(GraphNode node : cfg.nodes) {
+			CFGNode cfgNode = (CFGNode)node;
+			if(cfgNode.isLeader()) {
+				BasicBlock basicBlock = new BasicBlock(cfgNode);
 				if(!basicBlocks.isEmpty()) {
 					BasicBlock previousBlock = basicBlocks.get(basicBlocks.size()-1);
 					previousBlock.setNextBasicBlock(basicBlock);
@@ -25,7 +23,7 @@ public class BasicBlockCFG {
 			}
 			else {
 				BasicBlock basicBlock = basicBlocks.get(basicBlocks.size()-1);
-				basicBlock.add(node);
+				basicBlock.add(cfgNode);
 			}
 		}
 		BasicBlock.resetBlockNum();

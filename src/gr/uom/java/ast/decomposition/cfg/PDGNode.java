@@ -29,6 +29,14 @@ public class PDGNode extends GraphNode {
 		return cfgNode;
 	}
 
+	public boolean definesLocalVariable(LocalVariableInstructionObject variableInstruction) {
+		return definedVariables.contains(variableInstruction);
+	}
+
+	public boolean usesLocalVariable(LocalVariableInstructionObject variableInstruction) {
+		return usedVariables.contains(variableInstruction);
+	}
+
 	public BasicBlock getBasicBlock() {
 		return cfgNode.getBasicBlock();
 	}

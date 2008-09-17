@@ -7,7 +7,5 @@ public class GraphEdge {
 	public GraphEdge(GraphNode src, GraphNode dst) {
 		this.src = src;
 		this.dst = dst;
-		src.addOutgoingEdge(this);
-		dst.addIncomingEdge(this);
 	}
 }

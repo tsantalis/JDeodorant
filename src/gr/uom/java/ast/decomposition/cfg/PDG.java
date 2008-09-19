@@ -195,12 +195,30 @@ public class PDG extends Graph {
 		return regionNodes;
 	}
 
-	public Set<PDGSlice> getProgramDependenceSlices(PDGNode sliceNode, LocalVariableInstructionObject sliceVariable) {
+	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, LocalVariableInstructionObject variableCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		Set<BasicBlock> boundaryBlocks = boundaryBlocks(sliceNode);
+		Set<BasicBlock> boundaryBlocks = boundaryBlocks(nodeCriterion);
 		for(BasicBlock boundaryBlock : boundaryBlocks) {
-			PDGSlice slice = new PDGSlice(this, boundaryBlock, sliceNode, sliceVariable);
+			PDGSlice slice = new PDGSlice(this, boundaryBlock, nodeCriterion, variableCriterion);
 			slices.add(slice);
+		}
+		return slices;
+	}
+
+	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion) {
+		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
+		Set<LocalVariableInstructionObject> examinedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
+		for(LocalVariableInstructionObject definedVariable : nodeCriterion.definedVariables) {
+			if(!examinedVariables.contains(definedVariable)) {
+				slices.addAll(getProgramDependenceSlices(nodeCriterion, definedVariable));
+				examinedVariables.add(definedVariable);
+			}
+		}
+		for(LocalVariableInstructionObject usedVariable : nodeCriterion.usedVariables) {
+			if(!examinedVariables.contains(usedVariable)) {
+				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
+				examinedVariables.add(usedVariable);
+			}
 		}
 		return slices;
 	}

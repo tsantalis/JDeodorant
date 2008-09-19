@@ -1,6 +1,9 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import java.util.ListIterator;
+
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.ParameterObject;
 
 public class PDGMethodEntryNode extends PDGNode {
 	private MethodObject method;
@@ -9,6 +12,11 @@ public class PDGMethodEntryNode extends PDGNode {
 		super();
 		this.method = method;
 		this.id = 0;
+		ListIterator<ParameterObject> parameterIterator = method.getParameterListIterator();
+		while(parameterIterator.hasNext()) {
+			ParameterObject parameter = parameterIterator.next();
+			definedVariables.add(parameter.generateLocalVariableInstruction());
+		}
 	}
 
 	public BasicBlock getBasicBlock() {

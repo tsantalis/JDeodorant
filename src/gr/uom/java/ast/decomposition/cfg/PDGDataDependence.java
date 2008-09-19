@@ -13,6 +13,10 @@ public class PDGDataDependence extends PDGDependence {
 		dst.addIncomingEdge(this);
 	}
 
+	public LocalVariableInstructionObject getData() {
+		return data;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
     		return true;

@@ -1,8 +1,11 @@
 package gr.uom.java.ast;
 
+import org.eclipse.jdt.core.dom.VariableDeclaration;
+
 public class LocalVariableDeclarationObject {
 	private TypeObject type;
     private String name;
+    private VariableDeclaration variableDeclaration;
     private volatile int hashCode = 0;
 
     public LocalVariableDeclarationObject(TypeObject type, String name) {
@@ -18,9 +21,13 @@ public class LocalVariableDeclarationObject {
         return name;
     }
 
-    public LocalVariableInstructionObject generateLocalVariableInstruction() {
-    	return new LocalVariableInstructionObject(type, name);
-    }
+    public VariableDeclaration getVariableDeclaration() {
+		return variableDeclaration;
+	}
+
+	public void setVariableDeclaration(VariableDeclaration variableDeclaration) {
+		this.variableDeclaration = variableDeclaration;
+	}
 
     public boolean equals(Object o) {
         if(this == o) {

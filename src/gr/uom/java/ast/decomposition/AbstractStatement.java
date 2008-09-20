@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class AbstractStatement {
 
@@ -68,10 +69,13 @@ public abstract class AbstractStatement {
 						String localVariableName = variableBinding.getName();
 						if(simpleName.isDeclaration()) {
 							LocalVariableDeclarationObject localVariable = new LocalVariableDeclarationObject(localVariableType, localVariableName);
+							VariableDeclaration variableDeclaration = (VariableDeclaration)simpleName.getParent();
+							localVariable.setVariableDeclaration(variableDeclaration);
 							localVariableDeclarationList.add(localVariable);
 						}
 						else {
 							LocalVariableInstructionObject localVariable = new LocalVariableInstructionObject(localVariableType, localVariableName);
+							localVariable.setSimpleName(simpleName);
 							localVariableInstructionList.add(localVariable);
 						}
 					}

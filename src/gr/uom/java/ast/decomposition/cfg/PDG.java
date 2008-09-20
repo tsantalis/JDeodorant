@@ -1,17 +1,22 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.LocalVariableInstructionObject;
+import gr.uom.java.ast.LocalVariableDeclarationObject;
+import gr.uom.java.ast.ParameterObject;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDG extends Graph {
 	private CFG cfg;
 	private PDGMethodEntryNode entryNode;
 	private Map<CFGBranchNode, Set<CFGNode>> nestingMap;
+	private Set<VariableDeclaration> variableDeclarations;
 	
 	public PDG(CFG cfg) {
 		this.cfg = cfg;
@@ -24,10 +29,23 @@ public class PDG extends Graph {
 				nestingMap.put(branchNode, branchNode.getImmediatelyNestedNodesFromAST());
 			}
 		}
+		this.variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		ListIterator<ParameterObject> parameterIterator = cfg.getMethod().getParameterListIterator();
+		while(parameterIterator.hasNext()) {
+			ParameterObject parameter = parameterIterator.next();
+			variableDeclarations.add(parameter.getSingleVariableDeclaration());
+		}
+		for(LocalVariableDeclarationObject localVariableDeclaration : cfg.getMethod().getLocalVariableDeclarations()) {
+			variableDeclarations.add(localVariableDeclaration.getVariableDeclaration());
+		}
 		createControlDependenciesFromEntryNode();
 		if(!nodes.isEmpty())
 			createDataDependencies();
 		GraphNode.resetNodeNum();
+	}
+
+	public PDGMethodEntryNode getEntryNode() {
+		return entryNode;
 	}
 
 	private void createControlDependenciesFromEntryNode() {
@@ -41,14 +59,14 @@ public class PDG extends Graph {
 
 	private void processCFGNode(PDGNode previousNode, CFGNode cfgNode, boolean controlType) {
 		if(cfgNode instanceof CFGBranchNode) {
-			PDGControlPredicateNode predicateNode = new PDGControlPredicateNode(cfgNode);
+			PDGControlPredicateNode predicateNode = new PDGControlPredicateNode(cfgNode, variableDeclarations);
 			nodes.add(predicateNode);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, predicateNode, controlType);
 			edges.add(controlDependence);
 			processControlPredicate(predicateNode);
 		}
 		else {
-			PDGNode pdgNode = new PDGStatementNode(cfgNode);
+			PDGNode pdgNode = new PDGStatementNode(cfgNode, variableDeclarations);
 			nodes.add(pdgNode);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode, controlType);
 			edges.add(controlDependence);
@@ -87,7 +105,7 @@ public class PDG extends Graph {
 
 	private void createDataDependencies() {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
-		for(LocalVariableInstructionObject variableInstruction : entryNode.definedVariables) {
+		for(VariableDeclaration variableInstruction : entryNode.definedVariables) {
 			if(firstPDGNode.usesLocalVariable(variableInstruction)) {
 				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction);
 				edges.add(dataDependence);
@@ -98,13 +116,13 @@ public class PDG extends Graph {
 		}
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
-			for(LocalVariableInstructionObject variableInstruction : pdgNode.definedVariables) {
+			for(VariableDeclaration variableInstruction : pdgNode.definedVariables) {
 				dataDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>());
 			}
 		}
 	}
 
-	private void dataDependenceSearch(PDGNode initialNode, LocalVariableInstructionObject variableInstruction,
+	private void dataDependenceSearch(PDGNode initialNode, VariableDeclaration variableInstruction,
 			PDGNode currentNode, Set<PDGNode> visitedNodes) {
 		if(visitedNodes.contains(currentNode))
 			return;
@@ -195,7 +213,7 @@ public class PDG extends Graph {
 		return regionNodes;
 	}
 
-	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, LocalVariableInstructionObject variableCriterion) {
+	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, VariableDeclaration variableCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
 		Set<BasicBlock> boundaryBlocks = boundaryBlocks(nodeCriterion);
 		for(BasicBlock boundaryBlock : boundaryBlocks) {
@@ -207,14 +225,14 @@ public class PDG extends Graph {
 
 	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		Set<LocalVariableInstructionObject> examinedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
-		for(LocalVariableInstructionObject definedVariable : nodeCriterion.definedVariables) {
+		Set<VariableDeclaration> examinedVariables = new LinkedHashSet<VariableDeclaration>();
+		for(VariableDeclaration definedVariable : nodeCriterion.definedVariables) {
 			if(!examinedVariables.contains(definedVariable)) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, definedVariable));
 				examinedVariables.add(definedVariable);
 			}
 		}
-		for(LocalVariableInstructionObject usedVariable : nodeCriterion.usedVariables) {
+		for(VariableDeclaration usedVariable : nodeCriterion.usedVariables) {
 			if(!examinedVariables.contains(usedVariable)) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
 				examinedVariables.add(usedVariable);

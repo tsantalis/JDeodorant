@@ -1,20 +1,20 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.LocalVariableInstructionObject;
-
 import java.util.LinkedHashSet;
 import java.util.Set;
+
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSlice extends Graph {
 	private BasicBlock boundaryBlock;
 	private PDGNode nodeCriterion;
-	private LocalVariableInstructionObject localVariableCriterion;
+	private VariableDeclaration localVariableCriterion;
 	private Set<PDGNode> sliceNodes;
 	private Set<PDGNode> remainingNodes;
-	private Set<LocalVariableInstructionObject> passedParameters;
+	private Set<VariableDeclaration> passedParameters;
 	
 	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
-			LocalVariableInstructionObject localVariableCriterion) {
+			VariableDeclaration localVariableCriterion) {
 		super();
 		this.boundaryBlock = boundaryBlock;
 		this.nodeCriterion = nodeCriterion;
@@ -39,12 +39,13 @@ public class PDGSlice extends Graph {
 			}
 		}
 		this.remainingNodes = new LinkedHashSet<PDGNode>();
+		remainingNodes.add(pdg.getEntryNode());
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(!sliceNodes.contains(pdgNode))
 				remainingNodes.add(pdgNode);
 		}
-		this.passedParameters = new LinkedHashSet<LocalVariableInstructionObject>();
+		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
 		for(GraphEdge edge : pdg.edges) {
 			PDGDependence dependence = (PDGDependence)edge;
 			if(dependence instanceof PDGDataDependence) {
@@ -61,11 +62,11 @@ public class PDGSlice extends Graph {
 		return sliceNodes;
 	}
 
-	public Set<LocalVariableInstructionObject> getPassedParameters() {
+	public Set<VariableDeclaration> getPassedParameters() {
 		return passedParameters;
 	}
 
-	private Set<PDGNode> getDefNodes(PDGNode node, LocalVariableInstructionObject localVariable) {
+	private Set<PDGNode> getDefNodes(PDGNode node, VariableDeclaration localVariable) {
 		Set<PDGNode> defNodes = new LinkedHashSet<PDGNode>();
 		for(GraphEdge edge : node.incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;

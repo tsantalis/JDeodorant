@@ -1,15 +1,15 @@
 package gr.uom.java.ast;
 
-import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
 
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
-import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 
 public class ConstructorObject {
 
@@ -65,34 +65,6 @@ public class ConstructorObject {
 		return parameterList.listIterator();
 	}
 
-	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
-		if(methodBody != null)
-			return methodBody.getVariableDeclarationStatement(lvdo);
-		else
-			return null;
-	}
-
-	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
-		if(methodBody != null)
-			return methodBody.getVariableDeclarationExpression(lvdo);
-		else
-			return null;
-	}
-
-	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
-		if(methodBody != null)
-			return methodBody.getMethodInvocationStatements(methodInvocation);
-		else
-			return new ArrayList<AbstractStatement>();
-	}
-
-	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
-		if(methodBody != null)
-			return methodBody.getSuperMethodInvocationStatements(superMethodInvocation);
-		else
-			return new ArrayList<AbstractStatement>();
-	}
-
 	public List<MethodInvocationObject> getMethodInvocations() {
 		if(methodBody != null)
 			return methodBody.getMethodInvocations();
@@ -142,11 +114,25 @@ public class ConstructorObject {
     		return false;
     }
 
-    public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+    public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
     	if(methodBody != null)
     		return methodBody.getFieldAssignments(fio);
     	else
-    		return new ArrayList<AbstractStatement>();
+    		return new ArrayList<Assignment>();
+    }
+
+    public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
+    	if(methodBody != null)
+    		return methodBody.getFieldPostfixAssignments(fio);
+    	else
+    		return new ArrayList<PostfixExpression>();
+    }
+
+    public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
+    	if(methodBody != null)
+    		return methodBody.getFieldPrefixAssignments(fio);
+    	else
+    		return new ArrayList<PrefixExpression>();
     }
 
     public boolean containsSuperMethodInvocation() {

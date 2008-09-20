@@ -22,13 +22,13 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
-import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 public class MethodObject {
 
@@ -281,9 +281,11 @@ public class MethodObject {
     	List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
     	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
     		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {
-    			VariableDeclarationStatement variableDeclarationStatement = getVariableDeclarationStatement(localVariableInstruction.generateLocalVariableDeclaration());
-    			if(variableDeclarationStatement != null)
-    				return false;
+    			for(LocalVariableDeclarationObject variableDeclaration : getLocalVariableDeclarations()) {
+    				if(variableDeclaration.getVariableDeclaration().resolveBinding().isEqualTo(
+    						localVariableInstruction.getSimpleName().resolveBinding()))
+    					return false;
+    			}
     		}
     	}
     	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
@@ -394,22 +396,6 @@ public class MethodObject {
         return constructorObject.getParameterListIterator();
     }
 
-	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
-		return constructorObject.getVariableDeclarationStatement(lvdo);
-	}
-
-	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
-		return constructorObject.getVariableDeclarationExpression(lvdo);
-	}
-
-	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
-		return constructorObject.getMethodInvocationStatements(methodInvocation);
-	}
-
-	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
-		return constructorObject.getSuperMethodInvocationStatements(superMethodInvocation);
-	}
-
     public List<MethodInvocationObject> getMethodInvocations() {
         return constructorObject.getMethodInvocations();
     }
@@ -438,9 +424,17 @@ public class MethodObject {
     	return constructorObject.containsSuperMethodInvocation(superMethodInvocation);
     }
 
-    public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+    public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
     	return constructorObject.getFieldAssignments(fio);
     }
+
+	public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
+		return constructorObject.getFieldPostfixAssignments(fio);
+	}
+
+	public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
+		return constructorObject.getFieldPrefixAssignments(fio);
+	}
 
     public boolean containsSuperMethodInvocation() {
     	return constructorObject.containsSuperMethodInvocation();

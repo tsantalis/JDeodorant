@@ -1,19 +1,23 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 public class PDGStatementNode extends PDGNode {
-
-	public PDGStatementNode(CFGNode cfgNode) {
+	private Set<VariableDeclaration> variableDeclarations;
+	
+	public PDGStatementNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarations) {
 		super(cfgNode);
+		this.variableDeclarations = variableDeclarations;
 		determineDefinedAndUsedVariables();
 	}
 
@@ -23,29 +27,40 @@ public class PDGStatementNode extends PDGNode {
 			StatementObject statement = (StatementObject)cfgNode.getStatement();
 			List<LocalVariableDeclarationObject> variableDeclarations = statement.getLocalVariableDeclarations();
 			for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations)
-				definedVariables.add(variableDeclaration.generateLocalVariableInstruction());
+				definedVariables.add(variableDeclaration.getVariableDeclaration());
 			List<LocalVariableInstructionObject> variableInstructions = statement.getLocalVariableInstructions();
 			for(LocalVariableInstructionObject variableInstruction : variableInstructions) {
-				Assignment assignment = null;
-				PostfixExpression postfixExpression = null;
-				PrefixExpression prefixExpression = null;
-				if((assignment = statement.containsLocalVariableAssignment(variableInstruction)) != null) {
-					definedVariables.add(variableInstruction);
-					Assignment.Operator operator = assignment.getOperator();
-					if(!operator.equals(Assignment.Operator.ASSIGN))
-						usedVariables.add(variableInstruction);
+				VariableDeclaration variableDeclaration = getVariableDeclaration(variableInstruction);
+				List<Assignment> assignments = statement.getLocalVariableAssignments(variableInstruction);
+				List<PostfixExpression> postfixExpressions = statement.getLocalVariablePostfixAssignments(variableInstruction);
+				List<PrefixExpression> prefixExpressions = statement.getLocalVariablePrefixAssignments(variableInstruction);
+				if(!assignments.isEmpty()) {
+					definedVariables.add(variableDeclaration);
+					for(Assignment assignment : assignments) {
+						Assignment.Operator operator = assignment.getOperator();
+						if(!operator.equals(Assignment.Operator.ASSIGN))
+							usedVariables.add(variableDeclaration);
+					}
 				}
-				else if((postfixExpression = statement.containsLocalVariablePostfixAssignment(variableInstruction)) != null) {
-					definedVariables.add(variableInstruction);
-					usedVariables.add(variableInstruction);
+				else if(!postfixExpressions.isEmpty()) {
+					definedVariables.add(variableDeclaration);
+					usedVariables.add(variableDeclaration);
 				}
-				else if((prefixExpression = statement.containsLocalVariablePrefixAssignment(variableInstruction)) != null) {
-					definedVariables.add(variableInstruction);
-					usedVariables.add(variableInstruction);
+				else if(!prefixExpressions.isEmpty()) {
+					definedVariables.add(variableDeclaration);
+					usedVariables.add(variableDeclaration);
 				}
 				else
-					usedVariables.add(variableInstruction);
+					usedVariables.add(variableDeclaration);
 			}
 		}
+	}
+
+	private VariableDeclaration getVariableDeclaration(LocalVariableInstructionObject variableInstruction) {
+		for(VariableDeclaration variableDeclaration : variableDeclarations) {
+			if(variableDeclaration.resolveBinding().isEqualTo(variableInstruction.getSimpleName().resolveBinding()))
+				return variableDeclaration;
+		}
+		return null;
 	}
 }

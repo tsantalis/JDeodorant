@@ -1,19 +1,19 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.LocalVariableInstructionObject;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGDataDependence extends PDGDependence {
-	private LocalVariableInstructionObject data;
+	private VariableDeclaration data;
 	private volatile int hashCode = 0;
 	
-	public PDGDataDependence(PDGNode src, PDGNode dst, LocalVariableInstructionObject data) {
+	public PDGDataDependence(PDGNode src, PDGNode dst, VariableDeclaration data) {
 		super(src, dst);
 		this.data = data;
 		src.addOutgoingEdge(this);
 		dst.addIncomingEdge(this);
 	}
 
-	public LocalVariableInstructionObject getData() {
+	public VariableDeclaration getData() {
 		return data;
 	}
 

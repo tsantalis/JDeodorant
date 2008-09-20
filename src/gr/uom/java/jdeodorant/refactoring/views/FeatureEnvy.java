@@ -3,7 +3,6 @@ package gr.uom.java.jdeodorant.refactoring.views;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
-import gr.uom.java.distance.ExtractAndMoveMethodCandidateRefactoring;
 import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
@@ -122,8 +121,8 @@ public class FeatureEnvy extends ViewPart {
 			case 0:
 				if(entry instanceof MoveMethodCandidateRefactoring)
 					return "Move Method";
-				else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring)
-					return "Extract and Move Method";
+				/*else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring)
+					return "Extract and Move Method";*/
 				else
 					return "";
 			case 1:
@@ -349,18 +348,7 @@ public class FeatureEnvy extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
-					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-					String methodName = candidate.getExtractionBlock().getExtractedMethodName();
-					IInputValidator methodNameValidator = new MethodNameValidator();
-					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
-					dialog.open();
-					if(dialog.getValue() != null) {
-						candidate.getExtractionBlock().setExtractedMethodName(dialog.getValue());
-						tableViewer.refresh();
-					}
-				}
-				else if(entry instanceof MoveMethodCandidateRefactoring) {
+				if(entry instanceof MoveMethodCandidateRefactoring) {
 					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
 					String methodName = candidate.getMovedMethodName();
 					IInputValidator methodNameValidator = new MethodNameValidator();
@@ -371,6 +359,17 @@ public class FeatureEnvy extends ViewPart {
 						tableViewer.refresh();
 					}
 				}
+				/*else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
+					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
+					String methodName = candidate.getExtractionBlock().getExtractedMethodName();
+					IInputValidator methodNameValidator = new MethodNameValidator();
+					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+					dialog.open();
+					if(dialog.getValue() != null) {
+						candidate.getExtractionBlock().setExtractedMethodName(dialog.getValue());
+						tableViewer.refresh();
+					}
+				}*/
 			}
 		};
 		renameMethodAction.setToolTipText("Rename Method");
@@ -404,11 +403,11 @@ public class FeatureEnvy extends ViewPart {
 					if(entitySet.contains(candidate.getSourceEntity())/* && candidateRefactoring.getTarget().equals(candidate.getTarget())*/)
 						moveMethodPrerequisiteRefactorings.add(candidate);
 				}
-				else if(candidate instanceof ExtractAndMoveMethodCandidateRefactoring) {
+				/*else if(candidate instanceof ExtractAndMoveMethodCandidateRefactoring) {
 					ExtractAndMoveMethodCandidateRefactoring extractCandidate = (ExtractAndMoveMethodCandidateRefactoring)candidate;
 					if(extractCandidate.isSubRefactoringOf(candidateRefactoring))
 						extractMethodPrerequisiteRefactorings.add(candidate);
-				}
+				}*/
 			}
 		}
 		if(!moveMethodPrerequisiteRefactorings.isEmpty())

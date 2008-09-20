@@ -1,19 +1,19 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.LocalVariableInstructionObject;
-
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.VariableDeclaration;
+
 public class PDGNode extends GraphNode {
 	private CFGNode cfgNode;
-	protected Set<LocalVariableInstructionObject> definedVariables;
-	protected Set<LocalVariableInstructionObject> usedVariables;
+	protected Set<VariableDeclaration> definedVariables;
+	protected Set<VariableDeclaration> usedVariables;
 	
 	public PDGNode() {
 		super();
-		this.definedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
-		this.usedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
+		this.definedVariables = new LinkedHashSet<VariableDeclaration>();
+		this.usedVariables = new LinkedHashSet<VariableDeclaration>();
 	}
 	
 	public PDGNode(CFGNode cfgNode) {
@@ -21,20 +21,20 @@ public class PDGNode extends GraphNode {
 		this.cfgNode = cfgNode;
 		this.id = cfgNode.id;
 		cfgNode.setPDGNode(this);
-		this.definedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
-		this.usedVariables = new LinkedHashSet<LocalVariableInstructionObject>();
+		this.definedVariables = new LinkedHashSet<VariableDeclaration>();
+		this.usedVariables = new LinkedHashSet<VariableDeclaration>();
 	}
 
 	public CFGNode getCFGNode() {
 		return cfgNode;
 	}
 
-	public boolean definesLocalVariable(LocalVariableInstructionObject variableInstruction) {
-		return definedVariables.contains(variableInstruction);
+	public boolean definesLocalVariable(VariableDeclaration variable) {
+		return definedVariables.contains(variable);
 	}
 
-	public boolean usesLocalVariable(LocalVariableInstructionObject variableInstruction) {
-		return usedVariables.contains(variableInstruction);
+	public boolean usesLocalVariable(VariableDeclaration variable) {
+		return usedVariables.contains(variable);
 	}
 
 	public BasicBlock getBasicBlock() {

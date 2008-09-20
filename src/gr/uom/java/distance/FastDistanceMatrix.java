@@ -23,10 +23,10 @@ public class FastDistanceMatrix {
 		classMap = new LinkedHashMap<String,Set<String>>();
 		virtualSystemEntityPlacement = new SystemEntityPlacement();
 		String sourceMethod = null;
-		if(candidate instanceof ExtractAndMoveMethodCandidateRefactoring) {
+		/*if(candidate instanceof ExtractAndMoveMethodCandidateRefactoring) {
 			ExtractAndMoveMethodCandidateRefactoring extractCandidate = (ExtractAndMoveMethodCandidateRefactoring)candidate;
 			sourceMethod = extractCandidate.getSourceMethod().toString();
-		}
+		}*/
 		
 		Iterator<MyClass> classIt = virtualSystem.getClassIterator();
         while(classIt.hasNext()) {

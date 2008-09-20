@@ -2,23 +2,19 @@ package gr.uom.java.distance;
 
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
-import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.association.Association;
-import gr.uom.java.ast.decomposition.AbstractExpression;
-import gr.uom.java.ast.decomposition.AbstractStatement;
-import gr.uom.java.ast.decomposition.CompositeStatementObject;
-import gr.uom.java.ast.decomposition.StatementObject;
 
 import java.util.*;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SimpleName;
 
 public class DistanceMatrix {
     private Map<String,Integer> entityIndexMap;
@@ -134,80 +130,56 @@ public class DistanceMatrix {
 	    				List<MethodInvocationObject> methodInvocations = methodObject.getMethodInvocations();
 	    				for(MethodInvocationObject methodInvocation : methodInvocations) {
 	    					if(methodInvocation.getOriginClassName().equals(targetClass)) {
-	    						List<TypeObject> methodInvocationParameterTypes = methodInvocation.getParameterTypeList();
-	    						if(methodInvocationParameterTypes.contains(parameter.getType())) {
-	    							List<AbstractStatement> methodInvocationStatements = methodObject.getMethodInvocationStatements(methodInvocation);
-	    							boolean parameterIsPassedAsArgument = false;
-	    							for(AbstractStatement abstractStatement : methodInvocationStatements) {
-	    								if(abstractStatement instanceof StatementObject) {
-	    									StatementObject statement = (StatementObject)abstractStatement;
-	    									if(statement.containsMethodInvocation(methodInvocation)) {
-	    										List<LocalVariableInstructionObject> localVariableInstructions = statement.getLocalVariableInstructions();
-	    										for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
-	    											if(localVariableInstruction.getType().equals(parameter.getType()) && localVariableInstruction.getName().equals(parameter.getName())) {
-	    												parameterIsPassedAsArgument = true;
-	    												break;
+	    						MethodInvocation invocation = methodInvocation.getMethodInvocation();
+	    						boolean parameterIsPassedAsArgument = false;
+	    						List<Expression> invocationArguments = invocation.arguments();
+	    						for(Expression expression : invocationArguments) {
+	    							if(expression instanceof SimpleName) {
+	    								SimpleName argumentName = (SimpleName)expression;
+	    								if(parameter.getSingleVariableDeclaration().resolveBinding().isEqualTo(argumentName.resolveBinding()))
+	    									parameterIsPassedAsArgument = true;
+	    							}
+	    						}
+	    						if(parameterIsPassedAsArgument) {
+	    							MethodObject invokedMethod = targetClassObject.getMethod(methodInvocation);
+	    							List<FieldInstructionObject> fieldInstructions = invokedMethod.getFieldInstructions();
+	    							boolean containerFieldIsAccessed = false;
+	    							for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+	    								if(association.getFieldObject().equals(fieldInstruction)) {
+	    									containerFieldIsAccessed = true;
+	    									break;
+	    								}
+	    							}
+	    							if(containerFieldIsAccessed) {
+	    								MyClass mySourceClass = classList.get(classIndexMap.get(sourceClass));
+	    								MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
+	    								MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method,this);
+	    								Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
+	    								Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
+	    								Set<String> methodEntitySet = entityMap.get(method.toString());
+	    								Set<String> sourceClassEntitySet = classMap.get(sourceClass);
+	    								Set<String> targetClassEntitySet = classMap.get(targetClass);
+	    								Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
+	    								Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
+	    								Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
+	    								if(!values.isEmpty()) {
+	    									for(String s : intersectionWithSourceClass) {
+	    										int entityPosition = entityIndexMap.get(s);
+	    										Entity e = entityList.get(entityPosition);
+	    										if(e instanceof MyMethod) {
+	    											MyMethod myInvokedMethod = (MyMethod)e;
+	    											if(values.contains(myInvokedMethod.getMethodObject().getMethodDeclaration())) {
+	    												entitiesToRemoveFromIntersectionWithSourceClass.add(s);
 	    											}
 	    										}
 	    									}
+	    									intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
 	    								}
-	    								else if(abstractStatement instanceof CompositeStatementObject) {
-	    									CompositeStatementObject compositeStatement = (CompositeStatementObject)abstractStatement;
-	    									List<AbstractExpression> expressions = compositeStatement.getExpressions();
-	    									for(AbstractExpression expression : expressions) {
-	    										if(expression.containsMethodInvocation(methodInvocation)) {
-	    											List<LocalVariableInstructionObject> localVariableInstructions = expression.getLocalVariableInstructions();
-	        										for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
-	        											if(localVariableInstruction.getType().equals(parameter.getType()) && localVariableInstruction.getName().equals(parameter.getName())) {
-	        												parameterIsPassedAsArgument = true;
-	        												break;
-	        											}
-	        										}
-	    										}
+	    								if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
+	    									if(candidate.isApplicable()) {
+	    										candidate.apply();
+	    										candidateRefactoringList.add(candidate);
 	    									}
-	    								}
-	    							}
-	    							if(parameterIsPassedAsArgument) {
-	    								MethodObject invokedMethod = targetClassObject.getMethod(methodInvocation);
-	    								List<FieldInstructionObject> fieldInstructions = invokedMethod.getFieldInstructions();
-	    								boolean containerFieldIsAccessed = false;
-	    								for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-	    									if(association.getFieldObject().equals(fieldInstruction)) {
-	    										containerFieldIsAccessed = true;
-	    										break;
-	    									}
-	    								}
-	    								if(containerFieldIsAccessed) {
-	    									MyClass mySourceClass = classList.get(classIndexMap.get(sourceClass));
-	    			    					MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
-	    			    					MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method,this);
-	    			    					Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
-	    			                        Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
-	    			                        Set<String> methodEntitySet = entityMap.get(method.toString());
-	    			                    	Set<String> sourceClassEntitySet = classMap.get(sourceClass);
-	    			                    	Set<String> targetClassEntitySet = classMap.get(targetClass);
-	    			                    	Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
-	    			                    	Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
-	    			                        Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
-	    			                        if(!values.isEmpty()) {
-	    			                        	for(String s : intersectionWithSourceClass) {
-	    			                        		int entityPosition = entityIndexMap.get(s);
-	    			                        		Entity e = entityList.get(entityPosition);
-	    			                        		if(e instanceof MyMethod) {
-	    			                        			MyMethod myInvokedMethod = (MyMethod)e;
-	    			                        			if(values.contains(myInvokedMethod.getMethodObject().getMethodDeclaration())) {
-	    			                        				entitiesToRemoveFromIntersectionWithSourceClass.add(s);
-	    			                        			}
-	    			                        		}
-	    			                        	}
-	    			                        	intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
-	    			                        }
-	    			                        if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
-	    			                            if(candidate.isApplicable()) {
-	    			                            	candidate.apply();
-	    			                            	candidateRefactoringList.add(candidate);
-	    			                            }
-	    			                        }
 	    								}
 	    							}
 	    						}

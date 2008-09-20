@@ -28,10 +28,6 @@ public class ParameterObject {
 		return this.singleVariableDeclaration;
 	}
 
-	public LocalVariableInstructionObject generateLocalVariableInstruction() {
-		return new LocalVariableInstructionObject(type, name);
-	}
-
 	public boolean equals(Object o) {
 		if(this == o) {
             return true;

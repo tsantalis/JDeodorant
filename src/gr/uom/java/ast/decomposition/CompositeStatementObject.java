@@ -1,19 +1,14 @@
 package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.LocalVariableDeclarationObject;
-import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.SuperMethodInvocationObject;
-import gr.uom.java.ast.TypeObject;
-import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.Statement;
-import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
-import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 /*
  * CompositeStatementObject represents the following AST Statement subclasses:
@@ -49,44 +44,6 @@ public class CompositeStatementObject extends AbstractStatement {
 		return statementList;
 	}
 
-	public int getStatementPosition(AbstractStatement statement) {
-		if(statementList.contains(statement)) {
-			return statementList.indexOf(statement);
-		}
-		else {
-			for(AbstractStatement abstractStatement : statementList) {
-				if(abstractStatement instanceof CompositeStatementObject) {
-					CompositeStatementObject compositeStatementObject = (CompositeStatementObject)abstractStatement;
-					int statementPosition = compositeStatementObject.getStatementPosition(statement);
-					if(statementPosition != -1)
-						return statementPosition;
-				}
-			}
-		}
-		return -1;
-	}
-
-	public AbstractStatement getPreviousStatement(AbstractStatement statement) {
-		if(statementList.contains(statement)) {
-			int index = statementList.indexOf(statement);
-			if(index > 0)
-				return statementList.get(index-1);
-			else
-				return null;
-		}
-		else {
-			for(AbstractStatement abstractStatement : statementList) {
-				if(abstractStatement instanceof CompositeStatementObject) {
-					CompositeStatementObject compositeStatementObject = (CompositeStatementObject)abstractStatement;
-					AbstractStatement previousStatement = compositeStatementObject.getPreviousStatement(statement);
-					if(previousStatement != null)
-						return previousStatement;
-				}
-			}
-		}
-		return null;
-	}
-
 	public void addExpression(AbstractExpression expression) {
 		expressionList.add(expression);
 		expression.setOwner(this);
@@ -96,118 +53,15 @@ public class CompositeStatementObject extends AbstractStatement {
 		return expressionList;
 	}
 
-	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof StatementObject) {
-				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.containsLocalVariableDeclaration(lvdo)) {
-					if(statementObject.getStatement() instanceof VariableDeclarationStatement)
-						return (VariableDeclarationStatement)statementObject.getStatement();
-					else {
-						StatementExtractor statementExtractor = new StatementExtractor();
-						List<Statement> variableDeclarations = statementExtractor.getVariableDeclarations(statementObject.getStatement());
-						for(Statement variableDeclarationStatement : variableDeclarations) {
-							VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)variableDeclarationStatement;
-							String variableDeclarationType = variableDeclaration.getType().resolveBinding().getQualifiedName();
-							TypeObject variableDeclarationTypeObject = TypeObject.extractTypeObject(variableDeclarationType);
-							if(variableDeclarationTypeObject.equals(lvdo.getType())) {
-								List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
-								for(VariableDeclarationFragment fragment : fragments) {
-									if(fragment.getName().getIdentifier().equals(lvdo.getName()))
-										return variableDeclaration;
-								}
-							}
-						}
-					}
-				}
-			}
-			else if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
-				if(compositeStatementObject.containsLocalVariableDeclaration(lvdo))
-					return compositeStatementObject.getVariableDeclarationStatement(lvdo);
-			}
-		}
-		return null;
-	}
-
-	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
+	public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
+		List<Assignment> fieldAssignments = new ArrayList<Assignment>();
 		for(AbstractExpression expression : expressionList) {
-			if(expression.containsLocalVariableDeclaration(lvdo)) {
-				return (VariableDeclarationExpression)expression.getExpression();
-			}
-		}
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
-				return compositeStatementObject.getVariableDeclarationExpression(lvdo);
-			}
-		}
-		return null;
-	}
-
-	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
-		List<AbstractStatement> methodInvocationStatements = new ArrayList<AbstractStatement>();
-		for(AbstractExpression expression : expressionList) {
-			if(expression.containsMethodInvocation(methodInvocation))
-				methodInvocationStatements.add(this);
+			fieldAssignments.addAll(expression.getFieldAssignments(fio));
 		}
 		for(AbstractStatement statement : statementList) {
 			if(statement instanceof StatementObject) {
 				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.containsMethodInvocation(methodInvocation))
-					methodInvocationStatements.add(statementObject);
-			}
-			else if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
-				methodInvocationStatements.addAll(compositeStatementObject.getMethodInvocationStatements(methodInvocation));
-			}
-		}
-		return methodInvocationStatements;
-	}
-
-	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
-		List<AbstractStatement> superMethodInvocationStatements = new ArrayList<AbstractStatement>();
-		for(AbstractExpression expression : expressionList) {
-			if(expression.containsSuperMethodInvocation(superMethodInvocation))
-				superMethodInvocationStatements.add(this);
-		}
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof StatementObject) {
-				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.containsSuperMethodInvocation(superMethodInvocation))
-					superMethodInvocationStatements.add(statementObject);
-			}
-			else if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
-				superMethodInvocationStatements.addAll(compositeStatementObject.getSuperMethodInvocationStatements(superMethodInvocation));
-			}
-		}
-		return superMethodInvocationStatements;
-	}
-
-	public List<AbstractStatement> getLocalVariableAssignments(LocalVariableDeclarationObject lvdo) {
-		List<AbstractStatement> localVariableAssignments = new ArrayList<AbstractStatement>();
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof StatementObject) {
-				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.isLocalVariableAssignment(lvdo.generateLocalVariableInstruction()))
-					localVariableAssignments.add(statementObject);
-			}
-			else if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
-				localVariableAssignments.addAll(compositeStatementObject.getLocalVariableAssignments(lvdo));
-			}
-		}
-		return localVariableAssignments;
-	}
-
-	public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
-		List<AbstractStatement> fieldAssignments = new ArrayList<AbstractStatement>();
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof StatementObject) {
-				StatementObject statementObject = (StatementObject)statement;
-				if(statementObject.isFieldAssignment(fio))
-					fieldAssignments.add(statementObject);
+				fieldAssignments.addAll(statementObject.getFieldAssignments(fio));
 			}
 			else if(statement instanceof CompositeStatementObject) {
 				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
@@ -217,4 +71,39 @@ public class CompositeStatementObject extends AbstractStatement {
 		return fieldAssignments;
 	}
 
+	public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
+		List<PostfixExpression> fieldPostfixAssignments = new ArrayList<PostfixExpression>();
+		for(AbstractExpression expression : expressionList) {
+			fieldPostfixAssignments.addAll(expression.getFieldPostfixAssignments(fio));
+		}
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof StatementObject) {
+				StatementObject statementObject = (StatementObject)statement;
+				fieldPostfixAssignments.addAll(statementObject.getFieldPostfixAssignments(fio));
+			}
+			else if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+				fieldPostfixAssignments.addAll(compositeStatementObject.getFieldPostfixAssignments(fio));
+			}
+		}
+		return fieldPostfixAssignments;
+	}
+
+	public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
+		List<PrefixExpression> fieldPrefixAssignments = new ArrayList<PrefixExpression>();
+		for(AbstractExpression expression : expressionList) {
+			fieldPrefixAssignments.addAll(expression.getFieldPrefixAssignments(fio));
+		}
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof StatementObject) {
+				StatementObject statementObject = (StatementObject)statement;
+				fieldPrefixAssignments.addAll(statementObject.getFieldPrefixAssignments(fio));
+			}
+			else if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
+				fieldPrefixAssignments.addAll(compositeStatementObject.getFieldPrefixAssignments(fio));
+			}
+		}
+		return fieldPrefixAssignments;
+	}
 }

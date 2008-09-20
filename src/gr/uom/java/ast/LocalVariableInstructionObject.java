@@ -1,8 +1,11 @@
 package gr.uom.java.ast;
 
+import org.eclipse.jdt.core.dom.SimpleName;
+
 public class LocalVariableInstructionObject {
 	private TypeObject type;
     private String name;
+    private SimpleName simpleName;
     private volatile int hashCode = 0;
 
     public LocalVariableInstructionObject(TypeObject type, String name) {
@@ -18,8 +21,12 @@ public class LocalVariableInstructionObject {
         return name;
     }
 
-    public LocalVariableDeclarationObject generateLocalVariableDeclaration() {
-    	return new LocalVariableDeclarationObject(type, name);
+    public void setSimpleName(SimpleName simpleName) {
+    	this.simpleName = simpleName;
+    }
+
+    public SimpleName getSimpleName() {
+    	return this.simpleName;
     }
 
     public boolean equals(Object o) {

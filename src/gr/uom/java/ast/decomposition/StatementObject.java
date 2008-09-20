@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import gr.uom.java.ast.FieldInstructionObject;
@@ -9,7 +10,6 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Expression;
-import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -39,66 +39,9 @@ public class StatementObject extends AbstractStatement {
 	public StatementObject(Statement statement) {
 		super(statement);
 	}
-	
-	public boolean isLocalVariableAssignment(LocalVariableInstructionObject lvio) {
-		if( getLocalVariableInstructions().contains(lvio) ) {
-			Statement statement = getStatement();
-			if(statement instanceof ExpressionStatement) {
-				ExpressionStatement expressionStatement = (ExpressionStatement)statement;
-				Expression expression = expressionStatement.getExpression();
-				if(expression instanceof Assignment) {
-					Assignment assignment = (Assignment)expression;
-					Expression leftHandSide = assignment.getLeftHandSide();
-					SimpleName leftHandSideName = processExpression(leftHandSide);
-					if(leftHandSideName != null) {
-						IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
-						if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
-							if(!leftHandSideVariableBinding.isField() && !leftHandSideVariableBinding.isParameter()) {
-								if(leftHandSideName.getIdentifier().equals(lvio.getName()))
-									return true;
-							}
-						}
-					}
-				}
-				else if(expression instanceof PostfixExpression) {
-					PostfixExpression postfixExpression = (PostfixExpression)expression;
-					Expression operand = postfixExpression.getOperand();
-					SimpleName operandName = processExpression(operand);
-					if(operandName != null) {
-						IBinding operandBinding = operandName.resolveBinding();
-						if(operandBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-							if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
-								if(operandName.getIdentifier().equals(lvio.getName()))
-									return true;
-							}
-						}
-					}
-				}
-				else if(expression instanceof PrefixExpression) {
-					PrefixExpression prefixExpression = (PrefixExpression)expression;
-					Expression operand = prefixExpression.getOperand();
-					PrefixExpression.Operator operator = prefixExpression.getOperator();
-					SimpleName operandName = processExpression(operand);
-					if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
-							operator.equals(PrefixExpression.Operator.DECREMENT))) {
-						IBinding operandBinding = operandName.resolveBinding();
-						if(operandBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-							if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
-								if(operandName.getIdentifier().equals(lvio.getName()))
-									return true;
-							}
-						}
-					}
-				}
-			}
-		}
-		return false;
-	}
-	
-	public Assignment containsLocalVariableAssignment(LocalVariableInstructionObject lvio) {
+
+	public List<Assignment> getLocalVariableAssignments(LocalVariableInstructionObject lvio) {
+		List<Assignment> localVariableAssignments = new ArrayList<Assignment>();
 		Statement statement = getStatement();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> assignments = expressionExtractor.getAssignments(statement);
@@ -110,17 +53,16 @@ public class StatementObject extends AbstractStatement {
 				IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
 				if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
-					if(!leftHandSideVariableBinding.isField() && !leftHandSideVariableBinding.isParameter()) {
-						if(leftHandSideName.getIdentifier().equals(lvio.getName()))
-							return assignment;
-					}
+					if(leftHandSideVariableBinding.isEqualTo(lvio.getSimpleName().resolveBinding()))
+						localVariableAssignments.add(assignment);
 				}
 			}
 		}
-		return null;
+		return localVariableAssignments;
 	}
-	
-	public PostfixExpression containsLocalVariablePostfixAssignment(LocalVariableInstructionObject lvio) {
+
+	public List<PostfixExpression> getLocalVariablePostfixAssignments(LocalVariableInstructionObject lvio) {
+		List<PostfixExpression> localVariablePostfixAssignments = new ArrayList<PostfixExpression>();
 		Statement statement = getStatement();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(statement);
@@ -132,17 +74,16 @@ public class StatementObject extends AbstractStatement {
 				IBinding operandBinding = operandName.resolveBinding();
 				if(operandBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-					if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
-						if(operandName.getIdentifier().equals(lvio.getName()))
-							return postfixExpression;
-					}
+					if(operandVariableBinding.isEqualTo(lvio.getSimpleName().resolveBinding()))
+						localVariablePostfixAssignments.add(postfixExpression);
 				}
 			}
 		}
-		return null;
+		return localVariablePostfixAssignments;
 	}
-	
-	public PrefixExpression containsLocalVariablePrefixAssignment(LocalVariableInstructionObject lvio) {
+
+	public List<PrefixExpression> getLocalVariablePrefixAssignments(LocalVariableInstructionObject lvio) {
+		List<PrefixExpression> localVariablePrefixAssignments = new ArrayList<PrefixExpression>();
 		Statement statement = getStatement();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(statement);
@@ -156,72 +97,77 @@ public class StatementObject extends AbstractStatement {
 				IBinding operandBinding = operandName.resolveBinding();
 				if(operandBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-					if(!operandVariableBinding.isField() && !operandVariableBinding.isParameter()) {
-						if(operandName.getIdentifier().equals(lvio.getName()))
-							return prefixExpression;
-					}
+					if(operandVariableBinding.isEqualTo(lvio.getSimpleName().resolveBinding()))
+						localVariablePrefixAssignments.add(prefixExpression);
 				}
 			}
 		}
-		return null;
+		return localVariablePrefixAssignments;
 	}
-	
-	public boolean isFieldAssignment(FieldInstructionObject fio) {
-		if( getFieldInstructions().contains(fio) ) {
-			Statement statement = getStatement();
-			if(statement instanceof ExpressionStatement) {
-				ExpressionStatement expressionStatement = (ExpressionStatement)statement;
-				Expression expression = expressionStatement.getExpression();
-				if(expression instanceof Assignment) {
-					Assignment assignment = (Assignment)expression;
-					Expression leftHandSide = assignment.getLeftHandSide();
-					SimpleName leftHandSideName = processExpression(leftHandSide);
-					if(leftHandSideName != null) {
-						IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
-						if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
-							if(leftHandSideVariableBinding.isField()) {
-								if(leftHandSideName.getIdentifier().equals(fio.getName()))
-									return true;
-							}
-						}
-					}
-				}
-				else if(expression instanceof PostfixExpression) {
-					PostfixExpression postfixExpression = (PostfixExpression)expression;
-					Expression operand = postfixExpression.getOperand();
-					SimpleName operandName = processExpression(operand);
-					if(operandName != null) {
-						IBinding operandBinding = operandName.resolveBinding();
-						if(operandBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-							if(operandVariableBinding.isField()) {
-								if(operandName.getIdentifier().equals(fio.getName()))
-									return true;
-							}
-						}
-					}
-				}
-				else if(expression instanceof PrefixExpression) {
-					PrefixExpression prefixExpression = (PrefixExpression)expression;
-					Expression operand = prefixExpression.getOperand();
-					PrefixExpression.Operator operator = prefixExpression.getOperator();
-					SimpleName operandName = processExpression(operand);
-					if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
-							operator.equals(PrefixExpression.Operator.DECREMENT))) {
-						IBinding operandBinding = operandName.resolveBinding();
-						if(operandBinding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-							if(operandVariableBinding.isField()) {
-								if(operandName.getIdentifier().equals(fio.getName()))
-									return true;
-							}
-						}
-					}
+
+	public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
+		List<Assignment> fieldAssignments = new ArrayList<Assignment>();
+		Statement statement = getStatement();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> assignments = expressionExtractor.getAssignments(statement);
+		for(Expression expression : assignments) {
+			Assignment assignment = (Assignment)expression;
+			Expression leftHandSide = assignment.getLeftHandSide();
+			SimpleName leftHandSideName = processExpression(leftHandSide);
+			if(leftHandSideName != null) {
+				IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
+				if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
+					if(leftHandSideVariableBinding.isEqualTo(fio.getSimpleName().resolveBinding()))
+						fieldAssignments.add(assignment);
 				}
 			}
 		}
-		return false;
+		return fieldAssignments;
+	}
+
+	public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
+		List<PostfixExpression> fieldPostfixAssignments = new ArrayList<PostfixExpression>();
+		Statement statement = getStatement();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(statement);
+		for(Expression expression : postfixExpressions) {
+			PostfixExpression postfixExpression = (PostfixExpression)expression;
+			Expression operand = postfixExpression.getOperand();
+			SimpleName operandName = processExpression(operand);
+			if(operandName != null) {
+				IBinding operandBinding = operandName.resolveBinding();
+				if(operandBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+					if(operandVariableBinding.isEqualTo(fio.getSimpleName().resolveBinding()))
+						fieldPostfixAssignments.add(postfixExpression);
+				}
+			}
+		}
+		return fieldPostfixAssignments;
+	}
+
+	public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
+		List<PrefixExpression> fieldPrefixAssignments = new ArrayList<PrefixExpression>();
+		Statement statement = getStatement();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(statement);
+		for(Expression expression : prefixExpressions) {
+			PrefixExpression prefixExpression = (PrefixExpression)expression;
+			Expression operand = prefixExpression.getOperand();
+			PrefixExpression.Operator operator = prefixExpression.getOperator();
+			SimpleName operandName = processExpression(operand);
+			if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+					operator.equals(PrefixExpression.Operator.DECREMENT))) {
+				IBinding operandBinding = operandName.resolveBinding();
+				if(operandBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+					if(operandVariableBinding.isEqualTo(fio.getSimpleName().resolveBinding()))
+						fieldPrefixAssignments.add(prefixExpression);
+				}
+			}
+		}
+		return fieldPrefixAssignments;
 	}
 
 	private SimpleName processExpression(Expression expression) {

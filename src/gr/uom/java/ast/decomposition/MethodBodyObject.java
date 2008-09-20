@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AssertStatement;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CatchClause;
@@ -28,6 +29,8 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -37,7 +40,6 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
-import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -170,22 +172,6 @@ public class MethodBodyObject {
 		return typeCheckEliminations;
 	}
 
-	public VariableDeclarationStatement getVariableDeclarationStatement(LocalVariableDeclarationObject lvdo) {
-		return this.compositeStatement.getVariableDeclarationStatement(lvdo);
-	}
-
-	public VariableDeclarationExpression getVariableDeclarationExpression(LocalVariableDeclarationObject lvdo) {
-		return this.compositeStatement.getVariableDeclarationExpression(lvdo);
-	}
-
-	public List<AbstractStatement> getMethodInvocationStatements(MethodInvocationObject methodInvocation) {
-		return this.compositeStatement.getMethodInvocationStatements(methodInvocation);
-	}
-
-	public List<AbstractStatement> getSuperMethodInvocationStatements(SuperMethodInvocationObject superMethodInvocation) {
-		return this.compositeStatement.getSuperMethodInvocationStatements(superMethodInvocation);
-	}
-
 	public List<FieldInstructionObject> getFieldInstructions() {
 		return compositeStatement.getFieldInstructions();
 	}
@@ -214,8 +200,16 @@ public class MethodBodyObject {
 		return compositeStatement.containsSuperMethodInvocation(superMethodInvocation);
 	}
 
-	public List<AbstractStatement> getFieldAssignments(FieldInstructionObject fio) {
+	public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
 		return compositeStatement.getFieldAssignments(fio);
+	}
+
+	public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
+		return compositeStatement.getFieldPostfixAssignments(fio);
+	}
+
+	public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
+		return compositeStatement.getFieldPrefixAssignments(fio);
 	}
 
 	public boolean containsSuperMethodInvocation() {

@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import gr.uom.java.ast.LocalVariableDeclarationObject;
+import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 
 import java.util.LinkedHashMap;
@@ -46,6 +47,10 @@ public class PDG extends Graph {
 
 	public PDGMethodEntryNode getEntryNode() {
 		return entryNode;
+	}
+
+	public MethodObject getMethod() {
+		return cfg.getMethod();
 	}
 
 	private void createControlDependenciesFromEntryNode() {
@@ -237,6 +242,15 @@ public class PDG extends Graph {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
 				examinedVariables.add(usedVariable);
 			}
+		}
+		return slices;
+	}
+
+	public Set<PDGSlice> getAllProgramDependenceSlices() {
+		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			slices.addAll(getProgramDependenceSlices(pdgNode));
 		}
 		return slices;
 	}

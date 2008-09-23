@@ -13,7 +13,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Table;
@@ -250,7 +249,7 @@ public class TypeChecking extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
-				typeCheckEliminationTable = getTable(selectedProject);
+				typeCheckEliminationTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
@@ -363,7 +362,7 @@ public class TypeChecking extends ViewPart {
 		tableViewer.getControl().setFocus();
 	}
 
-	private TypeCheckElimination[] getTable(IProject iProject) {
+	private TypeCheckElimination[] getTable() {
 		if(selectedPackage != null)
 			astReader = new ASTReader(selectedPackage);
 		else

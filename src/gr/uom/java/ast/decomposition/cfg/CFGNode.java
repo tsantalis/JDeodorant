@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import org.eclipse.jdt.core.dom.Statement;
+
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGNode extends GraphNode {
@@ -14,6 +16,10 @@ public class CFGNode extends GraphNode {
 
 	public AbstractStatement getStatement() {
 		return statement;
+	}
+
+	public Statement getASTStatement() {
+		return statement.getStatement();
 	}
 
 	public boolean isLeader() {

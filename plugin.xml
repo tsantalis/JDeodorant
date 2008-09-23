@@ -16,22 +16,28 @@
             </separator>
          </menu>
          <action
-               label="Feature Envy"
-               icon="icons/featureEnvySpray.gif"
                class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
-               tooltip="Feature Envy"
+               icon="icons/repair.png"
+               id="gr.uom.java.jdeodorant.actions.FeatureEnvy"
+               label="Feature Envy"
                menubarPath="BadSmellsMenu/sampleGroup"
-               toolbarPath="sampleGroup"
-               id="gr.uom.java.jdeodorant.actions.FeatureEnvy">
+               tooltip="Feature Envy">
          </action>
          <action
-         	   label="Type Checking"
-               icon="icons/typeCheckingSpray.gif"
                class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
-               tooltip="Type Checking"
+               icon="icons/repair.png"
+               id="gr.uom.java.jdeodorant.actions.TypeChecking"
+               label="Type Checking"
                menubarPath="BadSmellsMenu/sampleGroup"
-               toolbarPath="sampleGroup"
-               id="gr.uom.java.jdeodorant.actions.TypeChecking">
+               tooltip="Type Checking">
+         </action>
+         <action
+               class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
+               icon="icons/repair.png"
+               id="gr.uom.java.jdeodorant.actions.LongMethod"
+               label="Long Method"
+               menubarPath="BadSmellsMenu/sampleGroup"
+               tooltip="Long Method">
          </action>
       </actionSet>
    </extension>
@@ -43,7 +49,7 @@
       </category>
       <view
             name="Feature Envy"
-            icon="icons/featureEnvySpray.gif"
+            icon="icons/repair.png"
             category="gr.uom.java.jdeodorant"
             class="gr.uom.java.jdeodorant.refactoring.views.FeatureEnvy"
             id="gr.uom.java.jdeodorant.views.FeatureEnvy">
@@ -51,9 +57,16 @@
       <view
             category="gr.uom.java.jdeodorant"
             class="gr.uom.java.jdeodorant.refactoring.views.TypeChecking"
-            icon="icons/typeCheckingSpray.gif"
+            icon="icons/repair.png"
             id="gr.uom.java.jdeodorant.views.TypeChecking"
             name="Type Checking">
+      </view>
+      <view
+            category="gr.uom.java.jdeodorant"
+            class="gr.uom.java.jdeodorant.refactoring.views.LongMethod"
+            icon="icons/repair.png"
+            id="gr.uom.java.jdeodorant.views.LongMethod"
+            name="Long Method">
       </view>
    </extension>
    <extension
@@ -71,6 +84,15 @@
             targetID="org.eclipse.ui.resourcePerspective">
          <view
                id="gr.uom.java.jdeodorant.views.TypeChecking"
+               ratio="0.5"
+               relationship="right"
+               relative="org.eclipse.ui.views.TaskList">
+         </view>
+      </perspectiveExtension>
+      <perspectiveExtension
+            targetID="org.eclipse.ui.resourcePerspective">
+         <view
+               id="gr.uom.java.jdeodorant.views.LongMethod"
                ratio="0.5"
                relationship="right"
                relative="org.eclipse.ui.views.TaskList">

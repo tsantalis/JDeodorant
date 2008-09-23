@@ -29,13 +29,6 @@ public class TypeObject {
     public int getArrayDimension() {
     	return this.arrayDimension;
     }
-    
-    public boolean containsGeneticType(String s) {
-        if(genericType != null)
-            return genericType.contains(s);
-        else
-            return false;
-    }
 
     public boolean equalsClassType(TypeObject typeObject) {
     	if(this.classType.equals("T") || typeObject.classType.equals("T"))

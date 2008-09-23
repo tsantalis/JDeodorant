@@ -6,4 +6,11 @@ public abstract class PDGDependence extends GraphEdge {
 		super(src, dst);
 	}
 
+	public GraphNode getSrc() {
+		return src;
+	}
+
+	public GraphNode getDst() {
+		return dst;
+	}
 }

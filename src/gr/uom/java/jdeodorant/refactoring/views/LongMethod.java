@@ -315,7 +315,7 @@ public class LongMethod extends ViewPart {
 					PDG pdg = new PDG(cfg);
 					Set<PDGSlice> pdgSlices = pdg.getAllProgramDependenceSlices();
 					for(PDGSlice pdgSlice : pdgSlices) {
-						if(!pdgSlice.getSliceNodes().isEmpty())
+						if(pdgSlice.getSliceNodes().size() > 1)
 							extractedSlices.add(pdgSlice);
 					}
 				}

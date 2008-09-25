@@ -22,16 +22,20 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jface.text.Position;
 
 public class ASTSlice {
+	private PDGSlice pdgSlice;
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
 	private Set<PDGNode> sliceNodes;
 	private Set<Statement> sliceStatements;
+	private Set<Statement> removableStatements;
 	private Statement statementCriterion;
 	private VariableDeclaration localVariableCriterion;
 	private Set<VariableDeclaration> passedParameters;
+	private Statement extractedMethodInvocationInsertionStatement;
 	private String extractedMethodName;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
+		this.pdgSlice = pdgSlice;
 		this.sourceMethodDeclaration = pdgSlice.getMethod().getMethodDeclaration();
 		this.sourceTypeDeclaration = (TypeDeclaration)sourceMethodDeclaration.getParent();
 		this.sliceNodes = pdgSlice.getSliceNodes();
@@ -39,9 +43,14 @@ public class ASTSlice {
 		for(PDGNode node : sliceNodes) {
 			sliceStatements.add(node.getASTStatement());
 		}
+		this.removableStatements = new LinkedHashSet<Statement>();
+		for(PDGNode node : pdgSlice.getRemovableNodes()) {
+			removableStatements.add(node.getASTStatement());
+		}
 		this.statementCriterion = pdgSlice.getNodeCriterion().getASTStatement();
 		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion();
 		this.passedParameters = pdgSlice.getPassedParameters();
+		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 	}
 	
@@ -73,12 +82,35 @@ public class ASTSlice {
 		return sliceStatements;
 	}
 
+	public Set<Statement> getRemovableStatements() {
+		return removableStatements;
+	}
+
+	public Statement getExtractedMethodInvocationInsertionStatement() {
+		return extractedMethodInvocationInsertionStatement;
+	}
+
 	public String getExtractedMethodName() {
 		return extractedMethodName;
 	}
 
 	public void setExtractedMethodName(String extractedMethodName) {
 		this.extractedMethodName = extractedMethodName;
+	}
+
+	public boolean statementCriterionDefinesVariableCriterion() {
+		return pdgSlice.getNodeCriterion().definesLocalVariable(localVariableCriterion);
+	}
+
+	public boolean statementCriterionUsesVariableCriterion() {
+		if(statementCriterionDefinesVariableCriterion())
+			return false;
+		else
+			return pdgSlice.getNodeCriterion().usesLocalVariable(localVariableCriterion);
+	}
+
+	public boolean containsDeclarationOfVariableCriterion() {
+		return pdgSlice.containsDeclarationOfVariableCriterion();
 	}
 
 	public List<Position> getHighlightPositions() {

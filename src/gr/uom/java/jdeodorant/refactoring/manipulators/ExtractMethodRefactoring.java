@@ -6,6 +6,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -22,14 +23,17 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -72,7 +76,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 
 	public void apply() {
 		extractMethod();
-		
+		modifySourceMethod();
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
@@ -90,6 +94,65 @@ public class ExtractMethodRefactoring extends Refactoring {
 			e.printStackTrace();
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private void modifySourceMethod() {
+		AST ast = sourceMethodDeclaration.getAST();
+		MethodInvocation extractedMethodInvocation = ast.newMethodInvocation();
+		sourceRewriter.set(extractedMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
+		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(extractedMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
+			argumentRewrite.insertLast(variableDeclaration.getName(), null);
+		}
+		
+		if(slice.statementCriterionDefinesVariableCriterion()) {
+			if(slice.containsDeclarationOfVariableCriterion()) {
+				VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
+				VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
+				sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
+				sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
+				VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
+				Type returnedVariableType = null;
+				if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariableDeclaration;
+					returnedVariableType = singleVariableDeclaration.getType();
+				}
+				else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+					returnedVariableType = variableDeclarationStatement.getType();
+				}
+				sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
+				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+				blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
+			}
+			else {
+				Assignment assignment = ast.newAssignment();
+				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, slice.getLocalVariableCriterion().getName(), null);
+				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
+				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
+				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
+			}
+		}
+		else if(slice.statementCriterionUsesVariableCriterion()) {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> simpleNames = expressionExtractor.getVariableInstructions(slice.getStatementCriterion());
+			for(Expression expression : simpleNames) {
+				SimpleName simpleName = (SimpleName)expression;
+				if(slice.getLocalVariableCriterion().resolveBinding().isEqualTo(simpleName.resolveBinding())) {
+					sourceRewriter.replace(simpleName, extractedMethodInvocation, null);
+				}
+			}
+		}
+		
+		for(Statement removableStatement : slice.getRemovableStatements()) {
+			sourceRewriter.remove(removableStatement, null);
 		}
 	}
 

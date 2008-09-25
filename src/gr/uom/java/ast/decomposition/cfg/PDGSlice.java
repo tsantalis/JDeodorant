@@ -1,6 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -17,6 +19,7 @@ public class PDGSlice extends Graph {
 	private Set<PDGNode> remainingNodes;
 	private Set<VariableDeclaration> passedParameters;
 	private Set<PDGNode> indispensableNodes;
+	private Set<PDGNode> removableNodes;
 	
 	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
 			VariableDeclaration localVariableCriterion) {
@@ -56,11 +59,11 @@ public class PDGSlice extends Graph {
 					passedParameters.add(dataDependence.getData());
 				if(sliceNodes.contains(srcPDGNode) && remainingNodes.contains(dstPDGNode) &&
 						!dataDependence.getData().equals(localVariableCriterion))
-					/*nDD.add(srcPDGNode);*/nDD.add(dstPDGNode);
+					nDD.add(dstPDGNode);
 			}
 			else if(dependence instanceof PDGControlDependence) {
 				if(sliceNodes.contains(srcPDGNode) && remainingNodes.contains(dstPDGNode))
-					/*nCD.add(srcPDGNode);*/nCD.add(dstPDGNode);
+					nCD.add(dstPDGNode);
 			}
 		}
 		Set<PDGNode> controlIndispensableNodes = new LinkedHashSet<PDGNode>();
@@ -85,10 +88,20 @@ public class PDGSlice extends Graph {
 		this.indispensableNodes = new LinkedHashSet<PDGNode>();
 		indispensableNodes.addAll(controlIndispensableNodes);
 		indispensableNodes.addAll(dataIndispensableNodes);
+		this.removableNodes = new LinkedHashSet<PDGNode>();
+		for(GraphNode node : pdg.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(!remainingNodes.contains(pdgNode) && !indispensableNodes.contains(pdgNode))
+				removableNodes.add(pdgNode);
+		}
 	}
 
 	public MethodObject getMethod() {
 		return method;
+	}
+
+	public PDGNode getExtractedMethodInvocationInsertionNode() {
+		return boundaryBlock.getLeader().getPDGNode();
 	}
 
 	public PDGNode getNodeCriterion() {
@@ -105,6 +118,21 @@ public class PDGSlice extends Graph {
 
 	public Set<VariableDeclaration> getPassedParameters() {
 		return passedParameters;
+	}
+
+	public Set<PDGNode> getRemovableNodes() {
+		return removableNodes;
+	}
+
+	public boolean containsDeclarationOfVariableCriterion() {
+		for(PDGNode pdgNode : sliceNodes) {
+			AbstractStatement statement = pdgNode.getStatement();
+			for(LocalVariableDeclarationObject variableDeclaration : statement.getLocalVariableDeclarations()) {
+				if(variableDeclaration.getVariableDeclaration().equals(localVariableCriterion))
+					return true;
+			}
+		}
+		return false;
 	}
 
 	private Set<PDGNode> computeSlice(PDGNode nodeCriterion, VariableDeclaration localVariableCriterion) {

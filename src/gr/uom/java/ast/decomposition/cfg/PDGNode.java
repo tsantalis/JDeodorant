@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.decomposition.AbstractStatement;
+
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -49,6 +51,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	public BasicBlock getBasicBlock() {
 		return cfgNode.getBasicBlock();
+	}
+
+	public AbstractStatement getStatement() {
+		return cfgNode.getStatement();
 	}
 
 	public Statement getASTStatement() {

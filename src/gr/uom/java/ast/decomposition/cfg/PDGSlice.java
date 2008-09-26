@@ -70,8 +70,9 @@ public class PDGSlice extends Graph {
 		for(PDGNode p : nCD) {
 			for(VariableDeclaration usedVariable : p.usedVariables) {
 				Set<PDGNode> pSliceNodes = computeSlice(p, usedVariable);
-				for(PDGNode q : pSliceNodes) {
-					if(q.equals(p))
+				for(GraphNode node : pdg.nodes) {
+					PDGNode q = (PDGNode)node;
+					if(pSliceNodes.contains(q) || q.equals(p))
 						controlIndispensableNodes.add(q);
 				}
 			}
@@ -80,12 +81,14 @@ public class PDGSlice extends Graph {
 		for(PDGNode p : nDD) {
 			for(VariableDeclaration definedVariable : p.definedVariables) {
 				Set<PDGNode> pSliceNodes = computeSlice(p, definedVariable);
-				for(PDGNode q : pSliceNodes) {
-					dataIndispensableNodes.add(q);
+				for(GraphNode node : pdg.nodes) {
+					PDGNode q = (PDGNode)node;
+					if(pSliceNodes.contains(q))
+						dataIndispensableNodes.add(q);
 				}
 			}
 		}
-		this.indispensableNodes = new LinkedHashSet<PDGNode>();
+		this.indispensableNodes = new TreeSet<PDGNode>();
 		indispensableNodes.addAll(controlIndispensableNodes);
 		indispensableNodes.addAll(dataIndispensableNodes);
 		this.removableNodes = new LinkedHashSet<PDGNode>();
@@ -129,6 +132,41 @@ public class PDGSlice extends Graph {
 			AbstractStatement statement = pdgNode.getStatement();
 			for(LocalVariableDeclarationObject variableDeclaration : statement.getLocalVariableDeclarations()) {
 				if(variableDeclaration.getVariableDeclaration().equals(localVariableCriterion))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean nodeCriterionBelongsToDuplicatedNodes() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		if(duplicatedNodes.contains(nodeCriterion))
+			return true;
+		else
+			return false;
+	}
+
+	public boolean containsDuplicateNodeWithDefUseVariable() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode node : duplicatedNodes) {
+			for(VariableDeclaration definedVariable : node.definedVariables) {
+				if(node.usedVariables.contains(definedVariable) && !sliceContainsDeclaration(definedVariable)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean sliceContainsDeclaration(VariableDeclaration variableDeclaration) {
+		for(PDGNode pdgNode : sliceNodes) {
+			AbstractStatement statement = pdgNode.getStatement();
+			for(LocalVariableDeclarationObject declaration : statement.getLocalVariableDeclarations()) {
+				if(declaration.getVariableDeclaration().equals(variableDeclaration))
 					return true;
 			}
 		}

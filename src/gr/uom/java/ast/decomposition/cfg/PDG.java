@@ -237,12 +237,12 @@ public class PDG extends Graph {
 				examinedVariables.add(definedVariable);
 			}
 		}
-		for(VariableDeclaration usedVariable : nodeCriterion.usedVariables) {
+		/*for(VariableDeclaration usedVariable : nodeCriterion.usedVariables) {
 			if(!examinedVariables.contains(usedVariable)) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
 				examinedVariables.add(usedVariable);
 			}
-		}
+		}*/
 		return slices;
 	}
 

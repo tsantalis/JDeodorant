@@ -18,6 +18,7 @@ public class PDG extends Graph {
 	private PDGMethodEntryNode entryNode;
 	private Map<CFGBranchNode, Set<CFGNode>> nestingMap;
 	private Set<VariableDeclaration> variableDeclarations;
+	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
 	
 	public PDG(CFG cfg) {
 		this.cfg = cfg;
@@ -42,6 +43,7 @@ public class PDG extends Graph {
 		createControlDependenciesFromEntryNode();
 		if(!nodes.isEmpty())
 			createDataDependencies();
+		this.dominatedBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();
 		GraphNode.resetNodeNum();
 	}
 
@@ -152,7 +154,7 @@ public class PDG extends Graph {
 		return cfg.getBasicBlocks();
 	}
 
-	public Set<BasicBlock> forwardReachableBlocks(BasicBlock basicBlock) {
+	private Set<BasicBlock> forwardReachableBlocks(BasicBlock basicBlock) {
 		return cfg.getBasicBlockCFG().forwardReachableBlocks(basicBlock);
 	}
 
@@ -170,9 +172,16 @@ public class PDG extends Graph {
 		return null;
 	}
 
-	public Set<BasicBlock> dominatedBlocks(BasicBlock block) {
+	private Set<BasicBlock> dominatedBlocks(BasicBlock block) {
 		PDGNode pdgNode = directlyDominates(block);
-		return dominatedBlocks(pdgNode);
+		if(dominatedBlockMap.containsKey(pdgNode)) {
+			return dominatedBlockMap.get(pdgNode);
+		}
+		else {
+			Set<BasicBlock> dominatedBlocks = dominatedBlocks(pdgNode);
+			dominatedBlockMap.put(pdgNode, dominatedBlocks);
+			return dominatedBlocks;
+		}
 	}
 	
 	private Set<BasicBlock> dominatedBlocks(PDGNode branchNode) {
@@ -184,14 +193,14 @@ public class PDG extends Graph {
 				BasicBlock dstBlock = dstNode.getBasicBlock();
 				dominatedBlocks.add(dstBlock);
 				PDGNode dstBlockLastNode = dstBlock.getLastNode().getPDGNode();
-				if(dstBlockLastNode instanceof PDGControlPredicateNode)
+				if(dstBlockLastNode instanceof PDGControlPredicateNode && !dstBlockLastNode.equals(branchNode))
 					dominatedBlocks.addAll(dominatedBlocks(dstBlockLastNode));
 			}
 		}
 		return dominatedBlocks;
 	}
 
-	public Set<BasicBlock> boundaryBlocks(PDGNode node) {
+	private Set<BasicBlock> boundaryBlocks(PDGNode node) {
 		Set<BasicBlock> boundaryBlocks = new LinkedHashSet<BasicBlock>();
 		BasicBlock srcBlock = node.getBasicBlock();
 		for(BasicBlock block : getBasicBlocks()) {

@@ -49,13 +49,8 @@ public class StatementObject extends AbstractStatement {
 			Assignment assignment = (Assignment)expression;
 			Expression leftHandSide = assignment.getLeftHandSide();
 			SimpleName leftHandSideName = processExpression(leftHandSide);
-			if(leftHandSideName != null) {
-				IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
-				if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
-					if(leftHandSideVariableBinding.isEqualTo(lvio.getSimpleName().resolveBinding()))
-						localVariableAssignments.add(assignment);
-				}
+			if(leftHandSideName != null && leftHandSideName.equals(lvio.getSimpleName())) {
+				localVariableAssignments.add(assignment);
 			}
 		}
 		return localVariableAssignments;
@@ -70,13 +65,8 @@ public class StatementObject extends AbstractStatement {
 			PostfixExpression postfixExpression = (PostfixExpression)expression;
 			Expression operand = postfixExpression.getOperand();
 			SimpleName operandName = processExpression(operand);
-			if(operandName != null) {
-				IBinding operandBinding = operandName.resolveBinding();
-				if(operandBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-					if(operandVariableBinding.isEqualTo(lvio.getSimpleName().resolveBinding()))
-						localVariablePostfixAssignments.add(postfixExpression);
-				}
+			if(operandName != null && operandName.equals(lvio.getSimpleName())) {
+				localVariablePostfixAssignments.add(postfixExpression);
 			}
 		}
 		return localVariablePostfixAssignments;
@@ -92,14 +82,9 @@ public class StatementObject extends AbstractStatement {
 			Expression operand = prefixExpression.getOperand();
 			PrefixExpression.Operator operator = prefixExpression.getOperator();
 			SimpleName operandName = processExpression(operand);
-			if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+			if(operandName != null && operandName.equals(lvio.getSimpleName()) && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
 					operator.equals(PrefixExpression.Operator.DECREMENT))) {
-				IBinding operandBinding = operandName.resolveBinding();
-				if(operandBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-					if(operandVariableBinding.isEqualTo(lvio.getSimpleName().resolveBinding()))
-						localVariablePrefixAssignments.add(prefixExpression);
-				}
+				localVariablePrefixAssignments.add(prefixExpression);
 			}
 		}
 		return localVariablePrefixAssignments;

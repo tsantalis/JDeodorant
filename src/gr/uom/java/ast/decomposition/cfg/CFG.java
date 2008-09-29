@@ -111,24 +111,44 @@ public class CFG extends Graph {
 				else if(compositeStatement.getStatement() instanceof IfStatement) {
 					int action = PUSH_NEW_LIST;
 					List<AbstractStatement> statements = composite.getStatements();
-					if(statements.size() == 1)
+					CompositeStatementObject parent = statements.get(0).getParent();
+					if(parent.getStatement() instanceof Block)
+						parent = parent.getParent();
+					if(statements.size() == 1) {
 						action = JOIN_TOP_LIST;
+						if(parent != null) {
+							if(isLoop(parent))
+								action = PUSH_NEW_LIST;
+							else if(parent.getStatement() instanceof DoStatement)
+								action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+						}
+					}
 					else if(statements.size() > 1) {
 						AbstractStatement previousStatement = null;
 						if(i >= 1)
 							previousStatement = statements.get(i-1);
 						//current if statement is the last statement of the composite statement
 						if(statements.get(statements.size()-1).equals(compositeStatement)) {
-							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
+							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement) {
 								action = JOIN_SECOND_FROM_TOP_LIST;
-							else
+								if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
+									action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+							}
+							else {
 								action = JOIN_TOP_LIST;
+								if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
+									action = PUSH_NEW_LIST;
+							}
 						}
 						else {
 							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
 								action = PLACE_NEW_LIST_SECOND_FROM_TOP;
-							else
+							else {
 								action = PUSH_NEW_LIST;
+								if(parent != null && parent.getStatement() instanceof DoStatement &&
+										statements.get(0).getStatement() instanceof IfStatement)
+									action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+							}
 						}
 					}
 					previousNodes = processIfStatement(previousNodes, compositeStatement, action);

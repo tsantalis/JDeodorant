@@ -10,6 +10,8 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.ReturnStatement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 import gr.uom.java.ast.MethodObject;
@@ -56,18 +58,21 @@ public class CFG extends Graph {
 		for(AbstractStatement abstractStatement : composite.getStatements()) {
 			if(abstractStatement instanceof StatementObject) {
 				StatementObject statement = (StatementObject)abstractStatement;
-				//special handling of break, continue, return
-				CFGNode currentNode = new CFGNode(statement);
-				nodes.add(currentNode);
-				createTopDownFlow(previousNodes, currentNode);
-				ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
-				currentNodes.add(currentNode);
-				previousNodes = currentNodes;
+				previousNodes = processNonCompositeStatement(previousNodes, statement);
 			}
 			else if(abstractStatement instanceof CompositeStatementObject) {
 				CompositeStatementObject compositeStatement = (CompositeStatementObject)abstractStatement;
 				if(compositeStatement.getStatement() instanceof Block) {
 					previousNodes = process(previousNodes, compositeStatement);
+				}
+				else if(compositeStatement.getStatement() instanceof TryStatement) {
+					AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
+					if(firstStatement instanceof StatementObject) {
+						previousNodes = processNonCompositeStatement(previousNodes, (StatementObject)firstStatement);
+					}
+					else if(firstStatement instanceof CompositeStatementObject) {
+						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+					}
 				}
 				else if(isLoop(compositeStatement)) {
 					CFGBranchNode currentNode = new CFGBranchLoopNode(compositeStatement);
@@ -156,6 +161,21 @@ public class CFG extends Graph {
 			}
 			i++;
 		}
+		return previousNodes;
+	}
+
+	private List<CFGNode> processNonCompositeStatement(List<CFGNode> previousNodes, StatementObject statement) {
+		//special handling of break, continue, return
+		CFGNode currentNode = null;
+		if(statement.getStatement() instanceof ReturnStatement)
+			currentNode = new CFGExitNode(statement);
+		else
+			currentNode = new CFGNode(statement);
+		nodes.add(currentNode);
+		createTopDownFlow(previousNodes, currentNode);
+		ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
+		currentNodes.add(currentNode);
+		previousNodes = currentNodes;
 		return previousNodes;
 	}
 

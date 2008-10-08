@@ -3,21 +3,28 @@ package gr.uom.java.ast.decomposition.cfg;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	private CFGNode cfgNode;
+	protected Set<VariableDeclaration> declaredVariables;
 	protected Set<VariableDeclaration> definedVariables;
 	protected Set<VariableDeclaration> usedVariables;
+	protected Map<VariableDeclaration, MethodInvocation> stateChangingMethodInvocationMap;
 	
 	public PDGNode() {
 		super();
+		this.declaredVariables = new LinkedHashSet<VariableDeclaration>();
 		this.definedVariables = new LinkedHashSet<VariableDeclaration>();
 		this.usedVariables = new LinkedHashSet<VariableDeclaration>();
+		this.stateChangingMethodInvocationMap = new LinkedHashMap<VariableDeclaration, MethodInvocation>();
 	}
 	
 	public PDGNode(CFGNode cfgNode) {
@@ -25,8 +32,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.cfgNode = cfgNode;
 		this.id = cfgNode.id;
 		cfgNode.setPDGNode(this);
+		this.declaredVariables = new LinkedHashSet<VariableDeclaration>();
 		this.definedVariables = new LinkedHashSet<VariableDeclaration>();
 		this.usedVariables = new LinkedHashSet<VariableDeclaration>();
+		this.stateChangingMethodInvocationMap = new LinkedHashMap<VariableDeclaration, MethodInvocation>();
 	}
 
 	public CFGNode getCFGNode() {
@@ -41,12 +50,20 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return incomingEdges.iterator();
 	}
 
+	public boolean declaresLocalVariable(VariableDeclaration variable) {
+		return declaredVariables.contains(variable);
+	}
+
 	public boolean definesLocalVariable(VariableDeclaration variable) {
 		return definedVariables.contains(variable);
 	}
 
 	public boolean usesLocalVariable(VariableDeclaration variable) {
 		return usedVariables.contains(variable);
+	}
+
+	public Set<VariableDeclaration> getStateChangingVariables() {
+		return stateChangingMethodInvocationMap.keySet();
 	}
 
 	public BasicBlock getBasicBlock() {

@@ -16,24 +16,30 @@ import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 public class PDGStatementNode extends PDGNode {
-	private Set<VariableDeclaration> variableDeclarations;
 	
-	public PDGStatementNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarations) {
+	public PDGStatementNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod) {
 		super(cfgNode);
-		this.variableDeclarations = variableDeclarations;
-		determineDefinedAndUsedVariables();
+		determineDefinedAndUsedVariables(variableDeclarationsInMethod);
 	}
 
-	private void determineDefinedAndUsedVariables() {
+	private void determineDefinedAndUsedVariables(Set<VariableDeclaration> variableDeclarationsInMethod) {
 		CFGNode cfgNode = getCFGNode();
 		if(cfgNode.getStatement() instanceof StatementObject) {
 			StatementObject statement = (StatementObject)cfgNode.getStatement();
 			List<LocalVariableDeclarationObject> variableDeclarations = statement.getLocalVariableDeclarations();
-			for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations)
+			for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations) {
+				declaredVariables.add(variableDeclaration.getVariableDeclaration());
 				definedVariables.add(variableDeclaration.getVariableDeclaration());
+			}
 			List<LocalVariableInstructionObject> variableInstructions = statement.getLocalVariableInstructions();
 			for(LocalVariableInstructionObject variableInstruction : variableInstructions) {
-				VariableDeclaration variableDeclaration = getVariableDeclaration(variableInstruction);
+				VariableDeclaration variableDeclaration = null;
+				for(VariableDeclaration declaration : variableDeclarationsInMethod) {
+					if(declaration.resolveBinding().isEqualTo(variableInstruction.getSimpleName().resolveBinding())) {
+						variableDeclaration = declaration;
+						break;
+					}
+				}
 				List<Assignment> assignments = statement.getLocalVariableAssignments(variableInstruction);
 				List<PostfixExpression> postfixExpressions = statement.getLocalVariablePostfixAssignments(variableInstruction);
 				List<PrefixExpression> prefixExpressions = statement.getLocalVariablePrefixAssignments(variableInstruction);
@@ -61,25 +67,17 @@ public class PDGStatementNode extends PDGNode {
 							TypeObject type = variableInstruction.getType();
 							String methodInvocationName = methodInvocation.getName().getIdentifier();
 							if(type.getClassType().equals("java.util.Iterator") && methodInvocationName.equals("next"))
-								definedVariables.add(variableDeclaration);
+								stateChangingMethodInvocationMap.put(variableDeclaration, methodInvocation);
 							else if(type.getClassType().equals("java.util.Enumeration") && methodInvocationName.equals("nextElement"))
-								definedVariables.add(variableDeclaration);
+								stateChangingMethodInvocationMap.put(variableDeclaration, methodInvocation);
 							else if(type.getClassType().equals("java.util.ListIterator") &&
 									(methodInvocationName.equals("next") || methodInvocationName.equals("previous")))
-								definedVariables.add(variableDeclaration);
+								stateChangingMethodInvocationMap.put(variableDeclaration, methodInvocation);
 						}
 					}
 					usedVariables.add(variableDeclaration);
 				}
 			}
 		}
-	}
-
-	private VariableDeclaration getVariableDeclaration(LocalVariableInstructionObject variableInstruction) {
-		for(VariableDeclaration variableDeclaration : variableDeclarations) {
-			if(variableDeclaration.resolveBinding().isEqualTo(variableInstruction.getSimpleName().resolveBinding()))
-				return variableDeclaration;
-		}
-		return null;
 	}
 }

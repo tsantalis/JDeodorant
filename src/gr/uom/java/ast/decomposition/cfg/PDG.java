@@ -73,7 +73,11 @@ public class PDG extends Graph {
 			processControlPredicate(predicateNode);
 		}
 		else {
-			PDGNode pdgNode = new PDGStatementNode(cfgNode, variableDeclarations);
+			PDGNode pdgNode = null;
+			if(cfgNode instanceof CFGExitNode)
+				pdgNode = new PDGExitNode(cfgNode, variableDeclarations);
+			else
+				pdgNode = new PDGStatementNode(cfgNode, variableDeclarations);
 			nodes.add(pdgNode);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode, controlType);
 			edges.add(controlDependence);
@@ -225,6 +229,20 @@ public class PDG extends Graph {
 			}
 		}
 		return regionNodes;
+	}
+
+	public Set<VariableDeclaration> getReturnedVariables() {
+		Set<VariableDeclaration> returnedVariables = new LinkedHashSet<VariableDeclaration>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode instanceof PDGExitNode) {
+				PDGExitNode exitNode = (PDGExitNode)pdgNode;
+				VariableDeclaration returnedVariable = exitNode.getReturnedVariable();
+				if(returnedVariable != null)
+					returnedVariables.add(returnedVariable);
+			}
+		}
+		return returnedVariables;
 	}
 
 	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, VariableDeclaration variableCriterion) {

@@ -20,11 +20,13 @@ public class PDGSlice extends Graph {
 	private Set<VariableDeclaration> passedParameters;
 	private Set<PDGNode> indispensableNodes;
 	private Set<PDGNode> removableNodes;
+	private Set<VariableDeclaration> returnedVariablesInOriginalMethod;
 	
 	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
 			VariableDeclaration localVariableCriterion) {
 		super();
 		this.method = pdg.getMethod();
+		this.returnedVariablesInOriginalMethod = pdg.getReturnedVariables();
 		this.boundaryBlock = boundaryBlock;
 		this.nodeCriterion = nodeCriterion;
 		this.localVariableCriterion = localVariableCriterion;
@@ -138,25 +140,26 @@ public class PDGSlice extends Graph {
 		return false;
 	}
 
-	public boolean nodeCriterionBelongsToDuplicatedNodes() {
-		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
-		duplicatedNodes.addAll(sliceNodes);
-		duplicatedNodes.retainAll(indispensableNodes);
-		if(duplicatedNodes.contains(nodeCriterion))
+	public boolean nodeCritetionIsDeclarationOfVariableCriterion() {
+		if(nodeCriterion.declaresLocalVariable(localVariableCriterion))
 			return true;
-		else
-			return false;
+		return false;
 	}
 
-	public boolean containsDuplicateNodeWithDefUseVariable() {
+	public boolean variableCriterionIsReturnedVariableInOriginalMethod() {
+		if(returnedVariablesInOriginalMethod.contains(localVariableCriterion))
+			return true;
+		return false;
+	}
+
+	public boolean containsDuplicateNodeWithStateChangingMethodInvocation() {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
-			for(VariableDeclaration definedVariable : node.definedVariables) {
-				if(node.usedVariables.contains(definedVariable) && !sliceContainsDeclaration(definedVariable)) {
+			for(VariableDeclaration stateChangingVariable : node.getStateChangingVariables()) {
+				if(!sliceContainsDeclaration(stateChangingVariable))
 					return true;
-				}
 			}
 		}
 		return false;

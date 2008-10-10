@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
+import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -22,20 +23,19 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jface.text.Position;
 
 public class ASTSlice {
-	private PDGSlice pdgSlice;
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
 	private Set<PDGNode> sliceNodes;
 	private Set<Statement> sliceStatements;
 	private Set<Statement> removableStatements;
-	private Statement statementCriterion;
 	private VariableDeclaration localVariableCriterion;
 	private Set<VariableDeclaration> passedParameters;
 	private Statement extractedMethodInvocationInsertionStatement;
 	private String extractedMethodName;
+	private boolean declarationOfVariableCriterionBelongsToSliceNodes;
+	private boolean declarationOfVariableCriterionBelongsToRemovableNodes;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
-		this.pdgSlice = pdgSlice;
 		this.sourceMethodDeclaration = pdgSlice.getMethod().getMethodDeclaration();
 		this.sourceTypeDeclaration = (TypeDeclaration)sourceMethodDeclaration.getParent();
 		this.sliceNodes = pdgSlice.getSliceNodes();
@@ -47,23 +47,40 @@ public class ASTSlice {
 		for(PDGNode node : pdgSlice.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.statementCriterion = pdgSlice.getNodeCriterion().getASTStatement();
 		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion();
 		this.passedParameters = pdgSlice.getPassedParameters();
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
+		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSlice.declarationOfVariableCriterionBelongsToSliceNodes();
+		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSlice.declarationOfVariableCriterionBelongsToRemovableNodes();
 	}
-	
+
+	public ASTSlice(PDGSliceUnion pdgSliceUnion) {
+		this.sourceMethodDeclaration = pdgSliceUnion.getMethod().getMethodDeclaration();
+		this.sourceTypeDeclaration = (TypeDeclaration)sourceMethodDeclaration.getParent();
+		this.sliceNodes = pdgSliceUnion.getSliceNodes();
+		this.sliceStatements = new LinkedHashSet<Statement>();
+		for(PDGNode node : sliceNodes) {
+			sliceStatements.add(node.getASTStatement());
+		}
+		this.removableStatements = new LinkedHashSet<Statement>();
+		for(PDGNode node : pdgSliceUnion.getRemovableNodes()) {
+			removableStatements.add(node.getASTStatement());
+		}
+		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion();
+		this.passedParameters = pdgSliceUnion.getPassedParameters();
+		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
+		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
+		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
+		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
+	}
+
 	public TypeDeclaration getSourceTypeDeclaration() {
 		return sourceTypeDeclaration;
 	}
 
 	public MethodDeclaration getSourceMethodDeclaration() {
 		return sourceMethodDeclaration;
-	}
-
-	public Statement getStatementCriterion() {
-		return statementCriterion;
 	}
 
 	public VariableDeclaration getLocalVariableCriterion() {
@@ -98,19 +115,12 @@ public class ASTSlice {
 		this.extractedMethodName = extractedMethodName;
 	}
 
-	public boolean statementCriterionDefinesVariableCriterion() {
-		return pdgSlice.getNodeCriterion().definesLocalVariable(localVariableCriterion);
+	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
+		return declarationOfVariableCriterionBelongsToSliceNodes;
 	}
 
-	public boolean statementCriterionUsesVariableCriterion() {
-		if(statementCriterionDefinesVariableCriterion())
-			return false;
-		else
-			return pdgSlice.getNodeCriterion().usesLocalVariable(localVariableCriterion);
-	}
-
-	public boolean containsDeclarationOfVariableCriterion() {
-		return pdgSlice.containsDeclarationOfVariableCriterion();
+	public boolean declarationOfVariableCriterionBelongsToRemovableNodes() {
+		return declarationOfVariableCriterionBelongsToRemovableNodes;
 	}
 
 	public List<Position> getHighlightPositions() {

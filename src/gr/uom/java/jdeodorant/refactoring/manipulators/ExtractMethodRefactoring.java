@@ -6,7 +6,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
-import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -106,49 +105,44 @@ public class ExtractMethodRefactoring extends Refactoring {
 			argumentRewrite.insertLast(variableDeclaration.getName(), null);
 		}
 		
-		if(slice.statementCriterionDefinesVariableCriterion()) {
-			if(slice.containsDeclarationOfVariableCriterion()) {
-				VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
-				VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
-				sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
-				sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
-				VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
-				Type returnedVariableType = null;
-				if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {
-					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariableDeclaration;
-					returnedVariableType = singleVariableDeclaration.getType();
-				}
-				else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
-					VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-					returnedVariableType = variableDeclarationStatement.getType();
-				}
-				sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
-				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
-				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
-				blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
+		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
+			VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
+			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
+			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
+			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
+			VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
+			Type returnedVariableType = null;
+			if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {
+				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariableDeclaration;
+				returnedVariableType = singleVariableDeclaration.getType();
 			}
-			else {
-				Assignment assignment = ast.newAssignment();
-				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, slice.getLocalVariableCriterion().getName(), null);
-				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
-				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
-				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
-				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
-				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
+			else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
+				VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+				returnedVariableType = variableDeclarationStatement.getType();
+			}
+			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
+			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+			blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
+		}
+		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
+			VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
+			if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
+				VariableDeclarationFragment initializationFragment = (VariableDeclarationFragment)returnedVariableDeclaration;
+				sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
 			}
 		}
-		else if(slice.statementCriterionUsesVariableCriterion()) {
-			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			List<Expression> simpleNames = expressionExtractor.getVariableInstructions(slice.getStatementCriterion());
-			for(Expression expression : simpleNames) {
-				SimpleName simpleName = (SimpleName)expression;
-				if(slice.getLocalVariableCriterion().resolveBinding().isEqualTo(simpleName.resolveBinding())) {
-					sourceRewriter.replace(simpleName, extractedMethodInvocation, null);
-				}
-			}
+		else {
+			Assignment assignment = ast.newAssignment();
+			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, slice.getLocalVariableCriterion().getName(), null);
+			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
+			ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
+			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+			blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
 		}
 		
 		for(Statement removableStatement : slice.getRemovableStatements()) {

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Set;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
@@ -13,6 +12,8 @@ import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
+import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
+import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
@@ -25,6 +26,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
@@ -94,8 +96,6 @@ public class LongMethod extends ViewPart {
 			case 1:
 				return entry.getSourceMethodDeclaration().getName().getIdentifier();
 			case 2:
-				return entry.getStatementCriterion().toString();
-			case 3:
 				return entry.getLocalVariableCriterion().getName().getIdentifier();
 			default:
 				return "";
@@ -146,8 +146,7 @@ public class LongMethod extends ViewPart {
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(20, true));
-		layout.addColumnData(new ColumnWeightData(20, true));
-		layout.addColumnData(new ColumnWeightData(60, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
@@ -161,13 +160,9 @@ public class LongMethod extends ViewPart {
 		column1.setResizable(true);
 		column1.pack();
 		TableColumn column2 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
-		column2.setText("Statement Criterion");
+		column2.setText("Variable Criterion");
 		column2.setResizable(true);
 		column2.pack();
-		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
-		column3.setText("Variable Criterion");
-		column3.setResizable(true);
-		column3.pack();
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -244,7 +239,7 @@ public class LongMethod extends ViewPart {
 				}
 			}
 		};
-		renameMethodAction.setToolTipText("Rename Abstract Method");
+		renameMethodAction.setToolTipText("Rename Extracted Method");
 		renameMethodAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 				getImageDescriptor(ISharedImages.IMG_OBJ_FILE));
 		renameMethodAction.setEnabled(false);
@@ -303,7 +298,7 @@ public class LongMethod extends ViewPart {
 		else
 			astReader = new ASTReader(selectedProject);
 		SystemObject systemObject = astReader.getSystemObject();
-		List<PDGSlice> extractedSlices = new ArrayList<PDGSlice>();
+		List<PDGSliceUnion> extractedSliceUnions = new ArrayList<PDGSliceUnion>();
 		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
 		while(classIterator.hasNext()) {
 			ClassObject classObject = classIterator.next();
@@ -313,20 +308,18 @@ public class LongMethod extends ViewPart {
 				if(methodObject.getMethodBody() != null) {
 					CFG cfg = new CFG(methodObject);
 					PDG pdg = new PDG(cfg);
-					Set<PDGSlice> pdgSlices = pdg.getAllProgramDependenceSlices();
-					for(PDGSlice pdgSlice : pdgSlices) {
-						if(pdgSlice.getSliceNodes().size() > 1 &&
-								!pdgSlice.nodeCritetionIsDeclarationOfVariableCriterion() &&
-								!pdgSlice.variableCriterionIsReturnedVariableInOriginalMethod() &&
-								!pdgSlice.containsDuplicateNodeWithStateChangingMethodInvocation())
-							extractedSlices.add(pdgSlice);
+					for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
+						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, declaration);
+						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+							extractedSliceUnions.add(sliceUnion);
+						}
 					}
 				}
 			}
 		}
-		ASTSlice[] table = new ASTSlice[extractedSlices.size()];
-		for(int i=0; i<extractedSlices.size(); i++) {
-			ASTSlice astSlice = new ASTSlice(extractedSlices.get(i));
+		ASTSlice[] table = new ASTSlice[extractedSliceUnions.size()];
+		for(int i=0; i<extractedSliceUnions.size(); i++) {
+			ASTSlice astSlice = new ASTSlice(extractedSliceUnions.get(i));
 			table[i] = astSlice;
 		}
 		return table;

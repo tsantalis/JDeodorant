@@ -129,7 +129,7 @@ public class PDGSlice extends Graph {
 		return removableNodes;
 	}
 
-	public boolean containsDeclarationOfVariableCriterion() {
+	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
 		for(PDGNode pdgNode : sliceNodes) {
 			AbstractStatement statement = pdgNode.getStatement();
 			for(LocalVariableDeclarationObject variableDeclaration : statement.getLocalVariableDeclarations()) {
@@ -140,19 +140,39 @@ public class PDGSlice extends Graph {
 		return false;
 	}
 
-	public boolean nodeCritetionIsDeclarationOfVariableCriterion() {
+	public boolean declarationOfVariableCriterionBelongsToRemovableNodes() {
+		for(PDGNode pdgNode : removableNodes) {
+			AbstractStatement statement = pdgNode.getStatement();
+			for(LocalVariableDeclarationObject variableDeclaration : statement.getLocalVariableDeclarations()) {
+				if(variableDeclaration.getVariableDeclaration().equals(localVariableCriterion))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean satisfiesRules() {
+		if(sliceNodes.size() > 1 &&
+				!nodeCritetionIsDeclarationOfVariableCriterion() &&
+				!variableCriterionIsReturnedVariableInOriginalMethod() &&
+				!containsDuplicateNodeWithStateChangingMethodInvocation())
+			return true;
+		return false;
+	}
+
+	private boolean nodeCritetionIsDeclarationOfVariableCriterion() {
 		if(nodeCriterion.declaresLocalVariable(localVariableCriterion))
 			return true;
 		return false;
 	}
 
-	public boolean variableCriterionIsReturnedVariableInOriginalMethod() {
+	private boolean variableCriterionIsReturnedVariableInOriginalMethod() {
 		if(returnedVariablesInOriginalMethod.contains(localVariableCriterion))
 			return true;
 		return false;
 	}
 
-	public boolean containsDuplicateNodeWithStateChangingMethodInvocation() {
+	private boolean containsDuplicateNodeWithStateChangingMethodInvocation() {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);

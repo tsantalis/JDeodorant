@@ -117,7 +117,7 @@ public class CFG extends Graph {
 					if(parent.getStatement() instanceof Block)
 						parent = parent.getParent();
 					int position = i;
-					if(parent != null && parent.getStatement() instanceof TryStatement) {
+					while(parent != null && parent.getStatement() instanceof TryStatement) {
 						CompositeStatementObject tryStatement = parent;
 						CompositeStatementObject tryStatementParent = tryStatement.getParent();
 						List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
@@ -136,7 +136,7 @@ public class CFG extends Graph {
 						tryParentStatements.addAll(positionOfTryStatementInParent, statements);
 						statements = tryParentStatements;
 						parent = tryStatementParent;
-						position = positionOfTryStatementInParent + i;
+						position = positionOfTryStatementInParent + position;
 					}
 					if(statements.size() == 1) {
 						action = JOIN_TOP_LIST;
@@ -151,7 +151,8 @@ public class CFG extends Graph {
 						AbstractStatement previousStatement = null;
 						if(position >= 1)
 							previousStatement = statements.get(position-1);
-						if(previousStatement != null && previousStatement.getStatement() instanceof TryStatement) {
+						int j = 0;
+						while(previousStatement != null && previousStatement.getStatement() instanceof TryStatement) {
 							CompositeStatementObject tryStatement = (CompositeStatementObject)previousStatement;
 							AbstractStatement firstStatement = tryStatement.getStatements().get(0);
 							if(firstStatement instanceof CompositeStatementObject) {
@@ -163,12 +164,13 @@ public class CFG extends Graph {
 								}
 								else {
 									//try block is empty and previous statement is the statement before this try block
-									if(position >= 2)
-										previousStatement = statements.get(position-2);
+									if(position >= 2+j)
+										previousStatement = statements.get(position-2-j);
 									else
 										previousStatement = null;
 								}
 							}
+							j++;
 						}
 						if(statements.get(statements.size()-1).equals(compositeStatement)) {
 							//current if statement is the last statement of the composite statement

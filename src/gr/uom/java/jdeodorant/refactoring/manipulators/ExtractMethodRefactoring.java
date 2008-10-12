@@ -130,8 +130,22 @@ public class ExtractMethodRefactoring extends Refactoring {
 		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
 			VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 			if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
-				VariableDeclarationFragment initializationFragment = (VariableDeclarationFragment)returnedVariableDeclaration;
-				sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
+				VariableDeclarationFragment oldInitializationFragment = (VariableDeclarationFragment)returnedVariableDeclaration;
+				VariableDeclarationFragment newInitializationFragment = ast.newVariableDeclarationFragment();
+				sourceRewriter.set(newInitializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
+				sourceRewriter.set(newInitializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
+				if(oldInitializationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement oldVariableDeclarationStatement = (VariableDeclarationStatement)oldInitializationFragment.getParent();
+					List<VariableDeclarationFragment> oldFragments = oldVariableDeclarationStatement.fragments();
+					VariableDeclarationStatement newVariableDeclarationStatement = ast.newVariableDeclarationStatement(newInitializationFragment);
+					sourceRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, oldVariableDeclarationStatement.getType(), null);
+					ListRewrite fragmentRewrite = sourceRewriter.getListRewrite(newVariableDeclarationStatement, VariableDeclarationStatement.FRAGMENTS_PROPERTY);
+					for(int i=0; i<oldFragments.size(); i++) {
+						if(!oldInitializationFragment.equals(oldFragments.get(i)))
+							fragmentRewrite.insertLast(oldFragments.get(i), null);
+					}
+					sourceRewriter.replace(oldVariableDeclarationStatement, newVariableDeclarationStatement, null);
+				}
 			}
 		}
 		else {

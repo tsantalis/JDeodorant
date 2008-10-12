@@ -67,10 +67,7 @@ public class CFG extends Graph {
 				}
 				else if(compositeStatement.getStatement() instanceof TryStatement) {
 					AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
-					if(firstStatement instanceof StatementObject) {
-						previousNodes = processNonCompositeStatement(previousNodes, (StatementObject)firstStatement);
-					}
-					else if(firstStatement instanceof CompositeStatementObject) {
+					if(firstStatement instanceof CompositeStatementObject) {
 						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
 					}
 				}
@@ -115,10 +112,32 @@ public class CFG extends Graph {
 				}
 				else if(compositeStatement.getStatement() instanceof IfStatement) {
 					int action = PUSH_NEW_LIST;
-					List<AbstractStatement> statements = composite.getStatements();
+					List<AbstractStatement> statements = new ArrayList<AbstractStatement>(composite.getStatements());
 					CompositeStatementObject parent = statements.get(0).getParent();
 					if(parent.getStatement() instanceof Block)
 						parent = parent.getParent();
+					int position = i;
+					if(parent != null && parent.getStatement() instanceof TryStatement) {
+						CompositeStatementObject tryStatement = parent;
+						CompositeStatementObject tryStatementParent = tryStatement.getParent();
+						List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
+						if(tryStatementParent.getStatement() instanceof Block)
+							tryStatementParent = tryStatementParent.getParent();
+						int positionOfTryStatementInParent = 0;
+						int j = 0;
+						for(AbstractStatement statement : tryParentStatements) {
+							if(statement.equals(tryStatement)) {
+								positionOfTryStatementInParent = j;
+								break;
+							}
+							j++;
+						}
+						tryParentStatements.remove(tryStatement);
+						tryParentStatements.addAll(positionOfTryStatementInParent, statements);
+						statements = tryParentStatements;
+						parent = tryStatementParent;
+						position = positionOfTryStatementInParent + i;
+					}
 					if(statements.size() == 1) {
 						action = JOIN_TOP_LIST;
 						if(parent != null) {
@@ -130,10 +149,29 @@ public class CFG extends Graph {
 					}
 					else if(statements.size() > 1) {
 						AbstractStatement previousStatement = null;
-						if(i >= 1)
-							previousStatement = statements.get(i-1);
-						//current if statement is the last statement of the composite statement
+						if(position >= 1)
+							previousStatement = statements.get(position-1);
+						if(previousStatement != null && previousStatement.getStatement() instanceof TryStatement) {
+							CompositeStatementObject tryStatement = (CompositeStatementObject)previousStatement;
+							AbstractStatement firstStatement = tryStatement.getStatements().get(0);
+							if(firstStatement instanceof CompositeStatementObject) {
+								CompositeStatementObject tryBlock = (CompositeStatementObject)firstStatement;
+								List<AbstractStatement> tryBlockStatements = tryBlock.getStatements();
+								if(tryBlockStatements.size() > 0) {
+									//previous statement is the last statement of this try block
+									previousStatement = tryBlockStatements.get(tryBlockStatements.size()-1);
+								}
+								else {
+									//try block is empty and previous statement is the statement before this try block
+									if(position >= 2)
+										previousStatement = statements.get(position-2);
+									else
+										previousStatement = null;
+								}
+							}
+						}
 						if(statements.get(statements.size()-1).equals(compositeStatement)) {
+							//current if statement is the last statement of the composite statement
 							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement) {
 								action = JOIN_SECOND_FROM_TOP_LIST;
 								if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))

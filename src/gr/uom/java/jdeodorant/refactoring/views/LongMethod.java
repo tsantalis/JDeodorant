@@ -311,7 +311,8 @@ public class LongMethod extends ViewPart {
 					for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, declaration);
 						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-							extractedSliceUnions.add(sliceUnion);
+							if(sliceUnion.getSliceNodes().size() > 1)
+								extractedSliceUnions.add(sliceUnion);
 						}
 					}
 				}

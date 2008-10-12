@@ -152,8 +152,7 @@ public class PDGSlice extends Graph {
 	}
 
 	public boolean satisfiesRules() {
-		if(sliceNodes.size() > 1 &&
-				!nodeCritetionIsDeclarationOfVariableCriterion() &&
+		if(!nodeCritetionIsDeclarationOfVariableCriterion() &&
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation())
 			return true;

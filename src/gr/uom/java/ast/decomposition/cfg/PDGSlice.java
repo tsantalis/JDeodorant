@@ -8,6 +8,9 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.ContinueStatement;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSlice extends Graph {
@@ -154,8 +157,39 @@ public class PDGSlice extends Graph {
 	public boolean satisfiesRules() {
 		if(!nodeCritetionIsDeclarationOfVariableCriterion() &&
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
+				!nodeCriterionAndDeclarationOfVariableCriterionHaveTheSameControlParent() &&
+				!containsBreakContinueSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation())
 			return true;
+		return false;
+	}
+
+	private boolean containsBreakContinueSliceNode() {
+		for(PDGNode node : sliceNodes) {
+			Statement statement = node.getASTStatement();
+			if(statement instanceof BreakStatement || statement instanceof ContinueStatement)
+				return true;
+		}
+		return false;
+	}
+
+	private boolean nodeCriterionAndDeclarationOfVariableCriterionHaveTheSameControlParent() {
+		PDGNode nodeCriterionParent = null;
+		for(GraphEdge edge : nodeCriterion.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				nodeCriterionParent = (PDGNode)dependence.src;
+				break;
+			}
+		}
+		for(GraphEdge edge : nodeCriterionParent.outgoingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGNode dstNode = (PDGNode)dependence.dst;
+				if(dstNode.declaresLocalVariable(localVariableCriterion))
+					return true;
+			}
+		}
 		return false;
 	}
 

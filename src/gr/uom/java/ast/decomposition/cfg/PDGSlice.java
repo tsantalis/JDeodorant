@@ -10,6 +10,7 @@ import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ContinueStatement;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
@@ -73,7 +74,12 @@ public class PDGSlice extends Graph {
 		}
 		Set<PDGNode> controlIndispensableNodes = new LinkedHashSet<PDGNode>();
 		for(PDGNode p : nCD) {
-			for(VariableDeclaration usedVariable : p.usedVariables) {
+			Set<VariableDeclaration> variables = null;
+			if(!p.usedVariables.isEmpty())
+				variables = p.usedVariables;
+			else
+				variables = p.definedVariables;
+			for(VariableDeclaration usedVariable : variables) {
 				Set<PDGNode> pSliceNodes = computeSlice(p, usedVariable);
 				for(GraphNode node : pdg.nodes) {
 					PDGNode q = (PDGNode)node;
@@ -154,41 +160,30 @@ public class PDGSlice extends Graph {
 		return false;
 	}
 
+	public boolean nodeCriterionIsDuplicated() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		if(duplicatedNodes.contains(nodeCriterion))
+			return true;
+		return false;
+	}
+
 	public boolean satisfiesRules() {
 		if(!nodeCritetionIsDeclarationOfVariableCriterion() &&
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
-				!nodeCriterionAndDeclarationOfVariableCriterionHaveTheSameControlParent() &&
-				!containsBreakContinueSliceNode() &&
+				!containsBreakContinueReturnSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation())
 			return true;
 		return false;
 	}
 
-	private boolean containsBreakContinueSliceNode() {
+	private boolean containsBreakContinueReturnSliceNode() {
 		for(PDGNode node : sliceNodes) {
 			Statement statement = node.getASTStatement();
-			if(statement instanceof BreakStatement || statement instanceof ContinueStatement)
+			if(statement instanceof BreakStatement || statement instanceof ContinueStatement ||
+					statement instanceof ReturnStatement)
 				return true;
-		}
-		return false;
-	}
-
-	private boolean nodeCriterionAndDeclarationOfVariableCriterionHaveTheSameControlParent() {
-		PDGNode nodeCriterionParent = null;
-		for(GraphEdge edge : nodeCriterion.incomingEdges) {
-			PDGDependence dependence = (PDGDependence)edge;
-			if(dependence instanceof PDGControlDependence) {
-				nodeCriterionParent = (PDGNode)dependence.src;
-				break;
-			}
-		}
-		for(GraphEdge edge : nodeCriterionParent.outgoingEdges) {
-			PDGDependence dependence = (PDGDependence)edge;
-			if(dependence instanceof PDGControlDependence) {
-				PDGNode dstNode = (PDGNode)dependence.dst;
-				if(dstNode.declaresLocalVariable(localVariableCriterion))
-					return true;
-			}
 		}
 		return false;
 	}

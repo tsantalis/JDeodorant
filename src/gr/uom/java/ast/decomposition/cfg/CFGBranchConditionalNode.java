@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.TryStatement;
 
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -66,7 +67,18 @@ public class CFGBranchConditionalNode extends CFGBranchNode {
 			AbstractStatement trueControlFlowStatement = statements.get(0);
 			if(trueControlFlowStatement.getStatement() instanceof Block) {
 				CompositeStatementObject blockStatement = (CompositeStatementObject)trueControlFlowStatement;
-				nestedStatements.addAll(blockStatement.getStatements());
+				for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
+					if(statementInsideBlock.getStatement() instanceof TryStatement) {
+						CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
+						processTryStatement(nestedStatements, tryStatement);
+					}
+					else
+						nestedStatements.add(statementInsideBlock);
+				}
+			}
+			else if(trueControlFlowStatement.getStatement() instanceof TryStatement) {
+				CompositeStatementObject tryStatement = (CompositeStatementObject)trueControlFlowStatement;
+				processTryStatement(nestedStatements, tryStatement);
 			}
 			else
 				nestedStatements.add(trueControlFlowStatement);
@@ -95,7 +107,18 @@ public class CFGBranchConditionalNode extends CFGBranchNode {
 				AbstractStatement falseControlFlowStatement = statements.get(1);
 				if(falseControlFlowStatement.getStatement() instanceof Block) {
 					CompositeStatementObject blockStatement = (CompositeStatementObject)falseControlFlowStatement;
-					nestedStatements.addAll(blockStatement.getStatements());
+					for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
+						if(statementInsideBlock.getStatement() instanceof TryStatement) {
+							CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
+							processTryStatement(nestedStatements, tryStatement);
+						}
+						else
+							nestedStatements.add(statementInsideBlock);
+					}
+				}
+				else if(falseControlFlowStatement.getStatement() instanceof TryStatement) {
+					CompositeStatementObject tryStatement = (CompositeStatementObject)falseControlFlowStatement;
+					processTryStatement(nestedStatements, tryStatement);
 				}
 				else
 					nestedStatements.add(falseControlFlowStatement);
@@ -112,5 +135,17 @@ public class CFGBranchConditionalNode extends CFGBranchNode {
 			}
 		}
 		return nestedNodes;
+	}
+
+	private void processTryStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject tryStatement) {
+		CompositeStatementObject tryBlock = (CompositeStatementObject)tryStatement.getStatements().get(0);
+		for(AbstractStatement statementInsideBlock : tryBlock.getStatements()) {
+			if(statementInsideBlock.getStatement() instanceof TryStatement) {
+				CompositeStatementObject nestedTryStatement = (CompositeStatementObject)statementInsideBlock;
+				processTryStatement(nestedStatements, nestedTryStatement);
+			}
+			else
+				nestedStatements.add(statementInsideBlock);
+		}
 	}
 }

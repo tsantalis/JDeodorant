@@ -14,6 +14,7 @@ public class PDGSliceUnion {
 	private List<PDGSlice> slices;
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
+	private Set<PDGNode> nodeCriterions;
 	private VariableDeclaration localVariableCriterion;
 	
 	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriterions,
@@ -25,6 +26,7 @@ public class PDGSliceUnion {
 		}
 		this.method = pdg.getMethod();
 		this.boundaryBlock = boundaryBlock;
+		this.nodeCriterions = nodeCriterions;
 		this.localVariableCriterion = localVariableCriterion;
 	}
 
@@ -80,11 +82,26 @@ public class PDGSliceUnion {
 		return false;
 	}
 
+	private boolean allNodeCriterionsAreDuplicated() {
+		int counter = 0;
+		for(PDGSlice slice : slices) {
+			if(slice.nodeCriterionIsDuplicated())
+				counter++;
+		}
+		if(nodeCriterions.size() == counter)
+			return true;
+		return false;
+	}
+
 	public boolean satisfiesRules() {
 		for(PDGSlice slice : slices) {
 			if(!slice.satisfiesRules())
 				return false;
 		}
+		if(allNodeCriterionsAreDuplicated())
+			return false;
+		if(getSliceNodes().size() <= nodeCriterions.size())
+			return false;
 		return true;
 	}
 }

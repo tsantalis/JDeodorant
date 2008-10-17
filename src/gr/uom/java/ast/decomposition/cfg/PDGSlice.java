@@ -173,8 +173,21 @@ public class PDGSlice extends Graph {
 		if(!nodeCritetionIsDeclarationOfVariableCriterion() &&
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!containsBreakContinueReturnSliceNode() &&
-				!containsDuplicateNodeWithStateChangingMethodInvocation())
+				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
+				!nodeCriterionAntiDependsOnPreviousStatementsInTheRegion())
 			return true;
+		return false;
+	}
+
+	private boolean nodeCriterionAntiDependsOnPreviousStatementsInTheRegion() {
+		for(GraphEdge edge : nodeCriterion.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
+				PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
+				if(antiDependence.getData().equals(localVariableCriterion) && !antiDependence.isLoopCarried())
+					return true;
+			}
+		}
 		return false;
 	}
 
@@ -259,7 +272,7 @@ public class PDGSlice extends Graph {
 		visitedNodes.add(node);
 		for(GraphEdge edge : node.incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;
-			if(edges.contains(dependence)) {
+			if(edges.contains(dependence) && !(dependence instanceof PDGAntiDependence)) {
 				PDGNode srcPDGNode = (PDGNode)dependence.src;
 				if(!visitedNodes.contains(srcPDGNode))
 					sliceNodes.addAll(traverseBackward(srcPDGNode, visitedNodes));

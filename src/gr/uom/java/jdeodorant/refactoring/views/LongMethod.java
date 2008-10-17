@@ -298,7 +298,8 @@ public class LongMethod extends ViewPart {
 		else
 			astReader = new ASTReader(selectedProject);
 		SystemObject systemObject = astReader.getSystemObject();
-		List<PDGSliceUnion> extractedSliceUnions = new ArrayList<PDGSliceUnion>();
+		List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
+		//List<PDGSlice> extractedSlices = new ArrayList<PDGSlice>();
 		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
 		while(classIterator.hasNext()) {
 			ClassObject classObject = classIterator.next();
@@ -311,15 +312,19 @@ public class LongMethod extends ViewPart {
 					for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, declaration);
 						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-							extractedSliceUnions.add(sliceUnion);
+							extractedSlices.add(sliceUnion);
 						}
 					}
+					/*for(PDGSlice pdgSlice : pdg.getAllProgramDependenceSlices()) {
+						if(pdgSlice.getSliceNodes().size() > 1 && pdgSlice.satisfiesRules())
+							extractedSlices.add(pdgSlice);
+					}*/
 				}
 			}
 		}
-		ASTSlice[] table = new ASTSlice[extractedSliceUnions.size()];
-		for(int i=0; i<extractedSliceUnions.size(); i++) {
-			ASTSlice astSlice = new ASTSlice(extractedSliceUnions.get(i));
+		ASTSlice[] table = new ASTSlice[extractedSlices.size()];
+		for(int i=0; i<extractedSlices.size(); i++) {
+			ASTSlice astSlice = new ASTSlice(extractedSlices.get(i));
 			table[i] = astSlice;
 		}
 		return table;

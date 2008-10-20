@@ -174,18 +174,26 @@ public class PDGSlice extends Graph {
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!containsBreakContinueReturnSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
-				!nodeCriterionAntiDependsOnPreviousStatementsInTheRegion())
+				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode())
 			return true;
 		return false;
 	}
 
-	private boolean nodeCriterionAntiDependsOnPreviousStatementsInTheRegion() {
-		for(GraphEdge edge : nodeCriterion.incomingEdges) {
-			PDGDependence dependence = (PDGDependence)edge;
-			if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
-				PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
-				if(antiDependence.getData().equals(localVariableCriterion) && !antiDependence.isLoopCarried())
-					return true;
+	private boolean nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode sliceNode : sliceNodes) {
+			if(!duplicatedNodes.contains(sliceNode)) {
+				for(GraphEdge edge : sliceNode.incomingEdges) {
+					PDGDependence dependence = (PDGDependence)edge;
+					if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
+						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
+						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
+						if(!removableNodes.contains(srcPDGNode) && !antiDependence.isLoopCarried())
+							return true;
+					}
+				}
 			}
 		}
 		return false;

@@ -93,12 +93,20 @@ public class PDGSliceUnion {
 		return false;
 	}
 
+	private boolean sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion() {
+		if(slices.size() == 1 && getSliceNodes().size() == 2 &&
+				declarationOfVariableCriterionBelongsToSliceNodes())
+			return true;
+		return false;
+	}
+
 	public boolean satisfiesRules() {
 		for(PDGSlice slice : slices) {
 			if(!slice.satisfiesRules())
 				return false;
 		}
-		if(allNodeCriterionsAreDuplicated())
+		if(allNodeCriterionsAreDuplicated() ||
+				sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion())
 			return false;
 		if(getSliceNodes().size() <= nodeCriterions.size())
 			return false;

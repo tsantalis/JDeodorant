@@ -1,5 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
+import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
@@ -209,11 +211,32 @@ public class ExtractMethodRefactoring extends Refactoring {
 		ListRewrite bodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
 
 		List<PDGNode> sliceNodes = new ArrayList<PDGNode>(slice.getSliceNodes());
+		List<CFGBranchDoLoopNode> doLoopNodes = new ArrayList<CFGBranchDoLoopNode>();
+		for(PDGNode pdgNode : sliceNodes) {
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			if(cfgNode instanceof CFGBranchDoLoopNode) {
+				CFGBranchDoLoopNode cfgDoLoopNode = (CFGBranchDoLoopNode)cfgNode;
+				doLoopNodes.add(cfgDoLoopNode);
+			}
+		}
 		while(!sliceNodes.isEmpty()) {
 			PDGNode node = sliceNodes.get(0);
 			if(node instanceof PDGStatementNode) {
-				bodyRewrite.insertLast(node.getASTStatement(), null);
-				sliceNodes.remove(node);
+				boolean nodeIsInsideDoLoop = false;
+				for(CFGBranchDoLoopNode doLoopNode : doLoopNodes) {
+					if(node.getId() >= doLoopNode.getJoinNode().getId() && node.getId() < doLoopNode.getId()) {
+						nodeIsInsideDoLoop = true;
+						PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)doLoopNode.getPDGNode();
+						if(sliceNodes.contains(predicateNode)) {
+							bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sliceNodes), null);
+							break;
+						}
+					}
+				}
+				if(!nodeIsInsideDoLoop) {
+					bodyRewrite.insertLast(node.getASTStatement(), null);
+					sliceNodes.remove(node);
+				}
 			}
 			else if(node instanceof PDGControlPredicateNode) {
 				PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;

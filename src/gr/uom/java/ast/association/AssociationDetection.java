@@ -32,6 +32,7 @@ public class AssociationDetection {
 		acceptableOriginClassNames.add("java.util.SortedSet");
 		acceptableOriginClassNames.add("java.util.TreeSet");
 		acceptableOriginClassNames.add("java.util.Vector");
+		acceptableOriginClassNames.add("java.util.Stack");
 		generateAssociations(system);
 	}
 	

@@ -425,12 +425,17 @@ public class SystemObject {
     		List<TypeCheckElimination> affectedEliminations = new ArrayList<TypeCheckElimination>();
     		affectedEliminations.add(selectedElimination);
     		List<SimpleName> staticFieldUnion = staticFieldMap.get(selectedElimination);
-    		for(TypeCheckElimination elimination : sortedEliminations) {
-    			List<SimpleName> staticFields = staticFieldMap.get(elimination);
-    			if(!selectedElimination.equals(elimination) && nonEmptyIntersection(staticFieldUnion, staticFields)) {
-    				staticFieldUnion = constructUnion(staticFieldUnion, staticFields);
-    				affectedEliminations.add(elimination);
-    			}
+    		boolean staticFieldUnionIncreased = true;
+    		while(staticFieldUnionIncreased) {
+    			staticFieldUnionIncreased = false;
+	    		for(TypeCheckElimination elimination : sortedEliminations) {
+	    			List<SimpleName> staticFields = staticFieldMap.get(elimination);
+	    			if(!affectedEliminations.contains(elimination) && nonEmptyIntersection(staticFieldUnion, staticFields)) {
+	    				staticFieldUnion = constructUnion(staticFieldUnion, staticFields);
+	    				affectedEliminations.add(elimination);
+	    				staticFieldUnionIncreased = true;
+	    			}
+	    		}
     		}
     		if(affectedEliminations.size() > 1) {
     			for(TypeCheckElimination elimination : affectedEliminations) {
@@ -460,7 +465,7 @@ public class SystemObject {
     	return typeCheckEliminationResults;
     }
 
-    private boolean nonEmptyIntersection(List<SimpleName> staticFieldUnion ,List<SimpleName> staticFields) {
+    private boolean nonEmptyIntersection(List<SimpleName> staticFieldUnion, List<SimpleName> staticFields) {
     	for(SimpleName simpleName1 : staticFields) {
     		for(SimpleName simpleName2 : staticFieldUnion) {
     			if(simpleName1.resolveBinding().isEqualTo(simpleName2.resolveBinding()))
@@ -470,7 +475,7 @@ public class SystemObject {
     	return false;
     }
 
-    private List<SimpleName> constructUnion(List<SimpleName> staticFieldUnion ,List<SimpleName> staticFields) {
+    private List<SimpleName> constructUnion(List<SimpleName> staticFieldUnion, List<SimpleName> staticFields) {
     	List<SimpleName> initialStaticFields = new ArrayList<SimpleName>(staticFieldUnion);
     	List<SimpleName> staticFieldsToBeAdded = new ArrayList<SimpleName>();
     	for(SimpleName simpleName1 : staticFields) {

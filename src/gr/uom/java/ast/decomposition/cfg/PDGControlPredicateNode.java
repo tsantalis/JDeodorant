@@ -4,12 +4,18 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
+import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 
@@ -60,7 +66,29 @@ public class PDGControlPredicateNode extends PDGNode {
 						usedVariables.add(variableDeclaration);
 					}
 					else {
-						processMethodInvocation(variableInstruction, variableDeclaration);
+						SimpleName variableInstructionName = variableInstruction.getSimpleName();
+						if(variableInstructionName.getParent() instanceof MethodInvocation) {
+							MethodInvocation methodInvocation = (MethodInvocation)variableInstructionName.getParent();
+							if(methodInvocation.getExpression() != null && methodInvocation.getExpression().equals(variableInstructionName)) {
+								List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
+								MethodInvocationObject methodInvocationObject = null;
+								for(MethodInvocationObject mio : methodInvocations) {
+									if(mio.getMethodInvocation().equals(methodInvocation)) {
+										methodInvocationObject = mio;
+										break;
+									}
+								}
+								SystemObject systemObject = ASTReader.getSystemObject();
+								ClassObject classObject = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+								if(classObject != null) {
+									processInternalMethodInvocation(classObject, methodInvocationObject, methodInvocation, variableDeclaration);
+								}
+								else {
+									processExternalMethodInvocation(methodInvocation, variableInstruction, variableDeclaration);
+								}
+							}
+						}
+						usedVariables.add(variableDeclaration);
 					}
 				}
 			}

@@ -36,19 +36,19 @@ import java.util.Map;
 
 public class ASTReader {
 
-	private SystemObject systemObject;
+	private static SystemObject systemObject;
 	private Map<TypeDeclaration, IFile> fileMap;
 	private Map<TypeDeclaration, CompilationUnit> compilationUnitMap;
 
 	public ASTReader(IProject iProject) {
-		this.systemObject = new SystemObject();
+		systemObject = new SystemObject();
 		this.fileMap = new LinkedHashMap<TypeDeclaration, IFile>();
 		this.compilationUnitMap = new LinkedHashMap<TypeDeclaration, CompilationUnit>();
 		recurse(iProject);
 	}
 	
 	public ASTReader(IPackageFragment packageFragment) {
-		this.systemObject = new SystemObject();
+		systemObject = new SystemObject();
 		this.fileMap = new LinkedHashMap<TypeDeclaration, IFile>();
 		this.compilationUnitMap = new LinkedHashMap<TypeDeclaration, CompilationUnit>();
 		try {
@@ -280,7 +280,7 @@ public class ASTReader {
 		return compilationUnitMap.get(typeDeclaration);
 	}
 
-    public SystemObject getSystemObject() {
+    public static SystemObject getSystemObject() {
 		return systemObject;
 	}
 }

@@ -11,8 +11,6 @@ import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
-import org.eclipse.jdt.core.dom.IBinding;
-import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -99,13 +97,8 @@ public class StatementObject extends AbstractStatement {
 			Assignment assignment = (Assignment)expression;
 			Expression leftHandSide = assignment.getLeftHandSide();
 			SimpleName leftHandSideName = processExpression(leftHandSide);
-			if(leftHandSideName != null) {
-				IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
-				if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
-					if(leftHandSideVariableBinding.isEqualTo(fio.getSimpleName().resolveBinding()))
-						fieldAssignments.add(assignment);
-				}
+			if(leftHandSideName != null && leftHandSideName.equals(fio.getSimpleName())) {
+				fieldAssignments.add(assignment);
 			}
 		}
 		return fieldAssignments;
@@ -120,13 +113,8 @@ public class StatementObject extends AbstractStatement {
 			PostfixExpression postfixExpression = (PostfixExpression)expression;
 			Expression operand = postfixExpression.getOperand();
 			SimpleName operandName = processExpression(operand);
-			if(operandName != null) {
-				IBinding operandBinding = operandName.resolveBinding();
-				if(operandBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-					if(operandVariableBinding.isEqualTo(fio.getSimpleName().resolveBinding()))
-						fieldPostfixAssignments.add(postfixExpression);
-				}
+			if(operandName != null && operandName.equals(fio.getSimpleName())) {
+				fieldPostfixAssignments.add(postfixExpression);
 			}
 		}
 		return fieldPostfixAssignments;
@@ -142,14 +130,9 @@ public class StatementObject extends AbstractStatement {
 			Expression operand = prefixExpression.getOperand();
 			PrefixExpression.Operator operator = prefixExpression.getOperator();
 			SimpleName operandName = processExpression(operand);
-			if(operandName != null && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
+			if(operandName != null && operandName.equals(fio.getSimpleName()) && (operator.equals(PrefixExpression.Operator.INCREMENT) ||
 					operator.equals(PrefixExpression.Operator.DECREMENT))) {
-				IBinding operandBinding = operandName.resolveBinding();
-				if(operandBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
-					if(operandVariableBinding.isEqualTo(fio.getSimpleName().resolveBinding()))
-						fieldPrefixAssignments.add(prefixExpression);
-				}
+				fieldPrefixAssignments.add(prefixExpression);
 			}
 		}
 		return fieldPrefixAssignments;

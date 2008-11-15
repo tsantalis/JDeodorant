@@ -158,16 +158,14 @@ public class SystemObject {
 	    				if(elimination.getTypeField() != null) {
 	    					IVariableBinding typeFieldBinding = elimination.getTypeField().resolveBinding();
 	    					ITypeBinding typeFieldTypeBinding = typeFieldBinding.getType();
-	    					if((typeFieldTypeBinding.isPrimitive() && typeFieldTypeBinding.getQualifiedName().equals("int")) ||
-	    							typeFieldTypeBinding.isEnum()) {
+	    					if(typeFieldTypeBinding.isPrimitive() || typeFieldTypeBinding.isEnum()) {
 	    						isValid = true;
 	    					}
 	    				}
 	    				else if(elimination.getTypeLocalVariable() != null) {
 	    					IVariableBinding typeLocalVariableBinding = elimination.getTypeLocalVariable().resolveBinding();
 	    					ITypeBinding typeLocalVariableTypeBinding = typeLocalVariableBinding.getType();
-	    					if((typeLocalVariableTypeBinding.isPrimitive() && typeLocalVariableTypeBinding.getQualifiedName().equals("int")) ||
-	    							typeLocalVariableTypeBinding.isEnum()) {
+	    					if(typeLocalVariableTypeBinding.isPrimitive() || typeLocalVariableTypeBinding.isEnum()) {
 	    						isValid = true;
 	    					}
 	    				}
@@ -177,8 +175,7 @@ public class SystemObject {
 	    					ITypeBinding typeMethodInvocationDeclaringClass = typeMethodInvocationBinding.getDeclaringClass();
 	    					ITypeBinding typeMethodInvocationReturnType = typeMethodInvocationBinding.getReturnType();
 	    					ClassObject declaringClassObject = getClassObject(typeMethodInvocationDeclaringClass.getQualifiedName());
-	    					if( ((typeMethodInvocationReturnType.isPrimitive() && typeMethodInvocationReturnType.getQualifiedName().equals("int")) ||
-	    							typeMethodInvocationReturnType.isEnum()) && declaringClassObject != null ) {
+	    					if( (typeMethodInvocationReturnType.isPrimitive() || typeMethodInvocationReturnType.isEnum()) && declaringClassObject != null ) {
 	    						MethodDeclaration invokedMethodDeclaration = null;
 	    						ListIterator<MethodObject> methodIterator = declaringClassObject.getMethodIterator();
 	    						while(methodIterator.hasNext()) {

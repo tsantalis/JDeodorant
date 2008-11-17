@@ -238,7 +238,7 @@ public class CFG extends Graph {
 				unjoinedConditionalNodes.push(topList);
 			}
 		}
-		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP) {
+		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP && !unjoinedConditionalNodes.empty()) {
 			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
 			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
 			list.add(currentNode);

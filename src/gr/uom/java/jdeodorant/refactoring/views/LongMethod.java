@@ -257,12 +257,12 @@ public class LongMethod extends ViewPart {
 					Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 					while(annotationIterator.hasNext()) {
 						Annotation currentAnnotation = annotationIterator.next();
-						if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
+						if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences.write")) {
 							annotationModel.removeAnnotation(currentAnnotation);
 						}
 					}
 					for(Position position : positions) {
-						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, "");
+						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences.write", false, "");
 						annotationModel.addAnnotation(annotation, position);
 					}
 					Position firstPosition = positions.get(0);

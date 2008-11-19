@@ -1,15 +1,19 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class BasicBlockCFG {
 	private List<BasicBlock> basicBlocks;
+	private Map<BasicBlock, Set<BasicBlock>> forwardReachableBlocks;
 	
 	public BasicBlockCFG(CFG cfg) {
 		this.basicBlocks = new ArrayList<BasicBlock>();
+		this.forwardReachableBlocks = new LinkedHashMap<BasicBlock, Set<BasicBlock>>();
 		for(GraphNode node : cfg.nodes) {
 			CFGNode cfgNode = (CFGNode)node;
 			if(cfgNode.isLeader()) {
@@ -34,6 +38,8 @@ public class BasicBlockCFG {
 	}
 
 	public Set<BasicBlock> forwardReachableBlocks(BasicBlock basicBlock) {
+		if(forwardReachableBlocks.containsKey(basicBlock))
+			return forwardReachableBlocks.get(basicBlock);
 		Set<BasicBlock> reachableBlocks = new LinkedHashSet<BasicBlock>();
 		reachableBlocks.add(basicBlock);
 		CFGNode lastNode = basicBlock.getLastNode();
@@ -46,6 +52,7 @@ public class BasicBlockCFG {
 				reachableBlocks.addAll(forwardReachableBlocks(dstBasicBlock));
 			}
 		}
+		forwardReachableBlocks.put(basicBlock, reachableBlocks);
 		return reachableBlocks;
 	}
 }

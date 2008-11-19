@@ -54,6 +54,10 @@ public class CFG extends Graph {
 	}
 
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
+		if(composite.getStatement() instanceof TryStatement) {
+			AbstractStatement firstStatement = composite.getStatements().get(0);
+			composite = (CompositeStatementObject)firstStatement;
+		}
 		int i = 0;
 		for(AbstractStatement abstractStatement : composite.getStatements()) {
 			if(abstractStatement instanceof StatementObject) {
@@ -67,9 +71,7 @@ public class CFG extends Graph {
 				}
 				else if(compositeStatement.getStatement() instanceof TryStatement) {
 					AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
-					if(firstStatement instanceof CompositeStatementObject) {
-						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
-					}
+					previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
 				}
 				else if(isLoop(compositeStatement)) {
 					CFGBranchNode currentNode = new CFGBranchLoopNode(compositeStatement);
@@ -102,6 +104,8 @@ public class CFG extends Graph {
 					nodes.add(currentNode);
 					createTopDownFlow(previousNodes, currentNode);
 					CFGNode topNode = getCommonNextNode(tmpNodes);
+					if(topNode == null)
+						topNode = (CFGNode)nodes.toArray()[0];
 					Flow flow = new Flow(currentNode, topNode);
 					flow.setTrueControlFlow(true);
 					flow.setLoopbackFlow(true);

@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -35,21 +36,18 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	private CFGNode cfgNode;
-	protected Set<VariableDeclaration> declaredVariables;
-	protected Set<VariableDeclaration> definedVariables;
-	protected Set<VariableDeclaration> usedVariables;
+	protected Set<Variable> declaredVariables;
+	protected Set<Variable> definedVariables;
+	protected Set<Variable> usedVariables;
 	private Map<VariableDeclaration, LinkedHashSet<MethodInvocation>> stateChangingMethodInvocationMap;
-	//key is the variable through which the field corresponding to value is modified
-	private Map<VariableDeclaration, LinkedHashSet<VariableDeclaration>> stateChangingFieldModificationMap;
 	private Set<MethodInvocation> processedMethodInvocations;
 	
 	public PDGNode() {
 		super();
-		this.declaredVariables = new LinkedHashSet<VariableDeclaration>();
-		this.definedVariables = new LinkedHashSet<VariableDeclaration>();
-		this.usedVariables = new LinkedHashSet<VariableDeclaration>();
+		this.declaredVariables = new LinkedHashSet<Variable>();
+		this.definedVariables = new LinkedHashSet<Variable>();
+		this.usedVariables = new LinkedHashSet<Variable>();
 		this.stateChangingMethodInvocationMap = new LinkedHashMap<VariableDeclaration, LinkedHashSet<MethodInvocation>>();
-		this.stateChangingFieldModificationMap = new LinkedHashMap<VariableDeclaration, LinkedHashSet<VariableDeclaration>>();
 		this.processedMethodInvocations = new LinkedHashSet<MethodInvocation>();
 	}
 	
@@ -58,11 +56,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.cfgNode = cfgNode;
 		this.id = cfgNode.id;
 		cfgNode.setPDGNode(this);
-		this.declaredVariables = new LinkedHashSet<VariableDeclaration>();
-		this.definedVariables = new LinkedHashSet<VariableDeclaration>();
-		this.usedVariables = new LinkedHashSet<VariableDeclaration>();
+		this.declaredVariables = new LinkedHashSet<Variable>();
+		this.definedVariables = new LinkedHashSet<Variable>();
+		this.usedVariables = new LinkedHashSet<Variable>();
 		this.stateChangingMethodInvocationMap = new LinkedHashMap<VariableDeclaration, LinkedHashSet<MethodInvocation>>();
-		this.stateChangingFieldModificationMap = new LinkedHashMap<VariableDeclaration, LinkedHashSet<VariableDeclaration>>();
 		this.processedMethodInvocations = new LinkedHashSet<MethodInvocation>();
 	}
 
@@ -78,22 +75,26 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return incomingEdges.iterator();
 	}
 
-	public boolean declaresLocalVariable(VariableDeclaration variable) {
+	public boolean declaresLocalVariable(Variable variable) {
 		return declaredVariables.contains(variable);
 	}
 
-	public boolean definesLocalVariable(VariableDeclaration variable) {
+	public boolean definesLocalVariable(Variable variable) {
 		return definedVariables.contains(variable);
 	}
 
-	public boolean usesLocalVariable(VariableDeclaration variable) {
+	public boolean usesLocalVariable(Variable variable) {
 		return usedVariables.contains(variable);
 	}
 
 	public Set<VariableDeclaration> getStateChangingVariables() {
 		Set<VariableDeclaration> stateChangingVariables = new LinkedHashSet<VariableDeclaration>();
 		stateChangingVariables.addAll(stateChangingMethodInvocationMap.keySet());
-		stateChangingVariables.addAll(stateChangingFieldModificationMap.keySet());
+		for(Variable variable : definedVariables) {
+			VariableDeclaration reference = variable.getReference();
+			if(reference != null)
+				stateChangingVariables.add(reference);
+		}
 		return stateChangingVariables;
 	}
 
@@ -137,6 +138,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			return 0;
 	}
 
+	public String getAnnotation() {
+		return "Def = " + definedVariables + " , Use = " + usedVariables;
+	}
+
 	private void putInStateChangingMethodInvocationMap(VariableDeclaration variableDeclaration, MethodInvocation methodInvocation) {
 		if(stateChangingMethodInvocationMap.containsKey(variableDeclaration)) {
 			LinkedHashSet<MethodInvocation> methodInvocations = stateChangingMethodInvocationMap.get(variableDeclaration);
@@ -149,36 +154,25 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 	}
 
-	private void putInStateChangingFieldModificationMap(VariableDeclaration variableDeclaration, VariableDeclaration fieldDeclaration) {
-		if(stateChangingFieldModificationMap.containsKey(variableDeclaration)) {
-			LinkedHashSet<VariableDeclaration> fieldDeclarations = stateChangingFieldModificationMap.get(variableDeclaration);
-			fieldDeclarations.add(fieldDeclaration);
-		}
-		else {
-			LinkedHashSet<VariableDeclaration> fieldDeclarations = new LinkedHashSet<VariableDeclaration>();
-			fieldDeclarations.add(fieldDeclaration);
-			stateChangingFieldModificationMap.put(variableDeclaration, fieldDeclarations);
-		}
-	}
-
 	protected void processExternalMethodInvocation(MethodInvocation methodInvocation, VariableDeclaration variableDeclaration) {
 		IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 		ITypeBinding declaringClassBinding = methodBinding.getDeclaringClass();
 		TypeObject type = TypeObject.extractTypeObject(declaringClassBinding.getQualifiedName());
 		String classType = type.getClassType();
 		String methodInvocationName = methodInvocation.getName().getIdentifier();
+		Variable variable = new Variable(variableDeclaration);
 		if(classType.equals("java.util.Iterator") && methodInvocationName.equals("next")) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			definedVariables.add(variable);
 		}
 		else if(classType.equals("java.util.Enumeration") && methodInvocationName.equals("nextElement")) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			definedVariables.add(variable);
 		}
 		else if(classType.equals("java.util.ListIterator") &&
 				(methodInvocationName.equals("next") || methodInvocationName.equals("previous"))) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			definedVariables.add(variable);
 		}
 		else if((classType.equals("java.util.Collection") || classType.equals("java.util.AbstractCollection") ||
 				classType.equals("java.util.List") || classType.equals("java.util.AbstractList") ||
@@ -198,7 +192,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						methodInvocationName.equals("removeAllElements") ||
 						methodInvocationName.equals("push") || methodInvocationName.equals("pop"))) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			definedVariables.add(variable);
 		}
 		else if((classType.equals("java.util.Map") || classType.equals("java.util.AbstractMap") ||
 				classType.equals("java.util.HashMap") || classType.equals("java.util.Hashtable") ||
@@ -207,7 +201,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				(methodInvocationName.equals("put") || methodInvocationName.equals("remove") ||
 						methodInvocationName.equals("putAll") || methodInvocationName.equals("clear"))) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			definedVariables.add(variable);
 		}
 		else if((classType.equals("java.util.Queue") || classType.equals("java.util.AbstractQueue") || classType.equals("java.util.Deque") ||
 				classType.equals("java.util.concurrent.BlockingQueue") || classType.equals("java.util.concurrent.BlockingDeque") ||
@@ -229,7 +223,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						methodInvocationName.equals("putFirst") || methodInvocationName.equals("putLast") ||
 						methodInvocationName.equals("takeFirst") || methodInvocationName.equals("takeLast"))) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			definedVariables.add(variable);
 		}
 	}
 
@@ -249,42 +243,42 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				}
 			}
 			if(fieldDeclaration != null) {
+				Variable field = null;
+				if(variableDeclaration != null)
+					field = new Variable(variableDeclaration, fieldDeclaration);
+				else
+					field = new Variable(fieldDeclaration);
 				List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
 				List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
 				List<PrefixExpression> fieldPrefixAssignments = methodObject.getFieldPrefixAssignments(fieldInstruction);
 				if(!fieldAssignments.isEmpty()) {
-					definedVariables.add(fieldDeclaration);
+					definedVariables.add(field);
 					for(Assignment assignment : fieldAssignments) {
 						Assignment.Operator operator = assignment.getOperator();
 						if(!operator.equals(Assignment.Operator.ASSIGN))
-							usedVariables.add(fieldDeclaration);
+							usedVariables.add(field);
 					}
-					if(variableDeclaration != null)
-						putInStateChangingFieldModificationMap(variableDeclaration, fieldDeclaration);
 					stateChangingMethodInvocation = true;
 				}
 				else if(!fieldPostfixAssignments.isEmpty()) {
-					definedVariables.add(fieldDeclaration);
-					usedVariables.add(fieldDeclaration);
-					if(variableDeclaration != null)
-						putInStateChangingFieldModificationMap(variableDeclaration, fieldDeclaration);
+					definedVariables.add(field);
+					usedVariables.add(field);
 					stateChangingMethodInvocation = true;
 				}
 				else if(!fieldPrefixAssignments.isEmpty()) {
-					definedVariables.add(fieldDeclaration);
-					usedVariables.add(fieldDeclaration);
-					if(variableDeclaration != null)
-						putInStateChangingFieldModificationMap(variableDeclaration, fieldDeclaration);
+					definedVariables.add(field);
+					usedVariables.add(field);
 					stateChangingMethodInvocation = true;
 				}
 				else {
-					usedVariables.add(fieldDeclaration);
+					usedVariables.add(field);
 				}
 			}
 		}
 		if(stateChangingMethodInvocation && variableDeclaration != null) {
 			putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-			definedVariables.add(variableDeclaration);
+			Variable variable = new Variable(variableDeclaration);
+			definedVariables.add(variable);
 		}
 		processedMethodInvocations.add(methodInvocation);
 		List<MethodInvocationObject> methodInvocations = methodObject.getMethodInvocations();
@@ -300,46 +294,54 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 	}
 
-	protected void processDirectFieldModification(SimpleName fieldInstructionName, VariableDeclaration fieldDeclaration,
-			Set<VariableDeclaration> variableDeclarationsInMethod) {
-		if(fieldInstructionName.getParent() instanceof QualifiedName) {
+	protected VariableDeclaration processDirectFieldModification(SimpleName fieldInstructionName, Set<VariableDeclaration> variableDeclarationsInMethod) {
+		SimpleName qualifier = null;
+		if(fieldInstructionName.getParent() instanceof FieldAccess) {
+			FieldAccess fieldAccess = (FieldAccess)fieldInstructionName.getParent();
+			if(fieldAccess.getExpression() instanceof FieldAccess) {
+				FieldAccess fieldAccessExpression = (FieldAccess)fieldAccess.getExpression();
+				if(fieldAccessExpression.getExpression() instanceof ThisExpression)
+					qualifier = fieldAccessExpression.getName();
+			}
+		}
+		else if(fieldInstructionName.getParent() instanceof QualifiedName) {
 			QualifiedName qualifiedName = (QualifiedName)fieldInstructionName.getParent();
 			if(qualifiedName.getQualifier() instanceof SimpleName) {
-				SimpleName qualifier = (SimpleName)qualifiedName.getQualifier();
-				IBinding binding = qualifier.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding variableBinding = (IVariableBinding)binding;
-					VariableDeclaration variableDeclaration = null;
-					if(variableBinding.isField()) {
-						ITypeBinding declaringClassBinding = variableBinding.getDeclaringClass();
-						SystemObject systemObject = ASTReader.getSystemObject();
-						ClassObject classObject = systemObject.getClassObject(declaringClassBinding.getQualifiedName());
-						if(classObject != null) {
-							ListIterator<FieldObject> fieldIterator = classObject.getFieldIterator();
-							while(fieldIterator.hasNext()) {
-								FieldObject fieldObject = fieldIterator.next();
-								VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-								if(fragment.resolveBinding().isEqualTo(qualifier.resolveBinding())) {
-									variableDeclaration = fragment;
-									break;
-								}
-							}
-						}
-					}
-					else {
-						for(VariableDeclaration declaration : variableDeclarationsInMethod) {
-							if(declaration.resolveBinding().isEqualTo(qualifier.resolveBinding())) {
-								variableDeclaration = declaration;
+				qualifier = (SimpleName)qualifiedName.getQualifier();
+			}
+		}
+		if(qualifier != null) {
+			IBinding binding = qualifier.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				VariableDeclaration variableDeclaration = null;
+				if(variableBinding.isField()) {
+					ITypeBinding declaringClassBinding = variableBinding.getDeclaringClass();
+					SystemObject systemObject = ASTReader.getSystemObject();
+					ClassObject classObject = systemObject.getClassObject(declaringClassBinding.getQualifiedName());
+					if(classObject != null) {
+						ListIterator<FieldObject> fieldIterator = classObject.getFieldIterator();
+						while(fieldIterator.hasNext()) {
+							FieldObject fieldObject = fieldIterator.next();
+							VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+							if(fragment.resolveBinding().isEqualTo(qualifier.resolveBinding())) {
+								variableDeclaration = fragment;
 								break;
 							}
 						}
 					}
-					if(variableDeclaration != null) {
-						putInStateChangingFieldModificationMap(variableDeclaration, fieldDeclaration);
-						definedVariables.add(variableDeclaration);
+				}
+				else {
+					for(VariableDeclaration declaration : variableDeclarationsInMethod) {
+						if(declaration.resolveBinding().isEqualTo(qualifier.resolveBinding())) {
+							variableDeclaration = declaration;
+							break;
+						}
 					}
 				}
+				return variableDeclaration;
 			}
 		}
+		return null;
 	}
 }

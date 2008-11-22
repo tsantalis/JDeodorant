@@ -8,17 +8,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
-
 public class PDGSliceUnion {
 	private List<PDGSlice> slices;
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
 	private Set<PDGNode> nodeCriterions;
-	private VariableDeclaration localVariableCriterion;
+	private Variable localVariableCriterion;
 	
 	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriterions,
-			VariableDeclaration localVariableCriterion) {
+			Variable localVariableCriterion) {
 		this.slices = new ArrayList<PDGSlice>();
 		for(PDGNode nodeCriterion : nodeCriterions) {
 			PDGSlice slice = new PDGSlice(pdg, boundaryBlock, nodeCriterion, localVariableCriterion);
@@ -38,7 +36,7 @@ public class PDGSliceUnion {
 		return boundaryBlock.getLeader().getPDGNode();
 	}
 
-	public VariableDeclaration getLocalVariableCriterion() {
+	public Variable getLocalVariableCriterion() {
 		return localVariableCriterion;
 	}
 
@@ -50,8 +48,8 @@ public class PDGSliceUnion {
 		return sliceNodes;
 	}
 
-	public Set<VariableDeclaration> getPassedParameters() {
-		Set<VariableDeclaration> passedParameters = new LinkedHashSet<VariableDeclaration>();
+	public Set<Variable> getPassedParameters() {
+		Set<Variable> passedParameters = new LinkedHashSet<Variable>();
 		for(PDGSlice slice : slices) {
 			passedParameters.addAll(slice.getPassedParameters());
 		}

@@ -1,13 +1,11 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
-
 public class PDGDataDependence extends PDGDependence {
-	private VariableDeclaration data;
+	private Variable data;
 	private boolean loopCarried;
 	private volatile int hashCode = 0;
 	
-	public PDGDataDependence(PDGNode src, PDGNode dst, VariableDeclaration data, boolean loopCarried) {
+	public PDGDataDependence(PDGNode src, PDGNode dst, Variable data, boolean loopCarried) {
 		super(src, dst);
 		this.data = data;
 		this.loopCarried = loopCarried;
@@ -15,7 +13,7 @@ public class PDGDataDependence extends PDGDependence {
 		dst.addIncomingEdge(this);
 	}
 
-	public VariableDeclaration getData() {
+	public Variable getData() {
 		return data;
 	}
 

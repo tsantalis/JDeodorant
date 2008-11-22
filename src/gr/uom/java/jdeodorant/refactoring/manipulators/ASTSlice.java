@@ -3,10 +3,13 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
+import gr.uom.java.ast.decomposition.cfg.Variable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.DoStatement;
@@ -47,8 +50,11 @@ public class ASTSlice {
 		for(PDGNode node : pdgSlice.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion();
-		this.passedParameters = pdgSlice.getPassedParameters();
+		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion().getVariable();
+		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
+		for(Variable variable : pdgSlice.getPassedParameters()) {
+			passedParameters.add(variable.getVariable());
+		}
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSlice.declarationOfVariableCriterionBelongsToSliceNodes();
@@ -67,8 +73,11 @@ public class ASTSlice {
 		for(PDGNode node : pdgSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion();
-		this.passedParameters = pdgSliceUnion.getPassedParameters();
+		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion().getVariable();
+		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
+		for(Variable variable : pdgSliceUnion.getPassedParameters()) {
+			passedParameters.add(variable.getVariable());
+		}
 		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
@@ -123,58 +132,61 @@ public class ASTSlice {
 		return declarationOfVariableCriterionBelongsToRemovableNodes;
 	}
 
-	public List<Position> getHighlightPositions() {
-		List<Position> positions = new ArrayList<Position>();
+	public Map<Position, String> getHighlightPositions() {
+		Map<Position, String> positionMap = new LinkedHashMap<Position, String>();
+		List<PDGNode> sliceNodeList = new ArrayList<PDGNode>(sliceNodes);
+		int i = 0;
 		for(Statement statement : sliceStatements) {
+			PDGNode sliceNode = sliceNodeList.get(i);
 			if(statement instanceof IfStatement) {
 				IfStatement ifStatement = (IfStatement)statement;
 				Expression ifExpression = ifStatement.getExpression();
 				Position position = new Position(ifExpression.getStartPosition(), ifExpression.getLength());
-				positions.add(position);
-				
+				positionMap.put(position, sliceNode.getAnnotation());
 			}
 			else if(statement instanceof WhileStatement) {
 				WhileStatement whileStatement = (WhileStatement)statement;
 				Expression whileExpression = whileStatement.getExpression();
 				Position position = new Position(whileExpression.getStartPosition(), whileExpression.getLength());
-				positions.add(position);
+				positionMap.put(position, sliceNode.getAnnotation());
 			}
 			else if(statement instanceof ForStatement) {
 				ForStatement forStatement = (ForStatement)statement;
 				List<Expression> initializers = forStatement.initializers();
 				for(Expression expression : initializers) {
 					Position initializerPosition = new Position(expression.getStartPosition(), expression.getLength());
-					positions.add(initializerPosition);
+					positionMap.put(initializerPosition, sliceNode.getAnnotation());
 				}
 				Expression forExpression = forStatement.getExpression();
 				Position position = new Position(forExpression.getStartPosition(), forExpression.getLength());
-				positions.add(position);
+				positionMap.put(position, sliceNode.getAnnotation());
 				List<Expression> updaters = forStatement.updaters();
 				for(Expression expression : updaters) {
 					Position updaterPosition = new Position(expression.getStartPosition(), expression.getLength());
-					positions.add(updaterPosition);
+					positionMap.put(updaterPosition, sliceNode.getAnnotation());
 				}
 			}
 			else if(statement instanceof EnhancedForStatement) {
 				EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
 				SingleVariableDeclaration parameter = enhancedForStatement.getParameter();
 				Position parameterPosition = new Position(parameter.getStartPosition(), parameter.getLength());
-				positions.add(parameterPosition);
+				positionMap.put(parameterPosition, sliceNode.getAnnotation());
 				Expression expression = enhancedForStatement.getExpression();
 				Position expressionPosition = new Position(expression.getStartPosition(), expression.getLength());
-				positions.add(expressionPosition);
+				positionMap.put(expressionPosition, sliceNode.getAnnotation());
 			}
 			else if(statement instanceof DoStatement) {
 				DoStatement doStatement = (DoStatement)statement;
 				Expression doExpression = doStatement.getExpression();
 				Position position = new Position(doExpression.getStartPosition(), doExpression.getLength());
-				positions.add(position);
+				positionMap.put(position, sliceNode.getAnnotation());
 			}
 			else {
 				Position position = new Position(statement.getStartPosition(), statement.getLength());
-				positions.add(position);
+				positionMap.put(position, sliceNode.getAnnotation());
 			}
+			i++;
 		}
-		return positions;
+		return positionMap;
 	}
 }

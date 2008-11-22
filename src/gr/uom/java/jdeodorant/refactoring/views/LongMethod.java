@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
@@ -14,6 +15,7 @@ import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
+import gr.uom.java.ast.decomposition.cfg.Variable;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
@@ -252,19 +254,20 @@ public class LongMethod extends ViewPart {
 				try {
 					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
 					ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
-					List<Position> positions = slice.getHighlightPositions();
+					Map<Position, String> positionMap = slice.getHighlightPositions();
 					AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
 					Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 					while(annotationIterator.hasNext()) {
 						Annotation currentAnnotation = annotationIterator.next();
-						if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences.write")) {
+						if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
 							annotationModel.removeAnnotation(currentAnnotation);
 						}
 					}
-					for(Position position : positions) {
-						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences.write", false, "");
+					for(Position position : positionMap.keySet()) {
+						Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, positionMap.get(position));
 						annotationModel.addAnnotation(annotation, position);
 					}
+					List<Position> positions = new ArrayList<Position>(positionMap.keySet());
 					Position firstPosition = positions.get(0);
 					Position lastPosition = positions.get(positions.size()-1);
 					int offset = firstPosition.getOffset();
@@ -310,7 +313,8 @@ public class LongMethod extends ViewPart {
 					CFG cfg = new CFG(methodObject);
 					PDG pdg = new PDG(cfg);
 					for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
-						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, declaration);
+						Variable variable = new Variable(declaration);
+						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
 						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 							extractedSlices.add(sliceUnion);
 						}

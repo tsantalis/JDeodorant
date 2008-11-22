@@ -8,12 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
-
 public class PDGSliceUnionCollection {
 	private Map<BasicBlock, PDGSliceUnion> sliceUnionMap;
 	
-	public PDGSliceUnionCollection(PDG pdg, VariableDeclaration localVariableCriterion) {
+	public PDGSliceUnionCollection(PDG pdg, Variable localVariableCriterion) {
 		this.sliceUnionMap = new LinkedHashMap<BasicBlock, PDGSliceUnion>();
 		Set<PDGNode> nodeCriterions = new LinkedHashSet<PDGNode>();
 		//get all the assignments of variable criterion

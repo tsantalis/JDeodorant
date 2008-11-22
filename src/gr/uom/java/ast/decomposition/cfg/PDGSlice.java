@@ -18,16 +18,16 @@ public class PDGSlice extends Graph {
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
 	private PDGNode nodeCriterion;
-	private VariableDeclaration localVariableCriterion;
+	private Variable localVariableCriterion;
 	private Set<PDGNode> sliceNodes;
 	private Set<PDGNode> remainingNodes;
-	private Set<VariableDeclaration> passedParameters;
+	private Set<Variable> passedParameters;
 	private Set<PDGNode> indispensableNodes;
 	private Set<PDGNode> removableNodes;
-	private Set<VariableDeclaration> returnedVariablesInOriginalMethod;
+	private Set<Variable> returnedVariablesInOriginalMethod;
 	
 	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
-			VariableDeclaration localVariableCriterion) {
+			Variable localVariableCriterion) {
 		super();
 		this.method = pdg.getMethod();
 		this.returnedVariablesInOriginalMethod = pdg.getReturnedVariables();
@@ -52,7 +52,7 @@ public class PDGSlice extends Graph {
 			if(!sliceNodes.contains(pdgNode))
 				remainingNodes.add(pdgNode);
 		}
-		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
+		this.passedParameters = new LinkedHashSet<Variable>();
 		Set<PDGNode> nCD = new LinkedHashSet<PDGNode>();
 		Set<PDGNode> nDD = new LinkedHashSet<PDGNode>();
 		for(GraphEdge edge : pdg.edges) {
@@ -74,12 +74,12 @@ public class PDGSlice extends Graph {
 		}
 		Set<PDGNode> controlIndispensableNodes = new LinkedHashSet<PDGNode>();
 		for(PDGNode p : nCD) {
-			Set<VariableDeclaration> variables = null;
+			Set<Variable> variables = null;
 			if(!p.usedVariables.isEmpty())
 				variables = p.usedVariables;
 			else
 				variables = p.definedVariables;
-			for(VariableDeclaration usedVariable : variables) {
+			for(Variable usedVariable : variables) {
 				Set<PDGNode> pSliceNodes = computeSlice(p, usedVariable);
 				for(GraphNode node : pdg.nodes) {
 					PDGNode q = (PDGNode)node;
@@ -90,7 +90,7 @@ public class PDGSlice extends Graph {
 		}
 		Set<PDGNode> dataIndispensableNodes = new LinkedHashSet<PDGNode>();
 		for(PDGNode p : nDD) {
-			for(VariableDeclaration definedVariable : p.definedVariables) {
+			for(Variable definedVariable : p.definedVariables) {
 				Set<PDGNode> pSliceNodes = computeSlice(p, definedVariable);
 				for(GraphNode node : pdg.nodes) {
 					PDGNode q = (PDGNode)node;
@@ -122,7 +122,7 @@ public class PDGSlice extends Graph {
 		return nodeCriterion;
 	}
 
-	public VariableDeclaration getLocalVariableCriterion() {
+	public Variable getLocalVariableCriterion() {
 		return localVariableCriterion;
 	}
 
@@ -130,7 +130,7 @@ public class PDGSlice extends Graph {
 		return sliceNodes;
 	}
 
-	public Set<VariableDeclaration> getPassedParameters() {
+	public Set<Variable> getPassedParameters() {
 		return passedParameters;
 	}
 
@@ -142,7 +142,8 @@ public class PDGSlice extends Graph {
 		for(PDGNode pdgNode : sliceNodes) {
 			AbstractStatement statement = pdgNode.getStatement();
 			for(LocalVariableDeclarationObject variableDeclaration : statement.getLocalVariableDeclarations()) {
-				if(variableDeclaration.getVariableDeclaration().equals(localVariableCriterion))
+				Variable variable = new Variable(variableDeclaration.getVariableDeclaration());
+				if(localVariableCriterion.equals(variable))
 					return true;
 			}
 		}
@@ -153,7 +154,8 @@ public class PDGSlice extends Graph {
 		for(PDGNode pdgNode : removableNodes) {
 			AbstractStatement statement = pdgNode.getStatement();
 			for(LocalVariableDeclarationObject variableDeclaration : statement.getLocalVariableDeclarations()) {
-				if(variableDeclaration.getVariableDeclaration().equals(localVariableCriterion))
+				Variable variable = new Variable(variableDeclaration.getVariableDeclaration());
+				if(localVariableCriterion.equals(variable))
 					return true;
 			}
 		}
@@ -245,7 +247,7 @@ public class PDGSlice extends Graph {
 		return false;
 	}
 
-	private Set<PDGNode> computeSlice(PDGNode nodeCriterion, VariableDeclaration localVariableCriterion) {
+	private Set<PDGNode> computeSlice(PDGNode nodeCriterion, Variable localVariableCriterion) {
 		Set<PDGNode> sliceNodes = new LinkedHashSet<PDGNode>();
 		if(nodeCriterion.definesLocalVariable(localVariableCriterion)) {
 			sliceNodes.addAll(traverseBackward(nodeCriterion, new LinkedHashSet<PDGNode>()));
@@ -259,7 +261,7 @@ public class PDGSlice extends Graph {
 		return sliceNodes;
 	}
 
-	private Set<PDGNode> getDefNodes(PDGNode node, VariableDeclaration localVariable) {
+	private Set<PDGNode> getDefNodes(PDGNode node, Variable localVariable) {
 		Set<PDGNode> defNodes = new LinkedHashSet<PDGNode>();
 		for(GraphEdge edge : node.incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;

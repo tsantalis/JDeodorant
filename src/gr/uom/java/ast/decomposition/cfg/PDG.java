@@ -120,7 +120,7 @@ public class PDG extends Graph {
 
 	private void createDataDependencies() {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
-		for(VariableDeclaration variableInstruction : entryNode.definedVariables) {
+		for(Variable variableInstruction : entryNode.definedVariables) {
 			if(firstPDGNode.usesLocalVariable(variableInstruction)) {
 				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, false);
 				edges.add(dataDependence);
@@ -136,16 +136,16 @@ public class PDG extends Graph {
 		}
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
-			for(VariableDeclaration variableInstruction : pdgNode.definedVariables) {
+			for(Variable variableInstruction : pdgNode.definedVariables) {
 				dataDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), false);
 			}
-			for(VariableDeclaration variableInstruction : pdgNode.usedVariables) {
+			for(Variable variableInstruction : pdgNode.usedVariables) {
 				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), false);
 			}
 		}
 	}
 
-	private void dataDependenceSearch(PDGNode initialNode, VariableDeclaration variableInstruction,
+	private void dataDependenceSearch(PDGNode initialNode, Variable variableInstruction,
 			PDGNode currentNode, Set<PDGNode> visitedNodes, boolean loopCarried) {
 		if(visitedNodes.contains(currentNode))
 			return;
@@ -173,7 +173,7 @@ public class PDG extends Graph {
 		}
 	}
 
-	private void antiDependenceSearch(PDGNode initialNode, VariableDeclaration variableInstruction,
+	private void antiDependenceSearch(PDGNode initialNode, Variable variableInstruction,
 			PDGNode currentNode, Set<PDGNode> visitedNodes, boolean loopCarried) {
 		if(visitedNodes.contains(currentNode))
 			return;
@@ -273,13 +273,13 @@ public class PDG extends Graph {
 		return regionNodes;
 	}
 
-	public Set<VariableDeclaration> getReturnedVariables() {
-		Set<VariableDeclaration> returnedVariables = new LinkedHashSet<VariableDeclaration>();
+	public Set<Variable> getReturnedVariables() {
+		Set<Variable> returnedVariables = new LinkedHashSet<Variable>();
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(pdgNode instanceof PDGExitNode) {
 				PDGExitNode exitNode = (PDGExitNode)pdgNode;
-				VariableDeclaration returnedVariable = exitNode.getReturnedVariable();
+				Variable returnedVariable = exitNode.getReturnedVariable();
 				if(returnedVariable != null)
 					returnedVariables.add(returnedVariable);
 			}
@@ -287,7 +287,7 @@ public class PDG extends Graph {
 		return returnedVariables;
 	}
 
-	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, VariableDeclaration variableCriterion) {
+	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, Variable variableCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
 		Set<BasicBlock> boundaryBlocks = boundaryBlocks(nodeCriterion);
 		for(BasicBlock boundaryBlock : boundaryBlocks) {
@@ -299,15 +299,15 @@ public class PDG extends Graph {
 
 	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		Set<VariableDeclaration> examinedVariables = new LinkedHashSet<VariableDeclaration>();
-		for(VariableDeclaration definedVariable : nodeCriterion.definedVariables) {
-			if(!examinedVariables.contains(definedVariable)) {
+		Set<Variable> examinedVariables = new LinkedHashSet<Variable>();
+		for(Variable definedVariable : nodeCriterion.definedVariables) {
+			if(!examinedVariables.contains(definedVariable) && definedVariable.isLocalVariable()) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, definedVariable));
 				examinedVariables.add(definedVariable);
 			}
 		}
-		/*for(VariableDeclaration usedVariable : nodeCriterion.usedVariables) {
-			if(!examinedVariables.contains(usedVariable)) {
+		/*for(Variable usedVariable : nodeCriterion.usedVariables) {
+			if(!examinedVariables.contains(usedVariable) && usedVariable.isLocalVariable()) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
 				examinedVariables.add(usedVariable);
 			}

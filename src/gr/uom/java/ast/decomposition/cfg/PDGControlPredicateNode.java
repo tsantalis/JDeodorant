@@ -5,6 +5,7 @@ import java.util.ListIterator;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
@@ -40,8 +41,9 @@ public class PDGControlPredicateNode extends PDGNode {
 			for(AbstractExpression expression : expressions) {
 				List<LocalVariableDeclarationObject> variableDeclarations = expression.getLocalVariableDeclarations();
 				for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations) {
-					declaredVariables.add(variableDeclaration.getVariableDeclaration());
-					definedVariables.add(variableDeclaration.getVariableDeclaration());
+					Variable variable = new Variable(variableDeclaration.getVariableDeclaration());
+					declaredVariables.add(variable);
+					definedVariables.add(variable);
 				}
 				List<LocalVariableInstructionObject> variableInstructions = expression.getLocalVariableInstructions();
 				for(LocalVariableInstructionObject variableInstruction : variableInstructions) {
@@ -52,24 +54,25 @@ public class PDGControlPredicateNode extends PDGNode {
 							break;
 						}
 					}
+					Variable variable = new Variable(variableDeclaration);
 					List<Assignment> assignments = expression.getLocalVariableAssignments(variableInstruction);
 					List<PostfixExpression> postfixExpressions = expression.getLocalVariablePostfixAssignments(variableInstruction);
 					List<PrefixExpression> prefixExpressions = expression.getLocalVariablePrefixAssignments(variableInstruction);
 					if(!assignments.isEmpty()) {
-						definedVariables.add(variableDeclaration);
+						definedVariables.add(variable);
 						for(Assignment assignment : assignments) {
 							Assignment.Operator operator = assignment.getOperator();
 							if(!operator.equals(Assignment.Operator.ASSIGN))
-								usedVariables.add(variableDeclaration);
+								usedVariables.add(variable);
 						}
 					}
 					else if(!postfixExpressions.isEmpty()) {
-						definedVariables.add(variableDeclaration);
-						usedVariables.add(variableDeclaration);
+						definedVariables.add(variable);
+						usedVariables.add(variable);
 					}
 					else if(!prefixExpressions.isEmpty()) {
-						definedVariables.add(variableDeclaration);
-						usedVariables.add(variableDeclaration);
+						definedVariables.add(variable);
+						usedVariables.add(variable);
 					}
 					else {
 						SimpleName variableInstructionName = variableInstruction.getSimpleName();
@@ -96,7 +99,7 @@ public class PDGControlPredicateNode extends PDGNode {
 								}
 							}
 						}
-						usedVariables.add(variableDeclaration);
+						usedVariables.add(variable);
 					}
 				}
 				List<FieldInstructionObject> fieldInstructions = expression.getFieldInstructions();
@@ -116,56 +119,78 @@ public class PDGControlPredicateNode extends PDGNode {
 						}
 						if(fieldDeclaration != null) {
 							SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
-							boolean stateChangingFieldModification = false;
+							VariableDeclaration variableDeclaration = processDirectFieldModification(fieldInstructionName, variableDeclarationsInMethod);
+							Variable field = null;
+							if(variableDeclaration != null)
+								field = new Variable(variableDeclaration, fieldDeclaration);
+							else
+								field = new Variable(fieldDeclaration);
 							List<Assignment> fieldAssignments = expression.getFieldAssignments(fieldInstruction);
 							List<PostfixExpression> fieldPostfixAssignments = expression.getFieldPostfixAssignments(fieldInstruction);
 							List<PrefixExpression> fieldPrefixAssignments = expression.getFieldPrefixAssignments(fieldInstruction);
 							if(!fieldAssignments.isEmpty()) {
-								definedVariables.add(fieldDeclaration);
+								definedVariables.add(field);
 								for(Assignment assignment : fieldAssignments) {
 									Assignment.Operator operator = assignment.getOperator();
 									if(!operator.equals(Assignment.Operator.ASSIGN))
-										usedVariables.add(fieldDeclaration);
+										usedVariables.add(field);
 								}
-								stateChangingFieldModification = true;
+								if(variableDeclaration != null) {
+									Variable variable = new Variable(variableDeclaration);
+									definedVariables.add(variable);
+								}
 							}
 							else if(!fieldPostfixAssignments.isEmpty()) {
-								definedVariables.add(fieldDeclaration);
-								usedVariables.add(fieldDeclaration);
-								stateChangingFieldModification = true;
+								definedVariables.add(field);
+								usedVariables.add(field);
+								if(variableDeclaration != null) {
+									Variable variable = new Variable(variableDeclaration);
+									definedVariables.add(variable);
+								}
 							}
 							else if(!fieldPrefixAssignments.isEmpty()) {
-								definedVariables.add(fieldDeclaration);
-								usedVariables.add(fieldDeclaration);
-								stateChangingFieldModification = true;
+								definedVariables.add(field);
+								usedVariables.add(field);
+								if(variableDeclaration != null) {
+									Variable variable = new Variable(variableDeclaration);
+									definedVariables.add(variable);
+								}
 							}
 							else {
-								if(fieldInstructionName.getParent() instanceof MethodInvocation) {
-									MethodInvocation methodInvocation = (MethodInvocation)fieldInstructionName.getParent();
-									if(methodInvocation.getExpression() != null && methodInvocation.getExpression().equals(fieldInstructionName)) {
-										List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
-										MethodInvocationObject methodInvocationObject = null;
-										for(MethodInvocationObject mio : methodInvocations) {
-											if(mio.getMethodInvocation().equals(methodInvocation)) {
-												methodInvocationObject = mio;
-												break;
-											}
-										}
-										ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-										if(classObject2 != null) {
-											MethodObject methodObject = classObject2.getMethod(methodInvocationObject);
-											if(methodObject != null)
-												processInternalMethodInvocation(classObject2, methodObject, methodInvocation, fieldDeclaration);
-										}
-										else {
-											processExternalMethodInvocation(methodInvocation, fieldDeclaration);
-										}
+								MethodInvocation methodInvocation = null;
+								if(fieldInstructionName.getParent() instanceof FieldAccess) {
+									FieldAccess fieldAccess = (FieldAccess)fieldInstructionName.getParent();
+									if(fieldAccess.getParent() instanceof MethodInvocation) {
+										MethodInvocation invocation = (MethodInvocation)fieldAccess.getParent();
+										if(fieldAccess.getExpression() instanceof ThisExpression && fieldAccess.getName().equals(fieldInstructionName))
+											methodInvocation = invocation;
 									}
 								}
-								usedVariables.add(fieldDeclaration);
-							}
-							if(stateChangingFieldModification) {
-								processDirectFieldModification(fieldInstructionName, fieldDeclaration, variableDeclarationsInMethod);
+								else if(fieldInstructionName.getParent() instanceof MethodInvocation) {
+									MethodInvocation invocation = (MethodInvocation)fieldInstructionName.getParent();
+									if(invocation.getExpression() != null && invocation.getExpression().equals(fieldInstructionName))
+										methodInvocation = invocation;
+								}
+								if(methodInvocation != null) {
+									List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
+									MethodInvocationObject methodInvocationObject = null;
+									for(MethodInvocationObject mio : methodInvocations) {
+										if(mio.getMethodInvocation().equals(methodInvocation)) {
+											methodInvocationObject = mio;
+											break;
+										}
+									}
+									ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+									if(classObject2 != null) {
+										MethodObject methodObject = classObject2.getMethod(methodInvocationObject);
+										if(methodObject != null)
+											processInternalMethodInvocation(classObject2, methodObject, methodInvocation, fieldDeclaration);
+									}
+									else {
+										processExternalMethodInvocation(methodInvocation, fieldDeclaration);
+									}
+								}
+								usedVariables.add(field);
 							}
 						}
 					}

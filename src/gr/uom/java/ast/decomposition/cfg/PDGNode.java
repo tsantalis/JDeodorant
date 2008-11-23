@@ -6,6 +6,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -40,7 +42,6 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<Variable> definedVariables;
 	protected Set<Variable> usedVariables;
 	private Map<VariableDeclaration, LinkedHashSet<MethodInvocation>> stateChangingMethodInvocationMap;
-	private Set<MethodInvocation> processedMethodInvocations;
 	
 	public PDGNode() {
 		super();
@@ -48,7 +49,6 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.definedVariables = new LinkedHashSet<Variable>();
 		this.usedVariables = new LinkedHashSet<Variable>();
 		this.stateChangingMethodInvocationMap = new LinkedHashMap<VariableDeclaration, LinkedHashSet<MethodInvocation>>();
-		this.processedMethodInvocations = new LinkedHashSet<MethodInvocation>();
 	}
 	
 	public PDGNode(CFGNode cfgNode) {
@@ -60,7 +60,6 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.definedVariables = new LinkedHashSet<Variable>();
 		this.usedVariables = new LinkedHashSet<Variable>();
 		this.stateChangingMethodInvocationMap = new LinkedHashMap<VariableDeclaration, LinkedHashSet<MethodInvocation>>();
-		this.processedMethodInvocations = new LinkedHashSet<MethodInvocation>();
 	}
 
 	public CFGNode getCFGNode() {
@@ -228,50 +227,53 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	protected void processInternalMethodInvocation(ClassObject classObject, MethodObject methodObject,
-			MethodInvocation methodInvocation, VariableDeclaration variableDeclaration) {
+			MethodInvocation methodInvocation, VariableDeclaration variableDeclaration, Set<MethodInvocation> processedMethodInvocations) {
 		List<FieldInstructionObject> fieldInstructions = methodObject.getFieldInstructions();
 		boolean stateChangingMethodInvocation = false;
 		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-			VariableDeclaration fieldDeclaration = null;
-			ListIterator<FieldObject> fieldIterator = classObject.getFieldIterator();
-			while(fieldIterator.hasNext()) {
-				FieldObject fieldObject = fieldIterator.next();
-				VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-				if(fragment.resolveBinding().isEqualTo(fieldInstruction.getSimpleName().resolveBinding())) {
-					fieldDeclaration = fragment;
-					break;
-				}
-			}
-			if(fieldDeclaration != null) {
-				Variable field = null;
-				if(variableDeclaration != null)
-					field = new Variable(variableDeclaration, fieldDeclaration);
-				else
-					field = new Variable(fieldDeclaration);
-				List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
-				List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
-				List<PrefixExpression> fieldPrefixAssignments = methodObject.getFieldPrefixAssignments(fieldInstruction);
-				if(!fieldAssignments.isEmpty()) {
-					definedVariables.add(field);
-					for(Assignment assignment : fieldAssignments) {
-						Assignment.Operator operator = assignment.getOperator();
-						if(!operator.equals(Assignment.Operator.ASSIGN))
-							usedVariables.add(field);
+			SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
+			if(!(fieldInstructionName.getParent() instanceof QualifiedName)) {
+				VariableDeclaration fieldDeclaration = null;
+				ListIterator<FieldObject> fieldIterator = classObject.getFieldIterator();
+				while(fieldIterator.hasNext()) {
+					FieldObject fieldObject = fieldIterator.next();
+					VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+					if(fragment.resolveBinding().isEqualTo(fieldInstruction.getSimpleName().resolveBinding())) {
+						fieldDeclaration = fragment;
+						break;
 					}
-					stateChangingMethodInvocation = true;
 				}
-				else if(!fieldPostfixAssignments.isEmpty()) {
-					definedVariables.add(field);
-					usedVariables.add(field);
-					stateChangingMethodInvocation = true;
-				}
-				else if(!fieldPrefixAssignments.isEmpty()) {
-					definedVariables.add(field);
-					usedVariables.add(field);
-					stateChangingMethodInvocation = true;
-				}
-				else {
-					usedVariables.add(field);
+				if(fieldDeclaration != null) {
+					Variable field = null;
+					if(variableDeclaration != null)
+						field = new Variable(variableDeclaration, fieldDeclaration);
+					else
+						field = new Variable(fieldDeclaration);
+					List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
+					List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
+					List<PrefixExpression> fieldPrefixAssignments = methodObject.getFieldPrefixAssignments(fieldInstruction);
+					if(!fieldAssignments.isEmpty()) {
+						definedVariables.add(field);
+						for(Assignment assignment : fieldAssignments) {
+							Assignment.Operator operator = assignment.getOperator();
+							if(!operator.equals(Assignment.Operator.ASSIGN))
+								usedVariables.add(field);
+						}
+						stateChangingMethodInvocation = true;
+					}
+					else if(!fieldPostfixAssignments.isEmpty()) {
+						definedVariables.add(field);
+						usedVariables.add(field);
+						stateChangingMethodInvocation = true;
+					}
+					else if(!fieldPrefixAssignments.isEmpty()) {
+						definedVariables.add(field);
+						usedVariables.add(field);
+						stateChangingMethodInvocation = true;
+					}
+					else {
+						usedVariables.add(field);
+					}
 				}
 			}
 		}
@@ -288,7 +290,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				MethodObject methodObject2 = classObject.getMethod(methodInvocationObject);
 				if(methodObject2 != null && !methodObject2.equals(methodObject)) {
 					if(!processedMethodInvocations.contains(methodInvocation2))
-						processInternalMethodInvocation(classObject, methodObject2, methodInvocation2, variableDeclaration);
+						processInternalMethodInvocation(classObject, methodObject2, methodInvocation2, variableDeclaration, processedMethodInvocations);
 				}
 			}
 		}
@@ -343,5 +345,108 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			}
 		}
 		return null;
+	}
+
+	protected void processArgumentsOfInternalMethodInvocation(ClassObject classObject, MethodObject methodObject, MethodInvocation methodInvocation,
+			VariableDeclaration argumentDeclaration, VariableDeclaration parameterDeclaration, Set<MethodInvocation> processedMethodInvocations) {
+		List<FieldInstructionObject> fieldInstructions = methodObject.getFieldInstructions();
+		boolean stateChangingMethodInvocation = false;
+		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+			SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
+			if(fieldInstructionName.getParent() instanceof QualifiedName) {
+				QualifiedName qualifiedName = (QualifiedName)fieldInstructionName.getParent();
+				if(qualifiedName.getQualifier() instanceof SimpleName) {
+					SimpleName qualifier = (SimpleName)qualifiedName.getQualifier();
+					if(parameterDeclaration.resolveBinding().isEqualTo(qualifier.resolveBinding())) {
+						VariableDeclaration fieldDeclaration = null;
+						ListIterator<FieldObject> fieldIterator = classObject.getFieldIterator();
+						while(fieldIterator.hasNext()) {
+							FieldObject fieldObject = fieldIterator.next();
+							VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+							if(fragment.resolveBinding().isEqualTo(fieldInstruction.getSimpleName().resolveBinding())) {
+								fieldDeclaration = fragment;
+								break;
+							}
+						}
+						if(fieldDeclaration != null) {
+							Variable field = new Variable(argumentDeclaration, fieldDeclaration);
+							List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
+							List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
+							List<PrefixExpression> fieldPrefixAssignments = methodObject.getFieldPrefixAssignments(fieldInstruction);
+							if(!fieldAssignments.isEmpty()) {
+								definedVariables.add(field);
+								for(Assignment assignment : fieldAssignments) {
+									Assignment.Operator operator = assignment.getOperator();
+									if(!operator.equals(Assignment.Operator.ASSIGN))
+										usedVariables.add(field);
+								}
+								stateChangingMethodInvocation = true;
+							}
+							else if(!fieldPostfixAssignments.isEmpty()) {
+								definedVariables.add(field);
+								usedVariables.add(field);
+								stateChangingMethodInvocation = true;
+							}
+							else if(!fieldPrefixAssignments.isEmpty()) {
+								definedVariables.add(field);
+								usedVariables.add(field);
+								stateChangingMethodInvocation = true;
+							}
+							else {
+								usedVariables.add(field);
+							}
+						}
+					}
+				}
+			}
+		}
+		if(stateChangingMethodInvocation) {
+			putInStateChangingMethodInvocationMap(argumentDeclaration, methodInvocation);
+			Variable variable = new Variable(argumentDeclaration);
+			definedVariables.add(variable);
+		}
+		processedMethodInvocations.add(methodInvocation);
+		List<MethodInvocationObject> methodInvocations = methodObject.getMethodInvocations();
+		for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+			MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+			Expression invocationExpression = methodInvocation2.getExpression();
+			if(invocationExpression != null && invocationExpression instanceof SimpleName) {
+				SimpleName invocationExpressionName = (SimpleName)invocationExpression;
+				if(parameterDeclaration.resolveBinding().isEqualTo(invocationExpressionName.resolveBinding())) {
+					SystemObject systemObject = ASTReader.getSystemObject();
+					ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+					if(classObject2 != null) {
+						MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
+						if(methodObject2 != null) {
+							if(!processedMethodInvocations.contains(methodInvocation2))
+								processInternalMethodInvocation(classObject2, methodObject2, methodInvocation2,
+										argumentDeclaration, new LinkedHashSet<MethodInvocation>());
+						}
+					}
+				}
+			}
+			List<Expression> arguments = methodInvocation2.arguments();
+			int argumentPosition = 0;
+			for(Expression expression : arguments) {
+				if(expression instanceof SimpleName) {
+					SimpleName argumentName = (SimpleName)expression;
+					if(parameterDeclaration.resolveBinding().isEqualTo(argumentName.resolveBinding())) {
+						SystemObject systemObject = ASTReader.getSystemObject();
+						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+						if(classObject2 != null) {
+							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
+							if(methodObject2 != null && !methodObject2.equals(methodObject)) {
+								ParameterObject parameter = methodObject2.getParameter(argumentPosition);
+								VariableDeclaration parameterDeclaration2 = parameter.getSingleVariableDeclaration();
+								if(!processedMethodInvocations.contains(methodInvocation2))
+									processArgumentsOfInternalMethodInvocation(classObject, methodObject2, methodInvocation2,
+											argumentDeclaration, parameterDeclaration2, processedMethodInvocations);
+							}
+						}
+					}
+				}
+				argumentPosition++;
+			}
+		}
 	}
 }

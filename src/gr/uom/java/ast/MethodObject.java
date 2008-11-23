@@ -396,6 +396,10 @@ public class MethodObject {
         return constructorObject.getParameterListIterator();
     }
 
+    public ParameterObject getParameter(int position) {
+    	return constructorObject.getParameter(position);
+    }
+   
     public List<MethodInvocationObject> getMethodInvocations() {
         return constructorObject.getMethodInvocations();
     }

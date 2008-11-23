@@ -65,6 +65,13 @@ public class ConstructorObject {
 		return parameterList.listIterator();
 	}
 
+    public ParameterObject getParameter(int position) {
+    	if(position >= 0 && position < parameterList.size())
+    		return parameterList.get(position);
+    	else
+    		return null;
+    }
+
 	public List<MethodInvocationObject> getMethodInvocations() {
 		if(methodBody != null)
 			return methodBody.getMethodInvocations();

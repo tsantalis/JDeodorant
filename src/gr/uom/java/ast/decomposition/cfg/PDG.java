@@ -120,7 +120,7 @@ public class PDG extends Graph {
 
 	private void createDataDependencies() {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
-		for(Variable variableInstruction : entryNode.definedVariables) {
+		for(AbstractVariable variableInstruction : entryNode.definedVariables) {
 			if(firstPDGNode.usesLocalVariable(variableInstruction)) {
 				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, false);
 				edges.add(dataDependence);
@@ -136,16 +136,16 @@ public class PDG extends Graph {
 		}
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
-			for(Variable variableInstruction : pdgNode.definedVariables) {
+			for(AbstractVariable variableInstruction : pdgNode.definedVariables) {
 				dataDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), false);
 			}
-			for(Variable variableInstruction : pdgNode.usedVariables) {
+			for(AbstractVariable variableInstruction : pdgNode.usedVariables) {
 				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), false);
 			}
 		}
 	}
 
-	private void dataDependenceSearch(PDGNode initialNode, Variable variableInstruction,
+	private void dataDependenceSearch(PDGNode initialNode, AbstractVariable variableInstruction,
 			PDGNode currentNode, Set<PDGNode> visitedNodes, boolean loopCarried) {
 		if(visitedNodes.contains(currentNode))
 			return;
@@ -173,7 +173,7 @@ public class PDG extends Graph {
 		}
 	}
 
-	private void antiDependenceSearch(PDGNode initialNode, Variable variableInstruction,
+	private void antiDependenceSearch(PDGNode initialNode, AbstractVariable variableInstruction,
 			PDGNode currentNode, Set<PDGNode> visitedNodes, boolean loopCarried) {
 		if(visitedNodes.contains(currentNode))
 			return;
@@ -273,13 +273,13 @@ public class PDG extends Graph {
 		return regionNodes;
 	}
 
-	public Set<Variable> getReturnedVariables() {
-		Set<Variable> returnedVariables = new LinkedHashSet<Variable>();
+	public Set<AbstractVariable> getReturnedVariables() {
+		Set<AbstractVariable> returnedVariables = new LinkedHashSet<AbstractVariable>();
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(pdgNode instanceof PDGExitNode) {
 				PDGExitNode exitNode = (PDGExitNode)pdgNode;
-				Variable returnedVariable = exitNode.getReturnedVariable();
+				AbstractVariable returnedVariable = exitNode.getReturnedVariable();
 				if(returnedVariable != null)
 					returnedVariables.add(returnedVariable);
 			}
@@ -287,7 +287,7 @@ public class PDG extends Graph {
 		return returnedVariables;
 	}
 
-	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, Variable variableCriterion) {
+	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, AbstractVariable variableCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
 		Set<BasicBlock> boundaryBlocks = boundaryBlocks(nodeCriterion);
 		for(BasicBlock boundaryBlock : boundaryBlocks) {
@@ -299,8 +299,8 @@ public class PDG extends Graph {
 
 	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion) {
 		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		Set<Variable> examinedVariables = new LinkedHashSet<Variable>();
-		for(Variable definedVariable : nodeCriterion.definedVariables) {
+		Set<AbstractVariable> examinedVariables = new LinkedHashSet<AbstractVariable>();
+		for(AbstractVariable definedVariable : nodeCriterion.definedVariables) {
 			if(!examinedVariables.contains(definedVariable) && definedVariable.isLocalVariable()) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, definedVariable));
 				examinedVariables.add(definedVariable);

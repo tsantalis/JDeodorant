@@ -11,7 +11,7 @@ import java.util.Set;
 public class PDGSliceUnionCollection {
 	private Map<BasicBlock, PDGSliceUnion> sliceUnionMap;
 	
-	public PDGSliceUnionCollection(PDG pdg, Variable localVariableCriterion) {
+	public PDGSliceUnionCollection(PDG pdg, AbstractVariable localVariableCriterion) {
 		this.sliceUnionMap = new LinkedHashMap<BasicBlock, PDGSliceUnion>();
 		Set<PDGNode> nodeCriterions = new LinkedHashSet<PDGNode>();
 		//get all the assignments of variable criterion

@@ -1,11 +1,11 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 public class PDGDataDependence extends PDGDependence {
-	private Variable data;
+	private AbstractVariable data;
 	private boolean loopCarried;
 	private volatile int hashCode = 0;
 	
-	public PDGDataDependence(PDGNode src, PDGNode dst, Variable data, boolean loopCarried) {
+	public PDGDataDependence(PDGNode src, PDGNode dst, AbstractVariable data, boolean loopCarried) {
 		super(src, dst);
 		this.data = data;
 		this.loopCarried = loopCarried;
@@ -13,7 +13,7 @@ public class PDGDataDependence extends PDGDependence {
 		dst.addIncomingEdge(this);
 	}
 
-	public Variable getData() {
+	public AbstractVariable getData() {
 		return data;
 	}
 

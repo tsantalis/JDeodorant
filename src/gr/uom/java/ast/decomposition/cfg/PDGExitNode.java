@@ -6,7 +6,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGExitNode extends PDGStatementNode {
-	private Variable returnedVariable;
+	private AbstractVariable returnedVariable;
 	
 	public PDGExitNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod) {
 		super(cfgNode, variableDeclarationsInMethod);
@@ -16,7 +16,7 @@ public class PDGExitNode extends PDGStatementNode {
 			if(returnedVariableSimpleName != null) {
 				for(VariableDeclaration declaration : variableDeclarationsInMethod) {
 					if(declaration.resolveBinding().isEqualTo(returnedVariableSimpleName.resolveBinding())) {
-						returnedVariable = new Variable(declaration);
+						returnedVariable = new PlainVariable(declaration);
 						break;
 					}
 				}
@@ -24,7 +24,7 @@ public class PDGExitNode extends PDGStatementNode {
 		}
 	}
 
-	public Variable getReturnedVariable() {
+	public AbstractVariable getReturnedVariable() {
 		return returnedVariable;
 	}
 }

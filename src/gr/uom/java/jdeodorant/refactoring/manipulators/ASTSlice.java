@@ -3,7 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
-import gr.uom.java.ast.decomposition.cfg.Variable;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,10 +50,10 @@ public class ASTSlice {
 		for(PDGNode node : pdgSlice.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion().getVariable();
+		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion().getName();
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
-		for(Variable variable : pdgSlice.getPassedParameters()) {
-			passedParameters.add(variable.getVariable());
+		for(AbstractVariable variable : pdgSlice.getPassedParameters()) {
+			passedParameters.add(variable.getName());
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
@@ -73,10 +73,10 @@ public class ASTSlice {
 		for(PDGNode node : pdgSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion().getVariable();
+		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion().getName();
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
-		for(Variable variable : pdgSliceUnion.getPassedParameters()) {
-			passedParameters.add(variable.getVariable());
+		for(AbstractVariable variable : pdgSliceUnion.getPassedParameters()) {
+			passedParameters.add(variable.getName());
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();

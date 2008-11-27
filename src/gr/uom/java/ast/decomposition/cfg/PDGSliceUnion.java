@@ -13,10 +13,10 @@ public class PDGSliceUnion {
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
 	private Set<PDGNode> nodeCriterions;
-	private Variable localVariableCriterion;
+	private AbstractVariable localVariableCriterion;
 	
 	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriterions,
-			Variable localVariableCriterion) {
+			AbstractVariable localVariableCriterion) {
 		this.slices = new ArrayList<PDGSlice>();
 		for(PDGNode nodeCriterion : nodeCriterions) {
 			PDGSlice slice = new PDGSlice(pdg, boundaryBlock, nodeCriterion, localVariableCriterion);
@@ -36,7 +36,7 @@ public class PDGSliceUnion {
 		return boundaryBlock.getLeader().getPDGNode();
 	}
 
-	public Variable getLocalVariableCriterion() {
+	public AbstractVariable getLocalVariableCriterion() {
 		return localVariableCriterion;
 	}
 
@@ -48,8 +48,8 @@ public class PDGSliceUnion {
 		return sliceNodes;
 	}
 
-	public Set<Variable> getPassedParameters() {
-		Set<Variable> passedParameters = new LinkedHashSet<Variable>();
+	public Set<AbstractVariable> getPassedParameters() {
+		Set<AbstractVariable> passedParameters = new LinkedHashSet<AbstractVariable>();
 		for(PDGSlice slice : slices) {
 			passedParameters.addAll(slice.getPassedParameters());
 		}

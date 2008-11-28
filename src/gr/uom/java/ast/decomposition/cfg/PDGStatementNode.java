@@ -1,6 +1,5 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -13,15 +12,10 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
-import gr.uom.java.ast.ASTReader;
-import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.MethodObject;
-import gr.uom.java.ast.ParameterObject;
-import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 public class PDGStatementNode extends PDGNode {
@@ -84,43 +78,7 @@ public class PDGStatementNode extends PDGNode {
 										break;
 									}
 								}
-								SystemObject systemObject = ASTReader.getSystemObject();
-								ClassObject classObject = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-								if(classObject != null) {
-									MethodObject methodObject = classObject.getMethod(methodInvocationObject);
-									if(methodObject != null) {
-										processInternalMethodInvocation(classObject, methodObject, methodInvocation, variable,
-												new LinkedHashSet<MethodInvocation>());
-										List<Expression> arguments = methodInvocation.arguments();
-										int argumentPosition = 0;
-										for(Expression argument : arguments) {
-											if(argument instanceof SimpleName) {
-												SimpleName argumentName = (SimpleName)argument;
-												VariableDeclaration argumentDeclaration = null;
-												for(VariableDeclaration variableDeclaration2 : variableDeclarationsInMethod) {
-													if(variableDeclaration2.resolveBinding().isEqualTo(argumentName.resolveBinding())) {
-														argumentDeclaration = variableDeclaration2;
-														break;
-													}
-												}
-												if(argumentDeclaration != null) {
-													ParameterObject parameter = methodObject.getParameter(argumentPosition);
-													VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
-													ClassObject classObject2 = systemObject.getClassObject(parameter.getType().getClassType());
-													if(classObject2 != null) {
-														PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
-														processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
-																argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
-													}
-												}
-											}
-											argumentPosition++;
-										}
-									}
-								}
-								else {
-									processExternalMethodInvocation(methodInvocation, variable);
-								}
+								processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation, variable);
 							}
 						}
 						usedVariables.add(variable);
@@ -167,43 +125,7 @@ public class PDGStatementNode extends PDGNode {
 							Expression methodInvocationExpression = methodInvocation.getExpression();
 							AbstractVariable variable = processMethodInvocationExpression(methodInvocationExpression, null);
 							if(variable != null && variable.equals(field)) {
-								SystemObject systemObject = ASTReader.getSystemObject();
-								ClassObject classObject = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-								if(classObject != null) {
-									MethodObject methodObject = classObject.getMethod(methodInvocationObject);
-									if(methodObject != null) {
-										processInternalMethodInvocation(classObject, methodObject, methodInvocation, field,
-												new LinkedHashSet<MethodInvocation>());
-										List<Expression> arguments = methodInvocation.arguments();
-										int argumentPosition = 0;
-										for(Expression argument : arguments) {
-											if(argument instanceof SimpleName) {
-												SimpleName argumentName = (SimpleName)argument;
-												VariableDeclaration argumentDeclaration = null;
-												for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod) {
-													if(variableDeclaration.resolveBinding().isEqualTo(argumentName.resolveBinding())) {
-														argumentDeclaration = variableDeclaration;
-														break;
-													}
-												}
-												if(argumentDeclaration != null) {
-													ParameterObject parameter = methodObject.getParameter(argumentPosition);
-													VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
-													ClassObject classObject2 = systemObject.getClassObject(parameter.getType().getClassType());
-													if(classObject2 != null) {
-														PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
-														processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
-																argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
-													}
-												}
-											}
-											argumentPosition++;
-										}
-									}
-								}
-								else {
-									processExternalMethodInvocation(methodInvocation, field);
-								}
+								processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation, field);
 							}
 						}
 						usedVariables.add(field);
@@ -214,40 +136,7 @@ public class PDGStatementNode extends PDGNode {
 			for(MethodInvocationObject methodInvocationObject : methodInvocations) {
 				MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
 				if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
-					SystemObject systemObject = ASTReader.getSystemObject();
-					ClassObject classObject = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-					if(classObject != null) {
-						MethodObject methodObject = classObject.getMethod(methodInvocationObject);
-						if(methodObject != null) {
-							processInternalMethodInvocation(classObject, methodObject, methodInvocation, null,
-									new LinkedHashSet<MethodInvocation>());
-							List<Expression> arguments = methodInvocation.arguments();
-							int argumentPosition = 0;
-							for(Expression argument : arguments) {
-								if(argument instanceof SimpleName) {
-									SimpleName argumentName = (SimpleName)argument;
-									VariableDeclaration argumentDeclaration = null;
-									for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod) {
-										if(variableDeclaration.resolveBinding().isEqualTo(argumentName.resolveBinding())) {
-											argumentDeclaration = variableDeclaration;
-											break;
-										}
-									}
-									if(argumentDeclaration != null) {
-										ParameterObject parameter = methodObject.getParameter(argumentPosition);
-										VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
-										ClassObject classObject2 = systemObject.getClassObject(parameter.getType().getClassType());
-										if(classObject2 != null) {
-											PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
-											processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
-													argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
-										}
-									}
-								}
-								argumentPosition++;
-							}
-						}
-					}
+					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation, null);
 				}
 			}
 		}

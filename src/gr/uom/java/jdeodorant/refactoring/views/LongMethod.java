@@ -96,9 +96,16 @@ public class LongMethod extends ViewPart {
 			case 0:
 				return "Extract Method";
 			case 1:
-				return entry.getSourceMethodDeclaration().getName().getIdentifier();
+				String declaringClass = entry.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
+				String methodName = entry.getSourceMethodDeclaration().getName().getIdentifier();
+				return declaringClass + "::" + methodName;
 			case 2:
 				return entry.getLocalVariableCriterion().getName().getIdentifier();
+			case 3:
+				int numberOfSliceStatements = entry.getSliceStatements().size();
+				int numberOfRemovableStatements = entry.getRemovableStatements().size();
+				int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+				return numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
 			default:
 				return "";
 			}
@@ -150,6 +157,7 @@ public class LongMethod extends ViewPart {
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
@@ -165,6 +173,10 @@ public class LongMethod extends ViewPart {
 		column2.setText("Variable Criterion");
 		column2.setResizable(true);
 		column2.pack();
+		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column3.setText("Duplicated/Extracted");
+		column3.setResizable(true);
+		column3.pack();
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();

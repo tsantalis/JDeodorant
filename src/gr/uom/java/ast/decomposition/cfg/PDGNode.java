@@ -307,6 +307,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				FieldAccess fieldAccess = (FieldAccess)expression;
 				return processFieldInstruction(fieldAccess.getName(), parameterDeclaration, null);
 			}
+			else if(expression instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)expression;
+				return processFieldInstruction(simpleName, parameterDeclaration, null);
+			}
 		}
 		return null;
 	}
@@ -360,6 +364,15 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					stateChangingMethodInvocation = true;
 				}
 				else {
+					List<MethodInvocationObject> methodInvocations = methodObject.getMethodInvocations();
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+						Expression methodInvocationExpression = methodInvocation2.getExpression();
+						AbstractVariable variable = processMethodInvocationExpression(methodInvocationExpression, null);
+						if(variable != null && variable.equals(originalField)) {
+							processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation2, field);
+						}
+					}
 					usedVariables.add(field);
 				}
 			}
@@ -388,9 +401,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		boolean stateChangingMethodInvocation = false;
 		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
 			SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
-			AbstractVariable field = processFieldInstruction(fieldInstructionName, parameterDeclaration, null);
-			if(field != null && parameterDeclaration.resolveBinding().isEqualTo(field.getName().resolveBinding())) {
-				field = new CompositeVariable(argumentDeclaration.getName(), ((CompositeVariable)field).getRightPart());
+			AbstractVariable originalField = processFieldInstruction(fieldInstructionName, parameterDeclaration, null);
+			if(originalField != null && parameterDeclaration.resolveBinding().isEqualTo(originalField.getName().resolveBinding())) {
+				AbstractVariable field = new CompositeVariable(argumentDeclaration.getName(), ((CompositeVariable)originalField).getRightPart());
 				List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
 				List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
 				List<PrefixExpression> fieldPrefixAssignments = methodObject.getFieldPrefixAssignments(fieldInstruction);
@@ -414,6 +427,15 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					stateChangingMethodInvocation = true;
 				}
 				else {
+					List<MethodInvocationObject> methodInvocations = methodObject.getMethodInvocations();
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+						Expression methodInvocationExpression = methodInvocation2.getExpression();
+						AbstractVariable variable = processMethodInvocationExpression(methodInvocationExpression, parameterDeclaration);
+						if(variable != null && variable.equals(originalField)) {
+							processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation2, field);
+						}
+					}
 					usedVariables.add(field);
 				}
 			}

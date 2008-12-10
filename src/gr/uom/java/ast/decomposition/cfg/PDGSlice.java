@@ -200,7 +200,9 @@ public class PDGSlice extends Graph {
 						PDGNode dstPDGNode = (PDGNode)antiDependence.dst;
 						if(sliceNodes.contains(dstPDGNode) && !duplicatedNodes.contains(dstPDGNode) &&
 								antiDependence.isLoopCarried()) {
-							return true;
+							CFGBranchNode loop = antiDependence.getLoop();
+							if(boundaryBlock.getId() <= loop.getBasicBlock().getId())
+								return true;
 						}
 					}
 				}

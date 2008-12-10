@@ -122,31 +122,31 @@ public class PDG extends Graph {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
 		for(AbstractVariable variableInstruction : entryNode.definedVariables) {
 			if(firstPDGNode.usesLocalVariable(variableInstruction)) {
-				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, false);
+				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, null);
 				edges.add(dataDependence);
 			}
 			if(!firstPDGNode.definesLocalVariable(variableInstruction)) {
-				dataDependenceSearch(entryNode, variableInstruction, firstPDGNode, new LinkedHashSet<PDGNode>(), false);
+				dataDependenceSearch(entryNode, variableInstruction, firstPDGNode, new LinkedHashSet<PDGNode>(), null);
 			}
 			else if(entryNode.declaresLocalVariable(variableInstruction)) {
 				//create def-order data dependence edge
-				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, false);
+				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, null);
 				edges.add(dataDependence);
 			}
 		}
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			for(AbstractVariable variableInstruction : pdgNode.definedVariables) {
-				dataDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), false);
+				dataDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
 			}
 			for(AbstractVariable variableInstruction : pdgNode.usedVariables) {
-				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), false);
+				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
 			}
 		}
 	}
 
 	private void dataDependenceSearch(PDGNode initialNode, AbstractVariable variableInstruction,
-			PDGNode currentNode, Set<PDGNode> visitedNodes, boolean loopCarried) {
+			PDGNode currentNode, Set<PDGNode> visitedNodes, CFGBranchNode loop) {
 		if(visitedNodes.contains(currentNode))
 			return;
 		else
@@ -154,27 +154,32 @@ public class PDG extends Graph {
 		CFGNode currentCFGNode = currentNode.getCFGNode();
 		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
 			Flow flow = (Flow)edge;
-			if(flow.isLoopbackFlow())
-				loopCarried = true;
+			CFGNode srcCFGNode = (CFGNode)flow.src;
 			CFGNode dstCFGNode = (CFGNode)flow.dst;
+			if(flow.isLoopbackFlow()) {
+				if(dstCFGNode instanceof CFGBranchLoopNode)
+					loop = (CFGBranchLoopNode)dstCFGNode;
+				if(srcCFGNode instanceof CFGBranchDoLoopNode)
+					loop = (CFGBranchDoLoopNode)srcCFGNode;
+			}
 			PDGNode dstPDGNode = dstCFGNode.getPDGNode();
 			if(dstPDGNode.usesLocalVariable(variableInstruction)) {
-				PDGDataDependence dataDependence = new PDGDataDependence(initialNode, dstPDGNode, variableInstruction, loopCarried);
+				PDGDataDependence dataDependence = new PDGDataDependence(initialNode, dstPDGNode, variableInstruction, loop);
 				edges.add(dataDependence);
 			}
 			if(!dstPDGNode.definesLocalVariable(variableInstruction)) {
-				dataDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loopCarried);
+				dataDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loop);
 			}
 			else if(initialNode.declaresLocalVariable(variableInstruction) && !initialNode.equals(dstPDGNode)) {
 				//create def-order data dependence edge
-				PDGDataDependence dataDependence = new PDGDataDependence(initialNode, dstPDGNode, variableInstruction, loopCarried);
+				PDGDataDependence dataDependence = new PDGDataDependence(initialNode, dstPDGNode, variableInstruction, loop);
 				edges.add(dataDependence);
 			}
 		}
 	}
 
 	private void antiDependenceSearch(PDGNode initialNode, AbstractVariable variableInstruction,
-			PDGNode currentNode, Set<PDGNode> visitedNodes, boolean loopCarried) {
+			PDGNode currentNode, Set<PDGNode> visitedNodes, CFGBranchNode loop) {
 		if(visitedNodes.contains(currentNode))
 			return;
 		else
@@ -182,16 +187,21 @@ public class PDG extends Graph {
 		CFGNode currentCFGNode = currentNode.getCFGNode();
 		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
 			Flow flow = (Flow)edge;
-			if(flow.isLoopbackFlow())
-				loopCarried = true;
+			CFGNode srcCFGNode = (CFGNode)flow.src;
 			CFGNode dstCFGNode = (CFGNode)flow.dst;
+			if(flow.isLoopbackFlow()) {
+				if(dstCFGNode instanceof CFGBranchLoopNode)
+					loop = (CFGBranchLoopNode)dstCFGNode;
+				if(srcCFGNode instanceof CFGBranchDoLoopNode)
+					loop = (CFGBranchDoLoopNode)srcCFGNode;
+			}
 			PDGNode dstPDGNode = dstCFGNode.getPDGNode();
 			if(dstPDGNode.definesLocalVariable(variableInstruction)) {
-				PDGAntiDependence antiDependence = new PDGAntiDependence(initialNode, dstPDGNode, variableInstruction, loopCarried);
+				PDGAntiDependence antiDependence = new PDGAntiDependence(initialNode, dstPDGNode, variableInstruction, loop);
 				edges.add(antiDependence);
 			}
 			if(!dstPDGNode.usesLocalVariable(variableInstruction)) {
-				antiDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loopCarried);
+				antiDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loop);
 			}
 		}
 	}
@@ -306,7 +316,7 @@ public class PDG extends Graph {
 				examinedVariables.add(definedVariable);
 			}
 		}
-		/*for(Variable usedVariable : nodeCriterion.usedVariables) {
+		/*for(AbstractVariable usedVariable : nodeCriterion.usedVariables) {
 			if(!examinedVariables.contains(usedVariable) && usedVariable.isLocalVariable()) {
 				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
 				examinedVariables.add(usedVariable);

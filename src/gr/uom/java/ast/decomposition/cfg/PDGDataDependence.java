@@ -2,13 +2,13 @@ package gr.uom.java.ast.decomposition.cfg;
 
 public class PDGDataDependence extends PDGDependence {
 	private AbstractVariable data;
-	private boolean loopCarried;
+	private CFGBranchNode loop;
 	private volatile int hashCode = 0;
 	
-	public PDGDataDependence(PDGNode src, PDGNode dst, AbstractVariable data, boolean loopCarried) {
+	public PDGDataDependence(PDGNode src, PDGNode dst, AbstractVariable data, CFGBranchNode loop) {
 		super(src, dst);
 		this.data = data;
-		this.loopCarried = loopCarried;
+		this.loop = loop;
 		src.addOutgoingEdge(this);
 		dst.addIncomingEdge(this);
 	}
@@ -17,8 +17,15 @@ public class PDGDataDependence extends PDGDependence {
 		return data;
 	}
 
+	public CFGBranchNode getLoop() {
+		return loop;
+	}
+
 	public boolean isLoopCarried() {
-		return loopCarried;
+		if(loop != null)
+			return true;
+		else
+			return false;
 	}
 
 	public boolean equals(Object o) {
@@ -27,8 +34,13 @@ public class PDGDataDependence extends PDGDependence {
 		
 		if(o instanceof PDGDataDependence) {
 			PDGDataDependence dataDependence = (PDGDataDependence)o;
+			boolean equalLoop = false;
+			if(this.loop != null && dataDependence.loop != null)
+				equalLoop = this.loop.equals(dataDependence.loop);
+			if(this.loop == null && dataDependence.loop == null)
+				equalLoop = true;
 			return this.src.equals(dataDependence.src) && this.dst.equals(dataDependence.dst) &&
-				this.data.equals(dataDependence.data);
+				this.data.equals(dataDependence.data) && equalLoop;
 		}
 		return false;
 	}
@@ -39,6 +51,8 @@ public class PDGDataDependence extends PDGDependence {
 			result = 37*result + src.hashCode();
 			result = 37*result + dst.hashCode();
 			result = 37*result + data.hashCode();
+			if(loop != null)
+				result = 37*result + loop.hashCode();
 			hashCode = result;
 		}
 		return hashCode;

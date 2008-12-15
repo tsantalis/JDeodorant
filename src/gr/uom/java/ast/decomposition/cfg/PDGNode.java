@@ -90,7 +90,15 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	public Set<AbstractVariable> getStateChangingVariables() {
-		return stateChangingMethodInvocationMap.keySet();
+		Set<AbstractVariable> stateChangingVariables = new LinkedHashSet<AbstractVariable>();
+		stateChangingVariables.addAll(stateChangingMethodInvocationMap.keySet());
+		for(AbstractVariable definedVariable : definedVariables) {
+			if(definedVariable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)definedVariable;
+				stateChangingVariables.add(compositeVariable.getLeftPart());
+			}
+		}
+		return stateChangingVariables;
 	}
 
 	public BasicBlock getBasicBlock() {
@@ -414,16 +422,25 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						if(!operator.equals(Assignment.Operator.ASSIGN))
 							usedVariables.add(field);
 					}
+					if(field instanceof CompositeVariable) {
+						definedVariables.add(((CompositeVariable)field).getLeftPart());
+					}
 					stateChangingMethodInvocation = true;
 				}
 				else if(!fieldPostfixAssignments.isEmpty()) {
 					definedVariables.add(field);
 					usedVariables.add(field);
+					if(field instanceof CompositeVariable) {
+						definedVariables.add(((CompositeVariable)field).getLeftPart());
+					}
 					stateChangingMethodInvocation = true;
 				}
 				else if(!fieldPrefixAssignments.isEmpty()) {
 					definedVariables.add(field);
 					usedVariables.add(field);
+					if(field instanceof CompositeVariable) {
+						definedVariables.add(((CompositeVariable)field).getLeftPart());
+					}
 					stateChangingMethodInvocation = true;
 				}
 				else {

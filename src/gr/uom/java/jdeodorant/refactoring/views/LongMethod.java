@@ -11,6 +11,7 @@ import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
+import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
@@ -327,6 +328,12 @@ public class LongMethod extends ViewPart {
 					for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 						PlainVariable variable = new PlainVariable(declaration);
 						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
+						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+							extractedSlices.add(sliceUnion);
+						}
+					}
+					for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
+						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
 						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 							extractedSlices.add(sliceUnion);
 						}

@@ -59,6 +59,18 @@ public class PDG extends Graph {
 		return variableDeclarationsInMethod;
 	}
 
+	public Set<CompositeVariable> getDefinedCompositeVariables() {
+		Set<CompositeVariable> definedCompositeVariables = new LinkedHashSet<CompositeVariable>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			for(AbstractVariable definedVariable : pdgNode.definedVariables) {
+				if(definedVariable instanceof CompositeVariable)
+					definedCompositeVariables.add((CompositeVariable)definedVariable);
+			}
+		}
+		return definedCompositeVariables;
+	}
+
 	private void createControlDependenciesFromEntryNode() {
 		for(GraphNode node : cfg.nodes) {
 			CFGNode cfgNode = (CFGNode)node;

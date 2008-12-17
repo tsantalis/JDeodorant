@@ -131,16 +131,32 @@ public class PDGSlice extends Graph {
 	}
 
 	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
+		PlainVariable plainVariable = null;
+		if(localVariableCriterion instanceof PlainVariable) {
+			plainVariable = (PlainVariable)localVariableCriterion;
+		}
+		else if(localVariableCriterion instanceof CompositeVariable) {
+			CompositeVariable compositeVariable = (CompositeVariable)localVariableCriterion;
+			plainVariable = new PlainVariable(compositeVariable.getName());
+		}
 		for(PDGNode pdgNode : sliceNodes) {
-			if(pdgNode.declaresLocalVariable(localVariableCriterion))
+			if(pdgNode.declaresLocalVariable(plainVariable))
 				return true;
 		}
 		return false;
 	}
 
 	public boolean declarationOfVariableCriterionBelongsToRemovableNodes() {
+		PlainVariable plainVariable = null;
+		if(localVariableCriterion instanceof PlainVariable) {
+			plainVariable = (PlainVariable)localVariableCriterion;
+		}
+		else if(localVariableCriterion instanceof CompositeVariable) {
+			CompositeVariable compositeVariable = (CompositeVariable)localVariableCriterion;
+			plainVariable = new PlainVariable(compositeVariable.getName());
+		}
 		for(PDGNode pdgNode : removableNodes) {
-			if(pdgNode.declaresLocalVariable(localVariableCriterion))
+			if(pdgNode.declaresLocalVariable(plainVariable))
 				return true;
 		}
 		return false;

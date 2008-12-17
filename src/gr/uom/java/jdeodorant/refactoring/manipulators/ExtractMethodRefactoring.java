@@ -107,8 +107,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 			argumentRewrite.insertLast(variableDeclaration.getName(), null);
 		}
 		
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
 		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
-			VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
@@ -130,7 +130,6 @@ public class ExtractMethodRefactoring extends Refactoring {
 			blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
 		}
 		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
-			VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 			if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment oldInitializationFragment = (VariableDeclarationFragment)returnedVariableDeclaration;
 				VariableDeclarationFragment newInitializationFragment = ast.newVariableDeclarationFragment();
@@ -152,7 +151,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		}
 		else {
 			Assignment assignment = ast.newAssignment();
-			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, slice.getLocalVariableCriterion().getName(), null);
+			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
 			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
 			ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
 			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
@@ -170,7 +169,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
 		SimpleName returnedVariableSimpleName = returnedVariableDeclaration.getName();
 		Type returnedVariableType = null;
 		if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {
@@ -187,8 +186,13 @@ public class ExtractMethodRefactoring extends Refactoring {
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnedVariableType, null);
 		
 		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-		Modifier modifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
-		modifierRewrite.insertLast(modifier, null);
+		Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
+		modifierRewrite.insertLast(accessModifier, null);
+		
+		if((sourceMethodDeclaration.getModifiers() & Modifier.STATIC) != 0) {
+			Modifier staticModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD);
+			modifierRewrite.insertLast(staticModifier, null);
+		}
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
@@ -398,7 +402,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 					String project = sourceICompilationUnit.getJavaProject().getElementName();
 					String description = MessageFormat.format("Extract from method ''{0}''", new Object[] { sourceMethodDeclaration.getName().getIdentifier()});
 					String comment = MessageFormat.format("Extract from method ''{0}'' variable ''{1}''",
-							new Object[] { sourceMethodDeclaration.getName().getIdentifier(), slice.getLocalVariableCriterion().getName().getIdentifier()});
+							new Object[] { sourceMethodDeclaration.getName().getIdentifier(), slice.getLocalVariableCriterion().toString()});
 					return new RefactoringChangeDescriptor(new ExtractMethodRefactoringDescriptor(project, description, comment,
 							sourceCompilationUnit, slice));
 				}

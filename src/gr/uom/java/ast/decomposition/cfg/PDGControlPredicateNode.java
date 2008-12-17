@@ -104,21 +104,21 @@ public class PDGControlPredicateNode extends PDGNode {
 									usedVariables.add(field);
 							}
 							if(field instanceof CompositeVariable) {
-								definedVariables.add(((CompositeVariable)field).getLeftPart());
+								putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 							}
 						}
 						else if(!fieldPostfixAssignments.isEmpty()) {
 							definedVariables.add(field);
 							usedVariables.add(field);
 							if(field instanceof CompositeVariable) {
-								definedVariables.add(((CompositeVariable)field).getLeftPart());
+								putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 							}
 						}
 						else if(!fieldPrefixAssignments.isEmpty()) {
 							definedVariables.add(field);
 							usedVariables.add(field);
 							if(field instanceof CompositeVariable) {
-								definedVariables.add(((CompositeVariable)field).getLeftPart());
+								putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 							}
 						}
 						else {

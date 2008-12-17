@@ -31,7 +31,7 @@ public class ASTSlice {
 	private Set<PDGNode> sliceNodes;
 	private Set<Statement> sliceStatements;
 	private Set<Statement> removableStatements;
-	private VariableDeclaration localVariableCriterion;
+	private AbstractVariable localVariableCriterion;
 	private Set<VariableDeclaration> passedParameters;
 	private Statement extractedMethodInvocationInsertionStatement;
 	private String extractedMethodName;
@@ -50,13 +50,13 @@ public class ASTSlice {
 		for(PDGNode node : pdgSlice.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion().getName();
+		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion();
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : pdgSlice.getPassedParameters()) {
 			passedParameters.add(variable.getName());
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
-		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
+		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSlice.declarationOfVariableCriterionBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSlice.declarationOfVariableCriterionBelongsToRemovableNodes();
 	}
@@ -73,13 +73,13 @@ public class ASTSlice {
 		for(PDGNode node : pdgSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion().getName();
+		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion();
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : pdgSliceUnion.getPassedParameters()) {
 			passedParameters.add(variable.getName());
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
-		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
+		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
 	}
@@ -92,7 +92,7 @@ public class ASTSlice {
 		return sourceMethodDeclaration;
 	}
 
-	public VariableDeclaration getLocalVariableCriterion() {
+	public AbstractVariable getLocalVariableCriterion() {
 		return localVariableCriterion;
 	}
 

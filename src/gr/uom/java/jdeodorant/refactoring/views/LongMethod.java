@@ -101,7 +101,7 @@ public class LongMethod extends ViewPart {
 				String methodName = entry.getSourceMethodDeclaration().getName().getIdentifier();
 				return declaringClass + "::" + methodName;
 			case 2:
-				return entry.getLocalVariableCriterion().getName().getIdentifier();
+				return entry.getLocalVariableCriterion().toString();
 			case 3:
 				int numberOfSliceStatements = entry.getSliceStatements().size();
 				int numberOfRemovableStatements = entry.getRemovableStatements().size();
@@ -315,7 +315,6 @@ public class LongMethod extends ViewPart {
 			astReader = new ASTReader(selectedProject);
 		SystemObject systemObject = astReader.getSystemObject();
 		List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
-		//List<PDGSlice> extractedSlices = new ArrayList<PDGSlice>();
 		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
 		while(classIterator.hasNext()) {
 			ClassObject classObject = classIterator.next();
@@ -338,10 +337,6 @@ public class LongMethod extends ViewPart {
 							extractedSlices.add(sliceUnion);
 						}
 					}
-					/*for(PDGSlice pdgSlice : pdg.getAllProgramDependenceSlices()) {
-						if(pdgSlice.getSliceNodes().size() > 1 && pdgSlice.satisfiesRules())
-							extractedSlices.add(pdgSlice);
-					}*/
 				}
 			}
 		}

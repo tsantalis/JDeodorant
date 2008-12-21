@@ -257,8 +257,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					}
 				}
 			}
-			else if(variableBinding.isParameter()) {
-				if(parameterDeclaration != null && parameterDeclaration.resolveBinding().isEqualTo(variableBinding))
+			else if(variableBinding.isParameter() && parameterDeclaration != null) {
+				if(parameterDeclaration.resolveBinding().isEqualTo(variableBinding))
 					variableDeclaration = parameterDeclaration;
 			}
 			else {

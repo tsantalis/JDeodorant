@@ -13,11 +13,8 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
@@ -48,6 +45,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
+import org.eclipse.jdt.internal.corext.refactoring.changes.CompilationUnitChange;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
@@ -55,50 +53,36 @@ import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.ltk.core.refactoring.TextFileChange;
-import org.eclipse.text.edits.MalformedTreeException;
+import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
+import org.eclipse.text.edits.TextEditGroup;
 
+@SuppressWarnings("restriction")
 public class ExtractMethodRefactoring extends Refactoring {
 	private ASTSlice slice;
 	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
-	private ASTRewrite sourceRewriter;
-	private Map<ICompilationUnit, TextFileChange> fChanges;
+	private CompilationUnitChange compilationUnitChange;
 	
 	public ExtractMethodRefactoring(CompilationUnit sourceCompilationUnit, ASTSlice slice) {
 		this.slice = slice;
 		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.sourceTypeDeclaration = slice.getSourceTypeDeclaration();
 		this.sourceMethodDeclaration = slice.getSourceMethodDeclaration();
-		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-		this.fChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
+		ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+		this.compilationUnitChange = new CompilationUnitChange("", sourceICompilationUnit);
 	}
 
 	public void apply() {
-		extractMethod();
-		modifySourceMethod();
-		try {
-			TextEdit sourceEdit = sourceRewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-			TextFileChange change = fChanges.get(sourceICompilationUnit);
-			if (change == null) {
-				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
-				change.setTextType("java");
-				change.setEdit(sourceEdit);
-			} else
-				change.getEdit().addChild(sourceEdit);
-			fChanges.put(sourceICompilationUnit, change);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		}
+		MultiTextEdit root = new MultiTextEdit();
+		compilationUnitChange.setEdit(root);
+		extractMethod(root);
+		modifySourceMethod(root);
 	}
 
-	private void modifySourceMethod() {
+	private void modifySourceMethod(MultiTextEdit root) {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST ast = sourceMethodDeclaration.getAST();
 		MethodInvocation extractedMethodInvocation = ast.newMethodInvocation();
 		sourceRewriter.set(extractedMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
@@ -163,9 +147,17 @@ public class ExtractMethodRefactoring extends Refactoring {
 		for(Statement removableStatement : slice.getRemovableStatements()) {
 			sourceRewriter.remove(removableStatement, null);
 		}
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			root.addChild(sourceEdit);
+			compilationUnitChange.addTextEditGroup(new TextEditGroup("Modify original method", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
 	}
 
-	private void extractMethod() {
+	private void extractMethod(MultiTextEdit root) {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
@@ -232,7 +224,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 						nodeIsInsideDoLoop = true;
 						PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)doLoopNode.getPDGNode();
 						if(sliceNodes.contains(predicateNode)) {
-							bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sliceNodes), null);
+							bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
 							break;
 						}
 					}
@@ -244,7 +236,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 			else if(node instanceof PDGControlPredicateNode) {
 				PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;
-				bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sliceNodes), null);
+				bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
 			}
 		}
 		
@@ -256,9 +248,16 @@ public class ExtractMethodRefactoring extends Refactoring {
 		
 		ListRewrite methodDeclarationRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		methodDeclarationRewrite.insertAfter(newMethodDeclaration, sourceMethodDeclaration, null);
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			root.addChild(sourceEdit);
+			compilationUnitChange.addTextEditGroup(new TextEditGroup("Create extracted method", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
 	}
 
-	private Statement processPredicateNode(PDGControlPredicateNode predicateNode, AST ast, List<PDGNode> sliceNodes) {
+	private Statement processPredicateNode(PDGControlPredicateNode predicateNode, AST ast, ASTRewrite sourceRewriter, List<PDGNode> sliceNodes) {
 		Statement oldPredicateStatement = predicateNode.getASTStatement();
 		sliceNodes.remove(predicateNode);
 		Statement newPredicateStatement = null;
@@ -289,7 +288,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 						}
 						if(dstPDGNode instanceof PDGControlPredicateNode) {
 							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
-							listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sliceNodes), null);
+							listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 						}
 						else {
 							listRewrite.insertLast(dstPDGNode.getASTStatement(), null);
@@ -314,7 +313,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 					if(sliceNodes.contains(dstPDGNode)) {
 						if(dstPDGNode instanceof PDGControlPredicateNode) {
 							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
-							loopBodyRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sliceNodes), null);
+							loopBodyRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 						}
 						else {
 							loopBodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
@@ -394,7 +393,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 			OperationCanceledException {
 		try {
 			pm.beginTask("Creating change...", 1);
-			final Collection<TextFileChange> changes = fChanges.values();
+			final Collection<TextFileChange> changes = new ArrayList<TextFileChange>();
+			changes.add(compilationUnitChange);
 			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
 				@Override
 				public ChangeDescriptor getDescriptor() {

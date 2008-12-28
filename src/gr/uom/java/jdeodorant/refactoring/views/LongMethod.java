@@ -11,7 +11,6 @@ import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
-import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
@@ -49,6 +48,7 @@ import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.TableLayout;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.viewers.ViewerSorter;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
@@ -120,6 +120,35 @@ public class LongMethod extends ViewPart {
 		}
 	}
 
+	class NameSorter extends ViewerSorter {
+		public int compare(Viewer viewer, Object obj1, Object obj2) {
+			ASTSlice slice1 = (ASTSlice)obj1;
+			ASTSlice slice2 = (ASTSlice)obj2;
+			
+			int numberOfSliceStatements1 = slice1.getSliceStatements().size();
+			int numberOfRemovableStatements1 = slice1.getRemovableStatements().size();
+			int numberOfDuplicatedStatements1 = numberOfSliceStatements1 - numberOfRemovableStatements1;
+			double ratio1 = (double)numberOfDuplicatedStatements1/(double)numberOfSliceStatements1;
+			
+			int numberOfSliceStatements2 = slice2.getSliceStatements().size();
+			int numberOfRemovableStatements2 = slice2.getRemovableStatements().size();
+			int numberOfDuplicatedStatements2 = numberOfSliceStatements2 - numberOfRemovableStatements2;
+			double ratio2 = (double)numberOfDuplicatedStatements2/(double)numberOfSliceStatements2;
+			
+			if(ratio1 < ratio2) {
+				return -1;
+			}
+			else if(ratio1 > ratio2) {
+				return 1;
+			}
+			else {
+				if(numberOfDuplicatedStatements1 == 0 && numberOfDuplicatedStatements2 == 0)
+					return -Integer.valueOf(numberOfSliceStatements1).compareTo(Integer.valueOf(numberOfSliceStatements2));
+				return 0;
+			}
+		}
+	}
+	
 	private ISelectionListener selectionListener = new ISelectionListener() {
 		public void selectionChanged(IWorkbenchPart sourcepart, ISelection selection) {
 			if (selection instanceof IStructuredSelection) {
@@ -152,7 +181,7 @@ public class LongMethod extends ViewPart {
 		tableViewer = new TableViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
 		tableViewer.setContentProvider(new ViewContentProvider());
 		tableViewer.setLabelProvider(new ViewLabelProvider());
-		//tableViewer.setSorter(new NameSorter());
+		tableViewer.setSorter(new NameSorter());
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(20, true));
@@ -331,12 +360,12 @@ public class LongMethod extends ViewPart {
 							extractedSlices.add(sliceUnion);
 						}
 					}
-					for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
+					/*for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
 						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
 						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 							extractedSlices.add(sliceUnion);
 						}
-					}
+					}*/
 				}
 			}
 		}

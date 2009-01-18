@@ -4,12 +4,14 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
+import gr.uom.java.ast.LibraryClassStorage;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -19,13 +21,21 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.IField;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PostfixExpression;
@@ -34,6 +44,7 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
@@ -167,9 +178,183 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 	}
 
-	protected void processExternalMethodInvocation(MethodInvocation methodInvocation, AbstractVariable variableDeclaration) {
+	private Set<TypeDeclaration> extractTypeDeclarations(CompilationUnit compilationUnit) {
+		Set<TypeDeclaration> typeDeclarations = new LinkedHashSet<TypeDeclaration>();
+		if(compilationUnit != null) {
+			List<AbstractTypeDeclaration> topLevelTypeDeclarations = compilationUnit.types();
+	        for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
+	        	if(abstractTypeDeclaration instanceof TypeDeclaration) {
+	        		TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+	        		typeDeclarations.add(topLevelTypeDeclaration);
+	        		TypeDeclaration[] types = topLevelTypeDeclaration.getTypes();
+	        		for(TypeDeclaration type : types) {
+	        			typeDeclarations.add(type);
+	        		}
+	        	}
+	        }
+		}
+		return typeDeclarations;
+	}
+
+	protected void processExternalMethodInvocation(MethodInvocation methodInvocation, AbstractVariable variableDeclaration,
+			Set<MethodInvocation> processedMethodInvocations) {
 		if(variableDeclaration != null) {
 			IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+			IMethod iMethod = (IMethod)methodBinding.getJavaElement();
+			IClassFile classFile = iMethod.getClassFile();
+			LibraryClassStorage instance = LibraryClassStorage.getInstance();
+			CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+			Set<TypeDeclaration> typeDeclarations = extractTypeDeclarations(compilationUnit);
+			for(TypeDeclaration typeDeclaration : typeDeclarations) {
+				if(typeDeclaration.resolveBinding().isEqualTo(methodBinding.getDeclaringClass()) ||
+						typeDeclaration.resolveBinding().getBinaryName().equals(methodBinding.getDeclaringClass().getBinaryName())) {
+					MethodDeclaration[] methodDeclarations = typeDeclaration.getMethods();
+					for(MethodDeclaration methodDeclaration : methodDeclarations) {
+						if(methodDeclaration.resolveBinding().isEqualTo(methodBinding) ||
+								(methodDeclaration.resolveBinding().getName().equals(methodBinding.getName()) &&
+										methodDeclaration.resolveBinding().getParameterTypes().length == methodBinding.getParameterTypes().length)) {
+							Block methodBody = methodDeclaration.getBody();
+							if(methodBody != null) {
+								if(instance.isAnalyzed(methodDeclaration)) {
+									LinkedHashSet<VariableDeclaration> recursivelyDefinedFields = 
+										instance.getRecursivelyDefinedFields(methodDeclaration, new LinkedHashSet<MethodDeclaration>());
+									for(VariableDeclaration definedField : recursivelyDefinedFields) {
+										AbstractVariable originalField = new PlainVariable(definedField);
+										AbstractVariable field = composeVariable(variableDeclaration, originalField);
+										definedVariables.add(field);
+									}
+									if(recursivelyDefinedFields.size() > 0)
+										putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
+									LinkedHashSet<VariableDeclaration> recursivelyUsedFields = 
+										instance.getRecursivelyUsedFields(methodDeclaration, new LinkedHashSet<MethodDeclaration>());
+									for(VariableDeclaration usedField : recursivelyUsedFields) {
+										AbstractVariable originalField = new PlainVariable(usedField);
+										AbstractVariable field = composeVariable(variableDeclaration, originalField);
+										usedVariables.add(field);
+									}
+								}
+								else {
+									MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
+									LinkedHashSet<VariableDeclaration> definedFields = new LinkedHashSet<VariableDeclaration>();
+									LinkedHashSet<VariableDeclaration> usedFields = new LinkedHashSet<VariableDeclaration>();
+									List<FieldInstructionObject> fieldInstructions = methodBodyObject.getFieldInstructions();
+									boolean stateChangingMethodInvocation = false;
+									for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+										SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
+										AbstractVariable originalField = null;
+										IBinding binding = fieldInstructionName.resolveBinding();
+										if(binding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding variableBinding = (IVariableBinding)binding;
+											if(variableBinding.isField()) {
+												IField iField = (IField)variableBinding.getJavaElement();
+												IClassFile fieldClassFile = iField.getClassFile();
+												CompilationUnit fieldCompilationUnit = instance.getCompilationUnit(fieldClassFile);
+												Set<TypeDeclaration> fieldTypeDeclarations = extractTypeDeclarations(fieldCompilationUnit);
+												for(TypeDeclaration fieldTypeDeclaration : fieldTypeDeclarations) {
+													if(fieldTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass()) ||
+															fieldTypeDeclaration.resolveBinding().getBinaryName().equals(variableBinding.getDeclaringClass().getBinaryName())) {
+														FieldDeclaration[] fieldDeclarations = fieldTypeDeclaration.getFields();
+														for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+															List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+															for(VariableDeclarationFragment fragment : fragments) {
+																if(fragment.resolveBinding().isEqualTo(variableBinding) || 
+																		fragment.resolveBinding().getName().equals(variableBinding.getName())) {
+																	originalField = new PlainVariable(fragment);
+																	break;
+																}
+															}
+															if(originalField != null)
+																break;
+														}
+														if(originalField != null)
+															break;
+													}
+												}
+											}
+										}
+										if(originalField != null) {
+											AbstractVariable field = composeVariable(variableDeclaration, originalField);
+											List<Assignment> fieldAssignments = methodBodyObject.getFieldAssignments(fieldInstruction);
+											List<PostfixExpression> fieldPostfixAssignments = methodBodyObject.getFieldPostfixAssignments(fieldInstruction);
+											List<PrefixExpression> fieldPrefixAssignments = methodBodyObject.getFieldPrefixAssignments(fieldInstruction);
+											if(!fieldAssignments.isEmpty()) {
+												definedVariables.add(field);
+												definedFields.add(originalField.getName());
+												for(Assignment assignment : fieldAssignments) {
+													Assignment.Operator operator = assignment.getOperator();
+													if(!operator.equals(Assignment.Operator.ASSIGN)) {
+														usedVariables.add(field);
+														usedFields.add(originalField.getName());
+													}
+												}
+												stateChangingMethodInvocation = true;
+											}
+											else if(!fieldPostfixAssignments.isEmpty()) {
+												definedVariables.add(field);
+												definedFields.add(originalField.getName());
+												usedVariables.add(field);
+												usedFields.add(originalField.getName());
+												stateChangingMethodInvocation = true;
+											}
+											else if(!fieldPrefixAssignments.isEmpty()) {
+												definedVariables.add(field);
+												definedFields.add(originalField.getName());
+												usedVariables.add(field);
+												usedFields.add(originalField.getName());
+												stateChangingMethodInvocation = true;
+											}
+											else {
+												usedVariables.add(field);
+												usedFields.add(originalField.getName());
+											}
+										}
+									}
+									instance.setDefinedFields(methodDeclaration, definedFields);
+									instance.setUsedFields(methodDeclaration, usedFields);
+									if(stateChangingMethodInvocation) {
+										putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
+									}
+									processedMethodInvocations.add(methodInvocation);
+									List<MethodInvocationObject> methodInvocations = methodBodyObject.getMethodInvocations();
+									for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+										MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+										if(methodInvocation2.getExpression() == null || methodInvocation2.getExpression() instanceof ThisExpression) {
+											IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
+											MethodDeclaration invokedMethodDeclaration = null;
+											IMethod iMethod2 = (IMethod)methodBinding2.getJavaElement();
+											IClassFile methodClassFile = iMethod2.getClassFile();
+											CompilationUnit methodCompilationUnit = instance.getCompilationUnit(methodClassFile);
+											Set<TypeDeclaration> methodTypeDeclarations = extractTypeDeclarations(methodCompilationUnit);
+											for(TypeDeclaration methodTypeDeclaration : methodTypeDeclarations) {
+												if(methodTypeDeclaration.resolveBinding().isEqualTo(methodBinding2.getDeclaringClass()) ||
+														methodTypeDeclaration.resolveBinding().getBinaryName().equals(methodBinding2.getDeclaringClass().getBinaryName())) {
+													MethodDeclaration[] methodDeclarations2 = methodTypeDeclaration.getMethods();
+													for(MethodDeclaration methodDeclaration2 : methodDeclarations2) {
+														if(methodDeclaration2.resolveBinding().isEqualTo(methodBinding2) ||
+																(methodDeclaration2.resolveBinding().getName().equals(methodBinding2.getName()) &&
+																		methodDeclaration2.resolveBinding().getParameterTypes().length == methodBinding2.getParameterTypes().length)) {
+															invokedMethodDeclaration = methodDeclaration2;
+															break;
+														}
+													}
+													if(invokedMethodDeclaration != null)
+														break;
+												}
+											}
+											if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
+												if(!processedMethodInvocations.contains(methodInvocation2)) {
+													instance.addInvokedMethod(methodDeclaration, invokedMethodDeclaration);
+													processExternalMethodInvocation(methodInvocation2, variableDeclaration, processedMethodInvocations);
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 			ITypeBinding declaringClassBinding = methodBinding.getDeclaringClass();
 			TypeObject type = TypeObject.extractTypeObject(declaringClassBinding.getQualifiedName());
 			String classType = type.getClassType();
@@ -545,7 +730,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			}
 		}
 		else {
-			processExternalMethodInvocation(methodInvocation, variable);
+			processExternalMethodInvocation(methodInvocation, variable, new LinkedHashSet<MethodInvocation>());
 		}
 	}
 }

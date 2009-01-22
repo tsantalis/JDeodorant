@@ -37,8 +37,30 @@ public class PDGSlice extends Graph {
 		}
 		for(GraphEdge edge : pdg.edges) {
 			PDGDependence dependence = (PDGDependence)edge;
-			if(nodes.contains(dependence.src) && nodes.contains(dependence.dst))
-				edges.add(dependence);
+			if(nodes.contains(dependence.src) && nodes.contains(dependence.dst)) {
+				if(dependence instanceof PDGDataDependence) {
+					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+					if(dataDependence.isLoopCarried()) {
+						PDGNode loopNode = dataDependence.getLoop().getPDGNode();
+						if(nodes.contains(loopNode))
+							edges.add(dataDependence);
+					}
+					else
+						edges.add(dataDependence);
+				}
+				else if(dependence instanceof PDGAntiDependence) {
+					PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
+					if(antiDependence.isLoopCarried()) {
+						PDGNode loopNode = antiDependence.getLoop().getPDGNode();
+						if(nodes.contains(loopNode))
+							edges.add(antiDependence);
+					}
+					else
+						edges.add(antiDependence);
+				}
+				else
+					edges.add(dependence);
+			}
 		}
 		this.sliceNodes = new TreeSet<PDGNode>();
 		sliceNodes.addAll(computeSlice(nodeCriterion, localVariableCriterion));
@@ -176,8 +198,7 @@ public class PDGSlice extends Graph {
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!containsBreakContinueReturnSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
-				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() &&
-				!nonRemovableNodeLoopCarriedAntiDependsOnNonDuplicatedSliceNode())
+				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode())
 			return true;
 		return false;
 	}
@@ -193,33 +214,8 @@ public class PDGSlice extends Graph {
 					if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
 						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
 						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
-						if(!removableNodes.contains(srcPDGNode) && !antiDependence.isLoopCarried())
+						if(!removableNodes.contains(srcPDGNode))
 							return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	private boolean nonRemovableNodeLoopCarriedAntiDependsOnNonDuplicatedSliceNode() {
-		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
-		duplicatedNodes.addAll(sliceNodes);
-		duplicatedNodes.retainAll(indispensableNodes);
-		for(GraphNode node : nodes) {
-			PDGNode pdgNode = (PDGNode)node;
-			if(!removableNodes.contains(pdgNode)) {
-				for(GraphEdge edge : pdgNode.outgoingEdges) {
-					PDGDependence dependence = (PDGDependence)edge;
-					if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
-						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
-						PDGNode dstPDGNode = (PDGNode)antiDependence.dst;
-						if(sliceNodes.contains(dstPDGNode) && !duplicatedNodes.contains(dstPDGNode) &&
-								antiDependence.isLoopCarried()) {
-							CFGBranchNode loop = antiDependence.getLoop();
-							if(boundaryBlock.getId() <= loop.getBasicBlock().getId())
-								return true;
-						}
 					}
 				}
 			}

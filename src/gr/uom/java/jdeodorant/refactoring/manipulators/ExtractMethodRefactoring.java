@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -40,6 +41,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
@@ -88,7 +90,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 		sourceRewriter.set(extractedMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
 		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(extractedMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
-			argumentRewrite.insertLast(variableDeclaration.getName(), null);
+			if(!variableDeclaration.resolveBinding().isField())
+				argumentRewrite.insertLast(variableDeclaration.getName(), null);
 		}
 		
 		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
@@ -104,8 +107,14 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 			else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-				returnedVariableType = variableDeclarationStatement.getType();
+				if(fragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+					returnedVariableType = variableDeclarationStatement.getType();
+				}
+				else if(fragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
+					returnedVariableType = variableDeclarationExpression.getType();
+				}
 			}
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
 			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
@@ -170,8 +179,18 @@ public class ExtractMethodRefactoring extends Refactoring {
 		}
 		else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
 			VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
-			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-			returnedVariableType = variableDeclarationStatement.getType();
+			if(fragment.getParent() instanceof VariableDeclarationStatement) {
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+				returnedVariableType = variableDeclarationStatement.getType();
+			}
+			else if(fragment.getParent() instanceof VariableDeclarationExpression) {
+				VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
+				returnedVariableType = variableDeclarationExpression.getType();
+			}
+			else if(fragment.getParent() instanceof FieldDeclaration) {
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				returnedVariableType = fieldDeclaration.getType();
+			}
 		}
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
@@ -195,13 +214,25 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 			else if(variableDeclaration instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment fragment = (VariableDeclarationFragment)variableDeclaration;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-				variableType = variableDeclarationStatement.getType();
+				if(fragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+					variableType = variableDeclarationStatement.getType();
+				}
+				else if(fragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
+					variableType = variableDeclarationExpression.getType();
+				}
+				else if(fragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+					variableType = fieldDeclaration.getType();
+				}
 			}
-			SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
-			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
-			parameterRewrite.insertLast(parameter, null);
+			if(!variableDeclaration.resolveBinding().isField()) {
+				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
+				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
+				parameterRewrite.insertLast(parameter, null);
+			}
 		}
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
 		ListRewrite bodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);

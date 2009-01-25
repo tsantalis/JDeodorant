@@ -129,7 +129,7 @@ public class PDGSlice extends Graph {
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
-		return boundaryBlock.getLeader().getPDGNode();
+		return ((TreeSet<PDGNode>)sliceNodes).first();
 	}
 
 	public PDGNode getNodeCriterion() {

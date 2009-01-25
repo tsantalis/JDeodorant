@@ -33,7 +33,11 @@ public class PDGSliceUnion {
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
-		return boundaryBlock.getLeader().getPDGNode();
+		TreeSet<PDGNode> firstNodesOfSlices = new TreeSet<PDGNode>();
+		for(PDGSlice slice : slices) {
+			firstNodesOfSlices.add(slice.getExtractedMethodInvocationInsertionNode());
+		}
+		return firstNodesOfSlices.first();
 	}
 
 	public AbstractVariable getLocalVariableCriterion() {

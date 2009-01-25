@@ -115,6 +115,10 @@ public class ExtractMethodRefactoring extends Refactoring {
 					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
 					returnedVariableType = variableDeclarationExpression.getType();
 				}
+				else if(fragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+					returnedVariableType = fieldDeclaration.getType();
+				}
 			}
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
 			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
@@ -131,14 +135,20 @@ public class ExtractMethodRefactoring extends Refactoring {
 				if(oldInitializationFragment.getParent() instanceof VariableDeclarationStatement) {
 					VariableDeclarationStatement oldVariableDeclarationStatement = (VariableDeclarationStatement)oldInitializationFragment.getParent();
 					List<VariableDeclarationFragment> oldFragments = oldVariableDeclarationStatement.fragments();
-					VariableDeclarationStatement newVariableDeclarationStatement = ast.newVariableDeclarationStatement(newInitializationFragment);
-					sourceRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, oldVariableDeclarationStatement.getType(), null);
-					ListRewrite fragmentRewrite = sourceRewriter.getListRewrite(newVariableDeclarationStatement, VariableDeclarationStatement.FRAGMENTS_PROPERTY);
+					ListRewrite fragmentRewrite = sourceRewriter.getListRewrite(oldVariableDeclarationStatement, VariableDeclarationStatement.FRAGMENTS_PROPERTY);
 					for(int i=0; i<oldFragments.size(); i++) {
-						if(!oldInitializationFragment.equals(oldFragments.get(i)))
-							fragmentRewrite.insertLast(oldFragments.get(i), null);
+						if(oldInitializationFragment.equals(oldFragments.get(i)))
+							fragmentRewrite.replace(oldFragments.get(i), newInitializationFragment, null);
 					}
-					sourceRewriter.replace(oldVariableDeclarationStatement, newVariableDeclarationStatement, null);
+				}
+				else if(oldInitializationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression oldVariableDeclarationExpression = (VariableDeclarationExpression)oldInitializationFragment.getParent();
+					List<VariableDeclarationFragment> oldFragments = oldVariableDeclarationExpression.fragments();
+					ListRewrite fragmentRewrite = sourceRewriter.getListRewrite(oldVariableDeclarationExpression, VariableDeclarationExpression.FRAGMENTS_PROPERTY);
+					for(int i=0; i<oldFragments.size(); i++) {
+						if(oldInitializationFragment.equals(oldFragments.get(i)))
+							fragmentRewrite.replace(oldFragments.get(i), newInitializationFragment, null);
+					}
 				}
 			}
 		}

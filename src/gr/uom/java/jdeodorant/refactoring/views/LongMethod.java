@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -21,6 +22,8 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -34,6 +37,7 @@ import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -59,6 +63,7 @@ import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
@@ -181,7 +186,7 @@ public class LongMethod extends ViewPart {
 		tableViewer = new TableViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
 		tableViewer.setContentProvider(new ViewContentProvider());
 		tableViewer.setLabelProvider(new ViewLabelProvider());
-		tableViewer.setSorter(new NameSorter());
+		//tableViewer.setSorter(new NameSorter());
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(20, true));
@@ -342,32 +347,48 @@ public class LongMethod extends ViewPart {
 			astReader = new ASTReader(selectedPackage);
 		else
 			astReader = new ASTReader(selectedProject);
-		SystemObject systemObject = astReader.getSystemObject();
-		List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
-		ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
-		while(classIterator.hasNext()) {
-			ClassObject classObject = classIterator.next();
-			ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-			while(methodIterator.hasNext()) {
-				MethodObject methodObject = methodIterator.next();
-				if(methodObject.getMethodBody() != null) {
-					CFG cfg = new CFG(methodObject);
-					PDG pdg = new PDG(cfg);
-					for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
-						PlainVariable variable = new PlainVariable(declaration);
-						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
-						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-							extractedSlices.add(sliceUnion);
-						}
-					}
-					/*for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
-						PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
-						for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-							extractedSlices.add(sliceUnion);
-						}
-					}*/
-				}
-			}
+		final SystemObject systemObject = astReader.getSystemObject();
+		final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
+		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		try {
+			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
+			     public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+			    	 monitor.beginTask("Identification of Extract Method refactoring opportunities", systemObject.getClassNumber());
+			    	 ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
+			    	 while(classIterator.hasNext()) {
+			    		 if(monitor.isCanceled())
+			     			throw new OperationCanceledException();
+			    		 ClassObject classObject = classIterator.next();
+			    		 ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+			    		 while(methodIterator.hasNext()) {
+			    			 MethodObject methodObject = methodIterator.next();
+			    			 if(methodObject.getMethodBody() != null) {
+			    				 CFG cfg = new CFG(methodObject);
+			    				 PDG pdg = new PDG(cfg);
+			    				 for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
+			    					 PlainVariable variable = new PlainVariable(declaration);
+			    					 PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
+			    					 for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+			    						 extractedSlices.add(sliceUnion);
+			    					 }
+			    				 }
+			    				 /*for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
+			    					 PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
+			    					 for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+			    						 extractedSlices.add(sliceUnion);
+			    					 }
+			    				 }*/
+			    			 }
+			    		 }
+			    		 monitor.worked(1);
+			    	 }
+			    	 monitor.done();
+			     }
+			});
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 		ASTSlice[] table = new ASTSlice[extractedSlices.size()];
 		for(int i=0; i<extractedSlices.size(); i++) {

@@ -41,6 +41,12 @@ public class CompositeVariable extends AbstractVariable {
 		return false;
 	}
 
+	public boolean containsPlainVariable(PlainVariable variable) {
+		if(this.name.equals(variable.name))
+			return true;
+		return rightPart.containsPlainVariable(variable);
+	}
+
 	public boolean equals(Object o) {
 		if(this == o) {
 			return true;

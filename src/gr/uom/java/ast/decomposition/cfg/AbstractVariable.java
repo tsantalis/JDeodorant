@@ -14,4 +14,6 @@ public abstract class AbstractVariable {
 	}
 
 	public abstract boolean isLocalVariable();
+	
+	public abstract boolean containsPlainVariable(PlainVariable variable);
 }

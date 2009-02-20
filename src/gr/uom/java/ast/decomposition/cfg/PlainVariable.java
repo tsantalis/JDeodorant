@@ -18,6 +18,10 @@ public class PlainVariable extends AbstractVariable {
 			return true;
 	}
 
+	public boolean containsPlainVariable(PlainVariable variable) {
+		return this.equals(variable);
+	}
+
 	public boolean equals(Object o) {
 		if(this == o) {
 			return true;

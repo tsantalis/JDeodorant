@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg;
 import gr.uom.java.ast.MethodObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +65,26 @@ public class PDGSliceUnion {
 		Set<PDGNode> removableNodes = new LinkedHashSet<PDGNode>();
 		for(PDGSlice slice : slices) {
 			removableNodes.addAll(slice.getRemovableNodes());
+		}
+		Set<PDGNode> sliceNodes = getSliceNodes();
+		List<PDGNode> sliceNodesInReverseOrder = new ArrayList<PDGNode>(sliceNodes);
+		Collections.reverse(sliceNodesInReverseOrder);
+		for(PDGNode sliceNode : sliceNodesInReverseOrder) {
+			if(sliceNode.getCFGNode() instanceof CFGBranchConditionalNode) {
+				int numberOfControlDependentNodes = 0;
+				int numberOfRemovableControlDependentNodes = 0;
+				for(GraphEdge edge : sliceNode.outgoingEdges) {
+					PDGDependence dependence = (PDGDependence)edge;
+					if(dependence instanceof PDGControlDependence) {
+						PDGNode dstPDGNode = (PDGNode)dependence.dst;
+						numberOfControlDependentNodes++;
+						if(removableNodes.contains(dstPDGNode))
+							numberOfRemovableControlDependentNodes++;
+					}
+				}
+				if(numberOfControlDependentNodes == numberOfRemovableControlDependentNodes)
+					removableNodes.add(sliceNode);
+			}
 		}
 		return removableNodes;
 	}

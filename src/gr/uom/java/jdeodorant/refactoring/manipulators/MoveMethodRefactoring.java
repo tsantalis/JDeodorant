@@ -249,9 +249,18 @@ public class MoveMethodRefactoring extends Refactoring {
 		for(Expression expression : castExpressions) {
 			CastExpression castExpression = (CastExpression)expression;
 			Type castExpressionType = castExpression.getType();
-			ITypeBinding typeLiteralTypeBinding = castExpressionType.resolveBinding();
-			if(!typeBindings.contains(typeLiteralTypeBinding))
-				typeBindings.add(typeLiteralTypeBinding);
+			ITypeBinding castExpressionTypeBinding = castExpressionType.resolveBinding();
+			if(!typeBindings.contains(castExpressionTypeBinding))
+				typeBindings.add(castExpressionTypeBinding);
+		}
+		
+		List<Expression> instanceofExpressions = expressionExtractor.getInstanceofExpressions(sourceMethod.getBody());
+		for(Expression expression : instanceofExpressions) {
+			InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
+			Type instanceofType = instanceofExpression.getRightOperand();
+			ITypeBinding instanceofTypeBinding = instanceofType.resolveBinding();
+			if(!typeBindings.contains(instanceofTypeBinding))
+				typeBindings.add(instanceofTypeBinding);
 		}
 		
 		getSimpleTypeBindings(typeBindings);

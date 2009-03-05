@@ -49,6 +49,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -2938,9 +2939,18 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			for(Expression expression : castExpressions) {
 				CastExpression castExpression = (CastExpression)expression;
 				Type castExpressionType = castExpression.getType();
-				ITypeBinding typeLiteralTypeBinding = castExpressionType.resolveBinding();
-				if(!typeBindings.contains(typeLiteralTypeBinding))
-					typeBindings.add(typeLiteralTypeBinding);
+				ITypeBinding castExpressionTypeBinding = castExpressionType.resolveBinding();
+				if(!typeBindings.contains(castExpressionTypeBinding))
+					typeBindings.add(castExpressionTypeBinding);
+			}
+			
+			List<Expression> instanceofExpressions = expressionExtractor.getInstanceofExpressions(statement);
+			for(Expression expression : instanceofExpressions) {
+				InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
+				Type instanceofType = instanceofExpression.getRightOperand();
+				ITypeBinding instanceofTypeBinding = instanceofType.resolveBinding();
+				if(!typeBindings.contains(instanceofTypeBinding))
+					typeBindings.add(instanceofTypeBinding);
 			}
 		}
 		

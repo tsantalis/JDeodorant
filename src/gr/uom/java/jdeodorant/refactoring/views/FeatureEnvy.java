@@ -9,9 +9,6 @@ import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -561,23 +558,6 @@ public class FeatureEnvy extends ViewPart {
 					return true;
 			}
 			return false;
-		}
-	}
-	
-	private void saveResults() {
-		try {
-			BufferedWriter out = new BufferedWriter(new FileWriter("C:\\results.txt"));
-			Table table = tableViewer.getTable();
-			for(int i=0; i<table.getItemCount(); i++) {
-				TableItem tableItem = table.getItem(i);
-				for(int j=0; j<table.getColumnCount(); j++) {
-					out.write(tableItem.getText(j) + "\t");
-				}
-				out.newLine();
-			}
-			out.close();
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 }

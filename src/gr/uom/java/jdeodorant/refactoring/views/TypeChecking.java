@@ -8,16 +8,11 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateS
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationResults;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
-import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
@@ -377,22 +372,5 @@ public class TypeChecking extends ViewPart {
 			i++;
 		}
 		return table;
-	}
-
-	private void saveResults() {
-		try {
-			BufferedWriter out = new BufferedWriter(new FileWriter("C:\\results.txt"));
-			Table table = tableViewer.getTable();
-			for(int i=0; i<table.getItemCount(); i++) {
-				TableItem tableItem = table.getItem(i);
-				for(int j=0; j<table.getColumnCount(); j++) {
-					out.write(tableItem.getText(j) + "\t");
-				}
-				out.newLine();
-			}
-			out.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 }

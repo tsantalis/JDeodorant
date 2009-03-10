@@ -556,14 +556,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
 						Set<IType> subTypes = instance.getSubTypes(superType);
 						for(IType subType : subTypes) {
-							IClassFile classFile = subType.getClassFile();
-							CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
-							Map<MethodDeclaration, TypeDeclaration> matchingMethodDeclarationMap =
-								getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
-							for(MethodDeclaration overridingMethod : matchingMethodDeclarationMap.keySet()) {
-								instance.addOverridingMethod(methodDeclaration, overridingMethod);
+							if(!subType.equals(superType)) {
+								IClassFile classFile = subType.getClassFile();
+								CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+								Map<MethodDeclaration, TypeDeclaration> matchingMethodDeclarationMap =
+									getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
+								for(MethodDeclaration overridingMethod : matchingMethodDeclarationMap.keySet()) {
+									instance.addOverridingMethod(methodDeclaration, overridingMethod);
+								}
+								processExternalMethodInvocation(methodInvocation, subType, variableDeclaration, processedMethodInvocations);
 							}
-							processExternalMethodInvocation(methodInvocation, subType, variableDeclaration, processedMethodInvocations);
 						}
 					}
 				}

@@ -1,6 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -9,12 +11,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.jface.preference.IPreferenceStore;
+
 public class PDGSliceUnion {
 	private List<PDGSlice> slices;
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
 	private Set<PDGNode> nodeCriterions;
 	private AbstractVariable localVariableCriterion;
+	private int methodSize;
 	
 	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriterions,
 			AbstractVariable localVariableCriterion) {
@@ -24,6 +29,7 @@ public class PDGSliceUnion {
 			slices.add(slice);
 		}
 		this.method = pdg.getMethod();
+		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.boundaryBlock = boundaryBlock;
 		this.nodeCriterions = nodeCriterions;
 		this.localVariableCriterion = localVariableCriterion;
@@ -123,6 +129,29 @@ public class PDGSliceUnion {
 		return false;
 	}
 
+	private boolean complyWithUserThresholds() {
+		IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+		int minimumSliceSize = store.getInt(PreferenceConstants.P_MINIMUM_SLICE_SIZE);
+		int maximumSliceSize = store.getInt(PreferenceConstants.P_MAXIMUM_SLICE_SIZE);
+		int maximumDuplication = store.getInt(PreferenceConstants.P_MAXIMUM_DUPLICATION);
+		double maximumRatioOfDuplicatedToExtracted = store.getDouble(
+				PreferenceConstants.P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED);
+		
+		int sliceSize = getSliceNodes().size();
+		int duplicatedSize = sliceSize - getRemovableNodes().size();
+		double ratioOfDuplicatedToExtracted = (double)duplicatedSize/(double)sliceSize;
+		
+		if(sliceSize < minimumSliceSize)
+			return false;
+		if(sliceSize > (methodSize - maximumSliceSize))
+			return false;
+		if(duplicatedSize > maximumDuplication)
+			return false;
+		if(ratioOfDuplicatedToExtracted > maximumRatioOfDuplicatedToExtracted)
+			return false;
+		return true;
+	}
+
 	public boolean satisfiesRules() {
 		for(PDGSlice slice : slices) {
 			if(!slice.satisfiesRules())
@@ -132,6 +161,8 @@ public class PDGSliceUnion {
 				sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion())
 			return false;
 		if(getSliceNodes().size() <= nodeCriterions.size())
+			return false;
+		if(!complyWithUserThresholds())
 			return false;
 		return true;
 	}

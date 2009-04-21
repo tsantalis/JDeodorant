@@ -59,6 +59,10 @@ public class PDG extends Graph {
 		return variableDeclarationsInMethod;
 	}
 
+	public int getTotalNumberOfStatements() {
+		return nodes.size();
+	}
+
 	public Set<CompositeVariable> getDefinedCompositeVariables() {
 		Set<CompositeVariable> definedCompositeVariables = new LinkedHashSet<CompositeVariable>();
 		for(GraphNode node : nodes) {

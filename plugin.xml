@@ -99,4 +99,18 @@
          </view>
       </perspectiveExtension>
    </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="gr.uom.java.jdeodorant.preferences.PropertyManagerPreferencePage"
+            id="gr.uom.java.jdeodorant.preferences.PropertyManagerPreferencePage"
+            name="JDeodorant">
+      </page>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="gr.uom.java.jdeodorant.preferences.PreferenceInitializer">
+      </initializer>
+   </extension>
 </plugin>

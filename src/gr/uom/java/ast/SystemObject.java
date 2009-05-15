@@ -567,26 +567,28 @@ public class SystemObject {
 			for(IVariableBinding superAccessedField : superAccessedFields) {
 				ITypeBinding declaringClassTypeBinding = superAccessedField.getDeclaringClass();
 				ClassObject declaringClass = getClassObject(declaringClassTypeBinding.getQualifiedName());
-				ListIterator<FieldObject> fieldIterator = declaringClass.getFieldIterator();
-				VariableDeclarationFragment fieldFragment = null;
-				while(fieldIterator.hasNext()) {
-					FieldObject fieldObject = fieldIterator.next();
-					VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-					if(fragment.resolveBinding().isEqualTo(superAccessedField)) {
-						fieldFragment = fragment;
-						elimination.addSuperAccessedField(fragment, null);
-						break;
+				if(declaringClass != null) {
+					ListIterator<FieldObject> fieldIterator = declaringClass.getFieldIterator();
+					VariableDeclarationFragment fieldFragment = null;
+					while(fieldIterator.hasNext()) {
+						FieldObject fieldObject = fieldIterator.next();
+						VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+						if(fragment.resolveBinding().isEqualTo(superAccessedField)) {
+							fieldFragment = fragment;
+							elimination.addSuperAccessedField(fragment, null);
+							break;
+						}
 					}
-				}
-				ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
-				while(methodIterator.hasNext()) {
-					MethodObject methodObject = methodIterator.next();
-					MethodDeclaration methodDeclaration = methodObject.getMethodDeclaration();
-					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
-					if(simpleName != null && simpleName.resolveBinding().isEqualTo(superAccessedField)) {
-						elimination.addSuperAccessedFieldBinding(superAccessedField, methodDeclaration.resolveBinding());
-						elimination.addSuperAccessedField(fieldFragment, methodDeclaration);
-						break;
+					ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
+					while(methodIterator.hasNext()) {
+						MethodObject methodObject = methodIterator.next();
+						MethodDeclaration methodDeclaration = methodObject.getMethodDeclaration();
+						SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
+						if(simpleName != null && simpleName.resolveBinding().isEqualTo(superAccessedField)) {
+							elimination.addSuperAccessedFieldBinding(superAccessedField, methodDeclaration.resolveBinding());
+							elimination.addSuperAccessedField(fieldFragment, methodDeclaration);
+							break;
+						}
 					}
 				}
 			}
@@ -594,26 +596,28 @@ public class SystemObject {
 			for(IVariableBinding superAssignedField : superAssignedFields) {
 				ITypeBinding declaringClassTypeBinding = superAssignedField.getDeclaringClass();
 				ClassObject declaringClass = getClassObject(declaringClassTypeBinding.getQualifiedName());
-				ListIterator<FieldObject> fieldIterator = declaringClass.getFieldIterator();
-				VariableDeclarationFragment fieldFragment = null;
-				while(fieldIterator.hasNext()) {
-					FieldObject fieldObject = fieldIterator.next();
-					VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-					if(fragment.resolveBinding().isEqualTo(superAssignedField)) {
-						fieldFragment = fragment;
-						elimination.addSuperAssignedField(fragment, null);
-						break;
+				if(declaringClass != null) {
+					ListIterator<FieldObject> fieldIterator = declaringClass.getFieldIterator();
+					VariableDeclarationFragment fieldFragment = null;
+					while(fieldIterator.hasNext()) {
+						FieldObject fieldObject = fieldIterator.next();
+						VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+						if(fragment.resolveBinding().isEqualTo(superAssignedField)) {
+							fieldFragment = fragment;
+							elimination.addSuperAssignedField(fragment, null);
+							break;
+						}
 					}
-				}
-				ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
-				while(methodIterator.hasNext()) {
-					MethodObject methodObject = methodIterator.next();
-					MethodDeclaration methodDeclaration = methodObject.getMethodDeclaration();
-					SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
-					if(simpleName != null && simpleName.resolveBinding().isEqualTo(superAssignedField)) {
-						elimination.addSuperAssignedFieldBinding(superAssignedField, methodDeclaration.resolveBinding());
-						elimination.addSuperAssignedField(fieldFragment, methodDeclaration);
-						break;
+					ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
+					while(methodIterator.hasNext()) {
+						MethodObject methodObject = methodIterator.next();
+						MethodDeclaration methodDeclaration = methodObject.getMethodDeclaration();
+						SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
+						if(simpleName != null && simpleName.resolveBinding().isEqualTo(superAssignedField)) {
+							elimination.addSuperAssignedFieldBinding(superAssignedField, methodDeclaration.resolveBinding());
+							elimination.addSuperAssignedField(fieldFragment, methodDeclaration);
+							break;
+						}
 					}
 				}
 			}

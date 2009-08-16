@@ -5,7 +5,8 @@ import org.eclipse.jdt.core.dom.SimpleName;
 public class LocalVariableInstructionObject {
 	private TypeObject type;
     private String name;
-    private SimpleName simpleName;
+    //private SimpleName simpleName;
+    private ASTInformation simpleName;
     private volatile int hashCode = 0;
 
     public LocalVariableInstructionObject(TypeObject type, String name) {
@@ -22,11 +23,13 @@ public class LocalVariableInstructionObject {
     }
 
     public void setSimpleName(SimpleName simpleName) {
-    	this.simpleName = simpleName;
+    	//this.simpleName = simpleName;
+    	this.simpleName = ASTInformationGenerator.generateASTInformation(simpleName);
     }
 
     public SimpleName getSimpleName() {
-    	return this.simpleName;
+    	//return this.simpleName;
+    	return (SimpleName)this.simpleName.recoverASTNode();
     }
 
     public boolean equals(Object o) {
@@ -38,11 +41,11 @@ public class LocalVariableInstructionObject {
         	LocalVariableInstructionObject lvio = (LocalVariableInstructionObject)o;
             return this.name.equals(lvio.name) && this.type.equals(lvio.type);
         }
-        else if(o instanceof LocalVariableDeclarationObject) {
-        	LocalVariableDeclarationObject lvdo = (LocalVariableDeclarationObject)o;
-            return this.name.equals(lvdo.getName()) && this.type.equals(lvdo.getType());
-        }
         return false;
+    }
+
+    public boolean equals(LocalVariableDeclarationObject lvdo) {
+    	return this.name.equals(lvdo.getName()) && this.type.equals(lvdo.getType());
     }
 
     public int hashCode() {

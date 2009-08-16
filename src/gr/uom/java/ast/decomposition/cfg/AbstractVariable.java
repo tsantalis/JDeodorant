@@ -1,15 +1,15 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
+import gr.uom.java.ast.VariableDeclarationObject;
 
 public abstract class AbstractVariable {
-	protected VariableDeclaration name;
+	protected VariableDeclarationObject name;
 	
-	public AbstractVariable(VariableDeclaration name) {
+	public AbstractVariable(VariableDeclarationObject name) {
 		this.name = name;
 	}
 
-	public VariableDeclaration getName() {
+	public VariableDeclarationObject getName() {
 		return name;
 	}
 

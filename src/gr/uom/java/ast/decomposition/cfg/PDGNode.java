@@ -1,6 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.Access;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
@@ -9,7 +11,9 @@ import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.TypeSearchRequestor;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -52,6 +56,7 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -67,7 +72,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<AbstractVariable> declaredVariables;
 	protected Set<AbstractVariable> definedVariables;
 	protected Set<AbstractVariable> usedVariables;
-	protected Set<VariableDeclaration> variableDeclarationsInMethod;
+	protected Set<VariableDeclarationObject> variableDeclarationsInMethod;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocation>> stateChangingMethodInvocationMap;
 	private Map<AbstractVariable, LinkedHashSet<AbstractVariable>> stateChangingFieldModificationMap;
 	
@@ -80,7 +85,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.stateChangingFieldModificationMap = new LinkedHashMap<AbstractVariable, LinkedHashSet<AbstractVariable>>();
 	}
 	
-	public PDGNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod) {
+	public PDGNode(CFGNode cfgNode, Set<VariableDeclarationObject> variableDeclarationsInMethod) {
 		super();
 		this.cfgNode = cfgNode;
 		this.variableDeclarationsInMethod = variableDeclarationsInMethod;
@@ -393,15 +398,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 			LibraryClassStorage instance = LibraryClassStorage.getInstance();
 			Map<MethodDeclaration, TypeDeclaration> matchingMethodDeclarations = null;
+			IClassFile iClassFile;
 			if(subclassType == null) {
 				IMethod iMethod = (IMethod)methodBinding.getJavaElement();
-				IClassFile classFile = iMethod.getClassFile();
-				CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+				iClassFile = iMethod.getClassFile();
+				CompilationUnit compilationUnit = instance.getCompilationUnit(iClassFile);
 				matchingMethodDeclarations = getMatchingMethodDeclarations(methodBinding, compilationUnit);
 			}
 			else {
-				IClassFile classFile = subclassType.getClassFile();
-				CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+				iClassFile = subclassType.getClassFile();
+				CompilationUnit compilationUnit = instance.getCompilationUnit(iClassFile);
 				matchingMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subclassType, compilationUnit);
 			}
 			for(MethodDeclaration methodDeclaration : matchingMethodDeclarations.keySet()) {
@@ -409,27 +415,28 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				Block methodBody = methodDeclaration.getBody();
 				if(methodBody != null) {
 					if(instance.isAnalyzed(methodDeclaration)) {
-						LinkedHashSet<VariableDeclaration> recursivelyDefinedFields = 
+						LinkedHashSet<VariableDeclarationObject> recursivelyDefinedFields = 
 							instance.getRecursivelyDefinedFields(methodDeclaration, new LinkedHashSet<MethodDeclaration>());
-						for(VariableDeclaration definedField : recursivelyDefinedFields) {
+						for(VariableDeclarationObject definedField : recursivelyDefinedFields) {
 							AbstractVariable originalField = new PlainVariable(definedField);
 							AbstractVariable field = composeVariable(variableDeclaration, originalField);
 							definedVariables.add(field);
 						}
 						if(recursivelyDefinedFields.size() > 0)
 							putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-						LinkedHashSet<VariableDeclaration> recursivelyUsedFields = 
+						LinkedHashSet<VariableDeclarationObject> recursivelyUsedFields = 
 							instance.getRecursivelyUsedFields(methodDeclaration, new LinkedHashSet<MethodDeclaration>());
-						for(VariableDeclaration usedField : recursivelyUsedFields) {
+						for(VariableDeclarationObject usedField : recursivelyUsedFields) {
 							AbstractVariable originalField = new PlainVariable(usedField);
 							AbstractVariable field = composeVariable(variableDeclaration, originalField);
 							usedVariables.add(field);
 						}
 					}
 					else {
+						ASTInformationGenerator.setCurrentITypeRoot(iClassFile);
 						MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
-						LinkedHashSet<VariableDeclaration> definedFields = new LinkedHashSet<VariableDeclaration>();
-						LinkedHashSet<VariableDeclaration> usedFields = new LinkedHashSet<VariableDeclaration>();
+						LinkedHashSet<VariableDeclarationObject> definedFields = new LinkedHashSet<VariableDeclarationObject>();
+						LinkedHashSet<VariableDeclarationObject> usedFields = new LinkedHashSet<VariableDeclarationObject>();
 						List<FieldInstructionObject> fieldInstructions = methodBodyObject.getFieldInstructions();
 						boolean stateChangingMethodInvocation = false;
 						for(FieldInstructionObject fieldInstruction : fieldInstructions) {
@@ -448,11 +455,30 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 												fieldTypeDeclaration.resolveBinding().getBinaryName().equals(variableBinding.getDeclaringClass().getBinaryName())) {
 											FieldDeclaration[] fieldDeclarations = fieldTypeDeclaration.getFields();
 											for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+												Type fieldType = fieldDeclaration.getType();
+								        		ITypeBinding fieldTypeBinding = fieldType.resolveBinding();
 												List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
 												for(VariableDeclarationFragment fragment : fragments) {
 													if(fragment.resolveBinding().isEqualTo(variableBinding) || 
 															fragment.resolveBinding().getName().equals(variableBinding.getName())) {
-														originalField = new PlainVariable(fragment);
+														String qualifiedName = fieldTypeBinding.getQualifiedName();
+									        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+									        			typeObject.setArrayDimension(typeObject.getArrayDimension() + fragment.getExtraDimensions());
+									        			FieldObject fieldObject = new FieldObject(typeObject, fragment.getName().getIdentifier());
+									        			fieldObject.setClassName(fieldTypeDeclaration.resolveBinding().getQualifiedName());
+									        			fieldObject.setVariableDeclarationFragment(fragment);
+									        			
+									        			int fieldModifiers = fieldDeclaration.getModifiers();
+									        			if((fieldModifiers & Modifier.PUBLIC) != 0)
+									                		fieldObject.setAccess(Access.PUBLIC);
+									                	else if((fieldModifiers & Modifier.PROTECTED) != 0)
+									                		fieldObject.setAccess(Access.PROTECTED);
+									                	else if((fieldModifiers & Modifier.PRIVATE) != 0)
+									                		fieldObject.setAccess(Access.PRIVATE);
+									                	
+									                	if((fieldModifiers & Modifier.STATIC) != 0)
+									                		fieldObject.setStatic(true);
+														originalField = new PlainVariable(fieldObject);
 														break;
 													}
 												}
@@ -574,8 +600,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	protected AbstractVariable processFieldInstruction(SimpleName fieldInstructionName,
-			VariableDeclaration parameterDeclaration, AbstractVariable previousVariable) {
-		VariableDeclaration variableDeclaration = null;
+			VariableDeclarationObject parameterDeclarationObject, AbstractVariable previousVariable) {
+		VariableDeclarationObject variableDeclarationObject = null;
 		IBinding binding = fieldInstructionName.resolveBinding();
 		if(binding.getKind() == IBinding.VARIABLE) {
 			IVariableBinding variableBinding = (IVariableBinding)binding;
@@ -587,46 +613,48 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					ListIterator<FieldObject> fieldIterator = classObject.getFieldIterator();
 					while(fieldIterator.hasNext()) {
 						FieldObject fieldObject = fieldIterator.next();
-						VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-						if(fragment.resolveBinding().isEqualTo(variableBinding)) {
-							variableDeclaration = fragment;
+						VariableDeclaration variableDeclaration = fieldObject.getVariableDeclaration();
+						if(variableDeclaration.resolveBinding().isEqualTo(variableBinding)) {
+							variableDeclarationObject = fieldObject;
 							break;
 						}
 					}
 				}
 			}
-			else if(variableBinding.isParameter() && parameterDeclaration != null) {
+			else if(variableBinding.isParameter() && parameterDeclarationObject != null) {
+				VariableDeclaration parameterDeclaration = parameterDeclarationObject.getVariableDeclaration();
 				if(parameterDeclaration.resolveBinding().isEqualTo(variableBinding))
-					variableDeclaration = parameterDeclaration;
+					variableDeclarationObject = parameterDeclarationObject;
 			}
 			else {
-				for(VariableDeclaration declaration : variableDeclarationsInMethod) {
-					if(declaration.resolveBinding().isEqualTo(variableBinding)) {
-						variableDeclaration = declaration;
+				for(VariableDeclarationObject declarationObject : variableDeclarationsInMethod) {
+					VariableDeclaration variableDeclaration = declarationObject.getVariableDeclaration();
+					if(variableDeclaration.resolveBinding().isEqualTo(variableBinding)) {
+						variableDeclarationObject = declarationObject;
 						break;
 					}
 				}
 			}
 		}
-		if(variableDeclaration != null) {
+		if(variableDeclarationObject != null) {
 			AbstractVariable currentVariable = null;
 			if(previousVariable == null)
-				currentVariable = new PlainVariable(variableDeclaration);
+				currentVariable = new PlainVariable(variableDeclarationObject);
 			else
-				currentVariable = new CompositeVariable(variableDeclaration, previousVariable);
+				currentVariable = new CompositeVariable(variableDeclarationObject, previousVariable);
 			if(fieldInstructionName.getParent() instanceof QualifiedName) {
 				QualifiedName qualifiedName = (QualifiedName)fieldInstructionName.getParent();
 				Name qualifier = qualifiedName.getQualifier();
 				if(qualifier instanceof SimpleName) {
 					SimpleName qualifierSimpleName = (SimpleName)qualifier;
 					if(!qualifierSimpleName.equals(fieldInstructionName))
-						return processFieldInstruction(qualifierSimpleName, parameterDeclaration, currentVariable);
+						return processFieldInstruction(qualifierSimpleName, parameterDeclarationObject, currentVariable);
 					else
 						return currentVariable;
 				}
 				else if(qualifier instanceof QualifiedName) {
 					QualifiedName qualifiedName2 = (QualifiedName)qualifier;
-					return processFieldInstruction(qualifiedName2.getName(), parameterDeclaration, currentVariable);
+					return processFieldInstruction(qualifiedName2.getName(), parameterDeclarationObject, currentVariable);
 				}
 			}
 			else if(fieldInstructionName.getParent() instanceof FieldAccess) {
@@ -634,7 +662,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				Expression fieldAccessExpression = fieldAccess.getExpression();
 				if(fieldAccessExpression instanceof FieldAccess) {
 					FieldAccess fieldAccess2 = (FieldAccess)fieldAccessExpression;
-					return processFieldInstruction(fieldAccess2.getName(), parameterDeclaration, currentVariable);
+					return processFieldInstruction(fieldAccess2.getName(), parameterDeclarationObject, currentVariable);
 				}
 				else if(fieldAccessExpression instanceof ThisExpression) {
 					return currentVariable;
@@ -647,19 +675,19 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return null;
 	}
 
-	protected AbstractVariable processMethodInvocationExpression(Expression expression, VariableDeclaration parameterDeclaration) {
+	protected AbstractVariable processMethodInvocationExpression(Expression expression, VariableDeclarationObject parameterDeclarationObject) {
 		if(expression != null) {
 			if(expression instanceof QualifiedName) {
 				QualifiedName qualifiedName = (QualifiedName)expression;
-				return processFieldInstruction(qualifiedName.getName(), parameterDeclaration, null);
+				return processFieldInstruction(qualifiedName.getName(), parameterDeclarationObject, null);
 			}
 			else if(expression instanceof FieldAccess) {
 				FieldAccess fieldAccess = (FieldAccess)expression;
-				return processFieldInstruction(fieldAccess.getName(), parameterDeclaration, null);
+				return processFieldInstruction(fieldAccess.getName(), parameterDeclarationObject, null);
 			}
 			else if(expression instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)expression;
-				return processFieldInstruction(simpleName, parameterDeclaration, null);
+				return processFieldInstruction(simpleName, parameterDeclarationObject, null);
 			}
 		}
 		return null;
@@ -694,7 +722,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				SystemObject systemObject = ASTReader.getSystemObject();
 				Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
 				if(variableDeclaration != null) {
-					VariableDeclaration initialReference = variableDeclaration.getName();
+					VariableDeclaration initialReference = variableDeclaration.getName().getVariableDeclaration();
 					ITypeBinding initialReferenceTypeBinding = initialReference.resolveBinding().getType();
 					for(IType subType : subTypes) {
 						if(subType.getFullyQualifiedName('.').equals(initialReferenceTypeBinding.getQualifiedName())) {
@@ -798,13 +826,14 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	private void processArgumentOfInternalMethodInvocation(MethodObject methodObject, MethodInvocation methodInvocation,
-			AbstractVariable argumentDeclaration, VariableDeclaration parameterDeclaration, Set<MethodInvocation> processedMethodInvocations) {
+			AbstractVariable argumentDeclaration, VariableDeclarationObject parameterDeclarationObject, Set<MethodInvocation> processedMethodInvocations) {
 		List<FieldInstructionObject> fieldInstructions = methodObject.getFieldInstructions();
+		VariableDeclaration parameterDeclaration = parameterDeclarationObject.getVariableDeclaration();
 		boolean stateChangingMethodInvocation = false;
 		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
 			SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
-			AbstractVariable originalField = processFieldInstruction(fieldInstructionName, parameterDeclaration, null);
-			if(originalField != null && parameterDeclaration.resolveBinding().isEqualTo(originalField.getName().resolveBinding())) {
+			AbstractVariable originalField = processFieldInstruction(fieldInstructionName, parameterDeclarationObject, null);
+			if(originalField != null && parameterDeclaration.resolveBinding().isEqualTo(originalField.getName().getVariableDeclaration().resolveBinding())) {
 				AbstractVariable field = new CompositeVariable(argumentDeclaration.getName(), ((CompositeVariable)originalField).getRightPart());
 				List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
 				List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
@@ -842,7 +871,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
 						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
 						Expression methodInvocationExpression = methodInvocation2.getExpression();
-						AbstractVariable variable = processMethodInvocationExpression(methodInvocationExpression, parameterDeclaration);
+						AbstractVariable variable = processMethodInvocationExpression(methodInvocationExpression, parameterDeclarationObject);
 						if(variable != null && variable.equals(originalField)) {
 							processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation2, field);
 						}
@@ -886,10 +915,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
 							if(methodObject2 != null && !methodObject2.equals(methodObject)) {
 								ParameterObject parameter = methodObject2.getParameter(argumentPosition);
-								VariableDeclaration parameterDeclaration2 = parameter.getSingleVariableDeclaration();
 								if(!processedMethodInvocations.contains(methodInvocation2))
 									processArgumentOfInternalMethodInvocation(methodObject2, methodInvocation2,
-											argumentDeclaration, parameterDeclaration2, processedMethodInvocations);
+											argumentDeclaration, parameter, processedMethodInvocations);
 							}
 						}
 					}
@@ -913,21 +941,21 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				for(Expression argument : arguments) {
 					if(argument instanceof SimpleName) {
 						SimpleName argumentName = (SimpleName)argument;
-						VariableDeclaration argumentDeclaration = null;
-						for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod) {
+						VariableDeclarationObject argumentDeclaration = null;
+						for(VariableDeclarationObject variableDeclarationObject : variableDeclarationsInMethod) {
+							VariableDeclaration variableDeclaration = variableDeclarationObject.getVariableDeclaration();
 							if(variableDeclaration.resolveBinding().isEqualTo(argumentName.resolveBinding())) {
-								argumentDeclaration = variableDeclaration;
+								argumentDeclaration = variableDeclarationObject;
 								break;
 							}
 						}
 						if(argumentDeclaration != null) {
 							ParameterObject parameter = methodObject.getParameter(argumentPosition);
-							VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
 							ClassObject classObject2 = systemObject.getClassObject(parameter.getType().getClassType());
 							if(classObject2 != null) {
 								PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
 								processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
-										argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
+										argumentVariable, parameter, new LinkedHashSet<MethodInvocation>());
 							}
 						}
 					}

@@ -14,6 +14,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -319,6 +320,13 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
         return targetClass.getClassObject().getTypeDeclaration();
     }
 
+	public IFile getSourceIFile() {
+		return sourceClass.getClassObject().getIFile();
+	}
+
+	public IFile getTargetIFile() {
+		return targetClass.getClassObject().getIFile();
+	}
     public MethodDeclaration getSourceMethodDeclaration() {
         return sourceMethod.getMethodObject().getMethodDeclaration();
     }

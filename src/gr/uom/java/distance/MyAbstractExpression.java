@@ -1,5 +1,6 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
@@ -18,11 +19,12 @@ public class MyAbstractExpression {
 	private List<MyMethodInvocation> methodInvocationList;
     private List<MyAttributeInstruction> attributeInstructionList;
     
-    public MyAbstractExpression(AbstractExpression expression, SystemObject system) {
+    public MyAbstractExpression(AbstractExpression expression) {
     	this.expression = expression;
     	this.owner = null;
     	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
         this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
+        SystemObject system = ASTReader.getSystemObject();
         
         List<FieldInstructionObject> fieldInstructions = expression.getFieldInstructions();
         for(FieldInstructionObject fio : fieldInstructions) {
@@ -55,8 +57,7 @@ public class MyAbstractExpression {
     }
 
 
-    private MyAbstractExpression(AbstractExpression expression) {
-    	this.expression = expression;
+    private MyAbstractExpression() {
     	this.owner = null;
     	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
         this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
@@ -144,7 +145,11 @@ public class MyAbstractExpression {
     	return this.expression;
     }
 
-    public String toString() {
+    public void setExpression(AbstractExpression expression) {
+		this.expression = expression;
+	}
+
+	public String toString() {
     	return this.expression.toString();
     }
 
@@ -212,7 +217,8 @@ public class MyAbstractExpression {
     }
 
 	public static MyAbstractExpression newInstance(MyAbstractExpression expression) {
-		MyAbstractExpression newExpression = new MyAbstractExpression(expression.getExpression());
+		MyAbstractExpression newExpression = new MyAbstractExpression();
+		newExpression.setExpression(expression.getExpression());
 		newExpression.setOwner(expression.getOwner());
 		ListIterator<MyMethodInvocation> methodInvocationIterator = expression.getMethodInvocationIterator();
 		while(methodInvocationIterator.hasNext()) {

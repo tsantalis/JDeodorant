@@ -47,7 +47,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
-import org.eclipse.jdt.internal.corext.refactoring.changes.CompilationUnitChange;
+import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
@@ -59,7 +59,6 @@ import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
 import org.eclipse.text.edits.TextEditGroup;
 
-@SuppressWarnings("restriction")
 public class ExtractMethodRefactoring extends Refactoring {
 	private ASTSlice slice;
 	private CompilationUnit sourceCompilationUnit;
@@ -94,7 +93,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 				argumentRewrite.insertLast(variableDeclaration.getName(), null);
 		}
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName().getVariableDeclaration();
 		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
@@ -180,7 +179,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName().getVariableDeclaration();
 		SimpleName returnedVariableSimpleName = returnedVariableDeclaration.getName();
 		Type returnedVariableType = null;
 		if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {

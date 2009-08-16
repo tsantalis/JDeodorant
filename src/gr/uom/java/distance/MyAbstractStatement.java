@@ -1,5 +1,6 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
@@ -18,11 +19,12 @@ public abstract class MyAbstractStatement {
 	private List<MyMethodInvocation> methodInvocationList;
     private List<MyAttributeInstruction> attributeInstructionList;
     
-    public MyAbstractStatement(AbstractStatement statement, SystemObject system) {
+    public MyAbstractStatement(AbstractStatement statement) {
     	this.statement = statement;
     	this.parent = null;
     	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
         this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
+        SystemObject system = ASTReader.getSystemObject();
         
         List<FieldInstructionObject> fieldInstructions = statement.getFieldInstructions();
         for(FieldInstructionObject fio : fieldInstructions) {
@@ -101,8 +103,7 @@ public abstract class MyAbstractStatement {
         this.methodInvocationList.add(methodInvocation);
     }
 
-    protected MyAbstractStatement(AbstractStatement statement) {
-    	this.statement = statement;
+    protected MyAbstractStatement() {
     	this.parent = null;
     	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
         this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
@@ -162,7 +163,11 @@ public abstract class MyAbstractStatement {
     	return this.statement;
     }
 
-    public String toString() {
+    public void setStatement(AbstractStatement statement) {
+		this.statement = statement;
+	}
+
+	public String toString() {
     	return this.statement.toString();
     }
 

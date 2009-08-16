@@ -48,9 +48,9 @@ public class DelegationTree {
         return false;
     }
 
-    private boolean existsNode(Enumeration children, MethodObject mo) {
+    private boolean existsNode(Enumeration<DefaultMutableTreeNode> children, MethodObject mo) {
         while(children.hasMoreElements()) {
-            DefaultMutableTreeNode child = (DefaultMutableTreeNode)children.nextElement();
+            DefaultMutableTreeNode child = children.nextElement();
             MethodObject childMethodObject = (MethodObject)child.getUserObject();
             if(childMethodObject.equals(mo))
                 return true;

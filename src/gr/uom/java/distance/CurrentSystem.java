@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jface.text.Position;
 
@@ -43,6 +44,13 @@ public class CurrentSystem extends CandidateRefactoring {
 		return null;
 	}
 
+	public IFile getSourceIFile() {
+		return null;
+	}
+
+	public IFile getTargetIFile() {
+		return null;
+	}
 	public List<Position> getPositions() {
 		return new ArrayList<Position>();
 	}

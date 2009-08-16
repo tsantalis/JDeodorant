@@ -13,7 +13,8 @@ public class MethodInvocationObject {
     private TypeObject returnType;
     private List<TypeObject> parameterList;
     private boolean _static;
-    private MethodInvocation methodInvocation;
+    //private MethodInvocation methodInvocation;
+    private ASTInformation methodInvocation;
     private volatile int hashCode = 0;
 
     public MethodInvocationObject(String originClassName, String methodName, TypeObject returnType) {
@@ -72,11 +73,13 @@ public class MethodInvocationObject {
     }
 
     public void setMethodInvocation(MethodInvocation methodInvocation) {
-    	this.methodInvocation = methodInvocation;
+    	//this.methodInvocation = methodInvocation;
+    	this.methodInvocation = ASTInformationGenerator.generateASTInformation(methodInvocation);
     }
 
     public MethodInvocation getMethodInvocation() {
-    	return this.methodInvocation;
+    	//return this.methodInvocation;
+    	return (MethodInvocation)this.methodInvocation.recoverASTNode();
     }
 
     public boolean equals(Object o) {

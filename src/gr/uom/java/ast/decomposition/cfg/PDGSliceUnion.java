@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.preference.IPreferenceStore;
 
 public class PDGSliceUnion {
@@ -19,6 +20,7 @@ public class PDGSliceUnion {
 	private BasicBlock boundaryBlock;
 	private Set<PDGNode> nodeCriterions;
 	private AbstractVariable localVariableCriterion;
+	private IFile iFile;
 	private int methodSize;
 	
 	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriterions,
@@ -29,6 +31,7 @@ public class PDGSliceUnion {
 			slices.add(slice);
 		}
 		this.method = pdg.getMethod();
+		this.iFile = pdg.getIFile();
 		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.boundaryBlock = boundaryBlock;
 		this.nodeCriterions = nodeCriterions;
@@ -37,6 +40,10 @@ public class PDGSliceUnion {
 
 	public MethodObject getMethod() {
 		return method;
+	}
+
+	public IFile getIFile() {
+		return iFile;
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {

@@ -16,12 +16,13 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 
 public class PDGControlPredicateNode extends PDGNode {
 	
-	public PDGControlPredicateNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod) {
+	public PDGControlPredicateNode(CFGNode cfgNode, Set<VariableDeclarationObject> variableDeclarationsInMethod) {
 		super(cfgNode, variableDeclarationsInMethod);
 		determineDefinedAndUsedVariables();
 	}
@@ -34,21 +35,22 @@ public class PDGControlPredicateNode extends PDGNode {
 			for(AbstractExpression expression : expressions) {
 				List<LocalVariableDeclarationObject> variableDeclarations = expression.getLocalVariableDeclarations();
 				for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations) {
-					PlainVariable variable = new PlainVariable(variableDeclaration.getVariableDeclaration());
+					PlainVariable variable = new PlainVariable(variableDeclaration);
 					declaredVariables.add(variable);
 					definedVariables.add(variable);
 				}
 				List<LocalVariableInstructionObject> variableInstructions = expression.getLocalVariableInstructions();
 				for(LocalVariableInstructionObject variableInstruction : variableInstructions) {
-					VariableDeclaration variableDeclaration = null;
-					for(VariableDeclaration declaration : variableDeclarationsInMethod) {
+					VariableDeclarationObject variableDeclarationObject = null;
+					for(VariableDeclarationObject declarationObject : variableDeclarationsInMethod) {
+						VariableDeclaration declaration = declarationObject.getVariableDeclaration();
 						if(declaration.resolveBinding().isEqualTo(variableInstruction.getSimpleName().resolveBinding())) {
-							variableDeclaration = declaration;
+							variableDeclarationObject = declarationObject;
 							break;
 						}
 					}
-					if(variableDeclaration != null) {
-						PlainVariable variable = new PlainVariable(variableDeclaration);
+					if(variableDeclarationObject != null) {
+						PlainVariable variable = new PlainVariable(variableDeclarationObject);
 						List<Assignment> assignments = expression.getLocalVariableAssignments(variableInstruction);
 						List<PostfixExpression> postfixExpressions = expression.getLocalVariablePostfixAssignments(variableInstruction);
 						List<PrefixExpression> prefixExpressions = expression.getLocalVariablePrefixAssignments(variableInstruction);

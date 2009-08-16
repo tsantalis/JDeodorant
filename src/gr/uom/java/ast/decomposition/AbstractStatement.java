@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.ASTInformation;
+import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
@@ -25,7 +27,8 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class AbstractStatement {
 
-	private Statement statement;
+	//private Statement statement;
+	private ASTInformation statement;
 	private CompositeStatementObject parent;
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
@@ -34,7 +37,8 @@ public abstract class AbstractStatement {
     private List<LocalVariableInstructionObject> localVariableInstructionList;
     
     public AbstractStatement(Statement statement) {
-    	this.statement = statement;
+    	//this.statement = statement;
+    	this.statement = ASTInformationGenerator.generateASTInformation(statement);
     	this.parent = null;
     	this.methodInvocationList = new ArrayList<MethodInvocationObject>();
     	this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
@@ -131,7 +135,8 @@ public abstract class AbstractStatement {
     }
 
     public Statement getStatement() {
-    	return statement;
+    	//return statement;
+    	return (Statement)this.statement.recoverASTNode();
     }
 
 	public List<FieldInstructionObject> getFieldInstructions() {

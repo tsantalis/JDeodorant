@@ -1,15 +1,11 @@
 package gr.uom.java.ast;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -30,27 +26,35 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ASTReader {
 
 	private static SystemObject systemObject;
-	private Map<TypeDeclaration, IFile> fileMap;
-	private Map<TypeDeclaration, CompilationUnit> compilationUnitMap;
 
-	public ASTReader(IProject iProject) {
+	public ASTReader(IJavaProject iJavaProject) {
 		systemObject = new SystemObject();
-		this.fileMap = new LinkedHashMap<TypeDeclaration, IFile>();
-		this.compilationUnitMap = new LinkedHashMap<TypeDeclaration, CompilationUnit>();
-		recurse(iProject);
+		try {
+			IPackageFragmentRoot[] iPackageFragmentRoots = iJavaProject.getPackageFragmentRoots();
+			for(IPackageFragmentRoot iPackageFragmentRoot : iPackageFragmentRoots) {
+				IJavaElement[] children = iPackageFragmentRoot.getChildren();
+				for(IJavaElement child : children) {
+					if(child.getElementType() == IJavaElement.PACKAGE_FRAGMENT) {
+						IPackageFragment iPackageFragment = (IPackageFragment)child;
+						ICompilationUnit[] iCompilationUnits = iPackageFragment.getCompilationUnits();
+						for(ICompilationUnit iCompilationUnit : iCompilationUnits) {
+							parseAST(iCompilationUnit);
+						}
+					}
+				}
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public ASTReader(IPackageFragment packageFragment) {
 		systemObject = new SystemObject();
-		this.fileMap = new LinkedHashMap<TypeDeclaration, IFile>();
-		this.compilationUnitMap = new LinkedHashMap<TypeDeclaration, CompilationUnit>();
 		try {
 			ICompilationUnit[] compilationUnits = packageFragment.getCompilationUnits();
 			for(ICompilationUnit iCompilationUnit : compilationUnits) {
@@ -74,39 +78,9 @@ public class ASTReader {
 			e.printStackTrace();
 		}
 	}
-	
-	private void recurse(IResource resource) {
-		try {
-			if(resource.getType() == IResource.PROJECT) {
-				IResource[] members = ((IProject)resource).members();
-				for(IResource member : members) {
-					if(member.getType() == IResource.FOLDER)
-						recurse(member);
-					else if(member.getType() == IResource.FILE && member.getFileExtension() != null && member.getFileExtension().equalsIgnoreCase("java")) {
-						IJavaElement iJavaElement = JavaCore.create((IFile)member);
-				        ICompilationUnit iCompilationUnit = (ICompilationUnit)iJavaElement;
-						parseAST(iCompilationUnit);
-					}
-				}
-			}
-			else if(resource.getType() == IResource.FOLDER) {
-				IResource[] members = ((IFolder)resource).members();
-				for(IResource member : members) {
-					if(member.getType() == IResource.FOLDER)
-						recurse(member);
-					else if(member.getType() == IResource.FILE && member.getFileExtension() != null && member.getFileExtension().equalsIgnoreCase("java")) {
-						IJavaElement iJavaElement = JavaCore.create((IFile)member);
-				        ICompilationUnit iCompilationUnit = (ICompilationUnit)iJavaElement;
-						parseAST(iCompilationUnit);
-					}
-				}
-			}
-		} catch (CoreException e) {
-			e.printStackTrace();
-		}
-	}
-	
+
 	private void parseAST(ICompilationUnit iCompilationUnit) {
+		ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 		IFile iFile = (IFile)iCompilationUnit.getResource();
         ASTParser parser = ASTParser.newParser(AST.JLS3);
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -126,8 +100,7 @@ public class ASTReader {
         		}
         		for(TypeDeclaration typeDeclaration : typeDeclarations) {
 	        		final ClassObject classObject = new ClassObject();
-		        	fileMap.put(typeDeclaration, iFile);
-		        	compilationUnitMap.put(typeDeclaration, compilationUnit);
+		        	classObject.setIFile(iFile);
 		        	classObject.setName(typeDeclaration.resolveBinding().getQualifiedName());
 		        	classObject.setTypeDeclaration(typeDeclaration);
 		        	
@@ -250,6 +223,8 @@ public class ASTReader {
 		        				methodObject.setStatic(true);
 		        			if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
 		        				methodObject.setSynchronized(true);
+		        			if((methodModifiers & Modifier.NATIVE) != 0)
+		        				methodObject.setNative(true);
 		        			
 		        			classObject.addMethod(methodObject);
 		        			FieldInstructionObject fieldInstruction = methodObject.isGetter();
@@ -270,14 +245,6 @@ public class ASTReader {
         		}
         	}
         }	
-	}
-
-	public IFile getFile(TypeDeclaration typeDeclaration) {
-		return fileMap.get(typeDeclaration);
-	}
-
-	public CompilationUnit getCompilationUnit(TypeDeclaration typeDeclaration) {
-		return compilationUnitMap.get(typeDeclaration);
 	}
 
     public static SystemObject getSystemObject() {

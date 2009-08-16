@@ -16,7 +16,6 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -64,9 +63,8 @@ public class TypeChecking extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
-	private IProject selectedProject;
+	private IJavaProject selectedProject;
 	private IPackageFragment selectedPackage;
-	private ASTReader astReader;
 	private TypeCheckElimination[] typeCheckEliminationTable;
 	private TypeCheckEliminationResults typeCheckEliminationResults;
 
@@ -171,8 +169,8 @@ public class TypeChecking extends ViewPart {
 					javaProject = packageFragment.getJavaProject();
 					selectedPackage = packageFragment;
 				}
-				if(javaProject != null && !javaProject.getProject().equals(selectedProject)) {
-					selectedProject = javaProject.getProject();
+				if(javaProject != null && !javaProject.equals(selectedProject)) {
+					selectedProject = javaProject;
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 				}
@@ -260,8 +258,8 @@ public class TypeChecking extends ViewPart {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
 				TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
-				CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
-				IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
+				CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
+				IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
 				Refactoring refactoring = null;
 				if(typeCheckElimination.getExistingInheritanceTree() == null) {
 					refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
@@ -315,7 +313,7 @@ public class TypeChecking extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
-				IFile sourceFile = astReader.getFile(typeCheckElimination.getTypeCheckClass());
+				IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
 				String typeCheckMethodName = typeCheckElimination.toString();
 				Statement typeCheckCodeFragment = typeCheckElimination.getTypeCheckCodeFragment();
 				try {
@@ -359,10 +357,10 @@ public class TypeChecking extends ViewPart {
 
 	private TypeCheckElimination[] getTable() {
 		if(selectedPackage != null)
-			astReader = new ASTReader(selectedPackage);
+			new ASTReader(selectedPackage);
 		else
-			astReader = new ASTReader(selectedProject);
-		SystemObject systemObject = astReader.getSystemObject();
+			new ASTReader(selectedProject);
+		SystemObject systemObject = ASTReader.getSystemObject();
 		typeCheckEliminationResults = systemObject.generateTypeCheckEliminations();
 		List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();
 		TypeCheckElimination[] table = new TypeCheckElimination[typeCheckEliminations.size()];

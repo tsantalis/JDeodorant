@@ -1,15 +1,19 @@
 package gr.uom.java.ast;
 
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-public class FieldObject {
+public class FieldObject implements VariableDeclarationObject {
 
     private String name;
     private TypeObject type;
     private boolean _static;
     private Access access;
     private String className;
-    private VariableDeclarationFragment fragment;
+    //private VariableDeclarationFragment fragment;
+    private ASTInformation fragment;
     private volatile int hashCode = 0;
 
     public FieldObject(TypeObject type, String name) {
@@ -20,11 +24,19 @@ public class FieldObject {
     }
 
     public void setVariableDeclarationFragment(VariableDeclarationFragment fragment) {
-    	this.fragment = fragment;
+    	//this.fragment = fragment;
+    	this.fragment = ASTInformationGenerator.generateASTInformation(fragment);
     }
 
     public VariableDeclarationFragment getVariableDeclarationFragment() {
-    	return this.fragment;
+    	//return this.fragment;
+    	ASTNode node = this.fragment.recoverASTNode();
+    	if(node instanceof SimpleName) {
+    		return (VariableDeclarationFragment)node.getParent();
+    	}
+    	else {
+    		return (VariableDeclarationFragment)node;
+    	}
     }
 
     public void setAccess(Access access) {
@@ -59,7 +71,8 @@ public class FieldObject {
         if (o instanceof FieldObject) {
             FieldObject fieldObject = (FieldObject)o;
             return this.className.equals(fieldObject.className) &&
-            this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type);
+            	this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type) &&
+            	this.fragment.equals(fieldObject.fragment);
         }
         return false;
     }
@@ -80,8 +93,10 @@ public class FieldObject {
     public int hashCode() {
     	if(hashCode == 0) {
     		int result = 17;
-    		result = 37*result + type.hashCode();
+    		result = 37*result + className.hashCode();
     		result = 37*result + name.hashCode();
+    		result = 37*result + type.hashCode();
+    		result = 37*result + fragment.hashCode();
     		hashCode = result;
     	}
     	return hashCode;
@@ -97,4 +112,8 @@ public class FieldObject {
         sb.append(name);
         return sb.toString();
     }
+
+	public VariableDeclaration getVariableDeclaration() {
+		return getVariableDeclarationFragment();
+	}
 }

@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -11,17 +12,19 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.core.resources.IFile;
 
 public class PDG extends Graph {
 	private CFG cfg;
 	private PDGMethodEntryNode entryNode;
 	private Map<CFGBranchNode, Set<CFGNode>> nestingMap;
-	private Set<VariableDeclaration> variableDeclarationsInMethod;
+	private Set<VariableDeclarationObject> variableDeclarationsInMethod;
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
+	private IFile iFile;
 	
-	public PDG(CFG cfg) {
+	public PDG(CFG cfg, IFile iFile) {
 		this.cfg = cfg;
+		this.iFile = iFile;
 		this.entryNode = new PDGMethodEntryNode(cfg.getMethod());
 		this.nestingMap = new LinkedHashMap<CFGBranchNode, Set<CFGNode>>();
 		for(GraphNode node : cfg.nodes) {
@@ -31,14 +34,14 @@ public class PDG extends Graph {
 				nestingMap.put(branchNode, branchNode.getImmediatelyNestedNodesFromAST());
 			}
 		}
-		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclaration>();
+		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclarationObject>();
 		ListIterator<ParameterObject> parameterIterator = cfg.getMethod().getParameterListIterator();
 		while(parameterIterator.hasNext()) {
 			ParameterObject parameter = parameterIterator.next();
-			variableDeclarationsInMethod.add(parameter.getSingleVariableDeclaration());
+			variableDeclarationsInMethod.add(parameter);
 		}
 		for(LocalVariableDeclarationObject localVariableDeclaration : cfg.getMethod().getLocalVariableDeclarations()) {
-			variableDeclarationsInMethod.add(localVariableDeclaration.getVariableDeclaration());
+			variableDeclarationsInMethod.add(localVariableDeclaration);
 		}
 		createControlDependenciesFromEntryNode();
 		if(!nodes.isEmpty())
@@ -55,7 +58,11 @@ public class PDG extends Graph {
 		return cfg.getMethod();
 	}
 
-	public Set<VariableDeclaration> getVariableDeclarationsInMethod() {
+	public IFile getIFile() {
+		return iFile;
+	}
+
+	public Set<VariableDeclarationObject> getVariableDeclarationsInMethod() {
 		return variableDeclarationsInMethod;
 	}
 

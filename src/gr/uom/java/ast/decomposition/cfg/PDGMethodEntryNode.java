@@ -15,7 +15,7 @@ public class PDGMethodEntryNode extends PDGNode {
 		ListIterator<ParameterObject> parameterIterator = method.getParameterListIterator();
 		while(parameterIterator.hasNext()) {
 			ParameterObject parameter = parameterIterator.next();
-			PlainVariable parameterVariable = new PlainVariable(parameter.getSingleVariableDeclaration());
+			PlainVariable parameterVariable = new PlainVariable(parameter);
 			declaredVariables.add(parameterVariable);
 			definedVariables.add(parameterVariable);
 		}

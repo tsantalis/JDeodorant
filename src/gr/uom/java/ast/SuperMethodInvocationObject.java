@@ -12,7 +12,8 @@ public class SuperMethodInvocationObject {
     private String methodName;
     private TypeObject returnType;
     private List<TypeObject> parameterList;
-    private SuperMethodInvocation superMethodInvocation;
+    //private SuperMethodInvocation superMethodInvocation;
+    private ASTInformation superMethodInvocation;
     private volatile int hashCode = 0;
 
     public SuperMethodInvocationObject(String originClassName, String methodName, TypeObject returnType) {
@@ -61,11 +62,13 @@ public class SuperMethodInvocationObject {
     }
 
     public void setSuperMethodInvocation(SuperMethodInvocation superMethodInvocation) {
-    	this.superMethodInvocation = superMethodInvocation;
+    	//this.superMethodInvocation = superMethodInvocation;
+    	this.superMethodInvocation = ASTInformationGenerator.generateASTInformation(superMethodInvocation);
     }
 
     public SuperMethodInvocation getSuperMethodInvocation() {
-    	return this.superMethodInvocation;
+    	//return this.superMethodInvocation;
+    	return (SuperMethodInvocation)this.superMethodInvocation.recoverASTNode();
     }
 
     public boolean equals(Object o) {

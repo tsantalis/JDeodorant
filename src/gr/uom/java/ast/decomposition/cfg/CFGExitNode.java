@@ -3,21 +3,22 @@ package gr.uom.java.ast.decomposition.cfg;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 
+import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGExitNode extends CFGNode {
-	private SimpleName returnedVariable;
+	private LocalVariableInstructionObject returnedVariable;
 	
 	public CFGExitNode(AbstractStatement statement) {
 		super(statement);
 		ReturnStatement returnStatement = (ReturnStatement)statement.getStatement();
 		if(returnStatement.getExpression() != null) {
-			if(returnStatement.getExpression() instanceof SimpleName)
-				returnedVariable = (SimpleName)returnStatement.getExpression();
+			if(returnStatement.getExpression() instanceof SimpleName && statement.getLocalVariableInstructions().size() == 1)
+				returnedVariable = statement.getLocalVariableInstructions().get(0);
 		}
 	}
 
-	public SimpleName getReturnedVariable() {
+	public LocalVariableInstructionObject getReturnedVariable() {
 		return returnedVariable;
 	}
 }

@@ -1,12 +1,12 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
+import gr.uom.java.ast.VariableDeclarationObject;
 
 public class CompositeVariable extends AbstractVariable {
 	private AbstractVariable rightPart;
 	private volatile int hashCode = 0;
 	
-	public CompositeVariable(VariableDeclaration referenceName, AbstractVariable rightPart) {
+	public CompositeVariable(VariableDeclarationObject referenceName, AbstractVariable rightPart) {
 		super(referenceName);
 		this.rightPart = rightPart;
 	}
@@ -71,7 +71,7 @@ public class CompositeVariable extends AbstractVariable {
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(name.getName().getIdentifier());
+		sb.append(name.getName());
 		sb.append(".");
 		sb.append(rightPart.toString());
 		return sb.toString();

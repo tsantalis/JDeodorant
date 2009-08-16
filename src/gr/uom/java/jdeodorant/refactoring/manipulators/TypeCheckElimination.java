@@ -15,6 +15,7 @@ import java.util.StringTokenizer;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
@@ -55,6 +56,7 @@ public class TypeCheckElimination {
 	private Statement typeCheckCodeFragment;
 	private MethodDeclaration typeCheckMethod;
 	private TypeDeclaration typeCheckClass;
+	private IFile typeCheckIFile;
 	private LinkedHashSet<SimpleName> additionalStaticFields;
 	private LinkedHashSet<VariableDeclarationFragment> accessedFields;
 	private LinkedHashSet<VariableDeclarationFragment> assignedFields;
@@ -343,6 +345,14 @@ public class TypeCheckElimination {
 
 	public void setTypeCheckClass(TypeDeclaration typeCheckClass) {
 		this.typeCheckClass = typeCheckClass;
+	}
+
+	public IFile getTypeCheckIFile() {
+		return typeCheckIFile;
+	}
+
+	public void setTypeCheckIFile(IFile typeCheckIFile) {
+		this.typeCheckIFile = typeCheckIFile;
 	}
 
 	public VariableDeclaration getTypeLocalVariable() {

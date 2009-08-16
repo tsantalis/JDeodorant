@@ -70,7 +70,7 @@ public class MySystem {
 		                    myMethod.setMethodObject(mo);
 		                    MethodBodyObject methodBodyObject = mo.getMethodBody();
 		                    if(methodBodyObject != null) {
-		                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject, systemObject);
+		                    	MyMethodBody myMethodBody = new MyMethodBody(methodBodyObject);
 		                    	myMethod.setMethodBody(myMethodBody);
 		                    }
 		                    myClass.addMethod(myMethod);

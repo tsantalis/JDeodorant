@@ -1,6 +1,5 @@
 package gr.uom.java.distance;
 
-import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import java.util.ArrayList;
@@ -13,8 +12,8 @@ public class MyCompositeStatement extends MyAbstractStatement {
 	private List<MyAbstractStatement> statementList;
 	private List<MyAbstractExpression> expressionList;
 	
-	public MyCompositeStatement(AbstractStatement statement, SystemObject system) {
-		super(statement, system);
+	public MyCompositeStatement(AbstractStatement statement) {
+		super(statement);
 		this.statementList = new ArrayList<MyAbstractStatement>();
 		this.expressionList = new ArrayList<MyAbstractExpression>();
 	}
@@ -25,8 +24,8 @@ public class MyCompositeStatement extends MyAbstractStatement {
 		this.expressionList = new ArrayList<MyAbstractExpression>();
 	}
 
-	private MyCompositeStatement(AbstractStatement statement) {
-		super(statement);
+	private MyCompositeStatement() {
+		super();
 		this.statementList = new ArrayList<MyAbstractStatement>();
 		this.expressionList = new ArrayList<MyAbstractExpression>();
 	}
@@ -264,7 +263,8 @@ public class MyCompositeStatement extends MyAbstractStatement {
     }
 
     public static MyCompositeStatement newInstance(MyCompositeStatement statement) {
-		MyCompositeStatement newStatement = new MyCompositeStatement(statement.getStatement());
+		MyCompositeStatement newStatement = new MyCompositeStatement();
+		newStatement.setStatement(statement.getStatement());
 		newStatement.setParent(statement.getParent());
 		ListIterator<MyMethodInvocation> methodInvocationIterator = statement.getMethodInvocationIterator();
 		while(methodInvocationIterator.hasNext()) {

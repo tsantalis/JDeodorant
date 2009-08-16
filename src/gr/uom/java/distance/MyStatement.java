@@ -2,25 +2,25 @@ package gr.uom.java.distance;
 
 import java.util.ListIterator;
 
-import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class MyStatement extends MyAbstractStatement {
 
-	public MyStatement(AbstractStatement statement, SystemObject system) {
-		super(statement, system);
+	public MyStatement(AbstractStatement statement) {
+		super(statement);
 	}
 
 	public MyStatement(MyMethodInvocation methodInvocation) {
 		super(methodInvocation);
 	}
 
-	private MyStatement(AbstractStatement statement) {
-		super(statement);
+	private MyStatement() {
+		super();
 	}
 
 	public static MyStatement newInstance(MyStatement statement) {
-		MyStatement newStatement = new MyStatement(statement.getStatement());
+		MyStatement newStatement = new MyStatement();
+		newStatement.setStatement(statement.getStatement());
 		newStatement.setParent(statement.getParent());
 		ListIterator<MyMethodInvocation> methodInvocationIterator = statement.getMethodInvocationIterator();
 		while(methodInvocationIterator.hasNext()) {

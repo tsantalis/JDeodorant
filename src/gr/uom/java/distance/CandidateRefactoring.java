@@ -5,6 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jface.text.Position;
 
@@ -17,6 +19,8 @@ public abstract class CandidateRefactoring {
 	public abstract Set<String> getEntitySet();
 	public abstract TypeDeclaration getSourceClassTypeDeclaration();
 	public abstract TypeDeclaration getTargetClassTypeDeclaration();
+	public abstract IFile getSourceIFile();
+	public abstract IFile getTargetIFile();
 	public abstract List<Position> getPositions();
 	
 	public String getAnnotationText() {

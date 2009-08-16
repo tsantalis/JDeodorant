@@ -5,7 +5,6 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
-import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -15,14 +14,12 @@ import gr.uom.java.ast.decomposition.StatementObject;
 public class MyMethodBody {
 	
 	private MyCompositeStatement compositeStatement;
-	private SystemObject system;
 	private MethodBodyObject methodBodyObject;
 
-	public MyMethodBody(MethodBodyObject methodBody, SystemObject system) {
-		this.system = system;
+	public MyMethodBody(MethodBodyObject methodBody) {
 		this.methodBodyObject = methodBody;
 		CompositeStatementObject compositeStatementObject = methodBody.getCompositeStatement();
-		this.compositeStatement = new MyCompositeStatement(compositeStatementObject, system);
+		this.compositeStatement = new MyCompositeStatement(compositeStatementObject);
 		
 		List<AbstractStatement> statements = compositeStatementObject.getStatements();
 		for(AbstractStatement statement : statements) {
@@ -40,16 +37,16 @@ public class MyMethodBody {
 
 	private void processStatement(MyCompositeStatement parent, AbstractStatement statement) {
 		if(statement instanceof StatementObject) {
-			MyStatement child = new MyStatement(statement, system);
+			MyStatement child = new MyStatement(statement);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof CompositeStatementObject) {
-			MyCompositeStatement child = new MyCompositeStatement(statement, system);
+			MyCompositeStatement child = new MyCompositeStatement(statement);
 			parent.addStatement(child);
 			CompositeStatementObject compositeStatementObject = (CompositeStatementObject)statement;
 			List<AbstractExpression> expressions = compositeStatementObject.getExpressions();
 			for(AbstractExpression expression : expressions) {
-				MyAbstractExpression myAbstractExpression = new MyAbstractExpression(expression, system);
+				MyAbstractExpression myAbstractExpression = new MyAbstractExpression(expression);
 				child.addExpression(myAbstractExpression);
 			}
 			List<AbstractStatement> statements = compositeStatementObject.getStatements();

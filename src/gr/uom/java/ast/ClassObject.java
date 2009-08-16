@@ -6,7 +6,8 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
-import org.eclipse.jdt.core.dom.CompilationUnit;
+
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class ClassObject {
@@ -21,7 +22,9 @@ public class ClassObject {
     private boolean _interface;
     private boolean _static;
     private Access access;
-    private TypeDeclaration typeDeclaration;
+    //private TypeDeclaration typeDeclaration;
+    private ASTInformation typeDeclaration;
+    private IFile iFile;
 
     public ClassObject() {
 		this.constructorList = new ArrayList<ConstructorObject>();
@@ -34,7 +37,7 @@ public class ClassObject {
         this.access = Access.NONE;
     }
 
-    public boolean isInnerClass() {
+    /*public boolean isInnerClass() {
     	if(typeDeclaration.getParent() instanceof TypeDeclaration)
     		return true;
     	else if(typeDeclaration.getParent() instanceof CompilationUnit)
@@ -48,17 +51,27 @@ public class ClassObject {
     	else if(typeDeclaration.getParent() instanceof CompilationUnit)
     		return null;
     	return null;
-    }
+    }*/
 
     public void setTypeDeclaration(TypeDeclaration typeDeclaration) {
-    	this.typeDeclaration = typeDeclaration;
+    	//this.typeDeclaration = typeDeclaration;
+    	this.typeDeclaration = ASTInformationGenerator.generateASTInformation(typeDeclaration);
     }
 
     public TypeDeclaration getTypeDeclaration() {
-    	return this.typeDeclaration;
+    	//return this.typeDeclaration;
+    	return (TypeDeclaration)this.typeDeclaration.recoverASTNode();
     }
 
-    public boolean containsMethodWithTestAnnotation() {
+    public IFile getIFile() {
+		return iFile;
+	}
+
+	public void setIFile(IFile file) {
+		iFile = file;
+	}
+
+	public boolean containsMethodWithTestAnnotation() {
     	for(MethodObject method : methodList) {
     		if(method.hasTestAnnotation())
     			return true;
@@ -110,7 +123,8 @@ public class ClassObject {
     			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
     			for(TypeCheckElimination typeCheckElimination : list) {
     				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
-    					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration());
+    					//TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration());
+    					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, getTypeDeclaration(), methodObject.getMethodDeclaration(), iFile);
     					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null || typeCheckElimination.getTypeMethodInvocation() != null) &&
     							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
     						typeCheckEliminations.add(typeCheckElimination);

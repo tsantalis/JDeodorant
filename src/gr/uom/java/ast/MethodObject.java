@@ -36,6 +36,7 @@ public class MethodObject {
     private boolean _abstract;
     private boolean _static;
     private boolean _synchronized;
+    private boolean _native;
     private String className;
     private ConstructorObject constructorObject;
     private boolean testAnnotation;
@@ -46,6 +47,7 @@ public class MethodObject {
         this._abstract = false;
         this._static = false;
         this._synchronized = false;
+        this._native = false;
         this.testAnnotation = false;
     }
 
@@ -81,6 +83,14 @@ public class MethodObject {
     	this._synchronized = s;
     }
 
+    public boolean isNative() {
+    	return this._native;
+    }
+
+    public void setNative(boolean n) {
+    	this._native = n;
+    }
+
     public void setName(String name) {
         this.constructorObject.name = name;
     }
@@ -107,6 +117,10 @@ public class MethodObject {
 
     public MethodBodyObject getMethodBody() {
     	return constructorObject.getMethodBody();
+    }
+
+    public void setMethodBody(MethodBodyObject methodBody) {
+    	constructorObject.setMethodBody(methodBody);
     }
 
     public MethodInvocationObject generateMethodInvocation() {

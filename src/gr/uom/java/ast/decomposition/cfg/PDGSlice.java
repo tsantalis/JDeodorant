@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -22,11 +23,13 @@ public class PDGSlice extends Graph {
 	private Set<PDGNode> indispensableNodes;
 	private Set<PDGNode> removableNodes;
 	private Set<AbstractVariable> returnedVariablesInOriginalMethod;
+	private IFile iFile;
 	
 	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
 			AbstractVariable localVariableCriterion) {
 		super();
 		this.method = pdg.getMethod();
+		this.iFile = pdg.getIFile();
 		this.returnedVariablesInOriginalMethod = pdg.getReturnedVariables();
 		this.boundaryBlock = boundaryBlock;
 		this.nodeCriterion = nodeCriterion;
@@ -126,6 +129,10 @@ public class PDGSlice extends Graph {
 
 	public MethodObject getMethod() {
 		return method;
+	}
+
+	public IFile getIFile() {
+		return iFile;
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {

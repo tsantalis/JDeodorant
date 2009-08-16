@@ -25,7 +25,6 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.resource.JFaceResources;
@@ -82,10 +81,9 @@ public class FeatureEnvy extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
-	private IProject selectedProject;
+	private IJavaProject selectedProject;
 	private IPackageFragment selectedPackage;
 	private CandidateRefactoring[] candidateRefactoringTable;
-	private ASTReader astReader;
 
 	/*
 	 * The content provider class is responsible for
@@ -171,8 +169,8 @@ public class FeatureEnvy extends ViewPart {
 					javaProject = packageFragment.getJavaProject();
 					selectedPackage = packageFragment;
 				}
-				if(javaProject != null && !javaProject.getProject().equals(selectedProject)) {
-					selectedProject = javaProject.getProject();
+				if(javaProject != null && !javaProject.equals(selectedProject)) {
+					selectedProject = javaProject;
 					if(candidateRefactoringTable != null)
 						tableViewer.remove(candidateRefactoringTable);
 					identifyBadSmellsAction.setEnabled(true);
@@ -259,10 +257,10 @@ public class FeatureEnvy extends ViewPart {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
 				if(entry.getSourceClassTypeDeclaration() != null && entry.getTargetClassTypeDeclaration() != null) {
-					IFile sourceFile = astReader.getFile(entry.getSourceClassTypeDeclaration());
-					IFile targetFile = astReader.getFile(entry.getTargetClassTypeDeclaration());
-					CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(entry.getSourceClassTypeDeclaration());
-					CompilationUnit targetCompilationUnit = astReader.getCompilationUnit(entry.getTargetClassTypeDeclaration());
+					IFile sourceFile = entry.getSourceIFile();
+					IFile targetFile = entry.getTargetIFile();
+					CompilationUnit sourceCompilationUnit = (CompilationUnit)entry.getSourceClassTypeDeclaration().getRoot();
+					CompilationUnit targetCompilationUnit = (CompilationUnit)entry.getTargetClassTypeDeclaration().getRoot();
 					Refactoring refactoring = null;
 					if(entry instanceof MoveMethodCandidateRefactoring) {
 						MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
@@ -307,8 +305,8 @@ public class FeatureEnvy extends ViewPart {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring candidate = (CandidateRefactoring)selection.getFirstElement();
 				if(candidate.getSourceClassTypeDeclaration() != null && candidate.getTargetClassTypeDeclaration() != null) {
-					IFile sourceFile = astReader.getFile(candidate.getSourceClassTypeDeclaration());
-					IFile targetFile = astReader.getFile(candidate.getTargetClassTypeDeclaration());
+					IFile sourceFile = candidate.getSourceIFile();
+					IFile targetFile = candidate.getTargetIFile();
 					try {
 						IJavaElement targetJavaElement = JavaCore.create(targetFile);
 						JavaUI.openInEditor(targetJavaElement);
@@ -415,10 +413,10 @@ public class FeatureEnvy extends ViewPart {
 	
 	private CandidateRefactoring[] getTable() {
 		if(selectedPackage != null)
-			astReader = new ASTReader(selectedPackage);
+			new ASTReader(selectedPackage);
 		else
-			astReader = new ASTReader(selectedProject);
-		SystemObject systemObject = astReader.getSystemObject();
+			new ASTReader(selectedProject);
+		SystemObject systemObject = ASTReader.getSystemObject();
 		/*MMImportCoupling mmic = new MMImportCoupling(systemObject);
 		System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
 		ConnectivityMetric co = new ConnectivityMetric(systemObject);

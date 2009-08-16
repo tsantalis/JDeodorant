@@ -8,6 +8,7 @@ import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -53,7 +54,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 	private Map<Expression, IfStatementExpressionAnalyzer> complexExpressionMap;
 	
 	public TypeCheckCodeFragmentAnalyzer(TypeCheckElimination typeCheckElimination,
-			TypeDeclaration typeDeclaration, MethodDeclaration typeCheckMethod) {
+			TypeDeclaration typeDeclaration, MethodDeclaration typeCheckMethod, IFile iFile) {
 		this.typeCheckElimination = typeCheckElimination;
 		this.typeDeclaration = typeDeclaration;
 		this.typeCheckMethod = typeCheckMethod;
@@ -64,6 +65,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 		this.complexExpressionMap = new LinkedHashMap<Expression, IfStatementExpressionAnalyzer>();
 		typeCheckElimination.setTypeCheckClass(typeDeclaration);
 		typeCheckElimination.setTypeCheckMethod(typeCheckMethod);
+		typeCheckElimination.setTypeCheckIFile(iFile);
 		processTypeCheckCodeFragment();
 	}
 	

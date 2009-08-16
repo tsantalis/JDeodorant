@@ -11,6 +11,7 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
@@ -21,7 +22,6 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.IJavaElement;
@@ -31,7 +31,6 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
@@ -75,10 +74,9 @@ public class LongMethod extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
-	private IProject selectedProject;
+	private IJavaProject selectedProject;
 	private IPackageFragment selectedPackage;
 	private ASTSlice[] sliceTable;
-	private ASTReader astReader;
 	
 	class ViewContentProvider implements IStructuredContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
@@ -169,8 +167,8 @@ public class LongMethod extends ViewPart {
 					javaProject = packageFragment.getJavaProject();
 					selectedPackage = packageFragment;
 				}
-				if(javaProject != null && !javaProject.getProject().equals(selectedProject)) {
-					selectedProject = javaProject.getProject();
+				if(javaProject != null && !javaProject.equals(selectedProject)) {
+					selectedProject = javaProject;
 					if(sliceTable != null)
 						tableViewer.remove(sliceTable);
 					identifyBadSmellsAction.setEnabled(true);
@@ -248,8 +246,8 @@ public class LongMethod extends ViewPart {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				ASTSlice slice = (ASTSlice)selection.getFirstElement();
 				TypeDeclaration sourceTypeDeclaration = slice.getSourceTypeDeclaration();
-				CompilationUnit sourceCompilationUnit = astReader.getCompilationUnit(sourceTypeDeclaration);
-				IFile sourceFile = astReader.getFile(sourceTypeDeclaration);
+				CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
+				IFile sourceFile = slice.getIFile();
 				Refactoring refactoring = new ExtractMethodRefactoring(sourceCompilationUnit, slice);
 				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
@@ -297,7 +295,7 @@ public class LongMethod extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				ASTSlice slice = (ASTSlice)selection.getFirstElement();
-				IFile sourceFile = astReader.getFile(slice.getSourceTypeDeclaration());
+				IFile sourceFile = slice.getIFile();
 				try {
 					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
 					ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
@@ -344,10 +342,10 @@ public class LongMethod extends ViewPart {
 
 	private ASTSlice[] getTable() {
 		if(selectedPackage != null)
-			astReader = new ASTReader(selectedPackage);
+			new ASTReader(selectedPackage);
 		else
-			astReader = new ASTReader(selectedProject);
-		final SystemObject systemObject = astReader.getSystemObject();
+			new ASTReader(selectedProject);
+		final SystemObject systemObject = ASTReader.getSystemObject();
 		final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
 		IWorkbenchWindow window = getSite().getWorkbenchWindow();
 		try {
@@ -364,9 +362,9 @@ public class LongMethod extends ViewPart {
 			    			 MethodObject methodObject = methodIterator.next();
 			    			 if(methodObject.getMethodBody() != null) {
 			    				 CFG cfg = new CFG(methodObject);
-			    				 PDG pdg = new PDG(cfg);
-			    				 for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
-			    					 PlainVariable variable = new PlainVariable(declaration);
+			    				 PDG pdg = new PDG(cfg, classObject.getIFile());
+			    				 for(VariableDeclarationObject declarationObject : pdg.getVariableDeclarationsInMethod()) {
+			    					 PlainVariable variable = new PlainVariable(declarationObject);
 			    					 PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
 			    					 for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 			    						 extractedSlices.add(sliceUnion);

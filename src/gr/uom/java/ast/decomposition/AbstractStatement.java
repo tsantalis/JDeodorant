@@ -171,7 +171,7 @@ public abstract class AbstractStatement {
 		return localVariableDeclarationList.contains(lvdo);
 	}
 
-	public boolean equals(Object o) {
+	/*public boolean equals(Object o) {
 		if(this == o)
     		return true;
     	
@@ -184,7 +184,7 @@ public abstract class AbstractStatement {
 
 	public int hashCode() {
 		return statement.hashCode();
-	}
+	}*/
 
 	public String toString() {
 		return statement.toString();

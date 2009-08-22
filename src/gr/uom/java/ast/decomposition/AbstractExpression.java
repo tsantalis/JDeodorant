@@ -301,7 +301,7 @@ public class AbstractExpression {
 		return localVariableDeclarationList.contains(lvdo);
 	}
 
-	public boolean equals(Object o) {
+	/*public boolean equals(Object o) {
 		if(this == o)
 			return true;
 
@@ -314,7 +314,7 @@ public class AbstractExpression {
 
 	public int hashCode() {
 		return expression.hashCode();
-	}
+	}*/
 
 	public String toString() {
 		return expression.toString();

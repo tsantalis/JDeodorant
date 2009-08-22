@@ -71,8 +71,7 @@ public class FieldObject implements VariableDeclarationObject {
         if (o instanceof FieldObject) {
             FieldObject fieldObject = (FieldObject)o;
             return this.className.equals(fieldObject.className) &&
-            	this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type) &&
-            	this.fragment.equals(fieldObject.fragment);
+            	this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type);
         }
         return false;
     }
@@ -96,7 +95,6 @@ public class FieldObject implements VariableDeclarationObject {
     		result = 37*result + className.hashCode();
     		result = 37*result + name.hashCode();
     		result = 37*result + type.hashCode();
-    		result = 37*result + fragment.hashCode();
     		hashCode = result;
     	}
     	return hashCode;

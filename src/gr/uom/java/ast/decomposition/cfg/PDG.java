@@ -3,7 +3,6 @@ package gr.uom.java.ast.decomposition.cfg;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
-import gr.uom.java.ast.VariableDeclarationObject;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -13,12 +12,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDG extends Graph {
 	private CFG cfg;
 	private PDGMethodEntryNode entryNode;
 	private Map<CFGBranchNode, Set<CFGNode>> nestingMap;
-	private Set<VariableDeclarationObject> variableDeclarationsInMethod;
+	private Set<VariableDeclaration> variableDeclarationsInMethod;
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
 	private IFile iFile;
 	
@@ -34,14 +34,14 @@ public class PDG extends Graph {
 				nestingMap.put(branchNode, branchNode.getImmediatelyNestedNodesFromAST());
 			}
 		}
-		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclarationObject>();
+		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclaration>();
 		ListIterator<ParameterObject> parameterIterator = cfg.getMethod().getParameterListIterator();
 		while(parameterIterator.hasNext()) {
 			ParameterObject parameter = parameterIterator.next();
-			variableDeclarationsInMethod.add(parameter);
+			variableDeclarationsInMethod.add(parameter.getSingleVariableDeclaration());
 		}
 		for(LocalVariableDeclarationObject localVariableDeclaration : cfg.getMethod().getLocalVariableDeclarations()) {
-			variableDeclarationsInMethod.add(localVariableDeclaration);
+			variableDeclarationsInMethod.add(localVariableDeclaration.getVariableDeclaration());
 		}
 		createControlDependenciesFromEntryNode();
 		if(!nodes.isEmpty())
@@ -62,7 +62,7 @@ public class PDG extends Graph {
 		return iFile;
 	}
 
-	public Set<VariableDeclarationObject> getVariableDeclarationsInMethod() {
+	public Set<VariableDeclaration> getVariableDeclarationsInMethod() {
 		return variableDeclarationsInMethod;
 	}
 

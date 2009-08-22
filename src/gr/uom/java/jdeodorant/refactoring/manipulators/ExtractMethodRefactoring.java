@@ -93,7 +93,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 				argumentRewrite.insertLast(variableDeclaration.getName(), null);
 		}
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName().getVariableDeclaration();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
 		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
@@ -179,7 +179,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName().getVariableDeclaration();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
 		SimpleName returnedVariableSimpleName = returnedVariableDeclaration.getName();
 		Type returnedVariableType = null;
 		if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {

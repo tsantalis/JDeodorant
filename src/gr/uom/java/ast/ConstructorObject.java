@@ -175,8 +175,7 @@ public class ConstructorObject {
 			ConstructorObject constructorObject = (ConstructorObject)o;
 
 			return this.name.equals(constructorObject.name) &&
-				this.parameterList.equals(constructorObject.parameterList) &&
-				this.methodDeclaration.equals(constructorObject.methodDeclaration);
+				this.parameterList.equals(constructorObject.parameterList);
 		}
 		return false;
     }
@@ -186,7 +185,6 @@ public class ConstructorObject {
     		int result = 17;
     		result = 37*result + name.hashCode();
     		result = 37*result + parameterList.hashCode();
-    		result = 37*result + methodDeclaration.hashCode();
     		hashCode = result;
     	}
     	return hashCode;

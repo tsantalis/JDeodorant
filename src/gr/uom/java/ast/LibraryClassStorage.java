@@ -16,6 +16,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -28,8 +29,8 @@ public class LibraryClassStorage {
 	private Map<IClassFile, CompilationUnit> compilationUnitMap;
 	private Set<IClassFile> unMatchedClassFiles;
 	private Map<MethodDeclaration, LinkedHashSet<MethodDeclaration>> methodInvocationMap;
-	private Map<MethodDeclaration, LinkedHashSet<VariableDeclarationObject>> definedFieldMap;
-	private Map<MethodDeclaration, LinkedHashSet<VariableDeclarationObject>> usedFieldMap;
+	private Map<MethodDeclaration, LinkedHashSet<VariableDeclaration>> definedFieldMap;
+	private Map<MethodDeclaration, LinkedHashSet<VariableDeclaration>> usedFieldMap;
 	private Map<IType, LinkedHashSet<IType>> subTypeMap;
 	private Map<MethodDeclaration, LinkedHashSet<MethodDeclaration>> overridingMethodMap;
 	
@@ -37,8 +38,8 @@ public class LibraryClassStorage {
 		this.compilationUnitMap = new HashMap<IClassFile, CompilationUnit>();
 		this.unMatchedClassFiles = new LinkedHashSet<IClassFile>();
 		this.methodInvocationMap = new HashMap<MethodDeclaration, LinkedHashSet<MethodDeclaration>>();
-		this.definedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclarationObject>>();
-		this.usedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclarationObject>>();
+		this.definedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclaration>>();
+		this.usedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclaration>>();
 		this.subTypeMap = new HashMap<IType, LinkedHashSet<IType>>();
 		this.overridingMethodMap = new HashMap<MethodDeclaration, LinkedHashSet<MethodDeclaration>>();
 	}
@@ -122,11 +123,11 @@ public class LibraryClassStorage {
 		}
 	}
 	
-	public void setDefinedFields(MethodDeclaration method, LinkedHashSet<VariableDeclarationObject> fields) {
+	public void setDefinedFields(MethodDeclaration method, LinkedHashSet<VariableDeclaration> fields) {
 		definedFieldMap.put(method, fields);
 	}
 	
-	public void setUsedFields(MethodDeclaration method, LinkedHashSet<VariableDeclarationObject> fields) {
+	public void setUsedFields(MethodDeclaration method, LinkedHashSet<VariableDeclaration> fields) {
 		usedFieldMap.put(method, fields);
 	}
 	
@@ -137,9 +138,9 @@ public class LibraryClassStorage {
 			return false;
 	}
 	
-	public LinkedHashSet<VariableDeclarationObject> getRecursivelyDefinedFields(MethodDeclaration method,
+	public LinkedHashSet<VariableDeclaration> getRecursivelyDefinedFields(MethodDeclaration method,
 			Set<MethodDeclaration> processedMethods) {
-		LinkedHashSet<VariableDeclarationObject> definedFields = new LinkedHashSet<VariableDeclarationObject>();
+		LinkedHashSet<VariableDeclaration> definedFields = new LinkedHashSet<VariableDeclaration>();
 		definedFields.addAll(definedFieldMap.get(method));
 		processedMethods.add(method);
 		LinkedHashSet<MethodDeclaration> invokedMethods = methodInvocationMap.get(method);
@@ -174,9 +175,9 @@ public class LibraryClassStorage {
 		return definedFields;
 	}
 	
-	public LinkedHashSet<VariableDeclarationObject> getRecursivelyUsedFields(MethodDeclaration method,
+	public LinkedHashSet<VariableDeclaration> getRecursivelyUsedFields(MethodDeclaration method,
 			Set<MethodDeclaration> processedMethods) {
-		LinkedHashSet<VariableDeclarationObject> usedFields = new LinkedHashSet<VariableDeclarationObject>();
+		LinkedHashSet<VariableDeclaration> usedFields = new LinkedHashSet<VariableDeclaration>();
 		usedFields.addAll(usedFieldMap.get(method));
 		processedMethods.add(method);
 		LinkedHashSet<MethodDeclaration> invokedMethods = methodInvocationMap.get(method);

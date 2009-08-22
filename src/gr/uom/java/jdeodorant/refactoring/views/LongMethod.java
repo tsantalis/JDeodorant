@@ -11,7 +11,6 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
@@ -31,6 +30,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
@@ -350,38 +350,38 @@ public class LongMethod extends ViewPart {
 		IWorkbenchWindow window = getSite().getWorkbenchWindow();
 		try {
 			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
-			     public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-			    	 monitor.beginTask("Identification of Extract Method refactoring opportunities", systemObject.getClassNumber());
-			    	 ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
-			    	 while(classIterator.hasNext()) {
-			    		 if(monitor.isCanceled())
-			     			throw new OperationCanceledException();
-			    		 ClassObject classObject = classIterator.next();
-			    		 ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-			    		 while(methodIterator.hasNext()) {
-			    			 MethodObject methodObject = methodIterator.next();
-			    			 if(methodObject.getMethodBody() != null) {
-			    				 CFG cfg = new CFG(methodObject);
-			    				 PDG pdg = new PDG(cfg, classObject.getIFile());
-			    				 for(VariableDeclarationObject declarationObject : pdg.getVariableDeclarationsInMethod()) {
-			    					 PlainVariable variable = new PlainVariable(declarationObject);
-			    					 PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
-			    					 for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-			    						 extractedSlices.add(sliceUnion);
-			    					 }
-			    				 }
-			    				 /*for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
-			    					 PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
-			    					 for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-			    						 extractedSlices.add(sliceUnion);
-			    					 }
-			    				 }*/
-			    			 }
-			    		 }
-			    		 monitor.worked(1);
-			    	 }
-			    	 monitor.done();
-			     }
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					monitor.beginTask("Identification of Extract Method refactoring opportunities", systemObject.getClassNumber());
+					ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
+					while(classIterator.hasNext()) {
+						if(monitor.isCanceled())
+							throw new OperationCanceledException();
+						ClassObject classObject = classIterator.next();
+						ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+						while(methodIterator.hasNext()) {
+							MethodObject methodObject = methodIterator.next();
+							if(methodObject.getMethodBody() != null) {
+								CFG cfg = new CFG(methodObject);
+								PDG pdg = new PDG(cfg, classObject.getIFile());
+								for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
+									PlainVariable variable = new PlainVariable(declaration);
+									PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
+									for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+										extractedSlices.add(sliceUnion);
+									}
+								}
+								/*for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
+			    					PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
+			    					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+			    						extractedSlices.add(sliceUnion);
+			    					}
+			    				}*/
+							}
+						}
+						monitor.worked(1);
+					}
+					monitor.done();
+				}
 			});
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();

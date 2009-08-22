@@ -1,18 +1,17 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.VariableDeclarationObject;
-
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PlainVariable extends AbstractVariable {
 	private volatile int hashCode = 0;
 	
-	public PlainVariable(VariableDeclarationObject variableName) {
+	public PlainVariable(VariableDeclaration variableName) {
 		super(variableName);
 	}
 
 	public boolean isLocalVariable() {
-		IVariableBinding variableBinding = name.getVariableDeclaration().resolveBinding();
+		IVariableBinding variableBinding = name.resolveBinding();
 		if(variableBinding.isField())
 			return false;
 		else
@@ -45,7 +44,7 @@ public class PlainVariable extends AbstractVariable {
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(name.getName());
+		sb.append(name.getName().getIdentifier());
 		return sb.toString();
 	}
 }

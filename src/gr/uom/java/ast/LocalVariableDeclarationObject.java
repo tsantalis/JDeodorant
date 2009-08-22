@@ -47,8 +47,7 @@ public class LocalVariableDeclarationObject implements VariableDeclarationObject
 
         if (o instanceof LocalVariableDeclarationObject) {
         	LocalVariableDeclarationObject lvdo = (LocalVariableDeclarationObject)o;
-            return this.name.equals(lvdo.name) && this.type.equals(lvdo.type) &&
-            	this.variableDeclaration.equals(lvdo.variableDeclaration);
+            return this.name.equals(lvdo.name) && this.type.equals(lvdo.type);
         }
         return false;
     }
@@ -62,7 +61,6 @@ public class LocalVariableDeclarationObject implements VariableDeclarationObject
     		int result = 17;
     		result = 37*result + type.hashCode();
     		result = 37*result + name.hashCode();
-    		result = 37*result + variableDeclaration.hashCode();
     		hashCode = result;
     	}
     	return hashCode;

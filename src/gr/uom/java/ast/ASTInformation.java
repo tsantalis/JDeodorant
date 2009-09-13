@@ -1,7 +1,6 @@
 package gr.uom.java.ast;
 
 import org.eclipse.jdt.core.ITypeRoot;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.NodeFinder;
@@ -24,11 +23,7 @@ public class ASTInformation {
 	public ASTNode recoverASTNode() {
         CompilationUnit compilationUnit = CompilationUnitCache.getInstance().getCompilationUnit(iTypeRoot);
         ASTNode astNode = null;
-		try {
-			astNode = NodeFinder.perform(compilationUnit, startPosition, length, iTypeRoot);
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		}
+		astNode = NodeFinder.perform(compilationUnit, startPosition, length);
 		return astNode;
 	}
 	

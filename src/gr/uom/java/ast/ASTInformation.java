@@ -22,8 +22,7 @@ public class ASTInformation {
 	
 	public ASTNode recoverASTNode() {
         CompilationUnit compilationUnit = CompilationUnitCache.getInstance().getCompilationUnit(iTypeRoot);
-        ASTNode astNode = null;
-		astNode = NodeFinder.perform(compilationUnit, startPosition, length);
+        ASTNode astNode = NodeFinder.perform(compilationUnit, startPosition, length);
 		return astNode;
 	}
 	

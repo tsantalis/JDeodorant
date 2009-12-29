@@ -10,6 +10,7 @@ import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.TypeSearchRequestor;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
@@ -68,6 +69,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<AbstractVariable> declaredVariables;
 	protected Set<AbstractVariable> definedVariables;
 	protected Set<AbstractVariable> usedVariables;
+	protected Set<TypeObject> createdTypes;
 	protected Set<VariableDeclaration> variableDeclarationsInMethod;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocation>> stateChangingMethodInvocationMap;
 	private Map<AbstractVariable, LinkedHashSet<AbstractVariable>> stateChangingFieldModificationMap;
@@ -77,6 +79,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
+		this.createdTypes = new LinkedHashSet<TypeObject>();
 		this.stateChangingMethodInvocationMap = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocation>>();
 		this.stateChangingFieldModificationMap = new LinkedHashMap<AbstractVariable, LinkedHashSet<AbstractVariable>>();
 	}
@@ -90,6 +93,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
+		this.createdTypes = new LinkedHashSet<TypeObject>();
 		this.stateChangingMethodInvocationMap = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocation>>();
 		this.stateChangingFieldModificationMap = new LinkedHashMap<AbstractVariable, LinkedHashSet<AbstractVariable>>();
 	}
@@ -116,6 +120,12 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	public boolean usesLocalVariable(AbstractVariable variable) {
 		return usedVariables.contains(variable);
+	}
+
+	public boolean containsClassInstanceCreation() {
+		if(!createdTypes.isEmpty())
+			return true;
+		return false;
 	}
 
 	public Set<AbstractVariable> getStateChangingVariables() {

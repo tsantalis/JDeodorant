@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
+import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
@@ -32,6 +33,10 @@ public class PDGControlPredicateNode extends PDGNode {
 			CompositeStatementObject composite = (CompositeStatementObject)cfgNode.getStatement();
 			List<AbstractExpression> expressions = composite.getExpressions();
 			for(AbstractExpression expression : expressions) {
+				List<CreationObject> creations = expression.getCreations();
+				for(CreationObject creation : creations) {
+					createdTypes.add(creation.getType());
+				}
 				List<LocalVariableDeclarationObject> variableDeclarations = expression.getLocalVariableDeclarations();
 				for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations) {
 					PlainVariable variable = new PlainVariable(variableDeclaration.getVariableDeclaration());

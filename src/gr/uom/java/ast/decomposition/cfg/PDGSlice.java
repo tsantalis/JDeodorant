@@ -205,6 +205,7 @@ public class PDGSlice extends Graph {
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!containsBreakContinueReturnSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
+				!containsDuplicateNodeWithClassInstanceCreation() &&
 				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode())
 			return true;
 		return false;
@@ -269,6 +270,17 @@ public class PDGSlice extends Graph {
 				if(!sliceContainsDeclaration(plainVariable))
 					return true;
 			}
+		}
+		return false;
+	}
+
+	private boolean containsDuplicateNodeWithClassInstanceCreation() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode node : duplicatedNodes) {
+			if(node.containsClassInstanceCreation())
+				return true;
 		}
 		return false;
 	}

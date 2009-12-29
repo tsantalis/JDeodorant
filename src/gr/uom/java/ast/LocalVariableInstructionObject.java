@@ -1,5 +1,7 @@
 package gr.uom.java.ast;
 
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 public class LocalVariableInstructionObject {
@@ -29,7 +31,13 @@ public class LocalVariableInstructionObject {
 
     public SimpleName getSimpleName() {
     	//return this.simpleName;
-    	return (SimpleName)this.simpleName.recoverASTNode();
+    	ASTNode node = this.simpleName.recoverASTNode();
+    	if(node instanceof QualifiedName) {
+    		return ((QualifiedName)node).getName();
+    	}
+    	else {
+    		return (SimpleName)node;
+    	}
     }
 
     public boolean equals(Object o) {

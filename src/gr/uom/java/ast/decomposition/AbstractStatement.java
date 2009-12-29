@@ -2,6 +2,9 @@ package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.ArrayCreationObject;
+import gr.uom.java.ast.ClassInstanceCreationObject;
+import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
@@ -13,6 +16,8 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.ArrayCreation;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -23,6 +28,7 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class AbstractStatement {
@@ -35,6 +41,7 @@ public abstract class AbstractStatement {
     private List<FieldInstructionObject> fieldInstructionList;
     private List<LocalVariableDeclarationObject> localVariableDeclarationList;
     private List<LocalVariableInstructionObject> localVariableInstructionList;
+    private List<CreationObject> creationList;
     
     public AbstractStatement(Statement statement) {
     	//this.statement = statement;
@@ -45,6 +52,7 @@ public abstract class AbstractStatement {
         this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
         this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
         this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
+        this.creationList = new ArrayList<CreationObject>();
         
         ExpressionExtractor expressionExtractor = new ExpressionExtractor();
         List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
@@ -124,6 +132,30 @@ public abstract class AbstractStatement {
 				superMethodInvocationList.add(superMethodInvocationObject);
 			}
 		}
+		
+		List<Expression> classInctanceCreations = expressionExtractor.getClassInstanceCreations(statement);
+		for(Expression classInstanceCreationExpression : classInctanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreationExpression;
+			Type type = classInstanceCreation.getType();
+			ITypeBinding typeBinding = type.resolveBinding();
+			String qualifiedTypeName = typeBinding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
+			ClassInstanceCreationObject creationObject = new ClassInstanceCreationObject(typeObject);
+			creationObject.setClassInstanceCreation(classInstanceCreation);
+			creationList.add(creationObject);
+		}
+		
+		List<Expression> arrayCreations = expressionExtractor.getArrayCreations(statement);
+		for(Expression arrayCreationExpression : arrayCreations) {
+			ArrayCreation arrayCreation = (ArrayCreation)arrayCreationExpression;
+			Type type = arrayCreation.getType();
+			ITypeBinding typeBinding = type.resolveBinding();
+			String qualifiedTypeName = typeBinding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
+			ArrayCreationObject creationObject = new ArrayCreationObject(typeObject);
+			creationObject.setArrayCreation(arrayCreation);
+			creationList.add(creationObject);
+		}
     }
 
     public void setParent(CompositeStatementObject parent) {
@@ -157,6 +189,10 @@ public abstract class AbstractStatement {
 
 	public List<SuperMethodInvocationObject> getSuperMethodInvocations() {
 		return superMethodInvocationList;
+	}
+
+	public List<CreationObject> getCreations() {
+		return creationList;
 	}
 
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {

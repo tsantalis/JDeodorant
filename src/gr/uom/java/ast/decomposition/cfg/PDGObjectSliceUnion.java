@@ -8,6 +8,10 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.ContinueStatement;
+import org.eclipse.jdt.core.dom.ReturnStatement;
+import org.eclipse.jdt.core.dom.Statement;
 
 public class PDGObjectSliceUnion {
 	private PDG pdg;
@@ -93,6 +97,35 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
+	private boolean sliceContainsDeclaration(AbstractVariable variableDeclaration) {
+		for(PDGNode node : getSliceNodes()) {
+			if(node.declaresLocalVariable(variableDeclaration))
+				return true;
+		}
+		return false;
+	}
+
+	public boolean allNodeCriteriaAreDuplicated() {
+		int counter = 0;
+		for(PDGSliceUnion sliceUnion : sliceUnions) {
+			if(sliceUnion.allNodeCriteriaAreDuplicated())
+				counter++;
+		}
+		if(sliceUnions.size() == counter)
+			return true;
+		return false;
+	}
+
+	private boolean containsBreakContinueReturnSliceNode() {
+		for(PDGNode node : getSliceNodes()) {
+			Statement statement = node.getASTStatement();
+			if(statement instanceof BreakStatement || statement instanceof ContinueStatement ||
+					statement instanceof ReturnStatement)
+				return true;
+		}
+		return false;
+	}
+
 	private boolean objectSliceEqualsMethodBody() {
 		int sliceSize = getSliceNodes().size();
 		if(sliceSize == methodSize)
@@ -112,16 +145,22 @@ public class PDGObjectSliceUnion {
 		if(sliceSize == 1)
 			return true;
 		else if(sliceSize == 2) {
-			for(PDGNode node : getSliceNodes()) {
-				if(node.declaresLocalVariable(objectReference))
-					return true;
-			}
+			if(sliceContainsDeclaration(objectReference))
+				return true;
 		}
 		return false;
 	}
 
+	private boolean objectReferenceIsReturnedVariableInOriginalMethod() {
+		if(pdg.getReturnedVariables().contains(objectReference))
+			return true;
+		return false;
+	}
+
 	public boolean satisfiesRules() {
-		if(objectSliceEqualsMethodBody() ||  objectSliceHasMinimumSize())
+		if(objectSliceEqualsMethodBody() || objectSliceHasMinimumSize() ||
+				objectReferenceIsReturnedVariableInOriginalMethod() ||
+				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode())
 			return false;
 		return true;
 	}

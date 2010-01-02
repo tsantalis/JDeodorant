@@ -122,7 +122,7 @@ public class PDGSliceUnion {
 		return false;
 	}
 
-	private boolean allNodeCriteriaAreDuplicated() {
+	public boolean allNodeCriteriaAreDuplicated() {
 		int counter = 0;
 		for(PDGSlice slice : slices) {
 			if(slice.nodeCriterionIsDuplicated())

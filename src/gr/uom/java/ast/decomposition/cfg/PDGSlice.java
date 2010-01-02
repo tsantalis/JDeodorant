@@ -135,6 +135,10 @@ public class PDGSlice extends Graph {
 		return iFile;
 	}
 
+	public BasicBlock getBoundaryBlock() {
+		return boundaryBlock;
+	}
+
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
 		return ((TreeSet<PDGNode>)sliceNodes).first();
 	}

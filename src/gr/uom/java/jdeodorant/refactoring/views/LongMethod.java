@@ -13,6 +13,8 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnion;
+import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnionCollection;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
@@ -106,6 +108,8 @@ public class LongMethod extends ViewPart {
 			case 2:
 				return entry.getLocalVariableCriterion().toString();
 			case 3:
+				return "B" + entry.getBoundaryBlock().getId();
+			case 4:
 				int numberOfSliceStatements = entry.getSliceStatements().size();
 				int numberOfRemovableStatements = entry.getRemovableStatements().size();
 				int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
@@ -188,8 +192,9 @@ public class LongMethod extends ViewPart {
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(20, true));
+		layout.addColumnData(new ColumnWeightData(60, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
-		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
@@ -207,9 +212,13 @@ public class LongMethod extends ViewPart {
 		column2.setResizable(true);
 		column2.pack();
 		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
-		column3.setText("Duplicated/Extracted");
+		column3.setText("Boundary Block");
 		column3.setResizable(true);
 		column3.pack();
+		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column4.setText("Duplicated/Extracted");
+		column4.setResizable(true);
+		column4.pack();
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -347,6 +356,7 @@ public class LongMethod extends ViewPart {
 			new ASTReader(selectedProject);
 		final SystemObject systemObject = ASTReader.getSystemObject();
 		final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
+		final List<PDGObjectSliceUnion> extractedObjectSlices = new ArrayList<PDGObjectSliceUnion>();
 		IWorkbenchWindow window = getSite().getWorkbenchWindow();
 		try {
 			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
@@ -363,6 +373,7 @@ public class LongMethod extends ViewPart {
 							if(methodObject.getMethodBody() != null) {
 								CFG cfg = new CFG(methodObject);
 								PDG pdg = new PDG(cfg, classObject.getIFile());
+								pdg.setFieldsAccessedInMethod(classObject.getFieldsAccessedInsideMethod(methodObject));
 								for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 									PlainVariable variable = new PlainVariable(declaration);
 									PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
@@ -370,12 +381,13 @@ public class LongMethod extends ViewPart {
 										extractedSlices.add(sliceUnion);
 									}
 								}
-								/*for(CompositeVariable compositeVariable : pdg.getDefinedCompositeVariables()) {
-			    					PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, compositeVariable);
-			    					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-			    						extractedSlices.add(sliceUnion);
-			    					}
-			    				}*/
+								for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
+									PlainVariable variable = new PlainVariable(declaration);
+									PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
+									for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
+										extractedObjectSlices.add(objectSliceUnion);
+									}
+								}
 							}
 						}
 						monitor.worked(1);
@@ -388,10 +400,14 @@ public class LongMethod extends ViewPart {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		ASTSlice[] table = new ASTSlice[extractedSlices.size()];
+		ASTSlice[] table = new ASTSlice[extractedSlices.size() + extractedObjectSlices.size()];
 		for(int i=0; i<extractedSlices.size(); i++) {
 			ASTSlice astSlice = new ASTSlice(extractedSlices.get(i));
 			table[i] = astSlice;
+		}
+		for(int i=0; i<extractedObjectSlices.size(); i++) {
+			ASTSlice astSlice = new ASTSlice(extractedObjectSlices.get(i));
+			table[extractedSlices.size() + i] = astSlice;
 		}
 		return table;
 	}

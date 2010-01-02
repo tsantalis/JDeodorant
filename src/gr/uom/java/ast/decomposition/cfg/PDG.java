@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
@@ -19,6 +20,7 @@ public class PDG extends Graph {
 	private PDGMethodEntryNode entryNode;
 	private Map<CFGBranchNode, Set<CFGNode>> nestingMap;
 	private Set<VariableDeclaration> variableDeclarationsInMethod;
+	private Set<VariableDeclaration> fieldsAccessedInMethod;
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
 	private IFile iFile;
 	
@@ -35,6 +37,7 @@ public class PDG extends Graph {
 			}
 		}
 		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclaration>();
+		this.fieldsAccessedInMethod = new LinkedHashSet<VariableDeclaration>();
 		ListIterator<ParameterObject> parameterIterator = cfg.getMethod().getParameterListIterator();
 		while(parameterIterator.hasNext()) {
 			ParameterObject parameter = parameterIterator.next();
@@ -66,20 +69,60 @@ public class PDG extends Graph {
 		return variableDeclarationsInMethod;
 	}
 
+	public Set<VariableDeclaration> getFieldsAccessedInMethod() {
+		return fieldsAccessedInMethod;
+	}
+
+	public Set<VariableDeclaration> getVariableDeclarationsAndAccessedFieldsInMethod() {
+		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		variableDeclarations.addAll(variableDeclarationsInMethod);
+		variableDeclarations.addAll(fieldsAccessedInMethod);
+		return variableDeclarations;
+	}
+
+	public void setFieldsAccessedInMethod(Set<FieldObject> fields) {
+		for(FieldObject field : fields) {
+			fieldsAccessedInMethod.add(field.getVariableDeclaration());
+		}
+	}
+
 	public int getTotalNumberOfStatements() {
 		return nodes.size();
 	}
 
-	public Set<CompositeVariable> getDefinedCompositeVariables() {
-		Set<CompositeVariable> definedCompositeVariables = new LinkedHashSet<CompositeVariable>();
+	public Map<CompositeVariable, LinkedHashSet<PDGNode>> getDefinedAttributesOfReference(PlainVariable reference) {
+		Map<CompositeVariable, LinkedHashSet<PDGNode>> definedPropertiesMap = new LinkedHashMap<CompositeVariable, LinkedHashSet<PDGNode>>();
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			for(AbstractVariable definedVariable : pdgNode.definedVariables) {
-				if(definedVariable instanceof CompositeVariable)
-					definedCompositeVariables.add((CompositeVariable)definedVariable);
+				if(definedVariable instanceof CompositeVariable) {
+					CompositeVariable compositeVariable = (CompositeVariable)definedVariable;
+					if(compositeVariable.getName().equals(reference.getName())) {
+						if(definedPropertiesMap.containsKey(compositeVariable)) {
+							LinkedHashSet<PDGNode> nodeCriteria = definedPropertiesMap.get(compositeVariable);
+							nodeCriteria.add(pdgNode);
+						}
+						else {
+							LinkedHashSet<PDGNode> nodeCriteria = new LinkedHashSet<PDGNode>();
+							nodeCriteria.add(pdgNode);
+							definedPropertiesMap.put(compositeVariable, nodeCriteria);
+						}
+					}
+				}
 			}
 		}
-		return definedCompositeVariables;
+		return definedPropertiesMap;
+	}
+
+	public Set<PDGNode> getAssignmentNodesOfVariableCriterion(AbstractVariable localVariableCriterion) {
+		Set<PDGNode> nodeCriteria = new LinkedHashSet<PDGNode>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.definesLocalVariable(localVariableCriterion) &&
+					!pdgNode.declaresLocalVariable(localVariableCriterion))
+				nodeCriteria.add(pdgNode);
+		}
+		return nodeCriteria;
 	}
 
 	private void createControlDependenciesFromEntryNode() {

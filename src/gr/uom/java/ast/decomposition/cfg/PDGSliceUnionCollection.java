@@ -13,16 +13,9 @@ public class PDGSliceUnionCollection {
 	
 	public PDGSliceUnionCollection(PDG pdg, AbstractVariable localVariableCriterion) {
 		this.sliceUnionMap = new LinkedHashMap<BasicBlock, PDGSliceUnion>();
-		Set<PDGNode> nodeCriterions = new LinkedHashSet<PDGNode>();
-		//get all the assignments of variable criterion
-		for(GraphNode node : pdg.nodes) {
-			PDGNode pdgNode = (PDGNode)node;
-			if(pdgNode.definesLocalVariable(localVariableCriterion) &&
-					!pdgNode.declaresLocalVariable(localVariableCriterion))
-				nodeCriterions.add(pdgNode);
-		}
+		Set<PDGNode> nodeCriteria = pdg.getAssignmentNodesOfVariableCriterion(localVariableCriterion);
 		Map<PDGNode, Set<BasicBlock>> boundaryBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();
-		for(PDGNode nodeCriterion : nodeCriterions) {
+		for(PDGNode nodeCriterion : nodeCriteria) {
 			Set<BasicBlock> boundaryBlocks = pdg.boundaryBlocks(nodeCriterion);
 			boundaryBlockMap.put(nodeCriterion, boundaryBlocks);
 		}
@@ -33,7 +26,7 @@ public class PDGSliceUnionCollection {
 				basicBlockIntersection.retainAll(list.get(i));
 			}
 			for(BasicBlock basicBlock : basicBlockIntersection) {
-				PDGSliceUnion sliceUnion = new PDGSliceUnion(pdg, basicBlock, nodeCriterions, localVariableCriterion);
+				PDGSliceUnion sliceUnion = new PDGSliceUnion(pdg, basicBlock, nodeCriteria, localVariableCriterion);
 				if(sliceUnion.satisfiesRules())
 					sliceUnionMap.put(basicBlock, sliceUnion);
 			}

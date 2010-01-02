@@ -18,15 +18,15 @@ public class PDGSliceUnion {
 	private List<PDGSlice> slices;
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
-	private Set<PDGNode> nodeCriterions;
+	private Set<PDGNode> nodeCriteria;
 	private AbstractVariable localVariableCriterion;
 	private IFile iFile;
 	private int methodSize;
 	
-	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriterions,
+	public PDGSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> nodeCriteria,
 			AbstractVariable localVariableCriterion) {
 		this.slices = new ArrayList<PDGSlice>();
-		for(PDGNode nodeCriterion : nodeCriterions) {
+		for(PDGNode nodeCriterion : nodeCriteria) {
 			PDGSlice slice = new PDGSlice(pdg, boundaryBlock, nodeCriterion, localVariableCriterion);
 			slices.add(slice);
 		}
@@ -34,7 +34,7 @@ public class PDGSliceUnion {
 		this.iFile = pdg.getIFile();
 		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.boundaryBlock = boundaryBlock;
-		this.nodeCriterions = nodeCriterions;
+		this.nodeCriteria = nodeCriteria;
 		this.localVariableCriterion = localVariableCriterion;
 	}
 
@@ -44,6 +44,10 @@ public class PDGSliceUnion {
 
 	public IFile getIFile() {
 		return iFile;
+	}
+
+	public BasicBlock getBoundaryBlock() {
+		return boundaryBlock;
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
@@ -118,13 +122,13 @@ public class PDGSliceUnion {
 		return false;
 	}
 
-	private boolean allNodeCriterionsAreDuplicated() {
+	private boolean allNodeCriteriaAreDuplicated() {
 		int counter = 0;
 		for(PDGSlice slice : slices) {
 			if(slice.nodeCriterionIsDuplicated())
 				counter++;
 		}
-		if(nodeCriterions.size() == counter)
+		if(nodeCriteria.size() == counter)
 			return true;
 		return false;
 	}
@@ -164,10 +168,10 @@ public class PDGSliceUnion {
 			if(!slice.satisfiesRules())
 				return false;
 		}
-		if(allNodeCriterionsAreDuplicated() ||
+		if(allNodeCriteriaAreDuplicated() ||
 				sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion())
 			return false;
-		if(getSliceNodes().size() <= nodeCriterions.size())
+		if(getSliceNodes().size() <= nodeCriteria.size())
 			return false;
 		if(!complyWithUserThresholds())
 			return false;

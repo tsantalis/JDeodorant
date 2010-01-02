@@ -1,6 +1,8 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.decomposition.cfg.BasicBlock;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -39,6 +41,7 @@ public class ASTSlice {
 	private boolean declarationOfVariableCriterionBelongsToSliceNodes;
 	private boolean declarationOfVariableCriterionBelongsToRemovableNodes;
 	private IFile iFile;
+	private BasicBlock boundaryBlock;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
 		this.sourceMethodDeclaration = pdgSlice.getMethod().getMethodDeclaration();
@@ -62,6 +65,7 @@ public class ASTSlice {
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSlice.declarationOfVariableCriterionBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSlice.declarationOfVariableCriterionBelongsToRemovableNodes();
 		this.iFile = pdgSlice.getIFile();
+		this.boundaryBlock = pdgSlice.getBoundaryBlock();
 	}
 
 	public ASTSlice(PDGSliceUnion pdgSliceUnion) {
@@ -86,6 +90,32 @@ public class ASTSlice {
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
 		this.iFile = pdgSliceUnion.getIFile();
+		this.boundaryBlock = pdgSliceUnion.getBoundaryBlock();
+	}
+
+	public ASTSlice(PDGObjectSliceUnion pdgObjectSliceUnion) {
+		this.sourceMethodDeclaration = pdgObjectSliceUnion.getMethod().getMethodDeclaration();
+		this.sourceTypeDeclaration = (TypeDeclaration)sourceMethodDeclaration.getParent();
+		this.sliceNodes = pdgObjectSliceUnion.getSliceNodes();
+		this.sliceStatements = new LinkedHashSet<Statement>();
+		for(PDGNode node : sliceNodes) {
+			sliceStatements.add(node.getASTStatement());
+		}
+		this.removableStatements = new LinkedHashSet<Statement>();
+		for(PDGNode node : pdgObjectSliceUnion.getRemovableNodes()) {
+			removableStatements.add(node.getASTStatement());
+		}
+		this.localVariableCriterion = pdgObjectSliceUnion.getObjectReference();
+		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
+		for(AbstractVariable variable : pdgObjectSliceUnion.getPassedParameters()) {
+			passedParameters.add(variable.getName());
+		}
+		this.extractedMethodInvocationInsertionStatement = pdgObjectSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
+		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
+		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgObjectSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
+		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgObjectSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
+		this.iFile = pdgObjectSliceUnion.getIFile();
+		this.boundaryBlock = pdgObjectSliceUnion.getBoundaryBlock();
 	}
 
 	public TypeDeclaration getSourceTypeDeclaration() {
@@ -138,6 +168,10 @@ public class ASTSlice {
 
 	public IFile getIFile() {
 		return iFile;
+	}
+
+	public BasicBlock getBoundaryBlock() {
+		return boundaryBlock;
 	}
 
 	public Map<Position, String> getHighlightPositions() {

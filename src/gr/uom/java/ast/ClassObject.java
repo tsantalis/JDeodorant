@@ -3,9 +3,11 @@ package gr.uom.java.ast;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
+import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -188,6 +190,20 @@ public class ClassObject {
 
 	public ListIterator<FieldObject> getFieldIterator() {
 		return fieldList.listIterator();
+	}
+
+	public Set<FieldObject> getFieldsAccessedInsideMethod(MethodObject method) {
+		Set<FieldObject> fields = new LinkedHashSet<FieldObject>();
+		for(FieldInstructionObject fieldInstruction : method.getFieldInstructions()) {
+			for(FieldObject field : fieldList) {
+				if(field.equals(fieldInstruction)) {
+					if(!fields.contains(field))
+						fields.add(field);
+					break;
+				}
+			}
+		}
+		return fields;
 	}
 
 	public String getName() {

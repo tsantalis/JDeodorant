@@ -112,8 +112,8 @@ public class ASTSlice {
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgObjectSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
-		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgObjectSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
-		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgObjectSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
+		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgObjectSliceUnion.declarationOfObjectReferenceBelongsToSliceNodes();
+		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgObjectSliceUnion.declarationOfObjectReferenceBelongsToRemovableNodes();
 		this.iFile = pdgObjectSliceUnion.getIFile();
 		this.boundaryBlock = pdgObjectSliceUnion.getBoundaryBlock();
 	}

@@ -106,6 +106,17 @@ public class PDGSliceUnion {
 		return removableNodes;
 	}
 
+	public boolean edgeBelongsToBlockBasedRegion(GraphEdge edge) {
+		int counter = 0;
+		for(PDGSlice slice : slices) {
+			if(slice.edgeBelongsToBlockBasedRegion(edge))
+				counter++;
+		}
+		if(slices.size() == counter)
+			return true;
+		return false;
+	}
+
 	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
 		for(PDGSlice slice : slices) {
 			if(slice.declarationOfVariableCriterionBelongsToSliceNodes())

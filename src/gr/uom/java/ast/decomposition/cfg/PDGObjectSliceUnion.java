@@ -78,20 +78,37 @@ public class PDGObjectSliceUnion {
 		for(PDGSliceUnion sliceUnion : sliceUnions) {
 			removableNodes.addAll(sliceUnion.getRemovableNodes());
 		}
+		for(PDGNode node : getSliceNodes()) {
+			if(node.declaresLocalVariable(objectReference) && !removableNodes.contains(node)) {
+				removableNodes.add(node);
+				break;
+			}
+		}
 		return removableNodes;
 	}
 
-	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
+	public boolean edgeBelongsToBlockBasedRegion(GraphEdge edge) {
+		int counter = 0;
 		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			if(sliceUnion.declarationOfVariableCriterionBelongsToSliceNodes())
+			if(sliceUnion.edgeBelongsToBlockBasedRegion(edge))
+				counter++;
+		}
+		if(sliceUnions.size() == counter)
+			return true;
+		return false;
+	}
+
+	public boolean declarationOfObjectReferenceBelongsToSliceNodes() {
+		for(PDGNode node : getSliceNodes()) {
+			if(node.declaresLocalVariable(objectReference))
 				return true;
 		}
 		return false;
 	}
 
-	public boolean declarationOfVariableCriterionBelongsToRemovableNodes() {
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			if(sliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes())
+	public boolean declarationOfObjectReferenceBelongsToRemovableNodes() {
+		for(PDGNode node : getRemovableNodes()) {
+			if(node.declaresLocalVariable(objectReference))
 				return true;
 		}
 		return false;
@@ -105,7 +122,7 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
-	public boolean allNodeCriteriaAreDuplicated() {
+	private boolean allNodeCriteriaAreDuplicated() {
 		int counter = 0;
 		for(PDGSliceUnion sliceUnion : sliceUnions) {
 			if(sliceUnion.allNodeCriteriaAreDuplicated())
@@ -113,6 +130,60 @@ public class PDGObjectSliceUnion {
 		}
 		if(sliceUnions.size() == counter)
 			return true;
+		return false;
+	}
+
+	private boolean nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() {
+		Set<PDGNode> sliceNodes = getSliceNodes();
+		Set<PDGNode> removableNodes = getRemovableNodes();
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.removeAll(removableNodes);
+		for(PDGNode sliceNode : sliceNodes) {
+			if(!duplicatedNodes.contains(sliceNode)) {
+				for(GraphEdge edge : sliceNode.incomingEdges) {
+					PDGDependence dependence = (PDGDependence)edge;
+					if(edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGAntiDependence) {
+						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
+						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
+						if(!removableNodes.contains(srcPDGNode))
+							return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean containsDuplicateNodeWithStateChangingMethodInvocation() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(getSliceNodes());
+		duplicatedNodes.removeAll(getRemovableNodes());
+		for(PDGNode node : duplicatedNodes) {
+			for(AbstractVariable stateChangingVariable : node.getStateChangingVariables()) {
+				PlainVariable plainVariable = null;
+				if(stateChangingVariable instanceof PlainVariable) {
+					plainVariable = (PlainVariable)stateChangingVariable;
+				}
+				else if(stateChangingVariable instanceof CompositeVariable) {
+					CompositeVariable compositeVariable = (CompositeVariable)stateChangingVariable;
+					plainVariable = new PlainVariable(compositeVariable.getName());
+				}
+				if(!sliceContainsDeclaration(plainVariable))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean containsDuplicateNodeWithClassInstanceCreation() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(getSliceNodes());
+		duplicatedNodes.removeAll(getRemovableNodes());
+		for(PDGNode node : duplicatedNodes) {
+			if(node.containsClassInstanceCreation() && !node.declaresLocalVariable(objectReference))
+				return true;
+		}
 		return false;
 	}
 
@@ -160,7 +231,10 @@ public class PDGObjectSliceUnion {
 	public boolean satisfiesRules() {
 		if(objectSliceEqualsMethodBody() || objectSliceHasMinimumSize() ||
 				objectReferenceIsReturnedVariableInOriginalMethod() ||
-				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode())
+				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode() ||
+				containsDuplicateNodeWithStateChangingMethodInvocation() ||
+				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
+				containsDuplicateNodeWithClassInstanceCreation())
 			return false;
 		return true;
 	}

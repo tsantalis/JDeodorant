@@ -163,6 +163,10 @@ public class PDGSlice extends Graph {
 		return removableNodes;
 	}
 
+	public boolean edgeBelongsToBlockBasedRegion(GraphEdge edge) {
+		return edges.contains(edge);
+	}
+
 	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
 		PlainVariable plainVariable = null;
 		if(localVariableCriterion instanceof PlainVariable) {
@@ -283,7 +287,7 @@ public class PDGSlice extends Graph {
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
-			if(node.containsClassInstanceCreation())
+			if(node.containsClassInstanceCreation() && !node.declaresLocalVariable(localVariableCriterion))
 				return true;
 		}
 		return false;

@@ -226,6 +226,7 @@ public class TypeChecking extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
+		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new OperationHistoryListener());
 	}
 
 	private void contributeToActionBars() {

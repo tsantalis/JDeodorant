@@ -3,6 +3,7 @@ package gr.uom.java.ast;
 import java.util.LinkedList;
 
 import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -57,5 +58,18 @@ public class CompilationUnitCache {
 				return compilationUnit;
 			}
 		}
+	}
+
+	public void removeCompilationUnit(ICompilationUnit iCompilationUnit) {
+		int position = iTypeRootList.indexOf(iCompilationUnit);
+		if(position != -1) {
+			iTypeRootList.remove(position);
+			compilationUnitList.remove(position);
+		}
+	}
+
+	public void clearCache() {
+		iTypeRootList.clear();
+		compilationUnitList.clear();
 	}
 }

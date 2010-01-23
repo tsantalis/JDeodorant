@@ -223,6 +223,7 @@ public class LongMethod extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
+		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new OperationHistoryListener());
 	}
 
 	private void contributeToActionBars() {
@@ -381,13 +382,13 @@ public class LongMethod extends ViewPart {
 										extractedSlices.add(sliceUnion);
 									}
 								}
-								for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
+								/*for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
 									PlainVariable variable = new PlainVariable(declaration);
 									PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
 									for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
 										extractedObjectSlices.add(objectSliceUnion);
 									}
-								}
+								}*/
 							}
 						}
 						monitor.worked(1);

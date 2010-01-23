@@ -219,6 +219,7 @@ public class FeatureEnvy extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
+		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new OperationHistoryListener());
 		
 		JFaceResources.getFontRegistry().put(MyToolTip.HEADER_FONT, JFaceResources.getFontRegistry().getBold(JFaceResources.getDefaultFont().getFontData()[0].getName()).getFontData());
 		MyToolTip toolTip = new MyToolTip(tableViewer.getControl());

@@ -28,6 +28,9 @@ public class MyRefactoringWizard extends RefactoringWizard {
 
 	@Override
 	protected void addUserInputPages() {
+		if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
+			addPage(new ReplaceTypeCodeWithStateStrategyInputPage((ReplaceTypeCodeWithStateStrategy)refactoring));
+		}
 	}
 	
 	@Override

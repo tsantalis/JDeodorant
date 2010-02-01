@@ -25,6 +25,7 @@ import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -75,6 +76,7 @@ public class TypeCheckElimination {
 	private VariableDeclarationFragment foreignTypeField;
 	private InheritanceTree existingInheritanceTree;
 	private InheritanceTree inheritanceTreeMatchingWithStaticTypes;
+	private Map<SimpleName, String> staticFieldSubclassTypeMap;
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
 	private String abstractMethodName;
 	private volatile int hashCode = 0;
@@ -108,7 +110,9 @@ public class TypeCheckElimination {
 		this.foreignTypeField = null;
 		this.existingInheritanceTree = null;
 		this.inheritanceTreeMatchingWithStaticTypes = null;
+		this.staticFieldSubclassTypeMap = new LinkedHashMap<SimpleName, String>();
 		this.remainingIfStatementExpressionMap = new LinkedHashMap<Expression, DefaultMutableTreeNode>();
+		this.abstractMethodName = null;
 	}
 	
 	public void addTypeCheck(Expression expression, Statement statement) {
@@ -395,6 +399,10 @@ public class TypeCheckElimination {
 		this.inheritanceTreeMatchingWithStaticTypes = inheritanceTree;
 	}
 
+	public void putStaticFieldSubclassTypeMapping(SimpleName staticField, String subclassType) {
+		staticFieldSubclassTypeMap.put(staticField, subclassType);
+	}
+
 	public boolean allTypeCheckingsContainStaticFieldOrSubclassType() {
 		return (typeCheckMap.keySet().size() > 1 || (typeCheckMap.keySet().size() == 1 && !defaultCaseStatements.isEmpty())) && 
 			(typeCheckMap.keySet().size() == (staticFieldMap.keySet().size() + subclassTypeMap.keySet().size()));
@@ -592,6 +600,52 @@ public class TypeCheckElimination {
 		return null;
 	}
 	
+	public String getAbstractClassType() {
+		String abstractClassType = null;
+		if(typeField != null) {
+			FieldDeclaration fieldDeclaration = (FieldDeclaration)typeField.getParent();
+			Type fieldType = fieldDeclaration.getType();
+			if(!fieldType.isPrimitiveType())
+				abstractClassType = fieldType.resolveBinding().getQualifiedName();
+		}
+		else if(typeLocalVariable != null) {
+			if(typeLocalVariable instanceof SingleVariableDeclaration) {
+				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)typeLocalVariable;
+				Type localVariableType = singleVariableDeclaration.getType();
+				if(!localVariableType.isPrimitiveType())
+					abstractClassType = localVariableType.resolveBinding().getQualifiedName();
+			}
+			else if(typeLocalVariable instanceof VariableDeclarationFragment) {
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)typeLocalVariable;
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+				Type localVariableType = variableDeclarationStatement.getType();
+				if(!localVariableType.isPrimitiveType())
+					abstractClassType = localVariableType.resolveBinding().getQualifiedName();
+			}
+		}
+		else if(foreignTypeField != null) {
+			FieldDeclaration fieldDeclaration = (FieldDeclaration)foreignTypeField.getParent();
+			Type fieldType = fieldDeclaration.getType();
+			if(!fieldType.isPrimitiveType())
+				abstractClassType = fieldType.resolveBinding().getQualifiedName();
+		}
+		else if(typeMethodInvocation != null) {
+			Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();
+			SimpleName invoker = null;
+			if(typeMethodInvocationExpression instanceof SimpleName) {
+				invoker = (SimpleName)typeMethodInvocationExpression;
+			}
+			else if(typeMethodInvocationExpression instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)typeMethodInvocationExpression;
+				invoker = fieldAccess.getName();
+			}
+			if(invoker != null) {
+				abstractClassType = invoker.resolveTypeBinding().getQualifiedName();
+			}
+		}
+		return abstractClassType;
+	}
+	
 	public List<String> getSubclassNames() {
 		List<String> subclassNames = new ArrayList<String>();
 		for(Expression expression : typeCheckMap.keySet()) {
@@ -614,7 +668,10 @@ public class TypeCheckElimination {
 							tempName.subSequence(1, tempName.length()).toString();
 						}
 					}
-					if(existingInheritanceTree != null) {
+					if(inheritanceTreeMatchingWithStaticTypes != null) {
+						subclassNames.add(staticFieldSubclassTypeMap.get(simpleName));
+					}
+					else if(existingInheritanceTree != null) {
 						DefaultMutableTreeNode root = existingInheritanceTree.getRootNode();
 						DefaultMutableTreeNode leaf = root.getFirstLeaf();
 						while(leaf != null) {

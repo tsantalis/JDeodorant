@@ -68,6 +68,10 @@ public class CompleteInheritanceDetection {
 		}
 	}
 	
+	public Set<String> getRoots() {
+		return subclassMap.keySet();
+	}
+	
 	public Set<InheritanceTree> getMatchingTrees(String subclassName) {
 		Set<InheritanceTree> inheritanceTrees = new LinkedHashSet<InheritanceTree>();
 		for(String superclass : subclassMap.keySet()) {

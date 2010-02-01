@@ -492,16 +492,14 @@ public class SystemObject {
 
 	private void inheritanceHierarchyMatchingWithStaticTypes(TypeCheckElimination typeCheckElimination,
 			CompleteInheritanceDetection inheritanceDetection) {
-		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
-		Set<InheritanceTree> inheritanceTrees = new LinkedHashSet<InheritanceTree>();
-		for(String subclassName: subclassNames) {
-			Set<InheritanceTree> tempInheritanceTrees = inheritanceDetection.getMatchingTrees(subclassName);
-			inheritanceTrees.addAll(tempInheritanceTrees);
-		}
-		for(InheritanceTree tree : inheritanceTrees) {
-			DefaultMutableTreeNode root = tree.getRootNode();
-			DefaultMutableTreeNode leaf = root.getFirstLeaf();
+		String abstractClassType = typeCheckElimination.getAbstractClassType();
+		InheritanceTree tree = null;
+		if(abstractClassType != null)
+			tree = inheritanceDetection.getTree(abstractClassType);
+		if(tree != null) {
+			DefaultMutableTreeNode rootNode = tree.getRootNode();
+			DefaultMutableTreeNode leaf = rootNode.getFirstLeaf();
 			List<String> inheritanceHierarchySubclassNames = new ArrayList<String>();
 			while(leaf != null) {
 				inheritanceHierarchySubclassNames.add((String)leaf.getUserObject());
@@ -529,6 +527,7 @@ public class SystemObject {
 										}
 										if(staticFieldNameBinding.getName().equals(memberRef.getName().getIdentifier()) &&
 												staticFieldNameDeclaringClass.getQualifiedName().equals(memberRef.getQualifier().getFullyQualifiedName())) {
+											typeCheckElimination.putStaticFieldSubclassTypeMapping(staticField, subclassName);
 											matchCounter++;
 											break;
 										}

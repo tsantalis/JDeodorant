@@ -9,6 +9,7 @@ import java.util.Map;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
@@ -240,6 +241,7 @@ public class LongMethod extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				CompilationUnitCache.getInstance().clearCache();
 				sliceTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);

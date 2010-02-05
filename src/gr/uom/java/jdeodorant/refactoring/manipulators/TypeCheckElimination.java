@@ -643,7 +643,60 @@ public class TypeCheckElimination {
 				abstractClassType = invoker.resolveTypeBinding().getQualifiedName();
 			}
 		}
+		if(abstractClassType == null) {
+			Block typeCheckMethodBody = typeCheckMethod.getBody();
+			List<Statement> statements = typeCheckMethodBody.statements();
+			if(statements.size() > 0 && statements.get(0) instanceof SwitchStatement) {
+				SwitchStatement switchStatement = (SwitchStatement)statements.get(0);
+				List<Statement> statements2 = switchStatement.statements();
+				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+				List<ITypeBinding> superclassTypeBindings = new ArrayList<ITypeBinding>();
+				for(Statement statement2 : statements2) {
+					if(!(statement2 instanceof SwitchCase) && !(statement2 instanceof BreakStatement)) {
+						List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statement2);
+						if(classInstanceCreations.size() == 1) {
+							ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreations.get(0);
+							Type classInstanceCreationType = classInstanceCreation.getType();
+							ITypeBinding classInstanceCreationTypeBinding = classInstanceCreationType.resolveBinding();
+							superclassTypeBindings.add(classInstanceCreationTypeBinding.getSuperclass());
+						}
+					}
+				}
+				if(superclassTypeBindings.size() > 1) {
+					for(ITypeBinding superclassTypeBinding : superclassTypeBindings) {
+						if(superclassTypeBinding.getQualifiedName().equals("java.lang.Object"))
+							return null;
+					}
+					if(equalTypeBindings(superclassTypeBindings)) {
+						abstractClassType = superclassTypeBindings.get(0).getQualifiedName();
+					}
+					else {
+						List<ITypeBinding> superclassTypeBindings2 = new ArrayList<ITypeBinding>();
+						for(ITypeBinding classTypeBinding : superclassTypeBindings) {
+							ITypeBinding superclassTypeBinding = classTypeBinding.getSuperclass();
+							if(superclassTypeBinding.getQualifiedName().equals("java.lang.Object"))
+								superclassTypeBindings2.add(classTypeBinding);
+							else
+								superclassTypeBindings2.add(superclassTypeBinding);
+						}
+						if(equalTypeBindings(superclassTypeBindings2)) {
+							abstractClassType = superclassTypeBindings.get(0).getQualifiedName();
+						}
+					}
+				}
+			}
+		}
 		return abstractClassType;
+	}
+	
+	private boolean equalTypeBindings(List<ITypeBinding> typeBindings) {
+		ITypeBinding firstTypeBinding = typeBindings.get(0);
+		for(int i=1; i<typeBindings.size(); i++) {
+			ITypeBinding currentTypeBinding = typeBindings.get(i);
+			if(!firstTypeBinding.isEqualTo(currentTypeBinding))
+				return false;
+		}
+		return true;
 	}
 	
 	public List<String> getSubclassNames() {

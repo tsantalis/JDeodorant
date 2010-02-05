@@ -20,7 +20,7 @@ public class MyRefactoringWizard extends RefactoringWizard {
 	private Action action;
 	
 	public MyRefactoringWizard(Refactoring refactoring, Action action) {
-		super(refactoring, DIALOG_BASED_USER_INTERFACE | PREVIEW_EXPAND_FIRST_NODE);
+		super(refactoring, DIALOG_BASED_USER_INTERFACE | PREVIEW_EXPAND_FIRST_NODE | NO_BACK_BUTTON_ON_STATUS_DIALOG);
 		setDefaultPageTitle(refactoring.getName());
 		this.refactoring = refactoring;
 		this.action = action;

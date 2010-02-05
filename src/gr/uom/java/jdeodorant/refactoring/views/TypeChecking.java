@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
@@ -243,6 +244,7 @@ public class TypeChecking extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				CompilationUnitCache.getInstance().clearCache();
 				typeCheckEliminationTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);

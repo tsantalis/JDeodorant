@@ -105,6 +105,8 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 				}
 			}
 		});
+		
+		handleInputChanged();
 	}
 
 	private void handleInputChanged() {

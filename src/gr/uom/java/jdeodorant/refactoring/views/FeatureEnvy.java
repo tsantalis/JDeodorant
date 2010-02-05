@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.CurrentSystem;
@@ -242,6 +243,7 @@ public class FeatureEnvy extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				CompilationUnitCache.getInstance().clearCache();
 				candidateRefactoringTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);

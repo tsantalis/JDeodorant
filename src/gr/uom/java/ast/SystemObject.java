@@ -552,7 +552,7 @@ public class SystemObject {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
 				if(declaringClassTypeBinding != null) {
-					if(getPositionInClassList(declaringClassTypeBinding.getQualifiedName()) == -1)
+					if(getPositionInClassList(declaringClassTypeBinding.getQualifiedName()) == -1 && !declaringClassTypeBinding.isEnum())
 						return false;
 				}
 			}

@@ -1094,7 +1094,39 @@ public class MoveMethodRefactoring extends Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add("this");
+		setPublicModifierToSourceTypeDeclaration();
 		return parameterName;
+	}
+
+	private void setPublicModifierToSourceTypeDeclaration() {
+		PackageDeclaration sourcePackageDeclaration = sourceCompilationUnit.getPackage();
+		PackageDeclaration targetPackageDeclaration = targetCompilationUnit.getPackage();
+		if(sourcePackageDeclaration != null && targetPackageDeclaration != null) {
+			String sourcePackageName = sourcePackageDeclaration.getName().getFullyQualifiedName();
+			String targetPackageName = targetPackageDeclaration.getName().getFullyQualifiedName();
+			if(!sourcePackageName.equals(targetPackageName)) {
+				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+				Modifier publicModifier = sourceTypeDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+				boolean modifierFound = false;
+				List<IExtendedModifier> modifiers = sourceTypeDeclaration.modifiers();
+				for(IExtendedModifier extendedModifier : modifiers) {
+					if(extendedModifier.isModifier()) {
+						Modifier modifier = (Modifier)extendedModifier;
+						if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+							modifierFound = true;
+						}
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+								modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+							modifierFound = true;
+							modifierRewrite.replace(modifier, publicModifier, null);
+						}
+					}
+				}
+				if(!modifierFound) {
+					modifierRewrite.insertFirst(publicModifier, null);
+				}
+			}
+		}
 	}
 
 	private void addParameterToMovedMethod(MethodDeclaration newMethodDeclaration, SimpleName fieldName) {

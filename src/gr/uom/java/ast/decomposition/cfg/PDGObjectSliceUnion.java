@@ -176,17 +176,6 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
-	private boolean containsDuplicateNodeWithClassInstanceCreation() {
-		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
-		duplicatedNodes.addAll(getSliceNodes());
-		duplicatedNodes.removeAll(getRemovableNodes());
-		for(PDGNode node : duplicatedNodes) {
-			if(node.containsClassInstanceCreation() && !node.declaresLocalVariable(objectReference))
-				return true;
-		}
-		return false;
-	}
-
 	private boolean containsBreakContinueReturnSliceNode() {
 		for(PDGNode node : getSliceNodes()) {
 			Statement statement = node.getASTStatement();
@@ -233,8 +222,7 @@ public class PDGObjectSliceUnion {
 				objectReferenceIsReturnedVariableInOriginalMethod() ||
 				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode() ||
 				containsDuplicateNodeWithStateChangingMethodInvocation() ||
-				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
-				containsDuplicateNodeWithClassInstanceCreation())
+				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode())
 			return false;
 		return true;
 	}

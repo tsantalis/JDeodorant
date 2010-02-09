@@ -32,6 +32,7 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 	private ReplaceTypeCodeWithStateStrategy refactoring;
 	private IPackageFragment parentPackage;
 	private List<String> parentPackageClassNames;
+	private List<String> javaLangClassNames;
 	private Map<Text, SimpleName> textMap;
 	private Map<Text, String> defaultNamingMap;
 	
@@ -49,6 +50,31 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+		this.javaLangClassNames = new ArrayList<String>();
+		this.javaLangClassNames.add("Boolean");
+		this.javaLangClassNames.add("Byte");
+		this.javaLangClassNames.add("Character");
+		this.javaLangClassNames.add("Class");
+		this.javaLangClassNames.add("Double");
+		this.javaLangClassNames.add("Enum");
+		this.javaLangClassNames.add("Error");
+		this.javaLangClassNames.add("Exception");
+		this.javaLangClassNames.add("Float");
+		this.javaLangClassNames.add("Integer");
+		this.javaLangClassNames.add("Long");
+		this.javaLangClassNames.add("Math");
+		this.javaLangClassNames.add("Number");
+		this.javaLangClassNames.add("Object");
+		this.javaLangClassNames.add("Package");
+		this.javaLangClassNames.add("Process");
+		this.javaLangClassNames.add("Runtime");
+		this.javaLangClassNames.add("Short");
+		this.javaLangClassNames.add("String");
+		this.javaLangClassNames.add("StringBuffer");
+		this.javaLangClassNames.add("StringBuilder");
+		this.javaLangClassNames.add("System");
+		this.javaLangClassNames.add("Thread");
+		this.javaLangClassNames.add("Void");
 		this.textMap = new LinkedHashMap<Text, SimpleName>();
 		this.defaultNamingMap = new LinkedHashMap<Text, String>();
 	}
@@ -147,6 +173,12 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 			else if(parentPackageClassNames.contains(text.getText())) {
 				setPageComplete(false);
 				String message = "A Type named \"" + text.getText() + "\" already exists in package " + parentPackage.getElementName();
+				setMessage(message, ERROR);
+				return;
+			}
+			else if(javaLangClassNames.contains(text.getText())) {
+				setPageComplete(false);
+				String message = "Type \"" + text.getText() + "\" already exists in package java.lang";
 				setMessage(message, ERROR);
 				return;
 			}

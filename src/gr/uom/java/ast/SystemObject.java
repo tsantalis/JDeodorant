@@ -201,84 +201,37 @@ public class SystemObject {
 	    						}
 	    						else if(invokedMethodDeclaration.getBody() == null) {
 	    							InheritanceTree tree = elimination.getInheritanceTreeMatchingWithStaticTypes();
-	    							if(tree != null) {
-	    								Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();
-	    								ITypeBinding typeCheckClassBinding = elimination.getTypeCheckClass().resolveBinding();
-	    								ClassObject typeCheckClassObject = getClassObject(typeCheckClassBinding.getQualifiedName());
-	    								SimpleName invoker = null;
-	    								if(typeMethodInvocationExpression instanceof SimpleName) {
-	    									invoker = (SimpleName)typeMethodInvocationExpression;
+	    							ITypeBinding invokerTypeBinding = handleTypeMethodInvocation(typeMethodInvocation, elimination);
+	    							if(invokerTypeBinding != null) {
+	    								if(tree != null) {
+	    									if(invokerTypeBinding.getQualifiedName().equals(tree.getRootNode().getUserObject())) {
+	    										elimination.setExistingInheritanceTree(tree);
+	    										if(inheritanceTreeMap.containsKey(tree.getRootNode().getUserObject())) {
+	    											ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(tree.getRootNode().getUserObject());
+	    											typeCheckEliminations.add(elimination);
+	    										}
+	    										else {
+	    											ArrayList<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+	    											typeCheckEliminations.add(elimination);
+	    											inheritanceTreeMap.put((String)tree.getRootNode().getUserObject(), typeCheckEliminations);
+	    										}
+	    									}
 	    								}
-	    								else if(typeMethodInvocationExpression instanceof FieldAccess) {
-	    									FieldAccess fieldAccess = (FieldAccess)typeMethodInvocationExpression;
-	    									invoker = fieldAccess.getName();
+	    								else {
+	    									InheritanceTree tree2 = inheritanceDetection.getTree(invokerTypeBinding.getQualifiedName());
+	    									if(tree2 != null) {
+	    										elimination.setExistingInheritanceTree(tree2);
+	    										if(inheritanceTreeMap.containsKey(tree2.getRootNode().getUserObject())) {
+	    											ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(tree2.getRootNode().getUserObject());
+	    											typeCheckEliminations.add(elimination);
+	    										}
+	    										else {
+	    											ArrayList<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+	    											typeCheckEliminations.add(elimination);
+	    											inheritanceTreeMap.put((String)tree2.getRootNode().getUserObject(), typeCheckEliminations);
+	    										}
+	    									}
 	    								}
-	    								if(invoker != null) {
-	    		    						IBinding binding = invoker.resolveBinding();
-	    		    						if(binding.getKind() == IBinding.VARIABLE) {
-	    		    							IVariableBinding variableBinding = (IVariableBinding)binding;
-	    		    							if(variableBinding.isField()) {
-	    		    								ListIterator<FieldObject> fieldIterator = typeCheckClassObject.getFieldIterator();
-	    		    								while(fieldIterator.hasNext()) {
-	    		    									FieldObject fieldObject = fieldIterator.next();
-	    		    									VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-	    		    									if(variableBinding.isEqualTo(fragment.resolveBinding())) {
-	    		    										elimination.setTypeField(fragment);
-	    		    										break;
-	    		    									}
-	    		    								}
-	    		    							}
-	    		    							else if(variableBinding.isParameter()) {
-	    		    								List<SingleVariableDeclaration> parameters = elimination.getTypeCheckMethodParameters();
-	    		    								for(SingleVariableDeclaration parameter : parameters) {
-	    		    									IVariableBinding parameterVariableBinding = parameter.resolveBinding();
-	    		    									if(parameterVariableBinding.isEqualTo(variableBinding)) {
-	    		    										elimination.setTypeLocalVariable(parameter);
-	    		    										break;
-	    		    									}
-	    		    								}
-	    		    							}
-	    		    							else {
-	    		    								StatementExtractor statementExtractor = new StatementExtractor();
-	    		    								Block typeCheckMethodBody = elimination.getTypeCheckMethod().getBody();
-	    		    								List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethodBody);
-	    		    								for(Statement vDStatement : variableDeclarationStatements) {
-	    		    									VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-	    		    									List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-	    		    									for(VariableDeclarationFragment fragment : fragments) {
-	    		    										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-	    		    										if(fragmentVariableBinding.isEqualTo(variableBinding)) {
-	    		    											elimination.setTypeLocalVariable(fragment);
-	    		    											break;
-	    		    										}
-	    		    									}
-	    		    								}
-	    		    								List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethodBody);
-	    		    								for(Statement eFStatement : enhancedForStatements) {
-	    		    									EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
-	    		    									SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
-	    		    									IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
-	    		    									if(parameterVariableBinding.isEqualTo(variableBinding)) {
-	    		    										elimination.setTypeLocalVariable(formalParameter);
-	    		    										break;
-	    		    									}
-	    		    								}
-	    		    							}
-	    		    							ITypeBinding invokerType = variableBinding.getType();
-	    		    							if(invokerType.getQualifiedName().equals(tree.getRootNode().getUserObject())) {
-	    		    								elimination.setExistingInheritanceTree(tree);
-	    		    								if(inheritanceTreeMap.containsKey(tree.getRootNode().getUserObject())) {
-	    		    									ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(tree.getRootNode().getUserObject());
-	    		    									typeCheckEliminations.add(elimination);
-	    		    								}
-	    		    								else {
-	    		    									ArrayList<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
-	    		    									typeCheckEliminations.add(elimination);
-	    		    									inheritanceTreeMap.put((String)tree.getRootNode().getUserObject(), typeCheckEliminations);
-	    		    								}
-	    		    							}
-	    		    						}
-	    		    					}
 	    							}
 	    						}
 	    					}
@@ -316,72 +269,10 @@ public class SystemObject {
     					IMethodBinding typeMethodInvocationBinding = typeMethodInvocation.resolveMethodBinding();
     					if(typeMethodInvocationBinding.getDeclaringClass().getQualifiedName().equals("java.lang.Object") &&
     							typeMethodInvocationBinding.getName().equals("getClass")) {
-    						Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();
-    						ITypeBinding typeCheckClassBinding = elimination.getTypeCheckClass().resolveBinding();
-    						ClassObject typeCheckClassObject = getClassObject(typeCheckClassBinding.getQualifiedName());
-    						SimpleName invoker = null;
-    						if(typeMethodInvocationExpression instanceof SimpleName) {
-    							invoker = (SimpleName)typeMethodInvocationExpression;
-    						}
-    						else if(typeMethodInvocationExpression instanceof FieldAccess) {
-    							FieldAccess fieldAccess = (FieldAccess)typeMethodInvocationExpression;
-    							invoker = fieldAccess.getName();
-    						}
-    						if(invoker != null) {
-    							IBinding binding = invoker.resolveBinding();
-	    						if(binding.getKind() == IBinding.VARIABLE) {
-	    							IVariableBinding variableBinding = (IVariableBinding)binding;
-	    							if(variableBinding.isField()) {
-	    								ListIterator<FieldObject> fieldIterator = typeCheckClassObject.getFieldIterator();
-	    								while(fieldIterator.hasNext()) {
-	    									FieldObject fieldObject = fieldIterator.next();
-	    									VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
-	    									if(variableBinding.isEqualTo(fragment.resolveBinding())) {
-	    										elimination.setTypeField(fragment);
-	    										break;
-	    									}
-	    								}
-	    							}
-	    							else if(variableBinding.isParameter()) {
-	    								List<SingleVariableDeclaration> parameters = elimination.getTypeCheckMethodParameters();
-	    								for(SingleVariableDeclaration parameter : parameters) {
-	    									IVariableBinding parameterVariableBinding = parameter.resolveBinding();
-	    									if(parameterVariableBinding.isEqualTo(variableBinding)) {
-	    										elimination.setTypeLocalVariable(parameter);
-	    										break;
-	    									}
-	    								}
-	    							}
-	    							else {
-	    								StatementExtractor statementExtractor = new StatementExtractor();
-	    								Block typeCheckMethodBody = elimination.getTypeCheckMethod().getBody();
-	    								List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethodBody);
-	    								for(Statement vDStatement : variableDeclarationStatements) {
-	    									VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-	    									List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-	    									for(VariableDeclarationFragment fragment : fragments) {
-	    										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-	    										if(fragmentVariableBinding.isEqualTo(variableBinding)) {
-	    											elimination.setTypeLocalVariable(fragment);
-	    											break;
-	    										}
-	    									}
-	    								}
-	    								List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethodBody);
-	    								for(Statement eFStatement : enhancedForStatements) {
-	    									EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
-	    									SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
-	    									IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
-	    									if(parameterVariableBinding.isEqualTo(variableBinding)) {
-	    										elimination.setTypeLocalVariable(formalParameter);
-	    										break;
-	    									}
-	    								}
-	    							}
-	    							ITypeBinding invokerType = variableBinding.getType();
-	    							InheritanceTree tree = inheritanceDetection.getTree(invokerType.getQualifiedName());
-	    							elimination.setExistingInheritanceTree(tree);
-	    						}
+    						ITypeBinding invokerTypeBinding = handleTypeMethodInvocation(typeMethodInvocation, elimination);
+    						if(invokerTypeBinding != null) {
+    							InheritanceTree tree = inheritanceDetection.getTree(invokerTypeBinding.getQualifiedName());
+    							elimination.setExistingInheritanceTree(tree);
     						}
     					}
     					else {
@@ -460,6 +351,76 @@ public class SystemObject {
     	}
     	identifySuperFieldAccessorMethods(typeCheckEliminationResults.getTypeCheckEliminations());
     	return typeCheckEliminationResults;
+    }
+
+    private ITypeBinding handleTypeMethodInvocation(MethodInvocation typeMethodInvocation, TypeCheckElimination elimination) {
+    	Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();
+    	ITypeBinding typeCheckClassBinding = elimination.getTypeCheckClass().resolveBinding();
+    	ClassObject typeCheckClassObject = getClassObject(typeCheckClassBinding.getQualifiedName());
+    	SimpleName invoker = null;
+    	if(typeMethodInvocationExpression instanceof SimpleName) {
+    		invoker = (SimpleName)typeMethodInvocationExpression;
+    	}
+    	else if(typeMethodInvocationExpression instanceof FieldAccess) {
+    		FieldAccess fieldAccess = (FieldAccess)typeMethodInvocationExpression;
+    		invoker = fieldAccess.getName();
+    	}
+    	if(invoker != null) {
+    		IBinding binding = invoker.resolveBinding();
+    		if(binding.getKind() == IBinding.VARIABLE) {
+    			IVariableBinding variableBinding = (IVariableBinding)binding;
+    			if(variableBinding.isField()) {
+    				ListIterator<FieldObject> fieldIterator = typeCheckClassObject.getFieldIterator();
+    				while(fieldIterator.hasNext()) {
+    					FieldObject fieldObject = fieldIterator.next();
+    					VariableDeclarationFragment fragment = fieldObject.getVariableDeclarationFragment();
+    					if(variableBinding.isEqualTo(fragment.resolveBinding())) {
+    						elimination.setTypeField(fragment);
+    						break;
+    					}
+    				}
+    			}
+    			else if(variableBinding.isParameter()) {
+    				List<SingleVariableDeclaration> parameters = elimination.getTypeCheckMethodParameters();
+    				for(SingleVariableDeclaration parameter : parameters) {
+    					IVariableBinding parameterVariableBinding = parameter.resolveBinding();
+    					if(parameterVariableBinding.isEqualTo(variableBinding)) {
+    						elimination.setTypeLocalVariable(parameter);
+    						break;
+    					}
+    				}
+    			}
+    			else {
+    				StatementExtractor statementExtractor = new StatementExtractor();
+    				Block typeCheckMethodBody = elimination.getTypeCheckMethod().getBody();
+    				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethodBody);
+    				for(Statement vDStatement : variableDeclarationStatements) {
+    					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+    					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+    					for(VariableDeclarationFragment fragment : fragments) {
+    						IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+    						if(fragmentVariableBinding.isEqualTo(variableBinding)) {
+    							elimination.setTypeLocalVariable(fragment);
+    							break;
+    						}
+    					}
+    				}
+    				List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethodBody);
+    				for(Statement eFStatement : enhancedForStatements) {
+    					EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
+    					SingleVariableDeclaration formalParameter = enhancedForStatement.getParameter();
+    					IVariableBinding parameterVariableBinding = formalParameter.resolveBinding();
+    					if(parameterVariableBinding.isEqualTo(variableBinding)) {
+    						elimination.setTypeLocalVariable(formalParameter);
+    						break;
+    					}
+    				}
+    			}
+    			ITypeBinding invokerTypeBinding = variableBinding.getType();
+    			return invokerTypeBinding;
+    		}
+    	}
+    	return null;
     }
 
     private boolean nonEmptyIntersection(List<SimpleName> staticFieldUnion, List<SimpleName> staticFields) {

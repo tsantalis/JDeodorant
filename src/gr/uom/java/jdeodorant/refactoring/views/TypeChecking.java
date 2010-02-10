@@ -358,6 +358,11 @@ public class TypeChecking extends ViewPart {
 		tableViewer.getControl().setFocus();
 	}
 
+	public void dispose() {
+		super.dispose();
+		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
+	}
+
 	private TypeCheckElimination[] getTable() {
 		if(selectedPackage != null)
 			new ASTReader(selectedPackage);

@@ -390,7 +390,12 @@ public class FeatureEnvy extends ViewPart {
 	public void setFocus() {
 		tableViewer.getControl().setFocus();
 	}
-	
+
+	public void dispose() {
+		super.dispose();
+		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
+	}
+
 	private List<CandidateRefactoring> getPrerequisiteRefactorings(CandidateRefactoring candidateRefactoring) {
 		List<CandidateRefactoring> moveMethodPrerequisiteRefactorings = new ArrayList<CandidateRefactoring>();
 		List<CandidateRefactoring> extractMethodPrerequisiteRefactorings = new ArrayList<CandidateRefactoring>();

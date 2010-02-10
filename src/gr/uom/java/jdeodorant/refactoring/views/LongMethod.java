@@ -352,6 +352,11 @@ public class LongMethod extends ViewPart {
 		tableViewer.getControl().setFocus();
 	}
 
+	public void dispose() {
+		super.dispose();
+		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
+	}
+
 	private ASTSlice[] getTable() {
 		if(selectedPackage != null)
 			new ASTReader(selectedPackage);

@@ -38,6 +38,7 @@ import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -57,6 +58,7 @@ import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -71,8 +73,11 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<AbstractVariable> usedVariables;
 	protected Set<TypeObject> createdTypes;
 	protected Set<VariableDeclaration> variableDeclarationsInMethod;
+	protected Set<VariableDeclaration> fieldsAccessedInMethod;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocation>> stateChangingMethodInvocationMap;
 	private Map<AbstractVariable, LinkedHashSet<AbstractVariable>> stateChangingFieldModificationMap;
+	private Set<AbstractVariable> originalDefinedVariables;
+	private Set<AbstractVariable> originalUsedVariables;
 	
 	public PDGNode() {
 		super();
@@ -84,10 +89,12 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.stateChangingFieldModificationMap = new LinkedHashMap<AbstractVariable, LinkedHashSet<AbstractVariable>>();
 	}
 	
-	public PDGNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod) {
+	public PDGNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod,
+			Set<VariableDeclaration> fieldsAccessedInMethod) {
 		super();
 		this.cfgNode = cfgNode;
 		this.variableDeclarationsInMethod = variableDeclarationsInMethod;
+		this.fieldsAccessedInMethod = fieldsAccessedInMethod;
 		this.id = cfgNode.id;
 		cfgNode.setPDGNode(this);
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
@@ -951,5 +958,267 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		else {
 			processExternalMethodInvocation(methodInvocation, null, variable, new LinkedHashSet<MethodInvocation>());
 		}
+	}
+
+	public void updateReachingAliasSet(ReachingAliasSet reachingAliasSet) {
+		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		variableDeclarations.addAll(variableDeclarationsInMethod);
+		variableDeclarations.addAll(fieldsAccessedInMethod);
+		Statement statement = getASTStatement();
+		if(statement instanceof VariableDeclarationStatement) {
+			VariableDeclarationStatement vDStatement = (VariableDeclarationStatement)statement;
+			if(!vDStatement.getType().resolveBinding().isPrimitive()) {
+				List<VariableDeclarationFragment> fragments = vDStatement.fragments();
+				for(VariableDeclarationFragment fragment : fragments) {
+					Expression initializer = fragment.getInitializer();
+					SimpleName initializerSimpleName = null;
+					if(initializer != null) {
+						if(initializer instanceof SimpleName) {
+							initializerSimpleName = (SimpleName)initializer;
+						}
+						else if(initializer instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)initializer;
+							initializerSimpleName = fieldAccess.getName();
+						}
+					}
+					if(initializerSimpleName != null) {
+						VariableDeclaration initializerVariableDeclaration = null;
+						for(VariableDeclaration declaration : variableDeclarations) {
+							if(declaration.resolveBinding().isEqualTo(initializerSimpleName.resolveBinding())) {
+								initializerVariableDeclaration = declaration;
+								break;
+							}
+						}
+						if(initializerVariableDeclaration != null) {
+							reachingAliasSet.insertAlias(fragment, initializerVariableDeclaration);
+						}
+					}
+				}
+			}
+		}
+		else if(statement instanceof ExpressionStatement) {
+			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+			Expression expression = expressionStatement.getExpression();
+			if(expression instanceof Assignment) {
+				Assignment assignment = (Assignment)expression;
+				processAssignment(reachingAliasSet, variableDeclarations, assignment);
+			}
+		}
+	}
+
+	private void processAssignment(ReachingAliasSet reachingAliasSet,
+			Set<VariableDeclaration> variableDeclarations, Assignment assignment) {
+		Expression leftHandSideExpression = assignment.getLeftHandSide();
+		Expression rightHandSideExpression = assignment.getRightHandSide();
+		SimpleName leftHandSideSimpleName = null;
+		if(leftHandSideExpression instanceof SimpleName) {
+			leftHandSideSimpleName = (SimpleName)leftHandSideExpression;
+		}
+		else if(leftHandSideExpression instanceof FieldAccess) {
+			FieldAccess fieldAccess = (FieldAccess)leftHandSideExpression;
+			leftHandSideSimpleName = fieldAccess.getName();
+		}
+		if(leftHandSideSimpleName != null && !leftHandSideSimpleName.resolveTypeBinding().isPrimitive()) {
+			VariableDeclaration leftHandSideVariableDeclaration = null;
+			for(VariableDeclaration declaration : variableDeclarations) {
+				if(declaration.resolveBinding().isEqualTo(leftHandSideSimpleName.resolveBinding())) {
+					leftHandSideVariableDeclaration = declaration;
+					break;
+				}
+			}
+			SimpleName rightHandSideSimpleName = null;
+			if(rightHandSideExpression instanceof SimpleName) {
+				rightHandSideSimpleName = (SimpleName)rightHandSideExpression;
+			}
+			else if(rightHandSideExpression instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)rightHandSideExpression;
+				rightHandSideSimpleName = fieldAccess.getName();
+			}
+			else if(rightHandSideExpression instanceof Assignment) {
+				Assignment rightHandSideAssignment = (Assignment)rightHandSideExpression;
+				processAssignment(reachingAliasSet, variableDeclarations, rightHandSideAssignment);
+				Expression leftHandSideExpressionOfRightHandSideAssignment = rightHandSideAssignment.getLeftHandSide();
+				SimpleName leftHandSideSimpleNameOfRightHandSideAssignment = null;
+				if(leftHandSideExpressionOfRightHandSideAssignment instanceof SimpleName) {
+					leftHandSideSimpleNameOfRightHandSideAssignment = (SimpleName)leftHandSideExpressionOfRightHandSideAssignment;
+				}
+				else if(leftHandSideExpressionOfRightHandSideAssignment instanceof FieldAccess) {
+					FieldAccess fieldAccess = (FieldAccess)leftHandSideExpressionOfRightHandSideAssignment;
+					leftHandSideSimpleNameOfRightHandSideAssignment = fieldAccess.getName();
+				}
+				if(leftHandSideSimpleNameOfRightHandSideAssignment != null) {
+					rightHandSideSimpleName = leftHandSideSimpleNameOfRightHandSideAssignment;
+				}
+			}
+			if(rightHandSideSimpleName != null) {
+				VariableDeclaration rightHandSideVariableDeclaration = null;
+				for(VariableDeclaration declaration : variableDeclarations) {
+					if(declaration.resolveBinding().isEqualTo(rightHandSideSimpleName.resolveBinding())) {
+						rightHandSideVariableDeclaration = declaration;
+						break;
+					}
+				}
+				if(leftHandSideVariableDeclaration != null && rightHandSideVariableDeclaration != null) {
+					reachingAliasSet.insertAlias(leftHandSideVariableDeclaration, rightHandSideVariableDeclaration);
+				}
+			}
+			else {
+				if(leftHandSideVariableDeclaration != null) {
+					reachingAliasSet.removeAlias(leftHandSideVariableDeclaration);
+				}
+			}
+		}
+	}
+
+	public void applyReachingAliasSet(ReachingAliasSet reachingAliasSet) {
+		if(originalDefinedVariables == null)
+			originalDefinedVariables = new LinkedHashSet<AbstractVariable>(definedVariables);
+		Set<AbstractVariable> defVariablesToBeAdded = new LinkedHashSet<AbstractVariable>();
+		for(AbstractVariable abstractVariable : originalDefinedVariables) {
+			if(abstractVariable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
+				VariableDeclaration reference = compositeVariable.getName();
+				if(reachingAliasSet.containsAlias(reference)) {
+					Set<VariableDeclaration> aliases = reachingAliasSet.getAliases(reference);
+					for(VariableDeclaration alias : aliases) {
+						CompositeVariable aliasCompositeVariable = new CompositeVariable(alias, compositeVariable.getRightPart());
+						defVariablesToBeAdded.add(aliasCompositeVariable);
+					}
+				}
+			}
+		}
+		definedVariables.addAll(defVariablesToBeAdded);
+		if(originalUsedVariables == null)
+			originalUsedVariables = new LinkedHashSet<AbstractVariable>(usedVariables);
+		Set<AbstractVariable> useVariablesToBeAdded = new LinkedHashSet<AbstractVariable>();
+		for(AbstractVariable abstractVariable : originalUsedVariables) {
+			if(abstractVariable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
+				VariableDeclaration reference = compositeVariable.getName();
+				if(reachingAliasSet.containsAlias(reference)) {
+					Set<VariableDeclaration> aliases = reachingAliasSet.getAliases(reference);
+					for(VariableDeclaration alias : aliases) {
+						CompositeVariable aliasCompositeVariable = new CompositeVariable(alias, compositeVariable.getRightPart());
+						useVariablesToBeAdded.add(aliasCompositeVariable);
+					}
+				}
+			}
+		}
+		usedVariables.addAll(useVariablesToBeAdded);
+	}
+
+	public Map<VariableDeclaration, ClassInstanceCreation> getClassInstantiations() {
+		Map<VariableDeclaration, ClassInstanceCreation> classInstantiationMap = new LinkedHashMap<VariableDeclaration, ClassInstanceCreation>();
+		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		variableDeclarations.addAll(variableDeclarationsInMethod);
+		variableDeclarations.addAll(fieldsAccessedInMethod);
+		Statement statement = getASTStatement();
+		if(statement instanceof VariableDeclarationStatement) {
+			VariableDeclarationStatement vDStatement = (VariableDeclarationStatement)statement;
+			List<VariableDeclarationFragment> fragments = vDStatement.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				Expression initializer = fragment.getInitializer();
+				if(initializer instanceof ClassInstanceCreation) {
+					ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)initializer;
+					classInstantiationMap.put(fragment, classInstanceCreation);
+				}
+			}
+		}
+		else if(statement instanceof ExpressionStatement) {
+			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+			Expression expression = expressionStatement.getExpression();
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> assignments = expressionExtractor.getAssignments(expression);
+			for(Expression assignmentExpression : assignments) {
+				Assignment assignment = (Assignment)assignmentExpression;
+				Expression leftHandSideExpression = assignment.getLeftHandSide();
+				Expression rightHandSideExpression = assignment.getRightHandSide();
+				if(rightHandSideExpression instanceof ClassInstanceCreation) {
+					ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)rightHandSideExpression;
+					SimpleName leftHandSideSimpleName = null;
+					if(leftHandSideExpression instanceof SimpleName) {
+						leftHandSideSimpleName = (SimpleName)leftHandSideExpression;
+					}
+					else if(leftHandSideExpression instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)leftHandSideExpression;
+						leftHandSideSimpleName = fieldAccess.getName();
+					}
+					if(leftHandSideSimpleName != null) {
+						VariableDeclaration leftHandSideVariableDeclaration = null;
+						for(VariableDeclaration declaration : variableDeclarations) {
+							if(declaration.resolveBinding().isEqualTo(leftHandSideSimpleName.resolveBinding())) {
+								leftHandSideVariableDeclaration = declaration;
+								break;
+							}
+						}
+						if(leftHandSideVariableDeclaration != null) {
+							classInstantiationMap.put(leftHandSideVariableDeclaration, classInstanceCreation);
+						}
+					}
+				}
+			}
+		}
+		return classInstantiationMap;
+	}
+
+	public boolean changesStateOfReference(VariableDeclaration variableDeclaration) {
+		for(AbstractVariable abstractVariable : definedVariables) {
+			if(abstractVariable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
+				if(compositeVariable.getName().equals(variableDeclaration))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean assignsReference(VariableDeclaration variableDeclaration) {
+		Statement statement = getASTStatement();
+		if(statement instanceof VariableDeclarationStatement) {
+			VariableDeclarationStatement vDStatement = (VariableDeclarationStatement)statement;
+			List<VariableDeclarationFragment> fragments = vDStatement.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				Expression initializer = fragment.getInitializer();
+				SimpleName initializerSimpleName = null;
+				if(initializer != null) {
+					if(initializer instanceof SimpleName) {
+						initializerSimpleName = (SimpleName)initializer;
+					}
+					else if(initializer instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)initializer;
+						initializerSimpleName = fieldAccess.getName();
+					}
+				}
+				if(initializerSimpleName != null) {
+					if(variableDeclaration.resolveBinding().isEqualTo(initializerSimpleName.resolveBinding())) {
+						return true;
+					}
+				}
+			}
+		}
+		else if(statement instanceof ExpressionStatement) {
+			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+			Expression expression = expressionStatement.getExpression();
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> assignments = expressionExtractor.getAssignments(expression);
+			for(Expression assignmentExpression : assignments) {
+				Assignment assignment = (Assignment)assignmentExpression;
+				Expression rightHandSideExpression = assignment.getRightHandSide();
+				SimpleName rightHandSideSimpleName = null;
+				if(rightHandSideExpression instanceof SimpleName) {
+					rightHandSideSimpleName = (SimpleName)rightHandSideExpression;
+				}
+				else if(rightHandSideExpression instanceof FieldAccess) {
+					FieldAccess fieldAccess = (FieldAccess)rightHandSideExpression;
+					rightHandSideSimpleName = fieldAccess.getName();
+				}
+				if(rightHandSideSimpleName != null) {
+					if(variableDeclaration.resolveBinding().isEqualTo(rightHandSideSimpleName.resolveBinding())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 }

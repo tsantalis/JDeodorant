@@ -380,8 +380,7 @@ public class LongMethod extends ViewPart {
 							MethodObject methodObject = methodIterator.next();
 							if(methodObject.getMethodBody() != null) {
 								CFG cfg = new CFG(methodObject);
-								PDG pdg = new PDG(cfg, classObject.getIFile());
-								pdg.setFieldsAccessedInMethod(classObject.getFieldsAccessedInsideMethod(methodObject));
+								PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
 								for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 									PlainVariable variable = new PlainVariable(declaration);
 									PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);

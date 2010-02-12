@@ -3,14 +3,17 @@ package gr.uom.java.ast.decomposition.cfg;
 import gr.uom.java.ast.MethodObject;
 
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSlice extends Graph {
 	private MethodObject method;
@@ -213,7 +216,8 @@ public class PDGSlice extends Graph {
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!containsBreakContinueReturnSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
-				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode())
+				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() &&
+				!duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode())
 			return true;
 		return false;
 	}
@@ -231,6 +235,32 @@ public class PDGSlice extends Graph {
 						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
 						if(!removableNodes.contains(srcPDGNode))
 							return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode duplicatedNode : duplicatedNodes) {
+			if(duplicatedNode.containsClassInstanceCreation()) {
+				Map<VariableDeclaration, ClassInstanceCreation> classInstantiations = duplicatedNode.getClassInstantiations();
+				for(VariableDeclaration variableDeclaration : classInstantiations.keySet()) {
+					for(GraphEdge edge : duplicatedNode.outgoingEdges) {
+						PDGDependence dependence = (PDGDependence)edge;
+						if(edges.contains(dependence) && dependence instanceof PDGDependence) {
+							PDGDependence dataDependence = (PDGDependence)dependence;
+							PDGNode dstPDGNode = (PDGNode)dataDependence.dst;
+							if(removableNodes.contains(dstPDGNode)) {
+								if(dstPDGNode.changesStateOfReference(variableDeclaration) ||
+										dstPDGNode.assignsReference(variableDeclaration))
+									return true;
+							}
+						}
 					}
 				}
 			}

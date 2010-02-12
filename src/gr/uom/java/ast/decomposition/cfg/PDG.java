@@ -24,7 +24,7 @@ public class PDG extends Graph {
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
 	private IFile iFile;
 	
-	public PDG(CFG cfg, IFile iFile) {
+	public PDG(CFG cfg, IFile iFile, Set<FieldObject> accessedFields) {
 		this.cfg = cfg;
 		this.iFile = iFile;
 		this.entryNode = new PDGMethodEntryNode(cfg.getMethod());
@@ -38,6 +38,9 @@ public class PDG extends Graph {
 		}
 		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclaration>();
 		this.fieldsAccessedInMethod = new LinkedHashSet<VariableDeclaration>();
+		for(FieldObject field : accessedFields) {
+			this.fieldsAccessedInMethod.add(field.getVariableDeclaration());
+		}
 		ListIterator<ParameterObject> parameterIterator = cfg.getMethod().getParameterListIterator();
 		while(parameterIterator.hasNext()) {
 			ParameterObject parameter = parameterIterator.next();
@@ -47,8 +50,10 @@ public class PDG extends Graph {
 			variableDeclarationsInMethod.add(localVariableDeclaration.getVariableDeclaration());
 		}
 		createControlDependenciesFromEntryNode();
-		if(!nodes.isEmpty())
+		if(!nodes.isEmpty()) {
+			performAliasAnalysis();
 			createDataDependencies();
+		}
 		this.dominatedBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();
 		GraphNode.resetNodeNum();
 	}
@@ -78,12 +83,6 @@ public class PDG extends Graph {
 		variableDeclarations.addAll(variableDeclarationsInMethod);
 		variableDeclarations.addAll(fieldsAccessedInMethod);
 		return variableDeclarations;
-	}
-
-	public void setFieldsAccessedInMethod(Set<FieldObject> fields) {
-		for(FieldObject field : fields) {
-			fieldsAccessedInMethod.add(field.getVariableDeclaration());
-		}
 	}
 
 	public int getTotalNumberOfStatements() {
@@ -136,7 +135,7 @@ public class PDG extends Graph {
 
 	private void processCFGNode(PDGNode previousNode, CFGNode cfgNode, boolean controlType) {
 		if(cfgNode instanceof CFGBranchNode) {
-			PDGControlPredicateNode predicateNode = new PDGControlPredicateNode(cfgNode, variableDeclarationsInMethod);
+			PDGControlPredicateNode predicateNode = new PDGControlPredicateNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(predicateNode);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, predicateNode, controlType);
 			edges.add(controlDependence);
@@ -145,9 +144,9 @@ public class PDG extends Graph {
 		else {
 			PDGNode pdgNode = null;
 			if(cfgNode instanceof CFGExitNode)
-				pdgNode = new PDGExitNode(cfgNode, variableDeclarationsInMethod);
+				pdgNode = new PDGExitNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			else
-				pdgNode = new PDGStatementNode(cfgNode, variableDeclarationsInMethod);
+				pdgNode = new PDGStatementNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(pdgNode);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode, controlType);
 			edges.add(controlDependence);
@@ -184,6 +183,13 @@ public class PDG extends Graph {
 		return false;
 	}
 
+	private void performAliasAnalysis() {
+		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
+		ReachingAliasSet reachingAliasSet = new ReachingAliasSet();
+		firstPDGNode.updateReachingAliasSet(reachingAliasSet);
+		aliasSearch(firstPDGNode, false, reachingAliasSet);
+	}
+
 	private void createDataDependencies() {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
 		for(AbstractVariable variableInstruction : entryNode.definedVariables) {
@@ -207,6 +213,24 @@ public class PDG extends Graph {
 			}
 			for(AbstractVariable variableInstruction : pdgNode.usedVariables) {
 				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
+			}
+		}
+	}
+
+	private void aliasSearch(PDGNode currentNode, boolean visitedFromLoopbackFlow, ReachingAliasSet reachingAliasSet) {
+		CFGNode currentCFGNode = currentNode.getCFGNode();
+		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
+			Flow flow = (Flow)edge;
+			if(!visitedFromLoopbackFlow || (visitedFromLoopbackFlow && flow.isFalseControlFlow())) {
+				CFGNode dstCFGNode = (CFGNode)flow.dst;
+				PDGNode dstPDGNode = dstCFGNode.getPDGNode();
+				ReachingAliasSet reachingAliasSetCopy = reachingAliasSet.copy();
+				dstPDGNode.applyReachingAliasSet(reachingAliasSetCopy);
+				dstPDGNode.updateReachingAliasSet(reachingAliasSetCopy);
+				if(flow.isLoopbackFlow())
+					aliasSearch(dstPDGNode, true, reachingAliasSetCopy);
+				else
+					aliasSearch(dstPDGNode, false, reachingAliasSetCopy);
 			}
 		}
 	}

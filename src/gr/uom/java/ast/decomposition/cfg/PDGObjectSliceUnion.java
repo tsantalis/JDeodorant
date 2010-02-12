@@ -4,14 +4,17 @@ import gr.uom.java.ast.MethodObject;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGObjectSliceUnion {
 	private PDG pdg;
@@ -155,6 +158,34 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
+	private boolean duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() {
+		Set<PDGNode> sliceNodes = getSliceNodes();
+		Set<PDGNode> removableNodes = getRemovableNodes();
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.removeAll(removableNodes);
+		for(PDGNode duplicatedNode : duplicatedNodes) {
+			if(duplicatedNode.containsClassInstanceCreation()) {
+				Map<VariableDeclaration, ClassInstanceCreation> classInstantiations = duplicatedNode.getClassInstantiations();
+				for(VariableDeclaration variableDeclaration : classInstantiations.keySet()) {
+					for(GraphEdge edge : duplicatedNode.outgoingEdges) {
+						PDGDependence dependence = (PDGDependence)edge;
+						if(edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGDependence) {
+							PDGDependence dataDependence = (PDGDependence)dependence;
+							PDGNode dstPDGNode = (PDGNode)dataDependence.dst;
+							if(removableNodes.contains(dstPDGNode)) {
+								if(dstPDGNode.changesStateOfReference(variableDeclaration) ||
+										dstPDGNode.assignsReference(variableDeclaration))
+									return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	private boolean containsDuplicateNodeWithStateChangingMethodInvocation() {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(getSliceNodes());
@@ -222,7 +253,8 @@ public class PDGObjectSliceUnion {
 				objectReferenceIsReturnedVariableInOriginalMethod() ||
 				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode() ||
 				containsDuplicateNodeWithStateChangingMethodInvocation() ||
-				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode())
+				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
+				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode())
 			return false;
 		return true;
 	}

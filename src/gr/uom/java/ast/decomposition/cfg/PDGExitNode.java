@@ -8,8 +8,9 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 public class PDGExitNode extends PDGStatementNode {
 	private AbstractVariable returnedVariable;
 	
-	public PDGExitNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod) {
-		super(cfgNode, variableDeclarationsInMethod);
+	public PDGExitNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod,
+			Set<VariableDeclaration> fieldsAccessedInMethod) {
+		super(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 		if(cfgNode instanceof CFGExitNode) {
 			CFGExitNode exitNode = (CFGExitNode)cfgNode;
 			SimpleName returnedVariableSimpleName = exitNode.getReturnedVariable();

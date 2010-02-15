@@ -129,6 +129,19 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return usedVariables.contains(variable);
 	}
 
+	public boolean instantiatesLocalVariable(AbstractVariable variable) {
+		if(variable instanceof PlainVariable) {
+			PlainVariable plainVariable = (PlainVariable)variable;
+			IVariableBinding variableBinding = plainVariable.getName().resolveBinding();
+			ITypeBinding typeBinding = variableBinding.getType();
+			for(TypeObject type : createdTypes) {
+				if(typeBinding.getQualifiedName().equals(type.getClassType()))
+					return true;
+			}
+		}
+		return false;
+	}
+
 	public boolean containsClassInstanceCreation() {
 		if(!createdTypes.isEmpty())
 			return true;
@@ -1166,6 +1179,17 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			if(abstractVariable instanceof CompositeVariable) {
 				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
 				if(compositeVariable.getName().equals(variableDeclaration))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean accessesReference(VariableDeclaration variableDeclaration) {
+		for(AbstractVariable abstractVariable : usedVariables) {
+			if(abstractVariable instanceof PlainVariable) {
+				PlainVariable plainVariable = (PlainVariable)abstractVariable;
+				if(plainVariable.getName().equals(variableDeclaration))
 					return true;
 			}
 		}

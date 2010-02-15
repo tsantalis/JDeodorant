@@ -12,6 +12,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -82,7 +83,10 @@ public class PDGObjectSliceUnion {
 			removableNodes.addAll(sliceUnion.getRemovableNodes());
 		}
 		for(PDGNode node : getSliceNodes()) {
-			if(node.declaresLocalVariable(objectReference) && !removableNodes.contains(node)) {
+			IVariableBinding objectReferenceBinding = objectReference.getName().resolveBinding();
+			if(node.declaresLocalVariable(objectReference) ||
+					((objectReferenceBinding.isField() || objectReferenceBinding.isParameter()) &&
+					node.instantiatesLocalVariable(objectReference) && node.definesLocalVariable(objectReference))) {
 				removableNodes.add(node);
 				break;
 			}
@@ -175,7 +179,7 @@ public class PDGObjectSliceUnion {
 							PDGNode dstPDGNode = (PDGNode)dataDependence.dst;
 							if(removableNodes.contains(dstPDGNode)) {
 								if(dstPDGNode.changesStateOfReference(variableDeclaration) ||
-										dstPDGNode.assignsReference(variableDeclaration))
+										dstPDGNode.assignsReference(variableDeclaration) || dstPDGNode.accessesReference(variableDeclaration))
 									return true;
 							}
 						}

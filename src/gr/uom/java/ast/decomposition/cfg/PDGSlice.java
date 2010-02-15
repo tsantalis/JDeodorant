@@ -257,7 +257,7 @@ public class PDGSlice extends Graph {
 							PDGNode dstPDGNode = (PDGNode)dataDependence.dst;
 							if(removableNodes.contains(dstPDGNode)) {
 								if(dstPDGNode.changesStateOfReference(variableDeclaration) ||
-										dstPDGNode.assignsReference(variableDeclaration))
+										dstPDGNode.assignsReference(variableDeclaration) || dstPDGNode.accessesReference(variableDeclaration))
 									return true;
 							}
 						}

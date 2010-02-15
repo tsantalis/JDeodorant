@@ -155,8 +155,8 @@ public class PDG extends Graph {
 
 	private void processControlPredicate(PDGControlPredicateNode predicateNode) {
 		CFGBranchNode branchNode = (CFGBranchNode)predicateNode.getCFGNode();
-		if(branchNode instanceof CFGBranchConditionalNode) {
-			CFGBranchConditionalNode conditionalNode = (CFGBranchConditionalNode)branchNode;
+		if(branchNode instanceof CFGBranchIfNode) {
+			CFGBranchIfNode conditionalNode = (CFGBranchIfNode)branchNode;
 			Set<CFGNode> nestedNodesInTrueControlFlow = conditionalNode.getImmediatelyNestedNodesInTrueControlFlow();
 			for(CFGNode nestedNode : nestedNodesInTrueControlFlow) {
 				processCFGNode(predicateNode, nestedNode, true);

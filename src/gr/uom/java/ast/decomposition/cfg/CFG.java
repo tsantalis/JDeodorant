@@ -2,15 +2,21 @@ package gr.uom.java.ast.decomposition.cfg;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
+import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -27,11 +33,13 @@ public class CFG extends Graph {
 	private static final int JOIN_SECOND_FROM_TOP_LIST = 3;
 	private MethodObject method;
 	private Stack<List<CFGBranchConditionalNode>> unjoinedConditionalNodes;
+	private Map<CFGBranchSwitchNode, List<CFGNode>> switchBreakMap;
 	private BasicBlockCFG basicBlockCFG;
 	
 	public CFG(MethodObject method) {
 		this.method = method;
 		this.unjoinedConditionalNodes = new Stack<List<CFGBranchConditionalNode>>();
+		this.switchBreakMap = new LinkedHashMap<CFGBranchSwitchNode, List<CFGNode>>();
 		MethodBodyObject methodBody = method.getMethodBody();
 		if(methodBody != null) {
 			CompositeStatementObject composite = methodBody.getCompositeStatement();
@@ -62,7 +70,7 @@ public class CFG extends Graph {
 		for(AbstractStatement abstractStatement : composite.getStatements()) {
 			if(abstractStatement instanceof StatementObject) {
 				StatementObject statement = (StatementObject)abstractStatement;
-				previousNodes = processNonCompositeStatement(previousNodes, statement);
+				previousNodes = processNonCompositeStatement(previousNodes, statement, composite);
 			}
 			else if(abstractStatement instanceof CompositeStatementObject) {
 				CompositeStatementObject compositeStatement = (CompositeStatementObject)abstractStatement;
@@ -114,92 +122,12 @@ public class CFG extends Graph {
 					currentNodes.add(currentNode);
 					previousNodes = currentNodes;
 				}
+				else if(compositeStatement.getStatement() instanceof SwitchStatement) {
+					int action = getAction(composite, i, compositeStatement);
+					previousNodes = processSwitchStatement(previousNodes, compositeStatement, action);
+				}
 				else if(compositeStatement.getStatement() instanceof IfStatement) {
-					int action = PUSH_NEW_LIST;
-					List<AbstractStatement> statements = new ArrayList<AbstractStatement>(composite.getStatements());
-					CompositeStatementObject parent = statements.get(0).getParent();
-					if(parent.getStatement() instanceof Block)
-						parent = parent.getParent();
-					int position = i;
-					while(parent != null && parent.getStatement() instanceof TryStatement) {
-						CompositeStatementObject tryStatement = parent;
-						CompositeStatementObject tryStatementParent = tryStatement.getParent();
-						List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
-						if(tryStatementParent.getStatement() instanceof Block)
-							tryStatementParent = tryStatementParent.getParent();
-						int positionOfTryStatementInParent = 0;
-						int j = 0;
-						for(AbstractStatement statement : tryParentStatements) {
-							if(statement.equals(tryStatement)) {
-								positionOfTryStatementInParent = j;
-								break;
-							}
-							j++;
-						}
-						tryParentStatements.remove(tryStatement);
-						tryParentStatements.addAll(positionOfTryStatementInParent, statements);
-						statements = tryParentStatements;
-						parent = tryStatementParent;
-						position = positionOfTryStatementInParent + position;
-					}
-					if(statements.size() == 1) {
-						action = JOIN_TOP_LIST;
-						if(parent != null) {
-							if(isLoop(parent))
-								action = PUSH_NEW_LIST;
-							else if(parent.getStatement() instanceof DoStatement)
-								action = PLACE_NEW_LIST_SECOND_FROM_TOP;
-						}
-					}
-					else if(statements.size() > 1) {
-						AbstractStatement previousStatement = null;
-						if(position >= 1)
-							previousStatement = statements.get(position-1);
-						int j = 0;
-						while(previousStatement != null && previousStatement.getStatement() instanceof TryStatement) {
-							CompositeStatementObject tryStatement = (CompositeStatementObject)previousStatement;
-							AbstractStatement firstStatement = tryStatement.getStatements().get(0);
-							if(firstStatement instanceof CompositeStatementObject) {
-								CompositeStatementObject tryBlock = (CompositeStatementObject)firstStatement;
-								List<AbstractStatement> tryBlockStatements = tryBlock.getStatements();
-								if(tryBlockStatements.size() > 0) {
-									//previous statement is the last statement of this try block
-									previousStatement = tryBlockStatements.get(tryBlockStatements.size()-1);
-								}
-								else {
-									//try block is empty and previous statement is the statement before this try block
-									if(position >= 2+j)
-										previousStatement = statements.get(position-2-j);
-									else
-										previousStatement = null;
-								}
-							}
-							j++;
-						}
-						if(statements.get(statements.size()-1).equals(compositeStatement)) {
-							//current if statement is the last statement of the composite statement
-							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement) {
-								action = JOIN_SECOND_FROM_TOP_LIST;
-								if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
-									action = PLACE_NEW_LIST_SECOND_FROM_TOP;
-							}
-							else {
-								action = JOIN_TOP_LIST;
-								if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
-									action = PUSH_NEW_LIST;
-							}
-						}
-						else {
-							if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
-								action = PLACE_NEW_LIST_SECOND_FROM_TOP;
-							else {
-								action = PUSH_NEW_LIST;
-								if(parent != null && parent.getStatement() instanceof DoStatement &&
-										statements.get(0).getStatement() instanceof IfStatement)
-									action = PLACE_NEW_LIST_SECOND_FROM_TOP;
-							}
-						}
-					}
+					int action = getAction(composite, i, compositeStatement);
 					previousNodes = processIfStatement(previousNodes, compositeStatement, action);
 				}
 			}
@@ -208,52 +136,174 @@ public class CFG extends Graph {
 		return previousNodes;
 	}
 
-	private List<CFGNode> processNonCompositeStatement(List<CFGNode> previousNodes, StatementObject statement) {
+	private int getAction(CompositeStatementObject parentComposite, int i, CompositeStatementObject childComposite) {
+		int action = PUSH_NEW_LIST;
+		List<AbstractStatement> statements = new ArrayList<AbstractStatement>(parentComposite.getStatements());
+		CompositeStatementObject parent = statements.get(0).getParent();
+		if(parent.getStatement() instanceof Block)
+			parent = parent.getParent();
+		int position = i;
+		while(parent != null && parent.getStatement() instanceof TryStatement) {
+			CompositeStatementObject tryStatement = parent;
+			CompositeStatementObject tryStatementParent = tryStatement.getParent();
+			List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
+			if(tryStatementParent.getStatement() instanceof Block)
+				tryStatementParent = tryStatementParent.getParent();
+			int positionOfTryStatementInParent = 0;
+			int j = 0;
+			for(AbstractStatement statement : tryParentStatements) {
+				if(statement.equals(tryStatement)) {
+					positionOfTryStatementInParent = j;
+					break;
+				}
+				j++;
+			}
+			tryParentStatements.remove(tryStatement);
+			tryParentStatements.addAll(positionOfTryStatementInParent, statements);
+			statements = tryParentStatements;
+			parent = tryStatementParent;
+			position = positionOfTryStatementInParent + position;
+		}
+		if(statements.size() == 1) {
+			action = JOIN_TOP_LIST;
+			if(parent != null) {
+				if(isLoop(parent))
+					action = PUSH_NEW_LIST;
+				else if(parent.getStatement() instanceof DoStatement)
+					action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+			}
+		}
+		else if(statements.size() > 1) {
+			AbstractStatement previousStatement = null;
+			if(position >= 1)
+				previousStatement = statements.get(position-1);
+			int j = 0;
+			while(previousStatement != null && previousStatement.getStatement() instanceof TryStatement) {
+				CompositeStatementObject tryStatement = (CompositeStatementObject)previousStatement;
+				AbstractStatement firstStatement = tryStatement.getStatements().get(0);
+				if(firstStatement instanceof CompositeStatementObject) {
+					CompositeStatementObject tryBlock = (CompositeStatementObject)firstStatement;
+					List<AbstractStatement> tryBlockStatements = tryBlock.getStatements();
+					if(tryBlockStatements.size() > 0) {
+						//previous statement is the last statement of this try block
+						previousStatement = tryBlockStatements.get(tryBlockStatements.size()-1);
+					}
+					else {
+						//try block is empty and previous statement is the statement before this try block
+						if(position >= 2+j)
+							previousStatement = statements.get(position-2-j);
+						else
+							previousStatement = null;
+					}
+				}
+				j++;
+			}
+			if(statements.get(statements.size()-1).equals(childComposite)) {
+				//current if statement is the last statement of the composite statement
+				if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement) {
+					action = JOIN_SECOND_FROM_TOP_LIST;
+					if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
+						action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+				}
+				else {
+					action = JOIN_TOP_LIST;
+					if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
+						action = PUSH_NEW_LIST;
+				}
+			}
+			else {
+				if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
+					action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+				else {
+					action = PUSH_NEW_LIST;
+					if(parent != null && parent.getStatement() instanceof DoStatement &&
+							statements.get(0).getStatement() instanceof IfStatement)
+						action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+				}
+			}
+		}
+		return action;
+	}
+
+	private List<CFGNode> processNonCompositeStatement(List<CFGNode> previousNodes, StatementObject statement,
+			CompositeStatementObject composite) {
 		//special handling of break, continue, return
 		CFGNode currentNode = null;
-		if(statement.getStatement() instanceof ReturnStatement)
+		Statement astStatement = statement.getStatement();
+		if(astStatement instanceof ReturnStatement)
 			currentNode = new CFGExitNode(statement);
 		else
 			currentNode = new CFGNode(statement);
 		nodes.add(currentNode);
-		createTopDownFlow(previousNodes, currentNode);
+		if((astStatement instanceof BreakStatement || astStatement instanceof ReturnStatement) &&
+				composite.getStatement() instanceof SwitchStatement) {
+			CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
+			if(switchBreakMap.containsKey(switchNode)) {
+				List<CFGNode> breakList = switchBreakMap.get(switchNode);
+				breakList.add(currentNode);
+			}
+			else {
+				List<CFGNode> breakList = new ArrayList<CFGNode>();
+				breakList.add(currentNode);
+				switchBreakMap.put(switchNode, breakList);
+			}
+			createTopDownFlow(previousNodes, currentNode);
+		}
+		else if(astStatement instanceof SwitchCase) {
+			SwitchCase switchCase = (SwitchCase)astStatement;
+			if(previousNodesContainBreakOrReturn(previousNodes)) {
+				CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
+				Flow flow = new Flow(switchNode, currentNode);
+				if(switchCase.isDefault())
+					flow.setFalseControlFlow(true);
+				else
+					flow.setTrueControlFlow(true);
+				edges.add(flow);
+			}
+			else
+				createTopDownFlow(previousNodes, currentNode);
+		}
+		else
+			createTopDownFlow(previousNodes, currentNode);
 		ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
 		currentNodes.add(currentNode);
 		previousNodes = currentNodes;
 		return previousNodes;
 	}
 
+	private boolean previousNodesContainBreakOrReturn(List<CFGNode> previousNodes) {
+		for(CFGNode previousNode : previousNodes) {
+			Statement statement = previousNode.getASTStatement();
+			if(statement instanceof BreakStatement || statement instanceof ReturnStatement)
+				return true;
+		}
+		return false;
+	}
+
+	private List<CFGNode> processSwitchStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement, int action) {
+		CFGBranchSwitchNode currentNode = new CFGBranchSwitchNode(compositeStatement);
+		handleAction(currentNode, action);
+		nodes.add(currentNode);
+		createTopDownFlow(previousNodes, currentNode);
+		previousNodes = new ArrayList<CFGNode>();
+		ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
+		currentNodes.add(currentNode);
+		previousNodes.addAll(process(currentNodes, compositeStatement));
+		List<CFGNode> breakList = switchBreakMap.get(currentNode);
+		if(breakList != null) {
+			for(CFGNode node : breakList) {
+				if(!previousNodes.contains(node))
+					previousNodes.add(node);
+			}
+		}
+		if(currentNode.getFalseControlFlow() == null)
+			previousNodes.add(currentNode);
+		return previousNodes;
+	}
+
 	private List<CFGNode> processIfStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement, int action) {
-		CFGBranchConditionalNode currentNode = new CFGBranchConditionalNode(compositeStatement);
-		if(action == JOIN_TOP_LIST && !unjoinedConditionalNodes.empty()) {
-			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.peek();
-			topList.add(currentNode);
-		}
-		else if(action == JOIN_SECOND_FROM_TOP_LIST) {
-			if(unjoinedConditionalNodes.size() > 1) {
-				List<CFGBranchConditionalNode> list = unjoinedConditionalNodes.elementAt(unjoinedConditionalNodes.size()-2);
-				list.add(currentNode);
-			}
-			else {
-				List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
-				List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
-				list.add(currentNode);
-				unjoinedConditionalNodes.push(list);
-				unjoinedConditionalNodes.push(topList);
-			}
-		}
-		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP && !unjoinedConditionalNodes.empty()) {
-			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
-			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
-			list.add(currentNode);
-			unjoinedConditionalNodes.push(list);
-			unjoinedConditionalNodes.push(topList);
-		}
-		else {
-			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
-			list.add(currentNode);
-			unjoinedConditionalNodes.push(list);
-		}
+		CFGBranchIfNode currentNode = new CFGBranchIfNode(compositeStatement);
+		handleAction(currentNode, action);
 		
 		nodes.add(currentNode);
 		createTopDownFlow(previousNodes, currentNode);
@@ -305,6 +355,38 @@ public class CFG extends Graph {
 		return previousNodes;
 	}
 
+	private void handleAction(CFGBranchConditionalNode currentNode, int action) {
+		if(action == JOIN_TOP_LIST && !unjoinedConditionalNodes.empty()) {
+			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.peek();
+			topList.add(currentNode);
+		}
+		else if(action == JOIN_SECOND_FROM_TOP_LIST) {
+			if(unjoinedConditionalNodes.size() > 1) {
+				List<CFGBranchConditionalNode> list = unjoinedConditionalNodes.elementAt(unjoinedConditionalNodes.size()-2);
+				list.add(currentNode);
+			}
+			else {
+				List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
+				List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
+				list.add(currentNode);
+				unjoinedConditionalNodes.push(list);
+				unjoinedConditionalNodes.push(topList);
+			}
+		}
+		else if(action == PLACE_NEW_LIST_SECOND_FROM_TOP && !unjoinedConditionalNodes.empty()) {
+			List<CFGBranchConditionalNode> topList = unjoinedConditionalNodes.pop();
+			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
+			list.add(currentNode);
+			unjoinedConditionalNodes.push(list);
+			unjoinedConditionalNodes.push(topList);
+		}
+		else {
+			List<CFGBranchConditionalNode> list = new ArrayList<CFGBranchConditionalNode>();
+			list.add(currentNode);
+			unjoinedConditionalNodes.push(list);
+		}
+	}
+
 	private void createTopDownFlow(List<CFGNode> previousNodes, CFGNode currentNode) {
 		for(CFGNode previousNode : previousNodes) {
 			Flow flow = new Flow(previousNode, currentNode);
@@ -347,6 +429,19 @@ public class CFG extends Graph {
 		for(CFGNode key : nextNodeCounterMap.keySet()) {
 			if(nextNodeCounterMap.get(key) == nodes.size())
 				return key;
+		}
+		return null;
+	}
+
+	private CFGBranchSwitchNode getMostRecentSwitchNode() {
+		for(int i=unjoinedConditionalNodes.size()-1; i>=0; i--) {
+			List<CFGBranchConditionalNode> unjoinedConditionalNodeList = unjoinedConditionalNodes.get(i);
+			for(int j=unjoinedConditionalNodeList.size()-1; j>=0; j--) {
+				CFGBranchConditionalNode conditionalNode = unjoinedConditionalNodeList.get(j);
+				if(conditionalNode instanceof CFGBranchSwitchNode) {
+					return (CFGBranchSwitchNode)conditionalNode;
+				}
+			}
 		}
 		return null;
 	}

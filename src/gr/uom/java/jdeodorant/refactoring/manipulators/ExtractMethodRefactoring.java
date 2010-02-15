@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -38,6 +39,8 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -340,6 +343,42 @@ public class ExtractMethodRefactoring extends Refactoring {
 			sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
 			if(numberOfFalseControlDependencies > 0)
 				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+		}
+		else if(oldPredicateStatement instanceof SwitchStatement) {
+			SwitchStatement oldSwitchStatement = (SwitchStatement)oldPredicateStatement;
+			SwitchStatement newSwitchStatement = ast.newSwitchStatement();
+			newPredicateStatement = newSwitchStatement;
+			sourceRewriter.set(newSwitchStatement, SwitchStatement.EXPRESSION_PROPERTY, oldSwitchStatement.getExpression(), null);
+			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
+			Iterator<GraphEdge> outgoingDependenceIterator = predicateNode.getOutgoingDependenceIterator();
+			while(outgoingDependenceIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
+				if(dependence instanceof PDGControlDependence) {
+					PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+					PDGNode dstPDGNode = (PDGNode)controlDependence.getDst();
+					if(sliceNodes.contains(dstPDGNode)) {
+						if(dstPDGNode instanceof PDGControlPredicateNode) {
+							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
+							switchStatementsRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+						}
+						else {
+							switchStatementsRewrite.insertLast(dstPDGNode.getASTStatement(), null);
+							sliceNodes.remove(dstPDGNode);
+						}
+					}
+					else {
+						Statement astStatement = dstPDGNode.getASTStatement();
+						if(astStatement instanceof SwitchCase) {
+							SwitchCase switchCase = (SwitchCase)astStatement;
+							switchStatementsRewrite.insertLast(switchCase, null);
+						}
+						else if(astStatement instanceof BreakStatement) {
+							BreakStatement breakStatement = (BreakStatement)astStatement;
+							switchStatementsRewrite.insertLast(breakStatement, null);
+						}
+					}
+				}
+			}
 		}
 		else {
 			Block loopBlock = ast.newBlock();

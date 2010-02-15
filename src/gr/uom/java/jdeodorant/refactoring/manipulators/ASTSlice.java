@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.WhileStatement;
@@ -221,6 +222,12 @@ public class ASTSlice {
 				DoStatement doStatement = (DoStatement)statement;
 				Expression doExpression = doStatement.getExpression();
 				Position position = new Position(doExpression.getStartPosition(), doExpression.getLength());
+				positionMap.put(position, sliceNode.getAnnotation());
+			}
+			else if(statement instanceof SwitchStatement) {
+				SwitchStatement switchStatement = (SwitchStatement)statement;
+				Expression switchExpression = switchStatement.getExpression();
+				Position position = new Position(switchExpression.getStartPosition(), switchExpression.getLength());
 				positionMap.put(position, sliceNode.getAnnotation());
 			}
 			else {

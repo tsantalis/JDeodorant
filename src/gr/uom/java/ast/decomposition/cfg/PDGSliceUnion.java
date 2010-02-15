@@ -87,7 +87,7 @@ public class PDGSliceUnion {
 		List<PDGNode> sliceNodesInReverseOrder = new ArrayList<PDGNode>(sliceNodes);
 		Collections.reverse(sliceNodesInReverseOrder);
 		for(PDGNode sliceNode : sliceNodesInReverseOrder) {
-			if(sliceNode.getCFGNode() instanceof CFGBranchConditionalNode) {
+			if(sliceNode.getCFGNode() instanceof CFGBranchIfNode) {
 				int numberOfControlDependentNodes = 0;
 				int numberOfRemovableControlDependentNodes = 0;
 				for(GraphEdge edge : sliceNode.outgoingEdges) {

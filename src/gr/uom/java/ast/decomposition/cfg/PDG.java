@@ -222,15 +222,18 @@ public class PDG extends Graph {
 		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
 			Flow flow = (Flow)edge;
 			if(!visitedFromLoopbackFlow || (visitedFromLoopbackFlow && flow.isFalseControlFlow())) {
+				CFGNode srcCFGNode = (CFGNode)flow.src;
 				CFGNode dstCFGNode = (CFGNode)flow.dst;
 				PDGNode dstPDGNode = dstCFGNode.getPDGNode();
 				ReachingAliasSet reachingAliasSetCopy = reachingAliasSet.copy();
 				dstPDGNode.applyReachingAliasSet(reachingAliasSetCopy);
 				dstPDGNode.updateReachingAliasSet(reachingAliasSetCopy);
-				if(flow.isLoopbackFlow())
-					aliasSearch(dstPDGNode, true, reachingAliasSetCopy);
-				else
-					aliasSearch(dstPDGNode, false, reachingAliasSetCopy);
+				if(!(srcCFGNode instanceof CFGBranchDoLoopNode && flow.isTrueControlFlow())) {
+					if(flow.isLoopbackFlow())
+						aliasSearch(dstPDGNode, true, reachingAliasSetCopy);
+					else
+						aliasSearch(dstPDGNode, false, reachingAliasSetCopy);
+				}
 			}
 		}
 	}

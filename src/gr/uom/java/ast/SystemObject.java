@@ -11,6 +11,13 @@ import java.util.*;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -132,9 +139,73 @@ public class SystemObject {
             return -1;
     }
 
+    public Set<ClassObject> getClassObjects() {
+    	Set<ClassObject> classObjectSet = new LinkedHashSet<ClassObject>();
+    	classObjectSet.addAll(classList);
+    	return classObjectSet;
+    }
+
+    public Set<ClassObject> getClassObjects(IPackageFragment packageFragment) {
+    	Set<ClassObject> classObjectSet = new LinkedHashSet<ClassObject>();
+    	try {
+    		ICompilationUnit[] packageCompilationUnits = packageFragment.getCompilationUnits();
+			for(ICompilationUnit iCompilationUnit : packageCompilationUnits) {
+				classObjectSet.addAll(getClassObjects(iCompilationUnit));
+			}
+    	} catch(JavaModelException e) {
+			e.printStackTrace();
+		}
+    	return classObjectSet;
+    }
+
+    public Set<ClassObject> getClassObjects(ICompilationUnit compilationUnit) {
+    	Set<ClassObject> classObjectSet = new LinkedHashSet<ClassObject>();
+		try {
+			IType[] topLevelTypes = compilationUnit.getTypes();
+			for(IType type : topLevelTypes) {
+				classObjectSet.addAll(getClassObjects(type));
+			}
+		} catch(JavaModelException e) {
+			e.printStackTrace();
+		}
+    	return classObjectSet;
+    }
+
+    public Set<ClassObject> getClassObjects(IType type) {
+    	Set<ClassObject> classObjectSet = new LinkedHashSet<ClassObject>();
+    	String typeQualifiedName = type.getFullyQualifiedName('.');
+    	ClassObject classObject = getClassObject(typeQualifiedName);
+    	if(classObject != null)
+    		classObjectSet.add(classObject);
+    	try {
+			IType[] nestedTypes = type.getTypes();
+			for(IType nestedType : nestedTypes) {
+				classObjectSet.addAll(getClassObjects(nestedType));
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+    	return classObjectSet;
+    }
+
+    public Set<MethodObject> getMethodObjects(IMethod method) {
+    	Set<MethodObject> methodObjectSet = new LinkedHashSet<MethodObject>();
+    	IType declaringType = method.getDeclaringType();
+    	ClassObject classObject = getClassObject(declaringType.getFullyQualifiedName('.'));
+    	if(classObject != null) {
+    		ListIterator<MethodObject> mi = classObject.getMethodIterator();
+    		while(mi.hasNext()) {
+                MethodObject mo = mi.next();
+                List<TypeObject> parameterTypeList = mo.getParameterTypeList();
+                if(mo.getName().equals(method.getElementName()) && parameterTypeList.size() == method.getNumberOfParameters())
+                	methodObjectSet.add(mo);
+    		}
+    	}
+    	return methodObjectSet;
+    }
+
     public List<String> getClassNames() {
         List<String> names = new ArrayList<String>();
-
         for(int i=0; i<classList.size(); i++) {
             names.add(getClassObject(i).getName());
         }

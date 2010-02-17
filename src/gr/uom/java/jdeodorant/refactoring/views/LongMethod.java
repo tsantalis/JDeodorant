@@ -3,9 +3,11 @@ package gr.uom.java.jdeodorant.refactoring.views;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
@@ -26,9 +28,13 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -79,6 +85,9 @@ public class LongMethod extends ViewPart {
 	private Action renameMethodAction;
 	private IJavaProject selectedProject;
 	private IPackageFragment selectedPackage;
+	private ICompilationUnit selectedCompilationUnit;
+	private IType selectedType;
+	private IMethod selectedMethod;
 	private ASTSlice[] sliceTable;
 	
 	class ViewContentProvider implements IStructuredContentProvider {
@@ -166,11 +175,49 @@ public class LongMethod extends ViewPart {
 				if(element instanceof IJavaProject) {
 					javaProject = (IJavaProject)element;
 					selectedPackage = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
+					selectedMethod = null;
+				}
+				else if(element instanceof IPackageFragmentRoot) {
+					IPackageFragmentRoot packageFragmentRoot = (IPackageFragmentRoot)element;
+					javaProject = packageFragmentRoot.getJavaProject();
+					selectedPackage = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
+					selectedMethod = null;
 				}
 				else if(element instanceof IPackageFragment) {
 					IPackageFragment packageFragment = (IPackageFragment)element;
 					javaProject = packageFragment.getJavaProject();
 					selectedPackage = packageFragment;
+					selectedCompilationUnit = null;
+					selectedType = null;
+					selectedMethod = null;
+				}
+				else if(element instanceof ICompilationUnit) {
+					ICompilationUnit compilationUnit = (ICompilationUnit)element;
+					javaProject = compilationUnit.getJavaProject();
+					selectedCompilationUnit = compilationUnit;
+					selectedPackage = null;
+					selectedType = null;
+					selectedMethod = null;
+				}
+				else if(element instanceof IType) {
+					IType type = (IType)element;
+					javaProject = type.getJavaProject();
+					selectedType = type;
+					selectedPackage = null;
+					selectedCompilationUnit = null;
+					selectedMethod = null;
+				}
+				else if(element instanceof IMethod) {
+					IMethod method = (IMethod)element;
+					javaProject = method.getJavaProject();
+					selectedMethod = method;
+					selectedPackage = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
 				}
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
@@ -358,46 +405,58 @@ public class LongMethod extends ViewPart {
 	}
 
 	private ASTSlice[] getTable() {
-		if(selectedPackage != null)
-			new ASTReader(selectedPackage);
-		else
-			new ASTReader(selectedProject);
+		new ASTReader(selectedProject);
 		final SystemObject systemObject = ASTReader.getSystemObject();
+		final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+		final Set<MethodObject> methodObjectsToBeExamined = new LinkedHashSet<MethodObject>();
+		if(selectedPackage != null) {
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackage));
+		}
+		else if(selectedCompilationUnit != null) {
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+		}
+		else if(selectedType != null) {
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
+		}
+		else if(selectedMethod != null) {
+			methodObjectsToBeExamined.addAll(systemObject.getMethodObjects(selectedMethod));
+		}
+		else {
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+		}
 		final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
 		final List<PDGObjectSliceUnion> extractedObjectSlices = new ArrayList<PDGObjectSliceUnion>();
 		IWorkbenchWindow window = getSite().getWorkbenchWindow();
 		try {
 			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					monitor.beginTask("Identification of Extract Method refactoring opportunities", systemObject.getClassNumber());
-					ListIterator<ClassObject> classIterator = systemObject.getClassListIterator();
-					while(classIterator.hasNext()) {
-						if(monitor.isCanceled())
-							throw new OperationCanceledException();
-						ClassObject classObject = classIterator.next();
-						ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-						while(methodIterator.hasNext()) {
-							MethodObject methodObject = methodIterator.next();
-							if(methodObject.getMethodBody() != null) {
-								CFG cfg = new CFG(methodObject);
-								PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
-								for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
-									PlainVariable variable = new PlainVariable(declaration);
-									PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
-									for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-										extractedSlices.add(sliceUnion);
-									}
-								}
-								/*for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
-									PlainVariable variable = new PlainVariable(declaration);
-									PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
-									for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
-										extractedObjectSlices.add(objectSliceUnion);
-									}
-								}*/
+					if(!classObjectsToBeExamined.isEmpty()) {
+						int workSize = 0;
+						for(ClassObject classObject : classObjectsToBeExamined) {
+							workSize += classObject.getNumberOfMethods();
+						}
+						monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
+						for(ClassObject classObject : classObjectsToBeExamined) {
+							ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+							while(methodIterator.hasNext()) {
+								if(monitor.isCanceled())
+									throw new OperationCanceledException();
+								MethodObject methodObject = methodIterator.next();
+								processMethod(extractedSlices, extractedObjectSlices, classObject, methodObject);
+								monitor.worked(1);
 							}
 						}
-						monitor.worked(1);
+					}
+					else if(!methodObjectsToBeExamined.isEmpty()) {
+						int workSize = methodObjectsToBeExamined.size();
+						monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
+						for(MethodObject methodObject : methodObjectsToBeExamined) {
+							if(monitor.isCanceled())
+								throw new OperationCanceledException();
+							ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
+							processMethod(extractedSlices, extractedObjectSlices, classObject, methodObject);
+							monitor.worked(1);
+						}
 					}
 					monitor.done();
 				}
@@ -417,5 +476,27 @@ public class LongMethod extends ViewPart {
 			table[extractedSlices.size() + i] = astSlice;
 		}
 		return table;
+	}
+
+	private void processMethod(final List<PDGSliceUnion> extractedSlices, final List<PDGObjectSliceUnion> extractedObjectSlices,
+			ClassObject classObject, MethodObject methodObject) {
+		if(methodObject.getMethodBody() != null) {
+			CFG cfg = new CFG(methodObject);
+			PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
+			for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
+				PlainVariable variable = new PlainVariable(declaration);
+				PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
+				for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+					extractedSlices.add(sliceUnion);
+				}
+			}
+			for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
+				PlainVariable variable = new PlainVariable(declaration);
+				PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
+				for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
+					extractedObjectSlices.add(objectSliceUnion);
+				}
+			}
+		}
 	}
 }

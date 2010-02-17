@@ -1,6 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -16,6 +18,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jface.preference.IPreferenceStore;
 
 public class PDGObjectSliceUnion {
 	private PDG pdg;
@@ -252,13 +255,37 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
+	private boolean complyWithUserThresholds() {
+		IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+		int minimumSliceSize = store.getInt(PreferenceConstants.P_MINIMUM_SLICE_SIZE);
+		int maximumSliceSize = store.getInt(PreferenceConstants.P_MAXIMUM_SLICE_SIZE);
+		int maximumDuplication = store.getInt(PreferenceConstants.P_MAXIMUM_DUPLICATION);
+		double maximumRatioOfDuplicatedToExtracted = store.getDouble(
+				PreferenceConstants.P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED);
+		
+		int sliceSize = getSliceNodes().size();
+		int duplicatedSize = sliceSize - getRemovableNodes().size();
+		double ratioOfDuplicatedToExtracted = (double)duplicatedSize/(double)sliceSize;
+		
+		if(sliceSize < minimumSliceSize)
+			return false;
+		if(sliceSize > (methodSize - maximumSliceSize))
+			return false;
+		if(duplicatedSize > maximumDuplication)
+			return false;
+		if(ratioOfDuplicatedToExtracted > maximumRatioOfDuplicatedToExtracted)
+			return false;
+		return true;
+	}
+
 	public boolean satisfiesRules() {
 		if(objectSliceEqualsMethodBody() || objectSliceHasMinimumSize() ||
 				objectReferenceIsReturnedVariableInOriginalMethod() ||
 				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode() ||
 				containsDuplicateNodeWithStateChangingMethodInvocation() ||
 				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
-				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode())
+				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() ||
+				!complyWithUserThresholds())
 			return false;
 		return true;
 	}

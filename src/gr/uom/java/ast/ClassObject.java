@@ -242,6 +242,10 @@ public class ClassObject {
 		return interfaceList.contains(i);
 	}
 
+    public int getNumberOfMethods() {
+    	return methodList.size();
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         if(!access.equals(Access.NONE))

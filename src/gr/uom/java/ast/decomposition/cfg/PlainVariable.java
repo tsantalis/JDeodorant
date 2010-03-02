@@ -19,7 +19,11 @@ public class PlainVariable extends AbstractVariable {
 	}
 
 	public boolean containsPlainVariable(PlainVariable variable) {
-		return this.equals(variable);
+		if(this.name.equals(variable.name) ||
+				this.name.resolveBinding().isEqualTo(variable.name.resolveBinding()))
+			return true;
+		return false;
+		/*return this.equals(variable);*/
 	}
 
 	public boolean equals(Object o) {
@@ -28,9 +32,10 @@ public class PlainVariable extends AbstractVariable {
 		}
 		if(o instanceof PlainVariable) {
 			PlainVariable plain = (PlainVariable)o;
-			if(this.name.equals(plain.name) ||
+			return this.name.equals(plain.name);
+			/*if(this.name.equals(plain.name) ||
 					this.name.resolveBinding().isEqualTo(plain.name.resolveBinding()))
-			return true;
+			return true;*/
 		}
 		return false;
 	}

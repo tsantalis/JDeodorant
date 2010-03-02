@@ -10,6 +10,7 @@ import java.util.ListIterator;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class ClassObject {
@@ -63,6 +64,10 @@ public class ClassObject {
     public TypeDeclaration getTypeDeclaration() {
     	//return this.typeDeclaration;
     	return (TypeDeclaration)this.typeDeclaration.recoverASTNode();
+    }
+
+    public ITypeRoot getITypeRoot() {
+    	return typeDeclaration.getITypeRoot();
     }
 
     public IFile getIFile() {

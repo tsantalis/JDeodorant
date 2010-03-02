@@ -26,6 +26,10 @@ public class ASTInformation {
 		return astNode;
 	}
 	
+	public ITypeRoot getITypeRoot() {
+		return iTypeRoot;
+	}
+	
 	public boolean equals(Object o) {
 		if(this == o) {
 			return true;

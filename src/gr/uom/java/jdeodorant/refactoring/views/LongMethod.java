@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -481,6 +482,8 @@ public class LongMethod extends ViewPart {
 	private void processMethod(final List<PDGSliceUnion> extractedSlices, final List<PDGObjectSliceUnion> extractedObjectSlices,
 			ClassObject classObject, MethodObject methodObject) {
 		if(methodObject.getMethodBody() != null) {
+			ITypeRoot typeRoot = classObject.getITypeRoot();
+			CompilationUnitCache.getInstance().lock(typeRoot);
 			CFG cfg = new CFG(methodObject);
 			PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
 			for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
@@ -497,6 +500,7 @@ public class LongMethod extends ViewPart {
 					extractedObjectSlices.add(objectSliceUnion);
 				}
 			}
+			CompilationUnitCache.getInstance().releaseLock();
 		}
 	}
 }

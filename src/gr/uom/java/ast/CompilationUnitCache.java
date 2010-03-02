@@ -3,7 +3,6 @@ package gr.uom.java.ast;
 import java.util.LinkedList;
 
 import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -15,6 +14,7 @@ public class CompilationUnitCache {
 	private static final int MAXIMUM_CACHE_SIZE = 5;
 	private LinkedList<ITypeRoot> iTypeRootList;
 	private LinkedList<CompilationUnit> compilationUnitList;
+	private ITypeRoot lockedTypeRoot;
 
 	private CompilationUnitCache() {
 		this.iTypeRootList = new LinkedList<ITypeRoot>();
@@ -50,8 +50,21 @@ public class CompilationUnitCache {
 					compilationUnitList.add(compilationUnit);
 				}
 				else {
-					iTypeRootList.removeFirst();
-					compilationUnitList.removeFirst();
+					if(lockedTypeRoot != null) {
+						ITypeRoot firstTypeRoot = iTypeRootList.get(0);
+						if(lockedTypeRoot.equals(firstTypeRoot)) {
+							iTypeRootList.remove(1);
+							compilationUnitList.remove(1);
+						}
+						else {
+							iTypeRootList.removeFirst();
+							compilationUnitList.removeFirst();
+						}
+					}
+					else {
+						iTypeRootList.removeFirst();
+						compilationUnitList.removeFirst();
+					}
 					iTypeRootList.add(iTypeRoot);
 					compilationUnitList.add(compilationUnit);
 				}
@@ -60,12 +73,12 @@ public class CompilationUnitCache {
 		}
 	}
 
-	public void removeCompilationUnit(ICompilationUnit iCompilationUnit) {
-		int position = iTypeRootList.indexOf(iCompilationUnit);
-		if(position != -1) {
-			iTypeRootList.remove(position);
-			compilationUnitList.remove(position);
-		}
+	public void lock(ITypeRoot iTypeRoot) {
+		lockedTypeRoot = iTypeRoot;
+	}
+
+	public void releaseLock() {
+		lockedTypeRoot = null;
 	}
 
 	public void clearCache() {

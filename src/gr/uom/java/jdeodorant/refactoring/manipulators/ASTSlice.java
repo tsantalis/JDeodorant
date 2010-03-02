@@ -43,6 +43,7 @@ public class ASTSlice {
 	private boolean declarationOfVariableCriterionBelongsToRemovableNodes;
 	private IFile iFile;
 	private BasicBlock boundaryBlock;
+	private boolean isObjectSlice;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
 		this.sourceMethodDeclaration = pdgSlice.getMethod().getMethodDeclaration();
@@ -67,6 +68,7 @@ public class ASTSlice {
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSlice.declarationOfVariableCriterionBelongsToRemovableNodes();
 		this.iFile = pdgSlice.getIFile();
 		this.boundaryBlock = pdgSlice.getBoundaryBlock();
+		this.isObjectSlice = false;
 	}
 
 	public ASTSlice(PDGSliceUnion pdgSliceUnion) {
@@ -92,6 +94,7 @@ public class ASTSlice {
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
 		this.iFile = pdgSliceUnion.getIFile();
 		this.boundaryBlock = pdgSliceUnion.getBoundaryBlock();
+		this.isObjectSlice = false;
 	}
 
 	public ASTSlice(PDGObjectSliceUnion pdgObjectSliceUnion) {
@@ -117,6 +120,7 @@ public class ASTSlice {
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgObjectSliceUnion.declarationOfObjectReferenceBelongsToRemovableNodes();
 		this.iFile = pdgObjectSliceUnion.getIFile();
 		this.boundaryBlock = pdgObjectSliceUnion.getBoundaryBlock();
+		this.isObjectSlice = true;
 	}
 
 	public TypeDeclaration getSourceTypeDeclaration() {
@@ -173,6 +177,10 @@ public class ASTSlice {
 
 	public BasicBlock getBoundaryBlock() {
 		return boundaryBlock;
+	}
+
+	public boolean isObjectSlice() {
+		return isObjectSlice;
 	}
 
 	public Map<Position, String> getHighlightPositions() {

@@ -11,11 +11,10 @@ import java.util.*;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
-import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -212,7 +211,8 @@ public class SystemObject {
         return names;
     }
 
-    public TypeCheckEliminationResults generateTypeCheckEliminations() {
+    public TypeCheckEliminationResults generateTypeCheckEliminations(IProgressMonitor monitor) {
+    	monitor.beginTask("Identification of Type Checking code smells", classList.size());
     	TypeCheckEliminationResults typeCheckEliminationResults = new TypeCheckEliminationResults();
     	Map<TypeCheckElimination, List<SimpleName>> staticFieldMap = new LinkedHashMap<TypeCheckElimination, List<SimpleName>>();
     	Map<Integer, ArrayList<TypeCheckElimination>> staticFieldRankMap = new TreeMap<Integer, ArrayList<TypeCheckElimination>>();
@@ -366,6 +366,7 @@ public class SystemObject {
     				}
     			}
     		}
+    		monitor.worked(1);
     	}
     	for(String rootNode : inheritanceTreeMap.keySet()) {
     		ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(rootNode);
@@ -421,6 +422,7 @@ public class SystemObject {
     		sortedEliminations.removeAll(affectedEliminations);
     	}
     	identifySuperFieldAccessorMethods(typeCheckEliminationResults.getTypeCheckEliminations());
+    	monitor.done();
     	return typeCheckEliminationResults;
     }
 

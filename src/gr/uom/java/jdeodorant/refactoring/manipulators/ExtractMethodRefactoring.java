@@ -31,10 +31,12 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -155,14 +157,24 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 		}
 		else {
-			Assignment assignment = ast.newAssignment();
-			sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
-			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
-			ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
-			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
-			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
-			blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
+			//variable criterion is field, parameter, or local variable whose declaration does not belong to slice nodes
+			if(!slice.isObjectSlice()) {
+				Assignment assignment = ast.newAssignment();
+				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
+				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
+				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
+				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
+			}
+			else {
+				ExpressionStatement expressionStatement = ast.newExpressionStatement(extractedMethodInvocation);
+				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
+			}
 		}
 		
 		for(Statement removableStatement : slice.getRemovableStatements()) {
@@ -206,7 +218,12 @@ public class ExtractMethodRefactoring extends Refactoring {
 		}
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
-		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnedVariableType, null);
+		IVariableBinding returnedVariableBinding = returnedVariableDeclaration.resolveBinding();
+		if(slice.isObjectSlice() && (returnedVariableBinding.isField() || returnedVariableBinding.isParameter() ||
+				!slice.declarationOfVariableCriterionBelongsToSliceNodes()))
+			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
+		else
+			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnedVariableType, null);
 		
 		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
@@ -283,9 +300,12 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 		}
 		
-		ReturnStatement returnStatement = newMethodBody.getAST().newReturnStatement();
-		sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariableSimpleName, null);
-		bodyRewrite.insertLast(returnStatement, null);
+		if(!slice.isObjectSlice() || (!returnedVariableBinding.isField() && !returnedVariableBinding.isParameter() &&
+				slice.declarationOfVariableCriterionBelongsToSliceNodes())) {
+			ReturnStatement returnStatement = newMethodBody.getAST().newReturnStatement();
+			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariableSimpleName, null);
+			bodyRewrite.insertLast(returnStatement, null);
+		}
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 		

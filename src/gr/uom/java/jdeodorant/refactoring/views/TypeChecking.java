@@ -9,6 +9,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateS
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationResults;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -17,6 +18,7 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -26,6 +28,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -368,8 +371,19 @@ public class TypeChecking extends ViewPart {
 			new ASTReader(selectedPackage);
 		else
 			new ASTReader(selectedProject);
-		SystemObject systemObject = ASTReader.getSystemObject();
-		typeCheckEliminationResults = systemObject.generateTypeCheckEliminations();
+		final SystemObject systemObject = ASTReader.getSystemObject();
+		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		try {
+			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
+			     public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+			    	 typeCheckEliminationResults = systemObject.generateTypeCheckEliminations(monitor);
+			     }
+			});
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();
 		TypeCheckElimination[] table = new TypeCheckElimination[typeCheckEliminations.size()];
 		int i = 0;

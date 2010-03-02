@@ -28,7 +28,9 @@ public class PlainVariable extends AbstractVariable {
 		}
 		if(o instanceof PlainVariable) {
 			PlainVariable plain = (PlainVariable)o;
-			return this.name.equals(plain.name);
+			if(this.name.equals(plain.name) ||
+					this.name.resolveBinding().isEqualTo(plain.name.resolveBinding()))
+			return true;
 		}
 		return false;
 	}

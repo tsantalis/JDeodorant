@@ -28,11 +28,12 @@ public class PropertyManagerPreferencePage
 	private IntegerFieldEditor maximumSliceSizeFieldEditor;
 	private IntegerFieldEditor maximumDuplicationFieldEditor;
 	private StringFieldEditor maximumRatioOfDuplicatedToExtractedFieldEditor;
+	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
 	
 	public PropertyManagerPreferencePage() {
 		super(GRID);
 		setPreferenceStore(Activator.getDefault().getPreferenceStore());
-		setDescription("Slice Extraction Threshold Preferences");
+		setDescription("Slice Extraction Preferences");
 	}
 	
 	/**
@@ -65,6 +66,11 @@ public class PropertyManagerPreferencePage
 				"&Maximum ratio of duplicated to extracted statements:", getFieldEditorParent());
 		maximumRatioOfDuplicatedToExtractedFieldEditor.setEmptyStringAllowed(false);
 		addField(maximumRatioOfDuplicatedToExtractedFieldEditor);
+		
+		enableAliasAnalysisFieldEditor = new BooleanFieldEditor(
+				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,
+				"&Enable Alias Analysis:", getFieldEditorParent());
+		addField(enableAliasAnalysisFieldEditor);
 	}
 
 	protected void checkState() {

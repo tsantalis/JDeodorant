@@ -4,6 +4,8 @@ import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -14,6 +16,7 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jface.preference.IPreferenceStore;
 
 public class PDG extends Graph {
 	private CFG cfg;
@@ -51,7 +54,10 @@ public class PDG extends Graph {
 		}
 		createControlDependenciesFromEntryNode();
 		if(!nodes.isEmpty()) {
-			performAliasAnalysis();
+			IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+			boolean enabledAliasAnalysis = store.getBoolean(PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS);
+			if(enabledAliasAnalysis)
+				performAliasAnalysis();
 			createDataDependencies();
 		}
 		this.dominatedBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();

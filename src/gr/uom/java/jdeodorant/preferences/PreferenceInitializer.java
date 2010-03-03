@@ -21,6 +21,7 @@ public class PreferenceInitializer extends AbstractPreferenceInitializer {
 		store.setDefault(PreferenceConstants.P_MAXIMUM_SLICE_SIZE, 0);
 		store.setDefault(PreferenceConstants.P_MAXIMUM_DUPLICATION, 100);
 		store.setDefault(PreferenceConstants.P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED, 1.0);
+		store.setDefault(PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS, false);
 	}
 
 }

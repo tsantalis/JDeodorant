@@ -92,7 +92,10 @@ public class CFG extends Graph {
 					for(CFGNode previousNode : previousNodes) {
 						Flow flow = new Flow(previousNode, currentNode);
 						if(previousNode instanceof CFGBranchNode) {
-							flow.setFalseControlFlow(true);
+							if(previousNode.equals(currentNode))
+								flow.setTrueControlFlow(true);
+							else
+								flow.setFalseControlFlow(true);
 						}
 						flow.setLoopbackFlow(true);
 						edges.add(flow);

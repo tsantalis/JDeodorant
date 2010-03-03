@@ -13,4 +13,5 @@ public class PreferenceConstants {
 
 	public static final String P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED = "maximumRatioOfDuplicatedToExtractedPreference";
 	
+	public static final String P_ENABLE_ALIAS_ANALYSIS = "enableAliasAnalysisPreference";
 }

@@ -11,7 +11,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 public class CompilationUnitCache {
 
 	private static CompilationUnitCache instance;
-	private static final int MAXIMUM_CACHE_SIZE = 5;
+	private static final int MAXIMUM_CACHE_SIZE = 10;
 	private LinkedList<ITypeRoot> iTypeRootList;
 	private LinkedList<CompilationUnit> compilationUnitList;
 	private ITypeRoot lockedTypeRoot;

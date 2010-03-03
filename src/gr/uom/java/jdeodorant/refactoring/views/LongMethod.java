@@ -1,5 +1,8 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -67,7 +70,10 @@ import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
@@ -84,6 +90,7 @@ public class LongMethod extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
+	private Action saveResultsAction;
 	private IJavaProject selectedProject;
 	private IPackageFragment selectedPackage;
 	private ICompilationUnit selectedCompilationUnit;
@@ -114,7 +121,7 @@ public class LongMethod extends ViewPart {
 				return "Extract Method";
 			case 1:
 				String declaringClass = entry.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
-				String methodName = entry.getSourceMethodDeclaration().getName().getIdentifier();
+				String methodName = entry.getSourceMethodDeclaration().resolveBinding().toString();
 				return declaringClass + "::" + methodName;
 			case 2:
 				return entry.getLocalVariableCriterion().toString();
@@ -227,6 +234,7 @@ public class LongMethod extends ViewPart {
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
+					saveResultsAction.setEnabled(false);
 				}
 			}
 		}
@@ -261,7 +269,7 @@ public class LongMethod extends ViewPart {
 		column2.setResizable(true);
 		column2.pack();
 		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
-		column3.setText("Boundary Block");
+		column3.setText("Block-Based Region");
 		column3.setResizable(true);
 		column3.pack();
 		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
@@ -284,6 +292,7 @@ public class LongMethod extends ViewPart {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(renameMethodAction);
+		manager.add(saveResultsAction);
 	}
 
 	private void makeActions() {
@@ -294,12 +303,23 @@ public class LongMethod extends ViewPart {
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
+				saveResultsAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
 		identifyBadSmellsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
 		identifyBadSmellsAction.setEnabled(false);
+		
+		saveResultsAction = new Action() {
+			public void run() {
+				saveResults();
+			}
+		};
+		saveResultsAction.setToolTipText("Save Results");
+		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
+		saveResultsAction.setEnabled(false);
 		
 		applyRefactoringAction = new Action() {
 			public void run() {
@@ -502,5 +522,40 @@ public class LongMethod extends ViewPart {
 			}
 			CompilationUnitCache.getInstance().releaseLock();
 		}
+	}
+
+	private void saveResults() {
+		FileDialog fd = new FileDialog(getSite().getWorkbenchWindow().getShell(), SWT.SAVE);
+		fd.setText("Save Results");
+        String[] filterExt = { "*.txt" };
+        fd.setFilterExtensions(filterExt);
+        String selected = fd.open();
+        if(selected != null) {
+        	try {
+        		BufferedWriter out = new BufferedWriter(new FileWriter(selected));
+        		Table table = tableViewer.getTable();
+        		TableColumn[] columns = table.getColumns();
+        		for(int i=0; i<columns.length; i++) {
+        			if(i == columns.length-1)
+        				out.write(columns[i].getText());
+        			else
+        				out.write(columns[i].getText() + "\t");
+        		}
+        		out.newLine();
+        		for(int i=0; i<table.getItemCount(); i++) {
+        			TableItem tableItem = table.getItem(i);
+        			for(int j=0; j<table.getColumnCount(); j++) {
+        				if(j == table.getColumnCount()-1)
+        					out.write(tableItem.getText(j));
+        				else
+        					out.write(tableItem.getText(j) + "\t");
+        			}
+        			out.newLine();
+        		}
+        		out.close();
+        	} catch (IOException e) {
+        		e.printStackTrace();
+        	}
+        }
 	}
 }

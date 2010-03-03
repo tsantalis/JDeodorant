@@ -10,6 +10,9 @@ import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -19,6 +22,7 @@ import java.util.Set;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Table;
@@ -82,6 +86,7 @@ public class FeatureEnvy extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action renameMethodAction;
+	private Action saveResultsAction;
 	private IJavaProject selectedProject;
 	private IPackageFragment selectedPackage;
 	private CandidateRefactoring[] candidateRefactoringTable;
@@ -177,6 +182,7 @@ public class FeatureEnvy extends ViewPart {
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
+					saveResultsAction.setEnabled(false);
 				}
 			}
 		}
@@ -238,6 +244,7 @@ public class FeatureEnvy extends ViewPart {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(renameMethodAction);
+		manager.add(saveResultsAction);
 	}
 
 	private void makeActions() {
@@ -248,12 +255,23 @@ public class FeatureEnvy extends ViewPart {
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
+				saveResultsAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
 		identifyBadSmellsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
 		identifyBadSmellsAction.setEnabled(false);
+		
+		saveResultsAction = new Action() {
+			public void run() {
+				saveResults();
+			}
+		};
+		saveResultsAction.setToolTipText("Save Results");
+		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
+		saveResultsAction.setEnabled(false);
 		
 		applyRefactoringAction = new Action() {
 			public void run() {
@@ -565,5 +583,40 @@ public class FeatureEnvy extends ViewPart {
 			}
 			return false;
 		}
+	}
+
+	private void saveResults() {
+		FileDialog fd = new FileDialog(getSite().getWorkbenchWindow().getShell(), SWT.SAVE);
+		fd.setText("Save Results");
+        String[] filterExt = { "*.txt" };
+        fd.setFilterExtensions(filterExt);
+        String selected = fd.open();
+        if(selected != null) {
+        	try {
+        		BufferedWriter out = new BufferedWriter(new FileWriter(selected));
+        		Table table = tableViewer.getTable();
+        		TableColumn[] columns = table.getColumns();
+        		for(int i=0; i<columns.length; i++) {
+        			if(i == columns.length-1)
+        				out.write(columns[i].getText());
+        			else
+        				out.write(columns[i].getText() + "\t");
+        		}
+        		out.newLine();
+        		for(int i=0; i<table.getItemCount(); i++) {
+        			TableItem tableItem = table.getItem(i);
+        			for(int j=0; j<table.getColumnCount(); j++) {
+        				if(j == table.getColumnCount()-1)
+        					out.write(tableItem.getText(j));
+        				else
+        					out.write(tableItem.getText(j) + "\t");
+        			}
+        			out.newLine();
+        		}
+        		out.close();
+        	} catch (IOException e) {
+        		e.printStackTrace();
+        	}
+        }
 	}
 }

@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -77,11 +78,25 @@ public class LibraryClassStorage {
 	public Set<IType> getSubTypes(IType superType) {
 		if(subTypeMap.containsKey(superType)) {
 			Set<IType> subTypes = subTypeMap.get(superType);
-			return subTypes;
+			LinkedHashSet<IType> subTypesOfAbstractSubTypes = new LinkedHashSet<IType>();
+			try {
+				for(IType subType: subTypes) {
+					if(Flags.isAbstract(subType.getFlags()) && !subType.equals(superType)) {
+						subTypesOfAbstractSubTypes.addAll(getSubTypes(subType));
+					}
+				}
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+			LinkedHashSet<IType> finalSubTypes = new LinkedHashSet<IType>();
+			finalSubTypes.addAll(subTypes);
+			finalSubTypes.addAll(subTypesOfAbstractSubTypes);
+			return finalSubTypes;
 		}
 		else {
 			IPackageFragment packageFragment = superType.getPackageFragment();
 			final LinkedHashSet<IType> subTypes = new LinkedHashSet<IType>();
+			final LinkedHashSet<IType> subTypesOfAbstractSubTypes = new LinkedHashSet<IType>();
 			try {
 				SearchPattern searchPattern = SearchPattern.createPattern(superType, IJavaSearchConstants.IMPLEMENTORS);
 				SearchEngine searchEngine = new SearchEngine();
@@ -90,12 +105,20 @@ public class LibraryClassStorage {
 				searchEngine.search(searchPattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
 						scope, requestor, null);
 				subTypeMap.put(superType, subTypes);
+				for(IType subType: subTypes) {
+					if(Flags.isAbstract(subType.getFlags()) && !subType.equals(superType)) {
+						subTypesOfAbstractSubTypes.addAll(getSubTypes(subType));
+					}
+				}
 			} catch (JavaModelException e) {
 				e.printStackTrace();
 			} catch (CoreException e) {
 				e.printStackTrace();
 			}
-			return subTypes;
+			LinkedHashSet<IType> finalSubTypes = new LinkedHashSet<IType>();
+			finalSubTypes.addAll(subTypes);
+			finalSubTypes.addAll(subTypesOfAbstractSubTypes);
+			return finalSubTypes;
 		}
 	}
 	

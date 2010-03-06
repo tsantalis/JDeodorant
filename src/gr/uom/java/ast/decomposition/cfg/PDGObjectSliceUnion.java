@@ -28,6 +28,11 @@ public class PDGObjectSliceUnion {
 	private AbstractVariable objectReference;
 	private IFile iFile;
 	private int methodSize;
+	private PDGSlice subgraph;
+	private Set<PDGNode> sliceNodes;
+	private Set<AbstractVariable> passedParameters;
+	private Set<PDGNode> indispensableNodes;
+	private Set<PDGNode> removableNodes;
 	
 	public PDGObjectSliceUnion(PDG pdg, BasicBlock boundaryBlock, List<PDGSliceUnion> sliceUnions,
 			AbstractVariable objectReference) {
@@ -38,6 +43,75 @@ public class PDGObjectSliceUnion {
 		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.boundaryBlock = boundaryBlock;
 		this.objectReference = objectReference;
+		this.subgraph = sliceUnions.get(0).getSlices().get(0);
+		this.sliceNodes = getSliceNodes();
+		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
+		for(GraphNode node : pdg.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(!sliceNodes.contains(pdgNode))
+				remainingNodes.add(pdgNode);
+		}
+		this.passedParameters = new LinkedHashSet<AbstractVariable>();
+		Set<PDGNode> nCD = new LinkedHashSet<PDGNode>();
+		Set<PDGNode> nDD = new LinkedHashSet<PDGNode>();
+		for(GraphEdge edge : pdg.edges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			PDGNode srcPDGNode = (PDGNode)dependence.src;
+			PDGNode dstPDGNode = (PDGNode)dependence.dst;
+			if(dependence instanceof PDGDataDependence) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				if(remainingNodes.contains(srcPDGNode) && sliceNodes.contains(dstPDGNode))
+					passedParameters.add(dataDependence.getData());
+				if(sliceNodes.contains(srcPDGNode) && remainingNodes.contains(dstPDGNode) &&
+						!dataDependence.getData().equals(objectReference))
+					nDD.add(srcPDGNode);
+			}
+			else if(dependence instanceof PDGControlDependence) {
+				if(sliceNodes.contains(srcPDGNode) && remainingNodes.contains(dstPDGNode))
+					nCD.add(srcPDGNode);
+			}
+		}
+		Set<PDGNode> controlIndispensableNodes = new LinkedHashSet<PDGNode>();
+		for(PDGNode p : nCD) {
+			for(AbstractVariable usedVariable : p.usedVariables) {
+				Set<PDGNode> pSliceNodes = subgraph.computeSlice(p, usedVariable);
+				for(GraphNode node : pdg.nodes) {
+					PDGNode q = (PDGNode)node;
+					if(pSliceNodes.contains(q) || q.equals(p))
+						controlIndispensableNodes.add(q);
+				}
+			}
+		}
+		Set<PDGNode> dataIndispensableNodes = new LinkedHashSet<PDGNode>();
+		for(PDGNode p : nDD) {
+			for(AbstractVariable definedVariable : p.definedVariables) {
+				Set<PDGNode> pSliceNodes = subgraph.computeSlice(p, definedVariable);
+				for(GraphNode node : pdg.nodes) {
+					PDGNode q = (PDGNode)node;
+					if(pSliceNodes.contains(q))
+						dataIndispensableNodes.add(q);
+				}
+			}
+		}
+		this.indispensableNodes = new TreeSet<PDGNode>();
+		indispensableNodes.addAll(controlIndispensableNodes);
+		indispensableNodes.addAll(dataIndispensableNodes);
+		this.removableNodes = new LinkedHashSet<PDGNode>();
+		for(GraphNode node : pdg.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(!remainingNodes.contains(pdgNode) && !indispensableNodes.contains(pdgNode))
+				removableNodes.add(pdgNode);
+		}
+		for(PDGNode node : sliceNodes) {
+			IVariableBinding objectReferenceBinding = objectReference.getName().resolveBinding();
+			if(node.declaresLocalVariable(objectReference) ||
+					((objectReferenceBinding.isField() || objectReferenceBinding.isParameter()) &&
+					node.instantiatesLocalVariable(objectReference) && node.definesLocalVariable(objectReference))) {
+				removableNodes.add(node);
+				indispensableNodes.remove(node);
+				break;
+			}
+		}
 	}
 
 	public MethodObject getMethod() {
@@ -53,11 +127,7 @@ public class PDGObjectSliceUnion {
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
-		TreeSet<PDGNode> firstNodesOfSlices = new TreeSet<PDGNode>();
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			firstNodesOfSlices.add(sliceUnion.getExtractedMethodInvocationInsertionNode());
-		}
-		return firstNodesOfSlices.first();
+		return ((TreeSet<PDGNode>)sliceNodes).first();
 	}
 
 	public AbstractVariable getObjectReference() {
@@ -65,51 +135,27 @@ public class PDGObjectSliceUnion {
 	}
 
 	public Set<PDGNode> getSliceNodes() {
-		Set<PDGNode> sliceNodes = new TreeSet<PDGNode>();
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			sliceNodes.addAll(sliceUnion.getSliceNodes());
+		if(this.sliceNodes != null)
+			return this.sliceNodes;
+		else {
+			Set<PDGNode> sliceNodes = new TreeSet<PDGNode>();
+			for(PDGSliceUnion sliceUnion : sliceUnions) {
+				sliceNodes.addAll(sliceUnion.getSliceNodes());
+			}
+			return sliceNodes;
 		}
-		return sliceNodes;
 	}
 
 	public Set<AbstractVariable> getPassedParameters() {
-		Set<AbstractVariable> passedParameters = new LinkedHashSet<AbstractVariable>();
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			passedParameters.addAll(sliceUnion.getPassedParameters());
-		}
 		return passedParameters;
 	}
 
 	public Set<PDGNode> getRemovableNodes() {
-		Set<PDGNode> removableNodes = new LinkedHashSet<PDGNode>();
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			removableNodes.addAll(sliceUnion.getRemovableNodes());
-		}
-		for(PDGNode node : getSliceNodes()) {
-			IVariableBinding objectReferenceBinding = objectReference.getName().resolveBinding();
-			if(node.declaresLocalVariable(objectReference) ||
-					((objectReferenceBinding.isField() || objectReferenceBinding.isParameter()) &&
-					node.instantiatesLocalVariable(objectReference) && node.definesLocalVariable(objectReference))) {
-				removableNodes.add(node);
-				break;
-			}
-		}
 		return removableNodes;
 	}
 
-	public boolean edgeBelongsToBlockBasedRegion(GraphEdge edge) {
-		int counter = 0;
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			if(sliceUnion.edgeBelongsToBlockBasedRegion(edge))
-				counter++;
-		}
-		if(sliceUnions.size() == counter)
-			return true;
-		return false;
-	}
-
 	public boolean declarationOfObjectReferenceBelongsToSliceNodes() {
-		for(PDGNode node : getSliceNodes()) {
+		for(PDGNode node : sliceNodes) {
 			if(node.declaresLocalVariable(objectReference))
 				return true;
 		}
@@ -117,7 +163,7 @@ public class PDGObjectSliceUnion {
 	}
 
 	public boolean declarationOfObjectReferenceBelongsToRemovableNodes() {
-		for(PDGNode node : getRemovableNodes()) {
+		for(PDGNode node : removableNodes) {
 			if(node.declaresLocalVariable(objectReference))
 				return true;
 		}
@@ -125,7 +171,7 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean sliceContainsDeclaration(AbstractVariable variableDeclaration) {
-		for(PDGNode node : getSliceNodes()) {
+		for(PDGNode node : sliceNodes) {
 			if(node.declaresLocalVariable(variableDeclaration))
 				return true;
 		}
@@ -144,16 +190,14 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() {
-		Set<PDGNode> sliceNodes = getSliceNodes();
-		Set<PDGNode> removableNodes = getRemovableNodes();
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
-		duplicatedNodes.removeAll(removableNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode sliceNode : sliceNodes) {
 			if(!duplicatedNodes.contains(sliceNode)) {
 				for(GraphEdge edge : sliceNode.incomingEdges) {
 					PDGDependence dependence = (PDGDependence)edge;
-					if(edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGAntiDependence) {
+					if(subgraph.edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGAntiDependence) {
 						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
 						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
 						if(!removableNodes.contains(srcPDGNode))
@@ -166,18 +210,16 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() {
-		Set<PDGNode> sliceNodes = getSliceNodes();
-		Set<PDGNode> removableNodes = getRemovableNodes();
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
-		duplicatedNodes.removeAll(removableNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode duplicatedNode : duplicatedNodes) {
 			if(duplicatedNode.containsClassInstanceCreation()) {
 				Map<VariableDeclaration, ClassInstanceCreation> classInstantiations = duplicatedNode.getClassInstantiations();
 				for(VariableDeclaration variableDeclaration : classInstantiations.keySet()) {
 					for(GraphEdge edge : duplicatedNode.outgoingEdges) {
 						PDGDependence dependence = (PDGDependence)edge;
-						if(edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGDependence) {
+						if(subgraph.edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGDependence) {
 							PDGDependence dataDependence = (PDGDependence)dependence;
 							PDGNode dstPDGNode = (PDGNode)dataDependence.dst;
 							if(removableNodes.contains(dstPDGNode)) {
@@ -195,8 +237,8 @@ public class PDGObjectSliceUnion {
 
 	private boolean containsDuplicateNodeWithStateChangingMethodInvocation() {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
-		duplicatedNodes.addAll(getSliceNodes());
-		duplicatedNodes.removeAll(getRemovableNodes());
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
 			for(AbstractVariable stateChangingVariable : node.getStateChangingVariables()) {
 				PlainVariable plainVariable = null;
@@ -215,7 +257,7 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean containsBreakContinueReturnSliceNode() {
-		for(PDGNode node : getSliceNodes()) {
+		for(PDGNode node : sliceNodes) {
 			Statement statement = node.getASTStatement();
 			if(statement instanceof BreakStatement || statement instanceof ContinueStatement ||
 					statement instanceof ReturnStatement)
@@ -225,12 +267,12 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean objectSliceEqualsMethodBody() {
-		int sliceSize = getSliceNodes().size();
+		int sliceSize = sliceNodes.size();
 		if(sliceSize == methodSize)
 			return true;
 		else if(sliceSize == methodSize - 1) {
 			TreeSet<GraphNode> nonIncludedInSliceMethodNodes = new TreeSet<GraphNode>(pdg.nodes);
-			nonIncludedInSliceMethodNodes.removeAll(getSliceNodes());
+			nonIncludedInSliceMethodNodes.removeAll(sliceNodes);
 			PDGNode pdgNode = (PDGNode)nonIncludedInSliceMethodNodes.first();
 			if(pdgNode instanceof PDGExitNode)
 				return true;
@@ -239,7 +281,7 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean objectSliceHasMinimumSize() {
-		int sliceSize = getSliceNodes().size();
+		int sliceSize = sliceNodes.size();
 		if(sliceSize == 1)
 			return true;
 		else if(sliceSize == 2) {
@@ -263,8 +305,8 @@ public class PDGObjectSliceUnion {
 		double maximumRatioOfDuplicatedToExtracted = store.getDouble(
 				PreferenceConstants.P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED);
 		
-		int sliceSize = getSliceNodes().size();
-		int duplicatedSize = sliceSize - getRemovableNodes().size();
+		int sliceSize = sliceNodes.size();
+		int duplicatedSize = sliceSize - removableNodes.size();
 		double ratioOfDuplicatedToExtracted = (double)duplicatedSize/(double)sliceSize;
 		
 		if(sliceSize < minimumSliceSize)

@@ -1,5 +1,9 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -34,6 +38,7 @@ public class LibraryClassStorage {
 	private Map<MethodDeclaration, LinkedHashSet<VariableDeclaration>> usedFieldMap;
 	private Map<IType, LinkedHashSet<IType>> subTypeMap;
 	private Map<MethodDeclaration, LinkedHashSet<MethodDeclaration>> overridingMethodMap;
+	private Map<MethodDeclaration, HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>>> methodInvocationThroughReferenceMap;
 	
 	private LibraryClassStorage() {
 		this.compilationUnitMap = new HashMap<IClassFile, CompilationUnit>();
@@ -43,6 +48,7 @@ public class LibraryClassStorage {
 		this.usedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclaration>>();
 		this.subTypeMap = new HashMap<IType, LinkedHashSet<IType>>();
 		this.overridingMethodMap = new HashMap<MethodDeclaration, LinkedHashSet<MethodDeclaration>>();
+		this.methodInvocationThroughReferenceMap = new HashMap<MethodDeclaration, HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>>>();
 	}
 	
 	public static LibraryClassStorage getInstance() {
@@ -132,6 +138,36 @@ public class LibraryClassStorage {
 			invokedMethods.add(invokedMethod);
 			methodInvocationMap.put(originalMethod, invokedMethods);
 		}
+	}
+	
+	public void addInvokedMethodThroughReference(MethodDeclaration originalMethod, MethodDeclaration invokedMethod, VariableDeclaration fieldReference) {
+		if(methodInvocationThroughReferenceMap.containsKey(originalMethod)) {
+			HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethod);
+			if(invokedMethodsThroughReference.containsKey(fieldReference)) {
+				LinkedHashSet<MethodDeclaration> invokedMethods = invokedMethodsThroughReference.get(fieldReference);
+				invokedMethods.add(invokedMethod);
+			}
+			else {
+				LinkedHashSet<MethodDeclaration> invokedMethods = new LinkedHashSet<MethodDeclaration>();
+				invokedMethods.add(invokedMethod);
+				invokedMethodsThroughReference.put(fieldReference, invokedMethods);
+			}
+		}
+		else {
+			LinkedHashSet<MethodDeclaration> invokedMethods = new LinkedHashSet<MethodDeclaration>();
+			invokedMethods.add(invokedMethod);
+			HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = new HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>>();
+			invokedMethodsThroughReference.put(fieldReference, invokedMethods);
+			methodInvocationThroughReferenceMap.put(originalMethod, invokedMethodsThroughReference);
+		}
+	}
+	
+	public Set<VariableDeclaration> getInvocationReferences(MethodDeclaration originalMethod) {
+		if(methodInvocationThroughReferenceMap.containsKey(originalMethod)) {
+			HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethod);
+			return invokedMethodsThroughReference.keySet();
+		}
+		return null;
 	}
 	
 	public void addOverridingMethod(MethodDeclaration abstractMethod, MethodDeclaration overridingMethod) {
@@ -233,5 +269,105 @@ public class LibraryClassStorage {
 			}
 		}
 		return usedFields;
+	}
+	
+	public LinkedHashSet<AbstractVariable> getRecursivelyDefinedFieldsThroughReference(MethodDeclaration method,
+			AbstractVariable fieldReference, Set<MethodDeclaration> processedMethods) {
+		LinkedHashSet<AbstractVariable> definedFields = new LinkedHashSet<AbstractVariable>();
+		processedMethods.add(method);
+		HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(method);
+		if(invokedMethodsThroughReference != null) {
+			VariableDeclaration reference = null;
+			if(fieldReference instanceof PlainVariable) {
+				PlainVariable plain = (PlainVariable)fieldReference;
+				reference = plain.getName();
+			}
+			else if(fieldReference instanceof CompositeVariable) {
+				CompositeVariable composite = (CompositeVariable)fieldReference;
+				reference = composite.getFinalVariable().getName();
+			}
+			LinkedHashSet<MethodDeclaration> invokedMethods = invokedMethodsThroughReference.get(reference);
+			if(invokedMethods != null) {
+				for(MethodDeclaration invokedMethod : invokedMethods) {
+					if(!processedMethods.contains(invokedMethod)) {
+						if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0) {
+							//method is native
+						}
+						else {
+							LinkedHashSet<VariableDeclaration> definedFieldsInInvokedMethod = definedFieldMap.get(invokedMethod);
+							if(definedFieldsInInvokedMethod != null) {
+								for(VariableDeclaration variableDeclaration : definedFieldsInInvokedMethod) {
+									PlainVariable rightSide = new PlainVariable(variableDeclaration);
+									AbstractVariable definedField = composeVariable(fieldReference, rightSide);
+									definedFields.add(definedField);
+								}
+							}
+							LinkedHashSet<VariableDeclaration> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethod);
+							if(usedFieldsInInvokedMethod != null) {
+								for(VariableDeclaration variableDeclaration : usedFieldsInInvokedMethod) {
+									PlainVariable rightSide = new PlainVariable(variableDeclaration);
+									AbstractVariable usedField = composeVariable(fieldReference, rightSide);
+									definedFields.addAll(getRecursivelyDefinedFieldsThroughReference(invokedMethod, usedField, processedMethods));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return definedFields;
+	}
+	
+	public LinkedHashSet<AbstractVariable> getRecursivelyUsedFieldsThroughReference(MethodDeclaration method,
+			AbstractVariable fieldReference, Set<MethodDeclaration> processedMethods) {
+		LinkedHashSet<AbstractVariable> usedFields = new LinkedHashSet<AbstractVariable>();
+		processedMethods.add(method);
+		HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(method);
+		if(invokedMethodsThroughReference != null) {
+			VariableDeclaration reference = null;
+			if(fieldReference instanceof PlainVariable) {
+				PlainVariable plain = (PlainVariable)fieldReference;
+				reference = plain.getName();
+			}
+			else if(fieldReference instanceof CompositeVariable) {
+				CompositeVariable composite = (CompositeVariable)fieldReference;
+				reference = composite.getFinalVariable().getName();
+			}
+			LinkedHashSet<MethodDeclaration> invokedMethods = invokedMethodsThroughReference.get(reference);
+			if(invokedMethods != null) {
+				for(MethodDeclaration invokedMethod : invokedMethods) {
+					if(!processedMethods.contains(invokedMethod)) {
+						if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0) {
+							//method is native
+						}
+						else {
+							LinkedHashSet<VariableDeclaration> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethod);
+							if(usedFieldsInInvokedMethod != null) {
+								for(VariableDeclaration variableDeclaration : usedFieldsInInvokedMethod) {
+									PlainVariable rightSide = new PlainVariable(variableDeclaration);
+									AbstractVariable usedField = composeVariable(fieldReference, rightSide);
+									usedFields.add(usedField);
+									usedFields.addAll(getRecursivelyUsedFieldsThroughReference(invokedMethod, usedField, processedMethods));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return usedFields;
+	}
+	
+	private AbstractVariable composeVariable(AbstractVariable leftSide, AbstractVariable rightSide) {
+		if(leftSide instanceof CompositeVariable) {
+			CompositeVariable leftSideCompositeVariable = (CompositeVariable)leftSide;
+			PlainVariable finalVariable = leftSideCompositeVariable.getFinalVariable();
+			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getName(), rightSide);
+			AbstractVariable newLeftSide = leftSideCompositeVariable.getLeftPart();
+			return composeVariable(newLeftSide, newRightSide);
+		}
+		else {
+			return new CompositeVariable(leftSide.getName(), rightSide);
+		}
 	}
 }

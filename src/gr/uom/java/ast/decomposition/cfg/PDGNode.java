@@ -457,6 +457,24 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							AbstractVariable field = composeVariable(variableDeclaration, originalField);
 							usedVariables.add(field);
 						}
+						Set<VariableDeclaration> invocationReferences = instance.getInvocationReferences(methodDeclaration);
+						if(invocationReferences != null) {
+							for(VariableDeclaration invocationReference : invocationReferences) {
+								PlainVariable plainVariable = new PlainVariable(invocationReference);
+								LinkedHashSet<AbstractVariable> definedFieldsThroughReference = 
+									instance.getRecursivelyDefinedFieldsThroughReference(methodDeclaration, plainVariable, new LinkedHashSet<MethodDeclaration>());
+								for(AbstractVariable definedField : definedFieldsThroughReference) {
+									AbstractVariable field = composeVariable(variableDeclaration, definedField);
+									definedVariables.add(field);
+								}
+								LinkedHashSet<AbstractVariable> usedFieldsThroughReference = 
+									instance.getRecursivelyUsedFieldsThroughReference(methodDeclaration, plainVariable, new LinkedHashSet<MethodDeclaration>());
+								for(AbstractVariable usedField : usedFieldsThroughReference) {
+									AbstractVariable field = composeVariable(variableDeclaration, usedField);
+									usedVariables.add(field);
+								}
+							}
+						}
 					}
 					else {
 						ASTInformationGenerator.setCurrentITypeRoot(iClassFile);
@@ -544,29 +562,30 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						List<MethodInvocationObject> methodInvocations = methodBodyObject.getMethodInvocations();
 						for(MethodInvocationObject methodInvocationObject : methodInvocations) {
 							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-							if(methodInvocation2.getExpression() == null || methodInvocation2.getExpression() instanceof ThisExpression) {
-								IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
-								MethodDeclaration invokedMethodDeclaration = null;
-								IMethod iMethod2 = (IMethod)methodBinding2.getJavaElement();
-								IClassFile methodClassFile = iMethod2.getClassFile();
-								CompilationUnit methodCompilationUnit = instance.getCompilationUnit(methodClassFile);
-								Set<TypeDeclaration> methodTypeDeclarations = extractTypeDeclarations(methodCompilationUnit);
-								for(TypeDeclaration methodTypeDeclaration : methodTypeDeclarations) {
-									if(methodTypeDeclaration.resolveBinding().isEqualTo(methodBinding2.getDeclaringClass()) ||
-											methodTypeDeclaration.resolveBinding().getBinaryName().equals(methodBinding2.getDeclaringClass().getBinaryName())) {
-										MethodDeclaration[] methodDeclarations2 = methodTypeDeclaration.getMethods();
-										for(MethodDeclaration methodDeclaration2 : methodDeclarations2) {
-											if(methodDeclaration2.resolveBinding().isEqualTo(methodBinding2) ||
-													equalSignature(methodDeclaration2.resolveBinding(), methodBinding2)) {
-												invokedMethodDeclaration = methodDeclaration2;
-												break;
-											}
-										}
-										if(invokedMethodDeclaration != null)
+							IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
+							MethodDeclaration invokedMethodDeclaration = null;
+							IMethod iMethod2 = (IMethod)methodBinding2.getJavaElement();
+							IClassFile methodClassFile = iMethod2.getClassFile();
+							CompilationUnit methodCompilationUnit = instance.getCompilationUnit(methodClassFile);
+							Set<TypeDeclaration> methodTypeDeclarations = extractTypeDeclarations(methodCompilationUnit);
+							for(TypeDeclaration methodTypeDeclaration : methodTypeDeclarations) {
+								if(methodTypeDeclaration.resolveBinding().isEqualTo(methodBinding2.getDeclaringClass()) ||
+										methodTypeDeclaration.resolveBinding().getBinaryName().equals(methodBinding2.getDeclaringClass().getBinaryName())) {
+									MethodDeclaration[] methodDeclarations2 = methodTypeDeclaration.getMethods();
+									for(MethodDeclaration methodDeclaration2 : methodDeclarations2) {
+										if(methodDeclaration2.resolveBinding().isEqualTo(methodBinding2) ||
+												equalSignature(methodDeclaration2.resolveBinding(), methodBinding2)) {
+											invokedMethodDeclaration = methodDeclaration2;
 											break;
+										}
 									}
+									if(invokedMethodDeclaration != null)
+										break;
 								}
-								if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
+							}
+							if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
+								Expression methodInvocationExpression = methodInvocation2.getExpression();
+								if(methodInvocationExpression == null || methodInvocationExpression instanceof ThisExpression) {
 									if(!processedMethodInvocations.contains(methodInvocation2)) {
 										if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
 											//method is native
@@ -574,6 +593,44 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 										else {
 											instance.addInvokedMethod(methodDeclaration, invokedMethodDeclaration);
 											processExternalMethodInvocation(methodInvocation2, null, variableDeclaration, processedMethodInvocations);
+										}
+									}
+								}
+								else {
+									SimpleName invokerSimpleName = null;
+									if(methodInvocationExpression instanceof SimpleName) {
+										invokerSimpleName = (SimpleName)methodInvocationExpression;
+									}
+									else if(methodInvocationExpression instanceof FieldAccess) {
+										FieldAccess fieldAccess = (FieldAccess)methodInvocationExpression;
+										invokerSimpleName = fieldAccess.getName();
+									}
+									if(invokerSimpleName != null) {
+										IBinding invokerBinding = invokerSimpleName.resolveBinding();
+										if(invokerBinding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding invokerVariableBinding = (IVariableBinding)invokerBinding;
+											if(invokerVariableBinding.isField()) {
+												VariableDeclaration invokerField = null;
+												for(VariableDeclaration usedField : usedFields) {
+													if(invokerVariableBinding.isEqualTo(usedField.resolveBinding())) {
+														invokerField = usedField;
+														break;
+													}
+												}
+												if(invokerField != null) {
+													AbstractVariable originalField = new PlainVariable(invokerField);
+													AbstractVariable field = composeVariable(variableDeclaration, originalField);
+													if(!processedMethodInvocations.contains(methodInvocation2)) {
+														if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
+															//method is native
+														}
+														else {
+															instance.addInvokedMethodThroughReference(methodDeclaration, invokedMethodDeclaration, invokerField);
+															processExternalMethodInvocation(methodInvocation2, null, field, processedMethodInvocations);
+														}
+													}
+												}
+											}
 										}
 									}
 								}

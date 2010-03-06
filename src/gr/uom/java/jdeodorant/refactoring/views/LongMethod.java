@@ -229,8 +229,8 @@ public class LongMethod extends ViewPart {
 				}
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
-					if(sliceTable != null)
-						tableViewer.remove(sliceTable);
+					/*if(sliceTable != null)
+						tableViewer.remove(sliceTable);*/
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);

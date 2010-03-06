@@ -177,8 +177,8 @@ public class FeatureEnvy extends ViewPart {
 				}
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
-					if(candidateRefactoringTable != null)
-						tableViewer.remove(candidateRefactoringTable);
+					/*if(candidateRefactoringTable != null)
+						tableViewer.remove(candidateRefactoringTable);*/
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);

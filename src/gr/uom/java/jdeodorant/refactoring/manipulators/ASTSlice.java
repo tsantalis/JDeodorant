@@ -209,8 +209,10 @@ public class ASTSlice {
 					positionMap.put(initializerPosition, sliceNode.getAnnotation());
 				}
 				Expression forExpression = forStatement.getExpression();
-				Position position = new Position(forExpression.getStartPosition(), forExpression.getLength());
-				positionMap.put(position, sliceNode.getAnnotation());
+				if(forExpression != null) {
+					Position position = new Position(forExpression.getStartPosition(), forExpression.getLength());
+					positionMap.put(position, sliceNode.getAnnotation());
+				}
 				List<Expression> updaters = forStatement.updaters();
 				for(Expression expression : updaters) {
 					Position updaterPosition = new Position(expression.getStartPosition(), expression.getLength());

@@ -977,6 +977,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 										argumentDeclaration, new LinkedHashSet<MethodInvocation>());
 						}
 					}
+					else {
+						processExternalMethodInvocation(methodInvocation2, null, argumentDeclaration, new LinkedHashSet<MethodInvocation>());
+					}
 				}
 			}
 			List<Expression> arguments = methodInvocation2.arguments();
@@ -1028,12 +1031,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						if(argumentDeclaration != null) {
 							ParameterObject parameter = methodObject.getParameter(argumentPosition);
 							VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
-							ClassObject classObject2 = systemObject.getClassObject(parameter.getType().getClassType());
-							if(classObject2 != null) {
-								PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
-								processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
-										argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
-							}
+							PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
+							processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
+									argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
 						}
 					}
 					argumentPosition++;

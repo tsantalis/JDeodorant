@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IMethod;
@@ -768,52 +769,66 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 	}
 
+	private Set<IType> getSubTypes(IType superType) {
+		LinkedHashSet<IType> subTypes = new LinkedHashSet<IType>();
+		LinkedHashSet<IType> subTypesOfAbstractSubTypes = new LinkedHashSet<IType>();
+		try {
+			SearchPattern searchPattern = SearchPattern.createPattern(superType, IJavaSearchConstants.IMPLEMENTORS);
+			SearchEngine searchEngine = new SearchEngine();
+			IJavaSearchScope scope = SearchEngine.createHierarchyScope(superType);
+			SearchRequestor requestor = new TypeSearchRequestor(subTypes);
+			searchEngine.search(searchPattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
+					scope, requestor, null);
+			for(IType subType: subTypes) {
+				if(Flags.isAbstract(subType.getFlags()) && !subType.equals(superType)) {
+					subTypesOfAbstractSubTypes.addAll(getSubTypes(subType));
+				}
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+		LinkedHashSet<IType> finalSubTypes = new LinkedHashSet<IType>();
+		finalSubTypes.addAll(subTypes);
+		finalSubTypes.addAll(subTypesOfAbstractSubTypes);
+		return finalSubTypes;
+	}
+
 	protected void processInternalMethodInvocation(ClassObject classObject, MethodObject methodObject,
 			MethodInvocation methodInvocation, AbstractVariable variableDeclaration, Set<MethodInvocation> processedMethodInvocations) {
-		if(methodObject.isAbstract()) {
+		if(methodObject.isAbstract() || classObject.isInterface()) {
 			TypeDeclaration typeDeclaration = classObject.getTypeDeclaration();
 			IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
-			try {
-				SearchPattern searchPattern = SearchPattern.createPattern(superType, IJavaSearchConstants.IMPLEMENTORS);
-				SearchEngine searchEngine = new SearchEngine();
-				IJavaSearchScope scope = SearchEngine.createHierarchyScope(superType);
-				final Set<IType> subTypes = new LinkedHashSet<IType>();
-				SearchRequestor requestor = new TypeSearchRequestor(subTypes);
-				searchEngine.search(searchPattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
-						scope, requestor, null);
-				SystemObject systemObject = ASTReader.getSystemObject();
-				Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
-				if(variableDeclaration != null) {
-					VariableDeclaration initialReference = variableDeclaration.getName();
-					ITypeBinding initialReferenceTypeBinding = initialReference.resolveBinding().getType();
-					for(IType subType : subTypes) {
-						if(subType.getFullyQualifiedName('.').equals(initialReferenceTypeBinding.getQualifiedName())) {
-							subTypesToBeAnalyzed.add(subType);
+			Set<IType> subTypes = getSubTypes(superType);
+			SystemObject systemObject = ASTReader.getSystemObject();
+			Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
+			if(variableDeclaration != null) {
+				VariableDeclaration initialReference = variableDeclaration.getName();
+				ITypeBinding initialReferenceTypeBinding = initialReference.resolveBinding().getType();
+				for(IType subType : subTypes) {
+					if(subType.getFullyQualifiedName('.').equals(initialReferenceTypeBinding.getQualifiedName())) {
+						subTypesToBeAnalyzed.add(subType);
+						break;
+					}
+				}
+				if(subTypesToBeAnalyzed.isEmpty())
+					subTypesToBeAnalyzed.addAll(subTypes);
+			}
+			else
+				subTypesToBeAnalyzed.addAll(subTypes);
+			for(IType subType : subTypesToBeAnalyzed) {
+				ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
+				if(subClassObject != null) {
+					ListIterator<MethodObject> methodIterator = subClassObject.getMethodIterator();
+					while(methodIterator.hasNext()) {
+						MethodObject subMethod = methodIterator.next();
+						if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), methodObject.getMethodDeclaration().resolveBinding())) {
+							processInternalMethodInvocation(subClassObject, subMethod, methodInvocation, variableDeclaration, processedMethodInvocations);
 							break;
 						}
 					}
-					if(subTypesToBeAnalyzed.isEmpty())
-						subTypesToBeAnalyzed.addAll(subTypes);
 				}
-				else
-					subTypesToBeAnalyzed.addAll(subTypes);
-				for(IType subType : subTypesToBeAnalyzed) {
-					ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
-					if(subClassObject != null) {
-						ListIterator<MethodObject> methodIterator = subClassObject.getMethodIterator();
-						while(methodIterator.hasNext()) {
-							MethodObject subMethod = methodIterator.next();
-							if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), methodObject.getMethodDeclaration().resolveBinding())) {
-								processInternalMethodInvocation(subClassObject, subMethod, methodInvocation, variableDeclaration, processedMethodInvocations);
-								break;
-							}
-						}
-					}
-				}
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			} catch (CoreException e) {
-				e.printStackTrace();
 			}
 		}
 		else {

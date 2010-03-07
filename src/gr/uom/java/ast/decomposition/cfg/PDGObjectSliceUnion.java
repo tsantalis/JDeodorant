@@ -46,6 +46,7 @@ public class PDGObjectSliceUnion {
 		this.subgraph = sliceUnions.get(0).getSlices().get(0);
 		this.sliceNodes = getSliceNodes();
 		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
+		remainingNodes.add(pdg.getEntryNode());
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(!sliceNodes.contains(pdgNode))

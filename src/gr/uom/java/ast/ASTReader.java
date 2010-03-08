@@ -1,6 +1,8 @@
 package gr.uom.java.ast;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
@@ -32,7 +34,9 @@ public class ASTReader {
 
 	private static SystemObject systemObject;
 
-	public ASTReader(IJavaProject iJavaProject) {
+	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) {
+		if(monitor != null)
+			monitor.beginTask("Parsing selected Java Project", getNumberOfCompilationUnits(iJavaProject));
 		systemObject = new SystemObject();
 		try {
 			IPackageFragmentRoot[] iPackageFragmentRoots = iJavaProject.getPackageFragmentRoots();
@@ -43,7 +47,11 @@ public class ASTReader {
 						IPackageFragment iPackageFragment = (IPackageFragment)child;
 						ICompilationUnit[] iCompilationUnits = iPackageFragment.getCompilationUnits();
 						for(ICompilationUnit iCompilationUnit : iCompilationUnits) {
+							if(monitor != null && monitor.isCanceled())
+				    			throw new OperationCanceledException();
 							parseAST(iCompilationUnit);
+							if(monitor != null)
+								monitor.worked(1);
 						}
 					}
 				}
@@ -51,32 +59,28 @@ public class ASTReader {
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+		if(monitor != null)
+			monitor.done();
 	}
 	
-	public ASTReader(IPackageFragment packageFragment) {
-		systemObject = new SystemObject();
+	private int getNumberOfCompilationUnits(IJavaProject iJavaProject) {
+		int numberOfCompilationUnits = 0;
 		try {
-			ICompilationUnit[] compilationUnits = packageFragment.getCompilationUnits();
-			for(ICompilationUnit iCompilationUnit : compilationUnits) {
-				parseAST(iCompilationUnit);
-			}
-			IPackageFragmentRoot iPackageFragmentRoot = (IPackageFragmentRoot)packageFragment.getParent();
-			IJavaElement[] children = iPackageFragmentRoot.getChildren();
-			for(IJavaElement child : children) {
-				if(child.getElementType() == IJavaElement.PACKAGE_FRAGMENT) {
-					IPackageFragment rootPackageFragment = (IPackageFragment)child;
-					if(!rootPackageFragment.getElementName().equals(packageFragment.getElementName()) &&
-							rootPackageFragment.getElementName().contains(packageFragment.getElementName())) {
-						ICompilationUnit[] subPackageCompilationUnits = rootPackageFragment.getCompilationUnits();
-						for(ICompilationUnit iCompilationUnit : subPackageCompilationUnits) {
-							parseAST(iCompilationUnit);
-						}
+			IPackageFragmentRoot[] iPackageFragmentRoots = iJavaProject.getPackageFragmentRoots();
+			for(IPackageFragmentRoot iPackageFragmentRoot : iPackageFragmentRoots) {
+				IJavaElement[] children = iPackageFragmentRoot.getChildren();
+				for(IJavaElement child : children) {
+					if(child.getElementType() == IJavaElement.PACKAGE_FRAGMENT) {
+						IPackageFragment iPackageFragment = (IPackageFragment)child;
+						ICompilationUnit[] iCompilationUnits = iPackageFragment.getCompilationUnits();
+						numberOfCompilationUnits += iCompilationUnits.length;
 					}
 				}
 			}
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+		return numberOfCompilationUnits;
 	}
 
 	private void parseAST(ICompilationUnit iCompilationUnit) {

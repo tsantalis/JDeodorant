@@ -12,9 +12,12 @@ import java.util.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -144,6 +147,22 @@ public class SystemObject {
     	return classObjectSet;
     }
 
+    public Set<ClassObject> getClassObjects(IPackageFragmentRoot packageFragmentRoot) {
+    	Set<ClassObject> classObjectSet = new LinkedHashSet<ClassObject>();
+    	try {
+    		IJavaElement[] children = packageFragmentRoot.getChildren();
+    		for(IJavaElement child : children) {
+    			if(child.getElementType() == IJavaElement.PACKAGE_FRAGMENT) {
+    				IPackageFragment packageFragment = (IPackageFragment)child;
+    				classObjectSet.addAll(getClassObjects(packageFragment));
+    			}
+    		}
+    	} catch(JavaModelException e) {
+			e.printStackTrace();
+		}
+    	return classObjectSet;
+    }
+
     public Set<ClassObject> getClassObjects(IPackageFragment packageFragment) {
     	Set<ClassObject> classObjectSet = new LinkedHashSet<ClassObject>();
     	try {
@@ -211,14 +230,17 @@ public class SystemObject {
         return names;
     }
 
-    public TypeCheckEliminationResults generateTypeCheckEliminations(IProgressMonitor monitor) {
-    	monitor.beginTask("Identification of Type Checking code smells", classList.size());
+    public TypeCheckEliminationResults generateTypeCheckEliminations(Set<ClassObject> classObjectsToBeExamined, IProgressMonitor monitor) {
+    	if(monitor != null)
+    		monitor.beginTask("Identification of Type Checking code smells", classObjectsToBeExamined.size());
     	TypeCheckEliminationResults typeCheckEliminationResults = new TypeCheckEliminationResults();
     	Map<TypeCheckElimination, List<SimpleName>> staticFieldMap = new LinkedHashMap<TypeCheckElimination, List<SimpleName>>();
     	Map<Integer, ArrayList<TypeCheckElimination>> staticFieldRankMap = new TreeMap<Integer, ArrayList<TypeCheckElimination>>();
     	Map<String, ArrayList<TypeCheckElimination>> inheritanceTreeMap = new LinkedHashMap<String, ArrayList<TypeCheckElimination>>();
     	CompleteInheritanceDetection inheritanceDetection = new CompleteInheritanceDetection(this);
-    	for(ClassObject classObject : classList) {
+    	for(ClassObject classObject : classObjectsToBeExamined) {
+    		if(monitor != null && monitor.isCanceled())
+    			throw new OperationCanceledException();
     		List<TypeCheckElimination> eliminations = classObject.generateTypeCheckEliminations();
     		for(TypeCheckElimination elimination : eliminations) {
     			List<SimpleName> staticFields = elimination.getStaticFields();
@@ -366,7 +388,8 @@ public class SystemObject {
     				}
     			}
     		}
-    		monitor.worked(1);
+    		if(monitor != null)
+    			monitor.worked(1);
     	}
     	for(String rootNode : inheritanceTreeMap.keySet()) {
     		ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(rootNode);
@@ -422,7 +445,8 @@ public class SystemObject {
     		sortedEliminations.removeAll(affectedEliminations);
     	}
     	identifySuperFieldAccessorMethods(typeCheckEliminationResults.getTypeCheckEliminations());
-    	monitor.done();
+    	if(monitor != null)
+    		monitor.done();
     	return typeCheckEliminationResults;
     }
 

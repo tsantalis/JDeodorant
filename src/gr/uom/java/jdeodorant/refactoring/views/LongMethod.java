@@ -77,11 +77,12 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
+import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
-import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
+import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 public class LongMethod extends ViewPart {
@@ -92,7 +93,8 @@ public class LongMethod extends ViewPart {
 	private Action renameMethodAction;
 	private Action saveResultsAction;
 	private IJavaProject selectedProject;
-	private IPackageFragment selectedPackage;
+	private IPackageFragmentRoot selectedPackageFragmentRoot;
+	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private IMethod selectedMethod;
@@ -182,7 +184,8 @@ public class LongMethod extends ViewPart {
 				IJavaProject javaProject = null;
 				if(element instanceof IJavaProject) {
 					javaProject = (IJavaProject)element;
-					selectedPackage = null;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
 					selectedCompilationUnit = null;
 					selectedType = null;
 					selectedMethod = null;
@@ -190,7 +193,8 @@ public class LongMethod extends ViewPart {
 				else if(element instanceof IPackageFragmentRoot) {
 					IPackageFragmentRoot packageFragmentRoot = (IPackageFragmentRoot)element;
 					javaProject = packageFragmentRoot.getJavaProject();
-					selectedPackage = null;
+					selectedPackageFragmentRoot = packageFragmentRoot;
+					selectedPackageFragment = null;
 					selectedCompilationUnit = null;
 					selectedType = null;
 					selectedMethod = null;
@@ -198,7 +202,8 @@ public class LongMethod extends ViewPart {
 				else if(element instanceof IPackageFragment) {
 					IPackageFragment packageFragment = (IPackageFragment)element;
 					javaProject = packageFragment.getJavaProject();
-					selectedPackage = packageFragment;
+					selectedPackageFragment = packageFragment;
+					selectedPackageFragmentRoot = null;
 					selectedCompilationUnit = null;
 					selectedType = null;
 					selectedMethod = null;
@@ -207,7 +212,8 @@ public class LongMethod extends ViewPart {
 					ICompilationUnit compilationUnit = (ICompilationUnit)element;
 					javaProject = compilationUnit.getJavaProject();
 					selectedCompilationUnit = compilationUnit;
-					selectedPackage = null;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
 					selectedType = null;
 					selectedMethod = null;
 				}
@@ -215,7 +221,8 @@ public class LongMethod extends ViewPart {
 					IType type = (IType)element;
 					javaProject = type.getJavaProject();
 					selectedType = type;
-					selectedPackage = null;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
 					selectedCompilationUnit = null;
 					selectedMethod = null;
 				}
@@ -223,7 +230,8 @@ public class LongMethod extends ViewPart {
 					IMethod method = (IMethod)element;
 					javaProject = method.getJavaProject();
 					selectedMethod = method;
-					selectedPackage = null;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
 					selectedCompilationUnit = null;
 					selectedType = null;
 				}
@@ -426,30 +434,40 @@ public class LongMethod extends ViewPart {
 	}
 
 	private ASTSlice[] getTable() {
-		new ASTReader(selectedProject);
-		final SystemObject systemObject = ASTReader.getSystemObject();
-		final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-		final Set<MethodObject> methodObjectsToBeExamined = new LinkedHashSet<MethodObject>();
-		if(selectedPackage != null) {
-			classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackage));
-		}
-		else if(selectedCompilationUnit != null) {
-			classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
-		}
-		else if(selectedType != null) {
-			classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
-		}
-		else if(selectedMethod != null) {
-			methodObjectsToBeExamined.addAll(systemObject.getMethodObjects(selectedMethod));
-		}
-		else {
-			classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-		}
-		final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
-		final List<PDGObjectSliceUnion> extractedObjectSlices = new ArrayList<PDGObjectSliceUnion>();
-		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		ASTSlice[] table = null;
 		try {
-			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
+			IWorkbench wb = PlatformUI.getWorkbench();
+			IProgressService ps = wb.getProgressService();
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					new ASTReader(selectedProject, monitor);
+				}
+			});
+			final SystemObject systemObject = ASTReader.getSystemObject();
+			final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			final Set<MethodObject> methodObjectsToBeExamined = new LinkedHashSet<MethodObject>();
+			if(selectedPackageFragmentRoot != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
+			}
+			else if(selectedPackageFragment != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
+			}
+			else if(selectedCompilationUnit != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+			}
+			else if(selectedType != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
+			}
+			else if(selectedMethod != null) {
+				methodObjectsToBeExamined.addAll(systemObject.getMethodObjects(selectedMethod));
+			}
+			else {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+			}
+			final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
+			final List<PDGObjectSliceUnion> extractedObjectSlices = new ArrayList<PDGObjectSliceUnion>();
+
+			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 					if(!classObjectsToBeExamined.isEmpty()) {
 						int workSize = 0;
@@ -482,19 +500,20 @@ public class LongMethod extends ViewPart {
 					monitor.done();
 				}
 			});
+
+			table = new ASTSlice[extractedSlices.size() + extractedObjectSlices.size()];
+			for(int i=0; i<extractedSlices.size(); i++) {
+				ASTSlice astSlice = new ASTSlice(extractedSlices.get(i));
+				table[i] = astSlice;
+			}
+			for(int i=0; i<extractedObjectSlices.size(); i++) {
+				ASTSlice astSlice = new ASTSlice(extractedObjectSlices.get(i));
+				table[extractedSlices.size() + i] = astSlice;
+			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-		}
-		ASTSlice[] table = new ASTSlice[extractedSlices.size() + extractedObjectSlices.size()];
-		for(int i=0; i<extractedSlices.size(); i++) {
-			ASTSlice astSlice = new ASTSlice(extractedSlices.get(i));
-			table[i] = astSlice;
-		}
-		for(int i=0; i<extractedObjectSlices.size(); i++) {
-			ASTSlice astSlice = new ASTSlice(extractedObjectSlices.get(i));
-			table[extractedSlices.size() + i] = astSlice;
 		}
 		return table;
 	}

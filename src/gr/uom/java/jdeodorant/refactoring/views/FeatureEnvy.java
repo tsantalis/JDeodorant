@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -29,6 +31,7 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
+import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.operation.IRunnableWithProgress;
@@ -52,9 +55,12 @@ import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
 import org.eclipse.ui.texteditor.ITextEditor;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -88,7 +94,10 @@ public class FeatureEnvy extends ViewPart {
 	private Action renameMethodAction;
 	private Action saveResultsAction;
 	private IJavaProject selectedProject;
-	private IPackageFragment selectedPackage;
+	private IPackageFragmentRoot selectedPackageFragmentRoot;
+	private IPackageFragment selectedPackageFragment;
+	private ICompilationUnit selectedCompilationUnit;
+	private IType selectedType;
 	private CandidateRefactoring[] candidateRefactoringTable;
 
 	/*
@@ -168,12 +177,42 @@ public class FeatureEnvy extends ViewPart {
 				IJavaProject javaProject = null;
 				if(element instanceof IJavaProject) {
 					javaProject = (IJavaProject)element;
-					selectedPackage = null;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
+				}
+				else if(element instanceof IPackageFragmentRoot) {
+					IPackageFragmentRoot packageFragmentRoot = (IPackageFragmentRoot)element;
+					javaProject = packageFragmentRoot.getJavaProject();
+					selectedPackageFragmentRoot = packageFragmentRoot;
+					selectedPackageFragment = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
 				}
 				else if(element instanceof IPackageFragment) {
 					IPackageFragment packageFragment = (IPackageFragment)element;
 					javaProject = packageFragment.getJavaProject();
-					selectedPackage = packageFragment;
+					selectedPackageFragment = packageFragment;
+					selectedPackageFragmentRoot = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
+				}
+				else if(element instanceof ICompilationUnit) {
+					ICompilationUnit compilationUnit = (ICompilationUnit)element;
+					javaProject = compilationUnit.getJavaProject();
+					selectedCompilationUnit = compilationUnit;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
+					selectedType = null;
+				}
+				else if(element instanceof IType) {
+					IType type = (IType)element;
+					javaProject = type.getJavaProject();
+					selectedType = type;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
+					selectedCompilationUnit = null;
 				}
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
@@ -438,58 +477,88 @@ public class FeatureEnvy extends ViewPart {
 	}
 	
 	private CandidateRefactoring[] getTable() {
-		if(selectedPackage != null)
-			new ASTReader(selectedPackage);
-		else
-			new ASTReader(selectedProject);
-		SystemObject systemObject = ASTReader.getSystemObject();
-		/*MMImportCoupling mmic = new MMImportCoupling(systemObject);
-		System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
-		ConnectivityMetric co = new ConnectivityMetric(systemObject);
-		System.out.println("System Average Connectivity: " + co.getSystemAverageConnectivity());*/
-		MySystem system = new MySystem(systemObject);
-		final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-
-		final List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
-		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		CandidateRefactoring[] table = null;
 		try {
-			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
-			     public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-			    	 moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(monitor));
-			     }
+			IWorkbench wb = PlatformUI.getWorkbench();
+			IProgressService ps = wb.getProgressService();
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					new ASTReader(selectedProject, monitor);
+				}
 			});
+			SystemObject systemObject = ASTReader.getSystemObject();
+			Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			if(selectedPackageFragmentRoot != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
+			}
+			else if(selectedPackageFragment != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
+			}
+			else if(selectedCompilationUnit != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+			}
+			else if(selectedType != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
+			}
+			else {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+			}
+			/*MMImportCoupling mmic = new MMImportCoupling(systemObject);
+			System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
+			ConnectivityMetric co = new ConnectivityMetric(systemObject);
+			System.out.println("System Average Connectivity: " + co.getSystemAverageConnectivity());*/
+			
+			final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
+			for(ClassObject classObject : classObjectsToBeExamined) {
+				classNamesToBeExamined.add(classObject.getName());
+			}
+			MySystem system = new MySystem(systemObject);
+			final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					distanceMatrix.generateDistances(monitor);
+				}
+			});
+			final List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
+			
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, monitor));
+				}
+			});
+		
+			/*List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactoringsByAccess();
+		
+			List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
+			for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
+				boolean subRefactoring = false;
+				for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
+					if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass())) {
+						subRefactoring = true;
+						System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
+						break;
+					}
+				}
+				if(!subRefactoring) {
+					finalExtractMethodCandidateList.add(candidate);
+				}
+			}*/
+		
+			table = new CandidateRefactoring[moveMethodCandidateList.size() /*+ finalExtractMethodCandidateList.size()*/ + 1];
+			table[0] = new CurrentSystem(distanceMatrix);
+			int counter = 1;
+			/*for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
+				table[counter] = candidate;
+				counter++;
+			}*/
+			for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
+				table[counter] = candidate;
+				counter++;
+			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-		}
-		/*List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactoringsByAccess();
-		
-		List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-		for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
-			boolean subRefactoring = false;
-			for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
-				if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass())) {
-					subRefactoring = true;
-					System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
-					break;
-				}
-			}
-			if(!subRefactoring) {
-				finalExtractMethodCandidateList.add(candidate);
-			}
-		}*/
-		
-		CandidateRefactoring[] table = new CandidateRefactoring[moveMethodCandidateList.size() /*+ finalExtractMethodCandidateList.size()*/ + 1];
-		table[0] = new CurrentSystem(distanceMatrix);
-		int counter = 1;
-		/*for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
-			table[counter] = candidate;
-			counter++;
-		}*/
-		for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
-			table[counter] = candidate;
-			counter++;
 		}
 		return table;		
 	}

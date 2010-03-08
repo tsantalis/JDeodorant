@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
@@ -14,7 +15,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.FileDialog;
@@ -22,12 +25,16 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
+import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -75,7 +82,10 @@ public class TypeChecking extends ViewPart {
 	private Action renameMethodAction;
 	private Action saveResultsAction;
 	private IJavaProject selectedProject;
-	private IPackageFragment selectedPackage;
+	private IPackageFragmentRoot selectedPackageFragmentRoot;
+	private IPackageFragment selectedPackageFragment;
+	private ICompilationUnit selectedCompilationUnit;
+	private IType selectedType;
 	private TypeCheckElimination[] typeCheckEliminationTable;
 	private TypeCheckEliminationResults typeCheckEliminationResults;
 
@@ -173,12 +183,42 @@ public class TypeChecking extends ViewPart {
 				IJavaProject javaProject = null;
 				if(element instanceof IJavaProject) {
 					javaProject = (IJavaProject)element;
-					selectedPackage = null;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
+				}
+				else if(element instanceof IPackageFragmentRoot) {
+					IPackageFragmentRoot packageFragmentRoot = (IPackageFragmentRoot)element;
+					javaProject = packageFragmentRoot.getJavaProject();
+					selectedPackageFragmentRoot = packageFragmentRoot;
+					selectedPackageFragment = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
 				}
 				else if(element instanceof IPackageFragment) {
 					IPackageFragment packageFragment = (IPackageFragment)element;
 					javaProject = packageFragment.getJavaProject();
-					selectedPackage = packageFragment;
+					selectedPackageFragment = packageFragment;
+					selectedPackageFragmentRoot = null;
+					selectedCompilationUnit = null;
+					selectedType = null;
+				}
+				else if(element instanceof ICompilationUnit) {
+					ICompilationUnit compilationUnit = (ICompilationUnit)element;
+					javaProject = compilationUnit.getJavaProject();
+					selectedCompilationUnit = compilationUnit;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
+					selectedType = null;
+				}
+				else if(element instanceof IType) {
+					IType type = (IType)element;
+					javaProject = type.getJavaProject();
+					selectedType = type;
+					selectedPackageFragmentRoot = null;
+					selectedPackageFragment = null;
+					selectedCompilationUnit = null;
 				}
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
@@ -388,29 +428,50 @@ public class TypeChecking extends ViewPart {
 	}
 
 	private TypeCheckElimination[] getTable() {
-		if(selectedPackage != null)
-			new ASTReader(selectedPackage);
-		else
-			new ASTReader(selectedProject);
-		final SystemObject systemObject = ASTReader.getSystemObject();
-		IWorkbenchWindow window = getSite().getWorkbenchWindow();
+		TypeCheckElimination[] table = null;
 		try {
-			window.getWorkbench().getProgressService().run(true, true, new IRunnableWithProgress() {
-			     public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-			    	 typeCheckEliminationResults = systemObject.generateTypeCheckEliminations(monitor);
-			     }
+			IWorkbench wb = PlatformUI.getWorkbench();
+			IProgressService ps = wb.getProgressService();
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					new ASTReader(selectedProject, monitor);
+				}
 			});
+			final SystemObject systemObject = ASTReader.getSystemObject();
+			final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			if(selectedPackageFragmentRoot != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
+			}
+			else if(selectedPackageFragment != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
+			}
+			else if(selectedCompilationUnit != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+			}
+			else if(selectedType != null) {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
+			}
+			else {
+				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+			}
+			
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					typeCheckEliminationResults = systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, monitor);
+				}
+			});
+
+			List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();
+			table = new TypeCheckElimination[typeCheckEliminations.size()];
+			int i = 0;
+			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
+				table[i] = typeCheckElimination;
+				i++;
+			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-		}
-		List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();
-		TypeCheckElimination[] table = new TypeCheckElimination[typeCheckEliminations.size()];
-		int i = 0;
-		for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
-			table[i] = typeCheckElimination;
-			i++;
 		}
 		return table;
 	}

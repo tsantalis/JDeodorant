@@ -167,6 +167,23 @@ public class CFG extends Graph {
 			parent = tryStatementParent;
 			position = positionOfTryStatementInParent + position;
 		}
+		if(parent != null && parent.getStatement() instanceof SwitchStatement &&
+				parentComposite.getStatement() instanceof Block) {
+			List<AbstractStatement> switchStatements = new ArrayList<AbstractStatement>(parent.getStatements());
+			int positionOfBlockInParentSwitch = 0;
+			int j = 0;
+			for(AbstractStatement statement : switchStatements) {
+				if(statement.equals(parentComposite)) {
+					positionOfBlockInParentSwitch = j;
+					break;
+				}
+				j++;
+			}
+			switchStatements.remove(parentComposite);
+			switchStatements.addAll(positionOfBlockInParentSwitch, statements);
+			statements = switchStatements;
+			position = positionOfBlockInParentSwitch + position;
+		}
 		if(statements.size() == 1) {
 			action = JOIN_TOP_LIST;
 			if(parent != null) {
@@ -239,7 +256,7 @@ public class CFG extends Graph {
 			currentNode = new CFGNode(statement);
 		nodes.add(currentNode);
 		if((astStatement instanceof BreakStatement || astStatement instanceof ReturnStatement) &&
-				composite.getStatement() instanceof SwitchStatement) {
+				composite.getStatement() instanceof SwitchStatement && immediatelyNestedNode(currentNode, composite)) {
 			CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
 			if(switchBreakMap.containsKey(switchNode)) {
 				List<CFGNode> breakList = switchBreakMap.get(switchNode);
@@ -254,7 +271,7 @@ public class CFG extends Graph {
 		}
 		else if(astStatement instanceof SwitchCase) {
 			SwitchCase switchCase = (SwitchCase)astStatement;
-			if(previousNodesContainBreakOrReturn(previousNodes)) {
+			if(previousNodesContainBreakOrReturn(previousNodes, composite)) {
 				CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
 				Flow flow = new Flow(switchNode, currentNode);
 				if(switchCase.isDefault())
@@ -274,11 +291,28 @@ public class CFG extends Graph {
 		return previousNodes;
 	}
 
-	private boolean previousNodesContainBreakOrReturn(List<CFGNode> previousNodes) {
+	private boolean previousNodesContainBreakOrReturn(List<CFGNode> previousNodes, CompositeStatementObject composite) {
 		for(CFGNode previousNode : previousNodes) {
 			Statement statement = previousNode.getASTStatement();
-			if(statement instanceof BreakStatement || statement instanceof ReturnStatement)
+			if((statement instanceof BreakStatement || statement instanceof ReturnStatement) &&
+					immediatelyNestedNode(previousNode, composite))
 				return true;
+		}
+		return false;
+	}
+
+	private boolean immediatelyNestedNode(CFGNode node, CompositeStatementObject composite) {
+		for(AbstractStatement statement : composite.getStatements()) {
+			if(statement.equals(node.getStatement()))
+				return true;
+			if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite2 = (CompositeStatementObject)statement;
+				Statement astComposite2 = composite2.getStatement();
+				if(astComposite2 instanceof Block) {
+					if(immediatelyNestedNode(node, composite2))
+						return true;
+				}
+			}
 		}
 		return false;
 	}

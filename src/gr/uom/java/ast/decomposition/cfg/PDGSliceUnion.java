@@ -127,6 +127,10 @@ public class PDGSliceUnion {
 		return boundaryBlock;
 	}
 
+	public Set<PDGNode> getNodeCriteria() {
+		return nodeCriteria;
+	}
+
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
 		return ((TreeSet<PDGNode>)sliceNodes).first();
 	}
@@ -179,7 +183,7 @@ public class PDGSliceUnion {
 		return false;
 	}
 
-	public boolean allNodeCriteriaAreDuplicated() {
+	private boolean allNodeCriteriaAreDuplicated() {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);

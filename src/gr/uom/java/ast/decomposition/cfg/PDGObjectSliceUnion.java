@@ -180,14 +180,16 @@ public class PDGObjectSliceUnion {
 	}
 
 	private boolean allNodeCriteriaAreDuplicated() {
-		int counter = 0;
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			if(sliceUnion.allNodeCriteriaAreDuplicated())
-				counter++;
+			for(PDGNode nodeCriterion : sliceUnion.getNodeCriteria()) {
+				if(!duplicatedNodes.contains(nodeCriterion))
+					return false;
+			}
 		}
-		if(sliceUnions.size() == counter)
-			return true;
-		return false;
+		return true;
 	}
 
 	private boolean nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() {

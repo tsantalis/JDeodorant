@@ -28,16 +28,20 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ASTReader {
 
 	private static SystemObject systemObject;
+	private static IJavaProject examinedProject;
 
 	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) {
 		if(monitor != null)
 			monitor.beginTask("Parsing selected Java Project", getNumberOfCompilationUnits(iJavaProject));
 		systemObject = new SystemObject();
+		examinedProject = iJavaProject;
 		try {
 			IPackageFragmentRoot[] iPackageFragmentRoots = iJavaProject.getPackageFragmentRoots();
 			for(IPackageFragmentRoot iPackageFragmentRoot : iPackageFragmentRoots) {
@@ -49,7 +53,7 @@ public class ASTReader {
 						for(ICompilationUnit iCompilationUnit : iCompilationUnits) {
 							if(monitor != null && monitor.isCanceled())
 				    			throw new OperationCanceledException();
-							parseAST(iCompilationUnit);
+							systemObject.addClasses(parseAST(iCompilationUnit));
 							if(monitor != null)
 								monitor.worked(1);
 						}
@@ -62,7 +66,52 @@ public class ASTReader {
 		if(monitor != null)
 			monitor.done();
 	}
-	
+
+	public ASTReader(IJavaProject iJavaProject, SystemObject existingSystemObject, IProgressMonitor monitor) {
+		Set<ICompilationUnit> changedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
+		Set<ICompilationUnit> addedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
+		Set<ICompilationUnit> removedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
+		CompilationUnitCache instance = CompilationUnitCache.getInstance();
+		for(ICompilationUnit changedCompilationUnit : instance.getChangedCompilationUnits()) {
+			if(changedCompilationUnit.getJavaProject().equals(iJavaProject))
+				changedCompilationUnits.add(changedCompilationUnit);
+		}
+		for(ICompilationUnit addedCompilationUnit : instance.getAddedCompilationUnits()) {
+			if(addedCompilationUnit.getJavaProject().equals(iJavaProject))
+				addedCompilationUnits.add(addedCompilationUnit);
+		}
+		for(ICompilationUnit removedCompilationUnit : instance.getRemovedCompilationUnits()) {
+			if(removedCompilationUnit.getJavaProject().equals(iJavaProject))
+				removedCompilationUnits.add(removedCompilationUnit);
+		}
+		if(monitor != null)
+			monitor.beginTask("Parsing changed/added Compilation Units",
+					changedCompilationUnits.size() + addedCompilationUnits.size());
+		systemObject = existingSystemObject;
+		examinedProject = iJavaProject;
+		for(ICompilationUnit removedCompilationUnit : removedCompilationUnits) {
+			IFile removedCompilationUnitFile = (IFile)removedCompilationUnit.getResource();
+			systemObject.removeClasses(removedCompilationUnitFile);
+		}
+		for(ICompilationUnit changedCompilationUnit : changedCompilationUnits) {
+			List<ClassObject> changedClassObjects = parseAST(changedCompilationUnit);
+			for(ClassObject changedClassObject : changedClassObjects) {
+				systemObject.replaceClass(changedClassObject);
+			}
+			monitor.worked(1);
+		}
+		for(ICompilationUnit addedCompilationUnit : addedCompilationUnits) {
+			List<ClassObject> addedClassObjects = parseAST(addedCompilationUnit);
+			for(ClassObject addedClassObject : addedClassObjects) {
+				systemObject.addClass(addedClassObject);
+			}
+			monitor.worked(1);
+		}
+		instance.clearAffectedCompilationUnits();
+		if(monitor != null)
+			monitor.done();
+	}
+
 	private int getNumberOfCompilationUnits(IJavaProject iJavaProject) {
 		int numberOfCompilationUnits = 0;
 		try {
@@ -83,7 +132,7 @@ public class ASTReader {
 		return numberOfCompilationUnits;
 	}
 
-	private void parseAST(ICompilationUnit iCompilationUnit) {
+	private List<ClassObject> parseAST(ICompilationUnit iCompilationUnit) {
 		ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 		IFile iFile = (IFile)iCompilationUnit.getResource();
         ASTParser parser = ASTParser.newParser(AST.JLS3);
@@ -92,6 +141,7 @@ public class ASTReader {
         parser.setResolveBindings(true); // we need bindings later on
         CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
         
+        List<ClassObject> classObjects = new ArrayList<ClassObject>();
         List<AbstractTypeDeclaration> topLevelTypeDeclarations = compilationUnit.types();
         for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
         	if(abstractTypeDeclaration instanceof TypeDeclaration) {
@@ -245,13 +295,18 @@ public class ASTReader {
 		        				systemObject.addDelegate(methodObject.generateMethodInvocation(), methodInvocation);
 		        		}
 		        	}
-		        	systemObject.addClass(classObject);
+		        	classObjects.add(classObject);
         		}
         	}
-        }	
+        }
+        return classObjects;
 	}
 
     public static SystemObject getSystemObject() {
 		return systemObject;
+	}
+
+	public static IJavaProject getExaminedProject() {
+		return examinedProject;
 	}
 }

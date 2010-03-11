@@ -11,6 +11,7 @@ import java.util.*;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -64,6 +65,45 @@ public class SystemObject {
     public void addClass(ClassObject c) {
         classNameMap.put(c.getName(),classList.size());
         classList.add(c);
+    }
+    
+    public void addClasses(List<ClassObject> classObjects) {
+    	for(ClassObject classObject : classObjects)
+    		addClass(classObject);
+    }
+    
+    public void replaceClass(ClassObject c) {
+    	int position = getPositionInClassList(c.getName());
+    	if(position != -1) {
+    		classList.remove(position);
+    		classList.add(position, c);
+    	}
+    	else {
+    		addClass(c);
+    	}
+    }
+    
+    public void removeClasses(IFile file) {
+    	List<ClassObject> classesToBeRemoved = new ArrayList<ClassObject>();
+    	for(ClassObject classObject : classList) {
+    		if(classObject.getIFile().equals(file))
+    			classesToBeRemoved.add(classObject);
+    	}
+    	for(ClassObject classObject : classesToBeRemoved) {
+    		removeClass(classObject);
+    	}
+    }
+    
+    public void removeClass(ClassObject c) {
+    	int position = getPositionInClassList(c.getName());
+    	if(position != -1) {
+    		for(int i=position+1; i<classList.size(); i++) {
+    			ClassObject classObject = classList.get(i);
+    			classNameMap.put(classObject.getName(), classNameMap.get(classObject.getName())-1);
+    		}
+    		classNameMap.remove(c.getName());
+    		classList.remove(c);
+    	}
     }
     
     public void addGetter(MethodInvocationObject methodInvocation, FieldInstructionObject fieldInstruction) {

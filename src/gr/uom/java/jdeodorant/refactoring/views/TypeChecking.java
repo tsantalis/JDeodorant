@@ -27,6 +27,8 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
+import org.eclipse.core.commands.operations.IOperationHistoryListener;
+import org.eclipse.core.commands.operations.OperationHistoryEvent;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -279,7 +281,18 @@ public class TypeChecking extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
-		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new OperationHistoryListener());
+		JavaCore.addElementChangedListener(new ElementChangedListener());
+		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new IOperationHistoryListener() {
+			public void historyNotification(OperationHistoryEvent event) {
+				int eventType = event.getEventType();
+				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
+						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
+					applyRefactoringAction.setEnabled(false);
+					renameMethodAction.setEnabled(false);
+					saveResultsAction.setEnabled(false);
+				}
+			}
+		});
 	}
 
 	private void contributeToActionBars() {
@@ -432,11 +445,20 @@ public class TypeChecking extends ViewPart {
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
-			ps.busyCursorWhile(new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					new ASTReader(selectedProject, monitor);
-				}
-			});
+			if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						new ASTReader(selectedProject, ASTReader.getSystemObject(), monitor);
+					}
+				});
+			}
+			else {
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						new ASTReader(selectedProject, monitor);
+					}
+				});
+			}
 			final SystemObject systemObject = ASTReader.getSystemObject();
 			final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
 			if(selectedPackageFragmentRoot != null) {

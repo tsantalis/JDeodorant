@@ -1,8 +1,11 @@
 package gr.uom.java.ast;
 
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
+import java.util.Set;
 
 import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -15,10 +18,16 @@ public class CompilationUnitCache {
 	private LinkedList<ITypeRoot> iTypeRootList;
 	private LinkedList<CompilationUnit> compilationUnitList;
 	private ITypeRoot lockedTypeRoot;
+	private Set<ICompilationUnit> changedCompilationUnits;
+	private Set<ICompilationUnit> addedCompilationUnits;
+	private Set<ICompilationUnit> removedCompilationUnits;
 
 	private CompilationUnitCache() {
 		this.iTypeRootList = new LinkedList<ITypeRoot>();
 		this.compilationUnitList = new LinkedList<CompilationUnit>();
+		this.changedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
+		this.addedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
+		this.removedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
 	}
 
 	public static CompilationUnitCache getInstance() {
@@ -73,12 +82,43 @@ public class CompilationUnitCache {
 		}
 	}
 
+	public void compilationUnitChanged(ICompilationUnit compilationUnit) {
+		changedCompilationUnits.add(compilationUnit);
+	}
+
+	public void compilationUnitAdded(ICompilationUnit compilationUnit) {
+		addedCompilationUnits.add(compilationUnit);
+	}
+
+	public void compilationUnitRemoved(ICompilationUnit compilationUnit) {
+		addedCompilationUnits.remove(compilationUnit);
+		removedCompilationUnits.add(compilationUnit);
+	}
+
+	public Set<ICompilationUnit> getChangedCompilationUnits() {
+		return changedCompilationUnits;
+	}
+
+	public Set<ICompilationUnit> getAddedCompilationUnits() {
+		return addedCompilationUnits;
+	}
+
+	public Set<ICompilationUnit> getRemovedCompilationUnits() {
+		return removedCompilationUnits;
+	}
+
 	public void lock(ITypeRoot iTypeRoot) {
 		lockedTypeRoot = iTypeRoot;
 	}
 
 	public void releaseLock() {
 		lockedTypeRoot = null;
+	}
+
+	public void clearAffectedCompilationUnits() {
+		changedCompilationUnits.clear();
+		addedCompilationUnits.clear();
+		removedCompilationUnits.clear();
 	}
 
 	public void clearCache() {

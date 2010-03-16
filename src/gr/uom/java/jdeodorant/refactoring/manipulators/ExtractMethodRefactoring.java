@@ -8,12 +8,18 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
+import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -21,18 +27,26 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
+import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -41,8 +55,13 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
+import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.SynchronizedStatement;
+import org.eclipse.jdt.core.dom.ThrowStatement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -70,6 +89,10 @@ public class ExtractMethodRefactoring extends Refactoring {
 	private TypeDeclaration sourceTypeDeclaration;
 	private MethodDeclaration sourceMethodDeclaration;
 	private CompilationUnitChange compilationUnitChange;
+	private Set<TryStatement> tryStatementsToBeRemoved;
+	private Set<TryStatement> tryStatementsToBeCopied;
+	private Map<TryStatement, ListRewrite> tryStatementBodyRewriteMap;
+	private List<CFGBranchDoLoopNode> doLoopNodes;
 	
 	public ExtractMethodRefactoring(CompilationUnit sourceCompilationUnit, ASTSlice slice) {
 		this.slice = slice;
@@ -78,6 +101,44 @@ public class ExtractMethodRefactoring extends Refactoring {
 		this.sourceMethodDeclaration = slice.getSourceMethodDeclaration();
 		ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
 		this.compilationUnitChange = new CompilationUnitChange("", sourceICompilationUnit);
+		this.tryStatementsToBeRemoved = new LinkedHashSet<TryStatement>();
+		this.tryStatementsToBeCopied = new LinkedHashSet<TryStatement>();
+		this.tryStatementBodyRewriteMap = new LinkedHashMap<TryStatement, ListRewrite>();
+		this.doLoopNodes = new ArrayList<CFGBranchDoLoopNode>();
+		for(PDGNode pdgNode : slice.getSliceNodes()) {
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			if(cfgNode instanceof CFGBranchDoLoopNode) {
+				CFGBranchDoLoopNode cfgDoLoopNode = (CFGBranchDoLoopNode)cfgNode;
+				doLoopNodes.add(cfgDoLoopNode);
+			}
+		}
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<Statement> tryStatements = statementExtractor.getTryStatements(sourceMethodDeclaration.getBody());
+		for(Statement tryStatement : tryStatements) {
+			processTryStatement((TryStatement)tryStatement);
+		}
+	}
+
+	private void processTryStatement(TryStatement tryStatement) {
+		List<Statement> nestedStatements = getStatements(tryStatement);
+		Set<Statement> removableStatements = slice.getRemovableStatements();
+		Set<Statement> sliceStatements = slice.getSliceStatements();
+		boolean allNestedStatementsAreRemovable = true;
+		boolean sliceStatementThrowsException = false;
+		for(Statement nestedStatement : nestedStatements) {
+			if(!removableStatements.contains(nestedStatement)) {
+				allNestedStatementsAreRemovable = false;
+			}
+			if(sliceStatements.contains(nestedStatement)) {
+				Set<ITypeBinding> thrownExceptionTypes = getThrownExceptionTypes(nestedStatement);
+				if(thrownExceptionTypes.size() > 0)
+					sliceStatementThrowsException = true;
+			}
+		}
+		if(allNestedStatementsAreRemovable)
+			tryStatementsToBeRemoved.add(tryStatement);
+		else if(sliceStatementThrowsException)
+			tryStatementsToBeCopied.add(tryStatement);
 	}
 
 	public void apply() {
@@ -96,6 +157,16 @@ public class ExtractMethodRefactoring extends Refactoring {
 		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
 			if(!variableDeclaration.resolveBinding().isField())
 				argumentRewrite.insertLast(variableDeclaration.getName(), null);
+		}
+		
+		Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+		ASTNode statementParent = extractedMethodInvocationInsertionStatement.getParent();
+		if(statementParent != null && statementParent instanceof Block)
+			statementParent = statementParent.getParent();
+		if(statementParent != null && statementParent instanceof TryStatement) {
+			TryStatement tryStatementParent = (TryStatement)statementParent;
+			if(tryStatementsToBeRemoved.contains(tryStatementParent))
+				extractedMethodInvocationInsertionStatement = tryStatementParent;
 		}
 		
 		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
@@ -125,7 +196,6 @@ public class ExtractMethodRefactoring extends Refactoring {
 				}
 			}
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
-			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
 			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
 			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
 			blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
@@ -163,14 +233,12 @@ public class ExtractMethodRefactoring extends Refactoring {
 				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
 				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
 				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
-				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
 				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
 				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
 				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
 			}
 			else {
 				ExpressionStatement expressionStatement = ast.newExpressionStatement(extractedMethodInvocation);
-				Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
 				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
 				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
 				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
@@ -179,6 +247,9 @@ public class ExtractMethodRefactoring extends Refactoring {
 		
 		for(Statement removableStatement : slice.getRemovableStatements()) {
 			sourceRewriter.remove(removableStatement, null);
+		}
+		for(TryStatement tryStatement : tryStatementsToBeRemoved) {
+			sourceRewriter.remove(tryStatement, null);
 		}
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
@@ -264,39 +335,29 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 		}
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
-		ListRewrite bodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
+		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
 
 		List<PDGNode> sliceNodes = new ArrayList<PDGNode>(slice.getSliceNodes());
-		List<CFGBranchDoLoopNode> doLoopNodes = new ArrayList<CFGBranchDoLoopNode>();
-		for(PDGNode pdgNode : sliceNodes) {
-			CFGNode cfgNode = pdgNode.getCFGNode();
-			if(cfgNode instanceof CFGBranchDoLoopNode) {
-				CFGBranchDoLoopNode cfgDoLoopNode = (CFGBranchDoLoopNode)cfgNode;
-				doLoopNodes.add(cfgDoLoopNode);
-			}
-		}
 		while(!sliceNodes.isEmpty()) {
+			ListRewrite bodyRewrite = methodBodyRewrite;
 			PDGNode node = sliceNodes.get(0);
-			if(node instanceof PDGStatementNode) {
-				boolean nodeIsInsideDoLoop = false;
-				for(CFGBranchDoLoopNode doLoopNode : doLoopNodes) {
-					if(node.getId() >= doLoopNode.getJoinNode().getId() && node.getId() < doLoopNode.getId()) {
-						nodeIsInsideDoLoop = true;
-						PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)doLoopNode.getPDGNode();
-						if(sliceNodes.contains(predicateNode)) {
-							bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
-							break;
-						}
-					}
+			PDGControlPredicateNode doLoopPredicateNode = isInsideDoLoop(node);
+			if(doLoopPredicateNode != null) {
+				bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, doLoopPredicateNode);
+				if(sliceNodes.contains(doLoopPredicateNode)) {
+					bodyRewrite.insertLast(processPredicateNode(doLoopPredicateNode, ast, sourceRewriter, sliceNodes), null);
 				}
-				if(!nodeIsInsideDoLoop) {
+			}
+			else {
+				bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, node);
+				if(node instanceof PDGControlPredicateNode) {
+					PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;
+					bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
+				}
+				else {
 					bodyRewrite.insertLast(node.getASTStatement(), null);
 					sliceNodes.remove(node);
 				}
-			}
-			else if(node instanceof PDGControlPredicateNode) {
-				PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;
-				bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
 			}
 		}
 		
@@ -304,7 +365,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 				slice.declarationOfVariableCriterionBelongsToSliceNodes())) {
 			ReturnStatement returnStatement = newMethodBody.getAST().newReturnStatement();
 			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariableSimpleName, null);
-			bodyRewrite.insertLast(returnStatement, null);
+			methodBodyRewrite.insertLast(returnStatement, null);
 		}
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
@@ -318,6 +379,49 @@ public class ExtractMethodRefactoring extends Refactoring {
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private ListRewrite createTryStatementIfNeeded(ASTRewrite sourceRewriter, AST ast, ListRewrite bodyRewrite, PDGNode node) {
+		Statement statement = node.getASTStatement();
+		ASTNode statementParent = statement.getParent();
+		if(statementParent != null && statementParent instanceof Block)
+			statementParent = statementParent.getParent();
+		if(statementParent != null && statementParent instanceof TryStatement) {
+			TryStatement tryStatementParent = (TryStatement)statementParent;
+			if(tryStatementsToBeRemoved.contains(tryStatementParent) || tryStatementsToBeCopied.contains(tryStatementParent)) {
+				if(tryStatementBodyRewriteMap.containsKey(tryStatementParent)) {
+					bodyRewrite = tryStatementBodyRewriteMap.get(tryStatementParent);
+				}
+				else {
+					TryStatement newTryStatement = ast.newTryStatement();
+					ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+					List<CatchClause> catchClauses = tryStatementParent.catchClauses();
+					for(CatchClause catchClause : catchClauses) {
+						catchClauseRewrite.insertLast(catchClause, null);
+					}
+					if(tryStatementParent.getFinally() != null) {
+						sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, tryStatementParent.getFinally(), null);
+					}
+					Block tryMethodBody = ast.newBlock();
+					sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, tryMethodBody, null);
+					ListRewrite tryBodyRewrite = sourceRewriter.getListRewrite(tryMethodBody, Block.STATEMENTS_PROPERTY);
+					tryStatementBodyRewriteMap.put(tryStatementParent, tryBodyRewrite);
+					bodyRewrite.insertLast(newTryStatement, null);
+					bodyRewrite = tryBodyRewrite;
+				}
+			}
+		}
+		return bodyRewrite;
+	}
+
+	private PDGControlPredicateNode isInsideDoLoop(PDGNode node) {
+		for(CFGBranchDoLoopNode doLoopNode : doLoopNodes) {
+			if(node.getId() >= doLoopNode.getJoinNode().getId() && node.getId() < doLoopNode.getId()) {
+				PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)doLoopNode.getPDGNode();
+				return predicateNode;
+			}
+		}
+		return null;
 	}
 
 	private Statement processPredicateNode(PDGControlPredicateNode predicateNode, AST ast, ASTRewrite sourceRewriter, List<PDGNode> sliceNodes) {
@@ -349,6 +453,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 							listRewrite = elseBodyRewrite;
 							numberOfFalseControlDependencies++;
 						}
+						listRewrite = createTryStatementIfNeeded(sourceRewriter, ast, listRewrite, dstPDGNode);
 						if(dstPDGNode instanceof PDGControlPredicateNode) {
 							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
 							listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
@@ -372,17 +477,19 @@ public class ExtractMethodRefactoring extends Refactoring {
 			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
 			Iterator<GraphEdge> outgoingDependenceIterator = predicateNode.getOutgoingDependenceIterator();
 			while(outgoingDependenceIterator.hasNext()) {
+				ListRewrite bodyRewrite = switchStatementsRewrite;
 				PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
 				if(dependence instanceof PDGControlDependence) {
 					PDGControlDependence controlDependence = (PDGControlDependence)dependence;
 					PDGNode dstPDGNode = (PDGNode)controlDependence.getDst();
 					if(sliceNodes.contains(dstPDGNode)) {
+						bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, dstPDGNode);
 						if(dstPDGNode instanceof PDGControlPredicateNode) {
 							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
-							switchStatementsRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+							bodyRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 						}
 						else {
-							switchStatementsRewrite.insertLast(dstPDGNode.getASTStatement(), null);
+							bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
 							sliceNodes.remove(dstPDGNode);
 						}
 					}
@@ -405,17 +512,19 @@ public class ExtractMethodRefactoring extends Refactoring {
 			ListRewrite loopBodyRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
 			Iterator<GraphEdge> outgoingDependenceIterator = predicateNode.getOutgoingDependenceIterator();
 			while(outgoingDependenceIterator.hasNext()) {
+				ListRewrite bodyRewrite = loopBodyRewrite;
 				PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
 				if(dependence instanceof PDGControlDependence) {
 					PDGControlDependence controlDependence = (PDGControlDependence)dependence;
 					PDGNode dstPDGNode = (PDGNode)controlDependence.getDst();
 					if(sliceNodes.contains(dstPDGNode)) {
+						bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, dstPDGNode);
 						if(dstPDGNode instanceof PDGControlPredicateNode) {
 							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
-							loopBodyRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+							bodyRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 						}
 						else {
-							loopBodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
+							bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
 							sliceNodes.remove(dstPDGNode);
 						}
 					}
@@ -460,6 +569,180 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 		}
 		return newPredicateStatement;
+	}
+
+	private Set<ITypeBinding> getThrownExceptionTypes(Statement statement) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> methodInvocations = new ArrayList<Expression>();
+		if(statement instanceof IfStatement) {
+			IfStatement ifStatement = (IfStatement)statement;
+			Expression ifExpression = ifStatement.getExpression();
+			methodInvocations.addAll(expressionExtractor.getMethodInvocations(ifExpression));
+		}
+		else if(statement instanceof WhileStatement) {
+			WhileStatement whileStatement = (WhileStatement)statement;
+			Expression whileExpression = whileStatement.getExpression();
+			methodInvocations.addAll(expressionExtractor.getMethodInvocations(whileExpression));
+		}
+		else if(statement instanceof ForStatement) {
+			ForStatement forStatement = (ForStatement)statement;
+			List<Expression> initializers = forStatement.initializers();
+			for(Expression expression : initializers) {
+				methodInvocations.addAll(expressionExtractor.getMethodInvocations(expression));
+			}
+			Expression forExpression = forStatement.getExpression();
+			if(forExpression != null) {
+				methodInvocations.addAll(expressionExtractor.getMethodInvocations(forExpression));
+			}
+			List<Expression> updaters = forStatement.updaters();
+			for(Expression expression : updaters) {
+				methodInvocations.addAll(expressionExtractor.getMethodInvocations(expression));
+			}
+		}
+		else if(statement instanceof EnhancedForStatement) {
+			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
+			Expression expression = enhancedForStatement.getExpression();
+			methodInvocations.addAll(expressionExtractor.getMethodInvocations(expression));
+		}
+		else if(statement instanceof DoStatement) {
+			DoStatement doStatement = (DoStatement)statement;
+			Expression doExpression = doStatement.getExpression();
+			methodInvocations.addAll(expressionExtractor.getMethodInvocations(doExpression));
+		}
+		else if(statement instanceof SwitchStatement) {
+			SwitchStatement switchStatement = (SwitchStatement)statement;
+			Expression switchExpression = switchStatement.getExpression();
+			methodInvocations.addAll(expressionExtractor.getMethodInvocations(switchExpression));
+		}
+		else {
+			methodInvocations.addAll(expressionExtractor.getMethodInvocations(statement));
+		}
+		Set<ITypeBinding> thrownExceptionTypes = new LinkedHashSet<ITypeBinding>();
+		for(Expression expression : methodInvocations) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
+				ITypeBinding[] exceptionTypes = methodInvocationBinding.getExceptionTypes();
+				for(ITypeBinding typeBinding : exceptionTypes)
+					thrownExceptionTypes.add(typeBinding);
+			}
+			else if(expression instanceof SuperMethodInvocation) {
+				SuperMethodInvocation superMethodInvocation = (SuperMethodInvocation)expression;
+				IMethodBinding methodInvocationBinding = superMethodInvocation.resolveMethodBinding();
+				ITypeBinding[] exceptionTypes = methodInvocationBinding.getExceptionTypes();
+				for(ITypeBinding typeBinding : exceptionTypes)
+					thrownExceptionTypes.add(typeBinding);
+			}
+		}
+		return thrownExceptionTypes;
+	}
+
+	private List<Statement> getStatements(Statement statement) {
+		List<Statement> statementList = new ArrayList<Statement>();
+		if(statement instanceof Block) {
+			Block block = (Block)statement;
+			List<Statement> blockStatements = block.statements();
+			for(Statement blockStatement : blockStatements)
+				statementList.addAll(getStatements(blockStatement));
+		}
+		else if(statement instanceof IfStatement) {
+			IfStatement ifStatement = (IfStatement)statement;
+			statementList.add(ifStatement);
+			statementList.addAll(getStatements(ifStatement.getThenStatement()));
+			if(ifStatement.getElseStatement() != null) {
+				statementList.addAll(getStatements(ifStatement.getElseStatement()));
+			}
+		}
+		else if(statement instanceof ForStatement) {
+			ForStatement forStatement = (ForStatement)statement;
+			statementList.add(forStatement);
+			statementList.addAll(getStatements(forStatement.getBody()));
+		}
+		else if(statement instanceof EnhancedForStatement) {
+			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
+			statementList.add(enhancedForStatement);
+			statementList.addAll(getStatements(enhancedForStatement.getBody()));
+		}
+		else if(statement instanceof WhileStatement) {
+			WhileStatement whileStatement = (WhileStatement)statement;
+			statementList.add(whileStatement);
+			statementList.addAll(getStatements(whileStatement.getBody()));
+		}
+		else if(statement instanceof DoStatement) {
+			DoStatement doStatement = (DoStatement)statement;
+			statementList.add(doStatement);
+			statementList.addAll(getStatements(doStatement.getBody()));
+		}
+		else if(statement instanceof ExpressionStatement) {
+			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+			statementList.add(expressionStatement);
+		}
+		else if(statement instanceof SwitchStatement) {
+			SwitchStatement switchStatement = (SwitchStatement)statement;
+			statementList.add(switchStatement);
+			List<Statement> statements = switchStatement.statements();
+			for(Statement statement2 : statements)
+				statementList.addAll(getStatements(statement2));
+		}
+		else if(statement instanceof SwitchCase) {
+			SwitchCase switchCase = (SwitchCase)statement;
+			statementList.add(switchCase);
+		}
+		else if(statement instanceof AssertStatement) {
+			AssertStatement assertStatement = (AssertStatement)statement;
+			statementList.add(assertStatement);
+		}
+		else if(statement instanceof LabeledStatement) {
+			LabeledStatement labeledStatement = (LabeledStatement)statement;
+			//handling of LabeledStatement
+			statementList.addAll(getStatements(labeledStatement.getBody()));
+		}
+		else if(statement instanceof ReturnStatement) {
+			ReturnStatement returnStatement = (ReturnStatement)statement;
+			statementList.add(returnStatement);
+		}
+		else if(statement instanceof SynchronizedStatement) {
+			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
+			//handling of SynchronizedStatement
+			statementList.addAll(getStatements(synchronizedStatement.getBody()));
+		}
+		else if(statement instanceof ThrowStatement) {
+			ThrowStatement throwStatement = (ThrowStatement)statement;
+			statementList.add(throwStatement);
+		}
+		else if(statement instanceof TryStatement) {
+			TryStatement tryStatement = (TryStatement)statement;
+			statementList.addAll(getStatements(tryStatement.getBody()));
+			/*List<CatchClause> catchClauses = tryStatement.catchClauses();
+			for(CatchClause catchClause : catchClauses) {
+				statementList.addAll(getStatements(catchClause.getBody()));
+			}
+			Block finallyBlock = tryStatement.getFinally();
+			if(finallyBlock != null)
+				statementList.addAll(getStatements(finallyBlock));*/
+		}
+		else if(statement instanceof VariableDeclarationStatement) {
+			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+			statementList.add(variableDeclarationStatement);
+		}
+		else if(statement instanceof ConstructorInvocation) {
+			ConstructorInvocation constructorInvocation = (ConstructorInvocation)statement;
+			statementList.add(constructorInvocation);
+		}
+		else if(statement instanceof SuperConstructorInvocation) {
+			SuperConstructorInvocation superConstructorInvocation = (SuperConstructorInvocation)statement;
+			statementList.add(superConstructorInvocation);
+		}
+		else if(statement instanceof BreakStatement) {
+			BreakStatement breakStatement = (BreakStatement)statement;
+			statementList.add(breakStatement);
+		}
+		else if(statement instanceof ContinueStatement) {
+			ContinueStatement continueStatement = (ContinueStatement)statement;
+			statementList.add(continueStatement);
+		}
+		
+		return statementList;
 	}
 
 	@Override

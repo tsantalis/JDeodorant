@@ -11,12 +11,9 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ReturnStatement;
-import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
 
@@ -192,6 +189,34 @@ public class PDGObjectSliceUnion {
 		return true;
 	}
 
+	private boolean returnStatementIsControlDependentOnSliceNode() {
+		for(GraphNode node : pdg.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.getASTStatement() instanceof ReturnStatement) {
+				if(isControlDependentOnSliceNode(pdgNode))
+					return true;
+				if(sliceNodes.contains(pdgNode))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isControlDependentOnSliceNode(PDGNode node) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)controlDependence.src;
+				if(sliceNodes.contains(srcPDGNode))
+					return true;
+				else
+					return isControlDependentOnSliceNode(srcPDGNode);
+			}
+		}
+		return false;
+	}
+
 	private boolean nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
@@ -259,16 +284,6 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
-	private boolean containsBreakContinueReturnSliceNode() {
-		for(PDGNode node : sliceNodes) {
-			Statement statement = node.getASTStatement();
-			if(statement instanceof BreakStatement || statement instanceof ContinueStatement ||
-					statement instanceof ReturnStatement)
-				return true;
-		}
-		return false;
-	}
-
 	private boolean objectSliceEqualsMethodBody() {
 		int sliceSize = sliceNodes.size();
 		if(sliceSize == methodSize)
@@ -326,7 +341,7 @@ public class PDGObjectSliceUnion {
 	public boolean satisfiesRules() {
 		if(objectSliceEqualsMethodBody() || objectSliceHasMinimumSize() ||
 				objectReferenceIsReturnedVariableInOriginalMethod() ||
-				allNodeCriteriaAreDuplicated() || containsBreakContinueReturnSliceNode() ||
+				allNodeCriteriaAreDuplicated() || returnStatementIsControlDependentOnSliceNode() ||
 				containsDuplicateNodeWithStateChangingMethodInvocation() ||
 				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
 				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() ||

@@ -172,7 +172,6 @@ public class PropertyManagerPreferencePage
 
 	public void propertyChange(PropertyChangeEvent event) {
 		super.propertyChange(event);
-		checkState();
 		if(event.getProperty().equals(FieldEditor.VALUE)) {
 			checkState();
 		}

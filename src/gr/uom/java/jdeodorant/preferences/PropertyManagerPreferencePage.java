@@ -29,6 +29,7 @@ public class PropertyManagerPreferencePage
 	private IntegerFieldEditor maximumDuplicationFieldEditor;
 	private StringFieldEditor maximumRatioOfDuplicatedToExtractedFieldEditor;
 	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
+	private IntegerFieldEditor compilationUnitCacheSizeFieldEditor;
 	
 	public PropertyManagerPreferencePage() {
 		super(GRID);
@@ -71,34 +72,110 @@ public class PropertyManagerPreferencePage
 				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,
 				"&Enable Alias Analysis:", getFieldEditorParent());
 		addField(enableAliasAnalysisFieldEditor);
+		
+		compilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
+				PreferenceConstants.P_COMPILATION_UNIT_CACHE_SIZE,
+				"&CompilationUnit cache size:", getFieldEditorParent());
+		compilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
+		addField(compilationUnitCacheSizeFieldEditor);
 	}
 
 	protected void checkState() {
 		super.checkState();
-		String ratio = maximumRatioOfDuplicatedToExtractedFieldEditor.getStringValue();
 		try {
+			int minimumSliceSize = minimumSliceSizeFieldEditor.getIntValue();
+			if(minimumSliceSize >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Minimum number of slice statements must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Minimum number of slice statements must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			int maximumSliceSize = maximumSliceSizeFieldEditor.getIntValue();
+			if(maximumSliceSize >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Maximum number of slice statements must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Maximum number of slice statements must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			int maximumDuplication = maximumDuplicationFieldEditor.getIntValue();
+			if(maximumDuplication >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Maximum number of duplicated statements must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Maximum number of duplicated statements must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			String ratio = maximumRatioOfDuplicatedToExtractedFieldEditor.getStringValue();
 			double r = Double.parseDouble(ratio);
 			if(r >= 0.0 && r <= 1.0) {
 				setErrorMessage(null);
 				setValid(true);
 			}
 			else {
-				setErrorMessage("Value must be a Double within range [0, 1]");
+				setErrorMessage("Duplication ratio must be a Double within range [0, 1]");
 				setValid(false);
+				return;
 			}
 		}
 		catch(NumberFormatException e) {
-			setErrorMessage("Value must be a Double");
+			setErrorMessage("Duplication ratio must be a Double");
 			setValid(false);
+			return;
+		}
+		try {
+			int compilationUnitCacheSize = compilationUnitCacheSizeFieldEditor.getIntValue();
+			if(compilationUnitCacheSize >= 10) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Cache size is recommended to be >= 10");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Cache size must be an Integer");
+			setValid(false);
+			return;
 		}
 	}
 
 	public void propertyChange(PropertyChangeEvent event) {
 		super.propertyChange(event);
-		if(event.getProperty().equals(FieldEditor.VALUE) &&
-				event.getSource() == maximumRatioOfDuplicatedToExtractedFieldEditor) {
+		checkState();
+		if(event.getProperty().equals(FieldEditor.VALUE)) {
 			checkState();
-		}        
+		}
 	}
 
 	/* (non-Javadoc)

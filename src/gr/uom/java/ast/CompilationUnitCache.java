@@ -1,5 +1,8 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
+
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.Set;
@@ -10,11 +13,11 @@ import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jface.preference.IPreferenceStore;
 
 public class CompilationUnitCache {
 
 	private static CompilationUnitCache instance;
-	private static final int MAXIMUM_CACHE_SIZE = 10;
 	private LinkedList<ITypeRoot> iTypeRootList;
 	private LinkedList<CompilationUnit> compilationUnitList;
 	private ITypeRoot lockedTypeRoot;
@@ -53,8 +56,10 @@ public class CompilationUnitCache {
 				parser.setSource(iTypeRoot);
 				parser.setResolveBindings(true);
 				CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
-
-				if(iTypeRootList.size() < MAXIMUM_CACHE_SIZE) {
+				
+				IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+				int maximumCacheSize = store.getInt(PreferenceConstants.P_COMPILATION_UNIT_CACHE_SIZE);
+				if(iTypeRootList.size() < maximumCacheSize) {
 					iTypeRootList.add(iTypeRoot);
 					compilationUnitList.add(compilationUnit);
 				}

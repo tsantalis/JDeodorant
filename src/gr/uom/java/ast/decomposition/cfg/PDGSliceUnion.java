@@ -5,6 +5,7 @@ import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,9 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -48,12 +51,37 @@ public class PDGSliceUnion {
 		this.localVariableCriterion = localVariableCriterion;
 		this.subgraph = slices.get(0);
 		this.sliceNodes = getSliceNodes();
+		//key is the branching node and value is the innermost loop node
+		Map<PDGNode, PDGNode> branchingNodeMap = getInnerMostLoopNodesForBranchingNodes();
+		Set<PDGNode> nodesToBeAddedToSliceDueToBranchingNodes = new TreeSet<PDGNode>();
+		for(PDGNode branchingNode : branchingNodeMap.keySet()) {
+			PDGNode innerMostLoopNode = branchingNodeMap.get(branchingNode);
+			if(sliceNodes.contains(innerMostLoopNode)) {
+				CFGNode cfgNode = innerMostLoopNode.getCFGNode();
+				if(cfgNode instanceof CFGBranchLoopNode || cfgNode instanceof CFGBranchDoLoopNode) {
+					Set<PDGNode> branchingNodeSlice = subgraph.computeSlice(branchingNode);
+					nodesToBeAddedToSliceDueToBranchingNodes.addAll(branchingNodeSlice);
+				}
+			}
+		}
+		sliceNodes.addAll(nodesToBeAddedToSliceDueToBranchingNodes);
 		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
 		remainingNodes.add(pdg.getEntryNode());
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(!sliceNodes.contains(pdgNode))
 				remainingNodes.add(pdgNode);
+		}
+		Set<PDGNode> branchingNodesToBeAddedToDuplicatedNodes = new TreeSet<PDGNode>();
+		for(PDGNode remainingNode : remainingNodes) {
+			for(PDGNode branchingNode : branchingNodeMap.keySet()) {
+				PDGNode innerMostLoopNode = branchingNodeMap.get(branchingNode);
+				CFGNode cfgNode = innerMostLoopNode.getCFGNode();
+				if(cfgNode instanceof CFGBranchLoopNode || cfgNode instanceof CFGBranchDoLoopNode) {
+					if(isNestedInside(remainingNode, innerMostLoopNode))
+						branchingNodesToBeAddedToDuplicatedNodes.add(branchingNode);
+				}
+			}
 		}
 		this.passedParameters = new LinkedHashSet<AbstractVariable>();
 		Set<PDGNode> nCD = new LinkedHashSet<PDGNode>();
@@ -100,12 +128,57 @@ public class PDGSliceUnion {
 		this.indispensableNodes = new TreeSet<PDGNode>();
 		indispensableNodes.addAll(controlIndispensableNodes);
 		indispensableNodes.addAll(dataIndispensableNodes);
+		for(PDGNode branchingNode : branchingNodesToBeAddedToDuplicatedNodes) {
+			indispensableNodes.addAll(subgraph.computeSlice(branchingNode));
+		}
 		this.removableNodes = new LinkedHashSet<PDGNode>();
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(!remainingNodes.contains(pdgNode) && !indispensableNodes.contains(pdgNode))
 				removableNodes.add(pdgNode);
 		}
+	}
+
+	private boolean isNestedInside(PDGNode nestedNode, PDGNode parentNode) {
+		for(GraphEdge edge : nestedNode.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)controlDependence.src;
+				if(srcPDGNode.equals(parentNode))
+					return true;
+				else
+					return isNestedInside(srcPDGNode, parentNode);
+			}
+		}
+		return false;
+	}
+
+	private Map<PDGNode, PDGNode> getInnerMostLoopNodesForBranchingNodes() {
+		Map<PDGNode, PDGNode> map = new LinkedHashMap<PDGNode, PDGNode>();
+		for(GraphNode node : pdg.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.getASTStatement() instanceof BreakStatement || pdgNode.getASTStatement() instanceof ContinueStatement) {
+				map.put(pdgNode, getInnerMostLoopNode(pdgNode));
+			}
+		}
+		return map;
+	}
+
+	private PDGNode getInnerMostLoopNode(PDGNode node) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)controlDependence.src;
+				CFGNode srcCFGNode = srcPDGNode.getCFGNode();
+				if(srcCFGNode instanceof CFGBranchLoopNode || srcCFGNode instanceof CFGBranchDoLoopNode || srcCFGNode instanceof CFGBranchSwitchNode)
+					return srcPDGNode;
+				else
+					return getInnerMostLoopNode(srcPDGNode);
+			}
+		}
+		return null;
 	}
 
 	public List<PDGSlice> getSlices() {

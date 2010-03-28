@@ -353,6 +353,12 @@ public class PDGSlice extends Graph {
 		return sliceNodes;
 	}
 
+	public Set<PDGNode> computeSlice(PDGNode nodeCriterion) {
+		Set<PDGNode> sliceNodes = new LinkedHashSet<PDGNode>();
+		sliceNodes.addAll(traverseBackward(nodeCriterion, new LinkedHashSet<PDGNode>()));
+		return sliceNodes;
+	}
+
 	private Set<PDGNode> getDefNodes(PDGNode node, AbstractVariable localVariable) {
 		Set<PDGNode> defNodes = new LinkedHashSet<PDGNode>();
 		for(GraphEdge edge : node.incomingEdges) {

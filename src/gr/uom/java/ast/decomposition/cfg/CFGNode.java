@@ -50,7 +50,7 @@ public class CFGNode extends GraphNode {
 	}
 
 	public boolean isBranch() {
-		if(outgoingEdges.size() > 1)
+		if(outgoingEdges.size() > 1 || this instanceof CFGBranchNode)
 			return true;
 		return false;
 	}

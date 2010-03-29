@@ -72,14 +72,14 @@ public class PDGSliceUnion {
 			if(!sliceNodes.contains(pdgNode))
 				remainingNodes.add(pdgNode);
 		}
-		Set<PDGNode> branchingNodesToBeAddedToDuplicatedNodes = new TreeSet<PDGNode>();
+		Set<PDGNode> branchingNodesToBeAddedToDuplicatedNodesDueToRemainingNodesInsideLoops = new TreeSet<PDGNode>();
 		for(PDGNode remainingNode : remainingNodes) {
 			for(PDGNode branchingNode : branchingNodeMap.keySet()) {
 				PDGNode innerMostLoopNode = branchingNodeMap.get(branchingNode);
 				CFGNode cfgNode = innerMostLoopNode.getCFGNode();
 				if(cfgNode instanceof CFGBranchLoopNode || cfgNode instanceof CFGBranchDoLoopNode) {
 					if(isNestedInside(remainingNode, innerMostLoopNode))
-						branchingNodesToBeAddedToDuplicatedNodes.add(branchingNode);
+						branchingNodesToBeAddedToDuplicatedNodesDueToRemainingNodesInsideLoops.add(branchingNode);
 				}
 			}
 		}
@@ -128,7 +128,21 @@ public class PDGSliceUnion {
 		this.indispensableNodes = new TreeSet<PDGNode>();
 		indispensableNodes.addAll(controlIndispensableNodes);
 		indispensableNodes.addAll(dataIndispensableNodes);
-		for(PDGNode branchingNode : branchingNodesToBeAddedToDuplicatedNodes) {
+		Set<PDGNode> branchingNodesToBeAddedToDuplicatedNodesDueToIndispensableNodesInsideLoops = new TreeSet<PDGNode>();
+		for(PDGNode indispensableNode : indispensableNodes) {
+			for(PDGNode branchingNode : branchingNodeMap.keySet()) {
+				PDGNode innerMostLoopNode = branchingNodeMap.get(branchingNode);
+				CFGNode cfgNode = innerMostLoopNode.getCFGNode();
+				if(cfgNode instanceof CFGBranchLoopNode || cfgNode instanceof CFGBranchDoLoopNode) {
+					if(isNestedInside(indispensableNode, innerMostLoopNode))
+						branchingNodesToBeAddedToDuplicatedNodesDueToIndispensableNodesInsideLoops.add(branchingNode);
+				}
+			}
+		}
+		for(PDGNode branchingNode : branchingNodesToBeAddedToDuplicatedNodesDueToRemainingNodesInsideLoops) {
+			indispensableNodes.addAll(subgraph.computeSlice(branchingNode));
+		}
+		for(PDGNode branchingNode : branchingNodesToBeAddedToDuplicatedNodesDueToIndispensableNodesInsideLoops) {
 			indispensableNodes.addAll(subgraph.computeSlice(branchingNode));
 		}
 		this.removableNodes = new LinkedHashSet<PDGNode>();

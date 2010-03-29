@@ -299,9 +299,8 @@ public class PDG extends Graph {
 				PDGAntiDependence antiDependence = new PDGAntiDependence(initialNode, dstPDGNode, variableInstruction, loop);
 				edges.add(antiDependence);
 			}
-			if(!dstPDGNode.usesLocalVariable(variableInstruction)) {
+			else
 				antiDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loop);
-			}
 		}
 	}
 

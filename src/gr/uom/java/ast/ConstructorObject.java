@@ -16,6 +16,7 @@ public class ConstructorObject {
     protected String name;
 	protected List<ParameterObject> parameterList;
     protected Access access;
+    protected String className;
     protected MethodBodyObject methodBody;
     //protected MethodDeclaration methodDeclaration;
     protected ASTInformation methodDeclaration;
@@ -55,11 +56,19 @@ public class ConstructorObject {
     public void setName(String name) {
 		this.name = name;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
-	
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    public String getClassName() {
+        return this.className;
+    }
+
 	public boolean addParameter(ParameterObject parameter) {
 		return parameterList.add(parameter);
 	}
@@ -167,7 +176,7 @@ public class ConstructorObject {
     }
 
     public boolean equals(ClassInstanceCreationObject creationObject) {
-    	return this.name.equals(creationObject.getType().getClassType()) && this.getParameterTypeList().equals(creationObject.getParameterTypeList());
+    	return this.className.equals(creationObject.getType().getClassType()) && this.getParameterTypeList().equals(creationObject.getParameterTypeList());
     }
 
     public boolean equals(Object o) {
@@ -178,7 +187,7 @@ public class ConstructorObject {
 		if (o instanceof ConstructorObject) {
 			ConstructorObject constructorObject = (ConstructorObject)o;
 
-			return this.name.equals(constructorObject.name) &&
+			return this.className.equals(constructorObject.className) && this.name.equals(constructorObject.name) &&
 				this.parameterList.equals(constructorObject.parameterList);
 		}
 		return false;
@@ -187,6 +196,7 @@ public class ConstructorObject {
     public int hashCode() {
     	if(hashCode == 0) {
     		int result = 17;
+    		result = 37*result + className.hashCode();
     		result = 37*result + name.hashCode();
     		result = 37*result + parameterList.hashCode();
     		hashCode = result;

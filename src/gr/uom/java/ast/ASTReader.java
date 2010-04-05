@@ -222,6 +222,7 @@ public class ASTReader {
 		        		final ConstructorObject constructorObject = new ConstructorObject();
 		        		constructorObject.setMethodDeclaration(methodDeclaration);
 		        		constructorObject.setName(methodName);
+		        		constructorObject.setClassName(classObject.getName());
 		        		
 		        		int methodModifiers = methodDeclaration.getModifiers();
 		        		if((methodModifiers & Modifier.PUBLIC) != 0)
@@ -269,7 +270,6 @@ public class ASTReader {
 		        			String qualifiedName = binding.getQualifiedName();
 		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
 		        			methodObject.setReturnType(typeObject);
-		        			methodObject.setClassName(classObject.getName());
 		        			
 		        			if((methodModifiers & Modifier.ABSTRACT) != 0)
 		        				methodObject.setAbstract(true);

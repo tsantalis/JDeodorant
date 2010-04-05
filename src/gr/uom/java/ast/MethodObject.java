@@ -37,7 +37,6 @@ public class MethodObject {
     private boolean _static;
     private boolean _synchronized;
     private boolean _native;
-    private String className;
     private ConstructorObject constructorObject;
     private boolean testAnnotation;
     private volatile int hashCode = 0;
@@ -124,7 +123,7 @@ public class MethodObject {
     }
 
     public MethodInvocationObject generateMethodInvocation() {
-    	return new MethodInvocationObject(this.className, this.constructorObject.name, this.returnType, this.constructorObject.getParameterTypeList());
+    	return new MethodInvocationObject(this.constructorObject.className, this.constructorObject.name, this.returnType, this.constructorObject.getParameterTypeList());
     }
     
     public FieldInstructionObject isGetter() {
@@ -399,11 +398,11 @@ public class MethodObject {
     }
 
     public void setClassName(String className) {
-        this.className = className;
+    	constructorObject.setClassName(className);
     }
 
     public String getClassName() {
-        return this.className;
+        return constructorObject.getClassName();
     }
 
     public ListIterator<ParameterObject> getParameterListIterator() {
@@ -413,7 +412,7 @@ public class MethodObject {
     public ParameterObject getParameter(int position) {
     	return constructorObject.getParameter(position);
     }
-   
+
     public List<MethodInvocationObject> getMethodInvocations() {
         return constructorObject.getMethodInvocations();
     }
@@ -467,7 +466,7 @@ public class MethodObject {
     }
 
     public boolean equals(MethodInvocationObject mio) {
-    	return this.className.equals(mio.getOriginClassName()) && this.getName().equals(mio.getMethodName()) &&
+    	return this.getClassName().equals(mio.getOriginClassName()) && this.getName().equals(mio.getMethodName()) &&
     		this.returnType.equals(mio.getReturnType()) && this.constructorObject.getParameterTypeList().equals(mio.getParameterTypeList());
     }
     
@@ -479,7 +478,7 @@ public class MethodObject {
         if (o instanceof MethodObject) {
             MethodObject methodObject = (MethodObject)o;
 
-            return this.className.equals(methodObject.className) && this.returnType.equals(methodObject.returnType) &&
+            return this.returnType.equals(methodObject.returnType) &&
                 this.constructorObject.equals(methodObject.constructorObject);
         }
         return false;
@@ -488,7 +487,6 @@ public class MethodObject {
     public int hashCode() {
     	if(hashCode == 0) {
     		int result = 17;
-    		result = 37*result + className.hashCode();
     		result = 37*result + returnType.hashCode();
     		result = 37*result + constructorObject.hashCode();
     		hashCode = result;

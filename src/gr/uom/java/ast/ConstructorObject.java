@@ -166,6 +166,10 @@ public class ConstructorObject {
     	return list;
     }
 
+    public boolean equals(ClassInstanceCreationObject creationObject) {
+    	return this.name.equals(creationObject.getType().getClassType()) && this.getParameterTypeList().equals(creationObject.getParameterTypeList());
+    }
+
     public boolean equals(Object o) {
         if(this == o) {
 			return true;

@@ -141,12 +141,19 @@ public class AbstractExpression {
 		List<Expression> classInctanceCreations = expressionExtractor.getClassInstanceCreations(expression);
 		for(Expression classInstanceCreationExpression : classInctanceCreations) {
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreationExpression;
+			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
 			Type type = classInstanceCreation.getType();
 			ITypeBinding typeBinding = type.resolveBinding();
 			String qualifiedTypeName = typeBinding.getQualifiedName();
 			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
 			ClassInstanceCreationObject creationObject = new ClassInstanceCreationObject(typeObject);
 			creationObject.setClassInstanceCreation(classInstanceCreation);
+			ITypeBinding[] parameterTypes = constructorBinding.getParameterTypes();
+			for(ITypeBinding parameterType : parameterTypes) {
+				String qualifiedParameterName = parameterType.getQualifiedName();
+				TypeObject parameterTypeObject = TypeObject.extractTypeObject(qualifiedParameterName);
+				creationObject.addParameter(parameterTypeObject);
+			}
 			creationList.add(creationObject);
 		}
 

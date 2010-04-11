@@ -3,9 +3,12 @@ package gr.uom.java.ast;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,34 +24,48 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
-import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jface.preference.IPreferenceStore;
 
 public class LibraryClassStorage {
 	private static LibraryClassStorage instance;
-	private Map<IClassFile, CompilationUnit> compilationUnitMap;
+	//private Map<IClassFile, CompilationUnit> compilationUnitMap;
+	private LinkedList<IClassFile> iClassFileList;
+	private LinkedList<CompilationUnit> compilationUnitList;
 	private Set<IClassFile> unMatchedClassFiles;
-	private Map<MethodDeclaration, LinkedHashSet<MethodDeclaration>> methodInvocationMap;
-	private Map<MethodDeclaration, LinkedHashSet<VariableDeclaration>> definedFieldMap;
-	private Map<MethodDeclaration, LinkedHashSet<VariableDeclaration>> usedFieldMap;
+	//String key and value correspond to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, LinkedHashSet<String>> methodInvocationMap;
+	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, LinkedHashSet<PlainVariable>> definedFieldMap;
+	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, LinkedHashSet<PlainVariable>> usedFieldMap;
 	private Map<IType, LinkedHashSet<IType>> subTypeMap;
-	private Map<MethodDeclaration, LinkedHashSet<MethodDeclaration>> overridingMethodMap;
-	private Map<MethodDeclaration, HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>>> methodInvocationThroughReferenceMap;
+	//String key and value correspond to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, LinkedHashSet<String>> overridingMethodMap;
+	//String key and value correspond to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, HashMap<PlainVariable, LinkedHashSet<String>>> methodInvocationThroughReferenceMap;
+	//String corresponds to MethodDeclaration.resolveBinding.getKey()
+	private Set<String> abstractMethodSet;
+	private Set<String> nativeMethodSet;
 	
 	private LibraryClassStorage() {
-		this.compilationUnitMap = new HashMap<IClassFile, CompilationUnit>();
+		//this.compilationUnitMap = new HashMap<IClassFile, CompilationUnit>();
+		this.iClassFileList = new LinkedList<IClassFile>();
+		this.compilationUnitList = new LinkedList<CompilationUnit>();
 		this.unMatchedClassFiles = new LinkedHashSet<IClassFile>();
-		this.methodInvocationMap = new HashMap<MethodDeclaration, LinkedHashSet<MethodDeclaration>>();
-		this.definedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclaration>>();
-		this.usedFieldMap = new HashMap<MethodDeclaration, LinkedHashSet<VariableDeclaration>>();
+		this.methodInvocationMap = new HashMap<String, LinkedHashSet<String>>();
+		this.definedFieldMap = new HashMap<String, LinkedHashSet<PlainVariable>>();
+		this.usedFieldMap = new HashMap<String, LinkedHashSet<PlainVariable>>();
 		this.subTypeMap = new HashMap<IType, LinkedHashSet<IType>>();
-		this.overridingMethodMap = new HashMap<MethodDeclaration, LinkedHashSet<MethodDeclaration>>();
-		this.methodInvocationThroughReferenceMap = new HashMap<MethodDeclaration, HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>>>();
+		this.overridingMethodMap = new HashMap<String, LinkedHashSet<String>>();
+		this.methodInvocationThroughReferenceMap = new HashMap<String, HashMap<PlainVariable, LinkedHashSet<String>>>();
+		this.abstractMethodSet = new LinkedHashSet<String>();
+		this.nativeMethodSet = new LinkedHashSet<String>();
 	}
 	
 	public static LibraryClassStorage getInstance() {
@@ -59,9 +76,9 @@ public class LibraryClassStorage {
 	}
 	
 	public CompilationUnit getCompilationUnit(IClassFile classFile) {
-		if(compilationUnitMap.containsKey(classFile)) {
-			CompilationUnit compilationUnit = compilationUnitMap.get(classFile);
-			return compilationUnit;
+		if(iClassFileList.contains(classFile)) {
+			int position = iClassFileList.indexOf(classFile);
+			return compilationUnitList.get(position);
 		}
 		else {
 			CompilationUnit compilationUnit = null;
@@ -71,7 +88,19 @@ public class LibraryClassStorage {
 					parser.setSource(classFile);
 					parser.setResolveBindings(true);
 					compilationUnit = (CompilationUnit)parser.createAST(null);
-					compilationUnitMap.put(classFile, compilationUnit);
+					
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					int maximumCacheSize = store.getInt(PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE);
+					if(iClassFileList.size() < maximumCacheSize) {
+						iClassFileList.add(classFile);
+						compilationUnitList.add(compilationUnit);
+					}
+					else {
+						iClassFileList.removeFirst();
+						compilationUnitList.removeFirst();
+						iClassFileList.add(classFile);
+						compilationUnitList.add(compilationUnit);
+					}
 				}
 			}
 			catch(IllegalStateException e) {
@@ -129,101 +158,126 @@ public class LibraryClassStorage {
 	}
 	
 	public void addInvokedMethod(MethodDeclaration originalMethod, MethodDeclaration invokedMethod) {
-		if(methodInvocationMap.containsKey(originalMethod)) {
-			LinkedHashSet<MethodDeclaration> invokedMethods = methodInvocationMap.get(originalMethod);
-			invokedMethods.add(invokedMethod);
+		String originalMethodBindingKey = originalMethod.resolveBinding().getKey();
+		String invokedMethodBindingKey = invokedMethod.resolveBinding().getKey();
+		//check if the invoked method is abstract or native
+		if(invokedMethod.getBody() == null)
+			abstractMethodSet.add(invokedMethodBindingKey);
+		if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0)
+			nativeMethodSet.add(invokedMethodBindingKey);
+		if(methodInvocationMap.containsKey(originalMethodBindingKey)) {
+			LinkedHashSet<String> invokedMethods = methodInvocationMap.get(originalMethodBindingKey);
+			invokedMethods.add(invokedMethodBindingKey);
 		}
 		else {
-			LinkedHashSet<MethodDeclaration> invokedMethods = new LinkedHashSet<MethodDeclaration>();
-			invokedMethods.add(invokedMethod);
-			methodInvocationMap.put(originalMethod, invokedMethods);
+			LinkedHashSet<String> invokedMethods = new LinkedHashSet<String>();
+			invokedMethods.add(invokedMethodBindingKey);
+			methodInvocationMap.put(originalMethodBindingKey, invokedMethods);
 		}
 	}
 	
-	public void addInvokedMethodThroughReference(MethodDeclaration originalMethod, MethodDeclaration invokedMethod, VariableDeclaration fieldReference) {
-		if(methodInvocationThroughReferenceMap.containsKey(originalMethod)) {
-			HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethod);
+	public void addInvokedMethodThroughReference(MethodDeclaration originalMethod, MethodDeclaration invokedMethod, PlainVariable fieldReference) {
+		String originalMethodBindingKey = originalMethod.resolveBinding().getKey();
+		String invokedMethodBindingKey = invokedMethod.resolveBinding().getKey();
+		//check if the invoked method is abstract or native
+		if(invokedMethod.getBody() == null)
+			abstractMethodSet.add(invokedMethodBindingKey);
+		if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0)
+			nativeMethodSet.add(invokedMethodBindingKey);
+		if(methodInvocationThroughReferenceMap.containsKey(originalMethodBindingKey)) {
+			HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethodBindingKey);
 			if(invokedMethodsThroughReference.containsKey(fieldReference)) {
-				LinkedHashSet<MethodDeclaration> invokedMethods = invokedMethodsThroughReference.get(fieldReference);
-				invokedMethods.add(invokedMethod);
+				LinkedHashSet<String> invokedMethods = invokedMethodsThroughReference.get(fieldReference);
+				invokedMethods.add(invokedMethodBindingKey);
 			}
 			else {
-				LinkedHashSet<MethodDeclaration> invokedMethods = new LinkedHashSet<MethodDeclaration>();
-				invokedMethods.add(invokedMethod);
+				LinkedHashSet<String> invokedMethods = new LinkedHashSet<String>();
+				invokedMethods.add(invokedMethodBindingKey);
 				invokedMethodsThroughReference.put(fieldReference, invokedMethods);
 			}
 		}
 		else {
-			LinkedHashSet<MethodDeclaration> invokedMethods = new LinkedHashSet<MethodDeclaration>();
-			invokedMethods.add(invokedMethod);
-			HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = new HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>>();
+			LinkedHashSet<String> invokedMethods = new LinkedHashSet<String>();
+			invokedMethods.add(invokedMethodBindingKey);
+			HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = new HashMap<PlainVariable, LinkedHashSet<String>>();
 			invokedMethodsThroughReference.put(fieldReference, invokedMethods);
-			methodInvocationThroughReferenceMap.put(originalMethod, invokedMethodsThroughReference);
+			methodInvocationThroughReferenceMap.put(originalMethodBindingKey, invokedMethodsThroughReference);
 		}
 	}
 	
-	public Set<VariableDeclaration> getInvocationReferences(MethodDeclaration originalMethod) {
-		if(methodInvocationThroughReferenceMap.containsKey(originalMethod)) {
-			HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethod);
+	public Set<PlainVariable> getInvocationReferences(MethodDeclaration originalMethod) {
+		String originalMethodBindingKey = originalMethod.resolveBinding().getKey();
+		if(methodInvocationThroughReferenceMap.containsKey(originalMethodBindingKey)) {
+			HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethodBindingKey);
 			return invokedMethodsThroughReference.keySet();
 		}
 		return null;
 	}
 	
 	public void addOverridingMethod(MethodDeclaration abstractMethod, MethodDeclaration overridingMethod) {
-		if(overridingMethodMap.containsKey(abstractMethod)) {
-			LinkedHashSet<MethodDeclaration> overridingMethods = overridingMethodMap.get(abstractMethod);
-			overridingMethods.add(overridingMethod);
+		String abstractMethodBindingKey = abstractMethod.resolveBinding().getKey();
+		String overridingMethodBindingKey = overridingMethod.resolveBinding().getKey();
+		//check if the overriding method is abstract or native
+		if(overridingMethod.getBody() == null)
+			abstractMethodSet.add(overridingMethodBindingKey);
+		if((overridingMethod.getModifiers() & Modifier.NATIVE) != 0)
+			nativeMethodSet.add(overridingMethodBindingKey);
+		if(overridingMethodMap.containsKey(abstractMethodBindingKey)) {
+			LinkedHashSet<String> overridingMethods = overridingMethodMap.get(abstractMethodBindingKey);
+			overridingMethods.add(overridingMethodBindingKey);
 		}
 		else {
-			LinkedHashSet<MethodDeclaration> overridingMethods = new LinkedHashSet<MethodDeclaration>();
-			overridingMethods.add(overridingMethod);
-			overridingMethodMap.put(abstractMethod, overridingMethods);
+			LinkedHashSet<String> overridingMethods = new LinkedHashSet<String>();
+			overridingMethods.add(overridingMethodBindingKey);
+			overridingMethodMap.put(abstractMethodBindingKey, overridingMethods);
 		}
 	}
 	
-	public void setDefinedFields(MethodDeclaration method, LinkedHashSet<VariableDeclaration> fields) {
-		definedFieldMap.put(method, fields);
+	public void setDefinedFields(MethodDeclaration method, LinkedHashSet<PlainVariable> fields) {
+		String methodBindingKey = method.resolveBinding().getKey();
+		definedFieldMap.put(methodBindingKey, fields);
 	}
 	
-	public void setUsedFields(MethodDeclaration method, LinkedHashSet<VariableDeclaration> fields) {
-		usedFieldMap.put(method, fields);
+	public void setUsedFields(MethodDeclaration method, LinkedHashSet<PlainVariable> fields) {
+		String methodBindingKey = method.resolveBinding().getKey();
+		usedFieldMap.put(methodBindingKey, fields);
 	}
 	
 	public boolean isAnalyzed(MethodDeclaration method) {
-		if(definedFieldMap.containsKey(method) && usedFieldMap.containsKey(method))
+		String methodBindingKey = method.resolveBinding().getKey();
+		if(definedFieldMap.containsKey(methodBindingKey) && usedFieldMap.containsKey(methodBindingKey))
 			return true;
 		else
 			return false;
 	}
 	
-	public LinkedHashSet<VariableDeclaration> getRecursivelyDefinedFields(MethodDeclaration method,
-			Set<MethodDeclaration> processedMethods) {
-		LinkedHashSet<VariableDeclaration> definedFields = new LinkedHashSet<VariableDeclaration>();
-		definedFields.addAll(definedFieldMap.get(method));
-		processedMethods.add(method);
-		LinkedHashSet<MethodDeclaration> invokedMethods = methodInvocationMap.get(method);
+	public LinkedHashSet<PlainVariable> getRecursivelyDefinedFields(String methodBindingKey,
+			Set<String> processedMethods) {
+		LinkedHashSet<PlainVariable> definedFields = new LinkedHashSet<PlainVariable>();
+		definedFields.addAll(definedFieldMap.get(methodBindingKey));
+		processedMethods.add(methodBindingKey);
+		LinkedHashSet<String> invokedMethods = methodInvocationMap.get(methodBindingKey);
 		if(invokedMethods != null) {
-			for(MethodDeclaration invokedMethod : invokedMethods) {
-				if(!processedMethods.contains(invokedMethod)) {
-					if(invokedMethod.getBody() != null) {
-						if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0) {
+			for(String invokedMethodBindingKey : invokedMethods) {
+				if(!processedMethods.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey)) {
+						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
 							//method is native
 						}
 						else {
-							definedFields.addAll(getRecursivelyDefinedFields(invokedMethod, processedMethods));
+							definedFields.addAll(getRecursivelyDefinedFields(invokedMethodBindingKey, processedMethods));
 						}
 					}
 					else {
-						LinkedHashSet<MethodDeclaration> overridingMethods = overridingMethodMap.get(invokedMethod);
-						processedMethods.add(invokedMethod);
+						LinkedHashSet<String> overridingMethods = overridingMethodMap.get(invokedMethodBindingKey);
+						processedMethods.add(invokedMethodBindingKey);
 						if(overridingMethods != null) {
-							for(MethodDeclaration overridingMethod : overridingMethods) {
-								if((overridingMethod.getModifiers() & Modifier.NATIVE) != 0) {
+							for(String overridingMethodBindingKey : overridingMethods) {
+								if(nativeMethodSet.contains(overridingMethodBindingKey)) {
 									//method is native
 								}
 								else {
-									definedFields.addAll(getRecursivelyDefinedFields(overridingMethod, processedMethods));
+									definedFields.addAll(getRecursivelyDefinedFields(overridingMethodBindingKey, processedMethods));
 								}
 							}
 						}
@@ -234,33 +288,33 @@ public class LibraryClassStorage {
 		return definedFields;
 	}
 	
-	public LinkedHashSet<VariableDeclaration> getRecursivelyUsedFields(MethodDeclaration method,
-			Set<MethodDeclaration> processedMethods) {
-		LinkedHashSet<VariableDeclaration> usedFields = new LinkedHashSet<VariableDeclaration>();
-		usedFields.addAll(usedFieldMap.get(method));
-		processedMethods.add(method);
-		LinkedHashSet<MethodDeclaration> invokedMethods = methodInvocationMap.get(method);
+	public LinkedHashSet<PlainVariable> getRecursivelyUsedFields(String methodBindingKey,
+			Set<String> processedMethods) {
+		LinkedHashSet<PlainVariable> usedFields = new LinkedHashSet<PlainVariable>();
+		usedFields.addAll(usedFieldMap.get(methodBindingKey));
+		processedMethods.add(methodBindingKey);
+		LinkedHashSet<String> invokedMethods = methodInvocationMap.get(methodBindingKey);
 		if(invokedMethods != null) {
-			for(MethodDeclaration invokedMethod : invokedMethods) {
-				if(!processedMethods.contains(invokedMethod)) {
-					if(invokedMethod.getBody() != null) {
-						if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0) {
+			for(String invokedMethodBindingKey : invokedMethods) {
+				if(!processedMethods.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey)) {
+						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
 							//method is native
 						}
 						else {
-							usedFields.addAll(getRecursivelyUsedFields(invokedMethod, processedMethods));
+							usedFields.addAll(getRecursivelyUsedFields(invokedMethodBindingKey, processedMethods));
 						}
 					}
 					else {
-						LinkedHashSet<MethodDeclaration> overridingMethods = overridingMethodMap.get(invokedMethod);
-						processedMethods.add(invokedMethod);
+						LinkedHashSet<String> overridingMethods = overridingMethodMap.get(invokedMethodBindingKey);
+						processedMethods.add(invokedMethodBindingKey);
 						if(overridingMethods != null) {
-							for(MethodDeclaration overridingMethod : overridingMethods) {
-								if((overridingMethod.getModifiers() & Modifier.NATIVE) != 0) {
+							for(String overridingMethodBindingKey : overridingMethods) {
+								if(nativeMethodSet.contains(overridingMethodBindingKey)) {
 									//method is native
 								}
 								else {
-									usedFields.addAll(getRecursivelyUsedFields(overridingMethod, processedMethods));
+									usedFields.addAll(getRecursivelyUsedFields(overridingMethodBindingKey, processedMethods));
 								}
 							}
 						}
@@ -271,43 +325,40 @@ public class LibraryClassStorage {
 		return usedFields;
 	}
 	
-	public LinkedHashSet<AbstractVariable> getRecursivelyDefinedFieldsThroughReference(MethodDeclaration method,
-			AbstractVariable fieldReference, Set<MethodDeclaration> processedMethods) {
+	public LinkedHashSet<AbstractVariable> getRecursivelyDefinedFieldsThroughReference(String methodBindingKey,
+			AbstractVariable fieldReference, Set<String> processedMethods) {
 		LinkedHashSet<AbstractVariable> definedFields = new LinkedHashSet<AbstractVariable>();
-		processedMethods.add(method);
-		HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(method);
+		processedMethods.add(methodBindingKey);
+		HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(methodBindingKey);
 		if(invokedMethodsThroughReference != null) {
-			VariableDeclaration reference = null;
+			PlainVariable reference = null;
 			if(fieldReference instanceof PlainVariable) {
-				PlainVariable plain = (PlainVariable)fieldReference;
-				reference = plain.getName();
+				reference = (PlainVariable)fieldReference;
 			}
 			else if(fieldReference instanceof CompositeVariable) {
 				CompositeVariable composite = (CompositeVariable)fieldReference;
-				reference = composite.getFinalVariable().getName();
+				reference = composite.getFinalVariable();
 			}
-			LinkedHashSet<MethodDeclaration> invokedMethods = invokedMethodsThroughReference.get(reference);
+			LinkedHashSet<String> invokedMethods = invokedMethodsThroughReference.get(reference);
 			if(invokedMethods != null) {
-				for(MethodDeclaration invokedMethod : invokedMethods) {
-					if(!processedMethods.contains(invokedMethod)) {
-						if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0) {
+				for(String invokedMethodBindingKey : invokedMethods) {
+					if(!processedMethods.contains(invokedMethodBindingKey)) {
+						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
 							//method is native
 						}
 						else {
-							LinkedHashSet<VariableDeclaration> definedFieldsInInvokedMethod = definedFieldMap.get(invokedMethod);
+							LinkedHashSet<PlainVariable> definedFieldsInInvokedMethod = definedFieldMap.get(invokedMethodBindingKey);
 							if(definedFieldsInInvokedMethod != null) {
-								for(VariableDeclaration variableDeclaration : definedFieldsInInvokedMethod) {
-									PlainVariable rightSide = new PlainVariable(variableDeclaration);
+								for(PlainVariable rightSide : definedFieldsInInvokedMethod) {
 									AbstractVariable definedField = composeVariable(fieldReference, rightSide);
 									definedFields.add(definedField);
 								}
 							}
-							LinkedHashSet<VariableDeclaration> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethod);
+							LinkedHashSet<PlainVariable> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethodBindingKey);
 							if(usedFieldsInInvokedMethod != null) {
-								for(VariableDeclaration variableDeclaration : usedFieldsInInvokedMethod) {
-									PlainVariable rightSide = new PlainVariable(variableDeclaration);
+								for(PlainVariable rightSide : usedFieldsInInvokedMethod) {
 									AbstractVariable usedField = composeVariable(fieldReference, rightSide);
-									definedFields.addAll(getRecursivelyDefinedFieldsThroughReference(invokedMethod, usedField, processedMethods));
+									definedFields.addAll(getRecursivelyDefinedFieldsThroughReference(invokedMethodBindingKey, usedField, processedMethods));
 								}
 							}
 						}
@@ -318,33 +369,31 @@ public class LibraryClassStorage {
 		return definedFields;
 	}
 	
-	public LinkedHashSet<AbstractVariable> getRecursivelyUsedFieldsThroughReference(MethodDeclaration method,
-			AbstractVariable fieldReference, Set<MethodDeclaration> processedMethods) {
+	public LinkedHashSet<AbstractVariable> getRecursivelyUsedFieldsThroughReference(String methodBindingKey,
+			AbstractVariable fieldReference, Set<String> processedMethods) {
 		LinkedHashSet<AbstractVariable> usedFields = new LinkedHashSet<AbstractVariable>();
-		processedMethods.add(method);
-		HashMap<VariableDeclaration, LinkedHashSet<MethodDeclaration>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(method);
+		processedMethods.add(methodBindingKey);
+		HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(methodBindingKey);
 		if(invokedMethodsThroughReference != null) {
-			VariableDeclaration reference = null;
+			PlainVariable reference = null;
 			if(fieldReference instanceof PlainVariable) {
-				PlainVariable plain = (PlainVariable)fieldReference;
-				reference = plain.getName();
+				reference = (PlainVariable)fieldReference;
 			}
 			else if(fieldReference instanceof CompositeVariable) {
 				CompositeVariable composite = (CompositeVariable)fieldReference;
-				reference = composite.getFinalVariable().getName();
+				reference = composite.getFinalVariable();
 			}
-			LinkedHashSet<MethodDeclaration> invokedMethods = invokedMethodsThroughReference.get(reference);
+			LinkedHashSet<String> invokedMethods = invokedMethodsThroughReference.get(reference);
 			if(invokedMethods != null) {
-				for(MethodDeclaration invokedMethod : invokedMethods) {
+				for(String invokedMethod : invokedMethods) {
 					if(!processedMethods.contains(invokedMethod)) {
-						if((invokedMethod.getModifiers() & Modifier.NATIVE) != 0) {
+						if(nativeMethodSet.contains(invokedMethod)) {
 							//method is native
 						}
 						else {
-							LinkedHashSet<VariableDeclaration> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethod);
+							LinkedHashSet<PlainVariable> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethod);
 							if(usedFieldsInInvokedMethod != null) {
-								for(VariableDeclaration variableDeclaration : usedFieldsInInvokedMethod) {
-									PlainVariable rightSide = new PlainVariable(variableDeclaration);
+								for(PlainVariable rightSide : usedFieldsInInvokedMethod) {
 									AbstractVariable usedField = composeVariable(fieldReference, rightSide);
 									usedFields.add(usedField);
 									usedFields.addAll(getRecursivelyUsedFieldsThroughReference(invokedMethod, usedField, processedMethods));
@@ -362,12 +411,14 @@ public class LibraryClassStorage {
 		if(leftSide instanceof CompositeVariable) {
 			CompositeVariable leftSideCompositeVariable = (CompositeVariable)leftSide;
 			PlainVariable finalVariable = leftSideCompositeVariable.getFinalVariable();
-			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getName(), rightSide);
+			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getVariableBindingKey(), finalVariable.getVariableName(),
+					finalVariable.getVariableType(), finalVariable.isField(), finalVariable.isParameter(), rightSide);
 			AbstractVariable newLeftSide = leftSideCompositeVariable.getLeftPart();
 			return composeVariable(newLeftSide, newRightSide);
 		}
 		else {
-			return new CompositeVariable(leftSide.getName(), rightSide);
+			return new CompositeVariable(leftSide.getVariableBindingKey(), leftSide.getVariableName(),
+					leftSide.getVariableType(), leftSide.isField(), leftSide.isParameter(), rightSide);
 		}
 	}
 }

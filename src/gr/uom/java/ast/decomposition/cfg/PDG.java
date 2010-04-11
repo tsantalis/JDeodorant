@@ -102,7 +102,7 @@ public class PDG extends Graph {
 			for(AbstractVariable definedVariable : pdgNode.definedVariables) {
 				if(definedVariable instanceof CompositeVariable) {
 					CompositeVariable compositeVariable = (CompositeVariable)definedVariable;
-					if(compositeVariable.getName().equals(reference.getName())) {
+					if(compositeVariable.getVariableBindingKey().equals(reference.getVariableBindingKey())) {
 						if(definedPropertiesMap.containsKey(compositeVariable)) {
 							LinkedHashSet<PDGNode> nodeCriteria = definedPropertiesMap.get(compositeVariable);
 							nodeCriteria.add(pdgNode);
@@ -393,42 +393,5 @@ public class PDG extends Graph {
 			}
 		}
 		return returnedVariables;
-	}
-
-	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion, AbstractVariable variableCriterion) {
-		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		Set<BasicBlock> boundaryBlocks = boundaryBlocks(nodeCriterion);
-		for(BasicBlock boundaryBlock : boundaryBlocks) {
-			PDGSlice slice = new PDGSlice(this, boundaryBlock, nodeCriterion, variableCriterion);
-			slices.add(slice);
-		}
-		return slices;
-	}
-
-	public Set<PDGSlice> getProgramDependenceSlices(PDGNode nodeCriterion) {
-		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		Set<AbstractVariable> examinedVariables = new LinkedHashSet<AbstractVariable>();
-		for(AbstractVariable definedVariable : nodeCriterion.definedVariables) {
-			if(!examinedVariables.contains(definedVariable) && definedVariable.isLocalVariable()) {
-				slices.addAll(getProgramDependenceSlices(nodeCriterion, definedVariable));
-				examinedVariables.add(definedVariable);
-			}
-		}
-		/*for(AbstractVariable usedVariable : nodeCriterion.usedVariables) {
-			if(!examinedVariables.contains(usedVariable) && usedVariable.isLocalVariable()) {
-				slices.addAll(getProgramDependenceSlices(nodeCriterion, usedVariable));
-				examinedVariables.add(usedVariable);
-			}
-		}*/
-		return slices;
-	}
-
-	public Set<PDGSlice> getAllProgramDependenceSlices() {
-		Set<PDGSlice> slices = new LinkedHashSet<PDGSlice>();
-		for(GraphNode node : nodes) {
-			PDGNode pdgNode = (PDGNode)node;
-			slices.addAll(getProgramDependenceSlices(pdgNode));
-		}
-		return slices;
 	}
 }

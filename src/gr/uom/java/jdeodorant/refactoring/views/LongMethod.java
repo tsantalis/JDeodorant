@@ -128,7 +128,7 @@ public class LongMethod extends ViewPart {
 				String methodName = entry.getSourceMethodDeclaration().resolveBinding().toString();
 				return declaringClass + "::" + methodName;
 			case 2:
-				return entry.getLocalVariableCriterion().toString();
+				return entry.getLocalVariableCriterion().getName().getIdentifier();
 			case 3:
 				return "B" + entry.getBoundaryBlock().getId();
 			case 4:

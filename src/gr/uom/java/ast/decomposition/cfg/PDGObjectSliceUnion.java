@@ -15,7 +15,6 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
-import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -146,9 +145,8 @@ public class PDGObjectSliceUnion {
 				removableNodes.add(pdgNode);
 		}
 		for(PDGNode node : sliceNodes) {
-			IVariableBinding objectReferenceBinding = objectReference.getName().resolveBinding();
 			if(node.declaresLocalVariable(objectReference) ||
-					((objectReferenceBinding.isField() || objectReferenceBinding.isParameter()) &&
+					((objectReference.isField() || objectReference.isParameter()) &&
 					node.instantiatesLocalVariable(objectReference) && node.definesLocalVariable(objectReference))) {
 				removableNodes.add(node);
 				indispensableNodes.remove(node);
@@ -197,6 +195,10 @@ public class PDGObjectSliceUnion {
 			}
 		}
 		return null;
+	}
+
+	public Set<VariableDeclaration> getVariableDeclarationsAndAccessedFieldsInMethod() {
+		return pdg.getVariableDeclarationsAndAccessedFieldsInMethod();
 	}
 
 	public MethodObject getMethod() {
@@ -362,7 +364,8 @@ public class PDGObjectSliceUnion {
 				}
 				else if(stateChangingVariable instanceof CompositeVariable) {
 					CompositeVariable compositeVariable = (CompositeVariable)stateChangingVariable;
-					plainVariable = new PlainVariable(compositeVariable.getName());
+					plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
+							compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
 				}
 				if(!sliceContainsDeclaration(plainVariable))
 					return true;

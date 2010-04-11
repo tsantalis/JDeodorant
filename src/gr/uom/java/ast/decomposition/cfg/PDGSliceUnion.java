@@ -195,6 +195,10 @@ public class PDGSliceUnion {
 		return null;
 	}
 
+	public Set<VariableDeclaration> getVariableDeclarationsAndAccessedFieldsInMethod() {
+		return pdg.getVariableDeclarationsAndAccessedFieldsInMethod();
+	}
+
 	public List<PDGSlice> getSlices() {
 		return slices;
 	}
@@ -364,7 +368,8 @@ public class PDGSliceUnion {
 				}
 				else if(stateChangingVariable instanceof CompositeVariable) {
 					CompositeVariable compositeVariable = (CompositeVariable)stateChangingVariable;
-					plainVariable = new PlainVariable(compositeVariable.getName());
+					plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
+							compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
 				}
 				if(!sliceContainsDeclaration(plainVariable))
 					return true;

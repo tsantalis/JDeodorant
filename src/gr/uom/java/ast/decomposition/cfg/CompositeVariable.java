@@ -11,6 +11,11 @@ public class CompositeVariable extends AbstractVariable {
 		this.rightPart = rightPart;
 	}
 
+	public CompositeVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, AbstractVariable rightPart) {
+		super(variableBindingKey, variableName, variableType, isField, isParameter);
+		this.rightPart = rightPart;
+	}
+
 	//if composite variable is "one.two.three" then right part is "two.three"
 	public AbstractVariable getRightPart() {
 		return rightPart;
@@ -19,11 +24,11 @@ public class CompositeVariable extends AbstractVariable {
 	//if composite variable is "one.two.three" then left part is "one.two"
 	public AbstractVariable getLeftPart() {
 		if(rightPart instanceof PlainVariable) {
-			return new PlainVariable(name);
+			return new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
 		}
 		else {
 			CompositeVariable compositeVariable = (CompositeVariable)rightPart;
-			return new CompositeVariable(name, compositeVariable.getLeftPart());
+			return new CompositeVariable(variableBindingKey, variableName, variableType, isField, isParameter, compositeVariable.getLeftPart());
 		}
 	}
 
@@ -37,13 +42,8 @@ public class CompositeVariable extends AbstractVariable {
 		}
 	}
 
-	public boolean isLocalVariable() {
-		return false;
-	}
-
 	public boolean containsPlainVariable(PlainVariable variable) {
-		if(this.name.equals(variable.name) ||
-				this.name.resolveBinding().isEqualTo(variable.name.resolveBinding()))
+		if(this.variableBindingKey.equals(variable.variableBindingKey))
 			return true;
 		return rightPart.containsPlainVariable(variable);
 	}
@@ -54,7 +54,7 @@ public class CompositeVariable extends AbstractVariable {
 		}
 		if(o instanceof CompositeVariable) {
 			CompositeVariable composite = (CompositeVariable)o;
-			return this.name.equals(composite.name) &&
+			return this.variableBindingKey.equals(composite.variableBindingKey) &&
 			this.rightPart.equals(composite.rightPart);
 		}
 		return false;
@@ -63,7 +63,7 @@ public class CompositeVariable extends AbstractVariable {
 	public int hashCode() {
 		if(hashCode == 0) {
 			int result = 17;
-			result = 31*result + name.hashCode();
+			result = 31*result + variableBindingKey.hashCode();
 			result = 31*result + rightPart.hashCode();
 			hashCode = result;
 		}
@@ -72,7 +72,7 @@ public class CompositeVariable extends AbstractVariable {
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(name.getName().getIdentifier());
+		sb.append(variableName);
 		sb.append(".");
 		sb.append(rightPart.toString());
 		return sb.toString();

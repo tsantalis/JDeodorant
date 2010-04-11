@@ -35,7 +35,7 @@ public class ASTSlice {
 	private Set<PDGNode> sliceNodes;
 	private Set<Statement> sliceStatements;
 	private Set<Statement> removableStatements;
-	private AbstractVariable localVariableCriterion;
+	private VariableDeclaration localVariableCriterion;
 	private Set<VariableDeclaration> passedParameters;
 	private Statement extractedMethodInvocationInsertionStatement;
 	private String extractedMethodName;
@@ -57,10 +57,22 @@ public class ASTSlice {
 		for(PDGNode node : pdgSlice.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSlice.getLocalVariableCriterion();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = pdgSlice.getVariableDeclarationsAndAccessedFieldsInMethod();
+		AbstractVariable criterion = pdgSlice.getLocalVariableCriterion();
+		for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+			if(variableDeclaration.resolveBinding().getKey().equals(criterion.getVariableBindingKey())) {
+				this.localVariableCriterion = variableDeclaration;
+				break;
+			}
+		}
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : pdgSlice.getPassedParameters()) {
-			passedParameters.add(variable.getName());
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+					passedParameters.add(variableDeclaration);
+					break;
+				}
+			}
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
@@ -83,10 +95,22 @@ public class ASTSlice {
 		for(PDGNode node : pdgSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgSliceUnion.getLocalVariableCriterion();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = pdgSliceUnion.getVariableDeclarationsAndAccessedFieldsInMethod();
+		AbstractVariable criterion = pdgSliceUnion.getLocalVariableCriterion();
+		for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+			if(variableDeclaration.resolveBinding().getKey().equals(criterion.getVariableBindingKey())) {
+				this.localVariableCriterion = variableDeclaration;
+				break;
+			}
+		}
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : pdgSliceUnion.getPassedParameters()) {
-			passedParameters.add(variable.getName());
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+					passedParameters.add(variableDeclaration);
+					break;
+				}
+			}
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
@@ -109,10 +133,22 @@ public class ASTSlice {
 		for(PDGNode node : pdgObjectSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
-		this.localVariableCriterion = pdgObjectSliceUnion.getObjectReference();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = pdgObjectSliceUnion.getVariableDeclarationsAndAccessedFieldsInMethod();
+		AbstractVariable criterion = pdgObjectSliceUnion.getObjectReference();
+		for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+			if(variableDeclaration.resolveBinding().getKey().equals(criterion.getVariableBindingKey())) {
+				this.localVariableCriterion = variableDeclaration;
+				break;
+			}
+		}
 		this.passedParameters = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : pdgObjectSliceUnion.getPassedParameters()) {
-			passedParameters.add(variable.getName());
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+					passedParameters.add(variableDeclaration);
+					break;
+				}
+			}
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgObjectSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
@@ -131,7 +167,7 @@ public class ASTSlice {
 		return sourceMethodDeclaration;
 	}
 
-	public AbstractVariable getLocalVariableCriterion() {
+	public VariableDeclaration getLocalVariableCriterion() {
 		return localVariableCriterion;
 	}
 

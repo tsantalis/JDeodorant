@@ -133,10 +133,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	public boolean instantiatesLocalVariable(AbstractVariable variable) {
 		if(variable instanceof PlainVariable) {
 			PlainVariable plainVariable = (PlainVariable)variable;
-			IVariableBinding variableBinding = plainVariable.getName().resolveBinding();
-			ITypeBinding typeBinding = variableBinding.getType();
+			String variableType = plainVariable.getVariableType();
 			for(TypeObject type : createdTypes) {
-				if(typeBinding.getQualifiedName().equals(type.getClassType()))
+				if(variableType.equals(type.getClassType()))
 					return true;
 			}
 		}
@@ -442,34 +441,32 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				Block methodBody = methodDeclaration.getBody();
 				if(methodBody != null) {
 					if(instance.isAnalyzed(methodDeclaration)) {
-						LinkedHashSet<VariableDeclaration> recursivelyDefinedFields = 
-							instance.getRecursivelyDefinedFields(methodDeclaration, new LinkedHashSet<MethodDeclaration>());
-						for(VariableDeclaration definedField : recursivelyDefinedFields) {
-							AbstractVariable originalField = new PlainVariable(definedField);
+						String methodDeclarationBindingKey = methodDeclaration.resolveBinding().getKey();
+						LinkedHashSet<PlainVariable> recursivelyDefinedFields = 
+							instance.getRecursivelyDefinedFields(methodDeclarationBindingKey, new LinkedHashSet<String>());
+						for(PlainVariable originalField : recursivelyDefinedFields) {
 							AbstractVariable field = composeVariable(variableDeclaration, originalField);
 							definedVariables.add(field);
 						}
 						if(recursivelyDefinedFields.size() > 0)
 							putInStateChangingMethodInvocationMap(variableDeclaration, methodInvocation);
-						LinkedHashSet<VariableDeclaration> recursivelyUsedFields = 
-							instance.getRecursivelyUsedFields(methodDeclaration, new LinkedHashSet<MethodDeclaration>());
-						for(VariableDeclaration usedField : recursivelyUsedFields) {
-							AbstractVariable originalField = new PlainVariable(usedField);
+						LinkedHashSet<PlainVariable> recursivelyUsedFields = 
+							instance.getRecursivelyUsedFields(methodDeclarationBindingKey, new LinkedHashSet<String>());
+						for(PlainVariable originalField : recursivelyUsedFields) {
 							AbstractVariable field = composeVariable(variableDeclaration, originalField);
 							usedVariables.add(field);
 						}
-						Set<VariableDeclaration> invocationReferences = instance.getInvocationReferences(methodDeclaration);
+						Set<PlainVariable> invocationReferences = instance.getInvocationReferences(methodDeclaration);
 						if(invocationReferences != null) {
-							for(VariableDeclaration invocationReference : invocationReferences) {
-								PlainVariable plainVariable = new PlainVariable(invocationReference);
+							for(PlainVariable invocationReference : invocationReferences) {
 								LinkedHashSet<AbstractVariable> definedFieldsThroughReference = 
-									instance.getRecursivelyDefinedFieldsThroughReference(methodDeclaration, plainVariable, new LinkedHashSet<MethodDeclaration>());
+									instance.getRecursivelyDefinedFieldsThroughReference(methodDeclarationBindingKey, invocationReference, new LinkedHashSet<String>());
 								for(AbstractVariable definedField : definedFieldsThroughReference) {
 									AbstractVariable field = composeVariable(variableDeclaration, definedField);
 									definedVariables.add(field);
 								}
 								LinkedHashSet<AbstractVariable> usedFieldsThroughReference = 
-									instance.getRecursivelyUsedFieldsThroughReference(methodDeclaration, plainVariable, new LinkedHashSet<MethodDeclaration>());
+									instance.getRecursivelyUsedFieldsThroughReference(methodDeclarationBindingKey, invocationReference, new LinkedHashSet<String>());
 								for(AbstractVariable usedField : usedFieldsThroughReference) {
 									AbstractVariable field = composeVariable(variableDeclaration, usedField);
 									usedVariables.add(field);
@@ -480,13 +477,13 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					else {
 						ASTInformationGenerator.setCurrentITypeRoot(iClassFile);
 						MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
-						LinkedHashSet<VariableDeclaration> definedFields = new LinkedHashSet<VariableDeclaration>();
-						LinkedHashSet<VariableDeclaration> usedFields = new LinkedHashSet<VariableDeclaration>();
+						LinkedHashSet<PlainVariable> definedFields = new LinkedHashSet<PlainVariable>();
+						LinkedHashSet<PlainVariable> usedFields = new LinkedHashSet<PlainVariable>();
 						List<FieldInstructionObject> fieldInstructions = methodBodyObject.getFieldInstructions();
 						boolean stateChangingMethodInvocation = false;
 						for(FieldInstructionObject fieldInstruction : fieldInstructions) {
 							SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
-							AbstractVariable originalField = null;
+							PlainVariable originalField = null;
 							IBinding binding = fieldInstructionName.resolveBinding();
 							if(binding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding variableBinding = (IVariableBinding)binding;
@@ -524,33 +521,33 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 								List<PrefixExpression> fieldPrefixAssignments = methodBodyObject.getFieldPrefixAssignments(fieldInstruction);
 								if(!fieldAssignments.isEmpty()) {
 									definedVariables.add(field);
-									definedFields.add(originalField.getName());
+									definedFields.add(originalField);
 									for(Assignment assignment : fieldAssignments) {
 										Assignment.Operator operator = assignment.getOperator();
 										if(!operator.equals(Assignment.Operator.ASSIGN)) {
 											usedVariables.add(field);
-											usedFields.add(originalField.getName());
+											usedFields.add(originalField);
 										}
 									}
 									stateChangingMethodInvocation = true;
 								}
 								else if(!fieldPostfixAssignments.isEmpty()) {
 									definedVariables.add(field);
-									definedFields.add(originalField.getName());
+									definedFields.add(originalField);
 									usedVariables.add(field);
-									usedFields.add(originalField.getName());
+									usedFields.add(originalField);
 									stateChangingMethodInvocation = true;
 								}
 								else if(!fieldPrefixAssignments.isEmpty()) {
 									definedVariables.add(field);
-									definedFields.add(originalField.getName());
+									definedFields.add(originalField);
 									usedVariables.add(field);
-									usedFields.add(originalField.getName());
+									usedFields.add(originalField);
 									stateChangingMethodInvocation = true;
 								}
 								else {
 									usedVariables.add(field);
-									usedFields.add(originalField.getName());
+									usedFields.add(originalField);
 								}
 							}
 						}
@@ -611,22 +608,22 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 										if(invokerBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding invokerVariableBinding = (IVariableBinding)invokerBinding;
 											if(invokerVariableBinding.isField()) {
-												VariableDeclaration invokerField = null;
-												for(VariableDeclaration usedField : usedFields) {
-													if(invokerVariableBinding.isEqualTo(usedField.resolveBinding())) {
+												PlainVariable invokerField = null;
+												for(PlainVariable usedField : usedFields) {
+													if(invokerVariableBinding.getKey().equals(usedField.getVariableBindingKey())) {
 														invokerField = usedField;
 														break;
 													}
 												}
 												if(invokerField != null) {
-													AbstractVariable originalField = new PlainVariable(invokerField);
+													PlainVariable originalField = invokerField;
 													AbstractVariable field = composeVariable(variableDeclaration, originalField);
 													if(!processedMethodInvocations.contains(methodInvocation2)) {
 														if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
 															//method is native
 														}
 														else {
-															instance.addInvokedMethodThroughReference(methodDeclaration, invokedMethodDeclaration, invokerField);
+															instance.addInvokedMethodThroughReference(methodDeclaration, invokedMethodDeclaration, originalField);
 															processExternalMethodInvocation(methodInvocation2, null, field, processedMethodInvocations);
 														}
 													}
@@ -760,12 +757,14 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		if(leftSide instanceof CompositeVariable) {
 			CompositeVariable leftSideCompositeVariable = (CompositeVariable)leftSide;
 			PlainVariable finalVariable = leftSideCompositeVariable.getFinalVariable();
-			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getName(), rightSide);
+			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getVariableBindingKey(), finalVariable.getVariableName(),
+					finalVariable.getVariableType(), finalVariable.isField(), finalVariable.isParameter(), rightSide);
 			AbstractVariable newLeftSide = leftSideCompositeVariable.getLeftPart();
 			return composeVariable(newLeftSide, newRightSide);
 		}
 		else {
-			return new CompositeVariable(leftSide.getName(), rightSide);
+			return new CompositeVariable(leftSide.getVariableBindingKey(), leftSide.getVariableName(),
+					leftSide.getVariableType(), leftSide.isField(), leftSide.isParameter(), rightSide);
 		}
 	}
 
@@ -804,10 +803,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			SystemObject systemObject = ASTReader.getSystemObject();
 			Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
 			if(variableDeclaration != null) {
-				VariableDeclaration initialReference = variableDeclaration.getName();
-				ITypeBinding initialReferenceTypeBinding = initialReference.resolveBinding().getType();
+				String initialReferenceType = variableDeclaration.getVariableType();
 				for(IType subType : subTypes) {
-					if(subType.getFullyQualifiedName('.').equals(initialReferenceTypeBinding.getQualifiedName())) {
+					if(subType.getFullyQualifiedName('.').equals(initialReferenceType)) {
 						subTypesToBeAnalyzed.add(subType);
 						break;
 					}
@@ -909,8 +907,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		for(FieldInstructionObject fieldInstruction : fieldInstructions) {
 			SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
 			AbstractVariable originalField = processFieldInstruction(fieldInstructionName, parameterDeclaration, null);
-			if(originalField != null && parameterDeclaration.resolveBinding().isEqualTo(originalField.getName().resolveBinding())) {
-				AbstractVariable field = new CompositeVariable(argumentDeclaration.getName(), ((CompositeVariable)originalField).getRightPart());
+			if(originalField != null && parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
+				AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
+						argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
 				List<Assignment> fieldAssignments = methodObject.getFieldAssignments(fieldInstruction);
 				List<PostfixExpression> fieldPostfixAssignments = methodObject.getFieldPostfixAssignments(fieldInstruction);
 				List<PrefixExpression> fieldPrefixAssignments = methodObject.getFieldPrefixAssignments(fieldInstruction);
@@ -1162,9 +1161,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		for(AbstractVariable abstractVariable : originalDefinedVariables) {
 			if(abstractVariable instanceof CompositeVariable) {
 				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
-				VariableDeclaration reference = compositeVariable.getName();
-				if(reachingAliasSet.containsAlias(reference)) {
-					Set<VariableDeclaration> aliases = reachingAliasSet.getAliases(reference);
+				if(reachingAliasSet.containsAlias(compositeVariable)) {
+					Set<VariableDeclaration> aliases = reachingAliasSet.getAliases(compositeVariable);
 					for(VariableDeclaration alias : aliases) {
 						CompositeVariable aliasCompositeVariable = new CompositeVariable(alias, compositeVariable.getRightPart());
 						defVariablesToBeAdded.add(aliasCompositeVariable);
@@ -1179,9 +1177,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		for(AbstractVariable abstractVariable : originalUsedVariables) {
 			if(abstractVariable instanceof CompositeVariable) {
 				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
-				VariableDeclaration reference = compositeVariable.getName();
-				if(reachingAliasSet.containsAlias(reference)) {
-					Set<VariableDeclaration> aliases = reachingAliasSet.getAliases(reference);
+				if(reachingAliasSet.containsAlias(compositeVariable)) {
+					Set<VariableDeclaration> aliases = reachingAliasSet.getAliases(compositeVariable);
 					for(VariableDeclaration alias : aliases) {
 						CompositeVariable aliasCompositeVariable = new CompositeVariable(alias, compositeVariable.getRightPart());
 						useVariablesToBeAdded.add(aliasCompositeVariable);
@@ -1250,7 +1247,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		for(AbstractVariable abstractVariable : definedVariables) {
 			if(abstractVariable instanceof CompositeVariable) {
 				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
-				if(compositeVariable.getName().equals(variableDeclaration))
+				if(variableDeclaration.resolveBinding().getKey().equals(compositeVariable.getVariableBindingKey()))
 					return true;
 			}
 		}
@@ -1261,7 +1258,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		for(AbstractVariable abstractVariable : usedVariables) {
 			if(abstractVariable instanceof PlainVariable) {
 				PlainVariable plainVariable = (PlainVariable)abstractVariable;
-				if(plainVariable.getName().equals(variableDeclaration))
+				if(variableDeclaration.resolveBinding().getKey().equals(plainVariable.getVariableBindingKey()))
 					return true;
 			}
 		}

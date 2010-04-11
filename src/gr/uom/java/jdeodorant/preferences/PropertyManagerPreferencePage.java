@@ -29,7 +29,8 @@ public class PropertyManagerPreferencePage
 	private IntegerFieldEditor maximumDuplicationFieldEditor;
 	private StringFieldEditor maximumRatioOfDuplicatedToExtractedFieldEditor;
 	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
-	private IntegerFieldEditor compilationUnitCacheSizeFieldEditor;
+	private IntegerFieldEditor projectCompilationUnitCacheSizeFieldEditor;
+	private IntegerFieldEditor libraryCompilationUnitCacheSizeFieldEditor;
 	
 	public PropertyManagerPreferencePage() {
 		super(GRID);
@@ -73,11 +74,17 @@ public class PropertyManagerPreferencePage
 				"&Enable Alias Analysis:", getFieldEditorParent());
 		addField(enableAliasAnalysisFieldEditor);
 		
-		compilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
-				PreferenceConstants.P_COMPILATION_UNIT_CACHE_SIZE,
-				"&CompilationUnit cache size:", getFieldEditorParent());
-		compilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
-		addField(compilationUnitCacheSizeFieldEditor);
+		projectCompilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
+				PreferenceConstants.P_PROJECT_COMPILATION_UNIT_CACHE_SIZE,
+				"&Project CompilationUnit cache size:", getFieldEditorParent());
+		projectCompilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
+		addField(projectCompilationUnitCacheSizeFieldEditor);
+
+		libraryCompilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
+				PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE,
+				"&Library CompilationUnit cache size:", getFieldEditorParent());
+		libraryCompilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
+		addField(libraryCompilationUnitCacheSizeFieldEditor);
 	}
 
 	protected void checkState() {
@@ -152,13 +159,30 @@ public class PropertyManagerPreferencePage
 			return;
 		}
 		try {
-			int compilationUnitCacheSize = compilationUnitCacheSizeFieldEditor.getIntValue();
-			if(compilationUnitCacheSize >= 10) {
+			int projectCompilationUnitCacheSize = projectCompilationUnitCacheSizeFieldEditor.getIntValue();
+			if(projectCompilationUnitCacheSize >= 10) {
 				setErrorMessage(null);
 				setValid(true);
 			}
 			else {
 				setErrorMessage("Cache size is recommended to be >= 10");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Cache size must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			int libraryCompilationUnitCacheSize = libraryCompilationUnitCacheSizeFieldEditor.getIntValue();
+			if(libraryCompilationUnitCacheSize >= 20) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Cache size is recommended to be >= 20");
 				setValid(false);
 				return;
 			}

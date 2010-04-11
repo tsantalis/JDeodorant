@@ -7,7 +7,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 
@@ -169,7 +168,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 				extractedMethodInvocationInsertionStatement = tryStatementParent;
 		}
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
@@ -265,7 +264,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		AST ast = sourceTypeDeclaration.getAST();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		
-		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion().getName();
+		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 		SimpleName returnedVariableSimpleName = returnedVariableDeclaration.getName();
 		Type returnedVariableType = null;
 		if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {

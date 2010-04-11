@@ -129,6 +129,10 @@ public class PDGSlice extends Graph {
 		}
 	}
 
+	public Set<VariableDeclaration> getVariableDeclarationsAndAccessedFieldsInMethod() {
+		return pdg.getVariableDeclarationsAndAccessedFieldsInMethod();
+	}
+
 	public MethodObject getMethod() {
 		return method;
 	}
@@ -176,7 +180,8 @@ public class PDGSlice extends Graph {
 		}
 		else if(localVariableCriterion instanceof CompositeVariable) {
 			CompositeVariable compositeVariable = (CompositeVariable)localVariableCriterion;
-			plainVariable = new PlainVariable(compositeVariable.getName());
+			plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
+					compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
 		}
 		for(PDGNode pdgNode : sliceNodes) {
 			if(pdgNode.declaresLocalVariable(plainVariable))
@@ -192,7 +197,8 @@ public class PDGSlice extends Graph {
 		}
 		else if(localVariableCriterion instanceof CompositeVariable) {
 			CompositeVariable compositeVariable = (CompositeVariable)localVariableCriterion;
-			plainVariable = new PlainVariable(compositeVariable.getName());
+			plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
+					compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
 		}
 		for(PDGNode pdgNode : removableNodes) {
 			if(pdgNode.declaresLocalVariable(plainVariable))
@@ -319,7 +325,8 @@ public class PDGSlice extends Graph {
 				}
 				else if(stateChangingVariable instanceof CompositeVariable) {
 					CompositeVariable compositeVariable = (CompositeVariable)stateChangingVariable;
-					plainVariable = new PlainVariable(compositeVariable.getName());
+					plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
+							compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
 				}
 				if(!sliceContainsDeclaration(plainVariable))
 					return true;

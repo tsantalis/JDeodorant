@@ -15,5 +15,7 @@ public class PreferenceConstants {
 	
 	public static final String P_ENABLE_ALIAS_ANALYSIS = "enableAliasAnalysisPreference";
 	
-	public static final String P_COMPILATION_UNIT_CACHE_SIZE = "compilationUnitCacheSize";
+	public static final String P_PROJECT_COMPILATION_UNIT_CACHE_SIZE = "projectCompilationUnitCacheSize";
+	
+	public static final String P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE = "libraryCompilationUnitCacheSize";
 }

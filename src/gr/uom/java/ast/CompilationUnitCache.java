@@ -58,7 +58,7 @@ public class CompilationUnitCache {
 				CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
 				
 				IPreferenceStore store = Activator.getDefault().getPreferenceStore();
-				int maximumCacheSize = store.getInt(PreferenceConstants.P_COMPILATION_UNIT_CACHE_SIZE);
+				int maximumCacheSize = store.getInt(PreferenceConstants.P_PROJECT_COMPILATION_UNIT_CACHE_SIZE);
 				if(iTypeRootList.size() < maximumCacheSize) {
 					iTypeRootList.add(iTypeRoot);
 					compilationUnitList.add(compilationUnit);

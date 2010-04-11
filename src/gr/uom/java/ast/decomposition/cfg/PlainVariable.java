@@ -1,6 +1,5 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PlainVariable extends AbstractVariable {
@@ -10,20 +9,12 @@ public class PlainVariable extends AbstractVariable {
 		super(variableName);
 	}
 
-	public boolean isLocalVariable() {
-		IVariableBinding variableBinding = name.resolveBinding();
-		if(variableBinding.isField())
-			return false;
-		else
-			return true;
+	public PlainVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter) {
+		super(variableBindingKey, variableName, variableType, isField, isParameter);
 	}
 
 	public boolean containsPlainVariable(PlainVariable variable) {
-		if(this.name.equals(variable.name) ||
-				this.name.resolveBinding().isEqualTo(variable.name.resolveBinding()))
-			return true;
-		return false;
-		/*return this.equals(variable);*/
+		return this.variableBindingKey.equals(variable.variableBindingKey);
 	}
 
 	public boolean equals(Object o) {
@@ -32,10 +23,7 @@ public class PlainVariable extends AbstractVariable {
 		}
 		if(o instanceof PlainVariable) {
 			PlainVariable plain = (PlainVariable)o;
-			return this.name.equals(plain.name);
-			/*if(this.name.equals(plain.name) ||
-					this.name.resolveBinding().isEqualTo(plain.name.resolveBinding()))
-			return true;*/
+			return this.variableBindingKey.equals(plain.variableBindingKey);
 		}
 		return false;
 	}
@@ -43,7 +31,7 @@ public class PlainVariable extends AbstractVariable {
 	public int hashCode() {
 		if(hashCode == 0) {
 			int result = 17;
-			result = 31*result + name.hashCode();
+			result = 31*result + variableBindingKey.hashCode();
 			hashCode = result;
 		}
 		return hashCode;
@@ -51,7 +39,7 @@ public class PlainVariable extends AbstractVariable {
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(name.getName().getIdentifier());
+		sb.append(variableName);
 		return sb.toString();
 	}
 }

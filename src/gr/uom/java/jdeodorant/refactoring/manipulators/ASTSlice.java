@@ -75,7 +75,7 @@ public class ASTSlice {
 			}
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
-		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
+		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSlice.declarationOfVariableCriterionBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSlice.declarationOfVariableCriterionBelongsToRemovableNodes();
 		this.iFile = pdgSlice.getIFile();
@@ -113,7 +113,7 @@ public class ASTSlice {
 			}
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
-		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
+		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToRemovableNodes();
 		this.iFile = pdgSliceUnion.getIFile();
@@ -151,7 +151,7 @@ public class ASTSlice {
 			}
 		}
 		this.extractedMethodInvocationInsertionStatement = pdgObjectSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
-		this.extractedMethodName = localVariableCriterion.toString().replaceAll("\\.", "_");
+		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgObjectSliceUnion.declarationOfObjectReferenceBelongsToSliceNodes();
 		this.declarationOfVariableCriterionBelongsToRemovableNodes = pdgObjectSliceUnion.declarationOfObjectReferenceBelongsToRemovableNodes();
 		this.iFile = pdgObjectSliceUnion.getIFile();

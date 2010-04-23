@@ -839,6 +839,37 @@ public class MoveMethodRefactoring extends Refactoring {
 				}
 			}
 		}
+		if(!targetTypeDeclaration.resolveBinding().getSuperclass().getQualifiedName().equals("java.lang.Object")) {
+			IVariableBinding[] superclassFields = targetTypeDeclaration.resolveBinding().getSuperclass().getDeclaredFields();
+			for(IVariableBinding superclassField : superclassFields) {
+				int i = 0;
+				for(Expression expression : sourceFieldInstructions) {
+					SimpleName simpleName = (SimpleName)expression;
+					if(simpleName.getParent() instanceof QualifiedName && superclassField.isEqualTo(simpleName.resolveBinding())) {
+						QualifiedName qualifiedName = (QualifiedName)simpleName.getParent();
+						if(qualifiedName.getQualifier().resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding().getSuperclass()) &&
+								qualifiedName.getQualifier().getFullyQualifiedName().equals(targetClassVariableName)) {
+							SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
+							targetRewriter.replace(newSimpleName.getParent(), simpleName, null);
+						}
+					}
+					else if(simpleName.getParent() instanceof FieldAccess && superclassField.isEqualTo(simpleName.resolveBinding())) {
+						FieldAccess fieldAccess = (FieldAccess)simpleName.getParent();
+						Expression fieldAccessExpression = fieldAccess.getExpression();
+						if(fieldAccessExpression instanceof FieldAccess) {
+							FieldAccess invokerFieldAccess = (FieldAccess)fieldAccessExpression;
+							if(invokerFieldAccess.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) &&
+									invokerFieldAccess.getName().getIdentifier().equals(targetClassVariableName) && invokerFieldAccess.getExpression() instanceof ThisExpression) {
+								SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
+								FieldAccess newFieldAccess = (FieldAccess)newSimpleName.getParent();
+								targetRewriter.replace(newFieldAccess.getExpression(), newMethodDeclaration.getAST().newThisExpression(), null);
+							}
+						}
+					}
+					i++;
+				}
+			}
+		}
 	}
 	
 	private void modifySourceStaticFieldInstructionsInTargetClass(MethodDeclaration newMethodDeclaration) {

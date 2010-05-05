@@ -112,6 +112,14 @@ public class ClassObject {
     	return false;
     }
 
+    public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
+    	for(MethodObject method : methodList) {
+    		if(method.containsSuperMethodInvocation(superMethodInvocation))
+    			return true;
+    	}
+    	return false;
+    }
+
     public boolean hasFieldType(String className) {
         ListIterator<FieldObject> fi = getFieldIterator();
         while(fi.hasNext()) {

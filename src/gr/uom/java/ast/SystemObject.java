@@ -153,6 +153,14 @@ public class SystemObject {
     	return false;
     }
 
+    public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
+    	for(ClassObject classObject : classList) {
+    		if(classObject.containsSuperMethodInvocation(superMethodInvocation))
+    			return true;
+    	}
+    	return false;
+    }
+
     public ClassObject getClassObject(String className) {
         Integer pos = classNameMap.get(className);
         if(pos != null)

@@ -100,7 +100,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     }
 
     public boolean leaveDelegate() {
-		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), getSourceClass().getClassObject());
+		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), getSourceClass().getClassObject()) ||
+		system.getSystemObject().containsSuperMethodInvocation(getSourceMethod().getMethodObject().generateSuperMethodInvocation());
     }
 
     private boolean isTargetClassAnInterface() {

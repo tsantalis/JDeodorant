@@ -89,6 +89,30 @@ public class ExpressionExtractor {
 		instanceChecker = new InstanceOfSuperMethodInvocation();
 		return getExpressions(expression);
 	}
+
+	// returns a List of FieldAccess objects
+	public List<Expression> getFieldAccesses(Statement statement) {
+		instanceChecker = new InstanceOfFieldAccess();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of SuperFieldAccess objects
+	public List<Expression> getSuperFieldAccesses(Statement statement) {
+		instanceChecker = new InstanceOfSuperFieldAccess();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of FieldAccess objects
+	public List<Expression> getFieldAccesses(Expression expression) {
+		instanceChecker = new InstanceOfFieldAccess();
+		return getExpressions(expression);
+	}
+	
+	// returns a List of SuperFieldAccess objects
+	public List<Expression> getSuperFieldAccesses(Expression expression) {
+		instanceChecker = new InstanceOfSuperFieldAccess();
+		return getExpressions(expression);
+	}
 	
 	// returns a List of ClassInstanceCreation objects
 	public List<Expression> getClassInstanceCreations(Statement statement) {
@@ -453,6 +477,8 @@ public class ExpressionExtractor {
 		else if(expression instanceof SuperFieldAccess) {
 			SuperFieldAccess superFieldAccess = (SuperFieldAccess)expression;
 			expressionList.addAll(getExpressions(superFieldAccess.getName()));
+			if(instanceChecker.instanceOf(superFieldAccess))
+				expressionList.add(superFieldAccess);
 		}
 		else if(expression instanceof ThisExpression) {
 			ThisExpression thisExpression = (ThisExpression)expression;

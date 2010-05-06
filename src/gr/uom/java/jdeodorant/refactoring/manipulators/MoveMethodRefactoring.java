@@ -78,6 +78,7 @@ public class MoveMethodRefactoring extends Refactoring {
 	private MethodDeclaration sourceMethod;
 	private String targetClassVariableName;
 	private Set<String> additionalArgumentsAddedToMovedMethod;
+	private Set<ITypeBinding> additionalTypeBindingsToBeImportedInTargetClass;
 	private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
 	private boolean leaveDelegate;
 	private String movedMethodName;
@@ -98,6 +99,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		this.sourceMethod = sourceMethod;
 		this.targetClassVariableName = null;
 		this.additionalArgumentsAddedToMovedMethod = new LinkedHashSet<String>();
+		this.additionalTypeBindingsToBeImportedInTargetClass = new LinkedHashSet<ITypeBinding>();
 		this.additionalMethodsToBeMoved = additionalMethodsToBeMoved;
 		this.leaveDelegate = leaveDelegate;
 		this.movedMethodName = movedMethodName;
@@ -128,9 +130,9 @@ public class MoveMethodRefactoring extends Refactoring {
 	}
 
 	public void apply() {
+		createMovedMethod();
 		if(!sourceCompilationUnit.equals(targetCompilationUnit))
 			addRequiredTargetImportDeclarations();
-		createMovedMethod();
 		
 		moveAdditionalMethods();
 		modifyMovedMethodInvocationInSourceClass();
@@ -148,6 +150,9 @@ public class MoveMethodRefactoring extends Refactoring {
 		ImportRewrite targetImportRewrite = ImportRewrite.create(targetCompilationUnit, true);
 		
 		for(ITypeBinding typeBinding : typeVisitor.getTypeBindings()) {
+			targetImportRewrite.addImport(typeBinding);
+		}
+		for(ITypeBinding typeBinding : additionalTypeBindingsToBeImportedInTargetClass) {
 			targetImportRewrite.addImport(typeBinding);
 		}
 		
@@ -931,6 +936,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add("this");
+		this.additionalTypeBindingsToBeImportedInTargetClass.add(sourceTypeDeclaration.resolveBinding());
 		setPublicModifierToSourceTypeDeclaration();
 		return parameterName;
 	}
@@ -1002,6 +1008,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add(fieldName.getIdentifier());
+		this.additionalTypeBindingsToBeImportedInTargetClass.add(fieldType.resolveBinding());
 	}
 
 	private void addParameterToMovedMethod(MethodDeclaration newMethodDeclaration, IVariableBinding variableBinding, ASTRewrite targetRewriter) {
@@ -1044,6 +1051,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add(variableBinding.getName());
+		this.additionalTypeBindingsToBeImportedInTargetClass.add(variableBinding.getType());
 	}
 
 	private ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite targetRewriter) {

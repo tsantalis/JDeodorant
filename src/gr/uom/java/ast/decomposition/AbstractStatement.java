@@ -9,6 +9,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -27,6 +28,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -39,6 +41,7 @@ public abstract class AbstractStatement {
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
     private List<FieldInstructionObject> fieldInstructionList;
+    private List<SuperFieldInstructionObject> superFieldInstructionList;
     private List<LocalVariableDeclarationObject> localVariableDeclarationList;
     private List<LocalVariableInstructionObject> localVariableInstructionList;
     private List<CreationObject> creationList;
@@ -50,6 +53,7 @@ public abstract class AbstractStatement {
     	this.methodInvocationList = new ArrayList<MethodInvocationObject>();
     	this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
         this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
+        this.superFieldInstructionList = new ArrayList<SuperFieldInstructionObject>();
         this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
         this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
         this.creationList = new ArrayList<CreationObject>();
@@ -67,11 +71,20 @@ public abstract class AbstractStatement {
 						String qualifiedName = variableBinding.getType().getQualifiedName();
 						TypeObject fieldType = TypeObject.extractTypeObject(qualifiedName);
 						String fieldName = variableBinding.getName();
-						FieldInstructionObject fieldInstruction = new FieldInstructionObject(originClassName, fieldType, fieldName);
-						fieldInstruction.setSimpleName(simpleName);
-						if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
-							fieldInstruction.setStatic(true);
-						fieldInstructionList.add(fieldInstruction);
+						if(simpleName.getParent() instanceof SuperFieldAccess) {
+							SuperFieldInstructionObject superFieldInstruction = new SuperFieldInstructionObject(originClassName, fieldType, fieldName);
+							superFieldInstruction.setSimpleName(simpleName);
+							if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
+								superFieldInstruction.setStatic(true);
+							superFieldInstructionList.add(superFieldInstruction);
+						}
+						else {
+							FieldInstructionObject fieldInstruction = new FieldInstructionObject(originClassName, fieldType, fieldName);
+							fieldInstruction.setSimpleName(simpleName);
+							if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
+								fieldInstruction.setStatic(true);
+							fieldInstructionList.add(fieldInstruction);
+						}
 					}
 				}
 				else {
@@ -180,6 +193,10 @@ public abstract class AbstractStatement {
 
 	public List<FieldInstructionObject> getFieldInstructions() {
 		return fieldInstructionList;
+	}
+
+	public List<SuperFieldInstructionObject> getSuperFieldInstructions() {
+		return superFieldInstructionList;
 	}
 
 	public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {

@@ -429,6 +429,10 @@ public class MethodObject {
         return constructorObject.getFieldInstructions();
     }
 
+    public List<SuperFieldInstructionObject> getSuperFieldInstructions() {
+    	return constructorObject.getSuperFieldInstructions();
+    }
+
     public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
         return constructorObject.getLocalVariableDeclarations();
     }
@@ -459,6 +463,10 @@ public class MethodObject {
 
     public boolean containsSuperMethodInvocation() {
     	return constructorObject.containsSuperMethodInvocation();
+    }
+
+    public boolean containsSuperFieldAccess() {
+    	return constructorObject.containsSuperFieldAccess();
     }
 
     public List<TypeObject> getParameterTypeList() {

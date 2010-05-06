@@ -158,7 +158,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     }
 
     private boolean containsSuperMethodInvocation() {
-    	if(sourceMethod.getMethodObject().containsSuperMethodInvocation()) {
+    	if(sourceMethod.getMethodObject().containsSuperMethodInvocation() || sourceMethod.getMethodObject().containsSuperFieldAccess()) {
     		//System.out.println(this.toString() + "\tcontains super method invocation");
     		return true;
     	}

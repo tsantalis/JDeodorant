@@ -105,6 +105,13 @@ public class ConstructorObject {
     		return new ArrayList<FieldInstructionObject>();
     }
 
+    public List<SuperFieldInstructionObject> getSuperFieldInstructions() {
+    	if(methodBody != null)
+    		return methodBody.getSuperFieldInstructions();
+    	else
+    		return new ArrayList<SuperFieldInstructionObject>();
+    }
+
     public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
     	if(methodBody != null)
     		return methodBody.getLocalVariableDeclarations();
@@ -157,6 +164,13 @@ public class ConstructorObject {
     public boolean containsSuperMethodInvocation() {
     	if(methodBody != null)
     		return methodBody.containsSuperMethodInvocation();
+    	else
+    		return false;
+    }
+
+    public boolean containsSuperFieldAccess() {
+    	if(methodBody != null)
+    		return methodBody.containsSuperFieldAccess();
     	else
     		return false;
     }

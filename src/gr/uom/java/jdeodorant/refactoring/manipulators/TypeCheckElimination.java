@@ -409,7 +409,7 @@ public class TypeCheckElimination {
 	}
 	
 	public boolean isApplicable() {
-		if(!containsLocalVariableAssignment() && !containsBranchingStatement() && !containsSuperMethodInvocation())
+		if(!containsLocalVariableAssignment() && !containsBranchingStatement() && !containsSuperMethodInvocation() && !containsSuperFieldAccess())
 			return true;
 		else
 			return false;
@@ -515,6 +515,22 @@ public class TypeCheckElimination {
 			for(Statement statement : statements) {
 				List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(statement);
 				if(!superMethodInvocations.isEmpty())
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean containsSuperFieldAccess() {
+		List<ArrayList<Statement>> typeCheckStatements = getTypeCheckStatements();
+		if(!defaultCaseStatements.isEmpty())
+			typeCheckStatements.add(defaultCaseStatements);
+		
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		for(ArrayList<Statement> statements : typeCheckStatements) {
+			for(Statement statement : statements) {
+				List<Expression> superFieldAccesses = expressionExtractor.getSuperFieldAccesses(statement);
+				if(!superFieldAccesses.isEmpty())
 					return true;
 			}
 		}

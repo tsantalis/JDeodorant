@@ -4,6 +4,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
@@ -176,6 +177,10 @@ public class MethodBodyObject {
 		return compositeStatement.getFieldInstructions();
 	}
 
+	public List<SuperFieldInstructionObject> getSuperFieldInstructions() {
+		return compositeStatement.getSuperFieldInstructions();
+	}
+
 	public List<LocalVariableDeclarationObject> getLocalVariableDeclarations() {
 		return compositeStatement.getLocalVariableDeclarations();
 	}
@@ -216,6 +221,15 @@ public class MethodBodyObject {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(compositeStatement.getStatement());
 		if(!superMethodInvocations.isEmpty())
+			return true;
+		else
+			return false;
+	}
+
+	public boolean containsSuperFieldAccess() {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> superFieldAccesses = expressionExtractor.getSuperFieldAccesses(compositeStatement.getStatement());
+		if(!superFieldAccesses.isEmpty())
 			return true;
 		else
 			return false;

@@ -393,6 +393,8 @@ public class ExpressionExtractor {
 			FieldAccess fieldAccess = (FieldAccess)expression;
 			expressionList.addAll(getExpressions(fieldAccess.getExpression()));
 			expressionList.addAll(getExpressions(fieldAccess.getName()));
+			if(instanceChecker.instanceOf(fieldAccess))
+				expressionList.add(fieldAccess);
 		}
 		else if(expression instanceof InfixExpression) {
 			InfixExpression infixExpression = (InfixExpression)expression;

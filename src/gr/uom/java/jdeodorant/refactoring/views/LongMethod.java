@@ -154,27 +154,44 @@ public class LongMethod extends ViewPart {
 			ASTSlice slice1 = (ASTSlice)obj1;
 			ASTSlice slice2 = (ASTSlice)obj2;
 			
-			int numberOfSliceStatements1 = slice1.getSliceStatements().size();
-			int numberOfRemovableStatements1 = slice1.getRemovableStatements().size();
-			int numberOfDuplicatedStatements1 = numberOfSliceStatements1 - numberOfRemovableStatements1;
-			double ratio1 = (double)numberOfDuplicatedStatements1/(double)numberOfSliceStatements1;
+			double duplicationRatio1 = slice1.getAverageDuplicationRatioInGroup();
+			double duplicationRatio2 = slice2.getAverageDuplicationRatioInGroup();
 			
-			int numberOfSliceStatements2 = slice2.getSliceStatements().size();
-			int numberOfRemovableStatements2 = slice2.getRemovableStatements().size();
-			int numberOfDuplicatedStatements2 = numberOfSliceStatements2 - numberOfRemovableStatements2;
-			double ratio2 = (double)numberOfDuplicatedStatements2/(double)numberOfSliceStatements2;
-			
-			if(ratio1 < ratio2) {
+			if(duplicationRatio1 < duplicationRatio2)
 				return -1;
-			}
-			else if(ratio1 > ratio2) {
+			else if(duplicationRatio1 > duplicationRatio2)
 				return 1;
+			//same duplication ratio
+			double averageNumberOfDuplicatedStatements1 = slice1.getAverageNumberOfDuplicatedStatementsInGroup();
+			double averageNumberOfDuplicatedStatements2 = slice2.getAverageNumberOfDuplicatedStatementsInGroup();
+			
+			if(averageNumberOfDuplicatedStatements1 != 0 && averageNumberOfDuplicatedStatements2 != 0) {
+				if(averageNumberOfDuplicatedStatements1 < averageNumberOfDuplicatedStatements2)
+					return -1;
+				else if(averageNumberOfDuplicatedStatements1 > averageNumberOfDuplicatedStatements2)
+					return 1;
 			}
-			else {
-				if(numberOfDuplicatedStatements1 == 0 && numberOfDuplicatedStatements2 == 0)
-					return -Integer.valueOf(numberOfSliceStatements1).compareTo(Integer.valueOf(numberOfSliceStatements2));
-				return 0;
+			
+			int maximumNumberOfExtractedStatements1 = slice1.getMaximumNumberOfExtractedStatementsInGroup();
+			int maximumNumberOfExtractedStatements2 = slice2.getMaximumNumberOfExtractedStatementsInGroup();
+			
+			if(averageNumberOfDuplicatedStatements1 == 0 && averageNumberOfDuplicatedStatements2 == 0) {
+				if(maximumNumberOfExtractedStatements1 < maximumNumberOfExtractedStatements2)
+					return 1;
+				else if(maximumNumberOfExtractedStatements1 > maximumNumberOfExtractedStatements2)
+					return -1;
 			}
+			
+			double averageNumberOfExtractedStatements1 = slice1.getAverageNumberOfExtractedStatementsInGroup();
+			double averageNumberOfExtractedStatements2 = slice2.getAverageNumberOfExtractedStatementsInGroup();
+			
+			if(averageNumberOfExtractedStatements1 < averageNumberOfExtractedStatements2)
+				return 1;
+			else if(averageNumberOfExtractedStatements1 > averageNumberOfExtractedStatements2)
+				return -1;
+			
+			//slices belong to the same group
+			return Integer.valueOf(slice1.getBoundaryBlock().getId()).compareTo(Integer.valueOf(slice2.getBoundaryBlock().getId()));
 		}
 	}
 	
@@ -255,7 +272,7 @@ public class LongMethod extends ViewPart {
 		tableViewer = new TableViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
 		tableViewer.setContentProvider(new ViewContentProvider());
 		tableViewer.setLabelProvider(new ViewLabelProvider());
-		//tableViewer.setSorter(new NameSorter());
+		tableViewer.setSorter(new NameSorter());
 		tableViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(20, true));
@@ -486,8 +503,7 @@ public class LongMethod extends ViewPart {
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 			}
-			final List<PDGSliceUnion> extractedSlices = new ArrayList<PDGSliceUnion>();
-			final List<PDGObjectSliceUnion> extractedObjectSlices = new ArrayList<PDGObjectSliceUnion>();
+			final List<ASTSlice> extractedSlices = new ArrayList<ASTSlice>();
 
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
@@ -503,7 +519,7 @@ public class LongMethod extends ViewPart {
 								if(monitor.isCanceled())
 									throw new OperationCanceledException();
 								MethodObject methodObject = methodIterator.next();
-								processMethod(extractedSlices, extractedObjectSlices, classObject, methodObject);
+								processMethod(extractedSlices,classObject, methodObject);
 								monitor.worked(1);
 							}
 						}
@@ -515,7 +531,7 @@ public class LongMethod extends ViewPart {
 							if(monitor.isCanceled())
 								throw new OperationCanceledException();
 							ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
-							processMethod(extractedSlices, extractedObjectSlices, classObject, methodObject);
+							processMethod(extractedSlices, classObject, methodObject);
 							monitor.worked(1);
 						}
 					}
@@ -523,14 +539,9 @@ public class LongMethod extends ViewPart {
 				}
 			});
 
-			table = new ASTSlice[extractedSlices.size() + extractedObjectSlices.size()];
+			table = new ASTSlice[extractedSlices.size()];
 			for(int i=0; i<extractedSlices.size(); i++) {
-				ASTSlice astSlice = new ASTSlice(extractedSlices.get(i));
-				table[i] = astSlice;
-			}
-			for(int i=0; i<extractedObjectSlices.size(); i++) {
-				ASTSlice astSlice = new ASTSlice(extractedObjectSlices.get(i));
-				table[extractedSlices.size() + i] = astSlice;
+				table[i] = extractedSlices.get(i);
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
@@ -540,8 +551,7 @@ public class LongMethod extends ViewPart {
 		return table;
 	}
 
-	private void processMethod(final List<PDGSliceUnion> extractedSlices, final List<PDGObjectSliceUnion> extractedObjectSlices,
-			ClassObject classObject, MethodObject methodObject) {
+	private void processMethod(final List<ASTSlice> extractedSlices, ClassObject classObject, MethodObject methodObject) {
 		if(methodObject.getMethodBody() != null) {
 			ITypeRoot typeRoot = classObject.getITypeRoot();
 			CompilationUnitCache.getInstance().lock(typeRoot);
@@ -550,15 +560,59 @@ public class LongMethod extends ViewPart {
 			for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 				PlainVariable variable = new PlainVariable(declaration);
 				PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
+				List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
+				double sumOfExtractedStatementsInGroup = 0.0;
+				double sumOfDuplicatedStatementsInGroup = 0.0;
+				double sumOfDuplicationRatioInGroup = 0.0;
+				int maximumNumberOfExtractedStatementsInGroup = 0;
 				for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-					extractedSlices.add(sliceUnion);
+					ASTSlice slice = new ASTSlice(sliceUnion);
+					int numberOfExtractedStatements = slice.getSliceStatements().size();
+					int numberOfRemovableStatements = slice.getRemovableStatements().size();
+					int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+					double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
+					sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
+					sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
+					sumOfDuplicationRatioInGroup += duplicationRatio;
+					if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
+						maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
+					variableSlices.add(slice);
+					extractedSlices.add(slice);
+				}
+				for(ASTSlice slice : variableSlices) {
+					slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
+					slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
+					slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
+					slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
 				}
 			}
 			for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
 				PlainVariable variable = new PlainVariable(declaration);
 				PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
+				List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
+				double sumOfExtractedStatementsInGroup = 0.0;
+				double sumOfDuplicatedStatementsInGroup = 0.0;
+				double sumOfDuplicationRatioInGroup = 0.0;
+				int maximumNumberOfExtractedStatementsInGroup = 0;
 				for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
-					extractedObjectSlices.add(objectSliceUnion);
+					ASTSlice slice = new ASTSlice(objectSliceUnion);
+					int numberOfExtractedStatements = slice.getSliceStatements().size();
+					int numberOfRemovableStatements = slice.getRemovableStatements().size();
+					int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+					double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
+					sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
+					sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
+					sumOfDuplicationRatioInGroup += duplicationRatio;
+					if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
+						maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
+					variableSlices.add(slice);
+					extractedSlices.add(slice);
+				}
+				for(ASTSlice slice : variableSlices) {
+					slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
+					slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
+					slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
+					slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
 				}
 			}
 			CompilationUnitCache.getInstance().releaseLock();

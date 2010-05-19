@@ -44,6 +44,10 @@ public class ASTSlice {
 	private IFile iFile;
 	private BasicBlock boundaryBlock;
 	private boolean isObjectSlice;
+	private double averageNumberOfExtractedStatementsInGroup;
+	private int maximumNumberOfExtractedStatementsInGroup;
+	private double averageNumberOfDuplicatedStatementsInGroup;
+	private double averageDuplicationRatioInGroup;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
 		this.sourceMethodDeclaration = pdgSlice.getMethod().getMethodDeclaration();
@@ -283,5 +287,37 @@ public class ASTSlice {
 			i++;
 		}
 		return positionMap;
+	}
+
+	public double getAverageNumberOfExtractedStatementsInGroup() {
+		return averageNumberOfExtractedStatementsInGroup;
+	}
+
+	public void setAverageNumberOfExtractedStatementsInGroup(double averageNumberOfExtractedStatementsInGroup) {
+		this.averageNumberOfExtractedStatementsInGroup = averageNumberOfExtractedStatementsInGroup;
+	}
+
+	public int getMaximumNumberOfExtractedStatementsInGroup() {
+		return maximumNumberOfExtractedStatementsInGroup;
+	}
+
+	public void setMaximumNumberOfExtractedStatementsInGroup(int maximumNumberOfExtractedStatementsInGroup) {
+		this.maximumNumberOfExtractedStatementsInGroup = maximumNumberOfExtractedStatementsInGroup;
+	}
+
+	public double getAverageNumberOfDuplicatedStatementsInGroup() {
+		return averageNumberOfDuplicatedStatementsInGroup;
+	}
+
+	public void setAverageNumberOfDuplicatedStatementsInGroup(double averageNumberOfDuplicatedStatementsInGroup) {
+		this.averageNumberOfDuplicatedStatementsInGroup = averageNumberOfDuplicatedStatementsInGroup;
+	}
+
+	public double getAverageDuplicationRatioInGroup() {
+		return averageDuplicationRatioInGroup;
+	}
+
+	public void setAverageDuplicationRatioInGroup(double averageDuplicationRatioInGroup) {
+		this.averageDuplicationRatioInGroup = averageDuplicationRatioInGroup;
 	}
 }

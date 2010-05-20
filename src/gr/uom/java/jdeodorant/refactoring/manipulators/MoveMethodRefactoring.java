@@ -873,9 +873,9 @@ public class MoveMethodRefactoring extends Refactoring {
 								if((modifiers & Modifier.STATIC) != 0) {
 									AST ast = newMethodDeclaration.getAST();
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier()), null);
-									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().toString())) {
+									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
 										setPublicModifierToSourceMethod(methodInvocation);
-										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().toString());
+										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
 									}
 								}
 								else if(fieldName != null) {
@@ -889,9 +889,9 @@ public class MoveMethodRefactoring extends Refactoring {
 										parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
 									}
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
-									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().toString())) {
+									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
 										setPublicModifierToSourceMethod(methodInvocation);
-										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().toString());
+										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
 									}
 								}
 							}
@@ -910,10 +910,17 @@ public class MoveMethodRefactoring extends Refactoring {
 							for(IMethodBinding superclassMethodBinding : superclassMethodBindings) {
 								if(superclassMethodBinding.isEqualTo(methodBinding)) {
 									MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
-									if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
-										parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
+									if((superclassMethodBinding.getModifiers() & Modifier.STATIC) != 0) {
+										AST ast = newMethodDeclaration.getAST();
+										SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+										targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, qualifier, null);
 									}
-									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
+									else {
+										if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+											parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
+										}
+										targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
+									}
 								}
 							}
 						}

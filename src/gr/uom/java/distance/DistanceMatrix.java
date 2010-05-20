@@ -202,6 +202,21 @@ public class DistanceMatrix {
     	return candidateRefactoringList;
     }
 
+    private boolean targetClassInheritedByAnotherCandidateTargetClass(String targetClass, Set<String> candidateTargetClasses) {
+    	for(String candidateTargetClass : candidateTargetClasses) {
+    		if(!candidateTargetClass.equals(targetClass)) {
+    			MyClass currentSuperclass = classList.get(classIndexMap.get(candidateTargetClass));
+    			String superclass = null;
+    			while((superclass = currentSuperclass.getSuperclass()) != null) {
+    				if(superclass.equals(targetClass))
+    					return true;
+    				currentSuperclass = classList.get(classIndexMap.get(superclass));
+    			}
+    		}
+    	}
+    	return false;
+    }
+
     public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByAccess(Set<String> classNamesToBeExamined, IProgressMonitor monitor) {
     	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
     	if(monitor != null)
@@ -301,7 +316,7 @@ public class DistanceMatrix {
     										intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
     									}
     									if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
-    										if(candidate.isApplicable()) {
+    										if(candidate.isApplicable() && !targetClassInheritedByAnotherCandidateTargetClass(targetClass, accessMap.keySet())) {
     											candidate.apply();
     											candidateRefactoringList.add(candidate);
     											candidateFound = true;

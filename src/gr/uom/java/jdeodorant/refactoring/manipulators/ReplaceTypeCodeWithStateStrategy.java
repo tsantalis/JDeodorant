@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
+import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -34,7 +35,6 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -49,7 +49,6 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
-import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -71,12 +70,13 @@ import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
+import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
@@ -86,9 +86,10 @@ import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
-import org.eclipse.ltk.core.refactoring.TextFileChange;
 import org.eclipse.text.edits.MalformedTreeException;
+import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
+import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
@@ -96,7 +97,6 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private TypeCheckElimination typeCheckElimination;
-	private ASTRewrite sourceRewriter;
 	private VariableDeclaration returnedVariable;
 	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> requiredImportDeclarationsForContext;
@@ -104,7 +104,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 	private Map<SimpleName, String> staticFieldMap;
 	private Map<SimpleName, String> additionalStaticFieldMap;
 	private String abstractClassName;
-	private Map<ICompilationUnit, TextFileChange> textFileChanges;
+	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<IJavaElement> javaElementsToOpenInEditor;
 	
@@ -114,7 +114,6 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.typeCheckElimination = typeCheckElimination;
-		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
 		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.requiredImportDeclarationsForContext = new LinkedHashSet<ITypeBinding>();
@@ -128,7 +127,14 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			this.additionalStaticFieldMap.put(simpleName, generateSubclassName(simpleName));
 		}
 		this.abstractClassName = typeCheckElimination.getAbstractClassName();
-		this.textFileChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
+		this.compilationUnitChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
+		
+		ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+		MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+		CompilationUnitChange sourceCompilationUnitChange = new CompilationUnitChange("", sourceICompilationUnit);
+		sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
+		compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
+		
 		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
 		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
 	}
@@ -150,6 +156,22 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 	}
 
 	private void modifyContext() {
+		createStateField();
+		removePrimitiveStateField();
+		generateSetterMethodForStateField();
+		generateGetterMethodForStateField();
+		replaceConditionalStructureWithPolymorphicMethodInvocation();
+		
+		generateGettersForAccessedFields();
+		generateSettersForAssignedFields();
+		setPublicModifierToStaticFields();
+		setPublicModifierToAccessedMethods();
+		
+		addRequiredImportDeclarationsToContext();
+	}
+
+	private void createStateField() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST contextAST = sourceTypeDeclaration.getAST();
 		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		VariableDeclarationFragment typeFragment = contextAST.newVariableDeclarationFragment();
@@ -218,8 +240,23 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		sourceRewriter.set(typeFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(abstractClassName), null);
 		ListRewrite typeFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(typeFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
 		typeFieldDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
-		contextBodyRewrite.insertFirst(typeFieldDeclaration, null);
+		contextBodyRewrite.insertBefore(typeFieldDeclaration, typeCheckElimination.getTypeField().getParent(), null);
 		
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Create field holding the current state", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void removePrimitiveStateField() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
+		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
 		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
 			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
@@ -235,7 +272,21 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				}
 			}
 		}
-		
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Remove primitive field holding the current state", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void generateSetterMethodForStateField() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
+		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		MethodDeclaration setterMethod = typeCheckElimination.getTypeFieldSetterMethod();
 		SwitchStatement switchStatement = contextAST.newSwitchStatement();
 		List<SimpleName> staticFieldNames = new ArrayList<SimpleName>(staticFieldMap.keySet());
@@ -334,6 +385,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			if(setterMethodBodyStatements.size() == 1) {
 				setterMethodBodyRewrite.replace(setterMethodBodyStatements.get(0), switchStatement, null);
 			}
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Modify setter method for the field holding the current state", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
 		}
 		else {
 			MethodDeclaration setterMethodDeclaration = contextAST.newMethodDeclaration();
@@ -355,8 +415,22 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			setterMethodBodyRewrite.insertLast(switchStatement, null);
 			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, setterMethodBody, null);
 			contextBodyRewrite.insertLast(setterMethodDeclaration, null);
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Create setter method for the field holding the current state", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
 		}
-		
+	}
+
+	private void generateGetterMethodForStateField() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
+		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		MethodDeclaration getterMethod = typeCheckElimination.getTypeFieldGetterMethod();
 		if(getterMethod != null) {
 			Block getterMethodBody = getterMethod.getBody();
@@ -369,6 +443,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				sourceRewriter.set(abstractGetterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
 				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, abstractGetterMethodInvocation, null);
 				getterMethodBodyRewrite.replace(getterMethodBodyStatements.get(0), returnStatement, null);
+			}
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Modify getter method for the field holding the current state", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
 			}
 		}
 		else {
@@ -390,8 +473,21 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			getterMethodBodyRewrite.insertLast(returnStatement, null);
 			sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, getterMethodBody, null);
 			contextBodyRewrite.insertLast(getterMethodDeclaration, null);
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Create getter method for the field holding the current state", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
 		}
-		
+	}
+
+	private void replaceConditionalStructureWithPolymorphicMethodInvocation() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
 		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
 		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
@@ -461,41 +557,53 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), returnStatement, null);
 			}
 		}
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Replace conditional structure with polymorphic method invocation", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void addRequiredImportDeclarationsToContext() {
+		ImportRewrite sourceImportRewrite = ImportRewrite.create(sourceCompilationUnit, true);
+		for(ITypeBinding typeBinding : requiredImportDeclarationsForContext) {
+			sourceImportRewrite.addImport(typeBinding);
+		}
+
+		try {
+			TextEdit sourceImportEdit = sourceImportRewrite.rewriteImports(null);
+			if(sourceImportRewrite.getCreatedImports().length > 0) {
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceImportEdit);
+				change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {sourceImportEdit}));
+			}
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void modifyTypeCheckMethod() {
+		createGetterMethodForStateObject();
+		replaceConditionalStructureWithPolymorphicMethodInvocationThroughStateObject();
 		
 		generateGettersForAccessedFields();
 		generateSettersForAssignedFields();
 		setPublicModifierToStaticFields();
 		setPublicModifierToAccessedMethods();
 		
-		for(ITypeBinding typeBinding : requiredImportDeclarationsForContext) {
-			addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
-		}
-		
-		try {
-			TextEdit sourceEdit = sourceRewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-			TextFileChange change = textFileChanges.get(sourceICompilationUnit);
-			if (change == null) {
-				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
-				change.setTextType("java");
-				change.setEdit(sourceEdit);
-			} else
-				change.getEdit().addChild(sourceEdit);
-			textFileChanges.put(sourceICompilationUnit, change);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		}
+		addRequiredImportDeclarationsToContext();
 	}
 
-	private void modifyTypeCheckMethod() {
-		AST contextAST = sourceTypeDeclaration.getAST();
-		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		
+	private void createGetterMethodForStateObject() {
 		if(!typeObjectGetterMethodAlreadyExists()) {
+			ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+			AST contextAST = sourceTypeDeclaration.getAST();
+			ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 			SwitchStatement switchStatement = contextAST.newSwitchStatement();
 			List<SimpleName> staticFieldNames = new ArrayList<SimpleName>(staticFieldMap.keySet());
 			List<String> subclassNames = new ArrayList<String>(staticFieldMap.values());
@@ -604,8 +712,22 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			setterMethodBodyRewrite.insertLast(defaultReturnStatement, null);
 			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, setterMethodBody, null);
 			contextBodyRewrite.insertLast(setterMethodDeclaration, null);
+			
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Create getter method for state object", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
 		}
-		
+	}
+
+	private void replaceConditionalStructureWithPolymorphicMethodInvocationThroughStateObject() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
 		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
 		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
@@ -689,32 +811,13 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), returnStatement, null);
 			}
 		}
-		
-		generateGettersForAccessedFields();
-		generateSettersForAssignedFields();
-		setPublicModifierToStaticFields();
-		setPublicModifierToAccessedMethods();
-		
-		for(ITypeBinding typeBinding : requiredImportDeclarationsForContext) {
-			addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
-		}
-		
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-			TextFileChange change = textFileChanges.get(sourceICompilationUnit);
-			if (change == null) {
-				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
-				change.setTextType("java");
-				change.setEdit(sourceEdit);
-			} else
-				change.getEdit().addChild(sourceEdit);
-			textFileChanges.put(sourceICompilationUnit, change);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Replace conditional structure with polymorphic method invocation", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -952,42 +1055,52 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		stateStrategyBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
 		generateRequiredImportDeclarationsBasedOnSignature();
-		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-			addImportDeclaration(typeBinding, stateStrategyCompilationUnit, stateStrategyRewriter);
-		}
 		
 		if(!stateStrategyAlreadyExists)
 			stateStrategyTypesRewrite.insertLast(stateStrategyTypeDeclaration, null);
 		
 		if(stateStrategyDocument != null) {
 			try {
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+					addImportDeclaration(typeBinding, stateStrategyCompilationUnit, stateStrategyRewriter);
+				}
 				TextEdit stateStrategyEdit = stateStrategyRewriter.rewriteAST(stateStrategyDocument, null);
 				stateStrategyEdit.apply(stateStrategyDocument);
 				CreateCompilationUnitChange createCompilationUnitChange =
 					new CreateCompilationUnitChange(stateStrategyICompilationUnit, stateStrategyDocument.get(), stateStrategyFile.getCharset());
 				createCompilationUnitChanges.put(stateStrategyICompilationUnit, createCompilationUnitChange);
+			} catch (CoreException e) {
+				e.printStackTrace();
 			} catch (MalformedTreeException e) {
 				e.printStackTrace();
 			} catch (BadLocationException e) {
-				e.printStackTrace();
-			} catch (CoreException e) {
 				e.printStackTrace();
 			}
 		}
 		else {
 			try {
+				MultiTextEdit stateStrategyMultiTextEdit = new MultiTextEdit();
+				CompilationUnitChange stateStrategyCompilationUnitChange = new CompilationUnitChange("", stateStrategyICompilationUnit);
+				stateStrategyCompilationUnitChange.setEdit(stateStrategyMultiTextEdit);
+				compilationUnitChanges.put(stateStrategyICompilationUnit, stateStrategyCompilationUnitChange);
+				
+				ImportRewrite stateStrategyImportRewrite = ImportRewrite.create(stateStrategyCompilationUnit, true);
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+					stateStrategyImportRewrite.addImport(typeBinding);
+				}
+				
+				TextEdit stateStrategyImportEdit = stateStrategyImportRewrite.rewriteImports(null);
+				if(stateStrategyImportRewrite.getCreatedImports().length > 0) {
+					stateStrategyMultiTextEdit.addChild(stateStrategyImportEdit);
+					stateStrategyCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {stateStrategyImportEdit}));
+				}
+				
 				TextEdit stateStrategyEdit = stateStrategyRewriter.rewriteAST();
-				TextFileChange textFileChange = textFileChanges.get(stateStrategyICompilationUnit);
-				if (textFileChange == null) {
-					textFileChange = new TextFileChange(stateStrategyICompilationUnit.getElementName(), (IFile)stateStrategyICompilationUnit.getResource());
-					textFileChange.setTextType("java");
-					textFileChange.setEdit(stateStrategyEdit);
-				} else
-					textFileChange.getEdit().addChild(stateStrategyEdit);
-				textFileChanges.put(stateStrategyICompilationUnit, textFileChange);
+				stateStrategyMultiTextEdit.addChild(stateStrategyEdit);
+				stateStrategyCompilationUnitChange.addTextEditGroup(new TextEditGroup("Create State/Strategy", new TextEdit[] {stateStrategyEdit}));
 			} catch (JavaModelException e) {
 				e.printStackTrace();
-			} catch (IllegalArgumentException e) {
+			} catch (CoreException e) {
 				e.printStackTrace();
 			}
 		}
@@ -1313,47 +1426,60 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			
-			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-				addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
-			}
-			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
-			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-				if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
-					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
-			}
-			
 			if(!subclassAlreadyExists)
 				subclassTypesRewrite.insertLast(subclassTypeDeclaration, null);
 			
 			if(subclassDocument != null) {
 				try {
+					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+						addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+					}
+					Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
+					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+						if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
+							addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+					}
 					TextEdit subclassEdit = subclassRewriter.rewriteAST(subclassDocument, null);
 					subclassEdit.apply(subclassDocument);
 					CreateCompilationUnitChange createCompilationUnitChange =
 						new CreateCompilationUnitChange(subclassICompilationUnit, subclassDocument.get(), subclassFile.getCharset());
 					createCompilationUnitChanges.put(subclassICompilationUnit, createCompilationUnitChange);
+				} catch (CoreException e) {
+					e.printStackTrace();
 				} catch (MalformedTreeException e) {
 					e.printStackTrace();
 				} catch (BadLocationException e) {
-					e.printStackTrace();
-				} catch (CoreException e) {
 					e.printStackTrace();
 				}
 			}
 			else {
 				try {
+					MultiTextEdit subclassMultiTextEdit = new MultiTextEdit();
+					CompilationUnitChange subclassCompilationUnitChange = new CompilationUnitChange("", subclassICompilationUnit);
+					subclassCompilationUnitChange.setEdit(subclassMultiTextEdit);
+					compilationUnitChanges.put(subclassICompilationUnit, subclassCompilationUnitChange);
+					
+					ImportRewrite subclassImportRewrite = ImportRewrite.create(subclassCompilationUnit, true);
+					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+						subclassImportRewrite.addImport(typeBinding);
+					}
+					Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
+					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+						subclassImportRewrite.addImport(typeBinding);
+					}
+					
+					TextEdit subclassImportEdit = subclassImportRewrite.rewriteImports(null);
+					if(subclassImportRewrite.getCreatedImports().length > 0) {
+						subclassMultiTextEdit.addChild(subclassImportEdit);
+						subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {subclassImportEdit}));
+					}
+					
 					TextEdit subclassEdit = subclassRewriter.rewriteAST();
-					TextFileChange textFileChange = textFileChanges.get(subclassICompilationUnit);
-					if (textFileChange == null) {
-						textFileChange = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
-						textFileChange.setTextType("java");
-						textFileChange.setEdit(subclassEdit);
-					} else
-						textFileChange.getEdit().addChild(subclassEdit);
-					textFileChanges.put(subclassICompilationUnit, textFileChange);
+					subclassMultiTextEdit.addChild(subclassEdit);
+					subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Create concrete State/Strategy", new TextEdit[] {subclassEdit}));
 				} catch (JavaModelException e) {
 					e.printStackTrace();
-				} catch (IllegalArgumentException e) {
+				} catch (CoreException e) {
 					e.printStackTrace();
 				}
 			}
@@ -1564,20 +1690,19 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		
 		intermediateClassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 		
-		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-			addImportDeclaration(typeBinding, intermediateClassCompilationUnit, intermediateClassRewriter);
-		}
-		Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(typeCheckStatements);
-		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-			if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
-				addImportDeclaration(typeBinding, intermediateClassCompilationUnit, intermediateClassRewriter);
-		}
-		
 		if(!intermediateClassAlreadyExists)
 			intermediateClassTypesRewrite.insertLast(intermediateClassTypeDeclaration, null);
 		
 		if(intermediateClassDocument != null) {
 			try {
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+					addImportDeclaration(typeBinding, intermediateClassCompilationUnit, intermediateClassRewriter);
+				}
+				Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(typeCheckStatements);
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+					if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
+						addImportDeclaration(typeBinding, intermediateClassCompilationUnit, intermediateClassRewriter);
+				}
 				TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST(intermediateClassDocument, null);
 				intermediateClassEdit.apply(intermediateClassDocument);
 				CreateCompilationUnitChange createCompilationUnitChange =
@@ -1593,18 +1718,32 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		}
 		else {
 			try {
+				MultiTextEdit intermediateClassMultiTextEdit = new MultiTextEdit();
+				CompilationUnitChange intermediateClassCompilationUnitChange = new CompilationUnitChange("", intermediateClassICompilationUnit);
+				intermediateClassCompilationUnitChange.setEdit(intermediateClassMultiTextEdit);
+				compilationUnitChanges.put(intermediateClassICompilationUnit, intermediateClassCompilationUnitChange);
+				
+				ImportRewrite intermediateClassImportRewrite = ImportRewrite.create(intermediateClassCompilationUnit, true);
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+					intermediateClassImportRewrite.addImport(typeBinding);
+				}
+				Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(typeCheckStatements);
+				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+					intermediateClassImportRewrite.addImport(typeBinding);
+				}
+				
+				TextEdit intermediateClassImportEdit = intermediateClassImportRewrite.rewriteImports(null);
+				if(intermediateClassImportRewrite.getCreatedImports().length > 0) {
+					intermediateClassMultiTextEdit.addChild(intermediateClassImportEdit);
+					intermediateClassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {intermediateClassImportEdit}));
+				}
+				
 				TextEdit intermediateClassEdit = intermediateClassRewriter.rewriteAST();
-				TextFileChange textFileChange = textFileChanges.get(intermediateClassICompilationUnit);
-				if (textFileChange == null) {
-					textFileChange = new TextFileChange(intermediateClassICompilationUnit.getElementName(), (IFile)intermediateClassICompilationUnit.getResource());
-					textFileChange.setTextType("java");
-					textFileChange.setEdit(intermediateClassEdit);
-				} else
-					textFileChange.getEdit().addChild(intermediateClassEdit);
-				textFileChanges.put(intermediateClassICompilationUnit, textFileChange);
+				intermediateClassMultiTextEdit.addChild(intermediateClassEdit);
+				intermediateClassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Create intermediate class", new TextEdit[] {intermediateClassEdit}));
 			} catch (JavaModelException e) {
 				e.printStackTrace();
-			} catch (IllegalArgumentException e) {
+			} catch (CoreException e) {
 				e.printStackTrace();
 			}
 		}
@@ -1774,18 +1913,12 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			}
 			else {
 				try {
+					CompilationUnitChange subclassCompilationUnitChange = new CompilationUnitChange("", subclassICompilationUnit);
 					TextEdit subclassEdit = subclassRewriter.rewriteAST();
-					TextFileChange textFileChange = textFileChanges.get(subclassICompilationUnit);
-					if (textFileChange == null) {
-						textFileChange = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
-						textFileChange.setTextType("java");
-						textFileChange.setEdit(subclassEdit);
-					} else
-						textFileChange.getEdit().addChild(subclassEdit);
-					textFileChanges.put(subclassICompilationUnit, textFileChange);
+					subclassCompilationUnitChange.setEdit(subclassEdit);
+					compilationUnitChanges.put(subclassICompilationUnit, subclassCompilationUnitChange);
+					subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Create concrete State/Strategy", new TextEdit[] {subclassEdit}));
 				} catch (JavaModelException e) {
-					e.printStackTrace();
-				} catch (IllegalArgumentException e) {
 					e.printStackTrace();
 				}
 			}
@@ -2387,7 +2520,6 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 	}
 
 	private void modifyTypeFieldAssignmentsInContextClass(boolean modify) {
-		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
@@ -2416,13 +2548,16 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 							invoker = fieldAccess.getExpression();
 						}
 						Expression rightHandSide = assignment.getRightHandSide();
-						SimpleName accessedVariable = decomposeRightHandSide(rightHandSide);
+						List<Expression> accessedVariables = expressionExtractor.getVariableInstructions(rightHandSide);
+						ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+						AST contextAST = sourceTypeDeclaration.getAST();
+						boolean rewriteAST = false;
 						if(assignedVariable != null) {
 							IBinding leftHandBinding = assignedVariable.resolveBinding();
 							if(leftHandBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
 								if(assignedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(assignedVariableBinding)) {
-									if(modify) {
+									if(modify && !nodeExistsInsideTypeCheckCodeFragment(assignment)) {
 										MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
 										if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
 											sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
@@ -2436,8 +2571,10 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 											sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
 										}
 										sourceRewriter.replace(assignment, setterMethodInvocation, null);
+										rewriteAST = true;
 									}
-									if(accessedVariable != null) {
+									for(Expression expression2 : accessedVariables) {
+										SimpleName accessedVariable = (SimpleName)expression2;
 										IBinding rightHandBinding = accessedVariable.resolveBinding();
 										if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
@@ -2451,12 +2588,13 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 								}
 							}
 						}
-						if(accessedVariable != null) {
+						for(Expression expression2 : accessedVariables) {
+							SimpleName accessedVariable = (SimpleName)expression2;
 							IBinding rightHandBinding = accessedVariable.resolveBinding();
 							if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
-									if(modify) {
+									if(modify && !nodeExistsInsideTypeCheckCodeFragment(accessedVariable)) {
 										MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 										if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
@@ -2465,8 +2603,20 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
 										}
 										sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
+										rewriteAST = true;
 									}
 								}
+							}
+						}
+						if(rewriteAST) {
+							try {
+								TextEdit sourceEdit = sourceRewriter.rewriteAST();
+								ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+								CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+								change.getEdit().addChild(sourceEdit);
+								change.addTextEditGroup(new TextEditGroup("Replace field assignment with invocation of setter method", new TextEdit[] {sourceEdit}));
+							} catch (JavaModelException e) {
+								e.printStackTrace();
 							}
 						}
 					}
@@ -2475,27 +2625,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		}
 	}
 
-	private SimpleName decomposeRightHandSide(Expression rightHandSide) {
-		if(rightHandSide instanceof SimpleName) {
-			return (SimpleName)rightHandSide;
-		}
-		else if(rightHandSide instanceof QualifiedName) {
-			QualifiedName qualifiedName = (QualifiedName)rightHandSide;
-			return qualifiedName.getName();
-		}
-		else if(rightHandSide instanceof FieldAccess) {
-			FieldAccess fieldAccess = (FieldAccess)rightHandSide;
-			return fieldAccess.getName();
-		}
-		else if(rightHandSide instanceof Assignment) {
-			Assignment assignment = (Assignment)rightHandSide;
-			return decomposeRightHandSide(assignment.getRightHandSide());
-		}
-		return null;
-	}
-
 	private void modifyTypeFieldAccessesInContextClass(boolean modify) {
-		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
@@ -2520,7 +2650,9 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 							if(switchStatementExpressionBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding accessedVariableBinding = (IVariableBinding)switchStatementExpressionBinding;
 								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-									if(modify) {
+									if(modify && !nodeExistsInsideTypeCheckCodeFragment(switchStatementExpression)) {
+										ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+										AST contextAST = sourceTypeDeclaration.getAST();
 										MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 										if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
@@ -2529,6 +2661,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
 										}
 										sourceRewriter.replace(switchStatementExpression, getterMethodInvocation, null);
+										try {
+											TextEdit sourceEdit = sourceRewriter.rewriteAST();
+											ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+											CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+											change.getEdit().addChild(sourceEdit);
+											change.addTextEditGroup(new TextEditGroup("Replace field access with invocation of getter method", new TextEdit[] {sourceEdit}));
+										} catch (JavaModelException e) {
+											e.printStackTrace();
+										}
 									}
 									List<Statement> statements2 = switchStatement.statements();
 									for(Statement statement2 : statements2) {
@@ -2583,7 +2724,9 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 									if(argumentBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)argumentBinding;
 										if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-											if(modify) {
+											if(modify && !nodeExistsInsideTypeCheckCodeFragment(argument)) {
+												ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+												AST contextAST = sourceTypeDeclaration.getAST();
 												MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 												if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
 													sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
@@ -2593,6 +2736,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 												}
 												ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 												argumentRewrite.replace(argument, getterMethodInvocation, null);
+												try {
+													TextEdit sourceEdit = sourceRewriter.rewriteAST();
+													ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+													CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+													change.getEdit().addChild(sourceEdit);
+													change.addTextEditGroup(new TextEditGroup("Replace field access with invocation of getter method", new TextEdit[] {sourceEdit}));
+												} catch (JavaModelException e) {
+													e.printStackTrace();
+												}
 											}
 										}
 									}
@@ -2631,7 +2783,9 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 							if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding accessedVariableBinding = (IVariableBinding)leftOperandBinding;
 								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-									if(modify) {
+									if(modify && !nodeExistsInsideTypeCheckCodeFragment(leftOperand) && !(infixExpression.getParent() instanceof Assignment)) {
+										ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+										AST contextAST = sourceTypeDeclaration.getAST();
 										MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 										if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
@@ -2640,6 +2794,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
 										}
 										sourceRewriter.replace(leftOperand, getterMethodInvocation, null);
+										try {
+											TextEdit sourceEdit = sourceRewriter.rewriteAST();
+											ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+											CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+											change.getEdit().addChild(sourceEdit);
+											change.addTextEditGroup(new TextEditGroup("Replace field access with invocation of getter method", new TextEdit[] {sourceEdit}));
+										} catch (JavaModelException e) {
+											e.printStackTrace();
+										}
 									}
 									typeFieldIsReplaced = true;
 									if(comparedVariable != null) {
@@ -2680,7 +2843,9 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 								if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
 									IVariableBinding accessedVariableBinding = (IVariableBinding)rightOperandBinding;
 									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-										if(modify) {
+										if(modify && !nodeExistsInsideTypeCheckCodeFragment(rightOperand) && !(infixExpression.getParent() instanceof Assignment)) {
+											ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+											AST contextAST = sourceTypeDeclaration.getAST();
 											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 											if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
 												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
@@ -2689,6 +2854,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
 											}
 											sourceRewriter.replace(rightOperand, getterMethodInvocation, null);
+											try {
+												TextEdit sourceEdit = sourceRewriter.rewriteAST();
+												ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+												CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+												change.getEdit().addChild(sourceEdit);
+												change.addTextEditGroup(new TextEditGroup("Replace field access with invocation of getter method", new TextEdit[] {sourceEdit}));
+											} catch (JavaModelException e) {
+												e.printStackTrace();
+											}
 										}
 										if(comparedVariable != null) {
 											IBinding leftOperandBinding = comparedVariable.resolveBinding();
@@ -2709,6 +2883,16 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				}
 			}
 		}
+	}
+
+	private boolean nodeExistsInsideTypeCheckCodeFragment(ASTNode node) {
+		Statement statement = typeCheckElimination.getTypeCheckCodeFragment();
+		int startPosition = statement.getStartPosition();
+		int endPosition = startPosition + statement.getLength();
+		if(node.getStartPosition() >= startPosition && node.getStartPosition() <= endPosition)
+			return true;
+		else
+			return false;
 	}
 
 	private IFile getFile(IContainer rootContainer, String fullyQualifiedClassName) {
@@ -2771,6 +2955,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				int modifiers = fieldDeclaration.getModifiers();
 				if(!fragment.equals(typeCheckElimination.getTypeField()) &&
 						!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -2786,6 +2971,15 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
 					ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 					contextBodyRewrite.insertLast(newMethodDeclaration, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Create getter method for accessed field", new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
@@ -2812,6 +3006,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 			if(setterMethodBinding == null) {
 				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
 				if(!fragment.equals(typeCheckElimination.getTypeField())) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -2838,13 +3033,22 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
 					ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 					contextBodyRewrite.insertLast(newMethodDeclaration, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Create setter method for assigned field", new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
 	}
 
 	private void generateRequiredImportDeclarationsBasedOnSignature() {
-		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		if(returnedVariable != null) {
 			Type returnType = null;
 			if(returnedVariable instanceof SingleVariableDeclaration) {
@@ -2902,91 +3106,31 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);
 	}
 
-	private Set<ITypeBinding> generateRequiredImportDeclarationsBasedOnBranch(ArrayList<Statement> statements) {
-		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+	private Set<ITypeBinding> getRequiredImportDeclarationsBasedOnBranch(ArrayList<Statement> statements) {
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		for(Statement statement : statements) {
-			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
-			for(Expression variableInstruction : variableInstructions) {
-				SimpleName simpleName = (SimpleName)variableInstruction;
-				IBinding binding = simpleName.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding variableBinding = (IVariableBinding)binding;
-					ITypeBinding variableTypeBinding = variableBinding.getType();
-					if(!typeBindings.contains(variableTypeBinding))
-						typeBindings.add(variableTypeBinding);
-					ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
-					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
-						typeBindings.add(declaringClassTypeBinding);
-				}
-			}
-			
-			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
-			for(Expression expression : methodInvocations) {
-				if(expression instanceof MethodInvocation) {
-					MethodInvocation methodInvocation = (MethodInvocation)expression;
-					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-					ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
-					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
-						typeBindings.add(declaringClassTypeBinding);
-				}
-			}
-			
-			List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statement);
-			for(Expression expression : classInstanceCreations) {
-				ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
-				Type classInstanceCreationType = classInstanceCreation.getType();
-				ITypeBinding classInstanceCreationTypeBinding = classInstanceCreationType.resolveBinding();
-				if(!typeBindings.contains(classInstanceCreationTypeBinding))
-					typeBindings.add(classInstanceCreationTypeBinding);
-			}
-			
-			List<Expression> typeLiterals = expressionExtractor.getTypeLiterals(statement);
-			for(Expression expression : typeLiterals) {
-				TypeLiteral typeLiteral = (TypeLiteral)expression;
-				Type typeLiteralType = typeLiteral.getType();
-				ITypeBinding typeLiteralTypeBinding = typeLiteralType.resolveBinding();
-				if(!typeBindings.contains(typeLiteralTypeBinding))
-					typeBindings.add(typeLiteralTypeBinding);
-			}
-			
-			List<Expression> castExpressions = expressionExtractor.getCastExpressions(statement);
-			for(Expression expression : castExpressions) {
-				CastExpression castExpression = (CastExpression)expression;
-				Type castExpressionType = castExpression.getType();
-				ITypeBinding castExpressionTypeBinding = castExpressionType.resolveBinding();
-				if(!typeBindings.contains(castExpressionTypeBinding))
-					typeBindings.add(castExpressionTypeBinding);
-			}
-			
-			List<Expression> instanceofExpressions = expressionExtractor.getInstanceofExpressions(statement);
-			for(Expression expression : instanceofExpressions) {
-				InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
-				Type instanceofType = instanceofExpression.getRightOperand();
-				ITypeBinding instanceofTypeBinding = instanceofType.resolveBinding();
-				if(!typeBindings.contains(instanceofTypeBinding))
-					typeBindings.add(instanceofTypeBinding);
-			}
+			TypeVisitor typeVisitor = new TypeVisitor();
+			statement.accept(typeVisitor);
+			typeBindings.addAll(typeVisitor.getTypeBindings());
 		}
-		
 		Set<ITypeBinding> finalTypeBindings = new LinkedHashSet<ITypeBinding>();
-		getSimpleTypeBindings(typeBindings, finalTypeBindings);
-		return finalTypeBindings;
+        getSimpleTypeBindings(typeBindings, finalTypeBindings);
+        return finalTypeBindings;
 	}
-
-	private void getSimpleTypeBindings(List<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
+	
+	private void getSimpleTypeBindings(Set<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
 		for(ITypeBinding typeBinding : typeBindings) {
 			if(typeBinding.isPrimitive()) {
-				
+
 			}
 			else if(typeBinding.isArray()) {
 				ITypeBinding elementTypeBinding = typeBinding.getElementType();
-				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
 				typeBindingList.add(elementTypeBinding);
 				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
 			}
 			else if(typeBinding.isParameterizedType()) {
-				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
 				typeBindingList.add(typeBinding.getTypeDeclaration());
 				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
 				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
@@ -2994,7 +3138,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
 			}
 			else if(typeBinding.isWildcardType()) {
-				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
+				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
 				typeBindingList.add(typeBinding.getBound());
 				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
 			}
@@ -3015,7 +3159,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		PackageDeclaration sourcePackageDeclaration = sourceCompilationUnit.getPackage();
 		String sourcePackageDeclarationName = "";
 		if(sourcePackageDeclaration != null)
-			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();	
+			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();     
 		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(sourcePackageDeclarationName)) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
 			boolean found = false;
@@ -3054,6 +3198,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 				boolean modifierIsReplaced = false;
 				for(SimpleName staticField : staticFields) {
 					if(staticField.resolveBinding().isEqualTo(fragment.getName().resolveBinding())) {
+						ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 						ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
 						Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 						boolean modifierFound = false;
@@ -3069,12 +3214,30 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 									modifierFound = true;
 									modifierRewrite.replace(modifier, publicModifier, null);
 									modifierIsReplaced = true;
+									try {
+										TextEdit sourceEdit = sourceRewriter.rewriteAST();
+										ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+										CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+										change.getEdit().addChild(sourceEdit);
+										change.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+									} catch (JavaModelException e) {
+										e.printStackTrace();
+									}
 								}
 							}
 						}
 						if(!modifierFound) {
 							modifierRewrite.insertFirst(publicModifier, null);
 							modifierIsReplaced = true;
+							try {
+								TextEdit sourceEdit = sourceRewriter.rewriteAST();
+								ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+								CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+								change.getEdit().addChild(sourceEdit);
+								change.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+							} catch (JavaModelException e) {
+								e.printStackTrace();
+							}
 						}
 						break;
 					}
@@ -3087,6 +3250,7 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 
 	private void setPublicModifierToAccessedMethods() {
 		for(MethodDeclaration methodDeclaration : typeCheckElimination.getAccessedMethods()) {
+			ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 			List<IExtendedModifier> modifiers = methodDeclaration.modifiers();
 			ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
@@ -3101,11 +3265,29 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 							modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
 						modifierFound = true;
 						modifierRewrite.replace(modifier, publicModifier, null);
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
 			if(!modifierFound) {
 				modifierRewrite.insertFirst(publicModifier, null);
+				try {
+					TextEdit sourceEdit = sourceRewriter.rewriteAST();
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -3156,13 +3338,14 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 						invoker = fieldAccess.getExpression();
 					}
 					Expression rightHandSide = assignment.getRightHandSide();
-					SimpleName accessedVariable = decomposeRightHandSide(rightHandSide);
+					List<Expression> accessedVariables = expressionExtractor.getVariableInstructions(rightHandSide);
 					if(assignedVariable != null) {
 						IBinding leftHandBinding = assignedVariable.resolveBinding();
 						if(leftHandBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
 							if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(assignedVariableBinding)) {
-								if(accessedVariable != null) {
+								for(Expression expression2 : accessedVariables) {
+									SimpleName accessedVariable = (SimpleName)expression2;
 									IBinding rightHandBinding = accessedVariable.resolveBinding();
 									if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
@@ -3487,8 +3670,8 @@ public class ReplaceTypeCodeWithStateStrategy extends Refactoring {
 		try {
 			pm.beginTask("Creating change...", 1);
 			final Collection<Change> changes = new ArrayList<Change>();
+			changes.addAll(compilationUnitChanges.values());
 			changes.addAll(createCompilationUnitChanges.values());
-			changes.addAll(textFileChanges.values());
 			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
 				@Override
 				public ChangeDescriptor getDescriptor() {

@@ -158,8 +158,10 @@ public class MoveMethodRefactoring extends Refactoring {
 		
 		try {
 			TextEdit targetImportEdit = targetImportRewrite.rewriteImports(null);
-			targetMultiTextEdit.addChild(targetImportEdit);
-			targetCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {targetImportEdit}));
+			if(targetImportRewrite.getCreatedImports().length > 0) {
+				targetMultiTextEdit.addChild(targetImportEdit);
+				targetCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {targetImportEdit}));
+			}
 		}
 		catch(CoreException coreException) {
 			coreException.printStackTrace();

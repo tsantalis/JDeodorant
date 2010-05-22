@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -41,15 +42,12 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
-import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
-import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
-import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -66,34 +64,33 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
+import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
-import org.eclipse.ltk.core.refactoring.TextFileChange;
-import org.eclipse.text.edits.MalformedTreeException;
+import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
+import org.eclipse.text.edits.TextEditGroup;
 
 public class ReplaceConditionalWithPolymorphism extends Refactoring {
 	private IFile sourceFile;
 	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
 	private TypeCheckElimination typeCheckElimination;
-	private ASTRewrite sourceRewriter;
 	private VariableDeclaration returnedVariable;
-	private Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature;
 	private Set<ITypeBinding> thrownExceptions;
 	private VariableDeclaration typeVariable;
 	private MethodInvocation typeMethodInvocation;
-	private Map<ICompilationUnit, TextFileChange> fChanges;
+	private Map<ICompilationUnit, CompilationUnitChange> fChanges;
 	private Set<IJavaElement> javaElementsToOpenInEditor;
 	
 	public ReplaceConditionalWithPolymorphism(IFile sourceFile, CompilationUnit sourceCompilationUnit,
@@ -102,9 +99,7 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 		this.sourceCompilationUnit = sourceCompilationUnit;
 		this.sourceTypeDeclaration = sourceTypeDeclaration;
 		this.typeCheckElimination = typeCheckElimination;
-		this.sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		this.returnedVariable = typeCheckElimination.getTypeCheckMethodReturnedVariable();
-		this.requiredImportDeclarationsBasedOnSignature = new LinkedHashSet<ITypeBinding>();
 		this.thrownExceptions = typeCheckElimination.getThrownExceptions();
 		if(typeCheckElimination.getTypeField() != null) {
 			this.typeVariable = typeCheckElimination.getTypeField();
@@ -113,7 +108,14 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 			this.typeVariable = typeCheckElimination.getTypeLocalVariable();
 		}
 		this.typeMethodInvocation = typeCheckElimination.getTypeMethodInvocation();
-		this.fChanges = new LinkedHashMap<ICompilationUnit, TextFileChange>();
+		this.fChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
+		
+		ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+		MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+		CompilationUnitChange sourceCompilationUnitChange = new CompilationUnitChange("", sourceICompilationUnit);
+		sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
+		fChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
+		
 		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
 	}
 
@@ -127,6 +129,7 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 	}
 
 	private void modifyClient() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST clientAST = sourceTypeDeclaration.getAST();
 		Block typeCheckCodeFragmentParentBlock = (Block)typeCheckElimination.getTypeCheckCodeFragment().getParent();
 		ListRewrite typeCheckCodeFragmentParentBlockStatementsRewrite = sourceRewriter.getListRewrite(typeCheckCodeFragmentParentBlock, Block.STATEMENTS_PROPERTY);
@@ -211,19 +214,10 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-			TextFileChange change = fChanges.get(sourceICompilationUnit);
-			if (change == null) {
-				change = new TextFileChange(sourceICompilationUnit.getElementName(), (IFile)sourceICompilationUnit.getResource());
-				change.setTextType("java");
-				change.setEdit(sourceEdit);
-			} else
-				change.getEdit().addChild(sourceEdit);
-			fChanges.put(sourceICompilationUnit, change);
-		} catch (MalformedTreeException e) {
-			e.printStackTrace();
+			CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Replace conditional structure with polymorphic method invocation", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		}
 	}
@@ -358,29 +352,32 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 		
 		abstractBodyRewrite.insertLast(abstractMethodDeclaration, null);
 		
-		generateRequiredImportDeclarationsBasedOnSignature();
+		MultiTextEdit abstractMultiTextEdit = new MultiTextEdit();
+		CompilationUnitChange abstractCompilationUnitChange = new CompilationUnitChange("", abstractICompilationUnit);
+		abstractCompilationUnitChange.setEdit(abstractMultiTextEdit);
+		fChanges.put(abstractICompilationUnit, abstractCompilationUnitChange);
+		
+		Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature = getRequiredImportDeclarationsBasedOnSignature();
+		ImportRewrite abstractImportRewrite = ImportRewrite.create(abstractCompilationUnit, true);
 		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-			addImportDeclaration(typeBinding, abstractCompilationUnit, abstractRewriter);
+			abstractImportRewrite.addImport(typeBinding);
 		}
 		
 		try {
+			TextEdit abstractImportEdit = abstractImportRewrite.rewriteImports(null);
+			if(abstractImportRewrite.getCreatedImports().length > 0) {
+				abstractMultiTextEdit.addChild(abstractImportEdit);
+				abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {abstractImportEdit}));
+			}
+
 			TextEdit abstractEdit = abstractRewriter.rewriteAST();
-			TextFileChange change = fChanges.get(abstractICompilationUnit);
-			if (change == null) {
-				change = new TextFileChange(abstractICompilationUnit.getElementName(), (IFile)abstractICompilationUnit.getResource());
-				change.setTextType("java");
-				change.setEdit(abstractEdit);
-			} else
-				change.getEdit().addChild(abstractEdit);
-			fChanges.put(abstractICompilationUnit, change);
-		} catch (MalformedTreeException e) {
+			abstractMultiTextEdit.addChild(abstractEdit);
+			abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add abstract method", new TextEdit[] {abstractEdit}));
+		} catch(JavaModelException e) {
 			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
+		} catch (CoreException e) {
 			e.printStackTrace();
 		}
-		
 		
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
@@ -617,30 +614,33 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			
+			MultiTextEdit subclassMultiTextEdit = new MultiTextEdit();
+			CompilationUnitChange subclassCompilationUnitChange = new CompilationUnitChange("", subclassICompilationUnit);
+			subclassCompilationUnitChange.setEdit(subclassMultiTextEdit);
+			fChanges.put(subclassICompilationUnit, subclassCompilationUnitChange);
+			
+			ImportRewrite subclassImportRewrite = ImportRewrite.create(subclassCompilationUnit, true);
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-				addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+				subclassImportRewrite.addImport(typeBinding);
 			}
-			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = generateRequiredImportDeclarationsBasedOnBranch(statements);
+			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-				if(!requiredImportDeclarationsBasedOnSignature.contains(typeBinding))
-					addImportDeclaration(typeBinding, subclassCompilationUnit, subclassRewriter);
+				subclassImportRewrite.addImport(typeBinding);
 			}
 			
 			try {
+				TextEdit subclassImportEdit = subclassImportRewrite.rewriteImports(null);
+				if(subclassImportRewrite.getCreatedImports().length > 0) {
+					subclassMultiTextEdit.addChild(subclassImportEdit);
+					subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {subclassImportEdit}));
+				}
+
 				TextEdit subclassEdit = subclassRewriter.rewriteAST();
-				TextFileChange change = fChanges.get(subclassICompilationUnit);
-				if (change == null) {
-					change = new TextFileChange(subclassICompilationUnit.getElementName(), (IFile)subclassICompilationUnit.getResource());
-					change.setTextType("java");
-					change.setEdit(subclassEdit);
-				} else
-					change.getEdit().addChild(subclassEdit);
-				fChanges.put(subclassICompilationUnit, change);
-			} catch (MalformedTreeException e) {
+				subclassMultiTextEdit.addChild(subclassEdit);
+				subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add concrete method", new TextEdit[] {subclassEdit}));
+			} catch(JavaModelException e) {
 				e.printStackTrace();
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			} catch (IllegalArgumentException e) {
+			} catch (CoreException e) {
 				e.printStackTrace();
 			}
 		}
@@ -1362,6 +1362,7 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 				int modifiers = fieldDeclaration.getModifiers();
 				if(!fragment.equals(typeCheckElimination.getTypeField()) &&
 						!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -1377,6 +1378,15 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
 					ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 					contextBodyRewrite.insertLast(newMethodDeclaration, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+						CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Create getter method for accessed field", new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
@@ -1403,6 +1413,7 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 			if(setterMethodBinding == null) {
 				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
 				if(!fragment.equals(typeCheckElimination.getTypeField())) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -1429,13 +1440,22 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
 					ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 					contextBodyRewrite.insertLast(newMethodDeclaration, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+						CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Create setter method for assigned field", new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		}
 	}
 
-	private void generateRequiredImportDeclarationsBasedOnSignature() {
-		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+	private Set<ITypeBinding> getRequiredImportDeclarationsBasedOnSignature() {
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		if(returnedVariable != null) {
 			Type returnType = null;
 			if(returnedVariable instanceof SingleVariableDeclaration) {
@@ -1492,152 +1512,22 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 				typeBindings.add(typeBinding);
 		}
 		
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);
+		return typeBindings;
 	}
 
-	private Set<ITypeBinding> generateRequiredImportDeclarationsBasedOnBranch(ArrayList<Statement> statements) {
-		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
+	private Set<ITypeBinding> getRequiredImportDeclarationsBasedOnBranch(ArrayList<Statement> statements) {
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		for(Statement statement : statements) {
-			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(statement);
-			for(Expression variableInstruction : variableInstructions) {
-				SimpleName simpleName = (SimpleName)variableInstruction;
-				IBinding binding = simpleName.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding variableBinding = (IVariableBinding)binding;
-					ITypeBinding variableTypeBinding = variableBinding.getType();
-					if(!typeBindings.contains(variableTypeBinding))
-						typeBindings.add(variableTypeBinding);
-					ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
-					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
-						typeBindings.add(declaringClassTypeBinding);
-				}
-			}
-			
-			List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
-			for(Expression expression : methodInvocations) {
-				if(expression instanceof MethodInvocation) {
-					MethodInvocation methodInvocation = (MethodInvocation)expression;
-					IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-					ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
-					if(declaringClassTypeBinding != null && !typeBindings.contains(declaringClassTypeBinding))
-						typeBindings.add(declaringClassTypeBinding);
-				}
-			}
-			
-			List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statement);
-			for(Expression expression : classInstanceCreations) {
-				ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
-				Type classInstanceCreationType = classInstanceCreation.getType();
-				ITypeBinding classInstanceCreationTypeBinding = classInstanceCreationType.resolveBinding();
-				if(!typeBindings.contains(classInstanceCreationTypeBinding))
-					typeBindings.add(classInstanceCreationTypeBinding);
-			}
-			
-			List<Expression> typeLiterals = expressionExtractor.getTypeLiterals(statement);
-			for(Expression expression : typeLiterals) {
-				TypeLiteral typeLiteral = (TypeLiteral)expression;
-				Type typeLiteralType = typeLiteral.getType();
-				ITypeBinding typeLiteralTypeBinding = typeLiteralType.resolveBinding();
-				if(!typeBindings.contains(typeLiteralTypeBinding))
-					typeBindings.add(typeLiteralTypeBinding);
-			}
-			
-			List<Expression> castExpressions = expressionExtractor.getCastExpressions(statement);
-			for(Expression expression : castExpressions) {
-				CastExpression castExpression = (CastExpression)expression;
-				Type castExpressionType = castExpression.getType();
-				ITypeBinding castExpressionTypeBinding = castExpressionType.resolveBinding();
-				if(!typeBindings.contains(castExpressionTypeBinding))
-					typeBindings.add(castExpressionTypeBinding);
-			}
-			
-			List<Expression> instanceofExpressions = expressionExtractor.getInstanceofExpressions(statement);
-			for(Expression expression : instanceofExpressions) {
-				InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
-				Type instanceofType = instanceofExpression.getRightOperand();
-				ITypeBinding instanceofTypeBinding = instanceofType.resolveBinding();
-				if(!typeBindings.contains(instanceofTypeBinding))
-					typeBindings.add(instanceofTypeBinding);
-			}
+			TypeVisitor typeVisitor = new TypeVisitor();
+			statement.accept(typeVisitor);
+			typeBindings.addAll(typeVisitor.getTypeBindings());
 		}
-		
-		Set<ITypeBinding> finalTypeBindings = new LinkedHashSet<ITypeBinding>();
-		getSimpleTypeBindings(typeBindings, finalTypeBindings);
-		return finalTypeBindings;
-	}
-
-	private void getSimpleTypeBindings(List<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
-		for(ITypeBinding typeBinding : typeBindings) {
-			if(typeBinding.isPrimitive()) {
-				
-			}
-			else if(typeBinding.isArray()) {
-				ITypeBinding elementTypeBinding = typeBinding.getElementType();
-				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
-				typeBindingList.add(elementTypeBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isParameterizedType()) {
-				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
-				typeBindingList.add(typeBinding.getTypeDeclaration());
-				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
-				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
-					typeBindingList.add(typeArgumentBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isWildcardType()) {
-				List<ITypeBinding> typeBindingList = new ArrayList<ITypeBinding>();
-				typeBindingList.add(typeBinding.getBound());
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else {
-				if(typeBinding.isNested()) {
-					finalTypeBindings.add(typeBinding.getDeclaringClass());
-				}
-				finalTypeBindings.add(typeBinding);
-			}
-		}
-	}
-
-	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {
-		String qualifiedName = typeBinding.getQualifiedName();
-		String qualifiedPackageName = "";
-		if(qualifiedName.contains("."))
-			qualifiedPackageName = qualifiedName.substring(0,qualifiedName.lastIndexOf("."));
-		PackageDeclaration targetPackageDeclaration = targetCompilationUnit.getPackage();
-		String targetPackageDeclarationName = "";
-		if(targetPackageDeclaration != null)
-			targetPackageDeclarationName = targetPackageDeclaration.getName().getFullyQualifiedName();	
-		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(targetPackageDeclarationName)) {
-			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
-			boolean found = false;
-			for(ImportDeclaration importDeclaration : importDeclarationList) {
-				if(!importDeclaration.isOnDemand()) {
-					if(qualifiedName.equals(importDeclaration.getName().getFullyQualifiedName())) {
-						found = true;
-						break;
-					}
-				}
-				else {
-					if(qualifiedPackageName.equals(importDeclaration.getName().getFullyQualifiedName())) {
-						found = true;
-						break;
-					}
-				}
-			}
-			if(!found) {
-				AST ast = targetCompilationUnit.getAST();
-				ImportDeclaration importDeclaration = ast.newImportDeclaration();
-				targetRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(qualifiedName), null);
-				ListRewrite importRewrite = targetRewriter.getListRewrite(targetCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
-				importRewrite.insertLast(importDeclaration, null);
-			}
-		}
+		return typeBindings;
 	}
 
 	private void setPublicModifierToAccessedMethods() {
 		for(MethodDeclaration methodDeclaration : typeCheckElimination.getAccessedMethods()) {
+			ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 			List<IExtendedModifier> modifiers = methodDeclaration.modifiers();
 			ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
@@ -1652,11 +1542,29 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 							modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
 						modifierFound = true;
 						modifierRewrite.replace(modifier, publicModifier, null);
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+							CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
 			if(!modifierFound) {
 				modifierRewrite.insertFirst(publicModifier, null);
+				try {
+					TextEdit sourceEdit = sourceRewriter.rewriteAST();
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -1714,7 +1622,7 @@ public class ReplaceConditionalWithPolymorphism extends Refactoring {
 			OperationCanceledException {
 		try {
 			pm.beginTask("Creating change...", 1);
-			final Collection<TextFileChange> changes = fChanges.values();
+			final Collection<CompilationUnitChange> changes = fChanges.values();
 			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
 				@Override
 				public ChangeDescriptor getDescriptor() {

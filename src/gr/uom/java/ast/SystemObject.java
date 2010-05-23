@@ -5,8 +5,6 @@ import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
-import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationResults;
-
 import java.util.*;
 
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -278,10 +276,10 @@ public class SystemObject {
         return names;
     }
 
-    public TypeCheckEliminationResults generateTypeCheckEliminations(Set<ClassObject> classObjectsToBeExamined, IProgressMonitor monitor) {
+    public List<TypeCheckElimination> generateTypeCheckEliminations(Set<ClassObject> classObjectsToBeExamined, IProgressMonitor monitor) {
     	if(monitor != null)
     		monitor.beginTask("Identification of Type Checking code smells", classObjectsToBeExamined.size());
-    	TypeCheckEliminationResults typeCheckEliminationResults = new TypeCheckEliminationResults();
+    	List<TypeCheckElimination> typeCheckEliminationResults = new ArrayList<TypeCheckElimination>();
     	Map<TypeCheckElimination, List<SimpleName>> staticFieldMap = new LinkedHashMap<TypeCheckElimination, List<SimpleName>>();
     	Map<Integer, ArrayList<TypeCheckElimination>> staticFieldRankMap = new TreeMap<Integer, ArrayList<TypeCheckElimination>>();
     	Map<String, ArrayList<TypeCheckElimination>> inheritanceTreeMap = new LinkedHashMap<String, ArrayList<TypeCheckElimination>>();
@@ -441,7 +439,8 @@ public class SystemObject {
     	}
     	for(String rootNode : inheritanceTreeMap.keySet()) {
     		ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(rootNode);
-    		typeCheckEliminationResults.addGroup(typeCheckEliminations);
+    		typeCheckEliminationResults.addAll(typeCheckEliminations);
+    		handleGroup(typeCheckEliminations);
     	}
     	List<TypeCheckElimination> sortedEliminations = new ArrayList<TypeCheckElimination>();
     	List<Integer> keyList = new ArrayList<Integer>(staticFieldRankMap.keySet());
@@ -489,10 +488,11 @@ public class SystemObject {
     			if(!elimination.isTypeCheckMethodStateSetter())
     				typeCheckEliminations.add(elimination);
     		}
-    		typeCheckEliminationResults.addGroup(typeCheckEliminations);
+    		typeCheckEliminationResults.addAll(typeCheckEliminations);
+    		handleGroup(typeCheckEliminations);
     		sortedEliminations.removeAll(affectedEliminations);
     	}
-    	identifySuperFieldAccessorMethods(typeCheckEliminationResults.getTypeCheckEliminations());
+    	identifySuperFieldAccessorMethods(typeCheckEliminationResults);
     	if(monitor != null)
     		monitor.done();
     	return typeCheckEliminationResults;
@@ -726,6 +726,36 @@ public class SystemObject {
 					}
 				}
 			}
+		}
+	}
+
+	private void handleGroup(List<TypeCheckElimination> typeCheckEliminations) {
+		Map<String, ArrayList<TypeCheckElimination>> typeDeclarationMap = new HashMap<String, ArrayList<TypeCheckElimination>>();
+		double averageNumberOfStatementsInGroupSum = 0;
+		for(TypeCheckElimination elimination : typeCheckEliminations) {
+			TypeDeclaration typeCheckClass = elimination.getTypeCheckClass();
+			String bindingKey = typeCheckClass.resolveBinding().getKey();
+			if(typeDeclarationMap.containsKey(bindingKey)) {
+				ArrayList<TypeCheckElimination> tempTypeCheckEliminations = typeDeclarationMap.get(bindingKey);
+				tempTypeCheckEliminations.add(elimination);
+			}
+			else {
+				ArrayList<TypeCheckElimination> tempTypeCheckEliminations = new ArrayList<TypeCheckElimination>();
+				tempTypeCheckEliminations.add(elimination);
+				typeDeclarationMap.put(bindingKey, tempTypeCheckEliminations);
+			}
+			elimination.setGroupSizeAtSystemLevel(typeCheckEliminations.size());
+			double avgNumberOfStatements = elimination.getAverageNumberOfStatements();
+			averageNumberOfStatementsInGroupSum += avgNumberOfStatements;
+		}
+		for(String bindingKey : typeDeclarationMap.keySet()) {
+			ArrayList<TypeCheckElimination> tempTypeCheckEliminations = typeDeclarationMap.get(bindingKey);
+			for(TypeCheckElimination elimination : tempTypeCheckEliminations) {
+				elimination.setGroupSizeAtClassLevel(tempTypeCheckEliminations.size());
+			}
+		}
+		for(TypeCheckElimination elimination : typeCheckEliminations) {
+			elimination.setAverageNumberOfStatementsInGroup(averageNumberOfStatementsInGroupSum/typeCheckEliminations.size());
 		}
 	}
 

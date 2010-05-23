@@ -8,12 +8,12 @@ import gr.uom.java.ast.SystemObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
-import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationResults;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -89,7 +89,6 @@ public class TypeChecking extends ViewPart {
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private TypeCheckElimination[] typeCheckEliminationTable;
-	private TypeCheckEliminationResults typeCheckEliminationResults;
 
 	/*
 	 * The content provider class is responsible for
@@ -129,11 +128,11 @@ public class TypeChecking extends ViewPart {
 				case 2:
 					return typeCheckElimination.getAbstractMethodName();
 				case 3:
-					return Integer.toString(typeCheckEliminationResults.getSystemOccurrences(typeCheckElimination));
+					return Integer.toString(typeCheckElimination.getGroupSizeAtSystemLevel());
 				case 4:
-					return Integer.toString(typeCheckEliminationResults.getClassOccurrences(typeCheckElimination));
+					return Integer.toString(typeCheckElimination.getGroupSizeAtClassLevel());
 				case 5:
-					return Double.toString(typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination));
+					return Double.toString(typeCheckElimination.getAverageNumberOfStatements());
 				default:
 					return "";
 			}
@@ -149,23 +148,32 @@ public class TypeChecking extends ViewPart {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
 			TypeCheckElimination typeCheckElimination1 = (TypeCheckElimination)obj1;
 			TypeCheckElimination typeCheckElimination2 = (TypeCheckElimination)obj2;
-			int positionOfGroup1 = typeCheckEliminationResults.getPositionOfTypeCheckEliminationGroup(typeCheckElimination1);
-			int positionOfGroup2 = typeCheckEliminationResults.getPositionOfTypeCheckEliminationGroup(typeCheckElimination2);
-			int classOccurrences1 = typeCheckEliminationResults.getClassOccurrences(typeCheckElimination1);
-			int classOccurrences2 = typeCheckEliminationResults.getClassOccurrences(typeCheckElimination2);
-			double averageNumberOfStatements1 = typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination1);
-			double averageNumberOfStatements2 = typeCheckEliminationResults.getAverageNumberOfStatements(typeCheckElimination2);
+			
+			int groupSizeAtSystemLevel1 = typeCheckElimination1.getGroupSizeAtSystemLevel();
+			int groupSizeAtSystemLevel2 = typeCheckElimination2.getGroupSizeAtSystemLevel();
+			double averageNumberOfStatementsInGroup1 = typeCheckElimination1.getAverageNumberOfStatementsInGroup();
+			double averageNumberOfStatementsInGroup2 = typeCheckElimination2.getAverageNumberOfStatementsInGroup();
+			
+			if(groupSizeAtSystemLevel1 > groupSizeAtSystemLevel2)
+				return -1;
+			if(groupSizeAtSystemLevel1 < groupSizeAtSystemLevel2)
+				return 1;
+			
+			if(averageNumberOfStatementsInGroup1 > averageNumberOfStatementsInGroup2)
+				return -1;
+			if(averageNumberOfStatementsInGroup1 < averageNumberOfStatementsInGroup2)
+				return 1;
+			
+			int groupSizeAtClassLevel1 = typeCheckElimination1.getGroupSizeAtClassLevel();
+			int groupSizeAtClassLevel2 = typeCheckElimination2.getGroupSizeAtClassLevel();
+			double averageNumberOfStatements1 = typeCheckElimination1.getAverageNumberOfStatements();
+			double averageNumberOfStatements2 = typeCheckElimination2.getAverageNumberOfStatements();
 			String refactoringName1 = typeCheckElimination1.toString();
 			String refactoringName2 = typeCheckElimination2.toString();
 			
-			if(positionOfGroup1 > positionOfGroup2)
-				return 1;
-			if(positionOfGroup1 < positionOfGroup2)
+			if(groupSizeAtClassLevel1 > groupSizeAtClassLevel2)
 				return -1;
-			
-			if(classOccurrences1 > classOccurrences2)
-				return -1;
-			if(classOccurrences1 < classOccurrences2)
+			if(groupSizeAtClassLevel1 < groupSizeAtClassLevel2)
 				return 1;
 			
 			if(averageNumberOfStatements1 > averageNumberOfStatements2)
@@ -476,14 +484,13 @@ public class TypeChecking extends ViewPart {
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 			}
-			
+			final List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					typeCheckEliminationResults = systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, monitor);
+					typeCheckEliminations.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, monitor));
 				}
 			});
-
-			List<TypeCheckElimination> typeCheckEliminations = typeCheckEliminationResults.getTypeCheckEliminations();
+			
 			table = new TypeCheckElimination[typeCheckEliminations.size()];
 			int i = 0;
 			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {

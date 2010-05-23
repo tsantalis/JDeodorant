@@ -80,6 +80,10 @@ public class TypeCheckElimination {
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
 	private String abstractMethodName;
 	private volatile int hashCode = 0;
+	private int groupSizeAtSystemLevel;
+	private int groupSizeAtClassLevel;
+	private double averageNumberOfStatementsInGroup;
+	private double averageNumberOfStatements;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
@@ -962,6 +966,25 @@ public class TypeCheckElimination {
 		abstractMethodName = methodName;
 	}
 	
+	public double getAverageNumberOfStatements() {
+		if(averageNumberOfStatements == 0) {
+			List<ArrayList<Statement>> typeCheckStatements = new ArrayList<ArrayList<Statement>>(getTypeCheckStatements());
+			ArrayList<Statement> defaultCaseStatements = getDefaultCaseStatements();
+			if(!defaultCaseStatements.isEmpty())
+				typeCheckStatements.add(defaultCaseStatements);
+			StatementExtractor statementExtractor = new StatementExtractor();
+			int numberOfCases = typeCheckStatements.size();
+			int totalNumberOfStatements = 0;
+			for(ArrayList<Statement> statements : typeCheckStatements) {
+				for(Statement statement : statements) {
+					totalNumberOfStatements += statementExtractor.getTotalNumberOfStatements(statement);
+				}
+			}
+			averageNumberOfStatements = (double)totalNumberOfStatements/(double)numberOfCases;
+		}
+		return averageNumberOfStatements;
+	}
+	
 	public boolean equals(Object o) {
 		if(this == o) {
             return true;
@@ -990,5 +1013,29 @@ public class TypeCheckElimination {
 	public String toString() {
 		return typeCheckClass.resolveBinding().getQualifiedName() + "::" +
 			typeCheckMethod.resolveBinding().toString();
+	}
+
+	public int getGroupSizeAtSystemLevel() {
+		return groupSizeAtSystemLevel;
+	}
+
+	public void setGroupSizeAtSystemLevel(int groupSizeAtSystemLevel) {
+		this.groupSizeAtSystemLevel = groupSizeAtSystemLevel;
+	}
+
+	public int getGroupSizeAtClassLevel() {
+		return groupSizeAtClassLevel;
+	}
+
+	public void setGroupSizeAtClassLevel(int groupSizeAtClassLevel) {
+		this.groupSizeAtClassLevel = groupSizeAtClassLevel;
+	}
+
+	public double getAverageNumberOfStatementsInGroup() {
+		return averageNumberOfStatementsInGroup;
+	}
+
+	public void setAverageNumberOfStatementsInGroup(double averageNumberOfStatementsInGroup) {
+		this.averageNumberOfStatementsInGroup = averageNumberOfStatementsInGroup;
 	}
 }

@@ -1956,7 +1956,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 										if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 											if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!containsVariable(staticFields, accessedVariable)) {
+													!containsVariable(staticFields, accessedVariable) && accessedVariableBinding.getType().isEqualTo(assignedVariableBinding.getType())) {
 												if(!containsStaticFieldKey(accessedVariable) && !modify)
 													additionalStaticFieldMap.put(accessedVariable, generateSubclassName(accessedVariable));
 											}
@@ -2026,7 +2026,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 							IBinding switchStatementExpressionBinding = accessedVariable.resolveBinding();
 							if(switchStatementExpressionBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding accessedVariableBinding = (IVariableBinding)switchStatementExpressionBinding;
-								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
 									if(modify && !nodeExistsInsideTypeCheckCodeFragment(switchStatementExpression)) {
 										ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 										AST contextAST = sourceTypeDeclaration.getAST();
@@ -2070,7 +2070,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 												if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
 													IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
 													if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-															!containsVariable(staticFields, comparedVariable)) {
+															!containsVariable(staticFields, comparedVariable) && comparedVariableBinding.getType().isEqualTo(accessedVariableBinding.getType())) {
 														if(!containsStaticFieldKey(comparedVariable) && !modify)
 															additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
 													}
@@ -2159,7 +2159,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 							IBinding leftOperandBinding = accessedVariable.resolveBinding();
 							if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding accessedVariableBinding = (IVariableBinding)leftOperandBinding;
-								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
 									if(modify && !nodeExistsInsideTypeCheckCodeFragment(leftOperand) && !(infixExpression.getParent() instanceof Assignment)) {
 										ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 										AST contextAST = sourceTypeDeclaration.getAST();
@@ -2187,7 +2187,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 										if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
 											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!containsVariable(staticFields, comparedVariable)) {
+													!containsVariable(staticFields, comparedVariable) && comparedVariableBinding.getType().isEqualTo(accessedVariableBinding.getType())) {
 												if(!containsStaticFieldKey(comparedVariable) && !modify)
 													additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
 											}
@@ -2219,7 +2219,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 								IBinding rightOperandBinding = accessedVariable.resolveBinding();
 								if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
 									IVariableBinding accessedVariableBinding = (IVariableBinding)rightOperandBinding;
-									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
 										if(modify && !nodeExistsInsideTypeCheckCodeFragment(rightOperand) && !(infixExpression.getParent() instanceof Assignment)) {
 											ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 											AST contextAST = sourceTypeDeclaration.getAST();
@@ -2246,7 +2246,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 											if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
 												IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
 												if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-														!containsVariable(staticFields, comparedVariable)) {
+														!containsVariable(staticFields, comparedVariable) && comparedVariableBinding.getType().isEqualTo(accessedVariableBinding.getType())) {
 													if(!containsStaticFieldKey(comparedVariable) && !modify)
 														additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
 												}
@@ -2512,7 +2512,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 									if(rightHandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 										if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												!containsVariable(staticFields, accessedVariable)) {
+												!containsVariable(staticFields, accessedVariable) && accessedVariableBinding.getType().isEqualTo(assignedVariableBinding.getType())) {
 											if(!containsStaticFieldKey(accessedVariable))
 												additionalStaticFieldMap.put(accessedVariable, generateSubclassName(accessedVariable));
 										}
@@ -2545,32 +2545,36 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 						accessedVariable = fieldAccess.getName();
 					}
 					if(accessedVariable != null) {
-						if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-							List<Statement> statements2 = switchStatement.statements();
-							for(Statement statement2 : statements2) {
-								if(statement2 instanceof SwitchCase) {
-									SwitchCase switchCase = (SwitchCase)statement2;
-									Expression switchCaseExpression = switchCase.getExpression();
-									SimpleName comparedVariable = null;
-									if(switchCaseExpression instanceof SimpleName) {
-										comparedVariable = (SimpleName)switchCaseExpression;
-									}
-									else if(switchCaseExpression instanceof QualifiedName) {
-										QualifiedName qualifiedName = (QualifiedName)switchCaseExpression;
-										comparedVariable = qualifiedName.getName();
-									}
-									else if(switchCaseExpression instanceof FieldAccess) {
-										FieldAccess fieldAccess = (FieldAccess)switchCaseExpression;
-										comparedVariable = fieldAccess.getName();
-									}
-									if(comparedVariable != null) {
-										IBinding switchCaseExpressionBinding = comparedVariable.resolveBinding();
-										if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
-											IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
-											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!containsVariable(staticFields, comparedVariable)) {
-												if(!containsStaticFieldKey(comparedVariable))
-													additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
+						IBinding switchStatementExpressionBinding = accessedVariable.resolveBinding();
+						if(switchStatementExpressionBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding accessedVariableBinding = (IVariableBinding)switchStatementExpressionBinding;
+							if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariableBinding)) {
+								List<Statement> statements2 = switchStatement.statements();
+								for(Statement statement2 : statements2) {
+									if(statement2 instanceof SwitchCase) {
+										SwitchCase switchCase = (SwitchCase)statement2;
+										Expression switchCaseExpression = switchCase.getExpression();
+										SimpleName comparedVariable = null;
+										if(switchCaseExpression instanceof SimpleName) {
+											comparedVariable = (SimpleName)switchCaseExpression;
+										}
+										else if(switchCaseExpression instanceof QualifiedName) {
+											QualifiedName qualifiedName = (QualifiedName)switchCaseExpression;
+											comparedVariable = qualifiedName.getName();
+										}
+										else if(switchCaseExpression instanceof FieldAccess) {
+											FieldAccess fieldAccess = (FieldAccess)switchCaseExpression;
+											comparedVariable = fieldAccess.getName();
+										}
+										if(comparedVariable != null) {
+											IBinding switchCaseExpressionBinding = comparedVariable.resolveBinding();
+											if(switchCaseExpressionBinding.getKind() == IBinding.VARIABLE) {
+												IVariableBinding comparedVariableBinding = (IVariableBinding)switchCaseExpressionBinding;
+												if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+														!containsVariable(staticFields, comparedVariable) && comparedVariableBinding.getType().isEqualTo(accessedVariableBinding.getType())) {
+													if(!containsStaticFieldKey(comparedVariable))
+														additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
+												}
 											}
 										}
 									}
@@ -2606,16 +2610,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 						comparedVariable = fieldAccess.getName();
 					}
 					if(accessedVariable != null) {
-						if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-							typeLocalVariableIsFound = true;
-							if(comparedVariable != null) {
-								IBinding rightOperandBinding = comparedVariable.resolveBinding();
-								if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
-									IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
-									if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-											!containsVariable(staticFields, comparedVariable)) {
-										if(!containsStaticFieldKey(comparedVariable))
-											additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
+						IBinding leftOperandBinding = accessedVariable.resolveBinding();
+						if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding accessedVariableBinding = (IVariableBinding)leftOperandBinding;
+							if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariableBinding)) {
+								typeLocalVariableIsFound = true;
+								if(comparedVariable != null) {
+									IBinding rightOperandBinding = comparedVariable.resolveBinding();
+									if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding comparedVariableBinding = (IVariableBinding)rightOperandBinding;
+										if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+												!containsVariable(staticFields, comparedVariable) && comparedVariableBinding.getType().isEqualTo(accessedVariableBinding.getType())) {
+											if(!containsStaticFieldKey(comparedVariable))
+												additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
+										}
 									}
 								}
 							}
@@ -2641,15 +2649,19 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 							comparedVariable = fieldAccess.getName();
 						}
 						if(accessedVariable != null) {
-							if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
-								if(comparedVariable != null) {
-									IBinding leftOperandBinding = comparedVariable.resolveBinding();
-									if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
-										IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
-										if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												!containsVariable(staticFields, comparedVariable)) {
-											if(!containsStaticFieldKey(comparedVariable))
-												additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
+							IBinding rightOperandBinding = accessedVariable.resolveBinding();
+							if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding accessedVariableBinding = (IVariableBinding)rightOperandBinding;
+								if(typeCheckElimination.getTypeLocalVariable().resolveBinding().isEqualTo(accessedVariableBinding)) {
+									if(comparedVariable != null) {
+										IBinding leftOperandBinding = comparedVariable.resolveBinding();
+										if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding comparedVariableBinding = (IVariableBinding)leftOperandBinding;
+											if(comparedVariableBinding.isField() && (comparedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+													!containsVariable(staticFields, comparedVariable) && comparedVariableBinding.getType().isEqualTo(accessedVariableBinding.getType())) {
+												if(!containsStaticFieldKey(comparedVariable))
+													additionalStaticFieldMap.put(comparedVariable, generateSubclassName(comparedVariable));
+											}
 										}
 									}
 								}

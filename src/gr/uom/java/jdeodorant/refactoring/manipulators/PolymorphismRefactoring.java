@@ -516,30 +516,30 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 			else if(newParentExpression.getParent() instanceof PrefixExpression) {
 				PrefixExpression newPrefixExpression = (PrefixExpression)newParentExpression.getParent();
 				PrefixExpression oldPrefixExpression = (PrefixExpression)oldParentExpression.getParent();
+				Expression newOperand = newPrefixExpression.getOperand();
+				Expression oldOperand = oldPrefixExpression.getOperand();
+				SimpleName newOperandSimpleName = null;
+				SimpleName oldOperandSimpleName = null;
+				if(newOperand instanceof SimpleName) {
+					newOperandSimpleName = (SimpleName)newOperand;
+					oldOperandSimpleName = (SimpleName)oldOperand;
+				}
+				else if(newOperand instanceof QualifiedName) {
+					QualifiedName newOperandQualifiedName = (QualifiedName)newOperand;
+					newOperandSimpleName = newOperandQualifiedName.getName();
+					QualifiedName oldOperandQualifiedName = (QualifiedName)oldOperand;
+					oldOperandSimpleName = oldOperandQualifiedName.getName();
+				}
+				else if(newOperand instanceof FieldAccess) {
+					FieldAccess newOperandFieldAccess = (FieldAccess)newOperand;
+					newOperandSimpleName = newOperandFieldAccess.getName();
+					FieldAccess oldOperandFieldAccess = (FieldAccess)oldOperand;
+					oldOperandSimpleName = oldOperandFieldAccess.getName();
+				}
+				String invokerName = sourceTypeDeclaration.getName().getIdentifier();
+				invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 				if(newPrefixExpression.getOperator().equals(PrefixExpression.Operator.INCREMENT) ||
 						newPrefixExpression.getOperator().equals(PrefixExpression.Operator.DECREMENT)) {
-					Expression newOperand = newPrefixExpression.getOperand();
-					Expression oldOperand = oldPrefixExpression.getOperand();
-					SimpleName newOperandSimpleName = null;
-					SimpleName oldOperandSimpleName = null;
-					if(newOperand instanceof SimpleName) {
-						newOperandSimpleName = (SimpleName)newOperand;
-						oldOperandSimpleName = (SimpleName)oldOperand;
-					}
-					else if(newOperand instanceof QualifiedName) {
-						QualifiedName newOperandQualifiedName = (QualifiedName)newOperand;
-						newOperandSimpleName = newOperandQualifiedName.getName();
-						QualifiedName oldOperandQualifiedName = (QualifiedName)oldOperand;
-						oldOperandSimpleName = oldOperandQualifiedName.getName();
-					}
-					else if(newOperand instanceof FieldAccess) {
-						FieldAccess newOperandFieldAccess = (FieldAccess)newOperand;
-						newOperandSimpleName = newOperandFieldAccess.getName();
-						FieldAccess oldOperandFieldAccess = (FieldAccess)oldOperand;
-						oldOperandSimpleName = oldOperandFieldAccess.getName();
-					}
-					String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-					invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 					if(newOperandSimpleName != null && newOperandSimpleName.equals(newSimpleName)) {
 						for(IVariableBinding assignedFieldBinding : assignedFieldBindings) {
 							if(assignedFieldBinding.isEqualTo(oldOperandSimpleName.resolveBinding())) {
@@ -591,6 +591,58 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 								ListRewrite setterMethodInvocationArgumentsRewrite = subclassRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 								setterMethodInvocationArgumentsRewrite.insertLast(infixArgument, null);
 								subclassRewriter.replace(newPrefixExpression, setterMethodInvocation, null);
+							}
+						}
+					}
+				}
+				else {
+					if(newOperandSimpleName != null && newOperandSimpleName.equals(newSimpleName)) {
+						for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
+							if(accessedFieldBinding.isEqualTo(oldOperandSimpleName.resolveBinding())) {
+								if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
+										(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+									SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
+									if(newOperandSimpleName.getParent() instanceof FieldAccess) {
+										FieldAccess fieldAccess = (FieldAccess)newOperandSimpleName.getParent();
+										subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+									}
+									else if(!(newOperandSimpleName.getParent() instanceof QualifiedName)) {
+										SimpleName simpleName = subclassAST.newSimpleName(newOperandSimpleName.getIdentifier());
+										QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+										subclassRewriter.replace(newOperandSimpleName, newQualifiedName, null);
+									}
+								}
+								else {
+									IMethodBinding getterMethodBinding = null;
+									if(superAccessedFields.contains(accessedFieldBinding)) {
+										getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(accessedFieldBinding);
+									}
+									else {
+										getterMethodBinding = findGetterMethodInContext(accessedFieldBinding);
+									}
+									String methodName;
+									if(getterMethodBinding != null) {
+										methodName = getterMethodBinding.getName();
+									}
+									else {
+										methodName = accessedFieldBinding.getName();
+										methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+									}
+									MethodInvocation methodInvocation = subclassAST.newMethodInvocation();
+									subclassRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, subclassAST.newSimpleName(methodName), null);
+									subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
+									if(newOperandSimpleName.getParent() instanceof FieldAccess) {
+										FieldAccess fieldAccess = (FieldAccess)newOperandSimpleName.getParent();
+										subclassRewriter.replace(fieldAccess, methodInvocation, null);
+									}
+									else if(newOperandSimpleName.getParent() instanceof QualifiedName) {
+										QualifiedName qualifiedName = (QualifiedName)newOperandSimpleName.getParent();
+										subclassRewriter.replace(qualifiedName, methodInvocation, null);
+									}
+									else {
+										subclassRewriter.replace(newOperandSimpleName, methodInvocation, null);
+									}
+								}
 							}
 						}
 					}

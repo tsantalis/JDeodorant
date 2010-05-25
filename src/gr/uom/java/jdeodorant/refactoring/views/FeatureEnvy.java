@@ -390,12 +390,12 @@ public class FeatureEnvy extends ViewPart {
 						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 						while(annotationIterator.hasNext()) {
 							Annotation currentAnnotation = annotationIterator.next();
-							if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
+							if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION)) {
 								annotationModel.removeAnnotation(currentAnnotation);
 							}
 						}
 						for(Position position : positions) {
-							Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, candidate.getAnnotationText());
+							SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, candidate.getAnnotationText());
 							annotationModel.addAnnotation(annotation, position);
 						}
 						Position firstPosition = positions.get(0);

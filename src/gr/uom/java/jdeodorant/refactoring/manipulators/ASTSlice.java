@@ -35,6 +35,7 @@ public class ASTSlice {
 	private Set<PDGNode> sliceNodes;
 	private Set<Statement> sliceStatements;
 	private Set<Statement> removableStatements;
+	private Set<Statement> duplicatedStatements;
 	private VariableDeclaration localVariableCriterion;
 	private Set<VariableDeclaration> passedParameters;
 	private Statement extractedMethodInvocationInsertionStatement;
@@ -61,6 +62,8 @@ public class ASTSlice {
 		for(PDGNode node : pdgSlice.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
+		this.duplicatedStatements = new LinkedHashSet<Statement>(sliceStatements);
+		this.duplicatedStatements.removeAll(removableStatements);
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = pdgSlice.getVariableDeclarationsAndAccessedFieldsInMethod();
 		AbstractVariable criterion = pdgSlice.getLocalVariableCriterion();
 		for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
@@ -99,6 +102,8 @@ public class ASTSlice {
 		for(PDGNode node : pdgSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
+		this.duplicatedStatements = new LinkedHashSet<Statement>(sliceStatements);
+		this.duplicatedStatements.removeAll(removableStatements);
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = pdgSliceUnion.getVariableDeclarationsAndAccessedFieldsInMethod();
 		AbstractVariable criterion = pdgSliceUnion.getLocalVariableCriterion();
 		for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
@@ -137,6 +142,8 @@ public class ASTSlice {
 		for(PDGNode node : pdgObjectSliceUnion.getRemovableNodes()) {
 			removableStatements.add(node.getASTStatement());
 		}
+		this.duplicatedStatements = new LinkedHashSet<Statement>(sliceStatements);
+		this.duplicatedStatements.removeAll(removableStatements);
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = pdgObjectSliceUnion.getVariableDeclarationsAndAccessedFieldsInMethod();
 		AbstractVariable criterion = pdgObjectSliceUnion.getObjectReference();
 		for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
@@ -223,8 +230,9 @@ public class ASTSlice {
 		return isObjectSlice;
 	}
 
-	public Map<Position, String> getHighlightPositions() {
-		Map<Position, String> positionMap = new LinkedHashMap<Position, String>();
+	public Object[] getHighlightPositions() {
+		Map<Position, String> annotationMap = new LinkedHashMap<Position, String>();
+		Map<Position, Boolean> duplicationMap = new LinkedHashMap<Position, Boolean>();
 		List<PDGNode> sliceNodeList = new ArrayList<PDGNode>(sliceNodes);
 		int i = 0;
 		for(Statement statement : sliceStatements) {
@@ -233,60 +241,100 @@ public class ASTSlice {
 				IfStatement ifStatement = (IfStatement)statement;
 				Expression ifExpression = ifStatement.getExpression();
 				Position position = new Position(ifExpression.getStartPosition(), ifExpression.getLength());
-				positionMap.put(position, sliceNode.getAnnotation());
+				annotationMap.put(position, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(position, true);
+				else
+					duplicationMap.put(position, false);
 			}
 			else if(statement instanceof WhileStatement) {
 				WhileStatement whileStatement = (WhileStatement)statement;
 				Expression whileExpression = whileStatement.getExpression();
 				Position position = new Position(whileExpression.getStartPosition(), whileExpression.getLength());
-				positionMap.put(position, sliceNode.getAnnotation());
+				annotationMap.put(position, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(position, true);
+				else
+					duplicationMap.put(position, false);
 			}
 			else if(statement instanceof ForStatement) {
 				ForStatement forStatement = (ForStatement)statement;
 				List<Expression> initializers = forStatement.initializers();
 				for(Expression expression : initializers) {
 					Position initializerPosition = new Position(expression.getStartPosition(), expression.getLength());
-					positionMap.put(initializerPosition, sliceNode.getAnnotation());
+					annotationMap.put(initializerPosition, sliceNode.getAnnotation());
+					if(duplicatedStatements.contains(statement))
+						duplicationMap.put(initializerPosition, true);
+					else
+						duplicationMap.put(initializerPosition, false);
 				}
 				Expression forExpression = forStatement.getExpression();
 				if(forExpression != null) {
 					Position position = new Position(forExpression.getStartPosition(), forExpression.getLength());
-					positionMap.put(position, sliceNode.getAnnotation());
+					annotationMap.put(position, sliceNode.getAnnotation());
+					if(duplicatedStatements.contains(statement))
+						duplicationMap.put(position, true);
+					else
+						duplicationMap.put(position, false);
 				}
 				List<Expression> updaters = forStatement.updaters();
 				for(Expression expression : updaters) {
 					Position updaterPosition = new Position(expression.getStartPosition(), expression.getLength());
-					positionMap.put(updaterPosition, sliceNode.getAnnotation());
+					annotationMap.put(updaterPosition, sliceNode.getAnnotation());
+					if(duplicatedStatements.contains(statement))
+						duplicationMap.put(updaterPosition, true);
+					else
+						duplicationMap.put(updaterPosition, false);
 				}
 			}
 			else if(statement instanceof EnhancedForStatement) {
 				EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
 				SingleVariableDeclaration parameter = enhancedForStatement.getParameter();
 				Position parameterPosition = new Position(parameter.getStartPosition(), parameter.getLength());
-				positionMap.put(parameterPosition, sliceNode.getAnnotation());
+				annotationMap.put(parameterPosition, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(parameterPosition, true);
+				else
+					duplicationMap.put(parameterPosition, false);
 				Expression expression = enhancedForStatement.getExpression();
 				Position expressionPosition = new Position(expression.getStartPosition(), expression.getLength());
-				positionMap.put(expressionPosition, sliceNode.getAnnotation());
+				annotationMap.put(expressionPosition, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(expressionPosition, true);
+				else
+					duplicationMap.put(expressionPosition, false);
 			}
 			else if(statement instanceof DoStatement) {
 				DoStatement doStatement = (DoStatement)statement;
 				Expression doExpression = doStatement.getExpression();
 				Position position = new Position(doExpression.getStartPosition(), doExpression.getLength());
-				positionMap.put(position, sliceNode.getAnnotation());
+				annotationMap.put(position, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(position, true);
+				else
+					duplicationMap.put(position, false);
 			}
 			else if(statement instanceof SwitchStatement) {
 				SwitchStatement switchStatement = (SwitchStatement)statement;
 				Expression switchExpression = switchStatement.getExpression();
 				Position position = new Position(switchExpression.getStartPosition(), switchExpression.getLength());
-				positionMap.put(position, sliceNode.getAnnotation());
+				annotationMap.put(position, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(position, true);
+				else
+					duplicationMap.put(position, false);
 			}
 			else {
 				Position position = new Position(statement.getStartPosition(), statement.getLength());
-				positionMap.put(position, sliceNode.getAnnotation());
+				annotationMap.put(position, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(position, true);
+				else
+					duplicationMap.put(position, false);
 			}
 			i++;
 		}
-		return positionMap;
+		return new Object[] {annotationMap, duplicationMap};
 	}
 
 	public double getAverageNumberOfExtractedStatementsInGroup() {

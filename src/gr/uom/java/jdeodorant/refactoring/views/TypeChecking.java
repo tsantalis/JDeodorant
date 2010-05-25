@@ -411,11 +411,11 @@ public class TypeChecking extends ViewPart {
 					Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 					while(annotationIterator.hasNext()) {
 						Annotation currentAnnotation = annotationIterator.next();
-						if(currentAnnotation.getType().equals("org.eclipse.jdt.ui.occurrences")) {
+						if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION)) {
 							annotationModel.removeAnnotation(currentAnnotation);
 						}
 					}
-					Annotation annotation = new Annotation("org.eclipse.jdt.ui.occurrences", false, typeCheckMethodName);
+					SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, typeCheckMethodName);
 					Position position = new Position(typeCheckCodeFragment.getStartPosition(), typeCheckCodeFragment.getLength());
 					annotationModel.addAnnotation(annotation, position);
 					sourceEditor.setHighlightRange(typeCheckCodeFragment.getStartPosition(), typeCheckCodeFragment.getLength(), true);

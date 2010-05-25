@@ -113,4 +113,51 @@
             class="gr.uom.java.jdeodorant.preferences.PreferenceInitializer">
       </initializer>
    </extension>
+   <extension
+         point="org.eclipse.ui.editors.markerAnnotationSpecification">
+      <specification
+            annotationType="gr.uom.java.jdeodorant.extractionAnnotation"
+            colorPreferenceKey="extractionAnnotation_color"
+            colorPreferenceValue="192,255,192"
+            contributesToHeader="false"
+            highlightPreferenceKey="extractionAnnotation_highlight"
+            highlightPreferenceValue="true"
+            includeOnPreferencePage="true"
+            isGoToNextNavigationTarget="false"
+            isGoToPreviousNavigationTarget="false"
+            label="Extracted Code"
+            overviewRulerPreferenceKey="extractionAnnotation_overviewRuler"
+            overviewRulerPreferenceValue="false"
+            presentationLayer="0"
+            showInNextPrevDropdownToolbarAction="false"
+            textPreferenceKey="extractionAnnotation_text"
+            textPreferenceValue="true"
+            textStylePreferenceKey="extractionAnnotation_stylePreferences"
+            textStylePreferenceValue="BOX"
+            verticalRulerPreferenceKey="extractionAnnotation_verticalRuler"
+            verticalRulerPreferenceValue="false">
+      </specification>
+      <specification
+            annotationType="gr.uom.java.jdeodorant.duplicationAnnotation"
+            colorPreferenceKey="duplicationAnnotation_color"
+            colorPreferenceValue="255,160,160"
+            contributesToHeader="false"
+            highlightPreferenceKey="duplicationAnnotation_highlight"
+            highlightPreferenceValue="true"
+            includeOnPreferencePage="true"
+            isGoToNextNavigationTarget="false"
+            isGoToPreviousNavigationTarget="false"
+            label="Duplicated Code"
+            overviewRulerPreferenceKey="duplicationAnnotation_overviewRuler"
+            overviewRulerPreferenceValue="false"
+            presentationLayer="0"
+            showInNextPrevDropdownToolbarAction="false"
+            textPreferenceKey="duplicationAnnotation_text"
+            textPreferenceValue="true"
+            textStylePreferenceKey="duplicationAnnotation_stylePreferences"
+            textStylePreferenceValue="BOX"
+            verticalRulerPreferenceKey="duplicationAnnotation_verticalRuler"
+            verticalRulerPreferenceValue="false">
+      </specification>
+   </extension>
 </plugin>

@@ -37,6 +37,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
+import org.eclipse.jdt.core.dom.Javadoc;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -49,6 +50,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -210,6 +212,7 @@ public class MoveMethodRefactoring extends Refactoring {
 					if(parameter.getName().getIdentifier().equals(simpleName.getIdentifier())) {
 						targetClassVariableName = parameter.getName().getIdentifier();
 						parametersRewrite.remove(newMethodParameters.get(i), null);
+						removeParamTagElementFromJavadoc(newMethodDeclaration, targetRewriter, targetClassVariableName);
 						isTargetClassVariableParameter = true;
 						break;
 					}
@@ -946,6 +949,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add("this");
 		this.additionalTypeBindingsToBeImportedInTargetClass.add(sourceTypeDeclaration.resolveBinding());
+		addParamTagElementToJavadoc(newMethodDeclaration, targetRewriter, parameterName.getIdentifier());
 		setPublicModifierToSourceTypeDeclaration();
 		return parameterName;
 	}
@@ -1018,6 +1022,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add(fieldName.getIdentifier());
 		this.additionalTypeBindingsToBeImportedInTargetClass.add(fieldType.resolveBinding());
+		addParamTagElementToJavadoc(newMethodDeclaration, targetRewriter, fieldName.getIdentifier());
 	}
 
 	private void addParameterToMovedMethod(MethodDeclaration newMethodDeclaration, IVariableBinding variableBinding, ASTRewrite targetRewriter) {
@@ -1061,6 +1066,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		parametersRewrite.insertLast(parameter, null);
 		this.additionalArgumentsAddedToMovedMethod.add(variableBinding.getName());
 		this.additionalTypeBindingsToBeImportedInTargetClass.add(variableBinding.getType());
+		addParamTagElementToJavadoc(newMethodDeclaration, targetRewriter, variableBinding.getName());
 	}
 
 	private ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite targetRewriter) {
@@ -1470,6 +1476,60 @@ public class MoveMethodRefactoring extends Refactoring {
 						parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
 					}
 					targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, parameterName, null);
+				}
+			}
+		}
+	}
+
+	private void addParamTagElementToJavadoc(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter, String parameterToBeAdded) {
+		if(newMethodDeclaration.getJavadoc() != null) {
+			AST ast = newMethodDeclaration.getAST();
+			Javadoc javadoc = newMethodDeclaration.getJavadoc();
+			List<TagElement> tags = javadoc.tags();
+			TagElement returnTagElement = null;
+			for(TagElement tag : tags) {
+				if(tag.getTagName() != null && tag.getTagName().equals(TagElement.TAG_RETURN)) {
+					returnTagElement = tag;
+					break;
+				}
+			}
+			
+			TagElement tagElement = ast.newTagElement();
+			targetRewriter.set(tagElement, TagElement.TAG_NAME_PROPERTY, TagElement.TAG_PARAM, null);
+			ListRewrite fragmentsRewrite = targetRewriter.getListRewrite(tagElement, TagElement.FRAGMENTS_PROPERTY);
+			SimpleName paramName = ast.newSimpleName(parameterToBeAdded);
+			fragmentsRewrite.insertLast(paramName, null);
+			
+			ListRewrite tagsRewrite = targetRewriter.getListRewrite(javadoc, Javadoc.TAGS_PROPERTY);
+			if(returnTagElement != null)
+				tagsRewrite.insertBefore(tagElement, returnTagElement, null);
+			else
+				tagsRewrite.insertLast(tagElement, null);
+		}
+	}
+
+	private void removeParamTagElementFromJavadoc(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter, String parameterToBeRemoved) {
+		if(newMethodDeclaration.getJavadoc() != null) {
+			Javadoc javadoc = newMethodDeclaration.getJavadoc();
+			List<TagElement> tags = javadoc.tags();
+			for(TagElement tag : tags) {
+				if(tag.getTagName() != null && tag.getTagName().equals(TagElement.TAG_PARAM)) {
+					List<ASTNode> tagFragments = tag.fragments();
+					boolean paramFound = false;
+					for(ASTNode node : tagFragments) {
+						if(node instanceof SimpleName) {
+							SimpleName simpleName = (SimpleName)node;
+							if(simpleName.getIdentifier().equals(parameterToBeRemoved)) {
+								paramFound = true;
+								break;
+							}
+						}
+					}
+					if(paramFound) {
+						ListRewrite tagsRewrite = targetRewriter.getListRewrite(javadoc, Javadoc.TAGS_PROPERTY);
+						tagsRewrite.remove(tag, null);
+						break;
+					}
 				}
 			}
 		}

@@ -205,8 +205,8 @@ public class LibraryClassStorage {
 		}
 	}
 	
-	public Set<PlainVariable> getInvocationReferences(MethodDeclaration originalMethod) {
-		String originalMethodBindingKey = originalMethod.resolveBinding().getKey();
+	public Set<PlainVariable> getInvocationReferences(String originalMethodBindingKey) {
+		//String originalMethodBindingKey = originalMethod.resolveBinding().getKey();
 		if(methodInvocationThroughReferenceMap.containsKey(originalMethodBindingKey)) {
 			HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethodBindingKey);
 			return invokedMethodsThroughReference.keySet();
@@ -243,8 +243,8 @@ public class LibraryClassStorage {
 		usedFieldMap.put(methodBindingKey, fields);
 	}
 	
-	public boolean isAnalyzed(MethodDeclaration method) {
-		String methodBindingKey = method.resolveBinding().getKey();
+	public boolean isAnalyzed(String methodBindingKey) {
+		//String methodBindingKey = method.resolveBinding().getKey();
 		if(definedFieldMap.containsKey(methodBindingKey) && usedFieldMap.containsKey(methodBindingKey))
 			return true;
 		else

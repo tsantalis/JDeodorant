@@ -1,15 +1,18 @@
 package gr.uom.java.ast;
 
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
 
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
 
 public class ConstructorObject {
 
@@ -140,26 +143,124 @@ public class ConstructorObject {
     		return false;
     }
 
-    public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
-    	if(methodBody != null)
-    		return methodBody.getFieldAssignments(fio);
-    	else
-    		return new ArrayList<Assignment>();
-    }
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughFields() {
+		if(methodBody != null)
+			return methodBody.getInvokedMethodsThroughFields();
+		else
+			return new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+	}
 
-    public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
-    	if(methodBody != null)
-    		return methodBody.getFieldPostfixAssignments(fio);
-    	else
-    		return new ArrayList<PostfixExpression>();
-    }
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughParameters() {
+		if(methodBody != null)
+			return methodBody.getInvokedMethodsThroughParameters();
+		else
+			return new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+	}
 
-    public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
-    	if(methodBody != null)
-    		return methodBody.getFieldPrefixAssignments(fio);
-    	else
-    		return new ArrayList<PrefixExpression>();
-    }
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
+		if(methodBody != null)
+			return methodBody.getInvokedMethodsThroughLocalVariables();
+		else
+			return new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+	}
+
+	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReference() {
+		if(methodBody != null)
+			return methodBody.getInvokedMethodsThroughThisReference();
+		else
+			return new LinkedHashSet<MethodInvocationObject>();
+	}
+
+	public Set<MethodInvocationObject> getInvokedStaticMethods() {
+		if(methodBody != null)
+			return methodBody.getInvokedStaticMethods();
+		else
+			return new LinkedHashSet<MethodInvocationObject>();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughFields() {
+		if(methodBody != null)
+			return methodBody.getDefinedFieldsThroughFields();
+		else
+			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughFields() {
+		if(methodBody != null)
+			return methodBody.getUsedFieldsThroughFields();
+		else
+			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
+		if(methodBody != null)
+			return methodBody.getDefinedFieldsThroughParameters();
+		else
+			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughParameters() {
+		if(methodBody != null)
+			return methodBody.getUsedFieldsThroughParameters();
+		else
+			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
+		if(methodBody != null)
+			return methodBody.getDefinedFieldsThroughLocalVariables();
+		else
+			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughLocalVariables() {
+		if(methodBody != null)
+			return methodBody.getUsedFieldsThroughLocalVariables();
+		else
+			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public Set<PlainVariable> getDefinedFieldsThroughThisReference() {
+		if(methodBody != null)
+			return methodBody.getDefinedFieldsThroughThisReference();
+		else
+			return new LinkedHashSet<PlainVariable>();
+	}
+
+	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
+		if(methodBody != null)
+			return methodBody.getUsedFieldsThroughThisReference();
+		else
+			return new LinkedHashSet<PlainVariable>();
+	}
+
+	public Set<PlainVariable> getDeclaredLocalVariables() {
+		if(methodBody != null)
+			return methodBody.getDeclaredLocalVariables();
+		else
+			return new LinkedHashSet<PlainVariable>();
+	}
+
+	public Set<PlainVariable> getDefinedLocalVariables() {
+		if(methodBody != null)
+			return methodBody.getDefinedLocalVariables();
+		else
+			return new LinkedHashSet<PlainVariable>();
+	}
+
+	public Set<PlainVariable> getUsedLocalVariables() {
+		if(methodBody != null)
+			return methodBody.getUsedLocalVariables();
+		else
+			return new LinkedHashSet<PlainVariable>();
+	}
+
+	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocations() {
+		if(methodBody != null)
+			return methodBody.getParametersPassedAsArgumentsInMethodInvocations();
+		else
+			return new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
+	}
 
     public boolean containsSuperMethodInvocation() {
     	if(methodBody != null)

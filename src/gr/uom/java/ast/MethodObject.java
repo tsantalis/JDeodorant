@@ -4,12 +4,15 @@ import gr.uom.java.ast.association.Association;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
@@ -22,8 +25,6 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
@@ -449,16 +450,72 @@ public class MethodObject {
     	return constructorObject.containsSuperMethodInvocation(superMethodInvocation);
     }
 
-    public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
-    	return constructorObject.getFieldAssignments(fio);
-    }
-
-	public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
-		return constructorObject.getFieldPostfixAssignments(fio);
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughFields() {
+		return constructorObject.getInvokedMethodsThroughFields();
 	}
 
-	public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
-		return constructorObject.getFieldPrefixAssignments(fio);
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughParameters() {
+		return constructorObject.getInvokedMethodsThroughParameters();
+	}
+
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
+		return constructorObject.getInvokedMethodsThroughLocalVariables();
+	}
+
+	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReference() {
+		return constructorObject.getInvokedMethodsThroughThisReference();
+	}
+
+	public Set<MethodInvocationObject> getInvokedStaticMethods() {
+		return constructorObject.getInvokedStaticMethods();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughFields() {
+		return constructorObject.getDefinedFieldsThroughFields();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughFields() {
+		return constructorObject.getUsedFieldsThroughFields();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
+		return constructorObject.getDefinedFieldsThroughParameters();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughParameters() {
+		return constructorObject.getUsedFieldsThroughParameters();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
+		return constructorObject.getDefinedFieldsThroughLocalVariables();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughLocalVariables() {
+		return constructorObject.getUsedFieldsThroughLocalVariables();
+	}
+
+	public Set<PlainVariable> getDefinedFieldsThroughThisReference() {
+		return constructorObject.getDefinedFieldsThroughThisReference();
+	}
+
+	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
+		return constructorObject.getUsedFieldsThroughThisReference();
+	}
+
+	public Set<PlainVariable> getDeclaredLocalVariables() {
+		return constructorObject.getDeclaredLocalVariables();
+	}
+
+	public Set<PlainVariable> getDefinedLocalVariables() {
+		return constructorObject.getDefinedLocalVariables();
+	}
+
+	public Set<PlainVariable> getUsedLocalVariables() {
+		return constructorObject.getUsedLocalVariables();
+	}
+
+	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocations() {
+		return constructorObject.getParametersPassedAsArgumentsInMethodInvocations();
 	}
 
     public boolean containsSuperMethodInvocation() {

@@ -6,6 +6,8 @@ import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
@@ -13,6 +15,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AssertStatement;
@@ -203,6 +206,74 @@ public class MethodBodyObject {
 
 	public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
 		return compositeStatement.containsSuperMethodInvocation(superMethodInvocation);
+	}
+
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughFields() {
+		return compositeStatement.getInvokedMethodsThroughFields();
+	}
+
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughParameters() {
+		return compositeStatement.getInvokedMethodsThroughParameters();
+	}
+
+	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
+		return compositeStatement.getInvokedMethodsThroughLocalVariables();
+	}
+
+	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReference() {
+		return compositeStatement.getInvokedMethodsThroughThisReference();
+	}
+
+	public Set<MethodInvocationObject> getInvokedStaticMethods() {
+		return compositeStatement.getInvokedStaticMethods();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughFields() {
+		return compositeStatement.getDefinedFieldsThroughFields();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughFields() {
+		return compositeStatement.getUsedFieldsThroughFields();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
+		return compositeStatement.getDefinedFieldsThroughParameters();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughParameters() {
+		return compositeStatement.getUsedFieldsThroughParameters();
+	}
+
+	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
+		return compositeStatement.getDefinedFieldsThroughLocalVariables();
+	}
+
+	public Set<AbstractVariable> getUsedFieldsThroughLocalVariables() {
+		return compositeStatement.getUsedFieldsThroughLocalVariables();
+	}
+
+	public Set<PlainVariable> getDefinedFieldsThroughThisReference() {
+		return compositeStatement.getDefinedFieldsThroughThisReference();
+	}
+
+	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
+		return compositeStatement.getUsedFieldsThroughThisReference();
+	}
+
+	public Set<PlainVariable> getDeclaredLocalVariables() {
+		return compositeStatement.getDeclaredLocalVariables();
+	}
+
+	public Set<PlainVariable> getDefinedLocalVariables() {
+		return compositeStatement.getDefinedLocalVariables();
+	}
+
+	public Set<PlainVariable> getUsedLocalVariables() {
+		return compositeStatement.getUsedLocalVariables();
+	}
+
+	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocations() {
+		return compositeStatement.getParametersPassedAsArgumentsInMethodInvocations();
 	}
 
 	public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {

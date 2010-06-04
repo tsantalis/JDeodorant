@@ -15,11 +15,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jface.text.Position;
@@ -144,17 +141,12 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     }
 
     private boolean containsFieldAssignment() {
-    	List<FieldInstructionObject> fieldInstructions = sourceMethod.getMethodObject().getFieldInstructions();
-    	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-    		List<Assignment> fieldAssignments = sourceMethod.getMethodObject().getFieldAssignments(fieldInstruction);
-    		List<PostfixExpression> fieldPostfixAssignments = sourceMethod.getMethodObject().getFieldPostfixAssignments(fieldInstruction);
-    		List<PrefixExpression> fieldPrefixAssignments = sourceMethod.getMethodObject().getFieldPrefixAssignments(fieldInstruction);
-    		if(!fieldAssignments.isEmpty() || !fieldPostfixAssignments.isEmpty() || !fieldPrefixAssignments.isEmpty()) {
-    			//System.out.println(this.toString() + "\tcontains field assignment");
-    			return true;
-    		}
+    	if(!sourceMethod.getMethodObject().getDefinedFieldsThroughThisReference().isEmpty()) {
+    		//System.out.println(this.toString() + "\tcontains field assignment");
+    		return true;
     	}
-    	return false;
+    	else
+    		return false;
     }
 
     private boolean containsSuperMethodInvocation() {

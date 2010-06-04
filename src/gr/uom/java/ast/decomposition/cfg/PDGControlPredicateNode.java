@@ -1,21 +1,13 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.Assignment;
-import org.eclipse.jdt.core.dom.Expression;
-import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
-import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import gr.uom.java.ast.CreationObject;
-import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.LocalVariableDeclarationObject;
-import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -38,115 +30,70 @@ public class PDGControlPredicateNode extends PDGNode {
 				for(CreationObject creation : creations) {
 					createdTypes.add(creation.getType());
 				}
-				List<LocalVariableDeclarationObject> variableDeclarations = expression.getLocalVariableDeclarations();
-				for(LocalVariableDeclarationObject variableDeclaration : variableDeclarations) {
-					PlainVariable variable = new PlainVariable(variableDeclaration.getVariableDeclaration());
+				for(PlainVariable variable : expression.getDeclaredLocalVariables()) {
 					declaredVariables.add(variable);
 					definedVariables.add(variable);
 				}
-				List<LocalVariableInstructionObject> variableInstructions = expression.getLocalVariableInstructions();
-				for(LocalVariableInstructionObject variableInstruction : variableInstructions) {
-					VariableDeclaration variableDeclaration = null;
-					for(VariableDeclaration declaration : variableDeclarationsInMethod) {
-						if(declaration.resolveBinding().isEqualTo(variableInstruction.getSimpleName().resolveBinding())) {
-							variableDeclaration = declaration;
-							break;
-						}
-					}
-					if(variableDeclaration != null) {
-						PlainVariable variable = new PlainVariable(variableDeclaration);
-						List<Assignment> assignments = expression.getLocalVariableAssignments(variableInstruction);
-						List<PostfixExpression> postfixExpressions = expression.getLocalVariablePostfixAssignments(variableInstruction);
-						List<PrefixExpression> prefixExpressions = expression.getLocalVariablePrefixAssignments(variableInstruction);
-						if(!assignments.isEmpty()) {
-							definedVariables.add(variable);
-							for(Assignment assignment : assignments) {
-								Assignment.Operator operator = assignment.getOperator();
-								if(!operator.equals(Assignment.Operator.ASSIGN))
-									usedVariables.add(variable);
-							}
-						}
-						else if(!postfixExpressions.isEmpty()) {
-							definedVariables.add(variable);
-							usedVariables.add(variable);
-						}
-						else if(!prefixExpressions.isEmpty()) {
-							definedVariables.add(variable);
-							usedVariables.add(variable);
-						}
-						else {
-							SimpleName variableInstructionName = variableInstruction.getSimpleName();
-							if(variableInstructionName.getParent() instanceof MethodInvocation) {
-								MethodInvocation methodInvocation = (MethodInvocation)variableInstructionName.getParent();
-								if(methodInvocation.getExpression() != null && methodInvocation.getExpression().equals(variableInstructionName)) {
-									List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
-									MethodInvocationObject methodInvocationObject = null;
-									for(MethodInvocationObject mio : methodInvocations) {
-										if(mio.getMethodInvocation().equals(methodInvocation)) {
-											methodInvocationObject = mio;
-											break;
-										}
-									}
-									processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation, variable);
-								}
-							}
-							usedVariables.add(variable);
-						}
+				for(PlainVariable variable : expression.getDefinedLocalVariables()) {
+					definedVariables.add(variable);
+				}
+				for(PlainVariable variable : expression.getUsedLocalVariables()) {
+					usedVariables.add(variable);
+				}
+				Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughLocalVariables = expression.getInvokedMethodsThroughLocalVariables();
+				for(AbstractVariable variable : invokedMethodsThroughLocalVariables.keySet()) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughLocalVariables.get(variable);
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), variable);
 					}
 				}
-				List<FieldInstructionObject> fieldInstructions = expression.getFieldInstructions();
-				for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-					SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
-					AbstractVariable field = processFieldInstruction(fieldInstructionName, null, null);
-					if(field != null) {
-						List<Assignment> fieldAssignments = expression.getFieldAssignments(fieldInstruction);
-						List<PostfixExpression> fieldPostfixAssignments = expression.getFieldPostfixAssignments(fieldInstruction);
-						List<PrefixExpression> fieldPrefixAssignments = expression.getFieldPrefixAssignments(fieldInstruction);
-						if(!fieldAssignments.isEmpty()) {
-							definedVariables.add(field);
-							for(Assignment assignment : fieldAssignments) {
-								Assignment.Operator operator = assignment.getOperator();
-								if(!operator.equals(Assignment.Operator.ASSIGN))
-									usedVariables.add(field);
-							}
-							if(field instanceof CompositeVariable) {
-								putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
-							}
-						}
-						else if(!fieldPostfixAssignments.isEmpty()) {
-							definedVariables.add(field);
-							usedVariables.add(field);
-							if(field instanceof CompositeVariable) {
-								putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
-							}
-						}
-						else if(!fieldPrefixAssignments.isEmpty()) {
-							definedVariables.add(field);
-							usedVariables.add(field);
-							if(field instanceof CompositeVariable) {
-								putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
-							}
-						}
-						else {
-							List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
-							for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-								MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
-								Expression methodInvocationExpression = methodInvocation.getExpression();
-								AbstractVariable variable = processMethodInvocationExpression(methodInvocationExpression, null);
-								if(variable != null && variable.equals(field)) {
-									processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation, field);
-								}
-							}
-							usedVariables.add(field);
-						}
+				Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = expression.getInvokedMethodsThroughParameters();
+				for(AbstractVariable variable : invokedMethodsThroughParameters.keySet()) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(variable);
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), variable);
 					}
 				}
-				List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
-				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-					MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
-					if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
-						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocation, null);
+				
+				for(PlainVariable field : expression.getDefinedFieldsThroughThisReference()) {
+					definedVariables.add(field);
+				}
+				for(PlainVariable field : expression.getUsedFieldsThroughThisReference()) {
+					usedVariables.add(field);
+				}
+				for(AbstractVariable field : expression.getDefinedFieldsThroughFields()) {
+					definedVariables.add(field);
+					putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
+				}
+				for(AbstractVariable field : expression.getUsedFieldsThroughFields()) {
+					usedVariables.add(field);
+				}
+				for(AbstractVariable field : expression.getDefinedFieldsThroughParameters()) {
+					definedVariables.add(field);
+					putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
+				}
+				for(AbstractVariable field : expression.getUsedFieldsThroughParameters()) {
+					usedVariables.add(field);
+				}
+				for(AbstractVariable field : expression.getDefinedFieldsThroughLocalVariables()) {
+					definedVariables.add(field);
+					putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
+				}
+				for(AbstractVariable field : expression.getUsedFieldsThroughLocalVariables()) {
+					usedVariables.add(field);
+				}
+				Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = expression.getInvokedMethodsThroughFields();
+				for(AbstractVariable variable : invokedMethodsThroughFields.keySet()) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(variable);
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), variable);
 					}
+				}
+				for(MethodInvocationObject methodInvocationObject : expression.getInvokedMethodsThroughThisReference()) {
+					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), null);
+				}
+				for(MethodInvocationObject methodInvocationObject : expression.getInvokedStaticMethods()) {
+					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), null);
 				}
 			}
 		}

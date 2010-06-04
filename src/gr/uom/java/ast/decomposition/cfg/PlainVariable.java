@@ -17,6 +17,10 @@ public class PlainVariable extends AbstractVariable {
 		return this.variableBindingKey.equals(variable.variableBindingKey);
 	}
 
+	public PlainVariable getInitialVariable() {
+		return this;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o) {
 			return true;

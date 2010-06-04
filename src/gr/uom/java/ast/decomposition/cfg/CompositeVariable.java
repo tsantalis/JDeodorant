@@ -42,6 +42,11 @@ public class CompositeVariable extends AbstractVariable {
 		}
 	}
 
+	//if composite variable is "one.two.three" then initial variable is "one"
+	public PlainVariable getInitialVariable() {
+		return new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+	}
+
 	public boolean containsPlainVariable(PlainVariable variable) {
 		if(this.variableBindingKey.equals(variable.variableBindingKey))
 			return true;

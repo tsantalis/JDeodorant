@@ -57,6 +57,7 @@ public class PDGControlPredicateNode extends PDGNode {
 				
 				for(PlainVariable field : expression.getDefinedFieldsThroughThisReference()) {
 					definedVariables.add(field);
+					putInStateChangingFieldModificationMap(field, null);
 				}
 				for(PlainVariable field : expression.getUsedFieldsThroughThisReference()) {
 					usedVariables.add(field);

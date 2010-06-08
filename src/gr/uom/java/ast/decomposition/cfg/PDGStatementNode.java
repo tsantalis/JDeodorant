@@ -54,6 +54,7 @@ public class PDGStatementNode extends PDGNode {
 			
 			for(PlainVariable field : statement.getDefinedFieldsThroughThisReference()) {
 				definedVariables.add(field);
+				putInStateChangingFieldModificationMap(field, null);
 			}
 			for(PlainVariable field : statement.getUsedFieldsThroughThisReference()) {
 				usedVariables.add(field);

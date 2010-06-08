@@ -209,6 +209,10 @@ public class PDGObjectSliceUnion {
 		return iFile;
 	}
 
+	public int getMethodSize() {
+		return methodSize;
+	}
+
 	public BasicBlock getBoundaryBlock() {
 		return boundaryBlock;
 	}
@@ -358,15 +362,7 @@ public class PDGObjectSliceUnion {
 		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
 			for(AbstractVariable stateChangingVariable : node.getStateChangingVariables()) {
-				PlainVariable plainVariable = null;
-				if(stateChangingVariable instanceof PlainVariable) {
-					plainVariable = (PlainVariable)stateChangingVariable;
-				}
-				else if(stateChangingVariable instanceof CompositeVariable) {
-					CompositeVariable compositeVariable = (CompositeVariable)stateChangingVariable;
-					plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
-							compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
-				}
+				PlainVariable plainVariable = stateChangingVariable.getInitialVariable();
 				if(!sliceContainsDeclaration(plainVariable))
 					return true;
 			}

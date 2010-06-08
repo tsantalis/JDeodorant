@@ -759,6 +759,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					else
 						field = originalField;
 					definedVariables.add(field);
+					if(variableDeclaration == null)
+						putInStateChangingFieldModificationMap(field, null);
 					stateChangingMethodInvocation = true;
 				}
 			}

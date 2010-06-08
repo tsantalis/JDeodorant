@@ -45,6 +45,7 @@ public class ASTSlice {
 	private IFile iFile;
 	private BasicBlock boundaryBlock;
 	private boolean isObjectSlice;
+	private int methodSize;
 	private double averageNumberOfExtractedStatementsInGroup;
 	private int maximumNumberOfExtractedStatementsInGroup;
 	private double averageNumberOfDuplicatedStatementsInGroup;
@@ -88,6 +89,7 @@ public class ASTSlice {
 		this.iFile = pdgSlice.getIFile();
 		this.boundaryBlock = pdgSlice.getBoundaryBlock();
 		this.isObjectSlice = false;
+		this.methodSize = pdgSlice.getMethodSize();
 	}
 
 	public ASTSlice(PDGSliceUnion pdgSliceUnion) {
@@ -128,6 +130,7 @@ public class ASTSlice {
 		this.iFile = pdgSliceUnion.getIFile();
 		this.boundaryBlock = pdgSliceUnion.getBoundaryBlock();
 		this.isObjectSlice = false;
+		this.methodSize = pdgSliceUnion.getMethodSize();
 	}
 
 	public ASTSlice(PDGObjectSliceUnion pdgObjectSliceUnion) {
@@ -168,6 +171,7 @@ public class ASTSlice {
 		this.iFile = pdgObjectSliceUnion.getIFile();
 		this.boundaryBlock = pdgObjectSliceUnion.getBoundaryBlock();
 		this.isObjectSlice = true;
+		this.methodSize = pdgObjectSliceUnion.getMethodSize();
 	}
 
 	public TypeDeclaration getSourceTypeDeclaration() {
@@ -228,6 +232,10 @@ public class ASTSlice {
 
 	public boolean isObjectSlice() {
 		return isObjectSlice;
+	}
+
+	public int getMethodSize() {
+		return methodSize;
 	}
 
 	public Object[] getHighlightPositions() {

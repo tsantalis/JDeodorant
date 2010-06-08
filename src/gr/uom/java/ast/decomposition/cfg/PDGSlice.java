@@ -25,6 +25,7 @@ public class PDGSlice extends Graph {
 	private Set<PDGNode> removableNodes;
 	private Set<AbstractVariable> returnedVariablesInOriginalMethod;
 	private IFile iFile;
+	private int methodSize;
 	
 	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
 			AbstractVariable localVariableCriterion) {
@@ -32,6 +33,7 @@ public class PDGSlice extends Graph {
 		this.pdg = pdg;
 		this.method = pdg.getMethod();
 		this.iFile = pdg.getIFile();
+		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.returnedVariablesInOriginalMethod = pdg.getReturnedVariables();
 		this.boundaryBlock = boundaryBlock;
 		this.nodeCriterion = nodeCriterion;
@@ -141,6 +143,10 @@ public class PDGSlice extends Graph {
 		return iFile;
 	}
 
+	public int getMethodSize() {
+		return methodSize;
+	}
+
 	public BasicBlock getBoundaryBlock() {
 		return boundaryBlock;
 	}
@@ -174,15 +180,7 @@ public class PDGSlice extends Graph {
 	}
 
 	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
-		PlainVariable plainVariable = null;
-		if(localVariableCriterion instanceof PlainVariable) {
-			plainVariable = (PlainVariable)localVariableCriterion;
-		}
-		else if(localVariableCriterion instanceof CompositeVariable) {
-			CompositeVariable compositeVariable = (CompositeVariable)localVariableCriterion;
-			plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
-					compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
-		}
+		PlainVariable plainVariable = localVariableCriterion.getInitialVariable();
 		for(PDGNode pdgNode : sliceNodes) {
 			if(pdgNode.declaresLocalVariable(plainVariable))
 				return true;
@@ -191,15 +189,7 @@ public class PDGSlice extends Graph {
 	}
 
 	public boolean declarationOfVariableCriterionBelongsToRemovableNodes() {
-		PlainVariable plainVariable = null;
-		if(localVariableCriterion instanceof PlainVariable) {
-			plainVariable = (PlainVariable)localVariableCriterion;
-		}
-		else if(localVariableCriterion instanceof CompositeVariable) {
-			CompositeVariable compositeVariable = (CompositeVariable)localVariableCriterion;
-			plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
-					compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
-		}
+		PlainVariable plainVariable = localVariableCriterion.getInitialVariable();
 		for(PDGNode pdgNode : removableNodes) {
 			if(pdgNode.declaresLocalVariable(plainVariable))
 				return true;
@@ -319,15 +309,7 @@ public class PDGSlice extends Graph {
 		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
 			for(AbstractVariable stateChangingVariable : node.getStateChangingVariables()) {
-				PlainVariable plainVariable = null;
-				if(stateChangingVariable instanceof PlainVariable) {
-					plainVariable = (PlainVariable)stateChangingVariable;
-				}
-				else if(stateChangingVariable instanceof CompositeVariable) {
-					CompositeVariable compositeVariable = (CompositeVariable)stateChangingVariable;
-					plainVariable = new PlainVariable(compositeVariable.getVariableBindingKey(), compositeVariable.getVariableName(),
-							compositeVariable.getVariableType(), compositeVariable.isField(), compositeVariable.isParameter());
-				}
+				PlainVariable plainVariable = stateChangingVariable.getInitialVariable();
 				if(!sliceContainsDeclaration(plainVariable))
 					return true;
 			}

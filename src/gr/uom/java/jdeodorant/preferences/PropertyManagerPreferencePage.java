@@ -28,6 +28,7 @@ public class PropertyManagerPreferencePage
 	private IntegerFieldEditor maximumSliceSizeFieldEditor;
 	private IntegerFieldEditor maximumDuplicationFieldEditor;
 	private StringFieldEditor maximumRatioOfDuplicatedToExtractedFieldEditor;
+	private IntegerFieldEditor minimumMethodSizeFieldEditor;
 	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
 	private IntegerFieldEditor projectCompilationUnitCacheSizeFieldEditor;
 	private IntegerFieldEditor libraryCompilationUnitCacheSizeFieldEditor;
@@ -68,6 +69,12 @@ public class PropertyManagerPreferencePage
 				"&Maximum ratio of duplicated to extracted statements:", getFieldEditorParent());
 		maximumRatioOfDuplicatedToExtractedFieldEditor.setEmptyStringAllowed(false);
 		addField(maximumRatioOfDuplicatedToExtractedFieldEditor);
+		
+		minimumMethodSizeFieldEditor = new IntegerFieldEditor(
+				PreferenceConstants.P_MINIMUM_METHOD_SIZE,
+				"&Minimum number of statements in method:", getFieldEditorParent());
+		minimumMethodSizeFieldEditor.setEmptyStringAllowed(false);
+		addField(minimumMethodSizeFieldEditor);
 		
 		enableAliasAnalysisFieldEditor = new BooleanFieldEditor(
 				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,
@@ -155,6 +162,23 @@ public class PropertyManagerPreferencePage
 		}
 		catch(NumberFormatException e) {
 			setErrorMessage("Duplication ratio must be a Double");
+			setValid(false);
+			return;
+		}
+		try {
+			int minimumMethodSize = minimumMethodSizeFieldEditor.getIntValue();
+			if(minimumMethodSize >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Minimum number of statements in method must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Minimum number of statements in method must be an Integer");
 			setValid(false);
 			return;
 		}

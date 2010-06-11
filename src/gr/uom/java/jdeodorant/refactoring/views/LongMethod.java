@@ -25,6 +25,9 @@ import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
@@ -52,6 +55,7 @@ import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -561,69 +565,75 @@ public class LongMethod extends ViewPart {
 
 	private void processMethod(final List<ASTSlice> extractedSlices, ClassObject classObject, MethodObject methodObject) {
 		if(methodObject.getMethodBody() != null) {
-			ITypeRoot typeRoot = classObject.getITypeRoot();
-			CompilationUnitCache.getInstance().lock(typeRoot);
-			CFG cfg = new CFG(methodObject);
-			PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
-			for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
-				PlainVariable variable = new PlainVariable(declaration);
-				PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
-				List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
-				double sumOfExtractedStatementsInGroup = 0.0;
-				double sumOfDuplicatedStatementsInGroup = 0.0;
-				double sumOfDuplicationRatioInGroup = 0.0;
-				int maximumNumberOfExtractedStatementsInGroup = 0;
-				for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
-					ASTSlice slice = new ASTSlice(sliceUnion);
-					int numberOfExtractedStatements = slice.getSliceStatements().size();
-					int numberOfRemovableStatements = slice.getRemovableStatements().size();
-					int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
-					double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
-					sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
-					sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
-					sumOfDuplicationRatioInGroup += duplicationRatio;
-					if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
-						maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
-					variableSlices.add(slice);
-					extractedSlices.add(slice);
+			IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+			int minimumMethodSize = store.getInt(PreferenceConstants.P_MINIMUM_METHOD_SIZE);
+			StatementExtractor statementExtractor = new StatementExtractor();
+			int numberOfStatements = statementExtractor.getTotalNumberOfStatements(methodObject.getMethodBody().getCompositeStatement().getStatement());
+			if(numberOfStatements >= minimumMethodSize) {
+				ITypeRoot typeRoot = classObject.getITypeRoot();
+				CompilationUnitCache.getInstance().lock(typeRoot);
+				CFG cfg = new CFG(methodObject);
+				PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
+				for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
+					PlainVariable variable = new PlainVariable(declaration);
+					PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
+					List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
+					double sumOfExtractedStatementsInGroup = 0.0;
+					double sumOfDuplicatedStatementsInGroup = 0.0;
+					double sumOfDuplicationRatioInGroup = 0.0;
+					int maximumNumberOfExtractedStatementsInGroup = 0;
+					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
+						ASTSlice slice = new ASTSlice(sliceUnion);
+						int numberOfExtractedStatements = slice.getSliceStatements().size();
+						int numberOfRemovableStatements = slice.getRemovableStatements().size();
+						int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+						double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
+						sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
+						sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
+						sumOfDuplicationRatioInGroup += duplicationRatio;
+						if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
+							maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
+						variableSlices.add(slice);
+						extractedSlices.add(slice);
+					}
+					for(ASTSlice slice : variableSlices) {
+						slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
+						slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
+						slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
+						slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+					}
 				}
-				for(ASTSlice slice : variableSlices) {
-					slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
-					slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
-					slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
-					slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+				for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
+					PlainVariable variable = new PlainVariable(declaration);
+					PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
+					List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
+					double sumOfExtractedStatementsInGroup = 0.0;
+					double sumOfDuplicatedStatementsInGroup = 0.0;
+					double sumOfDuplicationRatioInGroup = 0.0;
+					int maximumNumberOfExtractedStatementsInGroup = 0;
+					for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
+						ASTSlice slice = new ASTSlice(objectSliceUnion);
+						int numberOfExtractedStatements = slice.getSliceStatements().size();
+						int numberOfRemovableStatements = slice.getRemovableStatements().size();
+						int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+						double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
+						sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
+						sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
+						sumOfDuplicationRatioInGroup += duplicationRatio;
+						if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
+							maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
+						variableSlices.add(slice);
+						extractedSlices.add(slice);
+					}
+					for(ASTSlice slice : variableSlices) {
+						slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
+						slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
+						slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
+						slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+					}
 				}
+				CompilationUnitCache.getInstance().releaseLock();
 			}
-			for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
-				PlainVariable variable = new PlainVariable(declaration);
-				PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
-				List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
-				double sumOfExtractedStatementsInGroup = 0.0;
-				double sumOfDuplicatedStatementsInGroup = 0.0;
-				double sumOfDuplicationRatioInGroup = 0.0;
-				int maximumNumberOfExtractedStatementsInGroup = 0;
-				for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
-					ASTSlice slice = new ASTSlice(objectSliceUnion);
-					int numberOfExtractedStatements = slice.getSliceStatements().size();
-					int numberOfRemovableStatements = slice.getRemovableStatements().size();
-					int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
-					double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
-					sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
-					sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
-					sumOfDuplicationRatioInGroup += duplicationRatio;
-					if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
-						maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
-					variableSlices.add(slice);
-					extractedSlices.add(slice);
-				}
-				for(ASTSlice slice : variableSlices) {
-					slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
-					slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
-					slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
-					slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
-				}
-			}
-			CompilationUnitCache.getInstance().releaseLock();
 		}
 	}
 

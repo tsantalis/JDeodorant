@@ -252,20 +252,19 @@ public class SystemObject {
     	return classObjectSet;
     }
 
-    public Set<MethodObject> getMethodObjects(IMethod method) {
-    	Set<MethodObject> methodObjectSet = new LinkedHashSet<MethodObject>();
+    public MethodObject getMethodObject(IMethod method) {
     	IType declaringType = method.getDeclaringType();
     	ClassObject classObject = getClassObject(declaringType.getFullyQualifiedName('.'));
     	if(classObject != null) {
     		ListIterator<MethodObject> mi = classObject.getMethodIterator();
     		while(mi.hasNext()) {
                 MethodObject mo = mi.next();
-                List<TypeObject> parameterTypeList = mo.getParameterTypeList();
-                if(mo.getName().equals(method.getElementName()) && parameterTypeList.size() == method.getNumberOfParameters())
-                	methodObjectSet.add(mo);
+                IMethod resolvedMethod = (IMethod)mo.getMethodDeclaration().resolveBinding().getJavaElement();
+                if(method.isSimilar(resolvedMethod))
+                	return mo;
     		}
     	}
-    	return methodObjectSet;
+    	return null;
     }
 
     public List<String> getClassNames() {

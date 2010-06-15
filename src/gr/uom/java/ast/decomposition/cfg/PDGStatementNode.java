@@ -54,28 +54,24 @@ public class PDGStatementNode extends PDGNode {
 			
 			for(PlainVariable field : statement.getDefinedFieldsThroughThisReference()) {
 				definedVariables.add(field);
-				putInStateChangingFieldModificationMap(field, null);
 			}
 			for(PlainVariable field : statement.getUsedFieldsThroughThisReference()) {
 				usedVariables.add(field);
 			}
 			for(AbstractVariable field : statement.getDefinedFieldsThroughFields()) {
 				definedVariables.add(field);
-				putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 			}
 			for(AbstractVariable field : statement.getUsedFieldsThroughFields()) {
 				usedVariables.add(field);
 			}
 			for(AbstractVariable field : statement.getDefinedFieldsThroughParameters()) {
 				definedVariables.add(field);
-				putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 			}
 			for(AbstractVariable field : statement.getUsedFieldsThroughParameters()) {
 				usedVariables.add(field);
 			}
 			for(AbstractVariable field : statement.getDefinedFieldsThroughLocalVariables()) {
 				definedVariables.add(field);
-				putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 			}
 			for(AbstractVariable field : statement.getUsedFieldsThroughLocalVariables()) {
 				usedVariables.add(field);

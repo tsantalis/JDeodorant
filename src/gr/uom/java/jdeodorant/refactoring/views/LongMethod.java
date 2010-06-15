@@ -510,7 +510,9 @@ public class LongMethod extends ViewPart {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
 			}
 			else if(selectedMethod != null) {
-				methodObjectsToBeExamined.addAll(systemObject.getMethodObjects(selectedMethod));
+				MethodObject methodObject = systemObject.getMethodObject(selectedMethod);
+				if(methodObject != null)
+					methodObjectsToBeExamined.add(methodObject);
 			}
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
@@ -573,7 +575,7 @@ public class LongMethod extends ViewPart {
 				ITypeRoot typeRoot = classObject.getITypeRoot();
 				CompilationUnitCache.getInstance().lock(typeRoot);
 				CFG cfg = new CFG(methodObject);
-				PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject));
+				PDG pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject), null);
 				for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 					PlainVariable variable = new PlainVariable(declaration);
 					PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);

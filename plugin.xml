@@ -160,4 +160,17 @@
             verticalRulerPreferenceValue="false">
       </specification>
    </extension>
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            adaptable="false"
+            id="gr.uom.java.jdeodorant.sliceProfile"
+            objectClass="org.eclipse.jdt.core.IMethod">
+         <action
+               class="gr.uom.java.jdeodorant.refactoring.views.SliceProfileAction"
+               id="gr.uom.java.jdeodorant.sliceProfileAction"
+               label="Slice-based Cohesion Metrics...">
+         </action>
+      </objectContribution>
+   </extension>
 </plugin>

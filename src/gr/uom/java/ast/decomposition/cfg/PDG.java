@@ -7,6 +7,9 @@ import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
 
@@ -26,10 +30,14 @@ public class PDG extends Graph {
 	private Set<VariableDeclaration> fieldsAccessedInMethod;
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
 	private IFile iFile;
+	private IProgressMonitor monitor;
 	
-	public PDG(CFG cfg, IFile iFile, Set<FieldObject> accessedFields) {
+	public PDG(CFG cfg, IFile iFile, Set<FieldObject> accessedFields, IProgressMonitor monitor) {
 		this.cfg = cfg;
 		this.iFile = iFile;
+		this.monitor = monitor;
+		if(monitor != null)
+			monitor.beginTask("Constructing program dependence graph", cfg.nodes.size());
 		this.entryNode = new PDGMethodEntryNode(cfg.getMethod());
 		this.nestingMap = new LinkedHashMap<CFGBranchNode, Set<CFGNode>>();
 		for(GraphNode node : cfg.nodes) {
@@ -62,6 +70,8 @@ public class PDG extends Graph {
 		}
 		this.dominatedBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();
 		GraphNode.resetNodeNum();
+		if(monitor != null)
+			monitor.done();
 	}
 
 	public PDGMethodEntryNode getEntryNode() {
@@ -93,6 +103,10 @@ public class PDG extends Graph {
 
 	public int getTotalNumberOfStatements() {
 		return nodes.size();
+	}
+
+	public Iterator<GraphNode> getNodeIterator() {
+		return nodes.iterator();
 	}
 
 	public Map<CompositeVariable, LinkedHashSet<PDGNode>> getDefinedAttributesOfReference(PlainVariable reference) {
@@ -143,6 +157,8 @@ public class PDG extends Graph {
 		if(cfgNode instanceof CFGBranchNode) {
 			PDGControlPredicateNode predicateNode = new PDGControlPredicateNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(predicateNode);
+			if(monitor != null)
+				monitor.worked(1);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, predicateNode, controlType);
 			edges.add(controlDependence);
 			processControlPredicate(predicateNode);
@@ -154,6 +170,8 @@ public class PDG extends Graph {
 			else
 				pdgNode = new PDGStatementNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(pdgNode);
+			if(monitor != null)
+				monitor.worked(1);
 			PDGControlDependence controlDependence = new PDGControlDependence(previousNode, pdgNode, controlType);
 			edges.add(controlDependence);
 		}
@@ -393,5 +411,16 @@ public class PDG extends Graph {
 			}
 		}
 		return returnedVariables;
+	}
+
+	public PDGNode getLastUse(PlainVariable variable) {
+		List<GraphNode> reversedNodeList = new ArrayList<GraphNode>(nodes);
+		Collections.reverse(reversedNodeList);
+		for(GraphNode node : reversedNodeList) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.usesLocalVariable(variable))
+				return pdgNode;
+		}
+		return null;
 	}
 }

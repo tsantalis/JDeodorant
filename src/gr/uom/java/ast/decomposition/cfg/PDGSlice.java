@@ -308,10 +308,17 @@ public class PDGSlice extends Graph {
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
-			for(AbstractVariable stateChangingVariable : node.getStateChangingVariables()) {
-				PlainVariable plainVariable = stateChangingVariable.getInitialVariable();
-				if(!sliceContainsDeclaration(plainVariable))
-					return true;
+			for(AbstractVariable stateChangingVariable : node.definedVariables) {
+				if(stateChangingVariable instanceof CompositeVariable) {
+					PlainVariable plainVariable = stateChangingVariable.getInitialVariable();
+					if(!sliceContainsDeclaration(plainVariable))
+						return true;
+				}
+				else if(stateChangingVariable instanceof PlainVariable) {
+					PlainVariable plainVariable = stateChangingVariable.getInitialVariable();
+					if(plainVariable.isField())
+						return true;
+				}
 			}
 		}
 		return false;

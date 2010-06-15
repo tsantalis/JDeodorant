@@ -57,28 +57,24 @@ public class PDGControlPredicateNode extends PDGNode {
 				
 				for(PlainVariable field : expression.getDefinedFieldsThroughThisReference()) {
 					definedVariables.add(field);
-					putInStateChangingFieldModificationMap(field, null);
 				}
 				for(PlainVariable field : expression.getUsedFieldsThroughThisReference()) {
 					usedVariables.add(field);
 				}
 				for(AbstractVariable field : expression.getDefinedFieldsThroughFields()) {
 					definedVariables.add(field);
-					putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 				}
 				for(AbstractVariable field : expression.getUsedFieldsThroughFields()) {
 					usedVariables.add(field);
 				}
 				for(AbstractVariable field : expression.getDefinedFieldsThroughParameters()) {
 					definedVariables.add(field);
-					putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 				}
 				for(AbstractVariable field : expression.getUsedFieldsThroughParameters()) {
 					usedVariables.add(field);
 				}
 				for(AbstractVariable field : expression.getDefinedFieldsThroughLocalVariables()) {
 					definedVariables.add(field);
-					putInStateChangingFieldModificationMap(((CompositeVariable)field).getLeftPart(), field);
 				}
 				for(AbstractVariable field : expression.getUsedFieldsThroughLocalVariables()) {
 					usedVariables.add(field);

@@ -14,6 +14,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -35,10 +36,12 @@ public class SliceProfileAction implements IObjectActionDelegate {
 
 	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
 		this.part = targetPart;
+		JavaCore.addElementChangedListener(new ElementChangedListener());
 	}
 
 	public void run(IAction action) {
 		try {
+			CompilationUnitCache.getInstance().clearCache();
 			if(selection instanceof IStructuredSelection) {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 				Object element = structuredSelection.getFirstElement();
@@ -83,12 +86,16 @@ public class SliceProfileAction implements IObjectActionDelegate {
 						}
 					});
 					if(method.isConstructor())
-						MessageDialog.openInformation(part.getSite().getShell(), "", "The selected IMethod corresponds to a constructor");
+						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to a constructor.");
 					if(selectedMethodHasNoBody)
-						MessageDialog.openInformation(part.getSite().getShell(), "", "The selected IMethod corresponds to a method without body");
+						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to an abstract method.");
 					if(pdg != null) {
-						SliceProfileDialog dialog = new SliceProfileDialog(part.getSite().getWorkbenchWindow(), pdg);
-						dialog.open();
+						if(pdg.getVariableDeclarationsInMethod().size() == 0)
+							MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method does not declare any local variables.");
+						else {
+							SliceProfileDialog dialog = new SliceProfileDialog(part.getSite().getWorkbenchWindow(), pdg);
+							dialog.open();
+						}
 					}
 				}
 			}

@@ -115,8 +115,9 @@ public class SliceProfileDialog extends Dialog {
 		int columnIndex = 1;
 		for(VariableDeclaration variableDeclaration : pdg.getVariableDeclarationsInMethod()) {
 			PlainVariable plainVariable = new PlainVariable(variableDeclaration);
+			PDGNode firstDefNode = pdg.getFirstDef(plainVariable);
 			PDGNode lastUseNode = pdg.getLastUse(plainVariable);
-			if(lastUseNode != null) {
+			if(firstDefNode != null && lastUseNode != null) {
 				PDGSlice slice = new PDGSlice(pdg, pdg.getBasicBlocks().get(0), lastUseNode, plainVariable);
 				sliceProfileMap.put(plainVariable, new TreeSet<PDGNode>(slice.computeSlice(lastUseNode)));
 				columnIndexMap.put(columnIndex, plainVariable);

@@ -413,6 +413,15 @@ public class PDG extends Graph {
 		return returnedVariables;
 	}
 
+	public PDGNode getFirstDef(PlainVariable variable) {
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.definesLocalVariable(variable))
+				return pdgNode;
+		}
+		return null;
+	}
+
 	public PDGNode getLastUse(PlainVariable variable) {
 		List<GraphNode> reversedNodeList = new ArrayList<GraphNode>(nodes);
 		Collections.reverse(reversedNodeList);

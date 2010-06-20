@@ -29,6 +29,7 @@ public class PropertyManagerPreferencePage
 	private IntegerFieldEditor maximumDuplicationFieldEditor;
 	private StringFieldEditor maximumRatioOfDuplicatedToExtractedFieldEditor;
 	private IntegerFieldEditor minimumMethodSizeFieldEditor;
+	private IntegerFieldEditor maximumCallGraphAnalysisDepthFieldEditor;
 	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
 	private IntegerFieldEditor projectCompilationUnitCacheSizeFieldEditor;
 	private IntegerFieldEditor libraryCompilationUnitCacheSizeFieldEditor;
@@ -75,6 +76,12 @@ public class PropertyManagerPreferencePage
 				"&Minimum number of statements in method:", getFieldEditorParent());
 		minimumMethodSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(minimumMethodSizeFieldEditor);
+		
+		maximumCallGraphAnalysisDepthFieldEditor = new IntegerFieldEditor(
+				PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH,
+				"&Maximum depth of method call graph analysis:", getFieldEditorParent());
+		maximumCallGraphAnalysisDepthFieldEditor.setEmptyStringAllowed(false);
+		addField(maximumCallGraphAnalysisDepthFieldEditor);
 		
 		enableAliasAnalysisFieldEditor = new BooleanFieldEditor(
 				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,
@@ -179,6 +186,23 @@ public class PropertyManagerPreferencePage
 		}
 		catch(NumberFormatException e) {
 			setErrorMessage("Minimum number of statements in method must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			int maximumCallGraphAnalysisDepth = maximumCallGraphAnalysisDepthFieldEditor.getIntValue();
+			if(maximumCallGraphAnalysisDepth >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Maximum depth of call graph analysis must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Maximum depth of call graph analysis must be an Integer");
 			setValid(false);
 			return;
 		}

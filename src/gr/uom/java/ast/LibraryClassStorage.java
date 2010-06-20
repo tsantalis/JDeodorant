@@ -135,7 +135,11 @@ public class LibraryClassStorage {
 			try {
 				SearchPattern searchPattern = SearchPattern.createPattern(superType, IJavaSearchConstants.IMPLEMENTORS);
 				SearchEngine searchEngine = new SearchEngine();
-				IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {packageFragment}, false);
+				IJavaSearchScope scope = null;
+				if(packageFragment.getElementName().equals("java.util"))
+					scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {packageFragment}, false);
+				else
+					scope = SearchEngine.createHierarchyScope(superType);
 				SearchRequestor requestor = new TypeSearchRequestor(subTypes);
 				searchEngine.search(searchPattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
 						scope, requestor, null);

@@ -115,6 +115,18 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return incomingEdges.iterator();
 	}
 
+	public boolean hasIncomingControlDependenceFromMethodEntryNode() {
+		for(GraphEdge edge : incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGNode srcNode = (PDGNode)dependence.src;
+				if(srcNode instanceof PDGMethodEntryNode)
+					return true;
+			}
+		}
+		return false;
+	}
+
 	public boolean declaresLocalVariable(AbstractVariable variable) {
 		return declaredVariables.contains(variable);
 	}

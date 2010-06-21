@@ -16,7 +16,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.viewers.CheckStateChangedEvent;
 import org.eclipse.jface.viewers.CheckboxTableViewer;
@@ -113,8 +112,7 @@ public class SliceProfileDialog extends Dialog {
 		statementIDColumn.pack();
 		
 		int columnIndex = 1;
-		for(VariableDeclaration variableDeclaration : pdg.getVariableDeclarationsInMethod()) {
-			PlainVariable plainVariable = new PlainVariable(variableDeclaration);
+		for(PlainVariable plainVariable : pdg.getVariablesWithMethodBodyScope()) {
 			PDGNode firstDefNode = pdg.getFirstDef(plainVariable);
 			PDGNode lastUseNode = pdg.getLastUse(plainVariable);
 			if(firstDefNode != null && lastUseNode != null) {

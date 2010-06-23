@@ -783,54 +783,77 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	private void processArgumentOfInternalMethodInvocation(MethodObject methodObject, MethodInvocation methodInvocation,
-			AbstractVariable argumentDeclaration, VariableDeclaration parameterDeclaration, Set<MethodInvocation> processedMethodInvocations) {
-		for(AbstractVariable originalField : methodObject.getDefinedFieldsThroughParameters()) {
-			if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
-				AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-					argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
-				definedVariables.add(field);
-			}
-		}
-		for(AbstractVariable originalField : methodObject.getUsedFieldsThroughParameters()) {
-			if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
-				AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-					argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
-				usedVariables.add(field);
-			}
-		}
-		Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = methodObject.getInvokedMethodsThroughParameters();
-		for(AbstractVariable originalField : invokedMethodsThroughParameters.keySet()) {
-			if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
-				AbstractVariable field = null;
-				if(originalField instanceof PlainVariable)
-					field = argumentDeclaration;
-				else
-					field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-						argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
-				LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(originalField);
-				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), field);
+			AbstractVariable argumentDeclaration, int initialArgumentPosition, VariableDeclaration parameterDeclaration, Set<MethodInvocation> processedMethodInvocations) {
+		if(methodObject.getMethodBody() == null) {
+			IType superType = (IType)methodObject.getMethodDeclaration().resolveBinding().getDeclaringClass().getJavaElement();
+			Set<IType> subTypes = getSubTypes(superType);
+			SystemObject systemObject = ASTReader.getSystemObject();
+			for(IType subType : subTypes) {
+				ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
+				if(subClassObject != null) {
+					ListIterator<MethodObject> methodIterator = subClassObject.getMethodIterator();
+					while(methodIterator.hasNext()) {
+						MethodObject subMethod = methodIterator.next();
+						if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), methodObject.getMethodDeclaration().resolveBinding())) {
+							ParameterObject parameterObject = subMethod.getParameter(initialArgumentPosition);
+							VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
+							processArgumentOfInternalMethodInvocation(subMethod, methodInvocation,
+									argumentDeclaration, initialArgumentPosition, parameterDeclaration2, processedMethodInvocations);
+							break;
+						}
+					}
 				}
 			}
 		}
-		processedMethodInvocations.add(methodInvocation);
-		Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations = methodObject.getParametersPassedAsArgumentsInMethodInvocations();
-		for(PlainVariable parameter : parametersPassedAsArgumentsInMethodInvocations.keySet()) {
-			if(parameterDeclaration.resolveBinding().getKey().equals(parameter.getVariableBindingKey())) {
-				LinkedHashSet<MethodInvocationObject> methodInvocations = parametersPassedAsArgumentsInMethodInvocations.get(parameter);
-				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-					SystemObject systemObject = ASTReader.getSystemObject();
-					ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-					if(classObject2 != null) {
-						MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
-						if(methodObject2 != null && !methodObject2.equals(methodObject)) {
-							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-							int argumentPosition = getArgumentPosition(methodInvocation2, parameter);
-							ParameterObject parameterObject = methodObject2.getParameter(argumentPosition);
-							VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
-							if(!processedMethodInvocations.contains(methodInvocation2))
-								processArgumentOfInternalMethodInvocation(methodObject2, methodInvocation2,
-										argumentDeclaration, parameterDeclaration2, processedMethodInvocations);
+		else {
+			for(AbstractVariable originalField : methodObject.getDefinedFieldsThroughParameters()) {
+				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
+					AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
+							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+					definedVariables.add(field);
+				}
+			}
+			for(AbstractVariable originalField : methodObject.getUsedFieldsThroughParameters()) {
+				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
+					AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
+							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+					usedVariables.add(field);
+				}
+			}
+			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = methodObject.getInvokedMethodsThroughParameters();
+			for(AbstractVariable originalField : invokedMethodsThroughParameters.keySet()) {
+				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
+					AbstractVariable field = null;
+					if(originalField instanceof PlainVariable)
+						field = argumentDeclaration;
+					else
+						field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
+								argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(originalField);
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), field);
+					}
+				}
+			}
+			processedMethodInvocations.add(methodInvocation);
+			Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations = methodObject.getParametersPassedAsArgumentsInMethodInvocations();
+			for(PlainVariable parameter : parametersPassedAsArgumentsInMethodInvocations.keySet()) {
+				if(parameterDeclaration.resolveBinding().getKey().equals(parameter.getVariableBindingKey())) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = parametersPassedAsArgumentsInMethodInvocations.get(parameter);
+					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						SystemObject systemObject = ASTReader.getSystemObject();
+						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+						if(classObject2 != null) {
+							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
+							if(methodObject2 != null && !methodObject2.equals(methodObject)) {
+								MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+								int argumentPosition = getArgumentPosition(methodInvocation2, parameter);
+								ParameterObject parameterObject = methodObject2.getParameter(argumentPosition);
+								VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
+								if(!processedMethodInvocations.contains(methodInvocation2))
+									processArgumentOfInternalMethodInvocation(methodObject2, methodInvocation2,
+											argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethodInvocations);
+							}
 						}
 					}
 				}
@@ -877,7 +900,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
 							PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
 							processArgumentOfInternalMethodInvocation(methodObject, methodInvocation,
-									argumentVariable, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
+									argumentVariable, argumentPosition, parameterDeclaration, new LinkedHashSet<MethodInvocation>());
 						}
 					}
 					argumentPosition++;

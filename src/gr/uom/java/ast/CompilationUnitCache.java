@@ -15,7 +15,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jface.preference.IPreferenceStore;
 
-public class CompilationUnitCache {
+public class CompilationUnitCache extends Indexer {
 
 	private static CompilationUnitCache instance;
 	private LinkedList<ITypeRoot> iTypeRootList;
@@ -26,6 +26,7 @@ public class CompilationUnitCache {
 	private Set<ICompilationUnit> removedCompilationUnits;
 
 	private CompilationUnitCache() {
+		super();
 		this.iTypeRootList = new LinkedList<ITypeRoot>();
 		this.compilationUnitList = new LinkedList<CompilationUnit>();
 		this.changedCompilationUnits = new LinkedHashSet<ICompilationUnit>();

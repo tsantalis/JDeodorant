@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AssertStatement;
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CatchClause;
@@ -33,8 +32,6 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.LabeledStatement;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -274,18 +271,6 @@ public class MethodBodyObject {
 
 	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocations() {
 		return compositeStatement.getParametersPassedAsArgumentsInMethodInvocations();
-	}
-
-	public List<Assignment> getFieldAssignments(FieldInstructionObject fio) {
-		return compositeStatement.getFieldAssignments(fio);
-	}
-
-	public List<PostfixExpression> getFieldPostfixAssignments(FieldInstructionObject fio) {
-		return compositeStatement.getFieldPostfixAssignments(fio);
-	}
-
-	public List<PrefixExpression> getFieldPrefixAssignments(FieldInstructionObject fio) {
-		return compositeStatement.getFieldPrefixAssignments(fio);
 	}
 
 	public boolean containsSuperMethodInvocation() {

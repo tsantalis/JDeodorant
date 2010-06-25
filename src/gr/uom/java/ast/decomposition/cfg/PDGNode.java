@@ -3,14 +3,13 @@ package gr.uom.java.ast.decomposition.cfg;
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
-import gr.uom.java.ast.FieldInstructionObject;
+import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.LibraryClassStorage;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.TypeObject;
-import gr.uom.java.ast.TypeSearchRequestor;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -25,10 +24,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
@@ -42,7 +38,6 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
-import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -50,8 +45,6 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
@@ -59,12 +52,6 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
-import org.eclipse.jdt.core.search.IJavaSearchConstants;
-import org.eclipse.jdt.core.search.IJavaSearchScope;
-import org.eclipse.jdt.core.search.SearchEngine;
-import org.eclipse.jdt.core.search.SearchParticipant;
-import org.eclipse.jdt.core.search.SearchPattern;
-import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jface.preference.IPreferenceStore;
 
 public class PDGNode extends GraphNode implements Comparable<PDGNode> {
@@ -434,73 +421,15 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
 					LinkedHashSet<PlainVariable> definedFields = new LinkedHashSet<PlainVariable>();
 					LinkedHashSet<PlainVariable> usedFields = new LinkedHashSet<PlainVariable>();
-					List<FieldInstructionObject> fieldInstructions = methodBodyObject.getFieldInstructions();
-					for(FieldInstructionObject fieldInstruction : fieldInstructions) {
-						SimpleName fieldInstructionName = fieldInstruction.getSimpleName();
-						PlainVariable originalField = null;
-						IBinding binding = fieldInstructionName.resolveBinding();
-						if(binding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding variableBinding = (IVariableBinding)binding;
-							if(variableBinding.isField()) {
-								IField iField = (IField)variableBinding.getJavaElement();
-								IClassFile fieldClassFile = iField.getClassFile();
-								CompilationUnit fieldCompilationUnit = instance.getCompilationUnit(fieldClassFile);
-								Set<TypeDeclaration> fieldTypeDeclarations = extractTypeDeclarations(fieldCompilationUnit);
-								for(TypeDeclaration fieldTypeDeclaration : fieldTypeDeclarations) {
-									if(fieldTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass()) ||
-											fieldTypeDeclaration.resolveBinding().getBinaryName().equals(variableBinding.getDeclaringClass().getBinaryName())) {
-										FieldDeclaration[] fieldDeclarations = fieldTypeDeclaration.getFields();
-										for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-											List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-											for(VariableDeclarationFragment fragment : fragments) {
-												if(fragment.resolveBinding().isEqualTo(variableBinding) || 
-														fragment.resolveBinding().getName().equals(variableBinding.getName())) {
-													originalField = new PlainVariable(fragment);
-													break;
-												}
-											}
-											if(originalField != null)
-												break;
-										}
-										if(originalField != null)
-											break;
-									}
-								}
-							}
-						}
-						if(originalField != null) {
-							AbstractVariable field = composeVariable(variableDeclaration, originalField);
-							List<Assignment> fieldAssignments = methodBodyObject.getFieldAssignments(fieldInstruction);
-							List<PostfixExpression> fieldPostfixAssignments = methodBodyObject.getFieldPostfixAssignments(fieldInstruction);
-							List<PrefixExpression> fieldPrefixAssignments = methodBodyObject.getFieldPrefixAssignments(fieldInstruction);
-							if(!fieldAssignments.isEmpty()) {
-								definedVariables.add(field);
-								definedFields.add(originalField);
-								for(Assignment assignment : fieldAssignments) {
-									Assignment.Operator operator = assignment.getOperator();
-									if(!operator.equals(Assignment.Operator.ASSIGN)) {
-										usedVariables.add(field);
-										usedFields.add(originalField);
-									}
-								}
-							}
-							else if(!fieldPostfixAssignments.isEmpty()) {
-								definedVariables.add(field);
-								definedFields.add(originalField);
-								usedVariables.add(field);
-								usedFields.add(originalField);
-							}
-							else if(!fieldPrefixAssignments.isEmpty()) {
-								definedVariables.add(field);
-								definedFields.add(originalField);
-								usedVariables.add(field);
-								usedFields.add(originalField);
-							}
-							else {
-								usedVariables.add(field);
-								usedFields.add(originalField);
-							}
-						}
+					for(PlainVariable originalField : methodBodyObject.getDefinedFieldsThroughThisReference()) {
+						AbstractVariable field = composeVariable(variableDeclaration, originalField);
+						definedVariables.add(field);
+						definedFields.add(originalField);
+					}
+					for(PlainVariable originalField : methodBodyObject.getUsedFieldsThroughThisReference()) {
+						AbstractVariable field = composeVariable(variableDeclaration, originalField);
+						usedVariables.add(field);
+						usedFields.add(originalField);
 					}
 					instance.setDefinedFields(methodDeclaration, definedFields);
 					instance.setUsedFields(methodDeclaration, usedFields);
@@ -590,15 +519,15 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						//method is native
 					}
 					else {
-						IType superType = (IType)methodDeclaration.resolveBinding().getDeclaringClass().getJavaElement();
-						Set<IType> subTypes = instance.getSubTypes(superType);
-						for(IType subType : subTypes) {
-							if(!subType.equals(superType)) {
-								IClassFile classFile = subType.getClassFile();
-								CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
-								Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
-								for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
-									if(depth < maximumCallGraphAnalysisDepth) {
+						if(depth < maximumCallGraphAnalysisDepth) {
+							IType superType = (IType)methodDeclaration.resolveBinding().getDeclaringClass().getJavaElement();
+							Set<IType> subTypes = instance.getSubTypes(superType);
+							for(IType subType : subTypes) {
+								if(!subType.equals(superType)) {
+									IClassFile classFile = subType.getClassFile();
+									CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+									Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
+									for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
 										instance.addOverridingMethod(methodDeclaration, overridingMethod);
 										processExternalMethodInvocation(methodInvocation, overridingMethod, variableDeclaration, processedMethodInvocations, depth);
 									}
@@ -659,38 +588,12 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 	}
 
-	private Set<IType> getSubTypes(IType superType) {
-		LinkedHashSet<IType> subTypes = new LinkedHashSet<IType>();
-		LinkedHashSet<IType> subTypesOfAbstractSubTypes = new LinkedHashSet<IType>();
-		try {
-			SearchPattern searchPattern = SearchPattern.createPattern(superType, IJavaSearchConstants.IMPLEMENTORS);
-			SearchEngine searchEngine = new SearchEngine();
-			IJavaSearchScope scope = SearchEngine.createHierarchyScope(superType);
-			SearchRequestor requestor = new TypeSearchRequestor(subTypes);
-			searchEngine.search(searchPattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
-					scope, requestor, null);
-			for(IType subType: subTypes) {
-				if(Flags.isAbstract(subType.getFlags()) && !subType.equals(superType)) {
-					subTypesOfAbstractSubTypes.addAll(getSubTypes(subType));
-				}
-			}
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		} catch (CoreException e) {
-			e.printStackTrace();
-		}
-		LinkedHashSet<IType> finalSubTypes = new LinkedHashSet<IType>();
-		finalSubTypes.addAll(subTypes);
-		finalSubTypes.addAll(subTypesOfAbstractSubTypes);
-		return finalSubTypes;
-	}
-
 	private void processInternalMethodInvocation(ClassObject classObject, MethodObject methodObject,
 			MethodInvocation methodInvocation, AbstractVariable variableDeclaration, Set<MethodInvocation> processedMethodInvocations) {
 		if(methodObject.isAbstract() || classObject.isInterface()) {
 			TypeDeclaration typeDeclaration = classObject.getTypeDeclaration();
 			IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
-			Set<IType> subTypes = getSubTypes(superType);
+			Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
 			SystemObject systemObject = ASTReader.getSystemObject();
 			Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
 			if(variableDeclaration != null) {
@@ -785,8 +688,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	private void processArgumentOfInternalMethodInvocation(MethodObject methodObject, MethodInvocation methodInvocation,
 			AbstractVariable argumentDeclaration, int initialArgumentPosition, VariableDeclaration parameterDeclaration, Set<MethodInvocation> processedMethodInvocations) {
 		if(methodObject.getMethodBody() == null) {
-			IType superType = (IType)methodObject.getMethodDeclaration().resolveBinding().getDeclaringClass().getJavaElement();
-			Set<IType> subTypes = getSubTypes(superType);
+			/*IType superType = (IType)methodObject.getMethodDeclaration().resolveBinding().getDeclaringClass().getJavaElement();
+			Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
 			SystemObject systemObject = ASTReader.getSystemObject();
 			for(IType subType : subTypes) {
 				ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
@@ -803,7 +706,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						}
 					}
 				}
-			}
+			}*/
 		}
 		else {
 			for(AbstractVariable originalField : methodObject.getDefinedFieldsThroughParameters()) {

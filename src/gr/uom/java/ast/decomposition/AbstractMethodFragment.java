@@ -109,41 +109,43 @@ public abstract class AbstractMethodFragment {
 						String qualifiedName = variableBinding.getType().getQualifiedName();
 						TypeObject fieldType = TypeObject.extractTypeObject(qualifiedName);
 						String fieldName = variableBinding.getName();
-						if(simpleName.getParent() instanceof SuperFieldAccess) {
-							SuperFieldInstructionObject superFieldInstruction = new SuperFieldInstructionObject(originClassName, fieldType, fieldName);
-							superFieldInstruction.setSimpleName(simpleName);
-							if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
-								superFieldInstruction.setStatic(true);
-							superFieldInstructionList.add(superFieldInstruction);
-						}
-						else {
-							FieldInstructionObject fieldInstruction = new FieldInstructionObject(originClassName, fieldType, fieldName);
-							fieldInstruction.setSimpleName(simpleName);
-							if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
-								fieldInstruction.setStatic(true);
-							fieldInstructionList.add(fieldInstruction);
-							Set<Assignment> fieldAssignments = getMatchingAssignments(simpleName, assignments);
-							Set<PostfixExpression> fieldPostfixAssignments = getMatchingPostfixAssignments(simpleName, postfixExpressions);
-							Set<PrefixExpression> fieldPrefixAssignments = getMatchingPrefixAssignments(simpleName, prefixExpressions);
-							AbstractVariable variable = MethodDeclarationUtility.createVariable(simpleName, null);
-							if(!fieldAssignments.isEmpty()) {
-								handleDefinedField(variable);
-								for(Assignment assignment : fieldAssignments) {
-									Assignment.Operator operator = assignment.getOperator();
-									if(!operator.equals(Assignment.Operator.ASSIGN))
-										handleUsedField(variable);
+						if(!originClassName.equals("")) {
+							if(simpleName.getParent() instanceof SuperFieldAccess) {
+								SuperFieldInstructionObject superFieldInstruction = new SuperFieldInstructionObject(originClassName, fieldType, fieldName);
+								superFieldInstruction.setSimpleName(simpleName);
+								if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
+									superFieldInstruction.setStatic(true);
+								superFieldInstructionList.add(superFieldInstruction);
+							}
+							else {
+								FieldInstructionObject fieldInstruction = new FieldInstructionObject(originClassName, fieldType, fieldName);
+								fieldInstruction.setSimpleName(simpleName);
+								if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
+									fieldInstruction.setStatic(true);
+								fieldInstructionList.add(fieldInstruction);
+								Set<Assignment> fieldAssignments = getMatchingAssignments(simpleName, assignments);
+								Set<PostfixExpression> fieldPostfixAssignments = getMatchingPostfixAssignments(simpleName, postfixExpressions);
+								Set<PrefixExpression> fieldPrefixAssignments = getMatchingPrefixAssignments(simpleName, prefixExpressions);
+								AbstractVariable variable = MethodDeclarationUtility.createVariable(simpleName, null);
+								if(!fieldAssignments.isEmpty()) {
+									handleDefinedField(variable);
+									for(Assignment assignment : fieldAssignments) {
+										Assignment.Operator operator = assignment.getOperator();
+										if(!operator.equals(Assignment.Operator.ASSIGN))
+											handleUsedField(variable);
+									}
 								}
-							}
-							if(!fieldPostfixAssignments.isEmpty()) {
-								handleDefinedField(variable);
-								handleUsedField(variable);
-							}
-							if(!fieldPrefixAssignments.isEmpty()) {
-								handleDefinedField(variable);
-								handleUsedField(variable);
-							}
-							if(fieldAssignments.isEmpty() && fieldPostfixAssignments.isEmpty() && fieldPrefixAssignments.isEmpty()) {
-								handleUsedField(variable);
+								if(!fieldPostfixAssignments.isEmpty()) {
+									handleDefinedField(variable);
+									handleUsedField(variable);
+								}
+								if(!fieldPrefixAssignments.isEmpty()) {
+									handleDefinedField(variable);
+									handleUsedField(variable);
+								}
+								if(fieldAssignments.isEmpty() && fieldPostfixAssignments.isEmpty() && fieldPrefixAssignments.isEmpty()) {
+									handleUsedField(variable);
+								}
 							}
 						}
 					}

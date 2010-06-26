@@ -393,7 +393,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			if(subclassTypeMethodDeclaration == null) {
 				String methodBindingKey = methodBinding.getKey();
 				if(instance.isAnalyzed(methodBindingKey)) {
-					handleAlreadyAnalyzedExternalMethod(methodBindingKey, variableDeclaration, methodInvocation, instance);
+					handleAlreadyAnalyzedMethod(methodBindingKey, variableDeclaration, instance);
 				}
 				else {
 					IMethod iMethod = (IMethod)methodBinding.getJavaElement();
@@ -406,7 +406,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				IMethodBinding subclassTypeMethodBinding = subclassTypeMethodDeclaration.resolveBinding();
 				String methodBindingKey = subclassTypeMethodBinding.getKey();
 				if(instance.isAnalyzed(methodBindingKey)) {
-					handleAlreadyAnalyzedExternalMethod(methodBindingKey, variableDeclaration, methodInvocation, instance);
+					handleAlreadyAnalyzedMethod(methodBindingKey, variableDeclaration, instance);
 				}
 				else {
 					IMethod iMethod = (IMethod)subclassTypeMethodBinding.getJavaElement();
@@ -540,31 +540,30 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 	}
 
-	private void handleAlreadyAnalyzedExternalMethod(String methodBindingKey, AbstractVariable variableDeclaration,
-			MethodInvocation methodInvocation, LibraryClassStorage instance) {
+	private void handleAlreadyAnalyzedMethod(String methodBindingKey, AbstractVariable variableDeclaration, LibraryClassStorage indexer) {
 		LinkedHashSet<PlainVariable> recursivelyDefinedFields = 
-			instance.getRecursivelyDefinedFields(methodBindingKey, new LinkedHashSet<String>());
+			indexer.getRecursivelyDefinedFields(methodBindingKey, new LinkedHashSet<String>());
 		for(PlainVariable originalField : recursivelyDefinedFields) {
 			AbstractVariable field = composeVariable(variableDeclaration, originalField);
 			definedVariables.add(field);
 		}
 		LinkedHashSet<PlainVariable> recursivelyUsedFields = 
-			instance.getRecursivelyUsedFields(methodBindingKey, new LinkedHashSet<String>());
+			indexer.getRecursivelyUsedFields(methodBindingKey, new LinkedHashSet<String>());
 		for(PlainVariable originalField : recursivelyUsedFields) {
 			AbstractVariable field = composeVariable(variableDeclaration, originalField);
 			usedVariables.add(field);
 		}
-		Set<PlainVariable> invocationReferences = instance.getInvocationReferences(methodBindingKey);
+		Set<PlainVariable> invocationReferences = indexer.getInvocationReferences(methodBindingKey);
 		if(invocationReferences != null) {
 			for(PlainVariable invocationReference : invocationReferences) {
 				LinkedHashSet<AbstractVariable> definedFieldsThroughReference = 
-					instance.getRecursivelyDefinedFieldsThroughReference(methodBindingKey, invocationReference, new LinkedHashSet<String>());
+					indexer.getRecursivelyDefinedFieldsThroughReference(methodBindingKey, invocationReference, new LinkedHashSet<String>());
 				for(AbstractVariable definedField : definedFieldsThroughReference) {
 					AbstractVariable field = composeVariable(variableDeclaration, definedField);
 					definedVariables.add(field);
 				}
 				LinkedHashSet<AbstractVariable> usedFieldsThroughReference = 
-					instance.getRecursivelyUsedFieldsThroughReference(methodBindingKey, invocationReference, new LinkedHashSet<String>());
+					indexer.getRecursivelyUsedFieldsThroughReference(methodBindingKey, invocationReference, new LinkedHashSet<String>());
 				for(AbstractVariable usedField : usedFieldsThroughReference) {
 					AbstractVariable field = composeVariable(variableDeclaration, usedField);
 					usedVariables.add(field);

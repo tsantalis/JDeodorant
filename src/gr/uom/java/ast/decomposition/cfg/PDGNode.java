@@ -589,11 +589,11 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	private void processInternalMethodInvocation(ClassObject classObject, MethodObject methodObject,
 			MethodInvocation methodInvocation, AbstractVariable variableDeclaration, Set<MethodInvocation> processedMethodInvocations) {
+		SystemObject systemObject = ASTReader.getSystemObject();
 		if(methodObject.isAbstract() || classObject.isInterface()) {
 			TypeDeclaration typeDeclaration = classObject.getTypeDeclaration();
 			IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
 			Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
-			SystemObject systemObject = ASTReader.getSystemObject();
 			Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
 			if(variableDeclaration != null) {
 				String initialReferenceType = variableDeclaration.getVariableType();
@@ -653,6 +653,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					usedVariables.add(field);
 				}
 			}
+			processedMethodInvocations.add(methodInvocation);
 			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = methodObject.getInvokedMethodsThroughFields();
 			for(AbstractVariable originalField : invokedMethodsThroughFields.keySet()) {
 				boolean alreadyContainsOriginalField = false;
@@ -668,11 +669,21 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					else
 						field = originalField;
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), field);
+						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+						if(classObject2 != null) {
+							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
+							if(methodObject2 != null) {
+								if(!processedMethodInvocations.contains(methodInvocation2))
+									processInternalMethodInvocation(classObject2, methodObject2, methodInvocation2, field, new LinkedHashSet<MethodInvocation>());
+							}
+						}
+						else {
+							processExternalMethodInvocation(methodInvocation2, null, field, new LinkedHashSet<MethodInvocation>(), 0);
+						}
 					}
 				}
 			}
-			processedMethodInvocations.add(methodInvocation);
 			for(MethodInvocationObject methodInvocationObject : methodObject.getInvokedMethodsThroughThisReference()) {
 				MethodObject methodObject2 = classObject.getMethod(methodInvocationObject);
 				if(methodObject2 != null && !methodObject2.equals(methodObject)) {
@@ -686,10 +697,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	private void processArgumentOfInternalMethodInvocation(MethodObject methodObject, MethodInvocation methodInvocation,
 			AbstractVariable argumentDeclaration, int initialArgumentPosition, VariableDeclaration parameterDeclaration, Set<MethodInvocation> processedMethodInvocations) {
+		SystemObject systemObject = ASTReader.getSystemObject();
 		if(methodObject.getMethodBody() == null) {
 			/*IType superType = (IType)methodObject.getMethodDeclaration().resolveBinding().getDeclaringClass().getJavaElement();
 			Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
-			SystemObject systemObject = ASTReader.getSystemObject();
 			for(IType subType : subTypes) {
 				ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
 				if(subClassObject != null) {
@@ -722,6 +733,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					usedVariables.add(field);
 				}
 			}
+			processedMethodInvocations.add(methodInvocation);
 			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = methodObject.getInvokedMethodsThroughParameters();
 			for(AbstractVariable originalField : invokedMethodsThroughParameters.keySet()) {
 				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
@@ -733,17 +745,26 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 								argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
 					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(originalField);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-						processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), field);
+						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+						if(classObject2 != null) {
+							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
+							if(methodObject2 != null) {
+								if(!processedMethodInvocations.contains(methodInvocation2))
+									processInternalMethodInvocation(classObject2, methodObject2, methodInvocation2, field, new LinkedHashSet<MethodInvocation>());
+							}
+						}
+						else {
+							processExternalMethodInvocation(methodInvocation2, null, field, new LinkedHashSet<MethodInvocation>(), 0);
+						}
 					}
 				}
 			}
-			processedMethodInvocations.add(methodInvocation);
 			Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations = methodObject.getParametersPassedAsArgumentsInMethodInvocations();
 			for(PlainVariable parameter : parametersPassedAsArgumentsInMethodInvocations.keySet()) {
 				if(parameterDeclaration.resolveBinding().getKey().equals(parameter.getVariableBindingKey())) {
 					LinkedHashSet<MethodInvocationObject> methodInvocations = parametersPassedAsArgumentsInMethodInvocations.get(parameter);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-						SystemObject systemObject = ASTReader.getSystemObject();
 						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
 						if(classObject2 != null) {
 							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);

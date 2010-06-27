@@ -41,14 +41,14 @@ public class PDGStatementNode extends PDGNode {
 			for(AbstractVariable variable : invokedMethodsThroughLocalVariables.keySet()) {
 				LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughLocalVariables.get(variable);
 				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), variable);
+					processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
 				}
 			}
 			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = statement.getInvokedMethodsThroughParameters();
 			for(AbstractVariable variable : invokedMethodsThroughParameters.keySet()) {
 				LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(variable);
 				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), variable);
+					processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
 				}
 			}
 			
@@ -80,14 +80,14 @@ public class PDGStatementNode extends PDGNode {
 			for(AbstractVariable variable : invokedMethodsThroughFields.keySet()) {
 				LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(variable);
 				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-					processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), variable);
+					processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
 				}
 			}
 			for(MethodInvocationObject methodInvocationObject : statement.getInvokedMethodsThroughThisReference()) {
-				processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), null);
+				processArgumentsOfInternalMethodInvocation(methodInvocationObject, null);
 			}
 			for(MethodInvocationObject methodInvocationObject : statement.getInvokedStaticMethods()) {
-				processArgumentsOfInternalMethodInvocation(methodInvocationObject, methodInvocationObject.getMethodInvocation(), null);
+				processArgumentsOfInternalMethodInvocation(methodInvocationObject, null);
 			}
 		}
 	}

@@ -7,7 +7,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 public class PDGObjectSliceUnionCollection {
 	private Map<BasicBlock, PDGObjectSliceUnion> objectSliceUnionMap;
@@ -42,17 +41,12 @@ public class PDGObjectSliceUnionCollection {
 				basicBlockIntersection.retainAll(basicBlockListPerCompositeVariable.get(i));
 			}
 			for(BasicBlock basicBlock : basicBlockIntersection) {
-				PDGSlice subgraph = new PDGSlice(pdg, basicBlock);
 				Set<PDGNode> allNodeCriteria = new LinkedHashSet<PDGNode>();
-				TreeSet<PDGNode> objectSlice = new TreeSet<PDGNode>();
 				for(CompositeVariable compositeVariable : definedAttributeNodeCriteriaMap.keySet()) {
 					Set<PDGNode> nodeCriteria = definedAttributeNodeCriteriaMap.get(compositeVariable);
 					allNodeCriteria.addAll(nodeCriteria);
-					for(PDGNode nodeCriterion : nodeCriteria) {
-						objectSlice.addAll(subgraph.computeSlice(nodeCriterion));
-					}
 				}
-				PDGObjectSliceUnion objectSliceUnion = new PDGObjectSliceUnion(pdg, basicBlock, allNodeCriteria, objectSlice, subgraph, objectReference);
+				PDGObjectSliceUnion objectSliceUnion = new PDGObjectSliceUnion(pdg, basicBlock, allNodeCriteria, objectReference);
 				if(objectSliceUnion.satisfiesRules())
 					objectSliceUnionMap.put(basicBlock, objectSliceUnion);
 			}

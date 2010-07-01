@@ -15,7 +15,8 @@ import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGSlice;
+import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnion;
+import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import org.eclipse.jface.dialogs.Dialog;
@@ -124,24 +125,18 @@ public class SliceProfileDialog extends Dialog {
 				if(definedAttributeNodeCriteriaMap.isEmpty()) {
 					Set<PDGNode> nodeCriteria = pdg.getAssignmentNodesOfVariableCriterionIncludingDeclaration(plainVariable);
 					if(!nodeCriteria.isEmpty()) {
-						PDGSlice subgraph = new PDGSlice(pdg, boundaryBlock);
-						for(PDGNode nodeCriterion : nodeCriteria) {
-							sliceProfile.addAll(subgraph.computeSlice(nodeCriterion));
-						}
+						PDGSliceUnion sliceUnion = new PDGSliceUnion(pdg, boundaryBlock, nodeCriteria, plainVariable);
+						sliceProfile.addAll(sliceUnion.getSliceNodes());
 					}
 				}
 				else {
-					PDGSlice subgraph = new PDGSlice(pdg, boundaryBlock);
 					Set<PDGNode> allNodeCriteria = new LinkedHashSet<PDGNode>();
-					TreeSet<PDGNode> objectSliceUnion = new TreeSet<PDGNode>();
 					for(CompositeVariable compositeVariable : definedAttributeNodeCriteriaMap.keySet()) {
 						Set<PDGNode> nodeCriteria = definedAttributeNodeCriteriaMap.get(compositeVariable);
 						allNodeCriteria.addAll(nodeCriteria);
-						for(PDGNode nodeCriterion : nodeCriteria) {
-							objectSliceUnion.addAll(subgraph.computeSlice(nodeCriterion));
-						}
 					}
-					sliceProfile.addAll(objectSliceUnion);
+					PDGObjectSliceUnion sliceUnion = new PDGObjectSliceUnion(pdg, boundaryBlock, allNodeCriteria, plainVariable);
+					sliceProfile.addAll(sliceUnion.getSliceNodes());
 				}
 				sliceProfile.add(lastUseNode);
 				sliceProfileMap.put(plainVariable, sliceProfile);

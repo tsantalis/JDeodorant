@@ -32,17 +32,19 @@ public class PDGObjectSliceUnion {
 	private Set<PDGNode> indispensableNodes;
 	private Set<PDGNode> removableNodes;
 	
-	public PDGObjectSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> allNodeCriteria, Set<PDGNode> objectSliceUnion, PDGSlice subgraph,
-			AbstractVariable objectReference) {
+	public PDGObjectSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> allNodeCriteria, PlainVariable objectReference) {
 		this.pdg = pdg;
+		this.subgraph = new PDGSlice(pdg, boundaryBlock);
+		this.sliceNodes = new TreeSet<PDGNode>();
+		for(PDGNode nodeCriterion : allNodeCriteria) {
+			sliceNodes.addAll(subgraph.computeSlice(nodeCriterion));
+		}
 		this.method = pdg.getMethod();
 		this.iFile = pdg.getIFile();
 		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.boundaryBlock = boundaryBlock;
 		this.allNodeCriteria = allNodeCriteria;
 		this.objectReference = objectReference;
-		this.subgraph = subgraph;
-		this.sliceNodes = objectSliceUnion;
 		//add any required object-state slices that may be used from the resulting slice
 		Set<PDGNode> nodesToBeAddedToSliceDueToDependenceOnObjectStateSlices = new TreeSet<PDGNode>();
 		Set<PlainVariable> alreadyExaminedObjectReferences = new LinkedHashSet<PlainVariable>();

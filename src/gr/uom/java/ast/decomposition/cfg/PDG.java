@@ -158,6 +158,16 @@ public class PDG extends Graph {
 		return nodeCriteria;
 	}
 
+	public Set<PDGNode> getAssignmentNodesOfVariableCriterionIncludingDeclaration(AbstractVariable localVariableCriterion) {
+		Set<PDGNode> nodeCriteria = new LinkedHashSet<PDGNode>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.definesLocalVariable(localVariableCriterion))
+				nodeCriteria.add(pdgNode);
+		}
+		return nodeCriteria;
+	}
+
 	private void createControlDependenciesFromEntryNode() {
 		for(GraphNode node : cfg.nodes) {
 			CFGNode cfgNode = (CFGNode)node;

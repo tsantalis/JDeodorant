@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import gr.uom.java.ast.decomposition.cfg.BasicBlock;
+import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -116,8 +118,33 @@ public class SliceProfileDialog extends Dialog {
 			PDGNode firstDefNode = pdg.getFirstDef(plainVariable);
 			PDGNode lastUseNode = pdg.getLastUse(plainVariable);
 			if(firstDefNode != null && lastUseNode != null) {
-				PDGSlice slice = new PDGSlice(pdg, pdg.getBasicBlocks().get(0), lastUseNode, plainVariable);
-				sliceProfileMap.put(plainVariable, new TreeSet<PDGNode>(slice.computeSlice(lastUseNode)));
+				BasicBlock boundaryBlock = pdg.getBasicBlocks().get(0);
+				Map<CompositeVariable, LinkedHashSet<PDGNode>> definedAttributeNodeCriteriaMap = pdg.getDefinedAttributesOfReference(plainVariable);
+				TreeSet<PDGNode> sliceProfile = new TreeSet<PDGNode>();
+				if(definedAttributeNodeCriteriaMap.isEmpty()) {
+					Set<PDGNode> nodeCriteria = pdg.getAssignmentNodesOfVariableCriterionIncludingDeclaration(plainVariable);
+					if(!nodeCriteria.isEmpty()) {
+						PDGSlice subgraph = new PDGSlice(pdg, boundaryBlock);
+						for(PDGNode nodeCriterion : nodeCriteria) {
+							sliceProfile.addAll(subgraph.computeSlice(nodeCriterion));
+						}
+					}
+				}
+				else {
+					PDGSlice subgraph = new PDGSlice(pdg, boundaryBlock);
+					Set<PDGNode> allNodeCriteria = new LinkedHashSet<PDGNode>();
+					TreeSet<PDGNode> objectSliceUnion = new TreeSet<PDGNode>();
+					for(CompositeVariable compositeVariable : definedAttributeNodeCriteriaMap.keySet()) {
+						Set<PDGNode> nodeCriteria = definedAttributeNodeCriteriaMap.get(compositeVariable);
+						allNodeCriteria.addAll(nodeCriteria);
+						for(PDGNode nodeCriterion : nodeCriteria) {
+							objectSliceUnion.addAll(subgraph.computeSlice(nodeCriterion));
+						}
+					}
+					sliceProfile.addAll(objectSliceUnion);
+				}
+				sliceProfile.add(lastUseNode);
+				sliceProfileMap.put(plainVariable, sliceProfile);
 				columnIndexMap.put(columnIndex, plainVariable);
 				enabledVariableMap.put(plainVariable, true);
 				TableColumn column = new TableColumn(sliceProfileTableViewer.getTable(), SWT.CENTER);

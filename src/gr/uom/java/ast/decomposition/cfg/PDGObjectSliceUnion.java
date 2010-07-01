@@ -6,7 +6,6 @@ import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -21,9 +20,9 @@ import org.eclipse.jface.preference.IPreferenceStore;
 
 public class PDGObjectSliceUnion {
 	private PDG pdg;
-	private List<PDGSliceUnion> sliceUnions;
 	private MethodObject method;
 	private BasicBlock boundaryBlock;
+	private Set<PDGNode> allNodeCriteria;
 	private AbstractVariable objectReference;
 	private IFile iFile;
 	private int methodSize;
@@ -33,17 +32,43 @@ public class PDGObjectSliceUnion {
 	private Set<PDGNode> indispensableNodes;
 	private Set<PDGNode> removableNodes;
 	
-	public PDGObjectSliceUnion(PDG pdg, BasicBlock boundaryBlock, List<PDGSliceUnion> sliceUnions,
+	public PDGObjectSliceUnion(PDG pdg, BasicBlock boundaryBlock, Set<PDGNode> allNodeCriteria, Set<PDGNode> objectSliceUnion, PDGSlice subgraph,
 			AbstractVariable objectReference) {
 		this.pdg = pdg;
-		this.sliceUnions = sliceUnions;
 		this.method = pdg.getMethod();
 		this.iFile = pdg.getIFile();
 		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.boundaryBlock = boundaryBlock;
+		this.allNodeCriteria = allNodeCriteria;
 		this.objectReference = objectReference;
-		this.subgraph = sliceUnions.get(0).getSlices().get(0);
-		this.sliceNodes = getSliceNodes();
+		this.subgraph = subgraph;
+		this.sliceNodes = objectSliceUnion;
+		//add any required object-state slices that may be used from the resulting slice
+		Set<PDGNode> nodesToBeAddedToSliceDueToDependenceOnObjectStateSlices = new TreeSet<PDGNode>();
+		Set<PlainVariable> alreadyExaminedObjectReferences = new LinkedHashSet<PlainVariable>();
+		for(PDGNode sliceNode : sliceNodes) {
+			Set<AbstractVariable> usedVariables = sliceNode.usedVariables;
+			for(AbstractVariable usedVariable : usedVariables) {
+				if(usedVariable instanceof PlainVariable) {
+					PlainVariable plainVariable = (PlainVariable)usedVariable;
+					if(!alreadyExaminedObjectReferences.contains(plainVariable) && !objectReference.equals(plainVariable)) {
+						Map<CompositeVariable, LinkedHashSet<PDGNode>> definedAttributeNodeCriteriaMap = pdg.getDefinedAttributesOfReference(plainVariable);
+						if(!definedAttributeNodeCriteriaMap.isEmpty()) {
+							TreeSet<PDGNode> objectSlice = new TreeSet<PDGNode>();
+							for(CompositeVariable compositeVariable : definedAttributeNodeCriteriaMap.keySet()) {
+								Set<PDGNode> nodeCriteria2 = definedAttributeNodeCriteriaMap.get(compositeVariable);
+								for(PDGNode nodeCriterion : nodeCriteria2) {
+									objectSlice.addAll(subgraph.computeSlice(nodeCriterion));
+								}
+							}
+							nodesToBeAddedToSliceDueToDependenceOnObjectStateSlices.addAll(objectSlice);
+						}
+						alreadyExaminedObjectReferences.add(plainVariable);
+					}
+				}
+			}
+		}
+		sliceNodes.addAll(nodesToBeAddedToSliceDueToDependenceOnObjectStateSlices);
 		//key is the branching node and value is the innermost loop node
 		Map<PDGNode, PDGNode> branchingNodeMap = getInnerMostLoopNodesForBranchingNodes();
 		Set<PDGNode> nodesToBeAddedToSliceDueToBranchingNodes = new TreeSet<PDGNode>();
@@ -226,15 +251,7 @@ public class PDGObjectSliceUnion {
 	}
 
 	public Set<PDGNode> getSliceNodes() {
-		if(this.sliceNodes != null)
-			return this.sliceNodes;
-		else {
-			Set<PDGNode> sliceNodes = new TreeSet<PDGNode>();
-			for(PDGSliceUnion sliceUnion : sliceUnions) {
-				sliceNodes.addAll(sliceUnion.getSliceNodes());
-			}
-			return sliceNodes;
-		}
+		return this.sliceNodes;
 	}
 
 	public Set<AbstractVariable> getPassedParameters() {
@@ -273,11 +290,9 @@ public class PDGObjectSliceUnion {
 		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);
-		for(PDGSliceUnion sliceUnion : sliceUnions) {
-			for(PDGNode nodeCriterion : sliceUnion.getNodeCriteria()) {
-				if(!duplicatedNodes.contains(nodeCriterion))
-					return false;
-			}
+		for(PDGNode nodeCriterion : allNodeCriteria) {
+			if(!duplicatedNodes.contains(nodeCriterion))
+				return false;
 		}
 		return true;
 	}

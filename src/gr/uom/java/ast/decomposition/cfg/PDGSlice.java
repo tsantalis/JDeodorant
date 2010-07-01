@@ -27,8 +27,7 @@ public class PDGSlice extends Graph {
 	private IFile iFile;
 	private int methodSize;
 	
-	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion,
-			AbstractVariable localVariableCriterion) {
+	public PDGSlice(PDG pdg, BasicBlock boundaryBlock) {
 		super();
 		this.pdg = pdg;
 		this.method = pdg.getMethod();
@@ -36,8 +35,6 @@ public class PDGSlice extends Graph {
 		this.methodSize = pdg.getTotalNumberOfStatements();
 		this.returnedVariablesInOriginalMethod = pdg.getReturnedVariables();
 		this.boundaryBlock = boundaryBlock;
-		this.nodeCriterion = nodeCriterion;
-		this.localVariableCriterion = localVariableCriterion;
 		Set<PDGNode> regionNodes = pdg.blockBasedRegion(boundaryBlock);
 		for(PDGNode node : regionNodes) {
 			nodes.add(node);
@@ -69,6 +66,12 @@ public class PDGSlice extends Graph {
 					edges.add(dependence);
 			}
 		}
+	}
+
+	public PDGSlice(PDG pdg, BasicBlock boundaryBlock, PDGNode nodeCriterion, AbstractVariable localVariableCriterion) {
+		this(pdg, boundaryBlock);
+		this.nodeCriterion = nodeCriterion;
+		this.localVariableCriterion = localVariableCriterion;
 		this.sliceNodes = new TreeSet<PDGNode>();
 		sliceNodes.addAll(computeSlice(nodeCriterion, localVariableCriterion));
 		this.remainingNodes = new TreeSet<PDGNode>();

@@ -178,6 +178,10 @@ public class PDGSlice extends Graph {
 		return removableNodes;
 	}
 
+	public boolean nodeBelongsToBlockBasedRegion(GraphNode node) {
+		return nodes.contains(node);
+	}
+
 	public boolean edgeBelongsToBlockBasedRegion(GraphEdge edge) {
 		return edges.contains(edge);
 	}

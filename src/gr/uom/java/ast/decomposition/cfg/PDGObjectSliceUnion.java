@@ -60,7 +60,8 @@ public class PDGObjectSliceUnion {
 							for(CompositeVariable compositeVariable : definedAttributeNodeCriteriaMap.keySet()) {
 								Set<PDGNode> nodeCriteria2 = definedAttributeNodeCriteriaMap.get(compositeVariable);
 								for(PDGNode nodeCriterion : nodeCriteria2) {
-									objectSlice.addAll(subgraph.computeSlice(nodeCriterion));
+									if(subgraph.nodeBelongsToBlockBasedRegion(nodeCriterion))
+										objectSlice.addAll(subgraph.computeSlice(nodeCriterion));
 								}
 							}
 							nodesToBeAddedToSliceDueToDependenceOnObjectStateSlices.addAll(objectSlice);

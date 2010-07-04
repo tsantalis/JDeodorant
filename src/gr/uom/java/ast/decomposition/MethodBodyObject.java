@@ -273,6 +273,10 @@ public class MethodBodyObject {
 		return compositeStatement.getParametersPassedAsArgumentsInMethodInvocations();
 	}
 
+	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
+		return compositeStatement.getParametersPassedAsArgumentsInSuperMethodInvocations();
+	}
+
 	public boolean containsSuperMethodInvocation() {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> superMethodInvocations = expressionExtractor.getSuperMethodInvocations(compositeStatement.getStatement());

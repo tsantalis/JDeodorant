@@ -143,6 +143,13 @@ public class SystemObject {
     	return null;
     }
 
+    public MethodObject getMethod(SuperMethodInvocationObject smio) {
+    	ClassObject classObject = getClassObject(smio.getOriginClassName());
+    	if(classObject != null)
+    		return classObject.getMethod(smio);
+    	return null;
+    }
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, ClassObject excludedClass) {
     	for(ClassObject classObject : classList) {
     		if(!excludedClass.equals(classObject) && classObject.containsMethodInvocation(methodInvocation))

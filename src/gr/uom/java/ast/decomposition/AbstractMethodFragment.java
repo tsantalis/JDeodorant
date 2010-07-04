@@ -66,6 +66,7 @@ public abstract class AbstractMethodFragment {
 	private Set<PlainVariable> definedLocalVariables;
 	private Set<PlainVariable> usedLocalVariables;
 	private Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations;
+	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
 
 	protected AbstractMethodFragment() {
 		this.methodInvocationList = new ArrayList<MethodInvocationObject>();
@@ -94,6 +95,7 @@ public abstract class AbstractMethodFragment {
 		this.definedLocalVariables = new LinkedHashSet<PlainVariable>();
 		this.usedLocalVariables = new LinkedHashSet<PlainVariable>();
 		this.parametersPassedAsArgumentsInMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
+		this.parametersPassedAsArgumentsInSuperMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
 	}
 
 	protected void processVariables(List<Expression> variableInstructions, List<Expression> assignments,
@@ -256,13 +258,14 @@ public abstract class AbstractMethodFragment {
 				}
 			}
 			else if(expression instanceof SuperMethodInvocation) {
-				IMethodBinding methodBinding = ((SuperMethodInvocation)expression).resolveMethodBinding();
+				SuperMethodInvocation superMethodInvocation = (SuperMethodInvocation)expression;
+				IMethodBinding methodBinding = superMethodInvocation.resolveMethodBinding();
 				String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
 				String methodInvocationName = methodBinding.getName();
 				String qualifiedName = methodBinding.getReturnType().getQualifiedName();
 				TypeObject returnType = TypeObject.extractTypeObject(qualifiedName);
 				SuperMethodInvocationObject superMethodInvocationObject = new SuperMethodInvocationObject(originClassName, methodInvocationName, returnType);
-				superMethodInvocationObject.setSuperMethodInvocation((SuperMethodInvocation)expression);
+				superMethodInvocationObject.setSuperMethodInvocation(superMethodInvocation);
 				ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
 				for(ITypeBinding parameterType : parameterTypes) {
 					String qualifiedParameterName = parameterType.getQualifiedName();
@@ -270,6 +273,25 @@ public abstract class AbstractMethodFragment {
 					superMethodInvocationObject.addParameter(typeObject);
 				}
 				superMethodInvocationList.add(superMethodInvocationObject);
+				List<Expression> arguments = superMethodInvocation.arguments();
+				for(Expression argument : arguments) {
+					if(argument instanceof SimpleName) {
+						SimpleName argumentName = (SimpleName)argument;
+						IBinding binding = argumentName.resolveBinding();
+						if(binding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)binding;
+							if(variableBinding.isParameter()) {
+								String variableBindingKey = variableBinding.getKey();
+								String variableName = variableBinding.getName();
+								String variableType = variableBinding.getType().getQualifiedName();
+								boolean isField = variableBinding.isField();
+								boolean isParameter = variableBinding.isParameter();
+								PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+								addParameterPassedAsArgumentInSuperMethodInvocation(variable, superMethodInvocationObject);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -360,6 +382,18 @@ public abstract class AbstractMethodFragment {
 			LinkedHashSet<MethodInvocationObject> methodInvocations = new LinkedHashSet<MethodInvocationObject>();
 			methodInvocations.add(methodInvocation);
 			parametersPassedAsArgumentsInMethodInvocations.put(parameter, methodInvocations);
+		}
+	}
+
+	private void addParameterPassedAsArgumentInSuperMethodInvocation(PlainVariable parameter, SuperMethodInvocationObject methodInvocation) {
+		if(parametersPassedAsArgumentsInSuperMethodInvocations.containsKey(parameter)) {
+			LinkedHashSet<SuperMethodInvocationObject> methodInvocations = parametersPassedAsArgumentsInSuperMethodInvocations.get(parameter);
+			methodInvocations.add(methodInvocation);
+		}
+		else {
+			LinkedHashSet<SuperMethodInvocationObject> methodInvocations = new LinkedHashSet<SuperMethodInvocationObject>();
+			methodInvocations.add(methodInvocation);
+			parametersPassedAsArgumentsInSuperMethodInvocations.put(parameter, methodInvocations);
 		}
 	}
 
@@ -545,5 +579,9 @@ public abstract class AbstractMethodFragment {
 
 	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocations() {
 		return parametersPassedAsArgumentsInMethodInvocations;
+	}
+
+	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
+		return parametersPassedAsArgumentsInSuperMethodInvocations;
 	}
 }

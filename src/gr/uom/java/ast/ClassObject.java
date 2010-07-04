@@ -96,6 +96,16 @@ public class ClassObject {
         return null;
     }
 
+    public MethodObject getMethod(SuperMethodInvocationObject smio) {
+        ListIterator<MethodObject> mi = getMethodIterator();
+        while(mi.hasNext()) {
+            MethodObject mo = mi.next();
+            if(mo.equals(smio))
+                return mo;
+        }
+        return null;
+    }
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	for(MethodObject method : methodList) {
     		if(method.containsMethodInvocation(methodInvocation))

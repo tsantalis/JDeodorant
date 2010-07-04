@@ -262,6 +262,13 @@ public class ConstructorObject {
 			return new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
 	}
 
+	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
+		if(methodBody != null)
+			return methodBody.getParametersPassedAsArgumentsInSuperMethodInvocations();
+		else
+			return new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
+	}
+
     public boolean containsSuperMethodInvocation() {
     	if(methodBody != null)
     		return methodBody.containsSuperMethodInvocation();

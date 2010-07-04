@@ -518,6 +518,10 @@ public class MethodObject {
 		return constructorObject.getParametersPassedAsArgumentsInMethodInvocations();
 	}
 
+	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
+		return constructorObject.getParametersPassedAsArgumentsInSuperMethodInvocations();
+	}
+
     public boolean containsSuperMethodInvocation() {
     	return constructorObject.containsSuperMethodInvocation();
     }
@@ -538,7 +542,12 @@ public class MethodObject {
     	return this.getClassName().equals(mio.getOriginClassName()) && this.getName().equals(mio.getMethodName()) &&
     		this.returnType.equals(mio.getReturnType()) && this.constructorObject.getParameterTypeList().equals(mio.getParameterTypeList());
     }
-    
+
+    public boolean equals(SuperMethodInvocationObject smio) {
+    	return this.getClassName().equals(smio.getOriginClassName()) && this.getName().equals(smio.getMethodName()) &&
+    		this.returnType.equals(smio.getReturnType()) && this.constructorObject.getParameterTypeList().equals(smio.getParameterTypeList());
+    }
+
     public boolean equals(Object o) {
         if(this == o) {
             return true;

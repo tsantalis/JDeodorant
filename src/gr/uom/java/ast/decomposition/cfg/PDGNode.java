@@ -668,8 +668,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				if(classObject2 != null) {
 					MethodObject methodObject2 = classObject2.getMethod(superMethodInvocationObject);
 					if(methodObject2 != null) {
-						SuperMethodInvocation superMethodInvocation2 = superMethodInvocationObject.getSuperMethodInvocation();
-						if(!processedMethods.contains(superMethodInvocation2.resolveMethodBinding().getKey()))
+						SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
+						if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
 							processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
 					}
 				}

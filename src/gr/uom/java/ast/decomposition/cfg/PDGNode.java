@@ -396,8 +396,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				processedMethods.add(methodDeclaration.resolveBinding().getKey());
 				if(depth < maximumCallGraphAnalysisDepth) {
 					for(MethodInvocationObject methodInvocationObject : methodBodyObject.getInvokedMethodsThroughThisReference()) {
-						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-						IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
+						MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
+						IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();
 						MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
 						if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
 							if(!processedMethods.contains(methodBinding2.getKey())) {
@@ -417,8 +417,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(originalField);
 							AbstractVariable field = composeVariable(variableDeclaration, originalField);
 							for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-								MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-								IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
+								MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
+								IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();
 								MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
 								if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
 									if(!processedMethods.contains(methodBinding2.getKey())) {
@@ -434,9 +434,22 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							}
 						}
 					}
-					/*for(SuperMethodInvocationObject superMethodInvocationObject : methodBodyObject.getSuperMethodInvocations()) {
-						SuperMethodInvocation superMethodOnvocation = superMethodInvocationObject.getSuperMethodInvocation();
-					}*/
+					for(SuperMethodInvocationObject superMethodInvocationObject : methodBodyObject.getSuperMethodInvocations()) {
+						SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
+						IMethodBinding methodBinding2 = superMethodInvocation.resolveMethodBinding();
+						MethodDeclaration invokedSuperMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
+						if(invokedSuperMethodDeclaration != null) {
+							if(!processedMethods.contains(methodBinding2.getKey())) {
+								if((invokedSuperMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
+									//method is native
+								}
+								else {
+									instance.addInvokedMethod(methodDeclaration, invokedSuperMethodDeclaration);
+									processExternalMethodInvocation(invokedSuperMethodDeclaration, variableDeclaration, processedMethods, depth+1);
+								}
+							}
+						}
+					}
 				}
 			}
 			else {
@@ -650,7 +663,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 						processInternalMethodInvocation(classObject, methodObject2, variableDeclaration, processedMethods);
 				}
 			}
-			/*for(SuperMethodInvocationObject superMethodInvocationObject : methodObject.getSuperMethodInvocations()) {
+			for(SuperMethodInvocationObject superMethodInvocationObject : methodObject.getSuperMethodInvocations()) {
 				ClassObject classObject2 = systemObject.getClassObject(superMethodInvocationObject.getOriginClassName());
 				if(classObject2 != null) {
 					MethodObject methodObject2 = classObject2.getMethod(superMethodInvocationObject);
@@ -660,7 +673,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
 					}
 				}
-			}*/
+			}
 		}
 	}
 
@@ -752,6 +765,26 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 								ParameterObject parameterObject = methodObject2.getParameter(argumentPosition);
 								VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
 								if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+									processArgumentOfInternalMethodInvocation(methodObject2, argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethods);
+							}
+						}
+					}
+				}
+			}
+			Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations = methodObject.getParametersPassedAsArgumentsInSuperMethodInvocations();
+			for(PlainVariable parameter : parametersPassedAsArgumentsInSuperMethodInvocations.keySet()) {
+				if(parameterDeclaration.resolveBinding().getKey().equals(parameter.getVariableBindingKey())) {
+					LinkedHashSet<SuperMethodInvocationObject> superMethodInvocations = parametersPassedAsArgumentsInSuperMethodInvocations.get(parameter);
+					for(SuperMethodInvocationObject superMethodInvocationObject : superMethodInvocations) {
+						ClassObject classObject2 = systemObject.getClassObject(superMethodInvocationObject.getOriginClassName());
+						if(classObject2 != null) {
+							MethodObject methodObject2 = classObject2.getMethod(superMethodInvocationObject);
+							if(methodObject2 != null) {
+								SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
+								int argumentPosition = getArgumentPosition(superMethodInvocation.arguments(), parameter);
+								ParameterObject parameterObject = methodObject2.getParameter(argumentPosition);
+								VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
+								if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
 									processArgumentOfInternalMethodInvocation(methodObject2, argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethods);
 							}
 						}

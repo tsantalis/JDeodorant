@@ -628,9 +628,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							}
 						}
 						else {
-							MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodInvocation2.resolveMethodBinding());
-							if(invokedMethodDeclaration != null)
-								processExternalMethodInvocation(invokedMethodDeclaration, field, new LinkedHashSet<String>(), 0);
+							LibraryClassStorage instance = LibraryClassStorage.getInstance();
+							IMethodBinding invokedMethodBinding = methodInvocation2.resolveMethodBinding();
+							if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
+								handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), field, instance);
+							}
+							else {
+								MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
+								if(invokedMethodDeclaration != null)
+									processExternalMethodInvocation(invokedMethodDeclaration, field, new LinkedHashSet<String>(), 0);
+							}
 						}
 					}
 				}
@@ -717,9 +724,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 							}
 						}
 						else {
-							MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodInvocation2.resolveMethodBinding());
-							if(invokedMethodDeclaration != null)
-								processExternalMethodInvocation(invokedMethodDeclaration, field, new LinkedHashSet<String>(), 0);
+							LibraryClassStorage instance = LibraryClassStorage.getInstance();
+							IMethodBinding invokedMethodBinding = methodInvocation2.resolveMethodBinding();
+							if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
+								handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), field, instance);
+							}
+							else {
+								MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
+								if(invokedMethodDeclaration != null)
+									processExternalMethodInvocation(invokedMethodDeclaration, field, new LinkedHashSet<String>(), 0);
+							}
 						}
 					}
 				}
@@ -793,9 +807,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 		else {
 			if(variable != null) {
-				MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodInvocation.resolveMethodBinding());
-				if(invokedMethodDeclaration != null)
-					processExternalMethodInvocation(invokedMethodDeclaration, variable, new LinkedHashSet<String>(), 0);
+				LibraryClassStorage instance = LibraryClassStorage.getInstance();
+				IMethodBinding invokedMethodBinding = methodInvocation.resolveMethodBinding();
+				if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
+					handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), variable, instance);
+				}
+				else {
+					MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
+					if(invokedMethodDeclaration != null)
+						processExternalMethodInvocation(invokedMethodDeclaration, variable, new LinkedHashSet<String>(), 0);
+				}
 			}
 		}
 	}

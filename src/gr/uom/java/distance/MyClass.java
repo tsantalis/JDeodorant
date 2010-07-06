@@ -42,8 +42,14 @@ public class MyClass {
     }
 
     public void addAttribute(MyAttribute attribute) {
-        if(!attributeList.contains(attribute))
-            attributeList.add(attribute);
+    	if(newEntitySet != null) {
+        	newEntitySet.add(attribute.toString());
+        	
+        }
+        else {
+        	if(!attributeList.contains(attribute))
+        		attributeList.add(attribute);
+        }
     }
 
     public MyAttribute getAttribute(MyAttributeInstruction attributeInstruction) {
@@ -70,12 +76,17 @@ public class MyClass {
         return null;
     }
 
+    public List<MyMethod> getMethodList() {
+		return methodList;
+	}
+
     public void addMethod(MyMethod method) {
         if(newEntitySet != null) {
         	newEntitySet.add(method.toString());
         }
         else {
-        	methodList.add(method);
+        	if(!methodList.contains(method))
+        		methodList.add(method);
         }
     }
 
@@ -89,7 +100,16 @@ public class MyClass {
     }
 
     public void removeAttribute(MyAttribute attribute) {
-        attributeList.remove(attribute);
+    	if(newEntitySet != null) {
+    		newEntitySet.remove(attribute.toString());
+    	}
+    	else {
+    		attributeList.remove(attribute);
+    	}
+    }
+    
+    public List<MyAttribute> getAttributeList() {
+    	return attributeList;
     }
 
     public ListIterator<MyAttribute> getAttributeIterator() {

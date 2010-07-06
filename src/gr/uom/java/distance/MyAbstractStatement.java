@@ -147,9 +147,17 @@ public abstract class MyAbstractStatement {
         return methodInvocationList.listIterator();
     }
 
+    public List<MyMethodInvocation> getMethodInvocationList() {
+		return methodInvocationList;
+	}
+
     public ListIterator<MyAttributeInstruction> getAttributeInstructionIterator() {
         return attributeInstructionList.listIterator();
     }
+
+    public List<MyAttributeInstruction> getAttributeInstructionList() {
+		return attributeInstructionList;
+	}
 
     public void setParent(MyCompositeStatement parent) {
     	this.parent = parent;

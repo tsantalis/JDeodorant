@@ -39,6 +39,14 @@
                menubarPath="BadSmellsMenu/sampleGroup"
                tooltip="Long Method">
          </action>
+         <action
+               label="God Class"
+               icon="icons/repair.png"
+               class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
+               tooltip="God Class"
+               menubarPath="BadSmellsMenu/sampleGroup"
+               id="gr.uom.java.jdeodorant.actions.GodClass">
+         </action>
       </actionSet>
    </extension>
    <extension
@@ -67,6 +75,13 @@
             icon="icons/repair.png"
             id="gr.uom.java.jdeodorant.views.LongMethod"
             name="Long Method">
+      </view>
+      <view
+            category="gr.uom.java.jdeodorant"
+            class="gr.uom.java.jdeodorant.refactoring.views.GodClass"
+            icon="icons/repair.png"
+            id="gr.uom.java.jdeodorant.views.GodClass"
+            name="God Class">
       </view>
    </extension>
    <extension
@@ -98,6 +113,15 @@
                relative="org.eclipse.ui.views.TaskList">
          </view>
       </perspectiveExtension>
+      <perspectiveExtension
+            targetID="org.eclipse.ui.resourcePerspective">
+         <view
+               id="gr.uom.java.jdeodorant.views.GodClass"
+               ratio="0.5"
+               relationship="right"
+               relative="org.eclipse.ui.views.TaskList">
+         </view>
+      </perspectiveExtension>
    </extension>
    <extension
          point="org.eclipse.ui.preferencePages">
@@ -123,13 +147,16 @@
             highlightPreferenceKey="extractionAnnotation_highlight"
             highlightPreferenceValue="true"
             includeOnPreferencePage="true"
-            isGoToNextNavigationTarget="false"
-            isGoToPreviousNavigationTarget="false"
+            isGoToNextNavigationTarget="true"
+            isGoToNextNavigationTargetKey="extractionAnnotation_nextNavigationTarget"
+            isGoToPreviousNavigationTarget="true"
+            isGoToPreviousNavigationTargetKey="extractionAnnotation_previousNavigationTarget"
             label="Extracted Code"
             overviewRulerPreferenceKey="extractionAnnotation_overviewRuler"
-            overviewRulerPreferenceValue="false"
+            overviewRulerPreferenceValue="true"
             presentationLayer="0"
-            showInNextPrevDropdownToolbarAction="false"
+            showInNextPrevDropdownToolbarAction="true"
+            showInNextPrevDropdownToolbarActionKey="extractionAnnotation_nextPrevDropdownToolbar"
             textPreferenceKey="extractionAnnotation_text"
             textPreferenceValue="true"
             textStylePreferenceKey="extractionAnnotation_stylePreferences"
@@ -145,13 +172,16 @@
             highlightPreferenceKey="duplicationAnnotation_highlight"
             highlightPreferenceValue="true"
             includeOnPreferencePage="true"
-            isGoToNextNavigationTarget="false"
-            isGoToPreviousNavigationTarget="false"
+            isGoToNextNavigationTarget="true"
+            isGoToNextNavigationTargetKey="duplicationAnnotation_nextNavigationTarget"
+            isGoToPreviousNavigationTarget="true"
+            isGoToPreviousNavigationTargetKey="duplicationAnnotation_previousNavigationTarget"
             label="Duplicated Code"
             overviewRulerPreferenceKey="duplicationAnnotation_overviewRuler"
-            overviewRulerPreferenceValue="false"
+            overviewRulerPreferenceValue="true"
             presentationLayer="0"
-            showInNextPrevDropdownToolbarAction="false"
+            showInNextPrevDropdownToolbarAction="true"
+            showInNextPrevDropdownToolbarActionKey="duplicationAnnotation_nextPrevDropdownToolbar"
             textPreferenceKey="duplicationAnnotation_text"
             textPreferenceValue="true"
             textStylePreferenceKey="duplicationAnnotation_stylePreferences"

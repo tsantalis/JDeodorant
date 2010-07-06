@@ -119,13 +119,26 @@ public class MyMethod extends Entity {
     }
 
     public void replaceAttributeInstruction(MyAttributeInstruction oldInstruction, MyAttributeInstruction newInstruction) {
-    	if(this.methodBody != null)
-    		this.methodBody.replaceAttributeInstruction(oldInstruction, newInstruction);
+    	if(newEntitySet != null) {
+    		if(newEntitySet.contains(oldInstruction.toString())) {
+    			newEntitySet.remove(oldInstruction.toString());
+        		newEntitySet.add(newInstruction.toString());
+    		}
+    	}
+    	else {
+    		if(this.methodBody != null)
+    			this.methodBody.replaceAttributeInstruction(oldInstruction, newInstruction);
+    	}
     }
 
     public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
-    	if(this.methodBody != null)
-    		this.methodBody.removeAttributeInstruction(attributeInstruction);
+    	if(newEntitySet != null) {
+    		newEntitySet.remove(attributeInstruction.toString());
+    	}
+    	else {
+    		if(this.methodBody != null)
+    			this.methodBody.removeAttributeInstruction(attributeInstruction);
+    	}
     }
 
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
@@ -182,17 +195,27 @@ public class MyMethod extends Entity {
     }
 
 	public boolean containsAttributeInstruction(MyAttributeInstruction instruction) {
-		if(this.methodBody != null)
-			return this.methodBody.containsAttributeInstruction(instruction);
-		else
-			return false;
+		if(newEntitySet != null) {
+			return newEntitySet.contains(instruction.toString());
+		}
+		else {
+			if(this.methodBody != null)
+				return this.methodBody.containsAttributeInstruction(instruction);
+			else
+				return false;
+		}
 	}
 
 	public boolean containsMethodInvocation(MyMethodInvocation invocation) {
-		if(this.methodBody != null)
-			return this.methodBody.containsMethodInvocation(invocation);
-		else
-			return false;
+		if(newEntitySet != null) {
+			return newEntitySet.contains(invocation.toString());
+		}
+		else {
+			if(this.methodBody != null)
+				return this.methodBody.containsMethodInvocation(invocation);
+			else
+				return false;
+		}
 	}
 
     public int getNumberOfAttributeInstructions() {
@@ -308,4 +331,20 @@ public class MyMethod extends Entity {
     public Set<String> getNewEntitySet() {
     	return this.newEntitySet;
     }
+
+	public Set<String> getFullEntitySet() {
+		Set<String> set = new HashSet<String>();
+		set.add(this.toString());
+        ListIterator<MyAttributeInstruction> attributeInstructionIterator = getAttributeInstructionIterator();
+        while(attributeInstructionIterator.hasNext()) {
+        	MyAttributeInstruction attributeInstruction = attributeInstructionIterator.next();
+            set.add(attributeInstruction.toString());
+        }
+        ListIterator<MyMethodInvocation> methodInvocationIterator = getMethodInvocationIterator();
+        while(methodInvocationIterator.hasNext()) {
+        	MyMethodInvocation methodInvocation = methodInvocationIterator.next();
+            set.add(methodInvocation.toString());
+        }
+        return set;
+	}
 }

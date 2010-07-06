@@ -41,6 +41,7 @@ public class MySystem {
 	                if(!fo.isStatic()) {
 	                    MyAttribute myAttribute = new MyAttribute(co.getName(),fo.getType().toString(),fo.getName());
 	                    myAttribute.setAccess(fo.getAccess().toString());
+	                    myAttribute.setFieldObject(fo);
 	                    if(associationDetection.containsFieldObject(fo))
 	                    	myAttribute.setReference(true);
 	                    myClass.addAttribute(myAttribute);
@@ -111,6 +112,18 @@ public class MySystem {
 
     public MyClass getClass(String className) {
     	return classMap.get(className);
+    }
+
+    public void addClass(MyClass newClass) {
+    	if(!classMap.containsKey(newClass.getName())) {
+    		classMap.put(newClass.getName(), newClass);
+    	}
+    }
+    
+    public void removeClass(MyClass oldClass) {
+    	if(classMap.containsKey(oldClass.getName())) {
+    		classMap.remove(oldClass.getName());
+    	}
     }
 
     public SystemObject getSystemObject() {

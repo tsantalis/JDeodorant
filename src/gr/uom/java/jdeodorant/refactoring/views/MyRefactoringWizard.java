@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 
@@ -30,6 +31,9 @@ public class MyRefactoringWizard extends RefactoringWizard {
 	protected void addUserInputPages() {
 		if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
 			addPage(new ReplaceTypeCodeWithStateStrategyInputPage((ReplaceTypeCodeWithStateStrategy)refactoring));
+		}
+		else if(refactoring instanceof ExtractClassRefactoring) {
+			addPage(new ExtractClassInputPage((ExtractClassRefactoring)refactoring));
 		}
 	}
 	

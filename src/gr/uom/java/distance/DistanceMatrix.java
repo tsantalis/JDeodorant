@@ -6,6 +6,8 @@ import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.association.Association;
+import gr.uom.java.ast.util.math.Cluster;
+import gr.uom.java.ast.util.math.Clustering;
 
 import java.util.*;
 
@@ -449,125 +451,73 @@ public class DistanceMatrix {
     	}
     	return candidateRefactoringList;
     }
-/*
-    public List<ExtractAndMoveMethodCandidateRefactoring> getExtractAndMoveMethodCandidateRefactoringsByAccess() {
-    	List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-    	Iterator<MyClass> classIt = system.getClassIterator();
-        while(classIt.hasNext()) {
-            MyClass myClass = classIt.next();
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod method = methodIterator.next();
-                if(method.getMethodObject().getMethodBody() != null) {
-	                List<ExtractionBlock> extractionBlockList = method.getMethodObject().getMethodBody().generateExtractionBlocks();
-	                for(ExtractionBlock block : extractionBlockList) {
-	                	ExtractAndMoveMethodCandidateRefactoring candidate = 
-	                		new ExtractAndMoveMethodCandidateRefactoring(system,myClass,myClass,method,block,this);
-	                	extractMethodCandidateRefactoringList.add(candidate);
-	                }
-                }
-            }
-        }
 
-        List<ExtractAndMoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-        Map<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>> extractedMethodNameMap = new LinkedHashMap<String, ArrayList<ExtractAndMoveMethodCandidateRefactoring>>();
-        for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateRefactoringList) {
-        	String sourceClass = candidate.getSource();
-        	Set<String> entitySetI = candidate.getEntitySet();
-        	//ArrayList<String> contains the accessed entities per target class (key)
-			Map<String, ArrayList<String>> accessMap = new LinkedHashMap<String, ArrayList<String>>();
-			for(String e : entitySetI) {
-				String[] tokens = e.split("::");
-				String classOrigin = tokens[0];
-				String entityName = tokens[1];
-				if(accessMap.containsKey(classOrigin)) {
-					ArrayList<String> list = accessMap.get(classOrigin);
-					list.add(entityName);
-				}
-				else {
-					ArrayList<String> list = new ArrayList<String>();
-					list.add(entityName);
-					accessMap.put(classOrigin, list);
-				}
-			}
-			//ArrayList<String> contains the target classes from which key number of entities are accessed
-			TreeMap<Integer, ArrayList<String>> sortedByAccessMap = new TreeMap<Integer, ArrayList<String>>();
-			for(String targetClass : accessMap.keySet()) {
-				int numberOfAccessedEntities = accessMap.get(targetClass).size();
-				if(sortedByAccessMap.containsKey(numberOfAccessedEntities)) {
-					ArrayList<String> list = sortedByAccessMap.get(numberOfAccessedEntities);
-					list.add(targetClass);
-				}
-				else {
-					ArrayList<String> list = new ArrayList<String>();
-					list.add(targetClass);
-					sortedByAccessMap.put(numberOfAccessedEntities, list);
-				}
-			}
-			
-			boolean candidateFound = false;
-			boolean sourceClassIsTarget = false;
-			while(!candidateFound && !sourceClassIsTarget && !sortedByAccessMap.isEmpty()) {
-				ArrayList<String> targetClasses = sortedByAccessMap.get(sortedByAccessMap.lastKey());
-				//target classes are sorted by the distance of entity i from them
-				TreeMap<Double, ArrayList<String>> sortedByDistanceMap = new TreeMap<Double, ArrayList<String>>();
-				for(String targetClass : targetClasses) {
-					double distance = DistanceCalculator.getDistance(entitySetI, classMap.get(targetClass));
-					if(sortedByDistanceMap.containsKey(distance)) {
-						ArrayList<String> list = sortedByDistanceMap.get(distance);
-						list.add(targetClass);
-					}
-					else {
-						ArrayList<String> list = new ArrayList<String>();
-    					list.add(targetClass);
-    					sortedByDistanceMap.put(distance, list);
-					}
-				}
-				for(Double distance : sortedByDistanceMap.keySet()) {
-					ArrayList<String> targetClassesPerDistance = sortedByDistanceMap.get(distance);
-					for(String targetClass : targetClassesPerDistance) {
-    					if(sourceClass.equals(targetClass)) {
-    						sourceClassIsTarget = true;
-    					}
-    					else {
-    						MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
-    						ExtractAndMoveMethodCandidateRefactoring newCandidate = 
-                        		new ExtractAndMoveMethodCandidateRefactoring(system,candidate.getSourceClass(),myTargetClass,
-                        		candidate.getSourceMethod(),candidate.getExtractionBlock(),this);
-    						if(newCandidate.isApplicable()) {
-    							newCandidate.apply();
-    							candidateRefactoringList.add(newCandidate);
-                        		if(!extractedMethodNameMap.containsKey(newCandidate.getExtractionBlock().getExtractedMethodName()+myTargetClass.getName())) {
-        	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-        	                		list.add(newCandidate);
-        	                		extractedMethodNameMap.put(newCandidate.getExtractionBlock().getExtractedMethodName()+myTargetClass.getName(), list);
-        	                	}
-        	                	else {
-        	                		ArrayList<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(newCandidate.getExtractionBlock().getExtractedMethodName()+myTargetClass.getName());
-        	                		list.add(newCandidate);
-        	                	}
-                        		candidateFound = true;
+    public List<ExtractClassCandidateRefactoring> getExtractClassCandidateRefactorings(Set<String> classNamesToBeExamined, IProgressMonitor monitor) {
+    	List<ExtractClassCandidateRefactoring> candidateList = new ArrayList<ExtractClassCandidateRefactoring>();
+    	double entityPlacement0 = this.getSystemEntityPlacementValue();
+    	Iterator<MyClass> classIt = system.getClassIterator();
+    	ArrayList<MyClass> oldClasses = new ArrayList<MyClass>();
+
+    	while(classIt.hasNext()) {
+    		MyClass myClass = classIt.next();
+    		if(classNamesToBeExamined.contains(myClass.getName())) {
+    			oldClasses.add(myClass);
+    		}
+    	}
+    	if(monitor != null)
+    		monitor.beginTask("Identification and virtual application of Extract Class refactoring opportunities", oldClasses.size());
+
+    	for(MyClass sourceClass : oldClasses) {
+    		if(monitor != null && monitor.isCanceled())
+    			throw new OperationCanceledException();
+    		if (!sourceClass.getMethodList().isEmpty()
+    				&& !sourceClass.getAttributeList().isEmpty()) {
+    			ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
+    			double[][] distanceMatrix = candidate.getJaccardDistanceMatrix();
+    			ArrayList<Cluster> totalClusters = new ArrayList<Cluster>();
+    			ArrayList<Cluster> finalClusters = new ArrayList<Cluster>();
+    			for (double i = 0.0; i < 1.0; i += 0.1) {
+    				Clustering clustering = Clustering.getInstance(0,
+    						distanceMatrix, i);
+    				ArrayList<Entity> entities = new ArrayList<Entity>();
+    				entities.addAll(sourceClass.getAttributeList());
+    				entities.addAll(sourceClass.getMethodList());
+    				ArrayList<Cluster> clusters = clustering
+    				.clustering(entities);
+    				for (Cluster cluster : clusters) {
+    					if (cluster.getEntities().size() > 1) {
+    						if (!totalClusters.contains(cluster)) {
+    							finalClusters.add(cluster);
+    							totalClusters.add(cluster);
     						}
     					}
-					}
-					if(candidateFound || sourceClassIsTarget)
-						break;
-				}
-				sortedByAccessMap.remove(sortedByAccessMap.lastKey());
-			}
-        }
-
-        for(String extractedMethodName : extractedMethodNameMap.keySet()) {
-        	List<ExtractAndMoveMethodCandidateRefactoring> list = extractedMethodNameMap.get(extractedMethodName);
-        	if(list.size() > 1) {
-        		for(ExtractAndMoveMethodCandidateRefactoring candidate : list) {
-        			candidate.setDistinctExtractedMethodName();
-        		}
-        	}
-        }
-        return candidateRefactoringList;
+    				}
+    			}
+    			for (Cluster cluster : finalClusters) {
+    				candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
+    				for (Entity entity : cluster.getEntities()) {
+    					candidate.addEntity(entity);
+    				}
+    				if (candidate.isApplicable()) {
+    					candidate.apply();
+    					double entityPlacement1 = candidate
+    					.getEntityPlacement();
+    					double d = entityPlacement1 - entityPlacement0;
+    					if (d < 0) {
+    						candidateList.add(candidate);
+    					}
+    				}
+    			}
+    			// Clustering End
+    		}
+    		if(monitor != null)
+    			monitor.worked(1);
+    	}
+    	if(monitor != null)
+    		monitor.done();
+    	return candidateList;
     }
-*/
+
     public String[] getClassNames() {
         return classNames;
     }

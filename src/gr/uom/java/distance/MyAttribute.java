@@ -1,5 +1,7 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.FieldObject;
+
 import java.util.*;
 
 public class MyAttribute extends Entity {
@@ -10,6 +12,7 @@ public class MyAttribute extends Entity {
     private List<MyMethod> methodList;
     private boolean reference;
     private String access;
+    private FieldObject fieldObject;
     private volatile int hashCode = 0;
     private Set<String> newEntitySet;
 
@@ -21,6 +24,14 @@ public class MyAttribute extends Entity {
         this.reference = false;
         this.newEntitySet = null;
     }
+
+    public FieldObject getFieldObject() {
+		return fieldObject;
+	}
+
+	public void setFieldObject(FieldObject fieldObject) {
+		this.fieldObject = fieldObject;
+	}
 
     public String getAccess() {
         return access;
@@ -37,7 +48,12 @@ public class MyAttribute extends Entity {
     }
 
     public boolean containsMethod(MyMethod method) {
-    	return methodList.contains(method);
+    	if(newEntitySet != null) {
+    		return newEntitySet.contains(method.toString());
+    	}
+    	else {
+    		return methodList.contains(method);
+    	}
     }
 
     public void replaceMethod(MyMethod oldMethod, MyMethod newMethod) {
@@ -165,6 +181,15 @@ public class MyAttribute extends Entity {
         }
         return newAttribute;
     }
+
+	public Set<String> getFullEntitySet() {
+		Set<String> set = new HashSet<String>();
+		set.add(this.toString());
+            for(MyMethod method : methodList) {
+                set.add(method.toString());
+            }
+        return set;
+	}
 
     public void initializeNewEntitySet() {
     	if(newEntitySet == null)

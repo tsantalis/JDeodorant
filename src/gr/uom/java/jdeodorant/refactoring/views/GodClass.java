@@ -311,7 +311,9 @@ public class GodClass extends ViewPart {
 				candidateRefactoringTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
-				//saveResults();
+				for(TableColumn col : tableViewer.getTableTree().getTable().getColumns()) {
+					col.setWidth(250);
+				}
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");

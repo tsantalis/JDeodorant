@@ -22,15 +22,12 @@ import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
 
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
 import org.eclipse.core.commands.operations.OperationHistoryEvent;
-import org.eclipse.core.filebuffers.FileBuffers;
-import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -44,7 +41,6 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.operation.IRunnableWithProgress;
-import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -77,7 +73,7 @@ import org.eclipse.swt.SWT;
  */
 
 public class GodClass extends ViewPart {
-	private TableTreeViewer tableViewer;
+	private TreeViewer treeViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
@@ -256,25 +252,24 @@ public class GodClass extends ViewPart {
 	 * to create the viewer and initialize it.
 	 */
 	public void createPartControl(Composite parent) {
-		tableViewer = new TableTreeViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
-		tableViewer.setContentProvider(new ViewContentProvider());
-		tableViewer.setLabelProvider(new ViewLabelProvider());
-		tableViewer.setSorter(new NameSorter());
-		tableViewer.setInput(getViewSite());
-		tableViewer.getTableTree().setLayoutData(new GridData(GridData.FILL_BOTH));
-		Table table = tableViewer.getTableTree().getTable();
-		new TableColumn(table, SWT.LEFT).setText("Refactoring Type");
-		new TableColumn(table, SWT.LEFT).setText("Group Name");
-		new TableColumn(table, SWT.LEFT).setText("Source Entity");
-		new TableColumn(table, SWT.LEFT).setText("Entity Placement");
-		tableViewer.expandAll();
+		treeViewer = new TreeViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
+		treeViewer.setContentProvider(new ViewContentProvider());
+		treeViewer.setLabelProvider(new ViewLabelProvider());
+		treeViewer.setSorter(new NameSorter());
+		treeViewer.setInput(getViewSite());
+		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Refactoring Type");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Group Name");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Source Entity");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Entity Placement");
+		treeViewer.expandAll();
 
-		for (int i = 0, n = table.getColumnCount(); i < n; i++) {
-			table.getColumn(i).pack();
+		for (int i = 0, n = treeViewer.getTree().getColumnCount(); i < n; i++) {
+			treeViewer.getTree().getColumn(i).pack();
 		}
 
-		table.setLinesVisible(true);
-		table.setHeaderVisible(true);
+		treeViewer.getTree().setLinesVisible(true);
+		treeViewer.getTree().setHeaderVisible(true);
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -309,9 +304,9 @@ public class GodClass extends ViewPart {
 			public void run() {
 				CompilationUnitCache.getInstance().clearCache();
 				candidateRefactoringTable = getTable();
-				tableViewer.setContentProvider(new ViewContentProvider());
+				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
-				for(TableColumn col : tableViewer.getTableTree().getTable().getColumns()) {
+				for(TreeColumn col : treeViewer.getTree().getColumns()) {
 					col.setWidth(250);
 				}
 			}
@@ -323,7 +318,7 @@ public class GodClass extends ViewPart {
 
 		applyRefactoringAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
 				if(entry.getSourceClassTypeDeclaration() != null) {
 					IFile sourceFile = entry.getSourceIFile();
@@ -363,7 +358,7 @@ public class GodClass extends ViewPart {
 
 		doubleClickAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
 				CandidateRefactoring candidate = (CandidateRefactoring)selection.getFirstElement();
 				if(candidate.getSourceClassTypeDeclaration() != null) {
 					IFile sourceFile = candidate.getSourceIFile();
@@ -399,7 +394,7 @@ public class GodClass extends ViewPart {
 	}
 
 	private void hookDoubleClickAction() {
-		tableViewer.addDoubleClickListener(new IDoubleClickListener() {
+		treeViewer.addDoubleClickListener(new IDoubleClickListener() {
 			public void doubleClick(DoubleClickEvent event) {
 				doubleClickAction.run();
 			}
@@ -410,7 +405,7 @@ public class GodClass extends ViewPart {
 	 * Passing the focus request to the viewer's control.
 	 */
 	public void setFocus() {
-		tableViewer.getControl().setFocus();
+		treeViewer.getControl().setFocus();
 	}
 
 	private ExtractClassCandidatesGroup[] getTable() {

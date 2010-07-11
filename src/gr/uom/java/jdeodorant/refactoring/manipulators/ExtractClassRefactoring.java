@@ -488,7 +488,21 @@ public class ExtractClassRefactoring extends Refactoring {
 			List<Expression> thisExpressions = expressionExtractor.getThisExpressions(method.getBody());
 			for(Expression expression : thisExpressions) {
 				ThisExpression thisExpression = (ThisExpression)expression;
-				thisExpressionsToReplace.add(thisExpression);
+				if(thisExpression.getParent() instanceof FieldAccess) {
+					FieldAccess access = (FieldAccess)thisExpression.getParent();
+					if(!this.extractedFieldInstructions.containsKey(access.resolveFieldBinding())) {
+						thisExpressionsToReplace.add(thisExpression);
+					}
+				}
+				else if(thisExpression.getParent() instanceof MethodInvocation) {
+					MethodInvocation invocation = (MethodInvocation)thisExpression.getParent();
+					if(this.extractedMethodInvocations.containsKey(invocation)) {
+						thisExpressionsToReplace.add(thisExpression);
+					}
+				}
+				else {
+					thisExpressionsToReplace.add(thisExpression);
+				}
 			}
 
 			MethodDeclaration newMethod = (MethodDeclaration) ASTNode.copySubtree(
@@ -639,7 +653,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				List<Expression> newThisExpressions = expressionExtractor.getThisExpressions(newMethod.getBody());
 				for (ThisExpression oldThisExpression : thisExpressionsToReplace) {
 					for (Expression newThisExpression : newThisExpressions) {
-						if (oldThisExpression.subtreeMatch(new ASTMatcher(), newThisExpression)) {
+						if (oldThisExpression.getParent().subtreeMatch(new ASTMatcher(), newThisExpression.getParent())) {
 							ThisExpression thisExpression = (ThisExpression)newThisExpression;
 							targetRewriter.replace(thisExpression,
 									sourceClassParameter, null);

@@ -9,6 +9,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -92,6 +93,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 	private Set<TryStatement> tryStatementsToBeCopied;
 	private Map<TryStatement, ListRewrite> tryStatementBodyRewriteMap;
 	private List<CFGBranchDoLoopNode> doLoopNodes;
+	private Set<ITypeBinding> exceptionTypesThatShouldBeThrownByExtractedMethod;
 	
 	public ExtractMethodRefactoring(CompilationUnit sourceCompilationUnit, ASTSlice slice) {
 		this.slice = slice;
@@ -104,6 +106,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		this.tryStatementsToBeCopied = new LinkedHashSet<TryStatement>();
 		this.tryStatementBodyRewriteMap = new LinkedHashMap<TryStatement, ListRewrite>();
 		this.doLoopNodes = new ArrayList<CFGBranchDoLoopNode>();
+		this.exceptionTypesThatShouldBeThrownByExtractedMethod = new LinkedHashSet<ITypeBinding>();
 		for(PDGNode pdgNode : slice.getSliceNodes()) {
 			CFGNode cfgNode = pdgNode.getCFGNode();
 			if(cfgNode instanceof CFGBranchDoLoopNode) {
@@ -115,6 +118,13 @@ public class ExtractMethodRefactoring extends Refactoring {
 		List<Statement> tryStatements = statementExtractor.getTryStatements(sourceMethodDeclaration.getBody());
 		for(Statement tryStatement : tryStatements) {
 			processTryStatement((TryStatement)tryStatement);
+		}
+		for(Statement sliceStatement : slice.getSliceStatements()) {
+			Set<ITypeBinding> thrownExceptionTypes = getThrownExceptionTypes(sliceStatement);
+			if(thrownExceptionTypes.size() > 0) {
+				if(!isSurroundedByTryBlock(sliceStatement))
+					exceptionTypesThatShouldBeThrownByExtractedMethod.addAll(thrownExceptionTypes);
+			}
 		}
 	}
 
@@ -138,6 +148,16 @@ public class ExtractMethodRefactoring extends Refactoring {
 			tryStatementsToBeRemoved.add(tryStatement);
 		else if(sliceStatementThrowsException)
 			tryStatementsToBeCopied.add(tryStatement);
+	}
+
+	private boolean isSurroundedByTryBlock(Statement statement) {
+		ASTNode parent = statement.getParent();
+		while(!(parent instanceof MethodDeclaration)) {
+			if(parent instanceof TryStatement)
+				return true;
+			parent = parent.getParent();
+		}
+		return false;
 	}
 
 	public void apply() {
@@ -332,6 +352,10 @@ public class ExtractMethodRefactoring extends Refactoring {
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
 				parameterRewrite.insertLast(parameter, null);
 			}
+		}
+		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		for(ITypeBinding thrownExceptionType : exceptionTypesThatShouldBeThrownByExtractedMethod) {
+			thrownExceptionRewrite.insertLast(ast.newName(thrownExceptionType.getQualifiedName()), null);
 		}
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
@@ -632,6 +656,12 @@ public class ExtractMethodRefactoring extends Refactoring {
 				for(ITypeBinding typeBinding : exceptionTypes)
 					thrownExceptionTypes.add(typeBinding);
 			}
+		}
+		if(statement instanceof ThrowStatement) {
+			ThrowStatement throwStatement = (ThrowStatement)statement;
+			TypeVisitor typeVisitor = new TypeVisitor();
+			throwStatement.accept(typeVisitor);
+			thrownExceptionTypes.addAll(typeVisitor.getTypeBindings());
 		}
 		return thrownExceptionTypes;
 	}

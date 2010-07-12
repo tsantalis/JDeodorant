@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
+import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
 
@@ -86,6 +87,18 @@ public class PDGSliceUnion {
 			}
 		}
 		sliceNodes.addAll(nodesToBeAddedToSliceDueToBranchingNodes);
+		Set<PDGNode> throwStatementNodes = getThrowStatementNodesWithinRegion();
+		Set<PDGNode> nodesToBeAddedToSliceDueToThrowStatementNodes = new TreeSet<PDGNode>();
+		for(PDGNode throwNode : throwStatementNodes) {
+			for(PDGNode sliceNode : sliceNodes) {
+				if(sliceNode instanceof PDGControlPredicateNode && isNestedInside(throwNode, sliceNode)) {
+					Set<PDGNode> throwNodeSlice = subgraph.computeSlice(throwNode);
+					nodesToBeAddedToSliceDueToThrowStatementNodes.addAll(throwNodeSlice);
+					break;
+				}
+			}
+		}
+		sliceNodes.addAll(nodesToBeAddedToSliceDueToThrowStatementNodes);
 		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
 		remainingNodes.add(pdg.getEntryNode());
 		for(GraphNode node : pdg.nodes) {
@@ -101,6 +114,15 @@ public class PDGSliceUnion {
 				if(cfgNode instanceof CFGBranchLoopNode || cfgNode instanceof CFGBranchDoLoopNode) {
 					if(isNestedInside(remainingNode, innerMostLoopNode))
 						branchingNodesToBeAddedToDuplicatedNodesDueToRemainingNodesInsideLoops.add(branchingNode);
+				}
+			}
+		}
+		Set<PDGNode> throwStatementNodesToBeAddedToDuplicatedNodesDueToRemainingNodes = new TreeSet<PDGNode>();
+		for(PDGNode throwNode : throwStatementNodes) {
+			for(PDGNode remainingNode : remainingNodes) {
+				if(remainingNode.getId() != 0 && isNestedInside(throwNode, remainingNode)) {
+					throwStatementNodesToBeAddedToDuplicatedNodesDueToRemainingNodes.add(throwNode);
+					break;
 				}
 			}
 		}
@@ -160,11 +182,26 @@ public class PDGSliceUnion {
 				}
 			}
 		}
+		Set<PDGNode> throwStatementNodesToBeAddedToDuplicatedNodesDueToIndispensableNodes = new TreeSet<PDGNode>();
+		for(PDGNode throwNode : throwStatementNodes) {
+			for(PDGNode indispensableNode : indispensableNodes) {
+				if(isNestedInside(throwNode, indispensableNode)) {
+					throwStatementNodesToBeAddedToDuplicatedNodesDueToIndispensableNodes.add(throwNode);
+					break;
+				}
+			}
+		}
 		for(PDGNode branchingNode : branchingNodesToBeAddedToDuplicatedNodesDueToRemainingNodesInsideLoops) {
 			indispensableNodes.addAll(subgraph.computeSlice(branchingNode));
 		}
 		for(PDGNode branchingNode : branchingNodesToBeAddedToDuplicatedNodesDueToIndispensableNodesInsideLoops) {
 			indispensableNodes.addAll(subgraph.computeSlice(branchingNode));
+		}
+		for(PDGNode throwNode : throwStatementNodesToBeAddedToDuplicatedNodesDueToRemainingNodes) {
+			indispensableNodes.addAll(subgraph.computeSlice(throwNode));
+		}
+		for(PDGNode throwNode : throwStatementNodesToBeAddedToDuplicatedNodesDueToIndispensableNodes) {
+			indispensableNodes.addAll(subgraph.computeSlice(throwNode));
 		}
 		this.removableNodes = new LinkedHashSet<PDGNode>();
 		for(GraphNode node : pdg.nodes) {
@@ -198,6 +235,17 @@ public class PDGSliceUnion {
 			}
 		}
 		return map;
+	}
+
+	private Set<PDGNode> getThrowStatementNodesWithinRegion() {
+		Set<PDGNode> throwNodes = new LinkedHashSet<PDGNode>();
+		for(GraphNode node : subgraph.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.getASTStatement() instanceof ThrowStatement) {
+				throwNodes.add(pdgNode);
+			}
+		}
+		return throwNodes;
 	}
 
 	private PDGNode getInnerMostLoopNode(PDGNode node) {

@@ -377,7 +377,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				return null;
 			}
 		}
-		else if(node.getParent() instanceof MethodDeclaration) {
+		else if(node.getParent() instanceof MethodDeclaration || node.getParent() instanceof ArrayAccess) {
 			return null;
 		}
 		else {

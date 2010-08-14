@@ -23,9 +23,11 @@ public class CompositeStatementObject extends AbstractStatement {
 	
 	private List<AbstractStatement> statementList;
 	private List<AbstractExpression> expressionList;
+	private String type;
 
-	public CompositeStatementObject(Statement statement) {
+	public CompositeStatementObject(Statement statement, String type) {
 		super(statement);
+		this.type = type;
 		this.statementList = new ArrayList<AbstractStatement>();
 		this.expressionList = new ArrayList<AbstractExpression>();
 	}
@@ -46,5 +48,26 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<AbstractExpression> getExpressions() {
 		return expressionList;
+	}
+	
+	public List<String> stringRepresentation() {
+		List<String> stringRepresentation = new ArrayList<String>();
+		stringRepresentation.add(this.toString());
+		for(AbstractStatement statement : statementList) {
+			stringRepresentation.addAll(statement.stringRepresentation());
+		}
+		return stringRepresentation;
+	}
+
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(type);
+		if(expressionList.size() > 0) {
+			sb.append("(");
+			for(AbstractExpression expression : expressionList)
+				sb.append(expression.toString());
+			sb.append(")");
+		}
+		return sb.toString();
 	}
 }

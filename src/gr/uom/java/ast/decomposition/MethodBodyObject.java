@@ -49,7 +49,7 @@ public class MethodBodyObject {
 	private CompositeStatementObject compositeStatement;
 	
 	public MethodBodyObject(Block methodBody) {
-		this.compositeStatement = new CompositeStatementObject(methodBody);
+		this.compositeStatement = new CompositeStatementObject(methodBody, "{");
         List<Statement> statements = methodBody.statements();
 		for(Statement statement : statements) {
 			processStatement(compositeStatement, statement);
@@ -213,6 +213,14 @@ public class MethodBodyObject {
 		return compositeStatement.getInvokedMethodsThroughParameters();
 	}
 
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughFields() {
+		return compositeStatement.getNonDistinctInvokedMethodsThroughFields();
+	}
+
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughParameters() {
+		return compositeStatement.getNonDistinctInvokedMethodsThroughParameters();
+	}
+
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
 		return compositeStatement.getInvokedMethodsThroughLocalVariables();
 	}
@@ -233,12 +241,28 @@ public class MethodBodyObject {
 		return compositeStatement.getUsedFieldsThroughFields();
 	}
 
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughFields() {
+		return compositeStatement.getNonDistinctDefinedFieldsThroughFields();
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughFields() {
+		return compositeStatement.getNonDistinctUsedFieldsThroughFields();
+	}
+
 	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
 		return compositeStatement.getDefinedFieldsThroughParameters();
 	}
 
 	public Set<AbstractVariable> getUsedFieldsThroughParameters() {
 		return compositeStatement.getUsedFieldsThroughParameters();
+	}
+
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughParameters() {
+		return compositeStatement.getNonDistinctDefinedFieldsThroughParameters();
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughParameters() {
+		return compositeStatement.getNonDistinctUsedFieldsThroughParameters();
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
@@ -299,7 +323,7 @@ public class MethodBodyObject {
 		if(statement instanceof Block) {
 			Block block = (Block)statement;
 			List<Statement> blockStatements = block.statements();
-			CompositeStatementObject child = new CompositeStatementObject(block);
+			CompositeStatementObject child = new CompositeStatementObject(block, "{");
 			parent.addStatement(child);
 			for(Statement blockStatement : blockStatements) {
 				processStatement(child, blockStatement);
@@ -307,7 +331,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof IfStatement) {
 			IfStatement ifStatement = (IfStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(ifStatement);
+			CompositeStatementObject child = new CompositeStatementObject(ifStatement, "if");
 			AbstractExpression abstractExpression = new AbstractExpression(ifStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -318,7 +342,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ForStatement) {
 			ForStatement forStatement = (ForStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(forStatement);
+			CompositeStatementObject child = new CompositeStatementObject(forStatement, "for");
 			List<Expression> initializers = forStatement.initializers();
 			for(Expression initializer : initializers) {
 				AbstractExpression abstractExpression = new AbstractExpression(initializer);
@@ -339,7 +363,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof EnhancedForStatement) {
 			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(enhancedForStatement);
+			CompositeStatementObject child = new CompositeStatementObject(enhancedForStatement, "for");
 			SingleVariableDeclaration variableDeclaration = enhancedForStatement.getParameter();
 			AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName());
 			child.addExpression(variableDeclarationName);
@@ -354,7 +378,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof WhileStatement) {
 			WhileStatement whileStatement = (WhileStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(whileStatement);
+			CompositeStatementObject child = new CompositeStatementObject(whileStatement, "while");
 			AbstractExpression abstractExpression = new AbstractExpression(whileStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -362,7 +386,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof DoStatement) {
 			DoStatement doStatement = (DoStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(doStatement);
+			CompositeStatementObject child = new CompositeStatementObject(doStatement, "do");
 			AbstractExpression abstractExpression = new AbstractExpression(doStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -375,7 +399,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof SwitchStatement) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(switchStatement);
+			CompositeStatementObject child = new CompositeStatementObject(switchStatement, "switch");
 			AbstractExpression abstractExpression = new AbstractExpression(switchStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -395,7 +419,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof LabeledStatement) {
 			LabeledStatement labeledStatement = (LabeledStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(labeledStatement);
+			CompositeStatementObject child = new CompositeStatementObject(labeledStatement, labeledStatement.getLabel().getIdentifier());
 			parent.addStatement(child);
 			processStatement(child, labeledStatement.getBody());
 		}
@@ -406,7 +430,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof SynchronizedStatement) {
 			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement);
+			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement, "synchronized");
 			AbstractExpression abstractExpression = new AbstractExpression(synchronizedStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -419,7 +443,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof TryStatement) {
 			TryStatement tryStatement = (TryStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(tryStatement);
+			CompositeStatementObject child = new CompositeStatementObject(tryStatement, "try");
 			parent.addStatement(child);
 			processStatement(child, tryStatement.getBody());
 			List<CatchClause> catchClauses = tryStatement.catchClauses();
@@ -462,7 +486,7 @@ public class MethodBodyObject {
 		}
 	}
 
-	public String toString() {
-		return compositeStatement.toString();
+	public List<String> stringRepresentation() {
+		return compositeStatement.stringRepresentation();
 	}
 }

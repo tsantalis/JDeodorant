@@ -43,22 +43,7 @@ public class AbstractExpression extends AbstractMethodFragment {
     	return (Expression)this.expression.recoverASTNode();
     }
 
-	/*public boolean equals(Object o) {
-		if(this == o)
-			return true;
-
-		if(o instanceof AbstractExpression) {
-			AbstractExpression abstractExpression = (AbstractExpression)o;
-			return this.expression.equals(abstractExpression.expression);
-		}
-		return false;
-	}
-
-	public int hashCode() {
-		return expression.hashCode();
-	}*/
-
 	public String toString() {
-		return expression.toString();
+		return getExpression().toString();
 	}
 }

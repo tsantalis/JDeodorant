@@ -43,23 +43,6 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
     	//return statement;
     	return (Statement)this.statement.recoverASTNode();
     }
-
-	/*public boolean equals(Object o) {
-		if(this == o)
-    		return true;
-    	
-    	if(o instanceof AbstractStatement) {
-    		AbstractStatement abstractStatement = (AbstractStatement)o;
-    		return this.statement.equals(abstractStatement.statement);
-    	}
-    	return false;
-	}
-
-	public int hashCode() {
-		return statement.hashCode();
-	}*/
-
-	public String toString() {
-		return statement.toString();
-	}
+    
+    public abstract List<String> stringRepresentation();
 }

@@ -202,5 +202,15 @@
                label="Slice-based Cohesion Metrics...">
          </action>
       </objectContribution>
+      <objectContribution
+            adaptable="false"
+            id="gr.uom.java.jdeodorant.methodEvolution"
+            objectClass="org.eclipse.jdt.core.IMethod">
+         <action
+               class="gr.uom.java.jdeodorant.refactoring.views.MethodEvolutionAction"
+               id="gr.uom.java.jdeodorant.methodEvolutionAction"
+               label="Method Evolution...">
+         </action>
+      </objectContribution>
    </extension>
 </plugin>

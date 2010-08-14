@@ -1,5 +1,8 @@
 package gr.uom.java.ast.decomposition;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.jdt.core.dom.Statement;
 
 /*
@@ -21,5 +24,15 @@ public class StatementObject extends AbstractStatement {
 	
 	public StatementObject(Statement statement) {
 		super(statement);
+	}
+
+	public String toString() {
+		return getStatement().toString();
+	}
+
+	public List<String> stringRepresentation() {
+		List<String> stringRepresentation = new ArrayList<String>();
+		stringRepresentation.add(this.toString());
+		return stringRepresentation;
 	}
 }

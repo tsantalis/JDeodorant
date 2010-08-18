@@ -26,6 +26,8 @@ import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.history.MethodEvolution;
+import gr.uom.java.history.ProjectEvolution;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
@@ -54,6 +56,7 @@ import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
@@ -98,6 +101,7 @@ public class LongMethod extends ViewPart {
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private Action saveResultsAction;
+	private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
@@ -105,6 +109,7 @@ public class LongMethod extends ViewPart {
 	private IType selectedType;
 	private IMethod selectedMethod;
 	private ASTSlice[] sliceTable;
+	private MethodEvolution methodEvolution;
 	
 	class ViewContentProvider implements IStructuredContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
@@ -266,6 +271,7 @@ public class LongMethod extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -320,6 +326,7 @@ public class LongMethod extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		});
@@ -335,6 +342,7 @@ public class LongMethod extends ViewPart {
 		manager.add(applyRefactoringAction);
 		manager.add(renameMethodAction);
 		manager.add(saveResultsAction);
+		manager.add(evolutionAnalysisAction);
 	}
 
 	private void makeActions() {
@@ -346,6 +354,7 @@ public class LongMethod extends ViewPart {
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
+				evolutionAnalysisAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -362,6 +371,41 @@ public class LongMethod extends ViewPart {
 		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
+		
+		evolutionAnalysisAction = new Action() {
+			public void run() {
+				methodEvolution = null;
+				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				final ASTSlice slice = (ASTSlice)selection.getFirstElement();
+				try {
+					IWorkbench wb = PlatformUI.getWorkbench();
+					IProgressService ps = wb.getProgressService();
+					ps.busyCursorWhile(new IRunnableWithProgress() {
+						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+							ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
+							if(projectEvolution.getProjectEntries().size() > 1) {
+								methodEvolution = new MethodEvolution(projectEvolution, (IMethod)slice.getSourceMethodDeclaration().resolveBinding().getJavaElement(), monitor);
+							}
+						}
+					});
+					if(methodEvolution != null) {
+						EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), methodEvolution, "Method Evolution", false);
+						dialog.open();
+					}
+					else
+						MessageDialog.openInformation(getSite().getShell(), "Method Evolution",
+						"Method evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
+				} catch (InvocationTargetException e) {
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		};
+		evolutionAnalysisAction.setToolTipText("Evolution Analysis");
+		evolutionAnalysisAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+			getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		evolutionAnalysisAction.setEnabled(false);
 		
 		applyRefactoringAction = new Action() {
 			public void run() {

@@ -22,23 +22,35 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-public class MethodSimilarityEvolution {
+public class MethodEvolution implements Evolution {
 	private Map<ProjectVersionPair, String> methodSimilarityMap;
-	private Map<ProjectVersion, String> methodBodyMap;
+	private Map<ProjectVersionPair, String> methodChangeMap;
+	private Map<ProjectVersion, String> methodCodeMap;
 	private final DecimalFormat decimalFormat = new DecimalFormat("0.000");
 	
-	public MethodSimilarityEvolution(ProjectEvolution projectEvolution, String methodBindingKey, IProgressMonitor monitor) {
+	public MethodEvolution(ProjectEvolution projectEvolution, IMethod selectedMethod, IProgressMonitor monitor) {
 		this.methodSimilarityMap = new LinkedHashMap<ProjectVersionPair, String>();
-		this.methodBodyMap = new LinkedHashMap<ProjectVersion, String>();
+		this.methodChangeMap = new LinkedHashMap<ProjectVersionPair, String>();
+		this.methodCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
+		String declaringTypeName = selectedMethod.getDeclaringType().getFullyQualifiedName('.');
 		if(monitor != null)
-			monitor.beginTask("Comparing the selected method", projectEntries.size()-1);
+			monitor.beginTask("Comparing method " + selectedMethod.getElementName(), projectEntries.size()-1);
 		
 		try {
 			Entry<ProjectVersion, IJavaProject> currentEntry = projectEntries.get(0);
 			ProjectVersion currentProjectVersion = currentEntry.getKey();
 			IJavaProject currentProject = currentEntry.getValue();
-			IMethod currentMethod = (IMethod)currentProject.findElement(methodBindingKey, null);
+			IType currentType = currentProject.findType(declaringTypeName);
+			IMethod currentMethod = null;
+			if(currentType != null) {
+				for(IMethod method : currentType.getMethods()) {
+					if(method.isSimilar(selectedMethod)) {
+						currentMethod = method;
+						break;
+					}
+				}
+			}
 			List<String> currentStringRepresentation = getStringRepresentation(currentMethod, currentProjectVersion);
 			
 			for(int i=1; i<projectEntries.size(); i++) {
@@ -46,8 +58,17 @@ public class MethodSimilarityEvolution {
 				ProjectVersion nextProjectVersion = nextEntry.getKey();
 				IJavaProject nextProject = nextEntry.getValue();
 				if(monitor != null)
-					monitor.subTask("Comparing the selected method between versions " + currentProjectVersion + " and " + nextProjectVersion);
-				IMethod nextMethod = (IMethod)nextProject.findElement(methodBindingKey, null);
+					monitor.subTask("Comparing method " + selectedMethod.getElementName() + " between versions " + currentProjectVersion + " and " + nextProjectVersion);
+				IType nextType = nextProject.findType(declaringTypeName);
+				IMethod nextMethod = null;
+				if(nextType != null) {
+					for(IMethod method : nextType.getMethods()) {
+						if(method.isSimilar(selectedMethod)) {
+							nextMethod = method;
+							break;
+						}
+					}
+				}
 				List<String> nextStringRepresentation = getStringRepresentation(nextMethod, nextProjectVersion);
 				ProjectVersionPair pair = new ProjectVersionPair(currentProjectVersion, nextProjectVersion);
 				if(currentStringRepresentation != null && nextStringRepresentation != null) {
@@ -55,9 +76,12 @@ public class MethodSimilarityEvolution {
 					int maxSize = Math.max(currentStringRepresentation.size(), nextStringRepresentation.size());
 					double undirectedSimilarity = (double)(maxSize - editDistance)/(double)maxSize;
 					methodSimilarityMap.put(pair, decimalFormat.format(undirectedSimilarity));
+					double change = (double)editDistance/(double)maxSize;
+					methodChangeMap.put(pair, decimalFormat.format(change));
 				}
 				else {
 					methodSimilarityMap.put(pair, "N/A");
+					methodChangeMap.put(pair, "N/A");
 				}
 				currentProjectVersion = nextProjectVersion;
 				currentStringRepresentation = nextStringRepresentation;
@@ -92,7 +116,7 @@ public class MethodSimilarityEvolution {
 				}
 			}
 			if(matchingMethodDeclaration != null && matchingMethodDeclaration.getBody() != null) {
-				methodBodyMap.put(version, matchingMethodDeclaration.toString());
+				methodCodeMap.put(version, matchingMethodDeclaration.toString());
 				ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 				MethodBodyObject methodBody = new MethodBodyObject(matchingMethodDeclaration.getBody());
 				stringRepresentation = methodBody.stringRepresentation();
@@ -129,12 +153,16 @@ public class MethodSimilarityEvolution {
 		}
 		return d[a.size()][b.size()];
 	}
-	
-	public Set<Entry<ProjectVersionPair, String>> getMethodSimilarityEntries() {
+
+	public Set<Entry<ProjectVersionPair, String>> getSimilarityEntries() {
 		return methodSimilarityMap.entrySet();
 	}
-	
-	public String getMethodBody(ProjectVersion projectVersion) {
-		return methodBodyMap.get(projectVersion);
+
+	public Set<Entry<ProjectVersionPair, String>> getChangeEntries() {
+		return methodChangeMap.entrySet();
+	}
+
+	public String getCode(ProjectVersion projectVersion) {
+		return methodCodeMap.get(projectVersion);
 	}
 }

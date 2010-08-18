@@ -64,6 +64,7 @@ public class MethodBodyObject {
 		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
 		StatementExtractor statementExtractor = new StatementExtractor();
 		List<Statement> switchStatements = statementExtractor.getSwitchStatements(compositeStatement.getStatement());
+		List<CompositeStatementObject> switchCompositeStatements = compositeStatement.getSwitchStatements();
 		for(Statement statement : switchStatements) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
 			TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
@@ -124,9 +125,16 @@ public class MethodBodyObject {
 				}
 			}
 			typeCheckEliminations.add(typeCheckElimination);
+			for(CompositeStatementObject composite : switchCompositeStatements) {
+				if(composite.getStatement().toString().equals(switchStatement.toString())) {
+					typeCheckElimination.setTypeCheckCompositeStatement(composite);
+					break;
+				}
+			}
 		}
 		
 		List<Statement> ifStatements = statementExtractor.getIfStatements(compositeStatement.getStatement());
+		List<CompositeStatementObject> ifCompositeStatements = compositeStatement.getIfStatements();
 		TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
 		int i = 0;
 		for(Statement statement : ifStatements) {
@@ -161,12 +169,24 @@ public class MethodBodyObject {
 				if(!ifStatement.getParent().equals(nextIfStatement)) {
 					typeCheckElimination.setTypeCheckCodeFragment(ifStatement);
 					typeCheckEliminations.add(typeCheckElimination);
+					for(CompositeStatementObject composite : ifCompositeStatements) {
+						if(composite.getStatement().toString().equals(ifStatement.toString())) {
+							typeCheckElimination.setTypeCheckCompositeStatement(composite);
+							break;
+						}
+					}
 					typeCheckElimination = new TypeCheckElimination();
 				}
 			}
 			else {
 				typeCheckElimination.setTypeCheckCodeFragment(ifStatement);
 				typeCheckEliminations.add(typeCheckElimination);
+				for(CompositeStatementObject composite : ifCompositeStatements) {
+					if(composite.getStatement().toString().equals(ifStatement.toString())) {
+						typeCheckElimination.setTypeCheckCompositeStatement(composite);
+						break;
+					}
+				}
 			}
 			i++;
 		}

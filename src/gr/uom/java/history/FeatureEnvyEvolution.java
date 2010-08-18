@@ -5,6 +5,7 @@ import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -26,42 +27,72 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-public class FeatureEnvyEvolution {
+public class FeatureEnvyEvolution implements Evolution {
+	private Map<ProjectVersionPair, String> featureEnvySimilarityMap;
 	private Map<ProjectVersionPair, String> featureEnvyChangeMap;
+	private Map<ProjectVersion, String> methodCodeMap;
 	private final DecimalFormat decimalFormat = new DecimalFormat("0.000");
 	
-	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, String methodBindingKey, String targetClassName, IProgressMonitor monitor) {
+	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, MoveMethodCandidateRefactoring moveMethodRefactoring, IProgressMonitor monitor) {
+		this(projectEvolution, (IMethod)moveMethodRefactoring.getSourceMethodDeclaration().resolveBinding().getJavaElement(), moveMethodRefactoring.getTarget(), monitor);
+	}
+
+	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, IMethod sourceMethod, String targetClassName, IProgressMonitor monitor) {
+		this.featureEnvySimilarityMap = new LinkedHashMap<ProjectVersionPair, String>();
 		this.featureEnvyChangeMap = new LinkedHashMap<ProjectVersionPair, String>();
+		this.methodCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
+		String sourceClassName = sourceMethod.getDeclaringType().getFullyQualifiedName('.');
 		if(monitor != null)
-			monitor.beginTask("Comparing the selected method", projectEntries.size()-1);
+			monitor.beginTask("Comparing method " + sourceMethod.getElementName(), projectEntries.size()-1);
 		
 		try {
 			Entry<ProjectVersion, IJavaProject> currentEntry = projectEntries.get(0);
 			ProjectVersion currentProjectVersion = currentEntry.getKey();
 			IJavaProject currentProject = currentEntry.getValue();
-			IMethod currentMethod = (IMethod)currentProject.findElement(methodBindingKey, null);
-			int currentNumberOfEnviedElements = getNumberOfEnviedElements(currentMethod, targetClassName);
+			IType currentType = currentProject.findType(sourceClassName);
+			IMethod currentMethod = null;
+			if(currentType != null) {
+				for(IMethod method : currentType.getMethods()) {
+					if(method.isSimilar(sourceMethod)) {
+						currentMethod = method;
+						break;
+					}
+				}
+			}
+			int currentNumberOfEnviedElements = getNumberOfEnviedElements(currentMethod, targetClassName, currentProjectVersion);
 			
 			for(int i=1; i<projectEntries.size(); i++) {
 				Entry<ProjectVersion, IJavaProject> nextEntry = projectEntries.get(i);
 				ProjectVersion nextProjectVersion = nextEntry.getKey();
 				IJavaProject nextProject = nextEntry.getValue();
 				if(monitor != null)
-					monitor.subTask("Comparing the selected method between versions " + currentProjectVersion + " and " + nextProjectVersion);
-				IMethod nextMethod = (IMethod)nextProject.findElement(methodBindingKey, null);
-				int nextNumberOfEnviedElements = getNumberOfEnviedElements(nextMethod, targetClassName);
+					monitor.subTask("Comparing method " + sourceMethod.getElementName() + " between versions " + currentProjectVersion + " and " + nextProjectVersion);
+				IType nextType = nextProject.findType(sourceClassName);
+				IMethod nextMethod = null;
+				if(nextType != null) {
+					for(IMethod method : nextType.getMethods()) {
+						if(method.isSimilar(sourceMethod)) {
+							nextMethod = method;
+							break;
+						}
+					}
+				}
+				int nextNumberOfEnviedElements = getNumberOfEnviedElements(nextMethod, targetClassName, nextProjectVersion);
 				ProjectVersionPair pair = new ProjectVersionPair(currentProjectVersion, nextProjectVersion);
 				if(currentMethod != null && nextMethod != null) {
 					int maxNumberOfEnviedEntities = Math.max(currentNumberOfEnviedElements, nextNumberOfEnviedElements);
-					//double similarity = (double)(maxNumberOfEnviedEntities - Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements))/(double)maxNumberOfEnviedEntities;
+					double similarity = (double)(maxNumberOfEnviedEntities - Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements))/(double)maxNumberOfEnviedEntities;
+					featureEnvySimilarityMap.put(pair, decimalFormat.format(similarity));
 					double change = (double)Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements)/(double)maxNumberOfEnviedEntities;
 					featureEnvyChangeMap.put(pair, decimalFormat.format(change));
 				}
 				else {
+					featureEnvySimilarityMap.put(pair, "N/A");
 					featureEnvyChangeMap.put(pair, "N/A");
 				}
 				currentProjectVersion = nextProjectVersion;
+				currentMethod = nextMethod;
 				currentNumberOfEnviedElements = nextNumberOfEnviedElements;
 				if(monitor != null)
 					monitor.worked(1);
@@ -73,8 +104,8 @@ public class FeatureEnvyEvolution {
 			e.printStackTrace();
 		}
 	}
-	
-	private int getNumberOfEnviedElements(IMethod method, String targetClassName) {
+
+	private int getNumberOfEnviedElements(IMethod method, String targetClassName, ProjectVersion version) {
 		int numberOfEnviedElements = 0;
 		if(method != null) {
 			ICompilationUnit iCompilationUnit = method.getCompilationUnit();
@@ -94,6 +125,7 @@ public class FeatureEnvyEvolution {
 				}
 			}
 			if(matchingMethodDeclaration != null && matchingMethodDeclaration.getBody() != null) {
+				methodCodeMap.put(version, matchingMethodDeclaration.toString());
 				ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 				MethodBodyObject methodBody = new MethodBodyObject(matchingMethodDeclaration.getBody());
 				Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields = methodBody.getNonDistinctInvokedMethodsThroughFields();
@@ -135,7 +167,15 @@ public class FeatureEnvyEvolution {
 		return numberOfEnviedElements;
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getFeatureEnvyChangeEntries() {
+	public Set<Entry<ProjectVersionPair, String>> getSimilarityEntries() {
+		return featureEnvySimilarityMap.entrySet();
+	}
+
+	public Set<Entry<ProjectVersionPair, String>> getChangeEntries() {
 		return featureEnvyChangeMap.entrySet();
+	}
+
+	public String getCode(ProjectVersion projectVersion) {
+		return methodCodeMap.get(projectVersion);
 	}
 }

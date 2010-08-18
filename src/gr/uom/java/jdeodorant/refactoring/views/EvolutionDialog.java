@@ -3,7 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import gr.uom.java.history.MethodSimilarityEvolution;
+import gr.uom.java.history.Evolution;
 import gr.uom.java.history.ProjectVersion;
 import gr.uom.java.history.ProjectVersionPair;
 
@@ -26,67 +26,79 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.TableColumn;
 
-public class MethodSimilarityEvolutionDialog extends Dialog {
-	private MethodSimilarityEvolution methodSimilarityEvolution;
-	private TableViewer methodSimilarityTableViewer;
-	private MethodSimilarityRow[] methodSimilarityRows;
+public class EvolutionDialog extends Dialog {
+	private Evolution evolution;
+	private String dialogTitle;
+	private boolean displaySimilarity;
+	private TableViewer tableViewer;
+	private EvolutionRow[] evolutionRows;
 	
-	protected MethodSimilarityEvolutionDialog(IShellProvider parentShell, MethodSimilarityEvolution methodSimilarityEvolution) {
+	protected EvolutionDialog(IShellProvider parentShell, Evolution evolution, String dialogTitle, boolean displaySimilarity) {
 		super(parentShell);
-		this.methodSimilarityEvolution = methodSimilarityEvolution;
+		this.evolution = evolution;
+		this.dialogTitle = dialogTitle;
+		this.displaySimilarity = displaySimilarity;
 	}
 
 	protected Control createDialogArea(Composite parent) {
 		Composite composite = (Composite)super.createDialogArea(parent);
-		parent.getShell().setText("Method Similarity Evolution");
+		parent.getShell().setText(dialogTitle);
 		
-		methodSimilarityTableViewer = new TableViewer(composite, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
-		methodSimilarityTableViewer.setContentProvider(new MethodSimilarityViewContentProvider());
-		methodSimilarityTableViewer.setLabelProvider(new MethodSimilarityViewLabelProvider());
+		tableViewer = new TableViewer(composite, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
+		tableViewer.setContentProvider(new MethodSimilarityViewContentProvider());
+		tableViewer.setLabelProvider(new MethodSimilarityViewLabelProvider());
 		
 		TableLayout layout = new TableLayout();
 		
-		TableColumn fromVersionColumn = new TableColumn(methodSimilarityTableViewer.getTable(), SWT.CENTER);
+		TableColumn fromVersionColumn = new TableColumn(tableViewer.getTable(), SWT.CENTER);
 		fromVersionColumn.setText("version i");
 		fromVersionColumn.setResizable(false);
 		fromVersionColumn.pack();
 		
-		TableColumn toVersionColumn = new TableColumn(methodSimilarityTableViewer.getTable(), SWT.CENTER);
+		TableColumn toVersionColumn = new TableColumn(tableViewer.getTable(), SWT.CENTER);
 		toVersionColumn.setText("version j");
 		toVersionColumn.setResizable(false);
 		toVersionColumn.pack();
 		
-		TableColumn similarityColumn = new TableColumn(methodSimilarityTableViewer.getTable(), SWT.CENTER);
-		similarityColumn.setText("Similarity");
-		similarityColumn.setResizable(false);
-		similarityColumn.pack();
+		TableColumn percentageColumn = new TableColumn(tableViewer.getTable(), SWT.CENTER);
+		if(displaySimilarity)
+			percentageColumn.setText("Similarity");
+		else
+			percentageColumn.setText("Change");
+		percentageColumn.setResizable(false);
+		percentageColumn.pack();
 		
-		methodSimilarityTableViewer.getTable().setLayout(layout);
-		methodSimilarityTableViewer.getTable().setLinesVisible(true);
-		methodSimilarityTableViewer.getTable().setHeaderVisible(true);
+		tableViewer.getTable().setLayout(layout);
+		tableViewer.getTable().setLinesVisible(true);
+		tableViewer.getTable().setHeaderVisible(true);
 		
-		Set<Entry<ProjectVersionPair, String>> methodSimilarityEntries = methodSimilarityEvolution.getMethodSimilarityEntries();
-		methodSimilarityRows = new MethodSimilarityRow[methodSimilarityEntries.size()];
+		Set<Entry<ProjectVersionPair, String>> entries = null;
+		if(displaySimilarity)
+			entries = evolution.getSimilarityEntries();
+		else
+			entries = evolution.getChangeEntries();
+		
+		evolutionRows = new EvolutionRow[entries.size()];
 		int counter = 0;
-		for(Entry<ProjectVersionPair, String> methodSimilarityEntry : methodSimilarityEntries) {
-			MethodSimilarityRow row = new MethodSimilarityRow(methodSimilarityEntry.getKey(), methodSimilarityEntry.getValue());
-			methodSimilarityRows[counter] = row;
+		for(Entry<ProjectVersionPair, String> entry : entries) {
+			EvolutionRow row = new EvolutionRow(entry.getKey(), entry.getValue());
+			evolutionRows[counter] = row;
 			counter++;
 		}
-		methodSimilarityTableViewer.setInput(methodSimilarityRows);
+		tableViewer.setInput(evolutionRows);
 		
-		methodSimilarityTableViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+		tableViewer.addSelectionChangedListener(new ISelectionChangedListener() {
 			public void selectionChanged(SelectionChangedEvent event) {
 				IStructuredSelection selection = (IStructuredSelection)event.getSelectionProvider().getSelection();
-				MethodSimilarityRow row = (MethodSimilarityRow)selection.getFirstElement();
-				if(!row.getSimilarity().equals("1.000") && !row.getSimilarity().equals("N/A")) {
+				EvolutionRow row = (EvolutionRow)selection.getFirstElement();
+				if(!row.getPercentage().equals("N/A")) {
 					ProjectVersion fromProjectVersion = row.getProjectVersionPair().getFromVersion();
 					ProjectVersion toProjectVersion = row.getProjectVersionPair().getToVersion();
 					CompareConfiguration compareConfiguration = new CompareConfiguration();
 					compareConfiguration.setLeftLabel(fromProjectVersion.toString());
 					compareConfiguration.setRightLabel(toProjectVersion.toString());
 					CompareUI.openCompareDialog(new StringCompareEditorInput(compareConfiguration,
-							methodSimilarityEvolution.getMethodBody(fromProjectVersion), methodSimilarityEvolution.getMethodBody(toProjectVersion))); 
+							evolution.getCode(fromProjectVersion), evolution.getCode(toProjectVersion))); 
 				}
 			}
 		});
@@ -99,25 +111,25 @@ public class MethodSimilarityEvolutionDialog extends Dialog {
 		public void dispose() {
 		}
 		public Object[] getElements(Object parent) {
-			if(methodSimilarityRows != null) {
-				return methodSimilarityRows;
+			if(evolutionRows != null) {
+				return evolutionRows;
 			}
 			else {
-				return new MethodSimilarityRow[] {};
+				return new EvolutionRow[] {};
 			}
 		}
 	}
 	
 	class MethodSimilarityViewLabelProvider extends LabelProvider implements ITableLabelProvider {
 		public String getColumnText(Object obj, int index) {
-			MethodSimilarityRow entry = (MethodSimilarityRow)obj;
+			EvolutionRow entry = (EvolutionRow)obj;
 			switch(index){
 			case 0:
 				return entry.getProjectVersionPair().getFromVersion().toString();
 			case 1:
 				return entry.getProjectVersionPair().getToVersion().toString();
 			case 2:
-				return entry.getSimilarity();
+				return entry.getPercentage();
 			default:
 				return "";
 			}

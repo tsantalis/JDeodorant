@@ -5,6 +5,8 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.history.ProjectEvolution;
+import gr.uom.java.history.TypeCheckingEvolution;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
@@ -52,6 +54,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.*;
@@ -83,12 +86,14 @@ public class TypeChecking extends ViewPart {
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private Action saveResultsAction;
+	private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private TypeCheckElimination[] typeCheckEliminationTable;
+	private TypeCheckingEvolution typeCheckingEvolution;
 
 	/*
 	 * The content provider class is responsible for
@@ -236,6 +241,7 @@ public class TypeChecking extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -298,6 +304,7 @@ public class TypeChecking extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		});
@@ -313,6 +320,7 @@ public class TypeChecking extends ViewPart {
 		manager.add(applyRefactoringAction);
 		manager.add(renameMethodAction);
 		manager.add(saveResultsAction);
+		manager.add(evolutionAnalysisAction);
 	}
 
 	private void makeActions() {
@@ -324,6 +332,7 @@ public class TypeChecking extends ViewPart {
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
+				evolutionAnalysisAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -340,6 +349,41 @@ public class TypeChecking extends ViewPart {
 		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
+		
+		evolutionAnalysisAction = new Action() {
+			public void run() {
+				typeCheckingEvolution = null;
+				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				final TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
+				try {
+					IWorkbench wb = PlatformUI.getWorkbench();
+					IProgressService ps = wb.getProgressService();
+					ps.busyCursorWhile(new IRunnableWithProgress() {
+						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+							ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
+							if(projectEvolution.getProjectEntries().size() > 1) {
+								typeCheckingEvolution = new TypeCheckingEvolution(projectEvolution, typeCheckElimination, monitor);
+							}
+						}
+					});
+					if(typeCheckingEvolution != null) {
+						EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), typeCheckingEvolution, "Type Checking Evolution", false);
+						dialog.open();
+					}
+					else
+						MessageDialog.openInformation(getSite().getShell(), "Type Checking Evolution",
+						"Type Checking evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
+				} catch (InvocationTargetException e) {
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		};
+		evolutionAnalysisAction.setToolTipText("Evolution Analysis");
+		evolutionAnalysisAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+			getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		evolutionAnalysisAction.setEnabled(false);
 		
 		applyRefactoringAction = new Action() {
 			public void run() {

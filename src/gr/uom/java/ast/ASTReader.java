@@ -98,14 +98,16 @@ public class ASTReader {
 			for(ClassObject changedClassObject : changedClassObjects) {
 				systemObject.replaceClass(changedClassObject);
 			}
-			monitor.worked(1);
+			if(monitor != null)
+				monitor.worked(1);
 		}
 		for(ICompilationUnit addedCompilationUnit : addedCompilationUnits) {
 			List<ClassObject> addedClassObjects = parseAST(addedCompilationUnit);
 			for(ClassObject addedClassObject : addedClassObjects) {
 				systemObject.addClass(addedClassObject);
 			}
-			monitor.worked(1);
+			if(monitor != null)
+				monitor.worked(1);
 		}
 		instance.clearAffectedCompilationUnits();
 		if(monitor != null)

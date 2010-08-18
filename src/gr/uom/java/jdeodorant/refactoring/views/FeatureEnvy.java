@@ -9,6 +9,8 @@ import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
+import gr.uom.java.history.FeatureEnvyEvolution;
+import gr.uom.java.history.ProjectEvolution;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 
 import java.io.BufferedWriter;
@@ -54,6 +56,7 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
 import org.eclipse.ui.texteditor.ITextEditor;
@@ -95,12 +98,14 @@ public class FeatureEnvy extends ViewPart {
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private Action saveResultsAction;
+	private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private CandidateRefactoring[] candidateRefactoringTable;
+	private FeatureEnvyEvolution featureEnvyEvolution;
 
 	/*
 	 * The content provider class is responsible for
@@ -133,8 +138,6 @@ public class FeatureEnvy extends ViewPart {
 			case 0:
 				if(entry instanceof MoveMethodCandidateRefactoring)
 					return "Move Method";
-				/*else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring)
-					return "Extract and Move Method";*/
 				else
 					return "";
 			case 1:
@@ -224,6 +227,7 @@ public class FeatureEnvy extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -276,6 +280,7 @@ public class FeatureEnvy extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		});
@@ -297,6 +302,7 @@ public class FeatureEnvy extends ViewPart {
 		manager.add(applyRefactoringAction);
 		manager.add(renameMethodAction);
 		manager.add(saveResultsAction);
+		manager.add(evolutionAnalysisAction);
 	}
 
 	private void makeActions() {
@@ -308,6 +314,7 @@ public class FeatureEnvy extends ViewPart {
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
+				evolutionAnalysisAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -325,6 +332,44 @@ public class FeatureEnvy extends ViewPart {
 			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
 		
+		evolutionAnalysisAction = new Action() {
+			public void run() {
+				featureEnvyEvolution = null;
+				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
+				if(entry instanceof MoveMethodCandidateRefactoring) {
+					final MoveMethodCandidateRefactoring moveMethodRefactoring = (MoveMethodCandidateRefactoring)entry;
+					try {
+						IWorkbench wb = PlatformUI.getWorkbench();
+						IProgressService ps = wb.getProgressService();
+						ps.busyCursorWhile(new IRunnableWithProgress() {
+							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+								ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
+								if(projectEvolution.getProjectEntries().size() > 1) {
+									featureEnvyEvolution = new FeatureEnvyEvolution(projectEvolution, moveMethodRefactoring, monitor);
+								}
+							}
+						});
+						if(featureEnvyEvolution != null) {
+							EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), featureEnvyEvolution, "Feature Envy Evolution", false);
+							dialog.open();
+						}
+						else
+							MessageDialog.openInformation(getSite().getShell(), "Feature Envy Evolution",
+									"Feature Envy evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
+					} catch (InvocationTargetException e) {
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		};
+		evolutionAnalysisAction.setToolTipText("Evolution Analysis");
+		evolutionAnalysisAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+			getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		evolutionAnalysisAction.setEnabled(false);
+		
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
@@ -341,12 +386,6 @@ public class FeatureEnvy extends ViewPart {
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
 								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate(), candidate.getMovedMethodName());
 					}
-					/*else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
-						ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-						refactoring = new ExtractAndMoveMethodRefactoring(sourceFile, sourceCompilationUnit, targetCompilationUnit,
-								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
-								candidate.getASTExtractionBlock());
-					}*/
 					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
 					try { 
@@ -427,17 +466,6 @@ public class FeatureEnvy extends ViewPart {
 						tableViewer.refresh();
 					}
 				}
-				/*else if(entry instanceof ExtractAndMoveMethodCandidateRefactoring) {
-					ExtractAndMoveMethodCandidateRefactoring candidate = (ExtractAndMoveMethodCandidateRefactoring)entry;
-					String methodName = candidate.getExtractionBlock().getExtractedMethodName();
-					IInputValidator methodNameValidator = new MethodNameValidator();
-					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
-					dialog.open();
-					if(dialog.getValue() != null) {
-						candidate.getExtractionBlock().setExtractedMethodName(dialog.getValue());
-						tableViewer.refresh();
-					}
-				}*/
 			}
 		};
 		renameMethodAction.setToolTipText("Rename Method");
@@ -476,11 +504,6 @@ public class FeatureEnvy extends ViewPart {
 					if(entitySet.contains(candidate.getSourceEntity())/* && candidateRefactoring.getTarget().equals(candidate.getTarget())*/)
 						moveMethodPrerequisiteRefactorings.add(candidate);
 				}
-				/*else if(candidate instanceof ExtractAndMoveMethodCandidateRefactoring) {
-					ExtractAndMoveMethodCandidateRefactoring extractCandidate = (ExtractAndMoveMethodCandidateRefactoring)candidate;
-					if(extractCandidate.isSubRefactoringOf(candidateRefactoring))
-						extractMethodPrerequisiteRefactorings.add(candidate);
-				}*/
 			}
 		}
 		if(!moveMethodPrerequisiteRefactorings.isEmpty())
@@ -525,10 +548,6 @@ public class FeatureEnvy extends ViewPart {
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 			}
-			/*MMImportCoupling mmic = new MMImportCoupling(systemObject);
-			System.out.println("System Average MMIC: " + mmic.getSystemAverageCoupling());
-			ConnectivityMetric co = new ConnectivityMetric(systemObject);
-			System.out.println("System Average Connectivity: " + co.getSystemAverageConnectivity());*/
 			
 			final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
 			for(ClassObject classObject : classObjectsToBeExamined) {
@@ -548,31 +567,10 @@ public class FeatureEnvy extends ViewPart {
 					moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, monitor));
 				}
 			});
-		
-			/*List<ExtractAndMoveMethodCandidateRefactoring> extractMethodCandidateList = distanceMatrix.getExtractAndMoveMethodCandidateRefactoringsByAccess();
-		
-			List<ExtractAndMoveMethodCandidateRefactoring> finalExtractMethodCandidateList = new ArrayList<ExtractAndMoveMethodCandidateRefactoring>();
-			for(ExtractAndMoveMethodCandidateRefactoring candidate : extractMethodCandidateList) {
-				boolean subRefactoring = false;
-				for(ExtractAndMoveMethodCandidateRefactoring extractMethodCandidate : extractMethodCandidateList) {
-					if(candidate.isSubRefactoringOf(extractMethodCandidate) && candidate.getTargetClass().equals(extractMethodCandidate.getTargetClass())) {
-						subRefactoring = true;
-						System.out.println(candidate.toString() + "\tis sub-refactoring of\t" + extractMethodCandidate.toString());
-						break;
-					}
-				}
-				if(!subRefactoring) {
-					finalExtractMethodCandidateList.add(candidate);
-				}
-			}*/
-		
-			table = new CandidateRefactoring[moveMethodCandidateList.size() /*+ finalExtractMethodCandidateList.size()*/ + 1];
+			
+			table = new CandidateRefactoring[moveMethodCandidateList.size() + 1];
 			table[0] = new CurrentSystem(distanceMatrix);
 			int counter = 1;
-			/*for(ExtractAndMoveMethodCandidateRefactoring candidate : finalExtractMethodCandidateList) {
-				table[counter] = candidate;
-				counter++;
-			}*/
 			for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
 				table[counter] = candidate;
 				counter++;

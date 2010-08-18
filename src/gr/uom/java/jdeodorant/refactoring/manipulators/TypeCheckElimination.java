@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
@@ -55,6 +56,7 @@ public class TypeCheckElimination {
 	private MethodDeclaration typeFieldGetterMethod;
 	private MethodDeclaration typeFieldSetterMethod;
 	private Statement typeCheckCodeFragment;
+	private CompositeStatementObject typeCheckCompositeStatement;
 	private MethodDeclaration typeCheckMethod;
 	private TypeDeclaration typeCheckClass;
 	private IFile typeCheckIFile;
@@ -336,6 +338,14 @@ public class TypeCheckElimination {
 
 	public void setTypeCheckCodeFragment(Statement typeCheckCodeFragment) {
 		this.typeCheckCodeFragment = typeCheckCodeFragment;
+	}
+
+	public CompositeStatementObject getTypeCheckCompositeStatement() {
+		return typeCheckCompositeStatement;
+	}
+
+	public void setTypeCheckCompositeStatement(CompositeStatementObject typeCheckCompositeStatement) {
+		this.typeCheckCompositeStatement = typeCheckCompositeStatement;
 	}
 
 	public MethodDeclaration getTypeCheckMethod() {
@@ -1037,5 +1047,15 @@ public class TypeCheckElimination {
 
 	public void setAverageNumberOfStatementsInGroup(double averageNumberOfStatementsInGroup) {
 		this.averageNumberOfStatementsInGroup = averageNumberOfStatementsInGroup;
+	}
+
+	public boolean matches(TypeCheckElimination other) {
+		if(this.typeField != null && other.typeField != null)
+			return this.typeField.getName().getIdentifier().equals(other.typeField.getName().getIdentifier());
+		if(this.typeLocalVariable != null && other.typeLocalVariable != null)
+			return this.typeLocalVariable.getName().getIdentifier().equals(other.typeLocalVariable.getName().getIdentifier());
+		if(this.typeMethodInvocation != null && other.typeMethodInvocation != null)
+			return this.typeMethodInvocation.getName().getIdentifier().equals(other.typeMethodInvocation.getName().getIdentifier());
+		return false;
 	}
 }

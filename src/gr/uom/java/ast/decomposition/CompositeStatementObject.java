@@ -59,6 +59,32 @@ public class CompositeStatementObject extends AbstractStatement {
 		return stringRepresentation;
 	}
 
+	public List<CompositeStatementObject> getIfStatements() {
+		List<CompositeStatementObject> ifStatements = new ArrayList<CompositeStatementObject>();
+		if(this.type.equals("if"))
+			ifStatements.add(this);
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)statement;
+				ifStatements.addAll(composite.getIfStatements());
+			}
+		}
+		return ifStatements;
+	}
+
+	public List<CompositeStatementObject> getSwitchStatements() {
+		List<CompositeStatementObject> switchStatements = new ArrayList<CompositeStatementObject>();
+		if(this.type.equals("switch"))
+			switchStatements.add(this);
+		for(AbstractStatement statement : statementList) {
+			if(statement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)statement;
+				switchStatements.addAll(composite.getSwitchStatements());
+			}
+		}
+		return switchStatements;
+	}
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(type);

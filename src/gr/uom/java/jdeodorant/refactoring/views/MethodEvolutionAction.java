@@ -2,13 +2,14 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import java.lang.reflect.InvocationTargetException;
 
-import gr.uom.java.history.MethodSimilarityEvolution;
+import gr.uom.java.history.MethodEvolution;
 import gr.uom.java.history.ProjectEvolution;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jface.action.IAction;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -21,7 +22,7 @@ import org.eclipse.ui.progress.IProgressService;
 public class MethodEvolutionAction implements IObjectActionDelegate {
 	private IWorkbenchPart part;
 	private ISelection selection;
-	private MethodSimilarityEvolution methodSimilarityEvolution;
+	private MethodEvolution methodEvolution;
 	
 	public void run(IAction action) {
 		try {
@@ -29,6 +30,7 @@ public class MethodEvolutionAction implements IObjectActionDelegate {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 				Object element = structuredSelection.getFirstElement();
 				if(element instanceof IMethod) {
+					this.methodEvolution = null;
 					final IMethod method = (IMethod)element;
 					final IJavaProject selectedProject = method.getJavaProject();
 					IWorkbench wb = PlatformUI.getWorkbench();
@@ -36,13 +38,17 @@ public class MethodEvolutionAction implements IObjectActionDelegate {
 					ps.busyCursorWhile(new IRunnableWithProgress() {
 						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 							ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
-							methodSimilarityEvolution = new MethodSimilarityEvolution(projectEvolution, method.getKey(), monitor);
+							if(projectEvolution.getProjectEntries().size() > 1)
+								methodEvolution = new MethodEvolution(projectEvolution, method, monitor);
 						}
 					});
-					if(methodSimilarityEvolution != null) {
-						MethodSimilarityEvolutionDialog dialog = new MethodSimilarityEvolutionDialog(part.getSite().getWorkbenchWindow(), methodSimilarityEvolution);
+					if(methodEvolution != null) {
+						EvolutionDialog dialog = new EvolutionDialog(part.getSite().getWorkbenchWindow(), methodEvolution, "Method Similarity Evolution", true);
 						dialog.open();
 					}
+					else
+						MessageDialog.openInformation(part.getSite().getShell(), "Method Similarity Evolution",
+								"Method evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
 				}
 			}
 		} catch (InvocationTargetException e) {

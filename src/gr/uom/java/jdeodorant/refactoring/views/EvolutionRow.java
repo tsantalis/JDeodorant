@@ -2,20 +2,20 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.history.ProjectVersionPair;
 
-public class MethodSimilarityRow {
+public class EvolutionRow {
 	private ProjectVersionPair projectVersionPair;
-	private String similarity;
+	private String percentage;
 	
-	public MethodSimilarityRow(ProjectVersionPair projectVersionPair, String similarity) {
+	public EvolutionRow(ProjectVersionPair projectVersionPair, String percentage) {
 		this.projectVersionPair = projectVersionPair;
-		this.similarity = similarity;
+		this.percentage = percentage;
 	}
 
 	public ProjectVersionPair getProjectVersionPair() {
 		return projectVersionPair;
 	}
 
-	public String getSimilarity() {
-		return similarity;
+	public String getPercentage() {
+		return percentage;
 	}
 }

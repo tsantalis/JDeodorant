@@ -94,6 +94,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 	private Map<TryStatement, ListRewrite> tryStatementBodyRewriteMap;
 	private List<CFGBranchDoLoopNode> doLoopNodes;
 	private Set<ITypeBinding> exceptionTypesThatShouldBeThrownByExtractedMethod;
+	private boolean variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement;
 	
 	public ExtractMethodRefactoring(CompilationUnit sourceCompilationUnit, ASTSlice slice) {
 		this.slice = slice;
@@ -125,6 +126,15 @@ public class ExtractMethodRefactoring extends Refactoring {
 				if(!isSurroundedByTryBlock(sliceStatement))
 					exceptionTypesThatShouldBeThrownByExtractedMethod.addAll(thrownExceptionTypes);
 			}
+		}
+		this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = false;
+		Statement variableCriterionDeclarationStatement = slice.getVariableCriterionDeclarationStatement();
+		if(variableCriterionDeclarationStatement != null) {
+			int depthOfNestingForVariableCriterionDeclarationStatement = depthOfNesting(variableCriterionDeclarationStatement);
+			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+			int depthOfNestingForExtractedMethodInvocationInsertionStatement = depthOfNesting(extractedMethodInvocationInsertionStatement);
+			if(depthOfNestingForVariableCriterionDeclarationStatement > depthOfNestingForExtractedMethodInvocationInsertionStatement)
+				this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = true;
 		}
 	}
 
@@ -160,6 +170,16 @@ public class ExtractMethodRefactoring extends Refactoring {
 		return false;
 	}
 
+	private int depthOfNesting(Statement statement) {
+		int depthOfNesting = 0;
+		ASTNode parent = statement;
+		while(!(parent instanceof MethodDeclaration)) {
+			depthOfNesting++;
+			parent = parent.getParent();
+		}
+		return depthOfNesting;
+	}
+
 	public void apply() {
 		MultiTextEdit root = new MultiTextEdit();
 		compilationUnitChange.setEdit(root);
@@ -189,7 +209,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 		}
 		
 		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
-		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
+		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
+				!variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
@@ -219,7 +240,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
 			blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
 		}
-		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
+		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
+				!variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
 			if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment oldInitializationFragment = (VariableDeclarationFragment)returnedVariableDeclaration;
 				VariableDeclarationFragment newInitializationFragment = ast.newVariableDeclarationFragment();
@@ -247,6 +269,7 @@ public class ExtractMethodRefactoring extends Refactoring {
 		}
 		else {
 			//variable criterion is field, parameter, or local variable whose declaration does not belong to slice nodes
+			//or is nested in deeper level compared to the insertion point of the extracted method invocation
 			if(!slice.isObjectSlice()) {
 				Assignment assignment = ast.newAssignment();
 				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
@@ -309,8 +332,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
 		IVariableBinding returnedVariableBinding = returnedVariableDeclaration.resolveBinding();
-		if(slice.isObjectSlice() && (returnedVariableBinding.isField() || returnedVariableBinding.isParameter() ||
-				!slice.declarationOfVariableCriterionBelongsToSliceNodes()))
+		if((slice.isObjectSlice() && (returnedVariableBinding.isField() || returnedVariableBinding.isParameter() || !slice.declarationOfVariableCriterionBelongsToSliceNodes())) ||
+				variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement)
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
 		else
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnedVariableType, null);
@@ -384,8 +407,8 @@ public class ExtractMethodRefactoring extends Refactoring {
 			}
 		}
 		
-		if(!slice.isObjectSlice() || (!returnedVariableBinding.isField() && !returnedVariableBinding.isParameter() &&
-				slice.declarationOfVariableCriterionBelongsToSliceNodes())) {
+		if((!slice.isObjectSlice() || (!returnedVariableBinding.isField() && !returnedVariableBinding.isParameter() && slice.declarationOfVariableCriterionBelongsToSliceNodes())) &&
+				!variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
 			ReturnStatement returnStatement = newMethodBody.getAST().newReturnStatement();
 			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariableSimpleName, null);
 			methodBodyRewrite.insertLast(returnStatement, null);

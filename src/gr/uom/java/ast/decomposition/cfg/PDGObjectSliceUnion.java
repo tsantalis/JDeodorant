@@ -313,6 +313,14 @@ public class PDGObjectSliceUnion {
 		return removableNodes;
 	}
 
+	public PDGNode getDeclarationOfObjectReference() {
+		for(PDGNode pdgNode : sliceNodes) {
+			if(pdgNode.declaresLocalVariable(objectReference))
+				return pdgNode;
+		}
+		return null;
+	}
+
 	public boolean declarationOfObjectReferenceBelongsToSliceNodes() {
 		for(PDGNode node : sliceNodes) {
 			if(node.declaresLocalVariable(objectReference))

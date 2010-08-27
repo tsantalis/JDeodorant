@@ -5,9 +5,9 @@ import gr.uom.java.ast.TypeCheckCodeFragmentAnalyzer;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,14 +27,15 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class TypeCheckingEvolution implements Evolution {
-	private Map<ProjectVersionPair, String> typeCheckSimilarityMap;
-	private Map<ProjectVersionPair, String> typeCheckChangeMap;
+	private Map<ProjectVersionPair, Double> typeCheckSimilarityMap;
+	private Map<ProjectVersionPair, Double> typeCheckChangeMap;
+	private Map<ProjectVersionPair, Double> weightedMovingAverageMap;
 	private Map<ProjectVersion, String> typeCheckCodeMap;
-	private final DecimalFormat decimalFormat = new DecimalFormat("0.000");
 	
 	public TypeCheckingEvolution(ProjectEvolution projectEvolution, TypeCheckElimination selectedTypeCheckElimination, IProgressMonitor monitor) {
-		this.typeCheckSimilarityMap = new LinkedHashMap<ProjectVersionPair, String>();
-		this.typeCheckChangeMap = new LinkedHashMap<ProjectVersionPair, String>();
+		this.typeCheckSimilarityMap = new LinkedHashMap<ProjectVersionPair, Double>();
+		this.typeCheckChangeMap = new LinkedHashMap<ProjectVersionPair, Double>();
+		this.weightedMovingAverageMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.typeCheckCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
 		IMethod typeCheckMethod = (IMethod)selectedTypeCheckElimination.getTypeCheckMethod().resolveBinding().getJavaElement();
@@ -80,19 +81,20 @@ public class TypeCheckingEvolution implements Evolution {
 					int editDistance = editDistance(currentStringRepresentation, nextStringRepresentation);
 					int maxSize = Math.max(currentStringRepresentation.size(), nextStringRepresentation.size());
 					double undirectedSimilarity = (double)(maxSize - editDistance)/(double)maxSize;
-					typeCheckSimilarityMap.put(pair, decimalFormat.format(undirectedSimilarity));
+					typeCheckSimilarityMap.put(pair, undirectedSimilarity);
 					double change = (double)editDistance/(double)maxSize;
-					typeCheckChangeMap.put(pair, decimalFormat.format(change));
+					typeCheckChangeMap.put(pair, change);
 				}
 				else {
-					typeCheckSimilarityMap.put(pair, "N/A");
-					typeCheckChangeMap.put(pair, "N/A");
+					typeCheckSimilarityMap.put(pair, null);
+					typeCheckChangeMap.put(pair, null);
 				}
 				currentProjectVersion = nextProjectVersion;
 				currentStringRepresentation = nextStringRepresentation;
 				if(monitor != null)
 					monitor.worked(1);
 			}
+			computeWeightedMovingAverage();
 			if(monitor != null)
 				monitor.done();
 		}
@@ -180,11 +182,27 @@ public class TypeCheckingEvolution implements Evolution {
 		return d[a.size()][b.size()];
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getSimilarityEntries() {
+	private void computeWeightedMovingAverage() {
+		Set<ProjectVersionPair> validPairs = new LinkedHashSet<ProjectVersionPair>();
+		for(ProjectVersionPair pair : typeCheckChangeMap.keySet()) {
+			if(typeCheckChangeMap.get(pair) != null)
+				validPairs.add(pair);
+		}
+		int numberOfValidPairs = validPairs.size();
+		double denominator = (double)(numberOfValidPairs * (numberOfValidPairs + 1)) / 2.0;
+		int counter = 1;
+		for(ProjectVersionPair pair : validPairs) {
+			double weightedMovingAverage = (double)counter/denominator;
+			weightedMovingAverageMap.put(pair, weightedMovingAverage);
+			counter++;
+		}
+	}
+
+	public Set<Entry<ProjectVersionPair, Double>> getSimilarityEntries() {
 		return typeCheckSimilarityMap.entrySet();
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getChangeEntries() {
+	public Set<Entry<ProjectVersionPair, Double>> getChangeEntries() {
 		return typeCheckChangeMap.entrySet();
 	}
 

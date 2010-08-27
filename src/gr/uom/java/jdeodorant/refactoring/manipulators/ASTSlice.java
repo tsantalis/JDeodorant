@@ -38,6 +38,7 @@ public class ASTSlice {
 	private Set<Statement> duplicatedStatements;
 	private VariableDeclaration localVariableCriterion;
 	private Set<VariableDeclaration> passedParameters;
+	private Statement variableCriterionDeclarationStatement;
 	private Statement extractedMethodInvocationInsertionStatement;
 	private String extractedMethodName;
 	private boolean declarationOfVariableCriterionBelongsToSliceNodes;
@@ -82,6 +83,9 @@ public class ASTSlice {
 				}
 			}
 		}
+		PDGNode declarationOfVariableCriterionNode = pdgSlice.getDeclarationOfVariableCriterion();
+		if(declarationOfVariableCriterionNode != null)
+			this.variableCriterionDeclarationStatement = declarationOfVariableCriterionNode.getASTStatement();
 		this.extractedMethodInvocationInsertionStatement = pdgSlice.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSlice.declarationOfVariableCriterionBelongsToSliceNodes();
@@ -123,6 +127,9 @@ public class ASTSlice {
 				}
 			}
 		}
+		PDGNode declarationOfVariableCriterionNode = pdgSliceUnion.getDeclarationOfVariableCriterion();
+		if(declarationOfVariableCriterionNode != null)
+			this.variableCriterionDeclarationStatement = declarationOfVariableCriterionNode.getASTStatement();
 		this.extractedMethodInvocationInsertionStatement = pdgSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgSliceUnion.declarationOfVariableCriterionBelongsToSliceNodes();
@@ -164,6 +171,9 @@ public class ASTSlice {
 				}
 			}
 		}
+		PDGNode declarationOfObjectReferenceNode = pdgObjectSliceUnion.getDeclarationOfObjectReference();
+		if(declarationOfObjectReferenceNode != null)
+			this.variableCriterionDeclarationStatement = declarationOfObjectReferenceNode.getASTStatement();
 		this.extractedMethodInvocationInsertionStatement = pdgObjectSliceUnion.getExtractedMethodInvocationInsertionNode().getASTStatement();
 		this.extractedMethodName = localVariableCriterion.getName().getIdentifier();
 		this.declarationOfVariableCriterionBelongsToSliceNodes = pdgObjectSliceUnion.declarationOfObjectReferenceBelongsToSliceNodes();
@@ -200,6 +210,10 @@ public class ASTSlice {
 
 	public Set<Statement> getRemovableStatements() {
 		return removableStatements;
+	}
+
+	public Statement getVariableCriterionDeclarationStatement() {
+		return variableCriterionDeclarationStatement;
 	}
 
 	public Statement getExtractedMethodInvocationInsertionStatement() {

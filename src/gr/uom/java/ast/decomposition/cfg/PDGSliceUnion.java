@@ -308,6 +308,14 @@ public class PDGSliceUnion {
 		return removableNodes;
 	}
 
+	public PDGNode getDeclarationOfVariableCriterion() {
+		for(PDGNode pdgNode : sliceNodes) {
+			if(pdgNode.declaresLocalVariable(localVariableCriterion))
+				return pdgNode;
+		}
+		return null;
+	}
+
 	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
 		for(PDGNode node : sliceNodes) {
 			if(node.declaresLocalVariable(localVariableCriterion))

@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.text.DecimalFormat;
 import java.util.Set;
 import java.util.Map.Entry;
 
@@ -32,6 +33,7 @@ public class EvolutionDialog extends Dialog {
 	private boolean displaySimilarity;
 	private TableViewer tableViewer;
 	private EvolutionRow[] evolutionRows;
+	private final DecimalFormat decimalFormat = new DecimalFormat("0.000");
 	
 	protected EvolutionDialog(IShellProvider parentShell, Evolution evolution, String dialogTitle, boolean displaySimilarity) {
 		super(parentShell);
@@ -72,7 +74,7 @@ public class EvolutionDialog extends Dialog {
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
 		
-		Set<Entry<ProjectVersionPair, String>> entries = null;
+		Set<Entry<ProjectVersionPair, Double>> entries = null;
 		if(displaySimilarity)
 			entries = evolution.getSimilarityEntries();
 		else
@@ -80,8 +82,13 @@ public class EvolutionDialog extends Dialog {
 		
 		evolutionRows = new EvolutionRow[entries.size()];
 		int counter = 0;
-		for(Entry<ProjectVersionPair, String> entry : entries) {
-			EvolutionRow row = new EvolutionRow(entry.getKey(), entry.getValue());
+		for(Entry<ProjectVersionPair, Double> entry : entries) {
+			String value = null;
+			if(entry.getValue() != null)
+				value = decimalFormat.format(entry.getValue());
+			else
+				value = "N/A";
+			EvolutionRow row = new EvolutionRow(entry.getKey(), value);
 			evolutionRows[counter] = row;
 			counter++;
 		}

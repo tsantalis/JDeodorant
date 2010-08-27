@@ -7,9 +7,9 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,18 +28,19 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class FeatureEnvyEvolution implements Evolution {
-	private Map<ProjectVersionPair, String> featureEnvySimilarityMap;
-	private Map<ProjectVersionPair, String> featureEnvyChangeMap;
+	private Map<ProjectVersionPair, Double> featureEnvySimilarityMap;
+	private Map<ProjectVersionPair, Double> featureEnvyChangeMap;
+	private Map<ProjectVersionPair, Double> weightedMovingAverageMap;
 	private Map<ProjectVersion, String> methodCodeMap;
-	private final DecimalFormat decimalFormat = new DecimalFormat("0.000");
 	
 	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, MoveMethodCandidateRefactoring moveMethodRefactoring, IProgressMonitor monitor) {
 		this(projectEvolution, (IMethod)moveMethodRefactoring.getSourceMethodDeclaration().resolveBinding().getJavaElement(), moveMethodRefactoring.getTarget(), monitor);
 	}
 
 	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, IMethod sourceMethod, String targetClassName, IProgressMonitor monitor) {
-		this.featureEnvySimilarityMap = new LinkedHashMap<ProjectVersionPair, String>();
-		this.featureEnvyChangeMap = new LinkedHashMap<ProjectVersionPair, String>();
+		this.featureEnvySimilarityMap = new LinkedHashMap<ProjectVersionPair, Double>();
+		this.featureEnvyChangeMap = new LinkedHashMap<ProjectVersionPair, Double>();
+		this.weightedMovingAverageMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.methodCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
 		String sourceClassName = sourceMethod.getDeclaringType().getFullyQualifiedName('.');
@@ -83,13 +84,13 @@ public class FeatureEnvyEvolution implements Evolution {
 				if(currentMethod != null && nextMethod != null) {
 					int maxNumberOfEnviedEntities = Math.max(currentNumberOfEnviedElements, nextNumberOfEnviedElements);
 					double similarity = (double)(maxNumberOfEnviedEntities - Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements))/(double)maxNumberOfEnviedEntities;
-					featureEnvySimilarityMap.put(pair, decimalFormat.format(similarity));
+					featureEnvySimilarityMap.put(pair, similarity);
 					double change = (double)Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements)/(double)maxNumberOfEnviedEntities;
-					featureEnvyChangeMap.put(pair, decimalFormat.format(change));
+					featureEnvyChangeMap.put(pair, change);
 				}
 				else {
-					featureEnvySimilarityMap.put(pair, "N/A");
-					featureEnvyChangeMap.put(pair, "N/A");
+					featureEnvySimilarityMap.put(pair, null);
+					featureEnvyChangeMap.put(pair, null);
 				}
 				currentProjectVersion = nextProjectVersion;
 				currentMethod = nextMethod;
@@ -97,6 +98,7 @@ public class FeatureEnvyEvolution implements Evolution {
 				if(monitor != null)
 					monitor.worked(1);
 			}
+			computeWeightedMovingAverage();
 			if(monitor != null)
 				monitor.done();
 		}
@@ -167,11 +169,27 @@ public class FeatureEnvyEvolution implements Evolution {
 		return numberOfEnviedElements;
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getSimilarityEntries() {
+	private void computeWeightedMovingAverage() {
+		Set<ProjectVersionPair> validPairs = new LinkedHashSet<ProjectVersionPair>();
+		for(ProjectVersionPair pair : featureEnvyChangeMap.keySet()) {
+			if(featureEnvyChangeMap.get(pair) != null)
+				validPairs.add(pair);
+		}
+		int numberOfValidPairs = validPairs.size();
+		double denominator = (double)(numberOfValidPairs * (numberOfValidPairs + 1)) / 2.0;
+		int counter = 1;
+		for(ProjectVersionPair pair : validPairs) {
+			double weightedMovingAverage = (double)counter/denominator;
+			weightedMovingAverageMap.put(pair, weightedMovingAverage);
+			counter++;
+		}
+	}
+
+	public Set<Entry<ProjectVersionPair, Double>> getSimilarityEntries() {
 		return featureEnvySimilarityMap.entrySet();
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getChangeEntries() {
+	public Set<Entry<ProjectVersionPair, Double>> getChangeEntries() {
 		return featureEnvyChangeMap.entrySet();
 	}
 

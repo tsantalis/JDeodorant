@@ -186,6 +186,15 @@ public class PDGSlice extends Graph {
 		return edges.contains(edge);
 	}
 
+	public PDGNode getDeclarationOfVariableCriterion() {
+		PlainVariable plainVariable = localVariableCriterion.getInitialVariable();
+		for(PDGNode pdgNode : sliceNodes) {
+			if(pdgNode.declaresLocalVariable(plainVariable))
+				return pdgNode;
+		}
+		return null;
+	}
+
 	public boolean declarationOfVariableCriterionBelongsToSliceNodes() {
 		PlainVariable plainVariable = localVariableCriterion.getInitialVariable();
 		for(PDGNode pdgNode : sliceNodes) {

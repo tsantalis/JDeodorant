@@ -3,8 +3,8 @@ package gr.uom.java.history;
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
-import java.text.DecimalFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -23,14 +23,15 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class MethodEvolution implements Evolution {
-	private Map<ProjectVersionPair, String> methodSimilarityMap;
-	private Map<ProjectVersionPair, String> methodChangeMap;
+	private Map<ProjectVersionPair, Double> methodSimilarityMap;
+	private Map<ProjectVersionPair, Double> methodChangeMap;
+	private Map<ProjectVersionPair, Double> weightedMovingAverageMap;
 	private Map<ProjectVersion, String> methodCodeMap;
-	private final DecimalFormat decimalFormat = new DecimalFormat("0.000");
 	
 	public MethodEvolution(ProjectEvolution projectEvolution, IMethod selectedMethod, IProgressMonitor monitor) {
-		this.methodSimilarityMap = new LinkedHashMap<ProjectVersionPair, String>();
-		this.methodChangeMap = new LinkedHashMap<ProjectVersionPair, String>();
+		this.methodSimilarityMap = new LinkedHashMap<ProjectVersionPair, Double>();
+		this.methodChangeMap = new LinkedHashMap<ProjectVersionPair, Double>();
+		this.weightedMovingAverageMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.methodCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
 		String declaringTypeName = selectedMethod.getDeclaringType().getFullyQualifiedName('.');
@@ -75,19 +76,20 @@ public class MethodEvolution implements Evolution {
 					int editDistance = editDistance(currentStringRepresentation, nextStringRepresentation);
 					int maxSize = Math.max(currentStringRepresentation.size(), nextStringRepresentation.size());
 					double undirectedSimilarity = (double)(maxSize - editDistance)/(double)maxSize;
-					methodSimilarityMap.put(pair, decimalFormat.format(undirectedSimilarity));
+					methodSimilarityMap.put(pair, undirectedSimilarity);
 					double change = (double)editDistance/(double)maxSize;
-					methodChangeMap.put(pair, decimalFormat.format(change));
+					methodChangeMap.put(pair, change);
 				}
 				else {
-					methodSimilarityMap.put(pair, "N/A");
-					methodChangeMap.put(pair, "N/A");
+					methodSimilarityMap.put(pair, null);
+					methodChangeMap.put(pair, null);
 				}
 				currentProjectVersion = nextProjectVersion;
 				currentStringRepresentation = nextStringRepresentation;
 				if(monitor != null)
 					monitor.worked(1);
 			}
+			computeWeightedMovingAverage();
 			if(monitor != null)
 				monitor.done();
 		}
@@ -154,11 +156,27 @@ public class MethodEvolution implements Evolution {
 		return d[a.size()][b.size()];
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getSimilarityEntries() {
+	private void computeWeightedMovingAverage() {
+		Set<ProjectVersionPair> validPairs = new LinkedHashSet<ProjectVersionPair>();
+		for(ProjectVersionPair pair : methodChangeMap.keySet()) {
+			if(methodChangeMap.get(pair) != null)
+				validPairs.add(pair);
+		}
+		int numberOfValidPairs = validPairs.size();
+		double denominator = (double)(numberOfValidPairs * (numberOfValidPairs + 1)) / 2.0;
+		int counter = 1;
+		for(ProjectVersionPair pair : validPairs) {
+			double weightedMovingAverage = (double)counter/denominator;
+			weightedMovingAverageMap.put(pair, weightedMovingAverage);
+			counter++;
+		}
+	}
+
+	public Set<Entry<ProjectVersionPair, Double>> getSimilarityEntries() {
 		return methodSimilarityMap.entrySet();
 	}
 
-	public Set<Entry<ProjectVersionPair, String>> getChangeEntries() {
+	public Set<Entry<ProjectVersionPair, Double>> getChangeEntries() {
 		return methodChangeMap.entrySet();
 	}
 

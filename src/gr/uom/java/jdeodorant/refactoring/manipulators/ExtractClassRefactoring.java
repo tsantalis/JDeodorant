@@ -496,7 +496,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				}
 				else if(thisExpression.getParent() instanceof MethodInvocation) {
 					MethodInvocation invocation = (MethodInvocation)thisExpression.getParent();
-					if(this.extractedMethodInvocations.containsKey(invocation)) {
+					if(this.extractedMethodInvocations.containsKey(invocation) || !(invocation.getExpression() instanceof ThisExpression)) {
 						thisExpressionsToReplace.add(thisExpression);
 					}
 				}

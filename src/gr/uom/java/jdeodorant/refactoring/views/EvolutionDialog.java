@@ -58,7 +58,7 @@ public class EvolutionDialog extends Dialog {
 		fromVersionColumn.pack();
 		
 		TableColumn toVersionColumn = new TableColumn(tableViewer.getTable(), SWT.CENTER);
-		toVersionColumn.setText("version j");
+		toVersionColumn.setText("version i+1");
 		toVersionColumn.setResizable(false);
 		toVersionColumn.pack();
 		

@@ -7,7 +7,6 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -16,7 +15,10 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
@@ -30,18 +32,14 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 public class FeatureEnvyEvolution implements Evolution {
 	private Map<ProjectVersionPair, Double> featureEnvySimilarityMap;
 	private Map<ProjectVersionPair, Double> featureEnvyChangeMap;
-	private Map<ProjectVersionPair, Double> weightedMovingAverageMap;
 	private Map<ProjectVersion, String> methodCodeMap;
-	
-	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, MoveMethodCandidateRefactoring moveMethodRefactoring, IProgressMonitor monitor) {
-		this(projectEvolution, (IMethod)moveMethodRefactoring.getSourceMethodDeclaration().resolveBinding().getJavaElement(), moveMethodRefactoring.getTarget(), monitor);
-	}
 
-	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, IMethod sourceMethod, String targetClassName, IProgressMonitor monitor) {
+	public FeatureEnvyEvolution(ProjectEvolution projectEvolution, MoveMethodCandidateRefactoring moveMethodRefactoring, IProgressMonitor monitor) {
 		this.featureEnvySimilarityMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.featureEnvyChangeMap = new LinkedHashMap<ProjectVersionPair, Double>();
-		this.weightedMovingAverageMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.methodCodeMap = new LinkedHashMap<ProjectVersion, String>();
+		IMethod sourceMethod = (IMethod)moveMethodRefactoring.getSourceMethodDeclaration().resolveBinding().getJavaElement();
+		String targetClassName = moveMethodRefactoring.getTarget();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
 		String sourceClassName = sourceMethod.getDeclaringType().getFullyQualifiedName('.');
 		if(monitor != null)
@@ -51,10 +49,10 @@ public class FeatureEnvyEvolution implements Evolution {
 			Entry<ProjectVersion, IJavaProject> currentEntry = projectEntries.get(0);
 			ProjectVersion currentProjectVersion = currentEntry.getKey();
 			IJavaProject currentProject = currentEntry.getValue();
-			IType currentType = currentProject.findType(sourceClassName);
+			IType currentSourceType = currentProject.findType(sourceClassName);
 			IMethod currentMethod = null;
-			if(currentType != null) {
-				for(IMethod method : currentType.getMethods()) {
+			if(currentSourceType != null) {
+				for(IMethod method : currentSourceType.getMethods()) {
 					if(method.isSimilar(sourceMethod)) {
 						currentMethod = method;
 						break;
@@ -62,17 +60,24 @@ public class FeatureEnvyEvolution implements Evolution {
 				}
 			}
 			int currentNumberOfEnviedElements = getNumberOfEnviedElements(currentMethod, targetClassName, currentProjectVersion);
+			IType currentTargetType = currentProject.findType(targetClassName);
+			int currentNumberOfAccessibleElements = 0;
+			if(currentTargetType != null) {
+				currentNumberOfAccessibleElements = getNumberOfAccessibleMembers(currentTargetType);
+			}
 			
 			for(int i=1; i<projectEntries.size(); i++) {
+				if(monitor != null && monitor.isCanceled())
+	    			throw new OperationCanceledException();
 				Entry<ProjectVersion, IJavaProject> nextEntry = projectEntries.get(i);
 				ProjectVersion nextProjectVersion = nextEntry.getKey();
 				IJavaProject nextProject = nextEntry.getValue();
 				if(monitor != null)
 					monitor.subTask("Comparing method " + sourceMethod.getElementName() + " between versions " + currentProjectVersion + " and " + nextProjectVersion);
-				IType nextType = nextProject.findType(sourceClassName);
+				IType nextSourceType = nextProject.findType(sourceClassName);
 				IMethod nextMethod = null;
-				if(nextType != null) {
-					for(IMethod method : nextType.getMethods()) {
+				if(nextSourceType != null) {
+					for(IMethod method : nextSourceType.getMethods()) {
 						if(method.isSimilar(sourceMethod)) {
 							nextMethod = method;
 							break;
@@ -80,12 +85,18 @@ public class FeatureEnvyEvolution implements Evolution {
 					}
 				}
 				int nextNumberOfEnviedElements = getNumberOfEnviedElements(nextMethod, targetClassName, nextProjectVersion);
+				IType nextTargetType = nextProject.findType(targetClassName);
+				int nextNumberOfAccessibleElements = 0;
+				if(nextTargetType != null) {
+					nextNumberOfAccessibleElements = getNumberOfAccessibleMembers(nextTargetType);
+				}
+				
 				ProjectVersionPair pair = new ProjectVersionPair(currentProjectVersion, nextProjectVersion);
-				if(currentMethod != null && nextMethod != null) {
-					int maxNumberOfEnviedEntities = Math.max(currentNumberOfEnviedElements, nextNumberOfEnviedElements);
-					double similarity = (double)(maxNumberOfEnviedEntities - Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements))/(double)maxNumberOfEnviedEntities;
+				if(currentMethod != null && nextMethod != null && currentTargetType != null && nextTargetType != null) {
+					int maxNumberOfAccessibleEntities = Math.max(currentNumberOfAccessibleElements, nextNumberOfAccessibleElements);
+					double similarity = (double)(maxNumberOfAccessibleEntities - Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements))/(double)maxNumberOfAccessibleEntities;
 					featureEnvySimilarityMap.put(pair, similarity);
-					double change = (double)Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements)/(double)maxNumberOfEnviedEntities;
+					double change = (double)Math.abs(nextNumberOfEnviedElements-currentNumberOfEnviedElements)/(double)maxNumberOfAccessibleEntities;
 					featureEnvyChangeMap.put(pair, change);
 				}
 				else {
@@ -95,10 +106,11 @@ public class FeatureEnvyEvolution implements Evolution {
 				currentProjectVersion = nextProjectVersion;
 				currentMethod = nextMethod;
 				currentNumberOfEnviedElements = nextNumberOfEnviedElements;
+				currentTargetType = nextTargetType;
+				currentNumberOfAccessibleElements = nextNumberOfAccessibleElements;
 				if(monitor != null)
 					monitor.worked(1);
 			}
-			computeWeightedMovingAverage();
 			if(monitor != null)
 				monitor.done();
 		}
@@ -130,37 +142,37 @@ public class FeatureEnvyEvolution implements Evolution {
 				methodCodeMap.put(version, matchingMethodDeclaration.toString());
 				ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 				MethodBodyObject methodBody = new MethodBodyObject(matchingMethodDeclaration.getBody());
-				Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields = methodBody.getNonDistinctInvokedMethodsThroughFields();
-				for(AbstractVariable variable : nonDistinctInvokedMethodsThroughFields.keySet()) {
+				Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = methodBody.getInvokedMethodsThroughFields();
+				for(AbstractVariable variable : invokedMethodsThroughFields.keySet()) {
 					if(variable.getVariableType().equals(targetClassName) && variable instanceof PlainVariable) {
-						ArrayList<MethodInvocationObject> methodInvocations = nonDistinctInvokedMethodsThroughFields.get(variable);
+						LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(variable);
 						numberOfEnviedElements += methodInvocations.size();
 					}
 				}
-				Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughParameters = methodBody.getNonDistinctInvokedMethodsThroughParameters();
-				for(AbstractVariable variable : nonDistinctInvokedMethodsThroughParameters.keySet()) {
+				Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = methodBody.getInvokedMethodsThroughParameters();
+				for(AbstractVariable variable : invokedMethodsThroughParameters.keySet()) {
 					if(variable.getVariableType().equals(targetClassName) && variable instanceof PlainVariable) {
-						ArrayList<MethodInvocationObject> methodInvocations = nonDistinctInvokedMethodsThroughParameters.get(variable);
+						LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(variable);
 						numberOfEnviedElements += methodInvocations.size();
 					}
 				}
-				List<AbstractVariable> nonDistinctDefinedFieldsThroughFields = methodBody.getNonDistinctDefinedFieldsThroughFields();
-				for(AbstractVariable variable : nonDistinctDefinedFieldsThroughFields) {
+				Set<AbstractVariable> definedFieldsThroughFields = methodBody.getDefinedFieldsThroughFields();
+				for(AbstractVariable variable : definedFieldsThroughFields) {
 					if(variable.getVariableType().equals(targetClassName))
 						numberOfEnviedElements++;
 				}
-				List<AbstractVariable> nonDistinctUsedFieldsThroughFields = methodBody.getNonDistinctUsedFieldsThroughFields();
-				for(AbstractVariable variable : nonDistinctUsedFieldsThroughFields) {
+				Set<AbstractVariable> usedFieldsThroughFields = methodBody.getUsedFieldsThroughFields();
+				for(AbstractVariable variable : usedFieldsThroughFields) {
 					if(variable.getVariableType().equals(targetClassName))
 						numberOfEnviedElements++;
 				}
-				List<AbstractVariable> nonDistinctDefinedFieldsThroughParameters = methodBody.getNonDistinctDefinedFieldsThroughParameters();
-				for(AbstractVariable variable : nonDistinctDefinedFieldsThroughParameters) {
+				Set<AbstractVariable> definedFieldsThroughParameters = methodBody.getDefinedFieldsThroughParameters();
+				for(AbstractVariable variable : definedFieldsThroughParameters) {
 					if(variable.getVariableType().equals(targetClassName))
 						numberOfEnviedElements++;
 				}
-				List<AbstractVariable> nonDistinctUsedFieldsThroughParameters = methodBody.getNonDistinctUsedFieldsThroughParameters();
-				for(AbstractVariable variable : nonDistinctUsedFieldsThroughParameters) {
+				Set<AbstractVariable> usedFieldsThroughParameters = methodBody.getUsedFieldsThroughParameters();
+				for(AbstractVariable variable : usedFieldsThroughParameters) {
 					if(variable.getVariableType().equals(targetClassName))
 						numberOfEnviedElements++;
 				}
@@ -169,20 +181,19 @@ public class FeatureEnvyEvolution implements Evolution {
 		return numberOfEnviedElements;
 	}
 
-	private void computeWeightedMovingAverage() {
-		Set<ProjectVersionPair> validPairs = new LinkedHashSet<ProjectVersionPair>();
-		for(ProjectVersionPair pair : featureEnvyChangeMap.keySet()) {
-			if(featureEnvyChangeMap.get(pair) != null)
-				validPairs.add(pair);
+	private int getNumberOfAccessibleMembers(IType type) throws JavaModelException {
+		int accessibleMembers = 0;
+		for(IField field : type.getFields()) {
+			int flags = field.getFlags();
+			if(!Flags.isPrivate(flags) && !Flags.isStatic(flags))
+				accessibleMembers++;
 		}
-		int numberOfValidPairs = validPairs.size();
-		double denominator = (double)(numberOfValidPairs * (numberOfValidPairs + 1)) / 2.0;
-		int counter = 1;
-		for(ProjectVersionPair pair : validPairs) {
-			double weightedMovingAverage = (double)counter/denominator;
-			weightedMovingAverageMap.put(pair, weightedMovingAverage);
-			counter++;
+		for(IMethod method : type.getMethods()) {
+			int flags = method.getFlags();
+			if(!Flags.isPrivate(flags) && !Flags.isStatic(flags) && !method.isConstructor() && !method.isMainMethod())
+				accessibleMembers++;
 		}
+		return accessibleMembers;
 	}
 
 	public Set<Entry<ProjectVersionPair, Double>> getSimilarityEntries() {

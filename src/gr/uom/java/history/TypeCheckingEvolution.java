@@ -1,8 +1,7 @@
 package gr.uom.java.history;
 
-import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.TypeCheckCodeFragmentAnalyzer;
-import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.ArrayList;
@@ -13,189 +12,275 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IMethod;
-import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.ReturnStatement;
+import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchCase;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class TypeCheckingEvolution implements Evolution {
 	private Map<ProjectVersionPair, Double> typeCheckSimilarityMap;
 	private Map<ProjectVersionPair, Double> typeCheckChangeMap;
-	private Map<ProjectVersionPair, Double> weightedMovingAverageMap;
 	private Map<ProjectVersion, String> typeCheckCodeMap;
 	
 	public TypeCheckingEvolution(ProjectEvolution projectEvolution, TypeCheckElimination selectedTypeCheckElimination, IProgressMonitor monitor) {
 		this.typeCheckSimilarityMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.typeCheckChangeMap = new LinkedHashMap<ProjectVersionPair, Double>();
-		this.weightedMovingAverageMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.typeCheckCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
-		IMethod typeCheckMethod = (IMethod)selectedTypeCheckElimination.getTypeCheckMethod().resolveBinding().getJavaElement();
-		String typeCheckClassName = typeCheckMethod.getDeclaringType().getFullyQualifiedName('.');
 		if(monitor != null)
-			monitor.beginTask("Comparing method " + typeCheckMethod.getElementName(), projectEntries.size()-1);
-		
-		try {
-			Entry<ProjectVersion, IJavaProject> currentEntry = projectEntries.get(0);
-			ProjectVersion currentProjectVersion = currentEntry.getKey();
-			IJavaProject currentProject = currentEntry.getValue();
-			IType currentType = currentProject.findType(typeCheckClassName);
-			IMethod currentMethod = null;
-			if(currentType != null) {
-				for(IMethod method : currentType.getMethods()) {
-					if(method.isSimilar(typeCheckMethod)) {
-						currentMethod = method;
-						break;
-					}
-				}
+			monitor.beginTask("Comparing state/type checks", projectEntries.size()-1);
+
+		Entry<ProjectVersion, IJavaProject> currentEntry = projectEntries.get(0);
+		ProjectVersion currentProjectVersion = currentEntry.getKey();
+		IJavaProject currentProject = currentEntry.getValue();
+		List<TypeCheckElimination> currentTypeCheckEliminations = generateTypeCheckEliminationsWithinJavaProject(currentProject, selectedTypeCheckElimination);
+		StringBuilder currentStringBuilder = new StringBuilder();
+		int currentTypeCheckCounter = 1;
+		for(TypeCheckElimination elimination : currentTypeCheckEliminations) {
+			currentStringBuilder.append("## case " + currentTypeCheckCounter + " ##").append("\n");
+			currentStringBuilder.append(elimination.getTypeCheckCodeFragment().toString());
+			currentTypeCheckCounter++;
+		}
+		typeCheckCodeMap.put(currentProjectVersion, currentStringBuilder.toString());
+		int currentGroupSize = currentTypeCheckEliminations.size();
+
+		for(int i=1; i<projectEntries.size(); i++) {
+			if(monitor != null && monitor.isCanceled())
+    			throw new OperationCanceledException();
+			Entry<ProjectVersion, IJavaProject> nextEntry = projectEntries.get(i);
+			ProjectVersion nextProjectVersion = nextEntry.getKey();
+			IJavaProject nextProject = nextEntry.getValue();
+			if(monitor != null)
+				monitor.subTask("Comparing versions " + currentProjectVersion + " and " + nextProjectVersion);
+			List<TypeCheckElimination> nextTypeCheckEliminations = generateTypeCheckEliminationsWithinJavaProject(nextProject, selectedTypeCheckElimination);
+			StringBuilder nextStringBuilder = new StringBuilder();
+			int nextTypeCheckCounter = 1;
+			for(TypeCheckElimination elimination : nextTypeCheckEliminations) {
+				nextStringBuilder.append("## case " + nextTypeCheckCounter + " ##").append("\n");
+				nextStringBuilder.append(elimination.getTypeCheckCodeFragment().toString());
+				nextTypeCheckCounter++;
 			}
-			List<String> currentStringRepresentation = getTypeCheckingCodeFragment(currentMethod, selectedTypeCheckElimination, currentProjectVersion);
-			
-			for(int i=1; i<projectEntries.size(); i++) {
-				Entry<ProjectVersion, IJavaProject> nextEntry = projectEntries.get(i);
-				ProjectVersion nextProjectVersion = nextEntry.getKey();
-				IJavaProject nextProject = nextEntry.getValue();
-				if(monitor != null)
-					monitor.subTask("Comparing method " + typeCheckMethod.getElementName() + " between versions " + currentProjectVersion + " and " + nextProjectVersion);
-				IType nextType = nextProject.findType(typeCheckClassName);
-				IMethod nextMethod = null;
-				if(nextType != null) {
-					for(IMethod method : nextType.getMethods()) {
-						if(method.isSimilar(typeCheckMethod)) {
-							nextMethod = method;
-							break;
+			typeCheckCodeMap.put(nextProjectVersion, nextStringBuilder.toString());
+			int nextGroupSize = nextTypeCheckEliminations.size();
+
+			ProjectVersionPair pair = new ProjectVersionPair(currentProjectVersion, nextProjectVersion);
+			if(currentGroupSize != 0 || nextGroupSize != 0) {
+				int maxGroupSize = Math.max(currentGroupSize, nextGroupSize);
+				double similarity = (double)(maxGroupSize - Math.abs(nextGroupSize-currentGroupSize))/(double)maxGroupSize;
+				typeCheckSimilarityMap.put(pair, similarity);
+				double change = (double)Math.abs(nextGroupSize-currentGroupSize)/(double)maxGroupSize;
+				typeCheckChangeMap.put(pair, change);
+			}
+			else {
+				typeCheckSimilarityMap.put(pair, null);
+				typeCheckChangeMap.put(pair, null);
+			}
+			currentProjectVersion = nextProjectVersion;
+			currentGroupSize = nextGroupSize;
+			if(monitor != null)
+				monitor.worked(1);
+		}
+		if(monitor != null)
+			monitor.done();
+	}
+
+	private List<TypeCheckElimination> generateTypeCheckEliminationsWithinJavaProject(IJavaProject javaProject, TypeCheckElimination elimination) {
+		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		try {
+			IPackageFragmentRoot[] iPackageFragmentRoots = javaProject.getPackageFragmentRoots();
+			for(IPackageFragmentRoot iPackageFragmentRoot : iPackageFragmentRoots) {
+				IJavaElement[] children = iPackageFragmentRoot.getChildren();
+				for(IJavaElement child : children) {
+					if(child.getElementType() == IJavaElement.PACKAGE_FRAGMENT) {
+						IPackageFragment iPackageFragment = (IPackageFragment)child;
+						ICompilationUnit[] iCompilationUnits = iPackageFragment.getCompilationUnits();
+						for(ICompilationUnit iCompilationUnit : iCompilationUnits) {
+							ASTParser parser = ASTParser.newParser(AST.JLS3);
+					        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+					        parser.setSource(iCompilationUnit);
+					        parser.setResolveBindings(true); // we need bindings later on
+					        CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
+							typeCheckEliminations.addAll(generateTypeCheckEliminationsWithinCompilationUnit(compilationUnit, elimination));
 						}
 					}
 				}
-				List<String> nextStringRepresentation = getTypeCheckingCodeFragment(nextMethod, selectedTypeCheckElimination, nextProjectVersion);
-				ProjectVersionPair pair = new ProjectVersionPair(currentProjectVersion, nextProjectVersion);
-				if(currentStringRepresentation != null && nextStringRepresentation != null) {
-					int editDistance = editDistance(currentStringRepresentation, nextStringRepresentation);
-					int maxSize = Math.max(currentStringRepresentation.size(), nextStringRepresentation.size());
-					double undirectedSimilarity = (double)(maxSize - editDistance)/(double)maxSize;
-					typeCheckSimilarityMap.put(pair, undirectedSimilarity);
-					double change = (double)editDistance/(double)maxSize;
-					typeCheckChangeMap.put(pair, change);
-				}
-				else {
-					typeCheckSimilarityMap.put(pair, null);
-					typeCheckChangeMap.put(pair, null);
-				}
-				currentProjectVersion = nextProjectVersion;
-				currentStringRepresentation = nextStringRepresentation;
-				if(monitor != null)
-					monitor.worked(1);
 			}
-			computeWeightedMovingAverage();
-			if(monitor != null)
-				monitor.done();
-		}
-		catch(JavaModelException e) {
+		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+		return typeCheckEliminations;
 	}
 
-	private List<String> getTypeCheckingCodeFragment(IMethod method, TypeCheckElimination selectedTypeCheckElimination, ProjectVersion version) {
-		List<String> stringRepresentation = null;
-		if(method != null) {
-			ICompilationUnit iCompilationUnit = method.getCompilationUnit();
-			IFile iFile = (IFile)iCompilationUnit.getResource();
-			ASTParser parser = ASTParser.newParser(AST.JLS3);
-			parser.setKind(ASTParser.K_COMPILATION_UNIT);
-			parser.setSource(iCompilationUnit);
-			parser.setResolveBindings(true);
-			CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
-			IType declaringType = method.getDeclaringType();
-			TypeDeclaration typeDeclaration = (TypeDeclaration)compilationUnit.findDeclaringNode(declaringType.getKey());
-			MethodDeclaration matchingMethodDeclaration = null;
-			for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
-				IMethod resolvedMethod = (IMethod)methodDeclaration.resolveBinding().getJavaElement();
-				if(resolvedMethod.isSimilar(method)) {
-					matchingMethodDeclaration = methodDeclaration;
-					break;
-				}
-			}
-			if(matchingMethodDeclaration != null && matchingMethodDeclaration.getBody() != null) {
-				ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
-				MethodBodyObject methodBody = new MethodBodyObject(matchingMethodDeclaration.getBody());
-				List<TypeCheckElimination> finalTypeCheckEliminations = new ArrayList<TypeCheckElimination>();
-				List<TypeCheckElimination> initialTypeCheckEliminations = methodBody.generateTypeCheckEliminations();
-				for(TypeCheckElimination typeCheckElimination : initialTypeCheckEliminations) {
-    				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
-    					new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, matchingMethodDeclaration, iFile);
-    					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null || typeCheckElimination.getTypeMethodInvocation() != null) &&
-    							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
-    						finalTypeCheckEliminations.add(typeCheckElimination);
-    					}
-    				}
-				}
-				TypeCheckElimination matchingTypeCheckElimination = null;
-				for(TypeCheckElimination typeCheckElimination : finalTypeCheckEliminations) {
-					if(typeCheckElimination.matches(selectedTypeCheckElimination)) {
-						matchingTypeCheckElimination = typeCheckElimination;
-						break;
+	private List<TypeCheckElimination> generateTypeCheckEliminationsWithinCompilationUnit(CompilationUnit compilationUnit, TypeCheckElimination elimination) {
+		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		List<AbstractTypeDeclaration> topLevelTypeDeclarations = compilationUnit.types();
+        for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
+        	if(abstractTypeDeclaration instanceof TypeDeclaration) {
+        		TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+        		List<TypeDeclaration> typeDeclarations = new ArrayList<TypeDeclaration>();
+        		typeDeclarations.add(topLevelTypeDeclaration);
+        		TypeDeclaration[] types = topLevelTypeDeclaration.getTypes();
+        		for(TypeDeclaration type : types) {
+        			typeDeclarations.add(type);
+        		}
+        		for(TypeDeclaration typeDeclaration : typeDeclarations) {
+        			typeCheckEliminations.addAll(generateTypeCheckEliminationsWithinTypeDeclaration(typeDeclaration, elimination));
+        		}
+        	}
+        }
+        return typeCheckEliminations;
+	}
+
+	private List<TypeCheckElimination> generateTypeCheckEliminationsWithinTypeDeclaration(TypeDeclaration typeDeclaration, TypeCheckElimination originalTypeCheckElimination) {
+		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		for(MethodDeclaration method : typeDeclaration.getMethods()) {
+			Block methodBody = method.getBody();
+			if(methodBody != null) {
+				List<TypeCheckElimination> list = generateTypeCheckEliminationsWithinMethodBody(methodBody);
+				for(TypeCheckElimination typeCheckElimination : list) {
+					if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
+						TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, method, null);
+						if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null || typeCheckElimination.getTypeMethodInvocation() != null) &&
+								typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
+							if(originalTypeCheckElimination.matchingStatesOrSubTypes(typeCheckElimination))
+								typeCheckEliminations.add(typeCheckElimination);
+						}
 					}
 				}
-				if(matchingTypeCheckElimination != null) {
-					stringRepresentation = matchingTypeCheckElimination.getTypeCheckCompositeStatement().stringRepresentation();
-					typeCheckCodeMap.put(version, matchingTypeCheckElimination.getTypeCheckCodeFragment().toString());
-				}
 			}
 		}
-		return stringRepresentation;
+		return typeCheckEliminations;
 	}
 
-	private int editDistance(List<String> a, List<String> b) {
-		int[][] d = new int[a.size()+1][b.size()+1];
-		
-		for(int i=0; i<=a.size(); i++)
-			d[i][0] = i;
-		for(int j=0; j<=b.size(); j++)
-			d[0][j] = j;
-		
-		int j=1;
-		for(String s1 : b) {
-			int i = 1;
-			for(String s2 : a) {
-				if(s1.equals(s2))
-					d[i][j] = d[i-1][j-1];
+	private List<TypeCheckElimination> generateTypeCheckEliminationsWithinMethodBody(Block methodBody) {
+		List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<Statement> switchStatements = statementExtractor.getSwitchStatements(methodBody);
+		for(Statement statement : switchStatements) {
+			SwitchStatement switchStatement = (SwitchStatement)statement;
+			TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
+			typeCheckElimination.setTypeCheckCodeFragment(switchStatement);
+			List<Statement> statements = switchStatement.statements();
+			Expression switchCaseExpression = null;
+			boolean isDefaultCase = false;
+			Set<Expression> switchCaseExpressions = new LinkedHashSet<Expression>();
+			for(Statement statement2 : statements) {
+				if(statement2 instanceof SwitchCase) {
+					SwitchCase switchCase = (SwitchCase)statement2;
+					switchCaseExpression = switchCase.getExpression();
+					isDefaultCase = switchCase.isDefault();
+					if(!isDefaultCase)
+						switchCaseExpressions.add(switchCaseExpression);
+				}
 				else {
-					int deletion = d[i-1][j] + 1;
-					int insertion = d[i][j-1] + 1;
-					int substitution = d[i-1][j-1] + 1;
-					int min = Math.min(deletion, insertion);
-					min = Math.min(min, substitution);
-					d[i][j] = min;
+					if(statement2 instanceof Block) {
+						Block block = (Block)statement2;
+						List<Statement> blockStatements = block.statements();
+						for(Statement blockStatement : blockStatements) {
+							if(!(blockStatement instanceof BreakStatement)) {
+								for(Expression expression : switchCaseExpressions) {
+									typeCheckElimination.addTypeCheck(expression, blockStatement);
+								}
+								if(isDefaultCase) {
+									typeCheckElimination.addDefaultCaseStatement(blockStatement);
+								}
+							}
+						}
+						List<Statement> branchingStatements = statementExtractor.getBranchingStatements(statement2);
+						if(branchingStatements.size() > 0) {
+							for(Expression expression : switchCaseExpressions) {
+								if(!typeCheckElimination.containsTypeCheckExpression(expression))
+									typeCheckElimination.addEmptyTypeCheck(expression);
+							}
+							switchCaseExpressions.clear();
+						}
+					}
+					else {
+						if(!(statement2 instanceof BreakStatement)) {
+							for(Expression expression : switchCaseExpressions) {
+								typeCheckElimination.addTypeCheck(expression, statement2);
+							}
+							if(isDefaultCase) {
+								typeCheckElimination.addDefaultCaseStatement(statement2);
+							}
+						}
+						List<Statement> branchingStatements = statementExtractor.getBranchingStatements(statement2);
+						if(statement2 instanceof BreakStatement || statement2 instanceof ReturnStatement || branchingStatements.size() > 0) {
+							for(Expression expression : switchCaseExpressions) {
+								if(!typeCheckElimination.containsTypeCheckExpression(expression))
+									typeCheckElimination.addEmptyTypeCheck(expression);
+							}
+							switchCaseExpressions.clear();
+						}
+					}
 				}
-				i++;
 			}
-			j++;
+			typeCheckEliminations.add(typeCheckElimination);
 		}
-		return d[a.size()][b.size()];
-	}
 
-	private void computeWeightedMovingAverage() {
-		Set<ProjectVersionPair> validPairs = new LinkedHashSet<ProjectVersionPair>();
-		for(ProjectVersionPair pair : typeCheckChangeMap.keySet()) {
-			if(typeCheckChangeMap.get(pair) != null)
-				validPairs.add(pair);
+		List<Statement> ifStatements = statementExtractor.getIfStatements(methodBody);
+		TypeCheckElimination typeCheckElimination = new TypeCheckElimination();
+		int i = 0;
+		for(Statement statement : ifStatements) {
+			IfStatement ifStatement = (IfStatement)statement;
+			Expression ifExpression = ifStatement.getExpression();
+			Statement thenStatement = ifStatement.getThenStatement();
+			if(thenStatement instanceof Block) {
+				Block block = (Block)thenStatement;
+				List<Statement> statements = block.statements();
+				for(Statement statement2 : statements) {
+					typeCheckElimination.addTypeCheck(ifExpression, statement2);
+				}
+			}
+			else {
+				typeCheckElimination.addTypeCheck(ifExpression, thenStatement);
+			}
+			Statement elseStatement = ifStatement.getElseStatement();
+			if(elseStatement != null) {
+				if(elseStatement instanceof Block) {
+					Block block = (Block)elseStatement;
+					List<Statement> statements = block.statements();
+					for(Statement statement2 : statements) {
+						typeCheckElimination.addDefaultCaseStatement(statement2);
+					}
+				}
+				else if(!(elseStatement instanceof IfStatement)) {
+					typeCheckElimination.addDefaultCaseStatement(elseStatement);
+				}
+			}
+			if(ifStatements.size()-1 > i) {
+				IfStatement nextIfStatement = (IfStatement)ifStatements.get(i+1);
+				if(!ifStatement.getParent().equals(nextIfStatement)) {
+					typeCheckElimination.setTypeCheckCodeFragment(ifStatement);
+					typeCheckEliminations.add(typeCheckElimination);
+					typeCheckElimination = new TypeCheckElimination();
+				}
+			}
+			else {
+				typeCheckElimination.setTypeCheckCodeFragment(ifStatement);
+				typeCheckEliminations.add(typeCheckElimination);
+			}
+			i++;
 		}
-		int numberOfValidPairs = validPairs.size();
-		double denominator = (double)(numberOfValidPairs * (numberOfValidPairs + 1)) / 2.0;
-		int counter = 1;
-		for(ProjectVersionPair pair : validPairs) {
-			double weightedMovingAverage = (double)counter/denominator;
-			weightedMovingAverageMap.put(pair, weightedMovingAverage);
-			counter++;
-		}
+		return typeCheckEliminations;
 	}
 
 	public Set<Entry<ProjectVersionPair, Double>> getSimilarityEntries() {

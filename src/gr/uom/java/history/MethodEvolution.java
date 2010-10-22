@@ -4,13 +4,13 @@ import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
@@ -25,13 +25,11 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 public class MethodEvolution implements Evolution {
 	private Map<ProjectVersionPair, Double> methodSimilarityMap;
 	private Map<ProjectVersionPair, Double> methodChangeMap;
-	private Map<ProjectVersionPair, Double> weightedMovingAverageMap;
 	private Map<ProjectVersion, String> methodCodeMap;
 	
 	public MethodEvolution(ProjectEvolution projectEvolution, IMethod selectedMethod, IProgressMonitor monitor) {
 		this.methodSimilarityMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.methodChangeMap = new LinkedHashMap<ProjectVersionPair, Double>();
-		this.weightedMovingAverageMap = new LinkedHashMap<ProjectVersionPair, Double>();
 		this.methodCodeMap = new LinkedHashMap<ProjectVersion, String>();
 		List<Entry<ProjectVersion, IJavaProject>> projectEntries = projectEvolution.getProjectEntries();
 		String declaringTypeName = selectedMethod.getDeclaringType().getFullyQualifiedName('.');
@@ -55,6 +53,8 @@ public class MethodEvolution implements Evolution {
 			List<String> currentStringRepresentation = getStringRepresentation(currentMethod, currentProjectVersion);
 			
 			for(int i=1; i<projectEntries.size(); i++) {
+				if(monitor != null && monitor.isCanceled())
+	    			throw new OperationCanceledException();
 				Entry<ProjectVersion, IJavaProject> nextEntry = projectEntries.get(i);
 				ProjectVersion nextProjectVersion = nextEntry.getKey();
 				IJavaProject nextProject = nextEntry.getValue();
@@ -89,7 +89,6 @@ public class MethodEvolution implements Evolution {
 				if(monitor != null)
 					monitor.worked(1);
 			}
-			computeWeightedMovingAverage();
 			if(monitor != null)
 				monitor.done();
 		}
@@ -154,22 +153,6 @@ public class MethodEvolution implements Evolution {
 			j++;
 		}
 		return d[a.size()][b.size()];
-	}
-
-	private void computeWeightedMovingAverage() {
-		Set<ProjectVersionPair> validPairs = new LinkedHashSet<ProjectVersionPair>();
-		for(ProjectVersionPair pair : methodChangeMap.keySet()) {
-			if(methodChangeMap.get(pair) != null)
-				validPairs.add(pair);
-		}
-		int numberOfValidPairs = validPairs.size();
-		double denominator = (double)(numberOfValidPairs * (numberOfValidPairs + 1)) / 2.0;
-		int counter = 1;
-		for(ProjectVersionPair pair : validPairs) {
-			double weightedMovingAverage = (double)counter/denominator;
-			weightedMovingAverageMap.put(pair, weightedMovingAverage);
-			counter++;
-		}
 	}
 
 	public Set<Entry<ProjectVersionPair, Double>> getSimilarityEntries() {

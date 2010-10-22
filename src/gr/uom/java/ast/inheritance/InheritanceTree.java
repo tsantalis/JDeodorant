@@ -15,6 +15,17 @@ public class InheritanceTree {
         return rootNode;
     }
 
+    public boolean contains(String nodeName) {
+    	Enumeration<DefaultMutableTreeNode> e = rootNode.breadthFirstEnumeration();
+        while(e.hasMoreElements()) {
+            DefaultMutableTreeNode node = e.nextElement();
+            if(node.getUserObject().equals(nodeName)) {
+            	return true;
+            }
+        }
+        return false;
+    }
+
     public DefaultMutableTreeNode getNode(String nodeName) {
         if(rootNode != null) {
             Enumeration<DefaultMutableTreeNode> e = rootNode.breadthFirstEnumeration();

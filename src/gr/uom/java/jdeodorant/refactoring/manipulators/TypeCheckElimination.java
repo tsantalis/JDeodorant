@@ -1049,13 +1049,36 @@ public class TypeCheckElimination {
 		this.averageNumberOfStatementsInGroup = averageNumberOfStatementsInGroup;
 	}
 
-	public boolean matches(TypeCheckElimination other) {
-		if(this.typeField != null && other.typeField != null)
-			return this.typeField.getName().getIdentifier().equals(other.typeField.getName().getIdentifier());
-		if(this.typeLocalVariable != null && other.typeLocalVariable != null)
-			return this.typeLocalVariable.getName().getIdentifier().equals(other.typeLocalVariable.getName().getIdentifier());
-		if(this.typeMethodInvocation != null && other.typeMethodInvocation != null)
-			return this.typeMethodInvocation.getName().getIdentifier().equals(other.typeMethodInvocation.getName().getIdentifier());
+	public boolean matchingStatesOrSubTypes(TypeCheckElimination other) {
+		if(!this.staticFieldMap.isEmpty() && !other.staticFieldMap.isEmpty()) {
+			Set<String> originalStaticFields = new LinkedHashSet<String>();
+			for(List<SimpleName> staticFields : this.staticFieldMap.values()) {
+				for(SimpleName staticField : staticFields)
+					originalStaticFields.add(staticField.getIdentifier());
+			}
+			for(SimpleName staticField : this.additionalStaticFields) {
+				originalStaticFields.add(staticField.getIdentifier());
+			}
+			for(List<SimpleName> staticFields : other.staticFieldMap.values()) {
+				for(SimpleName staticField : staticFields) {
+					if(originalStaticFields.contains(staticField.getIdentifier()))
+						return true;
+				}
+			}
+		}
+		else if(!this.subclassTypeMap.isEmpty() && !other.subclassTypeMap.isEmpty()) {
+			InheritanceTree tree = null;
+			if(this.existingInheritanceTree != null)
+				tree = this.existingInheritanceTree;
+			if(this.inheritanceTreeMatchingWithStaticTypes != null && tree == null)
+				tree = this.inheritanceTreeMatchingWithStaticTypes;
+			for(List<Type> subTypes : other.subclassTypeMap.values()) {
+				for(Type subType : subTypes) {
+					if(tree.contains(subType.resolveBinding().getQualifiedName()))
+						return true;
+				}
+			}
+		}
 		return false;
 	}
 }

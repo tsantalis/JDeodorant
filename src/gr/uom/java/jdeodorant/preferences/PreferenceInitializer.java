@@ -26,6 +26,8 @@ public class PreferenceInitializer extends AbstractPreferenceInitializer {
 		store.setDefault(PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS, true);
 		store.setDefault(PreferenceConstants.P_PROJECT_COMPILATION_UNIT_CACHE_SIZE, 20);
 		store.setDefault(PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE, 50);
+		store.setDefault(PreferenceConstants.P_ENABLE_USAGE_REPORTING, true);
+		store.setDefault(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING, false);
 	}
 
 }

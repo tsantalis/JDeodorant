@@ -199,7 +199,8 @@ public class Indexer {
 	public LinkedHashSet<PlainVariable> getRecursivelyDefinedFields(String methodBindingKey,
 			Set<String> processedMethods) {
 		LinkedHashSet<PlainVariable> definedFields = new LinkedHashSet<PlainVariable>();
-		definedFields.addAll(definedFieldMap.get(methodBindingKey));
+		if(definedFieldMap.containsKey(methodBindingKey))
+			definedFields.addAll(definedFieldMap.get(methodBindingKey));
 		processedMethods.add(methodBindingKey);
 		LinkedHashSet<String> invokedMethods = methodInvocationMap.get(methodBindingKey);
 		if(invokedMethods != null) {
@@ -236,7 +237,8 @@ public class Indexer {
 	public LinkedHashSet<PlainVariable> getRecursivelyUsedFields(String methodBindingKey,
 			Set<String> processedMethods) {
 		LinkedHashSet<PlainVariable> usedFields = new LinkedHashSet<PlainVariable>();
-		usedFields.addAll(usedFieldMap.get(methodBindingKey));
+		if(usedFieldMap.containsKey(methodBindingKey))
+			usedFields.addAll(usedFieldMap.get(methodBindingKey));
 		processedMethods.add(methodBindingKey);
 		LinkedHashSet<String> invokedMethods = methodInvocationMap.get(methodBindingKey);
 		if(invokedMethods != null) {

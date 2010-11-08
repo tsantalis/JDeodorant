@@ -2,6 +2,10 @@ package gr.uom.java.jdeodorant.preferences;
 
 import org.eclipse.jface.preference.*;
 import org.eclipse.jface.util.PropertyChangeEvent;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.eclipse.ui.IWorkbench;
 import gr.uom.java.jdeodorant.refactoring.Activator;
@@ -33,11 +37,12 @@ public class PropertyManagerPreferencePage
 	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
 	private IntegerFieldEditor projectCompilationUnitCacheSizeFieldEditor;
 	private IntegerFieldEditor libraryCompilationUnitCacheSizeFieldEditor;
+	private BooleanFieldEditor enableUsageReportingFieldEditor;
+	private BooleanFieldEditor enableSourceCodeReportingFieldEditor;
 	
 	public PropertyManagerPreferencePage() {
 		super(GRID);
 		setPreferenceStore(Activator.getDefault().getPreferenceStore());
-		setDescription("Slice Extraction Preferences");
 	}
 	
 	/**
@@ -47,58 +52,79 @@ public class PropertyManagerPreferencePage
 	 * restore itself.
 	 */
 	public void createFieldEditors() {
+		Composite composite = new Composite(getFieldEditorParent(), SWT.NONE);
+		composite.setLayout(new GridLayout(1, false));
+		
+		Group sliceExtractionPreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
+		sliceExtractionPreferenceGroup.setLayout(new GridLayout(1, false));
+		sliceExtractionPreferenceGroup.setText("Slice Extraction Preferences");
+		
 		minimumSliceSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_MINIMUM_SLICE_SIZE,
-				"&Minimum number of slice statements:", getFieldEditorParent());
+				"&Minimum number of slice statements:", sliceExtractionPreferenceGroup);
 		minimumSliceSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(minimumSliceSizeFieldEditor);
 		
 		maximumSliceSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_MAXIMUM_SLICE_SIZE,
-				"&Maximum number of slice statements (method size - n):", getFieldEditorParent());
+				"&Maximum number of slice statements (method size - n):", sliceExtractionPreferenceGroup);
 		maximumSliceSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(maximumSliceSizeFieldEditor);
 		
 		maximumDuplicationFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_MAXIMUM_DUPLICATION,
-				"&Maximum number of duplicated statements:", getFieldEditorParent());
+				"&Maximum number of duplicated statements:", sliceExtractionPreferenceGroup);
 		maximumDuplicationFieldEditor.setEmptyStringAllowed(false);
 		addField(maximumDuplicationFieldEditor);
 		
 		maximumRatioOfDuplicatedToExtractedFieldEditor = new StringFieldEditor(
 				PreferenceConstants.P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED,
-				"&Maximum ratio of duplicated to extracted statements:", getFieldEditorParent());
+				"&Maximum ratio of duplicated to extracted statements:", sliceExtractionPreferenceGroup);
 		maximumRatioOfDuplicatedToExtractedFieldEditor.setEmptyStringAllowed(false);
 		addField(maximumRatioOfDuplicatedToExtractedFieldEditor);
 		
 		minimumMethodSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_MINIMUM_METHOD_SIZE,
-				"&Minimum number of statements in method:", getFieldEditorParent());
+				"&Minimum number of statements in method:", sliceExtractionPreferenceGroup);
 		minimumMethodSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(minimumMethodSizeFieldEditor);
 		
 		maximumCallGraphAnalysisDepthFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH,
-				"&Maximum depth of method call graph analysis:", getFieldEditorParent());
+				"&Maximum depth of method call graph analysis:", sliceExtractionPreferenceGroup);
 		maximumCallGraphAnalysisDepthFieldEditor.setEmptyStringAllowed(false);
 		addField(maximumCallGraphAnalysisDepthFieldEditor);
 		
 		enableAliasAnalysisFieldEditor = new BooleanFieldEditor(
 				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,
-				"&Enable Alias Analysis:", getFieldEditorParent());
+				"&Enable Alias Analysis", sliceExtractionPreferenceGroup);
 		addField(enableAliasAnalysisFieldEditor);
 		
 		projectCompilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_PROJECT_COMPILATION_UNIT_CACHE_SIZE,
-				"&Project CompilationUnit cache size:", getFieldEditorParent());
+				"&Project CompilationUnit cache size:", sliceExtractionPreferenceGroup);
 		projectCompilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(projectCompilationUnitCacheSizeFieldEditor);
 
 		libraryCompilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE,
-				"&Library CompilationUnit cache size:", getFieldEditorParent());
+				"&Library CompilationUnit cache size:", sliceExtractionPreferenceGroup);
 		libraryCompilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(libraryCompilationUnitCacheSizeFieldEditor);
+		
+		Group usageReportingGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
+		usageReportingGroup.setLayout(new GridLayout(1, false));
+		usageReportingGroup.setText("Usage Reporting");
+		
+		enableUsageReportingFieldEditor = new BooleanFieldEditor(
+				PreferenceConstants.P_ENABLE_USAGE_REPORTING,
+				"&Allow the JDeodorant team to receive your ratings and refactoring applications", usageReportingGroup);
+		addField(enableUsageReportingFieldEditor);
+		
+		enableSourceCodeReportingFieldEditor = new BooleanFieldEditor(
+				PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING,
+				"&Allow the JDeodorant team to receive source code related information", usageReportingGroup);
+		addField(enableSourceCodeReportingFieldEditor);
 	}
 
 	protected void checkState() {

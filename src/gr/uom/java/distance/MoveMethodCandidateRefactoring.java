@@ -35,6 +35,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     private Set<MyClass> changedClasses;
     private Set<MyMethod> oldMovedMethods;
     private Set<MyMethod> newMovedMethods;
+    private Integer userRate;
 
     public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, DistanceMatrix originalDistanceMatrix) {
         this.system = system;
@@ -406,5 +407,25 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
 		Position position = new Position(getSourceMethodDeclaration().getStartPosition(), getSourceMethodDeclaration().getLength());
 		positions.add(position);
 		return positions;
+	}
+
+	public int getNumberOfDistinctEnviedElements() {
+		int counter = 0;
+		for(String entity : getEntitySet()) {
+			String[] tokens = entity.split("::");
+			String classOrigin = tokens[0];
+			String entityName = tokens[1];
+			if(classOrigin.equals(targetClass.getName()))
+				counter++;
+		}
+		return counter;
+	}
+
+	public Integer getUserRate() {
+		return userRate;
+	}
+
+	public void setUserRate(Integer userRate) {
+		this.userRate = userRate;
 	}
 }

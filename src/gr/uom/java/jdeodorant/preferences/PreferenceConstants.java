@@ -22,4 +22,8 @@ public class PreferenceConstants {
 	public static final String P_PROJECT_COMPILATION_UNIT_CACHE_SIZE = "projectCompilationUnitCacheSize";
 	
 	public static final String P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE = "libraryCompilationUnitCacheSize";
+	
+	public static final String P_ENABLE_USAGE_REPORTING = "enableUsageReporting";
+	
+	public static final String P_ENABLE_SOURCE_CODE_REPORTING = "enableSourceCodeReporting";
 }

@@ -7,14 +7,21 @@ import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.history.ProjectEvolution;
 import gr.uom.java.history.TypeCheckingEvolution;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -46,6 +53,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -138,12 +146,29 @@ public class TypeChecking extends ViewPart {
 					return Integer.toString(typeCheckElimination.getGroupSizeAtClassLevel());
 				case 5:
 					return Double.toString(typeCheckElimination.getAverageNumberOfStatements());
+				case 6:
+					Integer userRate = typeCheckElimination.getUserRate();
+					return (userRate == null) ? "" : userRate.toString();
 				default:
 					return "";
 			}
 		}
 		public Image getColumnImage(Object obj, int index) {
-			return null;
+			TypeCheckElimination entry = (TypeCheckElimination)obj;
+			int rate = -1;
+			Integer userRate = entry.getUserRate();
+			if(userRate != null)
+				rate = userRate;
+			Image image = null;
+			switch(index) {
+			case 6:
+				if(rate != -1) {
+					image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+				}
+			default:
+	            break;
+			}
+			return image;
 		}
 		public Image getImage(Object obj) {
 			return null;
@@ -264,6 +289,7 @@ public class TypeChecking extends ViewPart {
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
@@ -291,6 +317,95 @@ public class TypeChecking extends ViewPart {
 		column5.setText("Average #statements per case");
 		column5.setResizable(true);
 		column5.pack();
+		
+		TableColumn column6 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column6.setText("Rate it!");
+		column6.setResizable(true);
+		column6.pack();
+		
+		tableViewer.setColumnProperties(new String[] {"type", "source", "methodName", "systemOccurrences", "classOccurrences", "averageStatements", "rate"});
+		tableViewer.setCellEditors(new CellEditor[] {
+				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
+				new ComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+		});
+		
+		tableViewer.setCellModifier(new ICellModifier() {
+			public boolean canModify(Object element, String property) {
+				return property.equals("rate");
+			}
+
+			public Object getValue(Object element, String property) {
+				if(element instanceof TypeCheckElimination) {
+					TypeCheckElimination elimination = (TypeCheckElimination)element;
+					if(elimination.getUserRate() != null)
+						return elimination.getUserRate();
+					else
+						return 0;
+				}
+				return 0;
+			}
+
+			public void modify(Object element, String property, Object value) {
+				TableItem item = (TableItem)element;
+				Object data = item.getData();
+				if(data instanceof TypeCheckElimination) {
+					TypeCheckElimination elimination = (TypeCheckElimination)data;
+					elimination.setUserRate((Integer)value);
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+					if(allowUsageReporting) {
+						Table table = tableViewer.getTable();
+						int rankingPosition = -1;
+						for(int i=0; i<table.getItemCount(); i++) {
+							TableItem tableItem = table.getItem(i);
+							if(tableItem.equals(item)) {
+								rankingPosition = i;
+								break;
+							}
+						}
+						try {
+							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+							String declaringClass = elimination.getTypeCheckClass().resolveBinding().getQualifiedName();
+							String methodName = elimination.getTypeCheckMethod().resolveBinding().toString();
+							String sourceMethodName = declaringClass + "::" + methodName;
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+							content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getGroupSizeAtSystemLevel()), "UTF-8");
+							content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getGroupSizeAtClassLevel()), "UTF-8");
+							content += "&" + URLEncoder.encode("average_statements_per_branch", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getAverageNumberOfStatements()), "UTF-8");
+							content += "&" + URLEncoder.encode("branches", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getTypeCheckExpressions().size()), "UTF-8");
+							int totalNumberOfStates = -1;
+							if(elimination.getExistingInheritanceTree() == null && elimination.getInheritanceTreeMatchingWithStaticTypes() == null)
+								totalNumberOfStates = elimination.getStaticFields().size() + elimination.getAdditionalStaticFields().size();
+							content += "&" + URLEncoder.encode("total_states", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalNumberOfStates), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
+							if(allowSourceCodeReporting)
+								content += "&" + URLEncoder.encode("conditional_code_fragment", "UTF-8") + "=" + URLEncoder.encode(elimination.getTypeCheckCodeFragment().toString(), "UTF-8");
+							content += "&" + URLEncoder.encode("rating", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getUserRate()), "UTF-8");
+							content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+							content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
+							URL url = new URL(Activator.RANK_URL);
+							URLConnection urlConn = url.openConnection();
+							urlConn.setDoInput(true);
+							urlConn.setDoOutput(true);
+							urlConn.setUseCaches(false);
+							urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+							printout.writeBytes(content);
+							printout.flush();
+							printout.close();
+							DataInputStream input = new DataInputStream(urlConn.getInputStream());
+							input.close();
+						} catch (IOException ioe) {
+							ioe.printStackTrace();
+						}
+					}
+					tableViewer.update(data, null);
+				}
+			}
+		});
+		
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -392,6 +507,57 @@ public class TypeChecking extends ViewPart {
 				TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
 				CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
 				IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
+				IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+				boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+				if(allowUsageReporting) {
+					Table table = tableViewer.getTable();
+					int rankingPosition = -1;
+					for(int i=0; i<table.getItemCount(); i++) {
+						TableItem tableItem = table.getItem(i);
+						if(tableItem.getData().equals(typeCheckElimination)) {
+							rankingPosition = i;
+							break;
+						}
+					}
+					try {
+						boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+						String declaringClass = typeCheckElimination.getTypeCheckClass().resolveBinding().getQualifiedName();
+						String methodName = typeCheckElimination.getTypeCheckMethod().resolveBinding().toString();
+						String sourceMethodName = declaringClass + "::" + methodName;
+						String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+						content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+						content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getGroupSizeAtSystemLevel()), "UTF-8");
+						content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getGroupSizeAtClassLevel()), "UTF-8");
+						content += "&" + URLEncoder.encode("average_statements_per_branch", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getAverageNumberOfStatements()), "UTF-8");
+						content += "&" + URLEncoder.encode("branches", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getTypeCheckExpressions().size()), "UTF-8");
+						int totalNumberOfStates = -1;
+						if(typeCheckElimination.getExistingInheritanceTree() == null && typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes() == null)
+							totalNumberOfStates = typeCheckElimination.getStaticFields().size() + typeCheckElimination.getAdditionalStaticFields().size();
+						content += "&" + URLEncoder.encode("total_states", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalNumberOfStates), "UTF-8");
+						content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
+						content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
+						if(allowSourceCodeReporting)
+							content += "&" + URLEncoder.encode("conditional_code_fragment", "UTF-8") + "=" + URLEncoder.encode(typeCheckElimination.getTypeCheckCodeFragment().toString(), "UTF-8");
+						content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode(String.valueOf("1"), "UTF-8");
+						content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(typeCheckElimination.getAbstractMethodName(), "UTF-8");
+						content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+						content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
+						URL url = new URL(Activator.RANK_URL);
+						URLConnection urlConn = url.openConnection();
+						urlConn.setDoInput(true);
+						urlConn.setDoOutput(true);
+						urlConn.setUseCaches(false);
+						urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+						DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+						printout.writeBytes(content);
+						printout.flush();
+						printout.close();
+						DataInputStream input = new DataInputStream(urlConn.getInputStream());
+						input.close();
+					} catch (IOException ioe) {
+						ioe.printStackTrace();
+					}
+				}
 				Refactoring refactoring = null;
 				if(typeCheckElimination.getExistingInheritanceTree() == null) {
 					refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);

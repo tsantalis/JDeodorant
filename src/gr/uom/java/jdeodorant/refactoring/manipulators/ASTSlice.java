@@ -1,5 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.cfg.BasicBlock;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnion;
@@ -51,6 +53,7 @@ public class ASTSlice {
 	private int maximumNumberOfExtractedStatementsInGroup;
 	private double averageNumberOfDuplicatedStatementsInGroup;
 	private double averageDuplicationRatioInGroup;
+	private Integer userRate;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
 		this.sourceMethodDeclaration = pdgSlice.getMethod().getMethodDeclaration();
@@ -389,5 +392,25 @@ public class ASTSlice {
 
 	public void setAverageDuplicationRatioInGroup(double averageDuplicationRatioInGroup) {
 		this.averageDuplicationRatioInGroup = averageDuplicationRatioInGroup;
+	}
+
+	public String sliceToString() {
+		StringBuilder sb = new StringBuilder();
+		for(PDGNode sliceNode : sliceNodes) {
+			AbstractStatement statement = sliceNode.getStatement();
+			if(statement instanceof CompositeStatementObject)
+				sb.append(sliceNode.getStatement().toString()).append("\n");
+			else
+				sb.append(sliceNode.getStatement().toString());
+		}
+		return sb.toString();
+	}
+
+	public Integer getUserRate() {
+		return userRate;
+	}
+
+	public void setUserRate(Integer userRate) {
+		this.userRate = userRate;
 	}
 }

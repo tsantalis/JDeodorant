@@ -11,12 +11,19 @@ import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
 import gr.uom.java.history.FeatureEnvyEvolution;
 import gr.uom.java.history.ProjectEvolution;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 
 import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -39,6 +46,7 @@ import org.eclipse.core.commands.operations.OperationHistoryEvent;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
@@ -146,13 +154,36 @@ public class FeatureEnvy extends ViewPart {
 				return entry.getTarget();
 			case 3:
 				return Double.toString(entry.getEntityPlacement());
+			case 4:
+				if(entry instanceof MoveMethodCandidateRefactoring) {
+					Integer userRate = ((MoveMethodCandidateRefactoring)entry).getUserRate();
+					return (userRate == null) ? "" : userRate.toString();
+				}
+				else
+					return "";
 			default:
 				return "";
 			}
 			
 		}
 		public Image getColumnImage(Object obj, int index) {
-			return null;
+			CandidateRefactoring entry = (CandidateRefactoring)obj;
+			int rate = -1;
+			if(entry instanceof MoveMethodCandidateRefactoring) {
+				Integer userRate = ((MoveMethodCandidateRefactoring)entry).getUserRate();
+				if(userRate != null)
+					rate = userRate;
+			}
+			Image image = null;
+			switch(index) {
+			case 4:
+				if(rate != -1) {
+					image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+				}
+			default:
+	            break;
+			}
+			return image;
 		}
 		public Image getImage(Object obj) {
 			return null;
@@ -248,6 +279,7 @@ public class FeatureEnvy extends ViewPart {
 		layout.addColumnData(new ColumnWeightData(60, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
@@ -267,6 +299,90 @@ public class FeatureEnvy extends ViewPart {
 		column3.setText("Entity Placement");
 		column3.setResizable(true);
 		column3.pack();
+		
+		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column4.setText("Rate it!");
+		column4.setResizable(true);
+		column4.pack();
+		
+		tableViewer.setColumnProperties(new String[] {"type", "source", "target", "ep", "rate"});
+		tableViewer.setCellEditors(new CellEditor[] {
+				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
+				new ComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+		});
+		
+		tableViewer.setCellModifier(new ICellModifier() {
+			public boolean canModify(Object element, String property) {
+				return property.equals("rate");
+			}
+
+			public Object getValue(Object element, String property) {
+				if(element instanceof MoveMethodCandidateRefactoring) {
+					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)element;
+					if(candidate.getUserRate() != null)
+						return candidate.getUserRate();
+					else
+						return 0;
+				}
+				return 0;
+			}
+
+			public void modify(Object element, String property, Object value) {
+				TableItem item = (TableItem)element;
+				Object data = item.getData();
+				if(data instanceof MoveMethodCandidateRefactoring) {
+					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)data;
+					candidate.setUserRate((Integer)value);
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+					if(allowUsageReporting) {
+						Table table = tableViewer.getTable();
+						int rankingPosition = -1;
+						for(int i=0; i<table.getItemCount(); i++) {
+							TableItem tableItem = table.getItem(i);
+							if(tableItem.equals(item)) {
+								rankingPosition = i;
+								break;
+							}
+						}
+						try {
+							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+							String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
+							String methodName = candidate.getSourceMethodDeclaration().resolveBinding().toString();
+							String sourceMethodName = declaringClass + "::" + methodName;
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+							content += "&" + URLEncoder.encode("target_class_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getTarget(), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()-1), "UTF-8");
+							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+							content += "&" + URLEncoder.encode("envied_elements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getNumberOfDistinctEnviedElements()), "UTF-8");
+							if(allowSourceCodeReporting)
+								content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(candidate.getSourceMethodDeclaration().toString(), "UTF-8");
+							content += "&" + URLEncoder.encode("rating", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getUserRate()), "UTF-8");
+							content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+							content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("0", "UTF-8");
+							URL url = new URL(Activator.RANK_URL);
+							URLConnection urlConn = url.openConnection();
+							urlConn.setDoInput(true);
+							urlConn.setDoOutput(true);
+							urlConn.setUseCaches(false);
+							urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+							printout.writeBytes(content);
+							printout.flush();
+							printout.close();
+							DataInputStream input = new DataInputStream(urlConn.getInputStream());
+							input.close();
+						} catch (IOException ioe) {
+							ioe.printStackTrace();
+						}
+					}
+					tableViewer.update(data, null);
+				}
+			}
+		});
+		
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -382,6 +498,52 @@ public class FeatureEnvy extends ViewPart {
 					Refactoring refactoring = null;
 					if(entry instanceof MoveMethodCandidateRefactoring) {
 						MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
+						IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+						boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+						if(allowUsageReporting) {
+							Table table = tableViewer.getTable();
+							int rankingPosition = -1;
+							for(int i=0; i<table.getItemCount(); i++) {
+								TableItem tableItem = table.getItem(i);
+								if(tableItem.getData().equals(candidate)) {
+									rankingPosition = i;
+									break;
+								}
+							}
+							try {
+								boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+								String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
+								String methodName = candidate.getSourceMethodDeclaration().resolveBinding().toString();
+								String sourceMethodName = declaringClass + "::" + methodName;
+								String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+								content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+								content += "&" + URLEncoder.encode("target_class_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getTarget(), "UTF-8");
+								content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
+								content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()-1), "UTF-8");
+								content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+								content += "&" + URLEncoder.encode("envied_elements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getNumberOfDistinctEnviedElements()), "UTF-8");
+								if(allowSourceCodeReporting)
+									content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(candidate.getSourceMethodDeclaration().toString(), "UTF-8");
+								content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
+								content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getMovedMethodName(), "UTF-8");
+								content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+								content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("0", "UTF-8");
+								URL url = new URL(Activator.RANK_URL);
+								URLConnection urlConn = url.openConnection();
+								urlConn.setDoInput(true);
+								urlConn.setDoOutput(true);
+								urlConn.setUseCaches(false);
+								urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+								DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+								printout.writeBytes(content);
+								printout.flush();
+								printout.close();
+								DataInputStream input = new DataInputStream(urlConn.getInputStream());
+								input.close();
+							} catch (IOException ioe) {
+								ioe.printStackTrace();
+							}
+						}
 						refactoring = new MoveMethodRefactoring(sourceCompilationUnit, targetCompilationUnit,
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
 								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate(), candidate.getMovedMethodName());

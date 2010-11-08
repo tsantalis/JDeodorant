@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
@@ -47,6 +48,10 @@ public class MyRefactoringWizard extends RefactoringWizard {
 		}
 		else if(refactoring instanceof ReplaceConditionalWithPolymorphism) {
 			javaElementsToOpenInEditor.addAll(((ReplaceConditionalWithPolymorphism)refactoring).getJavaElementsToOpenInEditor());
+		}
+		else if(refactoring instanceof ExtractClassRefactoring) {
+			IJavaElement targetJavaElement = JavaCore.create(((ExtractClassRefactoring)refactoring).getTargetFile());
+			javaElementsToOpenInEditor.add(targetJavaElement);
 		}
 		for(IJavaElement javaElement : javaElementsToOpenInEditor) {
 			try {

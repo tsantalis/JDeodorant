@@ -15,6 +15,8 @@ public class Activator extends AbstractUIPlugin {
 	// The shared instance
 	private static Activator plugin;
 	
+	public static final String RANK_URL = "http://java.uom.gr/~jdeodorant/rank.php";
+	
 	/**
 	 * The constructor
 	 */

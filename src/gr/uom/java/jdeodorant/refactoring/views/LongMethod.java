@@ -1,9 +1,14 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -62,8 +67,11 @@ import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
+import org.eclipse.jface.viewers.CellEditor;
 import org.eclipse.jface.viewers.ColumnWeightData;
+import org.eclipse.jface.viewers.ComboBoxCellEditor;
 import org.eclipse.jface.viewers.DoubleClickEvent;
+import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
@@ -72,6 +80,7 @@ import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.TableLayout;
 import org.eclipse.jface.viewers.TableViewer;
+import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerSorter;
 import org.eclipse.ltk.core.refactoring.Refactoring;
@@ -145,13 +154,30 @@ public class LongMethod extends ViewPart {
 				int numberOfRemovableStatements = entry.getRemovableStatements().size();
 				int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
 				return numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
+			case 5:
+				Integer userRate = entry.getUserRate();
+				return (userRate == null) ? "" : userRate.toString();
 			default:
 				return "";
 			}
 			
 		}
 		public Image getColumnImage(Object obj, int index) {
-			return null;
+			ASTSlice entry = (ASTSlice)obj;
+			int rate = -1;
+			Integer userRate = entry.getUserRate();
+			if(userRate != null)
+				rate = userRate;
+			Image image = null;
+			switch(index) {
+			case 5:
+				if(rate != -1) {
+					image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+				}
+			default:
+	            break;
+			}
+			return image;
 		}
 		public Image getImage(Object obj) {
 			return null;
@@ -290,6 +316,7 @@ public class LongMethod extends ViewPart {
 		layout.addColumnData(new ColumnWeightData(40, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
 		tableViewer.getTable().setLayout(layout);
 		tableViewer.getTable().setLinesVisible(true);
 		tableViewer.getTable().setHeaderVisible(true);
@@ -313,6 +340,97 @@ public class LongMethod extends ViewPart {
 		column4.setText("Duplicated/Extracted");
 		column4.setResizable(true);
 		column4.pack();
+		
+		TableColumn column5 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		column5.setText("Rate it!");
+		column5.setResizable(true);
+		column5.pack();
+		
+		tableViewer.setColumnProperties(new String[] {"type", "source", "variable", "block", "duplicationRatio", "rate"});
+		tableViewer.setCellEditors(new CellEditor[] {
+				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
+				new ComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+		});
+		
+		tableViewer.setCellModifier(new ICellModifier() {
+			public boolean canModify(Object element, String property) {
+				return property.equals("rate");
+			}
+
+			public Object getValue(Object element, String property) {
+				if(element instanceof ASTSlice) {
+					ASTSlice slice = (ASTSlice)element;
+					if(slice.getUserRate() != null)
+						return slice.getUserRate();
+					else
+						return 0;
+				}
+				return 0;
+			}
+
+			public void modify(Object element, String property, Object value) {
+				TableItem item = (TableItem)element;
+				Object data = item.getData();
+				if(data instanceof ASTSlice) {
+					ASTSlice slice = (ASTSlice)data;
+					slice.setUserRate((Integer)value);
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+					if(allowUsageReporting) {
+						Table table = tableViewer.getTable();
+						int rankingPosition = -1;
+						for(int i=0; i<table.getItemCount(); i++) {
+							TableItem tableItem = table.getItem(i);
+							if(tableItem.equals(item)) {
+								rankingPosition = i;
+								break;
+							}
+						}
+						try {
+							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+							String declaringClass = slice.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
+							String methodName = slice.getSourceMethodDeclaration().resolveBinding().toString();
+							String sourceMethodName = declaringClass + "::" + methodName;
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+							content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
+							content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
+							content += "&" + URLEncoder.encode("object_slice", "UTF-8") + "=" + URLEncoder.encode(slice.isObjectSlice() ? "1" : "0", "UTF-8");
+							int numberOfSliceStatements = slice.getSliceStatements().size();
+							int numberOfRemovableStatements = slice.getRemovableStatements().size();
+							int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+							content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
+							content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
+							if(allowSourceCodeReporting) {
+								content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(slice.getSourceMethodDeclaration().toString(), "UTF-8");
+								content += "&" + URLEncoder.encode("slice_statements", "UTF-8") + "=" + URLEncoder.encode(slice.sliceToString(), "UTF-8");
+							}
+							content += "&" + URLEncoder.encode("rating", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(slice.getUserRate()), "UTF-8");
+							content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+							content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("2", "UTF-8");
+							URL url = new URL(Activator.RANK_URL);
+							URLConnection urlConn = url.openConnection();
+							urlConn.setDoInput(true);
+							urlConn.setDoOutput(true);
+							urlConn.setUseCaches(false);
+							urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+							printout.writeBytes(content);
+							printout.flush();
+							printout.close();
+							DataInputStream input = new DataInputStream(urlConn.getInputStream());
+							input.close();
+						} catch (IOException ioe) {
+							ioe.printStackTrace();
+						}
+					}
+					tableViewer.update(data, null);
+				}
+			}
+		});
+		
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -414,6 +532,59 @@ public class LongMethod extends ViewPart {
 				TypeDeclaration sourceTypeDeclaration = slice.getSourceTypeDeclaration();
 				CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
 				IFile sourceFile = slice.getIFile();
+				IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+				boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+				if(allowUsageReporting) {
+					Table table = tableViewer.getTable();
+					int rankingPosition = -1;
+					for(int i=0; i<table.getItemCount(); i++) {
+						TableItem tableItem = table.getItem(i);
+						if(tableItem.getData().equals(slice)) {
+							rankingPosition = i;
+							break;
+						}
+					}
+					try {
+						boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+						String declaringClass = slice.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
+						String methodName = slice.getSourceMethodDeclaration().resolveBinding().toString();
+						String sourceMethodName = declaringClass + "::" + methodName;
+						String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+						content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+						content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
+						content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
+						content += "&" + URLEncoder.encode("object_slice", "UTF-8") + "=" + URLEncoder.encode(slice.isObjectSlice() ? "1" : "0", "UTF-8");
+						int numberOfSliceStatements = slice.getSliceStatements().size();
+						int numberOfRemovableStatements = slice.getRemovableStatements().size();
+						int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+						content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
+						content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
+						content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
+						content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
+						if(allowSourceCodeReporting) {
+							content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(slice.getSourceMethodDeclaration().toString(), "UTF-8");
+							content += "&" + URLEncoder.encode("slice_statements", "UTF-8") + "=" + URLEncoder.encode(slice.sliceToString(), "UTF-8");
+						}
+						content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode(String.valueOf("1"), "UTF-8");
+						content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(slice.getExtractedMethodName(), "UTF-8");
+						content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+						content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("2", "UTF-8");
+						URL url = new URL(Activator.RANK_URL);
+						URLConnection urlConn = url.openConnection();
+						urlConn.setDoInput(true);
+						urlConn.setDoOutput(true);
+						urlConn.setUseCaches(false);
+						urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+						DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+						printout.writeBytes(content);
+						printout.flush();
+						printout.close();
+						DataInputStream input = new DataInputStream(urlConn.getInputStream());
+						input.close();
+					} catch (IOException ioe) {
+						ioe.printStackTrace();
+					}
+				}
 				Refactoring refactoring = new ExtractMethodRefactoring(sourceCompilationUnit, slice);
 				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 

@@ -319,34 +319,34 @@ public class GodClass extends ViewPart {
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				if(entry.getSourceClassTypeDeclaration() != null) {
-					IFile sourceFile = entry.getSourceIFile();
-					CompilationUnit sourceCompilationUnit = (CompilationUnit)entry.getSourceClassTypeDeclaration().getRoot();
-					Refactoring refactoring = null;
-					if(entry instanceof ExtractClassCandidateRefactoring) {
-						ExtractClassCandidateRefactoring candidate = (ExtractClassCandidateRefactoring)entry;
-						String className = candidate.getTargetClassName().split("[.]")[candidate.getTargetClassName().split("[.]").length-1];
-						candidate.setTargetClassName(className);
-						refactoring = new ExtractClassRefactoring(sourceCompilationUnit, candidate.getSourceClassTypeDeclaration(), sourceFile, candidate.getExtractedEntities(), candidate.getLeaveDelegate(), candidate.getTargetClassName());
-					}
-					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
-					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
-					try { 
-						String titleForFailedChecks = ""; //$NON-NLS-1$ 
-						op.run(getSite().getShell(), titleForFailedChecks); 
-					} catch(InterruptedException e) {
-						e.printStackTrace();
-					}
-					try {
-						IJavaElement targetJavaElement = JavaCore.create(((ExtractClassRefactoring)refactoring).getTargetFile());
-						JavaUI.openInEditor(targetJavaElement);
-						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-						JavaUI.openInEditor(sourceJavaElement);
-					} catch (PartInitException e) {
-						e.printStackTrace();
-					} catch (JavaModelException e) {
-						e.printStackTrace();
+				if(selection.getFirstElement() instanceof CandidateRefactoring) {
+					CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
+					if(entry.getSourceClassTypeDeclaration() != null) {
+						IFile sourceFile = entry.getSourceIFile();
+						CompilationUnit sourceCompilationUnit = (CompilationUnit)entry.getSourceClassTypeDeclaration().getRoot();
+						Refactoring refactoring = null;
+						if(entry instanceof ExtractClassCandidateRefactoring) {
+							ExtractClassCandidateRefactoring candidate = (ExtractClassCandidateRefactoring)entry;
+							String className = candidate.getTargetClassName().split("[.]")[candidate.getTargetClassName().split("[.]").length-1];
+							candidate.setTargetClassName(className);
+							refactoring = new ExtractClassRefactoring(sourceCompilationUnit, candidate.getSourceClassTypeDeclaration(), sourceFile, candidate.getExtractedEntities(), candidate.getLeaveDelegate(), candidate.getTargetClassName());
+						}
+						MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
+						RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+						try { 
+							String titleForFailedChecks = ""; //$NON-NLS-1$ 
+							op.run(getSite().getShell(), titleForFailedChecks); 
+						} catch(InterruptedException e) {
+							e.printStackTrace();
+						}
+						try {
+							IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+							JavaUI.openInEditor(sourceJavaElement);
+						} catch (PartInitException e) {
+							e.printStackTrace();
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
@@ -359,34 +359,36 @@ public class GodClass extends ViewPart {
 		doubleClickAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				CandidateRefactoring candidate = (CandidateRefactoring)selection.getFirstElement();
-				if(candidate.getSourceClassTypeDeclaration() != null) {
-					IFile sourceFile = candidate.getSourceIFile();
-					try {
-						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
-						List<Position> positions = candidate.getPositions();
-						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
-						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
-						while(annotationIterator.hasNext()) {
-							Annotation currentAnnotation = annotationIterator.next();
-							if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION)) {
-								annotationModel.removeAnnotation(currentAnnotation);
+				if(selection.getFirstElement() instanceof CandidateRefactoring) {
+					CandidateRefactoring candidate = (CandidateRefactoring)selection.getFirstElement();
+					if(candidate.getSourceClassTypeDeclaration() != null) {
+						IFile sourceFile = candidate.getSourceIFile();
+						try {
+							IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+							ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
+							List<Position> positions = candidate.getPositions();
+							AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+							Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
+							while(annotationIterator.hasNext()) {
+								Annotation currentAnnotation = annotationIterator.next();
+								if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION)) {
+									annotationModel.removeAnnotation(currentAnnotation);
+								}
 							}
+							for(Position position : positions) {
+								SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, candidate.getAnnotationText());
+								annotationModel.addAnnotation(annotation, position);
+							}
+							Position firstPosition = positions.get(0);
+							Position lastPosition = positions.get(positions.size()-1);
+							int offset = firstPosition.getOffset();
+							int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
+							sourceEditor.setHighlightRange(offset, length, true);
+						} catch (PartInitException e) {
+							e.printStackTrace();
+						} catch (JavaModelException e) {
+							e.printStackTrace();
 						}
-						for(Position position : positions) {
-							SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, candidate.getAnnotationText());
-							annotationModel.addAnnotation(annotation, position);
-						}
-						Position firstPosition = positions.get(0);
-						Position lastPosition = positions.get(positions.size()-1);
-						int offset = firstPosition.getOffset();
-						int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
-						sourceEditor.setHighlightRange(offset, length, true);
-					} catch (PartInitException e) {
-						e.printStackTrace();
-					} catch (JavaModelException e) {
-						e.printStackTrace();
 					}
 				}
 			}

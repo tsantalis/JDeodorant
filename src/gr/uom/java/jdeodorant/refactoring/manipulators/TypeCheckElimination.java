@@ -86,6 +86,7 @@ public class TypeCheckElimination {
 	private int groupSizeAtClassLevel;
 	private double averageNumberOfStatementsInGroup;
 	private double averageNumberOfStatements;
+	private Integer userRate;
 	
 	public TypeCheckElimination() {
 		this.typeCheckMap = new LinkedHashMap<Expression, ArrayList<Statement>>();
@@ -1080,5 +1081,13 @@ public class TypeCheckElimination {
 			}
 		}
 		return false;
+	}
+
+	public Integer getUserRate() {
+		return userRate;
+	}
+
+	public void setUserRate(Integer userRate) {
+		this.userRate = userRate;
 	}
 }

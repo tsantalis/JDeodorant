@@ -19,8 +19,8 @@ public class ClassObject {
 	private List<ConstructorObject> constructorList;
 	private List<MethodObject> methodList;
 	private List<FieldObject> fieldList;
-	private String superclass;
-	private List<String> interfaceList;
+	private TypeObject superclass;
+	private List<TypeObject> interfaceList;
 	private boolean _abstract;
     private boolean _interface;
     private boolean _static;
@@ -32,7 +32,7 @@ public class ClassObject {
     public ClassObject() {
 		this.constructorList = new ArrayList<ConstructorObject>();
 		this.methodList = new ArrayList<MethodObject>();
-		this.interfaceList = new ArrayList<String>();
+		this.interfaceList = new ArrayList<TypeObject>();
 		this.fieldList = new ArrayList<FieldObject>();
 		this._abstract = false;
         this._interface = false;
@@ -76,6 +76,67 @@ public class ClassObject {
 
 	public void setIFile(IFile file) {
 		iFile = file;
+	}
+
+	public boolean isFriend(String className) {
+		if(superclass != null) {
+			if(superclass.getClassType().equals(className))
+				return true;
+		}
+		for(TypeObject interfaceType : interfaceList) {
+			if(interfaceType.getClassType().equals(className))
+				return true;
+		}
+		for(FieldObject field : fieldList) {
+			TypeObject fieldType = field.getType();
+			if(checkFriendship(fieldType, className))
+				return true;
+		}
+		for(ConstructorObject constructor : constructorList) {
+			ListIterator<ParameterObject> parameterIterator = constructor.getParameterListIterator();
+			while(parameterIterator.hasNext()) {
+				ParameterObject parameter = parameterIterator.next();
+				TypeObject parameterType = parameter.getType();
+				if(checkFriendship(parameterType, className))
+					return true;
+			}
+			for(CreationObject creation : constructor.getCreations()) {
+				TypeObject creationType = creation.getType();
+				if(checkFriendship(creationType, className))
+					return true;
+			}
+		}
+		for(MethodObject method : methodList) {
+			TypeObject returnType = method.getReturnType();
+			if(checkFriendship(returnType, className))
+				return true;
+			ListIterator<ParameterObject> parameterIterator = method.getParameterListIterator();
+			while(parameterIterator.hasNext()) {
+				ParameterObject parameter = parameterIterator.next();
+				TypeObject parameterType = parameter.getType();
+				if(checkFriendship(parameterType, className))
+					return true;
+			}
+			for(CreationObject creation : method.getCreations()) {
+				TypeObject creationType = creation.getType();
+				if(checkFriendship(creationType, className))
+					return true;
+			}
+		}
+		if(superclass != null) {
+			ClassObject superclassObject = ASTReader.getSystemObject().getClassObject(superclass.getClassType());
+			if(superclassObject != null)
+				return superclassObject.isFriend(className);
+		}
+		return false;
+	}
+
+	private boolean checkFriendship(TypeObject type, String className) {
+		if(type.getClassType().equals(className))
+			return true;
+		if(type.getGenericType() != null && type.getGenericType().contains(className))
+			return true;
+		return false;
 	}
 
 	public boolean containsMethodWithTestAnnotation() {
@@ -169,7 +230,7 @@ public class ClassObject {
         return access;
     }
 
-    public void setSuperclass(String superclass) {
+    public void setSuperclass(TypeObject superclass) {
 		this.superclass = superclass;
 	}
 
@@ -181,7 +242,7 @@ public class ClassObject {
 		return methodList.add(method);
 	}
 	
-	public boolean addInterface(String i) {
+	public boolean addInterface(TypeObject i) {
 		return interfaceList.add(i);
 	}
 	
@@ -201,12 +262,12 @@ public class ClassObject {
 		return methodList.listIterator();
 	}
 	
-	public ListIterator<String> getInterfaceIterator() {
+	public ListIterator<TypeObject> getInterfaceIterator() {
 		return interfaceList.listIterator();
 	}
 
-    public ListIterator<String> getSuperclassIterator() {
-		List<String> superclassList = new ArrayList<String>(interfaceList);
+    public ListIterator<TypeObject> getSuperclassIterator() {
+		List<TypeObject> superclassList = new ArrayList<TypeObject>(interfaceList);
 		superclassList.add(superclass);
 		return superclassList.listIterator();
 	}
@@ -233,7 +294,7 @@ public class ClassObject {
 		return name;
 	}
 
-	public String getSuperclass() {
+	public TypeObject getSuperclass() {
 		return superclass;
 	}
 	
@@ -260,10 +321,6 @@ public class ClassObject {
     public void setStatic(boolean s) {
         _static = s;
     }
-    
-    public boolean implementsInterface(String i) {
-		return interfaceList.contains(i);
-	}
 
     public int getNumberOfMethods() {
     	return methodList.size();

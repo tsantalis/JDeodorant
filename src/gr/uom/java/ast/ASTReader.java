@@ -181,13 +181,17 @@ public class ASTReader {
 		        	Type superclassType = typeDeclaration.getSuperclassType();
 		        	if(superclassType != null) {
 		        		ITypeBinding binding = superclassType.resolveBinding();
-		        		classObject.setSuperclass(binding.getQualifiedName());
+		        		String qualifiedName = binding.getQualifiedName();
+	        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+		        		classObject.setSuperclass(typeObject);
 		        	}
 		        	
 		        	List<Type> superInterfaceTypes = typeDeclaration.superInterfaceTypes();
 		        	for(Type interfaceType : superInterfaceTypes) {
 		        		ITypeBinding binding = interfaceType.resolveBinding();
-		        		classObject.addInterface(binding.getQualifiedName());
+		        		String qualifiedName = binding.getQualifiedName();
+	        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+		        		classObject.addInterface(typeObject);
 		        	}
 		        	
 		        	FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();

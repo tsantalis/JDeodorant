@@ -129,6 +129,13 @@ public class ConstructorObject {
     		return new ArrayList<LocalVariableInstructionObject>();
     }
 
+	public List<CreationObject> getCreations() {
+		if(methodBody != null)
+			return methodBody.getCreations();
+		else
+			return new ArrayList<CreationObject>();
+	}
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	if(methodBody != null)
     		return methodBody.containsMethodInvocation(methodInvocation);

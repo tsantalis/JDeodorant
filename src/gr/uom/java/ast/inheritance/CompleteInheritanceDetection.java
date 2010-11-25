@@ -8,6 +8,7 @@ import java.util.Set;
 
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.TypeObject;
 
 public class CompleteInheritanceDetection {
 	private Map<String, LinkedHashSet<String>> subclassMap;
@@ -33,15 +34,18 @@ public class CompleteInheritanceDetection {
 		ListIterator<ClassObject> classIterator = system.getClassListIterator();
         while(classIterator.hasNext()) {
             ClassObject classObject = classIterator.next();
-            String superclass = classObject.getSuperclass();
-            if(system.getClassObject(superclass) != null) {
-            	addSubclassToSuperclass(superclass, classObject.getName());
+            TypeObject superclassType = classObject.getSuperclass();
+            if(superclassType != null) {
+            	String superclass = superclassType.getClassType();
+            	if(system.getClassObject(superclass) != null) {
+            		addSubclassToSuperclass(superclass, classObject.getName());
+            	}
             }
-            ListIterator<String> interfaceIterator = classObject.getInterfaceIterator();
+            ListIterator<TypeObject> interfaceIterator = classObject.getInterfaceIterator();
             while(interfaceIterator.hasNext()) {
-            	String superInterface = interfaceIterator.next();
-            	if(system.getClassObject(superInterface) != null) {
-                	addSubclassToSuperclass(superInterface, classObject.getName());
+            	TypeObject superInterface = interfaceIterator.next();
+            	if(system.getClassObject(superInterface.getClassType()) != null) {
+                	addSubclassToSuperclass(superInterface.getClassType(), classObject.getName());
                 }
             }
         }

@@ -1,4 +1,11 @@
-package gr.uom.java.ast;
+package gr.uom.java.ast.metrics;
+
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.FieldInstructionObject;
+import gr.uom.java.ast.FieldObject;
+import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.SystemObject;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

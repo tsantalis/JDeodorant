@@ -31,8 +31,12 @@ public class MySystem {
             if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
 	            MyClass myClass = new MyClass(co.getName());
 	            myClass.setClassObject(co);
-	            if(systemObject.getClassObject(co.getSuperclass()) != null) {
-	                myClass.setSuperclass(co.getSuperclass());
+	            TypeObject superclassType = co.getSuperclass();
+	            if(superclassType != null) {
+	            	String superclass = superclassType.getClassType();
+	            	if(systemObject.getClassObject(superclass) != null) {
+	            		myClass.setSuperclass(superclass);
+	            	}
 	            }
 	
 	            ListIterator<FieldObject> fieldIt = co.getFieldIterator();
@@ -94,12 +98,13 @@ public class MySystem {
     }
 
     private boolean extendsTestCase(ClassObject classObject) {
-    	if(classObject.getSuperclass() == null)
+    	TypeObject superclass = classObject.getSuperclass();
+    	if(superclass == null)
     		return false;
-    	else if(classObject.getSuperclass().equals("junit.framework.TestCase"))
+    	else if(superclass.getClassType().equals("junit.framework.TestCase"))
     		return true;
     	else {
-    		ClassObject superClassObject = systemObject.getClassObject(classObject.getSuperclass());
+    		ClassObject superClassObject = systemObject.getClassObject(superclass.getClassType());
     		if(superClassObject != null)
     			return extendsTestCase(superClassObject);
     	}

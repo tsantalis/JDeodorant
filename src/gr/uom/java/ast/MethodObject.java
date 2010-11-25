@@ -442,6 +442,10 @@ public class MethodObject {
         return constructorObject.getLocalVariableInstructions();
     }
 
+	public List<CreationObject> getCreations() {
+		return constructorObject.getCreations();
+	}
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	return constructorObject.containsMethodInvocation(methodInvocation);
     }

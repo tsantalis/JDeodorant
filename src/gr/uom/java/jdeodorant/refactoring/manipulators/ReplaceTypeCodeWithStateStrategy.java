@@ -65,6 +65,7 @@ import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -658,8 +659,18 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 				else if(typeLocalVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)typeLocalVariable;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					parameterType = variableDeclarationStatement.getType();
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						parameterType = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						parameterType = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						parameterType = fieldDeclaration.getType();
+					}
 					parameterName = variableDeclarationFragment.getName();
 				}
 			}
@@ -958,8 +969,18 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					returnType = variableDeclarationStatement.getType();
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						returnType = fieldDeclaration.getType();
+					}
 				}
 				stateStrategyRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 			}
@@ -979,8 +1000,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			else if(returnedVariable instanceof VariableDeclarationFragment) {
 				SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
 				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+				Type type = null;
+				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					type = variableDeclarationStatement.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+					type = variableDeclarationExpression.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+					type = fieldDeclaration.getType();
+				}
+				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 				stateStrategyRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 				abstractMethodParametersRewrite.insertLast(parameter, null);
 			}
@@ -999,8 +1032,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(fragment instanceof VariableDeclarationFragment) {
 					SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					Type type = null;
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						type = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						type = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						type = fieldDeclaration.getType();
+					}
+					stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 					stateStrategyRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 					abstractMethodParametersRewrite.insertLast(parameter, null);
 				}
@@ -1283,8 +1328,18 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					}
 					else if(returnedVariable instanceof VariableDeclarationFragment) {
 						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-						returnType = variableDeclarationStatement.getType();
+						if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+							returnType = variableDeclarationStatement.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+							returnType = variableDeclarationExpression.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+							returnType = fieldDeclaration.getType();
+						}
 					}
 					subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 				}
@@ -1303,8 +1358,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					Type type = null;
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						type = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						type = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						type = fieldDeclaration.getType();
+					}
+					subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 					subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 					concreteMethodParametersRewrite.insertLast(parameter, null);
 				}
@@ -1323,8 +1390,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					else if(fragment instanceof VariableDeclarationFragment) {
 						SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-						subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+						Type type = null;
+						if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+							type = variableDeclarationStatement.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+							type = variableDeclarationExpression.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+							type = fieldDeclaration.getType();
+						}
+						subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 						subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 						concreteMethodParametersRewrite.insertLast(parameter, null);
 					}
@@ -1547,8 +1626,18 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					returnType = variableDeclarationStatement.getType();
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						returnType = fieldDeclaration.getType();
+					}
 				}
 				intermediateClassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 			}
@@ -1567,8 +1656,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			else if(returnedVariable instanceof VariableDeclarationFragment) {
 				SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
 				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+				Type type = null;
+				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					type = variableDeclarationStatement.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+					type = variableDeclarationExpression.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+					type = fieldDeclaration.getType();
+				}
+				intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 				intermediateClassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 				concreteMethodParametersRewrite.insertLast(parameter, null);
 			}
@@ -1587,8 +1688,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(fragment instanceof VariableDeclarationFragment) {
 					SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					Type type = null;
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						type = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						type = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						type = fieldDeclaration.getType();
+					}
+					intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 					intermediateClassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 					concreteMethodParametersRewrite.insertLast(parameter, null);
 				}
@@ -1899,101 +2012,104 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 	private void modifyTypeFieldAssignmentsInContextClass(boolean modify) {
 		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
+		MethodDeclaration typeFieldSetterMethod = typeCheckElimination.getTypeFieldSetterMethod();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
-			Block methodBody = methodDeclaration.getBody();
-			if(methodBody != null) {
-				List<Statement> statements = methodBody.statements();
-				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-				for(Statement statement : statements) {
-					List<Expression> assignments = expressionExtractor.getAssignments(statement);
-					for(Expression expression : assignments) {
-						Assignment assignment = (Assignment)expression;
-						Expression leftHandSide = assignment.getLeftHandSide();
-						SimpleName assignedVariable = null;
-						Expression invoker = null;
-						if(leftHandSide instanceof SimpleName) {
-							assignedVariable = (SimpleName)leftHandSide;
-						}
-						else if(leftHandSide instanceof QualifiedName) {
-							QualifiedName qualifiedName = (QualifiedName)leftHandSide;
-							assignedVariable = qualifiedName.getName();
-							invoker = qualifiedName.getQualifier();
-						}
-						else if(leftHandSide instanceof FieldAccess) {
-							FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-							assignedVariable = fieldAccess.getName();
-							invoker = fieldAccess.getExpression();
-						}
-						Expression rightHandSide = assignment.getRightHandSide();
-						List<Expression> accessedVariables = expressionExtractor.getVariableInstructions(rightHandSide);
-						ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-						AST contextAST = sourceTypeDeclaration.getAST();
-						boolean rewriteAST = false;
-						if(assignedVariable != null) {
-							IBinding leftHandBinding = assignedVariable.resolveBinding();
-							if(leftHandBinding.getKind() == IBinding.VARIABLE) {
-								IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
-								if(assignedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(assignedVariableBinding)) {
-									if(modify && !nodeExistsInsideTypeCheckCodeFragment(assignment)) {
-										MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
-										if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
-											sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
+			if(!methodDeclaration.equals(typeFieldSetterMethod)) {
+				Block methodBody = methodDeclaration.getBody();
+				if(methodBody != null) {
+					List<Statement> statements = methodBody.statements();
+					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+					for(Statement statement : statements) {
+						List<Expression> assignments = expressionExtractor.getAssignments(statement);
+						for(Expression expression : assignments) {
+							Assignment assignment = (Assignment)expression;
+							Expression leftHandSide = assignment.getLeftHandSide();
+							SimpleName assignedVariable = null;
+							Expression invoker = null;
+							if(leftHandSide instanceof SimpleName) {
+								assignedVariable = (SimpleName)leftHandSide;
+							}
+							else if(leftHandSide instanceof QualifiedName) {
+								QualifiedName qualifiedName = (QualifiedName)leftHandSide;
+								assignedVariable = qualifiedName.getName();
+								invoker = qualifiedName.getQualifier();
+							}
+							else if(leftHandSide instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)leftHandSide;
+								assignedVariable = fieldAccess.getName();
+								invoker = fieldAccess.getExpression();
+							}
+							Expression rightHandSide = assignment.getRightHandSide();
+							List<Expression> accessedVariables = expressionExtractor.getVariableInstructions(rightHandSide);
+							ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+							AST contextAST = sourceTypeDeclaration.getAST();
+							boolean rewriteAST = false;
+							if(assignedVariable != null) {
+								IBinding leftHandBinding = assignedVariable.resolveBinding();
+								if(leftHandBinding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
+									if(assignedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(assignedVariableBinding)) {
+										if(modify && !nodeExistsInsideTypeCheckCodeFragment(assignment)) {
+											MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
+											if(typeCheckElimination.getTypeFieldSetterMethod() != null) {
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
+											}
+											else {
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + abstractClassName), null);
+											}
+											ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+											setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+											if(invoker != null) {
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
+											}
+											sourceRewriter.replace(assignment, setterMethodInvocation, null);
+											rewriteAST = true;
 										}
-										else {
-											sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + abstractClassName), null);
-										}
-										ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-										setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-										if(invoker != null) {
-											sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
-										}
-										sourceRewriter.replace(assignment, setterMethodInvocation, null);
-										rewriteAST = true;
-									}
-									for(Expression expression2 : accessedVariables) {
-										SimpleName accessedVariable = (SimpleName)expression2;
-										IBinding rightHandBinding = accessedVariable.resolveBinding();
-										if(rightHandBinding.getKind() == IBinding.VARIABLE) {
-											IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
-											if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-													!containsVariable(staticFields, accessedVariable) && accessedVariableBinding.getType().isEqualTo(assignedVariableBinding.getType())) {
-												if(!containsStaticFieldKey(accessedVariable) && !modify)
-													additionalStaticFieldMap.put(accessedVariable, generateSubclassName(accessedVariable));
+										for(Expression expression2 : accessedVariables) {
+											SimpleName accessedVariable = (SimpleName)expression2;
+											IBinding rightHandBinding = accessedVariable.resolveBinding();
+											if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+												IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
+												if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0 &&
+														!containsVariable(staticFields, accessedVariable) && accessedVariableBinding.getType().isEqualTo(assignedVariableBinding.getType())) {
+													if(!containsStaticFieldKey(accessedVariable) && !modify)
+														additionalStaticFieldMap.put(accessedVariable, generateSubclassName(accessedVariable));
+												}
 											}
 										}
 									}
 								}
 							}
-						}
-						for(Expression expression2 : accessedVariables) {
-							SimpleName accessedVariable = (SimpleName)expression2;
-							IBinding rightHandBinding = accessedVariable.resolveBinding();
-							if(rightHandBinding.getKind() == IBinding.VARIABLE) {
-								IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
-								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
-									if(modify && !nodeExistsInsideTypeCheckCodeFragment(accessedVariable)) {
-										MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
-										if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
-											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+							for(Expression expression2 : accessedVariables) {
+								SimpleName accessedVariable = (SimpleName)expression2;
+								IBinding rightHandBinding = accessedVariable.resolveBinding();
+								if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
+									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
+										if(modify && !nodeExistsInsideTypeCheckCodeFragment(accessedVariable)) {
+											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+											if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
+											}
+											sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
+											rewriteAST = true;
 										}
-										else {
-											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
-										}
-										sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
-										rewriteAST = true;
 									}
 								}
 							}
-						}
-						if(rewriteAST) {
-							try {
-								TextEdit sourceEdit = sourceRewriter.rewriteAST();
-								ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-								CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-								change.getEdit().addChild(sourceEdit);
-								change.addTextEditGroup(new TextEditGroup("Replace field assignment with invocation of setter method", new TextEdit[] {sourceEdit}));
-							} catch (JavaModelException e) {
-								e.printStackTrace();
+							if(rewriteAST) {
+								try {
+									TextEdit sourceEdit = sourceRewriter.rewriteAST();
+									ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+									CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+									change.getEdit().addChild(sourceEdit);
+									change.addTextEditGroup(new TextEditGroup("Replace field assignment with invocation of setter method", new TextEdit[] {sourceEdit}));
+								} catch (JavaModelException e) {
+									e.printStackTrace();
+								}
 							}
 						}
 					}
@@ -2282,8 +2398,18 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			}
 			else if(returnedVariable instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				returnType = variableDeclarationStatement.getType();
+				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					returnType = variableDeclarationStatement.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+					returnType = variableDeclarationExpression.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+					returnType = fieldDeclaration.getType();
+				}
 			}
 			ITypeBinding returnTypeBinding = returnType.resolveBinding();
 			if(!typeBindings.contains(returnTypeBinding))
@@ -2308,8 +2434,18 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 				else if(fragment instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					variableType = variableDeclarationStatement.getType();
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						variableType = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						variableType = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						variableType = fieldDeclaration.getType();
+					}
 				}
 				ITypeBinding variableTypeBinding = variableType.resolveBinding();
 				if(!typeBindings.contains(variableTypeBinding))

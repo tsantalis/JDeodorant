@@ -17,7 +17,6 @@ import java.util.StringTokenizer;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
@@ -44,6 +43,7 @@ import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -424,12 +424,53 @@ public class TypeCheckElimination {
 	}
 	
 	public boolean isApplicable() {
-		if(!containsLocalVariableAssignment() && !containsBranchingStatement() && !containsSuperMethodInvocation() && !containsSuperFieldAccess())
+		if(!containsLocalVariableAssignment() && !containsBranchingStatement() && !containsSuperMethodInvocation() && !containsSuperFieldAccess() &&
+				!isSubclassTypeAnInterface() && !returnStatementAfterTypeCheckCodeFragment())
 			return true;
 		else
 			return false;
 	}
 	
+	private boolean isSubclassTypeAnInterface() {
+		for(List<Type> subTypes : subclassTypeMap.values()) {
+			for(Type subType : subTypes) {
+				if(subType.resolveBinding().isInterface())
+					return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean returnStatementAfterTypeCheckCodeFragment() {
+		//check if the type-check code fragment contains return statements having an expression
+		StatementExtractor statementExtractor = new StatementExtractor();
+		List<Statement> allReturnStatementsWithinTypeCheckCodeFragment = statementExtractor.getReturnStatements(typeCheckCodeFragment);
+		List<ReturnStatement> returnStatementsHavingExpressionWithinTypeCheckCodeFragment = new ArrayList<ReturnStatement>();
+		for(Statement statement : allReturnStatementsWithinTypeCheckCodeFragment) {
+			ReturnStatement returnStatement = (ReturnStatement)statement;
+			if(returnStatement.getExpression() != null)
+				returnStatementsHavingExpressionWithinTypeCheckCodeFragment.add(returnStatement);
+		}
+		if(returnStatementsHavingExpressionWithinTypeCheckCodeFragment.isEmpty())
+			return false;
+		//get all return statements having an expression within method body
+		List<Statement> allReturnStatementsWithinTypeCheckMethod = statementExtractor.getReturnStatements(typeCheckMethod.getBody());
+		List<ReturnStatement> returnStatementsHavingExpressionWithinTypeCheckMethod = new ArrayList<ReturnStatement>();
+		for(Statement statement : allReturnStatementsWithinTypeCheckMethod) {
+			ReturnStatement returnStatement = (ReturnStatement)statement;
+			if(returnStatement.getExpression() != null)
+				returnStatementsHavingExpressionWithinTypeCheckMethod.add(returnStatement);
+		}
+		List<ReturnStatement> returnStatementsHavingExpressionOutsideTypeCheckMethod = new ArrayList<ReturnStatement>();
+		returnStatementsHavingExpressionOutsideTypeCheckMethod.addAll(returnStatementsHavingExpressionWithinTypeCheckMethod);
+		returnStatementsHavingExpressionOutsideTypeCheckMethod.removeAll(returnStatementsHavingExpressionWithinTypeCheckCodeFragment);
+		for(ReturnStatement returnStatement : returnStatementsHavingExpressionOutsideTypeCheckMethod) {
+			if(returnStatement.getStartPosition() > typeCheckCodeFragment.getStartPosition()+typeCheckCodeFragment.getLength())
+				return true;
+		}
+		return false;
+	}
+
 	private boolean containsLocalVariableAssignment() {
 		VariableDeclaration returnedVariableDeclaration = getTypeCheckMethodReturnedVariable();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
@@ -439,9 +480,20 @@ public class TypeCheckElimination {
 			allTypeCheckStatements.add(getDefaultCaseStatements());
 		}
 		for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
-			List<Statement> variableDeclarationsInsideBranch = new ArrayList<Statement>();
+			List<VariableDeclarationFragment> variableDeclarationFragmentsInsideBranch = new ArrayList<VariableDeclarationFragment>();
 			for(Statement statement : typeCheckStatementList) {
-				variableDeclarationsInsideBranch.addAll(statementExtractor.getVariableDeclarations(statement));
+				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(statement);
+				for(Statement statement2 : variableDeclarationStatements) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement2;
+					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					variableDeclarationFragmentsInsideBranch.addAll(fragments);
+				}
+				List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(statement);
+				for(Expression expression : variableDeclarationExpressions) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+					List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+					variableDeclarationFragmentsInsideBranch.addAll(fragments);
+				}
 			}
 			for(Statement statement : typeCheckStatementList) {
 				List<Expression> assignments = expressionExtractor.getAssignments(statement);
@@ -466,18 +518,12 @@ public class TypeCheckElimination {
 							IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
 							if(!leftHandSideVariableBinding.isField()) {
 								boolean variableIsDeclaredInsideBranch = false;
-								for(Statement vDStatement : variableDeclarationsInsideBranch) {
-									VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-									List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-									for(VariableDeclarationFragment fragment : fragments) {
-										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-										if(fragmentVariableBinding.isEqualTo(leftHandSideVariableBinding)) {
-											variableIsDeclaredInsideBranch = true;
-											break;
-										}
-									}
-									if(variableIsDeclaredInsideBranch)
+								for(VariableDeclarationFragment fragment : variableDeclarationFragmentsInsideBranch) {
+									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+									if(fragmentVariableBinding.isEqualTo(leftHandSideVariableBinding)) {
+										variableIsDeclaredInsideBranch = true;
 										break;
+									}
 								}
 								if(!variableIsDeclaredInsideBranch) {
 									if(returnedVariableDeclaration == null) {
@@ -504,13 +550,44 @@ public class TypeCheckElimination {
 			typeCheckStatements.add(defaultCaseStatements);
 		for(ArrayList<Statement> statements : typeCheckStatements) {
 			for(Statement statement : statements) {
-				if(statement.getNodeType() != ASTNode.SWITCH_STATEMENT &&
-						statement.getNodeType() != ASTNode.WHILE_STATEMENT &&
-						statement.getNodeType() != ASTNode.FOR_STATEMENT &&
-						statement.getNodeType() != ASTNode.DO_STATEMENT &&
-						statement.getNodeType() != ASTNode.ENHANCED_FOR_STATEMENT) {
-		    		statementList.addAll(statementExtractor.getBreakStatements(statement));
-		    		statementList.addAll(statementExtractor.getContinueStatements(statement));
+				statementList.addAll(statementExtractor.getBreakStatements(statement));
+				statementList.addAll(statementExtractor.getContinueStatements(statement));
+				List<Statement> returnStatements = statementExtractor.getReturnStatements(statement);
+				for(Statement statement2 : returnStatements) {
+					ReturnStatement returnStatement = (ReturnStatement)statement2;
+					if(returnStatement.getExpression() == null)
+						statementList.add(returnStatement);
+				}
+				
+				List<Statement> forStatements = statementExtractor.getForStatements(statement);
+				for(Statement forStatement : forStatements) {
+					statementList.removeAll(statementExtractor.getBreakStatements(forStatement));
+		    		statementList.removeAll(statementExtractor.getContinueStatements(forStatement));
+		    		statementList.removeAll(statementExtractor.getReturnStatements(forStatement));
+				}
+				List<Statement> whileStatements = statementExtractor.getWhileStatements(statement);
+				for(Statement whileStatement : whileStatements) {
+					statementList.removeAll(statementExtractor.getBreakStatements(whileStatement));
+		    		statementList.removeAll(statementExtractor.getContinueStatements(whileStatement));
+		    		statementList.removeAll(statementExtractor.getReturnStatements(whileStatement));
+				}
+				List<Statement> doStatements = statementExtractor.getDoStatements(statement);
+				for(Statement doStatement : doStatements) {
+					statementList.removeAll(statementExtractor.getBreakStatements(doStatement));
+		    		statementList.removeAll(statementExtractor.getContinueStatements(doStatement));
+		    		statementList.removeAll(statementExtractor.getReturnStatements(doStatement));
+				}
+				List<Statement> enchancedForStatements = statementExtractor.getEnhancedForStatements(statement);
+				for(Statement enchancedForStatement : enchancedForStatements) {
+					statementList.removeAll(statementExtractor.getBreakStatements(enchancedForStatement));
+		    		statementList.removeAll(statementExtractor.getContinueStatements(enchancedForStatement));
+		    		statementList.removeAll(statementExtractor.getReturnStatements(enchancedForStatement));
+				}
+				List<Statement> switchStatements = statementExtractor.getSwitchStatements(statement);
+				for(Statement switchStatement : switchStatements) {
+					statementList.removeAll(statementExtractor.getBreakStatements(switchStatement));
+		    		statementList.removeAll(statementExtractor.getContinueStatements(switchStatement));
+		    		statementList.removeAll(statementExtractor.getReturnStatements(switchStatement));
 				}
 			}
 		}
@@ -562,6 +639,7 @@ public class TypeCheckElimination {
 	
 	public VariableDeclaration getTypeCheckMethodReturnedVariable() {
 		StatementExtractor statementExtractor = new StatementExtractor();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Statement> typeCheckCodeFragmentReturnStatements = statementExtractor.getReturnStatements(typeCheckCodeFragment);
 		if(!typeCheckCodeFragmentReturnStatements.isEmpty()) {
 			ReturnStatement firstReturnStatement = (ReturnStatement)typeCheckCodeFragmentReturnStatements.get(0);
@@ -572,10 +650,19 @@ public class TypeCheckElimination {
 					if(parameter.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
 						return parameter;
 				}
-				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
+				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(typeCheckMethod.getBody());
 				for(Statement statement : variableDeclarationStatements) {
 					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
 					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
+							return fragment;
+					}
+				}
+				List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(typeCheckMethod.getBody());
+				for(Expression expression : variableDeclarationExpressions) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+					List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
 					for(VariableDeclarationFragment fragment : fragments) {
 						if(fragment.resolveBinding().isEqualTo(returnExpression.resolveBinding()))
 							return fragment;
@@ -676,8 +763,19 @@ public class TypeCheckElimination {
 			}
 			else if(typeLocalVariable instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)typeLocalVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				Type localVariableType = variableDeclarationStatement.getType();
+				Type localVariableType = null;
+				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					localVariableType = variableDeclarationStatement.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+					localVariableType = variableDeclarationExpression.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+					localVariableType = fieldDeclaration.getType();
+				}
 				if(!localVariableType.isPrimitiveType())
 					abstractClassType = localVariableType.resolveBinding().getQualifiedName();
 			}

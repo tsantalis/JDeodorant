@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -114,16 +115,25 @@ public class TypeCheckCodeFragmentAnalyzer {
 						}
 						else {
 							StatementExtractor statementExtractor = new StatementExtractor();
-							List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
-							for(Statement vDStatement : variableDeclarationStatements) {
-								VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+							ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+							List<VariableDeclarationFragment> variableDeclarationFragments = new ArrayList<VariableDeclarationFragment>();
+							List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(typeCheckMethod.getBody());
+							for(Statement statement : variableDeclarationStatements) {
+								VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
 								List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-								for(VariableDeclarationFragment fragment : fragments) {
-									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-									if(fragmentVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
-										typeCheckElimination.setTypeLocalVariable(fragment);
-										break;
-									}
+								variableDeclarationFragments.addAll(fragments);
+							}
+							List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(typeCheckMethod.getBody());
+							for(Expression expression : variableDeclarationExpressions) {
+								VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+								List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+								variableDeclarationFragments.addAll(fragments);
+							}
+							for(VariableDeclarationFragment fragment : variableDeclarationFragments) {
+								IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+								if(fragmentVariableBinding.isEqualTo(switchStatementExpressionNameVariableBinding)) {
+									typeCheckElimination.setTypeLocalVariable(fragment);
+									break;
 								}
 							}
 							List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethod.getBody());
@@ -436,16 +446,25 @@ public class TypeCheckCodeFragmentAnalyzer {
 					}
 					else {
 						StatementExtractor statementExtractor = new StatementExtractor();
-						List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
-						for(Statement vDStatement : variableDeclarationStatements) {
-							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
+						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+						List<VariableDeclarationFragment> variableDeclarationFragments = new ArrayList<VariableDeclarationFragment>();
+						List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(typeCheckMethod.getBody());
+						for(Statement statement : variableDeclarationStatements) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
 							List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-							for(VariableDeclarationFragment fragment : fragments) {
-								IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-								if(fragmentVariableBinding.isEqualTo(variableBinding)) {
-									typeCheckElimination.setTypeLocalVariable(fragment);
-									break;
-								}
+							variableDeclarationFragments.addAll(fragments);
+						}
+						List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(typeCheckMethod.getBody());
+						for(Expression expression : variableDeclarationExpressions) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+							List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+							variableDeclarationFragments.addAll(fragments);
+						}
+						for(VariableDeclarationFragment fragment : variableDeclarationFragments) {
+							IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+							if(fragmentVariableBinding.isEqualTo(variableBinding)) {
+								typeCheckElimination.setTypeLocalVariable(fragment);
+								break;
 							}
 						}
 						List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethod.getBody());
@@ -501,10 +520,33 @@ public class TypeCheckCodeFragmentAnalyzer {
 			allTypeCheckStatements.add(typeCheckElimination.getDefaultCaseStatements());
 		}
 		StatementExtractor statementExtractor = new StatementExtractor();
-		List<Statement> variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment = statementExtractor.getVariableDeclarations(typeCheckMethod.getBody());
+		List<VariableDeclarationFragment> variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment = new ArrayList<VariableDeclarationFragment>();
+		List<Statement> variableDeclarationStatementsInsideTypeCheckMethod = statementExtractor.getVariableDeclarationStatements(typeCheckMethod.getBody());
+		for(Statement statement : variableDeclarationStatementsInsideTypeCheckMethod) {
+			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+			List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+			variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.addAll(fragments);
+		}
+		List<Expression> variableDeclarationExpressionsInsideTypeCheckMethod = expressionExtractor.getVariableDeclarationExpressions(typeCheckMethod.getBody());
+		for(Expression expression : variableDeclarationExpressionsInsideTypeCheckMethod) {
+			VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+			List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+			variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.addAll(fragments);
+		}
 		for(ArrayList<Statement> typeCheckStatementList : allTypeCheckStatements) {
 			for(Statement statement : typeCheckStatementList) {
-				variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.removeAll(statementExtractor.getVariableDeclarations(statement));
+				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(statement);
+				for(Statement statement2 : variableDeclarationStatements) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement2;
+					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.removeAll(fragments);
+				}
+				List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(statement);
+				for(Expression expression : variableDeclarationExpressions) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+					List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+					variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment.removeAll(fragments);
+				}
 			}
 		}
 		List<Statement> enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment = statementExtractor.getEnhancedForStatements(typeCheckMethod.getBody());
@@ -705,42 +747,38 @@ public class TypeCheckCodeFragmentAnalyzer {
 						}
 						//checking for local variables accessed inside the type-checking code branches, but declared outside them
 						else {
-							for(Statement vDStatement : variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
-								VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-								List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-								for(VariableDeclarationFragment fragment : fragments) {
-									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-									if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-										boolean isAssigned = false;
-										if(simpleName.getParent() instanceof Assignment) {
-											Assignment assignment = (Assignment)simpleName.getParent();
-											Expression leftHandSide = assignment.getLeftHandSide();
-											if(leftHandSide instanceof SimpleName) {
-												SimpleName leftHandSideName = (SimpleName)leftHandSide;
-												if(leftHandSideName.equals(simpleName)) {
-													isAssigned = true;
-													typeCheckElimination.addAssignedLocalVariable(fragment);
-												}
-											}
-										}
-										else if(simpleName.getParent() instanceof PostfixExpression) {
-											//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
-											isAssigned = true;
-											typeCheckElimination.addAssignedLocalVariable(fragment);
-										}
-										else if(simpleName.getParent() instanceof PrefixExpression) {
-											PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
-											PrefixExpression.Operator operator = prefixExpression.getOperator();
-											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+							for(VariableDeclarationFragment fragment : variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
+								IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+								if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+									boolean isAssigned = false;
+									if(simpleName.getParent() instanceof Assignment) {
+										Assignment assignment = (Assignment)simpleName.getParent();
+										Expression leftHandSide = assignment.getLeftHandSide();
+										if(leftHandSide instanceof SimpleName) {
+											SimpleName leftHandSideName = (SimpleName)leftHandSide;
+											if(leftHandSideName.equals(simpleName)) {
 												isAssigned = true;
 												typeCheckElimination.addAssignedLocalVariable(fragment);
 											}
 										}
-										if(!isAssigned)
-											typeCheckElimination.addAccessedLocalVariable(fragment);
-										break;
 									}
-								}    											
+									else if(simpleName.getParent() instanceof PostfixExpression) {
+										//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+										isAssigned = true;
+										typeCheckElimination.addAssignedLocalVariable(fragment);
+									}
+									else if(simpleName.getParent() instanceof PrefixExpression) {
+										PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+										PrefixExpression.Operator operator = prefixExpression.getOperator();
+										if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+											isAssigned = true;
+											typeCheckElimination.addAssignedLocalVariable(fragment);
+										}
+									}
+									if(!isAssigned)
+										typeCheckElimination.addAccessedLocalVariable(fragment);
+									break;
+								}
 							}
 							for(Statement eFStatement : enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
 								EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;
@@ -782,11 +820,11 @@ public class TypeCheckCodeFragmentAnalyzer {
 				}
 			}
 		}
-		processRemainingIfStatementExpressions(variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment,
+		processRemainingIfStatementExpressions(variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment,
 				enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment);
 	}
 
-	private void processRemainingIfStatementExpressions(List<Statement> variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment,
+	private void processRemainingIfStatementExpressions(List<VariableDeclarationFragment> variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment,
 			List<Statement> enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		for(Expression complexExpression : complexExpressionMap.keySet()) {
@@ -985,42 +1023,38 @@ public class TypeCheckCodeFragmentAnalyzer {
 							}
 							//checking for local variables accessed inside the type-checking code branches, but declared outside them
 							else {
-								for(Statement vDStatement : variableDeclarationStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
-									VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-									List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-									for(VariableDeclarationFragment fragment : fragments) {
-										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-										if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
-											boolean isAssigned = false;
-											if(simpleName.getParent() instanceof Assignment) {
-												Assignment assignment = (Assignment)simpleName.getParent();
-												Expression leftHandSide = assignment.getLeftHandSide();
-												if(leftHandSide instanceof SimpleName) {
-													SimpleName leftHandSideName = (SimpleName)leftHandSide;
-													if(leftHandSideName.equals(simpleName)) {
-														isAssigned = true;
-														typeCheckElimination.addAssignedLocalVariable(fragment);
-													}
-												}
-											}
-											else if(simpleName.getParent() instanceof PostfixExpression) {
-												//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
-												isAssigned = true;
-												typeCheckElimination.addAssignedLocalVariable(fragment);
-											}
-											else if(simpleName.getParent() instanceof PrefixExpression) {
-												PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
-												PrefixExpression.Operator operator = prefixExpression.getOperator();
-												if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+								for(VariableDeclarationFragment fragment : variableDeclarationFragmentsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
+									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+									if(fragmentVariableBinding.isEqualTo(variableInstructionVariableBinding)) {
+										boolean isAssigned = false;
+										if(simpleName.getParent() instanceof Assignment) {
+											Assignment assignment = (Assignment)simpleName.getParent();
+											Expression leftHandSide = assignment.getLeftHandSide();
+											if(leftHandSide instanceof SimpleName) {
+												SimpleName leftHandSideName = (SimpleName)leftHandSide;
+												if(leftHandSideName.equals(simpleName)) {
 													isAssigned = true;
 													typeCheckElimination.addAssignedLocalVariable(fragment);
 												}
 											}
-											if(!isAssigned)
-												typeCheckElimination.addAccessedLocalVariable(fragment);
-											break;
 										}
-									}    											
+										else if(simpleName.getParent() instanceof PostfixExpression) {
+											//PostfixExpression postfixExpression = (PostfixExpression)simpleName.getParent();
+											isAssigned = true;
+											typeCheckElimination.addAssignedLocalVariable(fragment);
+										}
+										else if(simpleName.getParent() instanceof PrefixExpression) {
+											PrefixExpression prefixExpression = (PrefixExpression)simpleName.getParent();
+											PrefixExpression.Operator operator = prefixExpression.getOperator();
+											if(operator.equals(PrefixExpression.Operator.INCREMENT) || operator.equals(PrefixExpression.Operator.DECREMENT)) {
+												isAssigned = true;
+												typeCheckElimination.addAssignedLocalVariable(fragment);
+											}
+										}
+										if(!isAssigned)
+											typeCheckElimination.addAccessedLocalVariable(fragment);
+										break;
+									}
 								}
 								for(Statement eFStatement : enhancedForStatementsInsideTypeCheckMethodApartFromTypeCheckCodeFragment) {
 									EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;

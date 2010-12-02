@@ -34,6 +34,7 @@ import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -51,6 +52,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -243,8 +245,18 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				}
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					returnType = variableDeclarationStatement.getType();
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						returnType = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						returnType = fieldDeclaration.getType();
+					}
 				}
 				abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 			}
@@ -264,8 +276,20 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			else if(returnedVariable instanceof VariableDeclarationFragment) {
 				SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
 				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+				Type type = null;
+				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					type = variableDeclarationStatement.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+					type = variableDeclarationExpression.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+					type = fieldDeclaration.getType();
+				}
+				abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 				abstractRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 				abstractMethodParametersRewrite.insertLast(parameter, null);
 			}
@@ -284,8 +308,20 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				else if(fragment instanceof VariableDeclarationFragment) {
 					SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					Type type = null;
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						type = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						type = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						type = fieldDeclaration.getType();
+					}
+					abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 					abstractRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 					abstractMethodParametersRewrite.insertLast(parameter, null);
 				}
@@ -404,8 +440,18 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					}
 					else if(returnedVariable instanceof VariableDeclarationFragment) {
 						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-						returnType = variableDeclarationStatement.getType();
+						if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+							returnType = variableDeclarationStatement.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+							returnType = variableDeclarationExpression.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+							returnType = fieldDeclaration.getType();
+						}
 					}
 					subclassRewriter.set(concreteMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 				}
@@ -424,8 +470,20 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+					Type type = null;
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						type = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						type = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						type = fieldDeclaration.getType();
+					}
+					subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 					subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 					concreteMethodParametersRewrite.insertLast(parameter, null);
 				}
@@ -444,8 +502,20 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					else if(fragment instanceof VariableDeclarationFragment) {
 						SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-						subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableDeclarationStatement.getType(), null);
+						Type type = null;
+						if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+							type = variableDeclarationStatement.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+							type = variableDeclarationExpression.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+							type = fieldDeclaration.getType();
+						}
+						subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 						subclassRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
 						concreteMethodParametersRewrite.insertLast(parameter, null);
 					}
@@ -520,8 +590,8 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				}
 				else {
 					StatementExtractor statementExtractor = new StatementExtractor();
-					List<Statement> oldVariableDeclarations = statementExtractor.getVariableDeclarations(statement);
-					List<Statement> newVariableDeclarations = statementExtractor.getVariableDeclarations(newStatement);
+					List<Statement> oldVariableDeclarations = statementExtractor.getVariableDeclarationStatements(statement);
+					List<Statement> newVariableDeclarations = statementExtractor.getVariableDeclarationStatements(newStatement);
 					int j = 0;
 					for(Statement oldVariableDeclaration : oldVariableDeclarations) {
 						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)oldVariableDeclaration;
@@ -681,8 +751,18 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			}
 			else if(returnedVariable instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-				returnType = variableDeclarationStatement.getType();
+				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+					returnType = variableDeclarationStatement.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+					returnType = variableDeclarationExpression.getType();
+				}
+				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+					returnType = fieldDeclaration.getType();
+				}
 			}
 			ITypeBinding returnTypeBinding = returnType.resolveBinding();
 			if(!typeBindings.contains(returnTypeBinding))
@@ -709,8 +789,18 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				}
 				else if(fragment instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					variableType = variableDeclarationStatement.getType();
+					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+						variableType = variableDeclarationStatement.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+						variableType = variableDeclarationExpression.getType();
+					}
+					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+						variableType = fieldDeclaration.getType();
+					}
 				}
 				ITypeBinding variableTypeBinding = variableType.resolveBinding();
 				if(!typeBindings.contains(variableTypeBinding))

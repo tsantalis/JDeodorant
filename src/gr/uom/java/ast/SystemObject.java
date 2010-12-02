@@ -2,6 +2,7 @@ package gr.uom.java.ast;
 
 import gr.uom.java.ast.inheritance.CompleteInheritanceDetection;
 import gr.uom.java.ast.inheritance.InheritanceTree;
+import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
@@ -37,6 +38,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
@@ -543,19 +545,28 @@ public class SystemObject {
     			}
     			else {
     				StatementExtractor statementExtractor = new StatementExtractor();
+    				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
     				Block typeCheckMethodBody = elimination.getTypeCheckMethod().getBody();
-    				List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarations(typeCheckMethodBody);
-    				for(Statement vDStatement : variableDeclarationStatements) {
-    					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vDStatement;
-    					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
-    					for(VariableDeclarationFragment fragment : fragments) {
-    						IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
-    						if(fragmentVariableBinding.isEqualTo(variableBinding)) {
-    							elimination.setTypeLocalVariable(fragment);
-    							break;
-    						}
-    					}
-    				}
+					List<VariableDeclarationFragment> variableDeclarationFragments = new ArrayList<VariableDeclarationFragment>();
+					List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(typeCheckMethodBody);
+					for(Statement statement : variableDeclarationStatements) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+						List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+						variableDeclarationFragments.addAll(fragments);
+					}
+					List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(typeCheckMethodBody);
+					for(Expression expression : variableDeclarationExpressions) {
+						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+						List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+						variableDeclarationFragments.addAll(fragments);
+					}
+					for(VariableDeclarationFragment fragment : variableDeclarationFragments) {
+						IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+						if(fragmentVariableBinding.isEqualTo(variableBinding)) {
+							elimination.setTypeLocalVariable(fragment);
+							break;
+						}
+					}
     				List<Statement> enhancedForStatements = statementExtractor.getEnhancedForStatements(typeCheckMethodBody);
     				for(Statement eFStatement : enhancedForStatements) {
     					EnhancedForStatement enhancedForStatement = (EnhancedForStatement)eFStatement;

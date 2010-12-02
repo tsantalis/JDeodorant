@@ -34,8 +34,8 @@ public class StatementExtractor {
 		return getStatements(statement);
 	}
 	
-	public List<Statement> getVariableDeclarations(Statement statement) {
-		instanceChecker = new InstanceOfVariableDeclaration();
+	public List<Statement> getVariableDeclarationStatements(Statement statement) {
+		instanceChecker = new InstanceOfVariableDeclarationStatement();
 		return getStatements(statement);
 	}
 	
@@ -78,6 +78,21 @@ public class StatementExtractor {
 		instanceChecker = new InstanceOfEnhancedForStatement();
 		return getStatements(statement);
 	}
+
+	public List<Statement> getForStatements(Statement statement) {
+		instanceChecker = new InstanceOfForStatement();
+		return getStatements(statement);
+	}
+
+	public List<Statement> getWhileStatements(Statement statement) {
+		instanceChecker = new InstanceOfWhileStatement();
+		return getStatements(statement);
+	}
+
+	public List<Statement> getDoStatements(Statement statement) {
+		instanceChecker = new InstanceOfDoStatement();
+		return getStatements(statement);
+	}
 	
 	private List<Statement> getStatements(Statement statement) {
 		List<Statement> statementList = new ArrayList<Statement>();
@@ -99,6 +114,8 @@ public class StatementExtractor {
 		else if(statement instanceof ForStatement) {
 			ForStatement forStatement = (ForStatement)statement;
 			statementList.addAll(getStatements(forStatement.getBody()));
+			if(instanceChecker.instanceOf(forStatement))
+				statementList.add(forStatement);
 		}
 		else if(statement instanceof EnhancedForStatement) {
 			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
@@ -109,10 +126,14 @@ public class StatementExtractor {
 		else if(statement instanceof WhileStatement) {
 			WhileStatement whileStatement = (WhileStatement)statement;
 			statementList.addAll(getStatements(whileStatement.getBody()));
+			if(instanceChecker.instanceOf(whileStatement))
+				statementList.add(whileStatement);
 		}
 		else if(statement instanceof DoStatement) {
 			DoStatement doStatement = (DoStatement)statement;
 			statementList.addAll(getStatements(doStatement.getBody()));
+			if(instanceChecker.instanceOf(doStatement))
+				statementList.add(doStatement);
 		}
 		else if(statement instanceof ExpressionStatement) {
 			ExpressionStatement expressionStatement = (ExpressionStatement)statement;

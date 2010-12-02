@@ -54,6 +54,7 @@ import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -1259,27 +1260,36 @@ public class MoveMethodRefactoring extends Refactoring {
 	}
 	
 	private void replaceTargetClassVariableNameWithThisExpressionInVariableDeclarationInitializers(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter) {
-		StatementExtractor extractor = new StatementExtractor();
-		List<Statement> variableDeclarations = extractor.getVariableDeclarations(newMethodDeclaration.getBody());
-		for(Statement declaration : variableDeclarations) {
-			VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)declaration;
-			List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
-			for(VariableDeclarationFragment fragment : fragments) {
-				Expression initializer = fragment.getInitializer();
-				if(initializer instanceof SimpleName) {
-					SimpleName simpleNameInitializer = (SimpleName)initializer;
-					if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
-						AST ast = newMethodDeclaration.getAST();
-						targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
-					}
+		StatementExtractor statementExtractor = new StatementExtractor();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<VariableDeclarationFragment> variableDeclarationFragments = new ArrayList<VariableDeclarationFragment>();
+		List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(newMethodDeclaration.getBody());
+		for(Statement statement : variableDeclarationStatements) {
+			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+			List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+			variableDeclarationFragments.addAll(fragments);
+		}
+		List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(newMethodDeclaration.getBody());
+		for(Expression expression : variableDeclarationExpressions) {
+			VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+			List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+			variableDeclarationFragments.addAll(fragments);
+		}
+		for(VariableDeclarationFragment fragment : variableDeclarationFragments) {
+			Expression initializer = fragment.getInitializer();
+			if(initializer instanceof SimpleName) {
+				SimpleName simpleNameInitializer = (SimpleName)initializer;
+				if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
 				}
-				else if(initializer instanceof FieldAccess) {
-					FieldAccess fieldAccess = (FieldAccess)initializer;
-					SimpleName simpleNameInitializer = fieldAccess.getName();
-					if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
-						AST ast = newMethodDeclaration.getAST();
-						targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
-					}
+			}
+			else if(initializer instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)initializer;
+				SimpleName simpleNameInitializer = fieldAccess.getName();
+				if(simpleNameInitializer.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newThisExpression(), null);
 				}
 			}
 		}
@@ -1458,25 +1468,34 @@ public class MoveMethodRefactoring extends Refactoring {
 	}
 	
 	private void replaceThisExpressionWithSourceClassParameterInVariableDeclarationInitializers(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter) {
-		StatementExtractor extractor = new StatementExtractor();
-		List<Statement> variableDeclarations = extractor.getVariableDeclarations(newMethodDeclaration.getBody());
-		for(Statement declaration : variableDeclarations) {
-			VariableDeclarationStatement variableDeclaration = (VariableDeclarationStatement)declaration;
-			List<VariableDeclarationFragment> fragments = variableDeclaration.fragments();
-			for(VariableDeclarationFragment fragment : fragments) {
-				Expression initializer = fragment.getInitializer();
-				if(initializer instanceof ThisExpression) {
-					SimpleName parameterName = null;
-					if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
-						parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-					}
-					else {
-						AST ast = newMethodDeclaration.getAST();
-						String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
-						parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
-					}
-					targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, parameterName, null);
+		StatementExtractor statementExtractor = new StatementExtractor();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<VariableDeclarationFragment> variableDeclarationFragments = new ArrayList<VariableDeclarationFragment>();
+		List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(newMethodDeclaration.getBody());
+		for(Statement statement : variableDeclarationStatements) {
+			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+			List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+			variableDeclarationFragments.addAll(fragments);
+		}
+		List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(newMethodDeclaration.getBody());
+		for(Expression expression : variableDeclarationExpressions) {
+			VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+			List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+			variableDeclarationFragments.addAll(fragments);
+		}
+		for(VariableDeclarationFragment fragment : variableDeclarationFragments) {
+			Expression initializer = fragment.getInitializer();
+			if(initializer instanceof ThisExpression) {
+				SimpleName parameterName = null;
+				if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+					parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
 				}
+				else {
+					AST ast = newMethodDeclaration.getAST();
+					String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
+					parameterName = ast.newSimpleName(sourceTypeName.replaceFirst(Character.toString(sourceTypeName.charAt(0)), Character.toString(Character.toLowerCase(sourceTypeName.charAt(0)))));
+				}
+				targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, parameterName, null);
 			}
 		}
 	}

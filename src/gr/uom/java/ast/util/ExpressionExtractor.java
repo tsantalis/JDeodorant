@@ -204,6 +204,18 @@ public class ExpressionExtractor {
 		return getExpressions(expression);
 	}
 	
+	// returns a List of VariableDeclarationExpression objects
+	public List<Expression> getVariableDeclarationExpressions(Statement statement) {
+		instanceChecker = new InstanceOfVariableDeclarationExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of VariableDeclarationExpression objects
+	public List<Expression> getVariableDeclarationExpressions(Expression expression) {
+		instanceChecker = new InstanceOfVariableDeclarationExpression();
+		return getExpressions(expression);
+	}
+	
 	private List<Expression> getExpressions(Statement statement) {
 		List<Expression> expressionList = new ArrayList<Expression>();
 		if(statement instanceof Block) {
@@ -445,6 +457,8 @@ public class ExpressionExtractor {
 				Expression initializerExpression = fragment.getInitializer();
 				expressionList.addAll(getExpressions(initializerExpression));
 			}
+			if(instanceChecker.instanceOf(variableDeclarationExpression))
+				expressionList.add(variableDeclarationExpression);
 		}
 		else if(expression instanceof ArrayAccess) {
 			ArrayAccess arrayAccess = (ArrayAccess)expression;

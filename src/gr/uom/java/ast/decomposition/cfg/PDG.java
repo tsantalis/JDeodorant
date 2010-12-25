@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -70,6 +71,8 @@ public class PDG extends Graph {
 		}
 		this.dominatedBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();
 		GraphNode.resetNodeNum();
+		handleSwitchCaseNodes();
+		handleJumpNodes();
 		if(monitor != null)
 			monitor.done();
 	}
@@ -166,6 +169,139 @@ public class PDG extends Graph {
 				nodeCriteria.add(pdgNode);
 		}
 		return nodeCriteria;
+	}
+
+	private void handleSwitchCaseNodes() {
+		Map<PDGNode, Set<PDGNode>> switchCaseMap = new LinkedHashMap<PDGNode, Set<PDGNode>>();
+		Stack<PDGNode> switchNodeStack = new Stack<PDGNode>();
+		for(GraphNode node : this.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			if(!switchNodeStack.isEmpty()) {
+				PDGNode pdgSwitchNode = switchNodeStack.peek();
+				CFGBranchSwitchNode cfgSwitchNode = (CFGBranchSwitchNode)pdgSwitchNode.getCFGNode();
+				if(cfgSwitchNode.getJoinNode().getId() == cfgNode.getId())
+					switchNodeStack.pop();
+			}
+			if(!switchNodeStack.isEmpty()) {
+				PDGNode currentSwitchNode = switchNodeStack.peek();
+				if(currentSwitchNode != null && isDirectlyDependentOnSwitchNode(pdgNode, currentSwitchNode)) {
+					if(cfgNode instanceof CFGSwitchCaseNode) {
+						if(switchCaseMap.containsKey(currentSwitchNode)) {
+							switchCaseMap.get(currentSwitchNode).add(pdgNode);
+						}
+						else {
+							Set<PDGNode> switchCaseSet = new LinkedHashSet<PDGNode>();
+							switchCaseSet.add(pdgNode);
+							switchCaseMap.put(currentSwitchNode, switchCaseSet);
+						}
+					}
+					else if(cfgNode instanceof CFGBreakNode) {
+						if(switchCaseMap.containsKey(currentSwitchNode)) {
+							Set<PDGNode> switchCaseSet = switchCaseMap.get(currentSwitchNode);
+							for(PDGNode switchCase : switchCaseSet) {
+								PDGControlDependence cd = new PDGControlDependence(pdgNode, switchCase, false);
+								edges.add(cd);
+							}
+							switchCaseMap.get(currentSwitchNode).clear();
+						}
+					}
+					else {
+						if(switchCaseMap.containsKey(currentSwitchNode)) {
+							Set<PDGNode> switchCaseSet = switchCaseMap.get(currentSwitchNode);
+							for(PDGNode switchCase : switchCaseSet) {
+								PDGControlDependence cd = new PDGControlDependence(switchCase, pdgNode, true);
+								edges.add(cd);
+							}
+						}
+					}
+				}
+			}
+			if(cfgNode instanceof CFGBranchSwitchNode) {
+				switchNodeStack.push(pdgNode);
+			}
+		}
+	}
+
+	private boolean isDirectlyDependentOnSwitchNode(PDGNode node, PDGNode switchNode) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)controlDependence.src;
+				CFGNode srcCFGNode = srcPDGNode.getCFGNode();
+				if(srcCFGNode instanceof CFGBranchSwitchNode && srcPDGNode.equals(switchNode))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private void handleJumpNodes() {
+		//key is the jump node and value is the innermost loop node
+		Map<PDGNode, PDGNode> jumpNodeMap = getInnerMostLoopNodesForJumpNodes();
+		for(PDGNode jumpNode : jumpNodeMap.keySet()) {
+			PDGNode innerMostLoopNode = jumpNodeMap.get(jumpNode);
+			CFGNode innerMostLoopCFGNode = innerMostLoopNode.getCFGNode();
+			if(innerMostLoopCFGNode instanceof CFGBranchLoopNode || innerMostLoopCFGNode instanceof CFGBranchDoLoopNode) {
+				for(GraphEdge edge : innerMostLoopNode.outgoingEdges) {
+					PDGDependence dependence = (PDGDependence)edge;
+					if(dependence instanceof PDGControlDependence) {
+						PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+						PDGNode dstPDGNode = (PDGNode)controlDependence.dst;
+						if(dstPDGNode.getId() > jumpNode.getId()) {
+							PDGControlDependence cd = new PDGControlDependence(jumpNode, dstPDGNode, false);
+							edges.add(cd);
+						}
+					}
+				}
+				PDGControlDependence cd = new PDGControlDependence(jumpNode, innerMostLoopNode, false);
+				edges.add(cd);
+			}
+		}
+	}
+
+	private Map<PDGNode, PDGNode> getInnerMostLoopNodesForJumpNodes() {
+		Map<PDGNode, PDGNode> map = new LinkedHashMap<PDGNode, PDGNode>();
+		for(GraphNode node : this.nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			boolean unlabeledJump = false;
+			boolean isBreak = false;
+			if(cfgNode instanceof CFGBreakNode) {
+				CFGBreakNode breakNode = (CFGBreakNode)cfgNode;
+				isBreak = true;
+				if(!breakNode.isLabeled())
+					unlabeledJump = true;
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				CFGContinueNode continueNode = (CFGContinueNode)cfgNode;
+				isBreak = false;
+				if(!continueNode.isLabeled())
+					unlabeledJump = true;
+			}
+			if(unlabeledJump) {
+				map.put(pdgNode, getInnerMostLoopNode(pdgNode, isBreak));
+			}
+		}
+		return map;
+	}
+
+	private PDGNode getInnerMostLoopNode(PDGNode node, boolean isBreak) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)controlDependence.src;
+				CFGNode srcCFGNode = srcPDGNode.getCFGNode();
+				if(isBreak && (srcCFGNode instanceof CFGBranchLoopNode || srcCFGNode instanceof CFGBranchDoLoopNode || srcCFGNode instanceof CFGBranchSwitchNode))
+					return srcPDGNode;
+				if(!isBreak && (srcCFGNode instanceof CFGBranchLoopNode || srcCFGNode instanceof CFGBranchDoLoopNode))
+					return srcPDGNode;
+				return getInnerMostLoopNode(srcPDGNode, isBreak);
+			}
+		}
+		return null;
 	}
 
 	private void createControlDependenciesFromEntryNode() {

@@ -539,17 +539,6 @@ public class ExtractMethodRefactoring extends Refactoring {
 							sliceNodes.remove(dstPDGNode);
 						}
 					}
-					else {
-						Statement astStatement = dstPDGNode.getASTStatement();
-						if(astStatement instanceof SwitchCase) {
-							SwitchCase switchCase = (SwitchCase)astStatement;
-							switchStatementsRewrite.insertLast(switchCase, null);
-						}
-						else if(astStatement instanceof BreakStatement) {
-							BreakStatement breakStatement = (BreakStatement)astStatement;
-							switchStatementsRewrite.insertLast(breakStatement, null);
-						}
-					}
 				}
 			}
 		}

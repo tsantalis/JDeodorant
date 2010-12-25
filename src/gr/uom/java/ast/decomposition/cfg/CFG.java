@@ -9,6 +9,7 @@ import java.util.Stack;
 
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
+import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
@@ -248,14 +249,9 @@ public class CFG extends Graph {
 	private List<CFGNode> processNonCompositeStatement(List<CFGNode> previousNodes, StatementObject statement,
 			CompositeStatementObject composite) {
 		//special handling of break, continue, return
-		CFGNode currentNode = null;
-		Statement astStatement = statement.getStatement();
-		if(astStatement instanceof ReturnStatement)
-			currentNode = new CFGExitNode(statement);
-		else
-			currentNode = new CFGNode(statement);
+		CFGNode currentNode = createNonCompositeNode(statement);
 		nodes.add(currentNode);
-		if((astStatement instanceof BreakStatement || astStatement instanceof ReturnStatement) &&
+		if((currentNode instanceof CFGBreakNode || currentNode instanceof CFGExitNode) &&
 				composite.getStatement() instanceof SwitchStatement && immediatelyNestedNode(currentNode, composite)) {
 			CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
 			if(switchBreakMap.containsKey(switchNode)) {
@@ -269,8 +265,8 @@ public class CFG extends Graph {
 			}
 			createTopDownFlow(previousNodes, currentNode);
 		}
-		else if(astStatement instanceof SwitchCase) {
-			SwitchCase switchCase = (SwitchCase)astStatement;
+		else if(currentNode instanceof CFGSwitchCaseNode) {
+			CFGSwitchCaseNode switchCase = (CFGSwitchCaseNode)currentNode;
 			if(previousNodesContainBreakOrReturn(previousNodes, composite)) {
 				CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
 				Flow flow = new Flow(switchNode, currentNode);
@@ -289,6 +285,22 @@ public class CFG extends Graph {
 		currentNodes.add(currentNode);
 		previousNodes = currentNodes;
 		return previousNodes;
+	}
+
+	private CFGNode createNonCompositeNode(StatementObject statement) {
+		CFGNode currentNode;
+		Statement astStatement = statement.getStatement();
+		if(astStatement instanceof ReturnStatement)
+			currentNode = new CFGExitNode(statement);
+		else if(astStatement instanceof SwitchCase)
+			currentNode = new CFGSwitchCaseNode(statement);
+		else if(astStatement instanceof BreakStatement)
+			currentNode = new CFGBreakNode(statement);
+		else if(astStatement instanceof ContinueStatement)
+			currentNode = new CFGContinueNode(statement);
+		else
+			currentNode = new CFGNode(statement);
+		return currentNode;
 	}
 
 	private boolean previousNodesContainBreakOrReturn(List<CFGNode> previousNodes, CompositeStatementObject composite) {
@@ -349,7 +361,7 @@ public class CFG extends Graph {
 		AbstractStatement thenClause = ifStatementList.get(0);
 		if(thenClause instanceof StatementObject) {
 			StatementObject thenClauseStatement = (StatementObject)thenClause;
-			CFGNode thenClauseNode = new CFGNode(thenClauseStatement);
+			CFGNode thenClauseNode = createNonCompositeNode(thenClauseStatement);
 			nodes.add(thenClauseNode);
 			ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
 			currentNodes.add(currentNode);
@@ -369,7 +381,7 @@ public class CFG extends Graph {
 			AbstractStatement elseClause = ifStatementList.get(1);
 			if(elseClause instanceof StatementObject) {
 				StatementObject elseClauseStatement = (StatementObject)elseClause;
-				CFGNode elseClauseNode = new CFGNode(elseClauseStatement);
+				CFGNode elseClauseNode = createNonCompositeNode(elseClauseStatement);
 				nodes.add(elseClauseNode);
 				ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
 				currentNodes.add(currentNode);

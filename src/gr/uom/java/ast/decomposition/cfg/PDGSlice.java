@@ -9,7 +9,6 @@ import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSlice extends Graph {
@@ -61,6 +60,16 @@ public class PDGSlice extends Graph {
 					}
 					else
 						edges.add(antiDependence);
+				}
+				else if(dependence instanceof PDGOutputDependence) {
+					PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+					if(outputDependence.isLoopCarried()) {
+						PDGNode loopNode = outputDependence.getLoop().getPDGNode();
+						if(nodes.contains(loopNode))
+							edges.add(outputDependence);
+					}
+					else
+						edges.add(outputDependence);
 				}
 				else
 					edges.add(dependence);
@@ -224,19 +233,40 @@ public class PDGSlice extends Graph {
 
 	public boolean satisfiesRules() {
 		if(!nodeCritetionIsDeclarationOfVariableCriterion() && !nodeCriterionIsDuplicated() &&
+				!declarationOfVariableCriterionIsDuplicated() && !sliceContainsReturnStatement() &&
 				!variableCriterionIsReturnedVariableInOriginalMethod() &&
 				!returnStatementIsControlDependentOnSliceNode() &&
 				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
 				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() &&
+				!nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() &&
 				!duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode())
 			return true;
+		return false;
+	}
+
+	private boolean sliceContainsReturnStatement() {
+		for(PDGNode node : sliceNodes) {
+			if(node.getCFGNode() instanceof CFGExitNode)
+				return true;
+		}
+		return false;
+	}
+
+	private boolean declarationOfVariableCriterionIsDuplicated() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode node : duplicatedNodes) {
+			if(node.declaresLocalVariable(localVariableCriterion))
+				return true;
+		}
 		return false;
 	}
 
 	private boolean returnStatementIsControlDependentOnSliceNode() {
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
-			if(pdgNode.getASTStatement() instanceof ReturnStatement) {
+			if(pdgNode.getCFGNode() instanceof CFGExitNode) {
 				if(isControlDependentOnSliceNode(pdgNode))
 					return true;
 				if(sliceNodes.contains(pdgNode))
@@ -272,6 +302,39 @@ public class PDGSlice extends Graph {
 					if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
 						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
 						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
+						if(!removableNodes.contains(srcPDGNode) && !nodeDependsOnNonRemovableNode(srcPDGNode))
+							return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean nodeDependsOnNonRemovableNode(PDGNode node) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(edges.contains(dependence) && dependence instanceof PDGDataDependence) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)dataDependence.src;
+				if(!removableNodes.contains(srcPDGNode))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode sliceNode : sliceNodes) {
+			if(!duplicatedNodes.contains(sliceNode)) {
+				for(GraphEdge edge : sliceNode.incomingEdges) {
+					PDGDependence dependence = (PDGDependence)edge;
+					if(edges.contains(dependence) && dependence instanceof PDGOutputDependence) {
+						PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+						PDGNode srcPDGNode = (PDGNode)outputDependence.src;
 						if(!removableNodes.contains(srcPDGNode))
 							return true;
 					}
@@ -392,7 +455,7 @@ public class PDGSlice extends Graph {
 		visitedNodes.add(node);
 		for(GraphEdge edge : node.incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;
-			if(edges.contains(dependence) && !(dependence instanceof PDGAntiDependence)) {
+			if(edges.contains(dependence) && !(dependence instanceof PDGAntiDependence) && !(dependence instanceof PDGOutputDependence)) {
 				PDGNode srcPDGNode = (PDGNode)dependence.src;
 				if(!visitedNodes.contains(srcPDGNode))
 					sliceNodes.addAll(traverseBackward(srcPDGNode, visitedNodes));

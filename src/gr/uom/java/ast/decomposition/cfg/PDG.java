@@ -394,6 +394,7 @@ public class PDG extends Graph {
 			PDGNode pdgNode = (PDGNode)node;
 			for(AbstractVariable variableInstruction : pdgNode.definedVariables) {
 				dataDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
+				outputDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
 			}
 			for(AbstractVariable variableInstruction : pdgNode.usedVariables) {
 				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
@@ -479,6 +480,33 @@ public class PDG extends Graph {
 			}
 			else
 				antiDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loop);
+		}
+	}
+
+	private void outputDependenceSearch(PDGNode initialNode, AbstractVariable variableInstruction,
+			PDGNode currentNode, Set<PDGNode> visitedNodes, CFGBranchNode loop) {
+		if(visitedNodes.contains(currentNode))
+			return;
+		else
+			visitedNodes.add(currentNode);
+		CFGNode currentCFGNode = currentNode.getCFGNode();
+		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
+			Flow flow = (Flow)edge;
+			CFGNode srcCFGNode = (CFGNode)flow.src;
+			CFGNode dstCFGNode = (CFGNode)flow.dst;
+			if(flow.isLoopbackFlow()) {
+				if(dstCFGNode instanceof CFGBranchLoopNode)
+					loop = (CFGBranchLoopNode)dstCFGNode;
+				if(srcCFGNode instanceof CFGBranchDoLoopNode)
+					loop = (CFGBranchDoLoopNode)srcCFGNode;
+			}
+			PDGNode dstPDGNode = dstCFGNode.getPDGNode();
+			if(dstPDGNode.definesLocalVariable(variableInstruction)) {
+				PDGOutputDependence outputDependence = new PDGOutputDependence(initialNode, dstPDGNode, variableInstruction, loop);
+				edges.add(outputDependence);
+			}
+			else
+				outputDependenceSearch(initialNode, variableInstruction, dstPDGNode, visitedNodes, loop);
 		}
 	}
 

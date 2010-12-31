@@ -11,7 +11,6 @@ import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -290,7 +289,7 @@ public class PDGSliceUnion {
 	private boolean returnStatementIsControlDependentOnSliceNode() {
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
-			if(pdgNode.getASTStatement() instanceof ReturnStatement) {
+			if(pdgNode.getCFGNode() instanceof CFGExitNode) {
 				if(isControlDependentOnSliceNode(pdgNode))
 					return true;
 				if(sliceNodes.contains(pdgNode))
@@ -326,6 +325,39 @@ public class PDGSliceUnion {
 					if(subgraph.edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGAntiDependence) {
 						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
 						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
+						if(!removableNodes.contains(srcPDGNode) && !nodeDependsOnNonRemovableNode(srcPDGNode))
+							return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean nodeDependsOnNonRemovableNode(PDGNode node) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(subgraph.edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGDataDependence) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)dataDependence.src;
+				if(!removableNodes.contains(srcPDGNode))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() {
+		Set<PDGNode> duplicatedNodes = new LinkedHashSet<PDGNode>();
+		duplicatedNodes.addAll(sliceNodes);
+		duplicatedNodes.retainAll(indispensableNodes);
+		for(PDGNode sliceNode : sliceNodes) {
+			if(!duplicatedNodes.contains(sliceNode)) {
+				for(GraphEdge edge : sliceNode.incomingEdges) {
+					PDGDependence dependence = (PDGDependence)edge;
+					if(subgraph.edgeBelongsToBlockBasedRegion(dependence) && dependence instanceof PDGOutputDependence) {
+						PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+						PDGNode srcPDGNode = (PDGNode)outputDependence.src;
 						if(!removableNodes.contains(srcPDGNode))
 							return true;
 					}
@@ -405,6 +437,14 @@ public class PDGSliceUnion {
 		return false;
 	}
 
+	private boolean sliceContainsReturnStatement() {
+		for(PDGNode node : sliceNodes) {
+			if(node.getCFGNode() instanceof CFGExitNode)
+				return true;
+		}
+		return false;
+	}
+
 	private boolean complyWithUserThresholds() {
 		IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 		int minimumSliceSize = store.getInt(PreferenceConstants.P_MINIMUM_SLICE_SIZE);
@@ -431,9 +471,10 @@ public class PDGSliceUnion {
 	public boolean satisfiesRules() {
 		if(sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion() || declarationOfVariableCriterionIsDuplicated() ||
 				variableCriterionIsReturnedVariableInOriginalMethod() || (sliceNodes.size() <= nodeCriteria.size()) ||
-				allNodeCriteriaAreDuplicated() || returnStatementIsControlDependentOnSliceNode() ||
+				allNodeCriteriaAreDuplicated() || returnStatementIsControlDependentOnSliceNode() || sliceContainsReturnStatement() ||
 				containsDuplicateNodeWithStateChangingMethodInvocation() ||
 				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
+				nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() ||
 				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() ||
 				!complyWithUserThresholds())
 			return false;

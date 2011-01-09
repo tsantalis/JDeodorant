@@ -649,6 +649,9 @@ public class ExtractMethodRefactoring extends Refactoring {
 			Expression switchExpression = switchStatement.getExpression();
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(switchExpression));
 		}
+		else if(statement instanceof TryStatement) {
+			
+		}
 		else {
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(statement));
 		}

@@ -11,7 +11,6 @@ import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
 
@@ -201,7 +200,7 @@ public class PDGObjectSliceUnion {
 		Set<PDGNode> throwNodes = new LinkedHashSet<PDGNode>();
 		for(GraphNode node : subgraph.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
-			if(pdgNode.getASTStatement() instanceof ThrowStatement) {
+			if(pdgNode.getCFGNode() instanceof CFGThrowNode) {
 				throwNodes.add(pdgNode);
 			}
 		}
@@ -469,6 +468,25 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
+	private boolean sliceContainsBranchStatementWithoutInnermostLoop() {
+		for(PDGNode node : sliceNodes) {
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				CFGBreakNode breakNode = (CFGBreakNode)cfgNode;
+				CFGNode innerMostLoopNode = breakNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !sliceNodes.contains(innerMostLoopNode.getPDGNode()))
+					return true;
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				CFGContinueNode continueNode = (CFGContinueNode)cfgNode;
+				CFGNode innerMostLoopNode = continueNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !sliceNodes.contains(innerMostLoopNode.getPDGNode()))
+					return true;
+			}
+		}
+		return false;
+	}
+
 	private boolean complyWithUserThresholds() {
 		IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 		int minimumSliceSize = store.getInt(PreferenceConstants.P_MINIMUM_SLICE_SIZE);
@@ -500,7 +518,7 @@ public class PDGObjectSliceUnion {
 				nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() ||
 				nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() ||
 				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() ||
-				!complyWithUserThresholds())
+				!complyWithUserThresholds() || sliceContainsBranchStatementWithoutInnermostLoop())
 			return false;
 		return true;
 	}

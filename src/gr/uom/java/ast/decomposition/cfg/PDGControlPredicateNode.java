@@ -9,6 +9,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 
@@ -44,6 +45,7 @@ public class PDGControlPredicateNode extends PDGNode {
 				for(AbstractVariable variable : invokedMethodsThroughLocalVariables.keySet()) {
 					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughLocalVariables.get(variable);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
 						processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
 					}
 				}
@@ -51,6 +53,7 @@ public class PDGControlPredicateNode extends PDGNode {
 				for(AbstractVariable variable : invokedMethodsThroughParameters.keySet()) {
 					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(variable);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
 						processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
 					}
 				}
@@ -83,14 +86,21 @@ public class PDGControlPredicateNode extends PDGNode {
 				for(AbstractVariable variable : invokedMethodsThroughFields.keySet()) {
 					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(variable);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+						thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
 						processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
 					}
 				}
 				for(MethodInvocationObject methodInvocationObject : expression.getInvokedMethodsThroughThisReference()) {
+					thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
 					processArgumentsOfInternalMethodInvocation(methodInvocationObject, null);
 				}
 				for(MethodInvocationObject methodInvocationObject : expression.getInvokedStaticMethods()) {
+					thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
 					processArgumentsOfInternalMethodInvocation(methodInvocationObject, null);
+				}
+				List<SuperMethodInvocationObject> superMethodInvocations = expression.getSuperMethodInvocations();
+				for(SuperMethodInvocationObject superMethodInvocationObject : superMethodInvocations) {
+					thrownExceptionTypes.addAll(superMethodInvocationObject.getThrownExceptions());
 				}
 			}
 		}

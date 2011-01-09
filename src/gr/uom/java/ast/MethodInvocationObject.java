@@ -12,6 +12,7 @@ public class MethodInvocationObject {
     private String methodName;
     private TypeObject returnType;
     private List<TypeObject> parameterList;
+    private List<String> thrownExceptions;
     private boolean _static;
     //private MethodInvocation methodInvocation;
     private ASTInformation methodInvocation;
@@ -22,6 +23,7 @@ public class MethodInvocationObject {
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = new ArrayList<TypeObject>();
+        this.thrownExceptions = new ArrayList<String>();
         this._static = false;
     }
 
@@ -70,6 +72,14 @@ public class MethodInvocationObject {
 
     public void setStatic(boolean s) {
         _static = s;
+    }
+
+    public void addThrownException(String type) {
+    	thrownExceptions.add(type);
+    }
+
+    public List<String> getThrownExceptions() {
+    	return this.thrownExceptions;
     }
 
     public void setMethodInvocation(MethodInvocation methodInvocation) {

@@ -6,6 +6,7 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGContinueNode extends CFGNode {
 	private boolean isLabeled;
+	private CFGNode innerMostLoopNode;
 	
 	public CFGContinueNode(AbstractStatement statement) {
 		super(statement);
@@ -18,5 +19,13 @@ public class CFGContinueNode extends CFGNode {
 
 	public boolean isLabeled() {
 		return isLabeled;
+	}
+
+	public CFGNode getInnerMostLoopNode() {
+		return innerMostLoopNode;
+	}
+
+	public void setInnerMostLoopNode(CFGNode innerMostLoopNode) {
+		this.innerMostLoopNode = innerMostLoopNode;
 	}
 }

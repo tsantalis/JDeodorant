@@ -59,6 +59,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<AbstractVariable> definedVariables;
 	protected Set<AbstractVariable> usedVariables;
 	protected Set<TypeObject> createdTypes;
+	protected Set<String> thrownExceptionTypes;
 	protected Set<VariableDeclaration> variableDeclarationsInMethod;
 	protected Set<VariableDeclaration> fieldsAccessedInMethod;
 	private Set<AbstractVariable> originalDefinedVariables;
@@ -71,6 +72,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
 		this.createdTypes = new LinkedHashSet<TypeObject>();
+		this.thrownExceptionTypes = new LinkedHashSet<String>();
 	}
 	
 	public PDGNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod,
@@ -85,6 +87,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
 		this.createdTypes = new LinkedHashSet<TypeObject>();
+		this.thrownExceptionTypes = new LinkedHashSet<String>();
 		IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 		this.maximumCallGraphAnalysisDepth = store.getInt(PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH);
 	}
@@ -139,6 +142,12 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	public boolean containsClassInstanceCreation() {
 		if(!createdTypes.isEmpty())
+			return true;
+		return false;
+	}
+
+	public boolean throwsException() {
+		if(!thrownExceptionTypes.isEmpty())
 			return true;
 		return false;
 	}

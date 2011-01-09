@@ -468,16 +468,38 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof TryStatement) {
 			TryStatement tryStatement = (TryStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(tryStatement, "try");
+			TryStatementObject child = new TryStatementObject(tryStatement, "try");
 			parent.addStatement(child);
 			processStatement(child, tryStatement.getBody());
 			List<CatchClause> catchClauses = tryStatement.catchClauses();
 			for(CatchClause catchClause : catchClauses) {
-				processStatement(child, catchClause.getBody());
+				CatchClauseObject catchClauseObject = new CatchClauseObject();
+				Block catchClauseBody = catchClause.getBody();
+				CompositeStatementObject catchClauseStatementObject = new CompositeStatementObject(catchClauseBody, "{");
+				SingleVariableDeclaration variableDeclaration = catchClause.getException();
+				catchClauseObject.setExceptionType(variableDeclaration.getType().resolveBinding().getQualifiedName());
+				AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName());
+				catchClauseObject.addExpression(variableDeclarationName);
+				if(variableDeclaration.getInitializer() != null) {
+					AbstractExpression variableDeclarationInitializer = new AbstractExpression(variableDeclaration.getInitializer());
+					catchClauseObject.addExpression(variableDeclarationInitializer);
+				}
+				List<Statement> blockStatements = catchClauseBody.statements();
+				for(Statement blockStatement : blockStatements) {
+					processStatement(catchClauseStatementObject, blockStatement);
+				}
+				catchClauseObject.addStatement(catchClauseStatementObject);
+				child.addCatchClause(catchClauseObject);
 			}
 			Block finallyBlock = tryStatement.getFinally();
-			if(finallyBlock != null)
-				processStatement(child, finallyBlock);
+			if(finallyBlock != null) {
+				CompositeStatementObject finallyClauseStatementObject = new CompositeStatementObject(finallyBlock, "finally");
+				List<Statement> blockStatements = finallyBlock.statements();
+				for(Statement blockStatement : blockStatements) {
+					processStatement(finallyClauseStatementObject, blockStatement);
+				}
+				child.setFinallyClause(finallyClauseStatementObject);
+			}
 		}
 		else if(statement instanceof VariableDeclarationStatement) {
 			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;

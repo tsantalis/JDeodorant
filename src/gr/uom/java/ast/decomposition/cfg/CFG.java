@@ -18,6 +18,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -26,6 +27,7 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.decomposition.TryStatementObject;
 
 public class CFG extends Graph {
 	private static final int PUSH_NEW_LIST = 0;
@@ -35,12 +37,14 @@ public class CFG extends Graph {
 	private MethodObject method;
 	private Stack<List<CFGBranchConditionalNode>> unjoinedConditionalNodes;
 	private Map<CFGBranchSwitchNode, List<CFGNode>> switchBreakMap;
+	private Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks;
 	private BasicBlockCFG basicBlockCFG;
 	
 	public CFG(MethodObject method) {
 		this.method = method;
 		this.unjoinedConditionalNodes = new Stack<List<CFGBranchConditionalNode>>();
 		this.switchBreakMap = new LinkedHashMap<CFGBranchSwitchNode, List<CFGNode>>();
+		this.directlyNestedNodesInTryBlocks = new LinkedHashMap<CFGTryNode, List<CFGNode>>();
 		MethodBodyObject methodBody = method.getMethodBody();
 		if(methodBody != null) {
 			CompositeStatementObject composite = methodBody.getCompositeStatement();
@@ -62,6 +66,10 @@ public class CFG extends Graph {
 		return basicBlockCFG.getBasicBlocks();
 	}
 
+	public Map<CFGTryNode, List<CFGNode>> getDirectlyNestedNodesInTryBlocks() {
+		return directlyNestedNodesInTryBlocks;
+	}
+
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
 		if(composite.getStatement() instanceof TryStatement) {
 			AbstractStatement firstStatement = composite.getStatements().get(0);
@@ -79,12 +87,17 @@ public class CFG extends Graph {
 					previousNodes = process(previousNodes, compositeStatement);
 				}
 				else if(compositeStatement.getStatement() instanceof TryStatement) {
+					CFGTryNode tryNode = new CFGTryNode(compositeStatement);
+					//nodes.add(tryNode);
+					directlyNestedNodeInTryBlock(tryNode);
+					directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
 					AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
 					previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
 				}
 				else if(isLoop(compositeStatement)) {
 					CFGBranchNode currentNode = new CFGBranchLoopNode(compositeStatement);
 					nodes.add(currentNode);
+					directlyNestedNodeInTryBlock(currentNode);
 					createTopDownFlow(previousNodes, currentNode);
 					previousNodes = new ArrayList<CFGNode>();
 					ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
@@ -114,6 +127,7 @@ public class CFG extends Graph {
 					previousNodes = process(previousNodes, compositeStatement);
 					CFGBranchNode currentNode = new CFGBranchDoLoopNode(compositeStatement);
 					nodes.add(currentNode);
+					directlyNestedNodeInTryBlock(currentNode);
 					createTopDownFlow(previousNodes, currentNode);
 					CFGNode topNode = getCommonNextNode(tmpNodes);
 					if(topNode == null)
@@ -252,7 +266,7 @@ public class CFG extends Graph {
 		CFGNode currentNode = createNonCompositeNode(statement);
 		nodes.add(currentNode);
 		if((currentNode instanceof CFGBreakNode || currentNode instanceof CFGExitNode) &&
-				composite.getStatement() instanceof SwitchStatement && immediatelyNestedNode(currentNode, composite)) {
+				composite.getStatement() instanceof SwitchStatement && directlyNestedNode(currentNode, composite)) {
 			CFGBranchSwitchNode switchNode = getMostRecentSwitchNode();
 			if(switchBreakMap.containsKey(switchNode)) {
 				List<CFGNode> breakList = switchBreakMap.get(switchNode);
@@ -298,8 +312,11 @@ public class CFG extends Graph {
 			currentNode = new CFGBreakNode(statement);
 		else if(astStatement instanceof ContinueStatement)
 			currentNode = new CFGContinueNode(statement);
+		else if(astStatement instanceof ThrowStatement)
+			currentNode = new CFGThrowNode(statement);
 		else
 			currentNode = new CFGNode(statement);
+		directlyNestedNodeInTryBlock(currentNode);
 		return currentNode;
 	}
 
@@ -307,13 +324,13 @@ public class CFG extends Graph {
 		for(CFGNode previousNode : previousNodes) {
 			Statement statement = previousNode.getASTStatement();
 			if((statement instanceof BreakStatement || statement instanceof ReturnStatement) &&
-					immediatelyNestedNode(previousNode, composite))
+					directlyNestedNode(previousNode, composite))
 				return true;
 		}
 		return false;
 	}
 
-	private boolean immediatelyNestedNode(CFGNode node, CompositeStatementObject composite) {
+	private boolean directlyNestedNode(CFGNode node, CompositeStatementObject composite) {
 		for(AbstractStatement statement : composite.getStatements()) {
 			if(statement.equals(node.getStatement()))
 				return true;
@@ -321,7 +338,7 @@ public class CFG extends Graph {
 				CompositeStatementObject composite2 = (CompositeStatementObject)statement;
 				Statement astComposite2 = composite2.getStatement();
 				if(astComposite2 instanceof Block) {
-					if(immediatelyNestedNode(node, composite2))
+					if(directlyNestedNode(node, composite2))
 						return true;
 				}
 			}
@@ -329,10 +346,21 @@ public class CFG extends Graph {
 		return false;
 	}
 
+	private void directlyNestedNodeInTryBlock(CFGNode node) {
+		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
+			if(directlyNestedNode(node, (TryStatementObject)tryNode.getStatement())) {
+				List<CFGNode> directlyNestedNodes = directlyNestedNodesInTryBlocks.get(tryNode);
+				directlyNestedNodes.add(node);
+				break;
+			}
+		}
+	}
+
 	private List<CFGNode> processSwitchStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement, int action) {
 		CFGBranchSwitchNode currentNode = new CFGBranchSwitchNode(compositeStatement);
 		handleAction(currentNode, action);
 		nodes.add(currentNode);
+		directlyNestedNodeInTryBlock(currentNode);
 		createTopDownFlow(previousNodes, currentNode);
 		previousNodes = new ArrayList<CFGNode>();
 		ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
@@ -355,6 +383,7 @@ public class CFG extends Graph {
 		handleAction(currentNode, action);
 		
 		nodes.add(currentNode);
+		directlyNestedNodeInTryBlock(currentNode);
 		createTopDownFlow(previousNodes, currentNode);
 		previousNodes = new ArrayList<CFGNode>();
 		List<AbstractStatement> ifStatementList = compositeStatement.getStatements();
@@ -439,8 +468,9 @@ public class CFG extends Graph {
 	private void createTopDownFlow(List<CFGNode> previousNodes, CFGNode currentNode) {
 		for(CFGNode previousNode : previousNodes) {
 			Flow flow = new Flow(previousNode, currentNode);
+			int numberOfImmediateTryBlocks = getNumberOfImmediateTryBlocks(currentNode);
 			if(previousNode instanceof CFGBranchNode) {
-				if(currentNode.getId() == previousNode.getId() + 1 &&
+				if(currentNode.getId() == previousNode.getId() + 1 + numberOfImmediateTryBlocks &&
 						!(previousNode instanceof CFGBranchDoLoopNode))
 					flow.setTrueControlFlow(true);
 				else
@@ -454,6 +484,15 @@ public class CFG extends Graph {
 				conditionalNode.setJoinNode(currentNode);
 			}
 		}
+	}
+
+	private int getNumberOfImmediateTryBlocks(CFGNode node) {
+		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
+			List<CFGNode> directlyNestedNodes = directlyNestedNodesInTryBlocks.get(tryNode);
+			if(directlyNestedNodes.contains(node))
+				return 1 + getNumberOfImmediateTryBlocks(tryNode);
+		}
+		return 0;
 	}
 
 	private boolean isLoop(CompositeStatementObject compositeStatement) {

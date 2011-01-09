@@ -12,6 +12,7 @@ public class SuperMethodInvocationObject {
     private String methodName;
     private TypeObject returnType;
     private List<TypeObject> parameterList;
+    private List<String> thrownExceptions;
     //private SuperMethodInvocation superMethodInvocation;
     private ASTInformation superMethodInvocation;
     private volatile int hashCode = 0;
@@ -21,6 +22,7 @@ public class SuperMethodInvocationObject {
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = new ArrayList<TypeObject>();
+        this.thrownExceptions = new ArrayList<String>();
     }
 
     public SuperMethodInvocationObject(String originClassName, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
@@ -59,6 +61,14 @@ public class SuperMethodInvocationObject {
     	for(TypeObject typeObject : parameterList)
     		list.add(typeObject.toString());
     	return list;
+    }
+
+    public void addThrownException(String type) {
+    	thrownExceptions.add(type);
+    }
+
+    public List<String> getThrownExceptions() {
+    	return this.thrownExceptions;
     }
 
     public void setSuperMethodInvocation(SuperMethodInvocation superMethodInvocation) {

@@ -230,6 +230,10 @@ public abstract class AbstractMethodFragment {
 					TypeObject typeObject = TypeObject.extractTypeObject(qualifiedParameterName);
 					methodInvocationObject.addParameter(typeObject);
 				}
+				ITypeBinding[] thrownExceptionTypes = methodBinding.getExceptionTypes();
+				for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
+					methodInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+				}
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
 					methodInvocationObject.setStatic(true);
 				methodInvocationList.add(methodInvocationObject);
@@ -287,6 +291,10 @@ public abstract class AbstractMethodFragment {
 					String qualifiedParameterName = parameterType.getQualifiedName();
 					TypeObject typeObject = TypeObject.extractTypeObject(qualifiedParameterName);
 					superMethodInvocationObject.addParameter(typeObject);
+				}
+				ITypeBinding[] thrownExceptionTypes = methodBinding.getExceptionTypes();
+				for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
+					superMethodInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
 				}
 				superMethodInvocationList.add(superMethodInvocationObject);
 				List<Expression> arguments = superMethodInvocation.arguments();

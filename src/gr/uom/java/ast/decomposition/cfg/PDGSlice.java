@@ -239,8 +239,28 @@ public class PDGSlice extends Graph {
 				!containsDuplicateNodeWithStateChangingMethodInvocation() &&
 				!nonDuplicatedSliceNodeAntiDependsOnNonRemovableNode() &&
 				!nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() &&
-				!duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode())
+				!duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() &&
+				!sliceContainsBranchStatementWithoutInnermostLoop())
 			return true;
+		return false;
+	}
+
+	private boolean sliceContainsBranchStatementWithoutInnermostLoop() {
+		for(PDGNode node : sliceNodes) {
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				CFGBreakNode breakNode = (CFGBreakNode)cfgNode;
+				CFGNode innerMostLoopNode = breakNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !sliceNodes.contains(innerMostLoopNode.getPDGNode()))
+					return true;
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				CFGContinueNode continueNode = (CFGContinueNode)cfgNode;
+				CFGNode innerMostLoopNode = continueNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !sliceNodes.contains(innerMostLoopNode.getPDGNode()))
+					return true;
+			}
+		}
 		return false;
 	}
 

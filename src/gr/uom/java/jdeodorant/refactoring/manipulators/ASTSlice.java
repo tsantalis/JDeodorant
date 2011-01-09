@@ -26,6 +26,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.WhileStatement;
@@ -343,6 +344,15 @@ public class ASTSlice {
 				SwitchStatement switchStatement = (SwitchStatement)statement;
 				Expression switchExpression = switchStatement.getExpression();
 				Position position = new Position(switchExpression.getStartPosition(), switchExpression.getLength());
+				annotationMap.put(position, sliceNode.getAnnotation());
+				if(duplicatedStatements.contains(statement))
+					duplicationMap.put(position, true);
+				else
+					duplicationMap.put(position, false);
+			}
+			else if(statement instanceof TryStatement) {
+				TryStatement tryStatement = (TryStatement)statement;
+				Position position = new Position(tryStatement.getStartPosition(), 3);
 				annotationMap.put(position, sliceNode.getAnnotation());
 				if(duplicatedStatements.contains(statement))
 					duplicationMap.put(position, true);

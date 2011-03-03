@@ -106,7 +106,9 @@ public class GodClass extends ViewPart {
 			}
 		}
 		public Object getParent(Object arg0) {
-			return getParentCandidate(((CandidateRefactoring)arg0).getSourceEntity());
+			if(arg0 instanceof CandidateRefactoring)
+				return getParentCandidate(((CandidateRefactoring)arg0).getSourceEntity());
+			return null;
 		}
 		public boolean hasChildren(Object arg0) {
 			return getChildren(arg0).length > 0;
@@ -329,7 +331,10 @@ public class GodClass extends ViewPart {
 							ExtractClassCandidateRefactoring candidate = (ExtractClassCandidateRefactoring)entry;
 							String className = candidate.getTargetClassName().split("[.]")[candidate.getTargetClassName().split("[.]").length-1];
 							candidate.setTargetClassName(className);
-							refactoring = new ExtractClassRefactoring(sourceCompilationUnit, candidate.getSourceClassTypeDeclaration(), sourceFile, candidate.getExtractedEntities(), candidate.getLeaveDelegate(), candidate.getTargetClassName());
+							refactoring = new ExtractClassRefactoring(sourceFile, sourceCompilationUnit,
+									candidate.getSourceClassTypeDeclaration(),
+									candidate.getExtractedFieldFragments(), candidate.getExtractedMethods(),
+									candidate.getDelegateMethods(), candidate.getTargetClassName());
 						}
 						MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 						RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 

@@ -3,8 +3,8 @@ package gr.uom.java.distance;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -13,7 +13,9 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.text.Position;
 
 public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
@@ -31,17 +33,17 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 	private Set<Entity> oldEntities;
 	private Set<Entity> newEntities;
 	private DistanceMatrix originalDistanceMatrix;
-	private HashMap<String, MyAttribute> oldInstructions;
-	private HashMap<MyMethod, MyMethodInvocation> oldInvocations;
-	private HashMap<MyMethod, MyMethod> new2oldMethods;
-	private HashMap<MyAttribute, String> extractedVariableBindingKeys;
+	private Map<String, MyAttribute> oldInstructions;
+	private Map<MyMethod, MyMethodInvocation> oldInvocations;
+	private Map<MyMethod, MyMethod> new2oldMethods;
+	private Map<MyAttribute, String> extractedVariableBindingKeys;
 
 	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass, DistanceMatrix originalDistanceMatrix) {
 		super();
 		this.system = system;
 		this.sourceClass = sourceClass;
 		this.extractedEntities = new ArrayList<Entity>();
-		this.leaveDelegate = new HashMap<MyMethod, Boolean>();
+		this.leaveDelegate = new LinkedHashMap<MyMethod, Boolean>();
 		if (system.getClass(sourceClass.getName() + "Product") == null) {
 			this.targetClassName = sourceClass.getName() + "Product";
 		}
@@ -54,49 +56,35 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 		this.oldEntities = new LinkedHashSet<Entity>();
 		this.newEntities = new LinkedHashSet<Entity>();
 		this.originalDistanceMatrix = originalDistanceMatrix;
-		this.oldInstructions = new HashMap<String, MyAttribute>();
-		this.oldInvocations = new HashMap<MyMethod, MyMethodInvocation>();
-		this.new2oldMethods = new HashMap<MyMethod, MyMethod>();
-		this.extractedVariableBindingKeys = new HashMap<MyAttribute, String>();
+		this.oldInstructions = new LinkedHashMap<String, MyAttribute>();
+		this.oldInvocations = new LinkedHashMap<MyMethod, MyMethodInvocation>();
+		this.new2oldMethods = new LinkedHashMap<MyMethod, MyMethod>();
+		this.extractedVariableBindingKeys = new LinkedHashMap<MyAttribute, String>();
 	}
-
-
 
 	public MyClass getProductClass2() {
 		return productClass;
 	}
 
-
-
 	public Set<Entity> getChangedEntities() {
 		return changedEntities;
 	}
-
 
 	public Set<String> getChangedClasses() {
 		return changedClasses;
 	}
 
-
-
 	public Set<Entity> getOldEntities() {
 		return oldEntities;
 	}
-
-
-
 
 	public Set<Entity> getNewEntities() {
 		return newEntities;
 	}
 
-
-
 	public String getTargetClassName() {
 		return targetClassName;
 	}
-
-
 
 	public void setTargetClassName(String targetClassName) {
 		this.targetClassName = targetClassName;
@@ -109,6 +97,37 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 
 	public List<Entity> getExtractedEntities() {
 		return extractedEntities;
+	}
+
+	public Set<MethodDeclaration> getExtractedMethods() {
+		Set<MethodDeclaration> extractedMethods = new LinkedHashSet<MethodDeclaration>();
+		for(Entity entity : extractedEntities) {
+			if(entity instanceof MyMethod) {
+				MyMethod method = (MyMethod)entity;
+				extractedMethods.add(method.getMethodObject().getMethodDeclaration());
+			}
+		}
+		return extractedMethods;
+	}
+
+	public Set<MethodDeclaration> getDelegateMethods() {
+		Set<MethodDeclaration> delegateMethods = new LinkedHashSet<MethodDeclaration>();
+		for(MyMethod method : leaveDelegate.keySet()) {
+			if(leaveDelegate.get(method) == true)
+				delegateMethods.add(method.getMethodObject().getMethodDeclaration());
+		}
+		return delegateMethods;
+	}
+
+	public Set<VariableDeclaration> getExtractedFieldFragments() {
+		Set<VariableDeclaration> extractedFieldFragments = new LinkedHashSet<VariableDeclaration>();
+		for(Entity entity : extractedEntities) {
+			if(entity instanceof MyAttribute) {
+				MyAttribute attribute = (MyAttribute)entity;
+				extractedFieldFragments.add(attribute.getFieldObject().getVariableDeclaration());
+			}
+		}
+		return extractedFieldFragments;
 	}
 
 	public double[][] getJaccardDistanceMatrix() {
@@ -128,8 +147,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 		}
 		return jaccardDistanceMatrix;
 	}
-
-
 
 	public Map<MyMethod, Boolean> getLeaveDelegate() {
 		return leaveDelegate;
@@ -502,7 +519,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 				MyMethod method = (MyMethod)entity;
 				methodCounter++;
 				if (isSynchronized(method) || containsSuperMethodInvocation(method)
-						|| overridesMethod(method))
+						|| overridesMethod(method) || method.isAbstract())
 					return false;
 			}
 		}

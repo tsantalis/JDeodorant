@@ -138,6 +138,18 @@ public class ExpressionExtractor {
 		return getExpressions(expression);
 	}
 	
+	// returns a List of ArrayAccess objects
+	public List<Expression> getArrayAccesses(Statement statement) {
+		instanceChecker = new InstanceOfArrayAccess();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of ArrayAccess objects
+	public List<Expression> getArrayAccesses(Expression expression) {
+		instanceChecker = new InstanceOfArrayAccess();
+		return getExpressions(expression);
+	}
+		
 	// returns a List of ThisExpression objects
 	public List<Expression> getThisExpressions(Statement statement) {
 		instanceChecker = new InstanceOfThisExpression();
@@ -464,6 +476,8 @@ public class ExpressionExtractor {
 			ArrayAccess arrayAccess = (ArrayAccess)expression;
 			expressionList.addAll(getExpressions(arrayAccess.getArray()));
 			expressionList.addAll(getExpressions(arrayAccess.getIndex()));
+			if(instanceChecker.instanceOf(arrayAccess))
+				expressionList.add(arrayAccess);
 		}
 		else if(expression instanceof ArrayCreation) {
 			ArrayCreation arrayCreation = (ArrayCreation)expression;

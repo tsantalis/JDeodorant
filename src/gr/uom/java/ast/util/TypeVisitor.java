@@ -13,13 +13,15 @@ public class TypeVisitor extends ASTVisitor {
 	private Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 	
 	public boolean visit(SimpleType node) {
-		typeBindings.add(node.resolveBinding());
+		ITypeBinding typeBinding = node.resolveBinding();
+		if(typeBinding != null)
+			typeBindings.add(typeBinding);
 		return super.visit(node);
 	}
 
 	public boolean visit(SimpleName node) {
 		IBinding binding = node.resolveBinding();
-		if(binding.getKind() == IBinding.TYPE) {
+		if(binding != null && binding.getKind() == IBinding.TYPE) {
 			ITypeBinding typeBinding = (ITypeBinding)binding;
 			typeBindings.add(typeBinding);
 		}

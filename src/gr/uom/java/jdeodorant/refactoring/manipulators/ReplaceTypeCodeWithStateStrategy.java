@@ -6,6 +6,7 @@ import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,8 +31,10 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -2010,7 +2013,8 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 	}
 
 	private void modifyTypeFieldAssignmentsInContextClass(boolean modify) {
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<MethodDeclaration> contextMethods = getAllMethodDeclarationsInSourceClass();
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		MethodDeclaration typeFieldSetterMethod = typeCheckElimination.getTypeFieldSetterMethod();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
@@ -2018,7 +2022,6 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				Block methodBody = methodDeclaration.getBody();
 				if(methodBody != null) {
 					List<Statement> statements = methodBody.statements();
-					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 					for(Statement statement : statements) {
 						List<Expression> assignments = expressionExtractor.getAssignments(statement);
 						for(Expression expression : assignments) {
@@ -2119,13 +2122,13 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 	}
 
 	private void modifyTypeFieldAccessesInContextClass(boolean modify) {
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<MethodDeclaration> contextMethods = getAllMethodDeclarationsInSourceClass();
 		List<SimpleName> staticFields = typeCheckElimination.getStaticFields();
 		for(MethodDeclaration methodDeclaration : contextMethods) {
 			Block methodBody = methodDeclaration.getBody();
 			if(methodBody != null) {
 				List<Statement> statements = methodBody.statements();
-				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 				for(Statement statement : statements) {
 					if(statement instanceof SwitchStatement) {
 						SwitchStatement switchStatement = (SwitchStatement)statement;
@@ -2276,7 +2279,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 							if(leftOperandBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding accessedVariableBinding = (IVariableBinding)leftOperandBinding;
 								if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
-									if(modify && !nodeExistsInsideTypeCheckCodeFragment(leftOperand) && !(infixExpression.getParent() instanceof Assignment)) {
+									if(modify && !nodeExistsInsideTypeCheckCodeFragment(leftOperand) && !isAssignmentChild(infixExpression)) {
 										ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 										AST contextAST = sourceTypeDeclaration.getAST();
 										MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
@@ -2336,7 +2339,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 								if(rightOperandBinding.getKind() == IBinding.VARIABLE) {
 									IVariableBinding accessedVariableBinding = (IVariableBinding)rightOperandBinding;
 									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
-										if(modify && !nodeExistsInsideTypeCheckCodeFragment(rightOperand) && !(infixExpression.getParent() instanceof Assignment)) {
+										if(modify && !nodeExistsInsideTypeCheckCodeFragment(rightOperand) && !isAssignmentChild(infixExpression)) {
 											ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 											AST contextAST = sourceTypeDeclaration.getAST();
 											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
@@ -2376,6 +2379,78 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 			}
 		}
+	}
+
+	private Set<MethodDeclaration> getAllMethodDeclarationsInSourceClass() {
+		Set<MethodDeclaration> contextMethods = new LinkedHashSet<MethodDeclaration>();
+		for(FieldDeclaration fieldDeclaration : sourceTypeDeclaration.getFields()) {
+			contextMethods.addAll(getMethodDeclarationsWithinAnonymousClassDeclarations(fieldDeclaration));
+		}
+		List<MethodDeclaration> methodDeclarationList = Arrays.asList(sourceTypeDeclaration.getMethods());
+		contextMethods.addAll(methodDeclarationList);
+		/*for(MethodDeclaration methodDeclaration : methodDeclarationList) {
+			contextMethods.addAll(getMethodDeclarationsWithinAnonymousClassDeclarations(methodDeclaration));
+		}*/
+		//get methods of inner classes
+		TypeDeclaration[] types = sourceTypeDeclaration.getTypes();
+		for(TypeDeclaration type : types) {
+			for(FieldDeclaration fieldDeclaration : type.getFields()) {
+				contextMethods.addAll(getMethodDeclarationsWithinAnonymousClassDeclarations(fieldDeclaration));
+			}
+			List<MethodDeclaration> innerMethodDeclarationList = Arrays.asList(type.getMethods());
+			contextMethods.addAll(innerMethodDeclarationList);
+			/*for(MethodDeclaration methodDeclaration : innerMethodDeclarationList) {
+				contextMethods.addAll(getMethodDeclarationsWithinAnonymousClassDeclarations(methodDeclaration));
+			}*/
+		}
+		return contextMethods;
+	}
+
+	private Set<MethodDeclaration> getMethodDeclarationsWithinAnonymousClassDeclarations(MethodDeclaration methodDeclaration) {
+		Set<MethodDeclaration> methods = new LinkedHashSet<MethodDeclaration>();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(methodDeclaration.getBody());
+		for(Expression expression : classInstanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+			AnonymousClassDeclaration anonymousClassDeclaration = classInstanceCreation.getAnonymousClassDeclaration();
+			if(anonymousClassDeclaration != null) {
+				List<BodyDeclaration> bodyDeclarations = anonymousClassDeclaration.bodyDeclarations();
+				for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+					if(bodyDeclaration instanceof MethodDeclaration)
+						methods.add((MethodDeclaration)bodyDeclaration);
+				}
+			}
+		}
+		return methods;
+	}
+
+	private Set<MethodDeclaration> getMethodDeclarationsWithinAnonymousClassDeclarations(FieldDeclaration fieldDeclaration) {
+		Set<MethodDeclaration> methods = new LinkedHashSet<MethodDeclaration>();
+		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+		for(VariableDeclarationFragment fragment : fragments) {
+			Expression expression = fragment.getInitializer();
+			if(expression != null && expression instanceof ClassInstanceCreation) {
+				ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+				AnonymousClassDeclaration anonymousClassDeclaration = classInstanceCreation.getAnonymousClassDeclaration();
+				if(anonymousClassDeclaration != null) {
+					List<BodyDeclaration> bodyDeclarations = anonymousClassDeclaration.bodyDeclarations();
+					for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+						if(bodyDeclaration instanceof MethodDeclaration)
+							methods.add((MethodDeclaration)bodyDeclaration);
+					}
+				}
+			}
+		}
+		return methods;
+	}
+
+	private boolean isAssignmentChild(ASTNode node) {
+		if(node instanceof Assignment)
+			return true;
+		else if(node instanceof Statement)
+			return false;
+		else
+			return isAssignmentChild(node.getParent());
 	}
 
 	private boolean nodeExistsInsideTypeCheckCodeFragment(ASTNode node) {

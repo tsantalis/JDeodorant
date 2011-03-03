@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,7 +36,7 @@ public class ExtractClassInputPage extends UserInputWizardPage {
 	private Map<Text, String> defaultNamingMap;
 	
 	public ExtractClassInputPage(ExtractClassRefactoring refactoring) {
-		super("State/Strategy Type Names");
+		super("Extracted Class Name");
 		this.refactoring = refactoring;
 		ICompilationUnit sourceCompilationUnit = (ICompilationUnit)refactoring.getSourceCompilationUnit().getJavaElement();
 		this.parentPackage = (IPackageFragment)sourceCompilationUnit.getParent();
@@ -93,10 +94,10 @@ public class ExtractClassInputPage extends UserInputWizardPage {
 		
 		Text extractedClassNameField = new Text(result, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
 		extractedClassNameField.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
-		extractedClassNameField.setText(refactoring.getTargetTypeName());
+		extractedClassNameField.setText(refactoring.getExtractedTypeName());
 		
-		textMap.put(extractedClassNameField, refactoring.getTargetTypeName());
-		defaultNamingMap.put(extractedClassNameField, refactoring.getTargetTypeName());
+		textMap.put(extractedClassNameField, refactoring.getExtractedTypeName());
+		defaultNamingMap.put(extractedClassNameField, refactoring.getExtractedTypeName());
 		
 		final Button restoreButton = new Button(result, SWT.PUSH);
 		restoreButton.setText("Restore Defaults");
@@ -142,11 +143,10 @@ public class ExtractClassInputPage extends UserInputWizardPage {
 				return;
 			}
 			else {
-				refactoring.setTargetTypeName(text.getText());
+				refactoring.setExtractedTypeName(text.getText());
 			}
 		}
 		setPageComplete(true);
 		setMessage("", NONE);
 	}
-
 }

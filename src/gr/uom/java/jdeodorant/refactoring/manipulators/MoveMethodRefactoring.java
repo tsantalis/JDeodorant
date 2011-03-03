@@ -83,6 +83,7 @@ public class MoveMethodRefactoring extends Refactoring {
 	private Set<String> additionalArgumentsAddedToMovedMethod;
 	private Set<ITypeBinding> additionalTypeBindingsToBeImportedInTargetClass;
 	private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
+	private Set<FieldDeclaration> fieldDeclarationsChangedWithPublicModifier;
 	private boolean leaveDelegate;
 	private String movedMethodName;
 	private boolean isTargetClassVariableParameter;
@@ -104,6 +105,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		this.additionalArgumentsAddedToMovedMethod = new LinkedHashSet<String>();
 		this.additionalTypeBindingsToBeImportedInTargetClass = new LinkedHashSet<ITypeBinding>();
 		this.additionalMethodsToBeMoved = additionalMethodsToBeMoved;
+		this.fieldDeclarationsChangedWithPublicModifier = new LinkedHashSet<FieldDeclaration>();
 		this.leaveDelegate = leaveDelegate;
 		this.movedMethodName = movedMethodName;
 		this.isTargetClassVariableParameter = false;
@@ -712,12 +714,70 @@ public class MoveMethodRefactoring extends Refactoring {
 						QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 						targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
 					}
+					setPublicModifierToSourceField(variableBinding);
 				}
 			}
 			i++;
 		}
 	}
-	
+
+	private void setPublicModifierToSourceField(IVariableBinding variableBinding) {
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				boolean modifierIsReplaced = false;
+				if(variableBinding.isEqualTo(fragment.resolveBinding())) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+					ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+					Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+					boolean modifierFound = false;
+					List<IExtendedModifier> modifiers = fieldDeclaration.modifiers();
+					for(IExtendedModifier extendedModifier : modifiers) {
+						if(extendedModifier.isModifier()) {
+							Modifier modifier = (Modifier)extendedModifier;
+							if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+								modifierFound = true;
+							}
+							else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+									modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+								if(!fieldDeclarationsChangedWithPublicModifier.contains(fieldDeclaration)) {
+									fieldDeclarationsChangedWithPublicModifier.add(fieldDeclaration);
+									modifierFound = true;
+									modifierRewrite.replace(modifier, publicModifier, null);
+									modifierIsReplaced = true;
+									try {
+										TextEdit sourceEdit = sourceRewriter.rewriteAST();
+										sourceMultiTextEdit.addChild(sourceEdit);
+										sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+									} catch (JavaModelException e) {
+										e.printStackTrace();
+									}
+								}
+							}
+						}
+					}
+					if(!modifierFound) {
+						if(!fieldDeclarationsChangedWithPublicModifier.contains(fieldDeclaration)) {
+							fieldDeclarationsChangedWithPublicModifier.add(fieldDeclaration);
+							modifierRewrite.insertFirst(publicModifier, null);
+							modifierIsReplaced = true;
+							try {
+								TextEdit sourceEdit = sourceRewriter.rewriteAST();
+								sourceMultiTextEdit.addChild(sourceEdit);
+								sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+							} catch (JavaModelException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+				if(modifierIsReplaced)
+					break;
+			}
+		}
+	}
+
 	private void modifySourceStaticMethodInvocationsInTargetClass(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter) {
 		ExpressionExtractor extractor = new ExpressionExtractor();	
 		List<Expression> sourceMethodInvocations = extractor.getMethodInvocations(sourceMethod.getBody());

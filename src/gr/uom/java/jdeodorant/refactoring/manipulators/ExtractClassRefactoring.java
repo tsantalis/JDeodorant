@@ -54,6 +54,7 @@ import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression.Operator;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.QualifiedType;
@@ -204,7 +205,8 @@ public class ExtractClassRefactoring extends Refactoring {
 			else
 				methodsToBeRemoved.add(method);
 		}
-		removeSourceMethods(methodsToBeRemoved);
+		if(methodsToBeRemoved.size() > 0)
+			removeSourceMethods(methodsToBeRemoved);
 	}
 
 	private void addDelegationInExtractedMethod(MethodDeclaration sourceMethod) {
@@ -1139,6 +1141,138 @@ public class ExtractClassRefactoring extends Refactoring {
 								if(!variableBindingCorrespondsToExtractedField(accessedVariableBinding)) {
 									if(sourceFieldBindingsWithCreatedSetterMethod.contains(accessedVariableBinding.getKey())) {
 										if(isParentAnonymousClassDeclaration(oldPostfixExpression))
+											sourceClassParameterShouldBeFinal = true;
+										sourceClassParameter = handleAccessedFieldHavingSetterMethod(
+												sourceMethod,
+												newMethodDeclaration,
+												targetRewriter, ast,
+												sourceClassParameter,
+												modifiedSourceTypeName,
+												newAccessedVariable,
+												accessedVariableBinding);
+									}
+									else {
+										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
+											fieldParameterFinalMap.put(newAccessedVariable.getIdentifier(), true);
+										handleAccessedFieldNotHavingSetterMethod(
+												sourceMethod,
+												newMethodDeclaration,
+												targetRewriter,
+												fieldParameterMap,
+												newAccessedVariable);
+									}
+								}
+							}
+						}
+					}
+					j++;
+				}
+			}
+			i++;
+		}
+		
+		List<Expression> sourcePrefixExpressions = expressionExtractor.getPrefixExpressions(sourceMethod.getBody());
+		List<Expression> newPrefixExpressions = expressionExtractor.getPrefixExpressions(newMethodDeclaration.getBody());
+		i = 0;
+		for(Expression expression : sourcePrefixExpressions) {
+			PrefixExpression oldPrefixExpression = (PrefixExpression)expression;
+			PrefixExpression newPrefixExpression = (PrefixExpression)newPrefixExpressions.get(i);
+			Expression oldOperand = oldPrefixExpression.getOperand();
+			Expression newOperand = newPrefixExpression.getOperand();
+			Operator oldOperator = oldPrefixExpression.getOperator();
+			Operator newOperator = newPrefixExpression.getOperator();
+			SimpleName oldAssignedVariable = null;
+			SimpleName newAssignedVariable = null;
+			if(oldOperand instanceof SimpleName) {
+				oldAssignedVariable = (SimpleName)oldOperand;
+				newAssignedVariable = (SimpleName)newOperand;
+			}
+			else if(oldOperand instanceof FieldAccess) {
+				FieldAccess oldFieldAccess = (FieldAccess)oldOperand;
+				oldAssignedVariable = oldFieldAccess.getName();
+				FieldAccess newFieldAccess = (FieldAccess)newOperand;
+				newAssignedVariable = newFieldAccess.getName();
+			}
+			if(oldAssignedVariable != null && (oldOperator.equals(PrefixExpression.Operator.INCREMENT) ||
+					oldOperator.equals(PrefixExpression.Operator.DECREMENT))) {
+				IBinding binding = oldAssignedVariable.resolveBinding();
+				if(binding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding variableBinding = (IVariableBinding)binding;
+					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
+						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+							if(!variableBindingCorrespondsToExtractedField(variableBinding)) {
+								IMethodBinding setterMethodBinding = findSetterMethodInSourceClass(variableBinding);
+								Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+								Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
+								if(isParentAnonymousClassDeclaration(oldPrefixExpression))
+									sourceClassParameterShouldBeFinal = true;
+								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+									sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
+									additionalArgumentsAddedToMovedMethod.add("this");
+									additionalParametersAddedToMovedMethod.add(sourceClassParameter);
+								}
+								MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
+								if(setterMethodBinding != null) {
+									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(setterMethodBinding.getName()), null);
+								}
+								else {
+									if(!sourceFieldBindingsWithCreatedSetterMethod.contains(variableBinding.getKey())) {
+										createSetterMethodInSourceClass(variableBinding);
+										sourceFieldBindingsWithCreatedSetterMethod.add(variableBinding.getKey());
+									}
+									String originalFieldName = variableBinding.getName();
+									String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName("set" + modifiedFieldName), null);
+								}
+								ListRewrite setterMethodInvocationArgumentsRewrite = targetRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+								IMethodBinding getterMethodBinding = findGetterMethodInSourceClass(variableBinding);
+								MethodInvocation getterMethodInvocation = ast.newMethodInvocation();
+								if(getterMethodBinding != null) {
+									targetRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(getterMethodBinding.getName()), null);
+								}
+								else {
+									if(!sourceFieldBindingsWithCreatedGetterMethod.contains(variableBinding.getKey())) {
+										createGetterMethodInSourceClass(variableBinding);
+										sourceFieldBindingsWithCreatedGetterMethod.add(variableBinding.getKey());
+									}
+									String originalFieldName = variableBinding.getName();
+									String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+									targetRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName("get" + modifiedFieldName), null);
+								}
+								targetRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
+								InfixExpression infixExpression = ast.newInfixExpression();
+								targetRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, getterMethodInvocation, null);
+								targetRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, ast.newNumberLiteral("1"), null);
+								if(newOperator.equals(PrefixExpression.Operator.INCREMENT)) {
+									targetRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.PLUS, null);
+								}
+								else if(newOperator.equals(PrefixExpression.Operator.DECREMENT)) {
+									targetRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.MINUS, null);
+								}
+								setterMethodInvocationArgumentsRewrite.insertLast(infixExpression, null);
+								targetRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
+								targetRewriter.replace(newPrefixExpression, setterMethodInvocation, null);
+							}
+						}
+					}
+				}
+			}
+			else {
+				//if an assigned field is not found in operand, then replace all accessed fields in operand
+				int j = 0;
+				List<Expression> oldAccessedVariables = expressionExtractor.getVariableInstructions(oldOperand);
+				List<Expression> newAccessedVariables = expressionExtractor.getVariableInstructions(newOperand);
+				for(Expression expression2 : oldAccessedVariables) {
+					SimpleName oldAccessedVariable = (SimpleName)expression2;
+					SimpleName newAccessedVariable = (SimpleName)newAccessedVariables.get(j);
+					IBinding rightHandBinding = oldAccessedVariable.resolveBinding();
+					if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
+						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
+							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
+								if(!variableBindingCorrespondsToExtractedField(accessedVariableBinding)) {
+									if(sourceFieldBindingsWithCreatedSetterMethod.contains(accessedVariableBinding.getKey())) {
+										if(isParentAnonymousClassDeclaration(oldPrefixExpression))
 											sourceClassParameterShouldBeFinal = true;
 										sourceClassParameter = handleAccessedFieldHavingSetterMethod(
 												sourceMethod,

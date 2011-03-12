@@ -1,7 +1,13 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -19,10 +25,14 @@ import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.ExtractClassCandidateRefactoring;
 import gr.uom.java.distance.ExtractClassCandidatesGroup;
 import gr.uom.java.distance.MySystem;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
+import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
@@ -39,8 +49,11 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -138,6 +151,9 @@ public class GodClass extends ViewPart {
 					return entry.getSourceEntity();
 				case 3:
 					return ""+entry.getEntityPlacement();
+				case 4:
+					Integer userRate = ((ExtractClassCandidateRefactoring)entry).getUserRate();
+					return (userRate == null) ? "" : userRate.toString();
 				default:
 					return "";
 				}
@@ -147,11 +163,25 @@ public class GodClass extends ViewPart {
 			}
 		}
 		public Image getColumnImage(Object obj, int index) {
-			return null;
+			Image image = null;
+			if(obj instanceof ExtractClassCandidateRefactoring) {
+				int rate = -1;
+				Integer userRate = ((ExtractClassCandidateRefactoring)obj).getUserRate();
+				if(userRate != null)
+					rate = userRate;
+				switch(index) {
+				case 4:
+					if(rate != -1) {
+						image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+					}
+				default:
+					break;
+				}
+			}
+			return image;
 		}
 		public Image getImage(Object obj) {
 			return null;
-			//return PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_ELEMENT);
 		}
 	}
 
@@ -259,17 +289,118 @@ public class GodClass extends ViewPart {
 		treeViewer.setLabelProvider(new ViewLabelProvider());
 		treeViewer.setSorter(new NameSorter());
 		treeViewer.setInput(getViewSite());
+		TableLayout layout = new TableLayout();
+		layout.addColumnData(new ColumnWeightData(20, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(20, true));
+		treeViewer.getTree().setLayout(layout);
 		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Refactoring Type");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Group Name");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Source Entity");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Entity Placement");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Rate it!");
 		treeViewer.expandAll();
 
 		for (int i = 0, n = treeViewer.getTree().getColumnCount(); i < n; i++) {
 			treeViewer.getTree().getColumn(i).pack();
 		}
 
+		treeViewer.setColumnProperties(new String[] {"type", "group", "source", "ep", "rate"});
+		treeViewer.setCellEditors(new CellEditor[] {
+				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
+				new ComboBoxCellEditor(treeViewer.getTree(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+		});
+		
+		treeViewer.setCellModifier(new ICellModifier() {
+			public boolean canModify(Object element, String property) {
+				return property.equals("rate");
+			}
+
+			public Object getValue(Object element, String property) {
+				if(element instanceof ExtractClassCandidateRefactoring) {
+					ExtractClassCandidateRefactoring candidate = (ExtractClassCandidateRefactoring)element;
+					if(candidate.getUserRate() != null)
+						return candidate.getUserRate();
+					else
+						return 0;
+				}
+				return 0;
+			}
+
+			public void modify(Object element, String property, Object value) {
+				TreeItem item = (TreeItem)element;
+				Object data = item.getData();
+				if(data instanceof ExtractClassCandidateRefactoring) {
+					ExtractClassCandidateRefactoring candidate = (ExtractClassCandidateRefactoring)data;
+					candidate.setUserRate((Integer)value);
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+					if(allowUsageReporting) {
+						Tree tree = treeViewer.getTree();
+						int groupPosition = -1;
+						int totalGroups = tree.getItemCount()-1;
+						int totalOpportunities = 0;
+						for(int i=0; i<tree.getItemCount(); i++) {
+							TreeItem treeItem = tree.getItem(i);
+							ExtractClassCandidatesGroup group = (ExtractClassCandidatesGroup)treeItem.getData();
+							if(group.getSource().equals(candidate.getSource())) {
+								groupPosition = i;
+							}
+							totalOpportunities += treeItem.getItemCount();
+						}
+						try {
+							Set<VariableDeclaration> extractedFieldFragments = candidate.getExtractedFieldFragments();
+							Set<MethodDeclaration> extractedMethods = candidate.getExtractedMethods();
+							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+							String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							content += "&" + URLEncoder.encode("source_class_name", "UTF-8") + "=" + URLEncoder.encode(declaringClass, "UTF-8");
+							String extractedElementsSourceCode = "";
+							String extractedFieldsText = "";
+							for(VariableDeclaration fieldFragment : extractedFieldFragments) {
+								extractedFieldsText += fieldFragment.resolveBinding().toString() + "\n";
+								extractedElementsSourceCode += fieldFragment.resolveBinding().toString() + "\n";
+							}
+							content += "&" + URLEncoder.encode("extracted_fields", "UTF-8") + "=" + URLEncoder.encode(extractedFieldsText, "UTF-8");
+							String extractedMethodsText = "";
+							for(MethodDeclaration method : extractedMethods) {
+								extractedMethodsText += method.resolveBinding().toString() + "\n";
+								extractedElementsSourceCode += method.toString() + "\n";
+							}
+							content += "&" + URLEncoder.encode("extracted_methods", "UTF-8") + "=" + URLEncoder.encode(extractedMethodsText, "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_groups", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalOpportunities), "UTF-8");
+							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+							if(allowSourceCodeReporting)
+								content += "&" + URLEncoder.encode("extracted_elements_source_code", "UTF-8") + "=" + URLEncoder.encode(extractedElementsSourceCode, "UTF-8");
+							content += "&" + URLEncoder.encode("rating", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getUserRate()), "UTF-8");
+							content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+							content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("3", "UTF-8");
+							URL url = new URL(Activator.RANK_URL);
+							URLConnection urlConn = url.openConnection();
+							urlConn.setDoInput(true);
+							urlConn.setDoOutput(true);
+							urlConn.setUseCaches(false);
+							urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+							printout.writeBytes(content);
+							printout.flush();
+							printout.close();
+							DataInputStream input = new DataInputStream(urlConn.getInputStream());
+							input.close();
+						} catch (IOException ioe) {
+							ioe.printStackTrace();
+						}
+					}
+					treeViewer.update(data, null);
+				}
+			}
+		});
+		
 		treeViewer.getTree().setLinesVisible(true);
 		treeViewer.getTree().setHeaderVisible(true);
 		makeActions();
@@ -308,9 +439,6 @@ public class GodClass extends ViewPart {
 				candidateRefactoringTable = getTable();
 				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
-				for(TreeColumn col : treeViewer.getTree().getColumns()) {
-					col.setWidth(250);
-				}
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -329,12 +457,73 @@ public class GodClass extends ViewPart {
 						Refactoring refactoring = null;
 						if(entry instanceof ExtractClassCandidateRefactoring) {
 							ExtractClassCandidateRefactoring candidate = (ExtractClassCandidateRefactoring)entry;
-							String className = candidate.getTargetClassName().split("[.]")[candidate.getTargetClassName().split("[.]").length-1];
-							candidate.setTargetClassName(className);
+							String[] tokens = candidate.getTargetClassName().split("\\.");
+							String extractedClassName = tokens[tokens.length-1];
+							Set<VariableDeclaration> extractedFieldFragments = candidate.getExtractedFieldFragments();
+							Set<MethodDeclaration> extractedMethods = candidate.getExtractedMethods();
+							IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+							boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+							if(allowUsageReporting) {
+								Tree tree = treeViewer.getTree();
+								int groupPosition = -1;
+								int totalGroups = tree.getItemCount()-1;
+								int totalOpportunities = 0;
+								for(int i=0; i<tree.getItemCount(); i++) {
+									TreeItem treeItem = tree.getItem(i);
+									ExtractClassCandidatesGroup group = (ExtractClassCandidatesGroup)treeItem.getData();
+									if(group.getSource().equals(candidate.getSource())) {
+										groupPosition = i;
+									}
+									totalOpportunities += treeItem.getItemCount();
+								}
+								try {
+									boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+									String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
+									String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+									content += "&" + URLEncoder.encode("source_class_name", "UTF-8") + "=" + URLEncoder.encode(declaringClass, "UTF-8");
+									String extractedElementsSourceCode = "";
+									String extractedFieldsText = "";
+									for(VariableDeclaration fieldFragment : extractedFieldFragments) {
+										extractedFieldsText += fieldFragment.resolveBinding().toString() + "\n";
+										extractedElementsSourceCode += fieldFragment.resolveBinding().toString() + "\n";
+									}
+									content += "&" + URLEncoder.encode("extracted_fields", "UTF-8") + "=" + URLEncoder.encode(extractedFieldsText, "UTF-8");
+									String extractedMethodsText = "";
+									for(MethodDeclaration method : extractedMethods) {
+										extractedMethodsText += method.resolveBinding().toString() + "\n";
+										extractedElementsSourceCode += method.toString() + "\n";
+									}
+									content += "&" + URLEncoder.encode("extracted_methods", "UTF-8") + "=" + URLEncoder.encode(extractedMethodsText, "UTF-8");
+									content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+									content += "&" + URLEncoder.encode("total_groups", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
+									content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalOpportunities), "UTF-8");
+									content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+									if(allowSourceCodeReporting)
+										content += "&" + URLEncoder.encode("extracted_elements_source_code", "UTF-8") + "=" + URLEncoder.encode(extractedElementsSourceCode, "UTF-8");
+									content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
+									content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(extractedClassName, "UTF-8");
+									content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+									content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("3", "UTF-8");
+									URL url = new URL(Activator.RANK_URL);
+									URLConnection urlConn = url.openConnection();
+									urlConn.setDoInput(true);
+									urlConn.setDoOutput(true);
+									urlConn.setUseCaches(false);
+									urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+									DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+									printout.writeBytes(content);
+									printout.flush();
+									printout.close();
+									DataInputStream input = new DataInputStream(urlConn.getInputStream());
+									input.close();
+								} catch (IOException ioe) {
+									ioe.printStackTrace();
+								}
+							}
 							refactoring = new ExtractClassRefactoring(sourceFile, sourceCompilationUnit,
 									candidate.getSourceClassTypeDeclaration(),
-									candidate.getExtractedFieldFragments(), candidate.getExtractedMethods(),
-									candidate.getDelegateMethods(), candidate.getTargetClassName());
+									extractedFieldFragments, extractedMethods,
+									candidate.getDelegateMethods(), extractedClassName);
 						}
 						MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
 						RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
@@ -380,12 +569,22 @@ public class GodClass extends ViewPart {
 									annotationModel.removeAnnotation(currentAnnotation);
 								}
 							}
+							Position firstPosition = null;
+							Position lastPosition = null;
+							int minOffset = Integer.MAX_VALUE;
+							int maxOffset = -1;
 							for(Position position : positions) {
 								SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, candidate.getAnnotationText());
 								annotationModel.addAnnotation(annotation, position);
+								if(position.getOffset() < minOffset) {
+									minOffset = position.getOffset();
+									firstPosition = position;
+								}
+								if(position.getOffset() > maxOffset) {
+									maxOffset = position.getOffset();
+									lastPosition = position;
+								}
 							}
-							Position firstPosition = positions.get(0);
-							Position lastPosition = positions.get(positions.size()-1);
 							int offset = firstPosition.getOffset();
 							int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 							sourceEditor.setHighlightRange(offset, length, true);

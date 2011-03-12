@@ -37,6 +37,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 	private Map<MyMethod, MyMethodInvocation> oldInvocations;
 	private Map<MyMethod, MyMethod> new2oldMethods;
 	private Map<MyAttribute, String> extractedVariableBindingKeys;
+	private Integer userRate;
 
 	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass, DistanceMatrix originalDistanceMatrix) {
 		super();
@@ -595,8 +596,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 				positions.add(position);
 			}
 		}
-		//Position position = new Position(sourceClass.getClassObject().getTypeDeclaration().getName().getStartPosition(), sourceClass.getClassObject().getTypeDeclaration().getName().getLength());
-		//positions.add(position);
 		return positions;
 	}
 
@@ -637,5 +636,13 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 	@Override
 	public IFile getTargetIFile() {
 		return null;
+	}
+
+	public Integer getUserRate() {
+		return userRate;
+	}
+
+	public void setUserRate(Integer userRate) {
+		this.userRate = userRate;
 	}
 }

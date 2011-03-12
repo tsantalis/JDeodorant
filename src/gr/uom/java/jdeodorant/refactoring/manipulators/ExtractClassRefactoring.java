@@ -4,6 +4,10 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
+import gr.uom.java.ast.util.math.AdjacencyList;
+import gr.uom.java.ast.util.math.Edge;
+import gr.uom.java.ast.util.math.Node;
+import gr.uom.java.ast.util.math.TarjanAlgorithm;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -92,7 +96,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	private IFile sourceFile;
 	private CompilationUnit sourceCompilationUnit;
 	private TypeDeclaration sourceTypeDeclaration;
-	protected Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
+	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<IJavaElement> javaElementsToOpenInEditor;
 	private Set<ITypeBinding> requiredImportDeclarationsInExtractedClass;
@@ -462,24 +466,78 @@ public class ExtractClassRefactoring extends Refactoring {
         	MethodDeclaration extractedMethodDeclaration = createExtractedMethodDeclaration(method, extractedClassAST, extractedClassRewriter);
         	extractedClassBodyRewrite.insertLast(extractedMethodDeclaration, null);
         }
-        //sort by incoming dependencies
-        Map<MethodDeclaration, Integer> incomingDependenciesMap = new LinkedHashMap<MethodDeclaration, Integer>();
-        for(MethodDeclaration oldMethod : oldMethodInvocationsWithinExtractedMethods.keySet()) {
-        	incomingDependenciesMap.put(oldMethod, computeIncomingDependencies(oldMethod));
+        Map<MethodDeclaration, Integer> levelMap = new LinkedHashMap<MethodDeclaration, Integer>();
+        //create adjacency list
+        AdjacencyList adjacencyList = new AdjacencyList();
+        for(MethodDeclaration method : extractedMethods) {
+        	if(oldMethodInvocationsWithinExtractedMethods.containsKey(method)) {
+        		levelMap.put(method, -1);
+        		for(MethodInvocation methodInvocation : oldMethodInvocationsWithinExtractedMethods.get(method)) {
+        			//exclude recursive invocations
+    				if(!method.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+    					Node source = new Node(method.resolveBinding().getKey());
+    					Node target = new Node(methodInvocation.resolveMethodBinding().getKey());
+    					adjacencyList.addEdge(source, target, 0);
+    				}
+            	}
+        	}
+        	else
+        		levelMap.put(method, 0);
         }
-        Set<MethodDeclaration> sortedMethods = new LinkedHashSet<MethodDeclaration>();
-        while(!incomingDependenciesMap.isEmpty()) {
-        	int max = -1;
-        	MethodDeclaration methodWithMaximumIncomingDependencies = null;
-        	for(MethodDeclaration method : incomingDependenciesMap.keySet()) {
-        		int incomingDependencies = incomingDependenciesMap.get(method);
-        		if(incomingDependencies > max) {
-        			max = incomingDependencies;
-        			methodWithMaximumIncomingDependencies = method;
+        TarjanAlgorithm tarjan = new TarjanAlgorithm(adjacencyList);
+        while(!allExtractedMethodsObtainedLevel(levelMap)) {
+        	for(MethodDeclaration method : extractedMethods) {
+        		if(levelMap.get(method) == -1) {
+        			Set<MethodInvocation> methodInvocations = oldMethodInvocationsWithinExtractedMethods.get(method);
+        			int maxLevel = 0;
+        			boolean dependsOnMethodWithoutLevel = false;
+        			for(MethodInvocation methodInvocation : methodInvocations) {
+        				//exclude recursive invocations
+        				if(!method.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+        					MethodDeclaration invokedMethod = getExtractedMethod(methodInvocation.resolveMethodBinding());
+        					int invokedMethodLevel = levelMap.get(invokedMethod);
+        					if(invokedMethodLevel == -1) {
+        						boolean belongToTheSameStronglyConnectedComponent = tarjan.belongToTheSameStronglyConnectedComponent(
+        								method.resolveBinding().getKey(), methodInvocation.resolveMethodBinding().getKey());
+        						if(belongToTheSameStronglyConnectedComponent) {
+        							double sourceAverageLevelOfTargets = getAverageLevelOfTargets(method.resolveBinding().getKey(), levelMap, adjacencyList);
+        							double targetAverageLevelOfTargets = getAverageLevelOfTargets(methodInvocation.resolveMethodBinding().getKey(), levelMap, adjacencyList);
+        							if(sourceAverageLevelOfTargets > targetAverageLevelOfTargets) {
+        								dependsOnMethodWithoutLevel = true;
+            							break;
+        							}
+        						}
+        						else {
+        							dependsOnMethodWithoutLevel = true;
+        							break;
+        						}
+        					}
+        					else {
+        						if(invokedMethodLevel > maxLevel)
+        							maxLevel = invokedMethodLevel;
+        					}
+        				}
+        			}
+        			if(!dependsOnMethodWithoutLevel) {
+        				levelMap.put(method, maxLevel + 1);
+        			}
         		}
         	}
-        	sortedMethods.add(methodWithMaximumIncomingDependencies);
-        	incomingDependenciesMap.remove(methodWithMaximumIncomingDependencies);
+        }
+        Set<MethodDeclaration> sortedMethods = new LinkedHashSet<MethodDeclaration>();
+        int min = 0;
+        while(!levelMap.isEmpty()) {
+        	for(MethodDeclaration method : extractedMethods) {
+        		if(levelMap.containsKey(method)) {
+        			int level = levelMap.get(method);
+        			if(level == min) {
+        				levelMap.remove(method);
+        				if(level > 0)
+        					sortedMethods.add(method);
+        			}
+        		}
+        	}
+        	min++;
         }
         for(MethodDeclaration oldMethod : sortedMethods) {
         	Map<String, SingleVariableDeclaration> fieldParameterMap = new LinkedHashMap<String, SingleVariableDeclaration>();
@@ -635,18 +693,36 @@ public class ExtractClassRefactoring extends Refactoring {
         }
 	}
 
-	private int computeIncomingDependencies(MethodDeclaration method) {
-		Set<MethodDeclaration> incomingDependencyMethods = new LinkedHashSet<MethodDeclaration>();
-		for(MethodDeclaration oldMethod : oldMethodInvocationsWithinExtractedMethods.keySet()) {
-			if(!oldMethod.equals(method)) {
-				Set<MethodInvocation> methodInvocations = oldMethodInvocationsWithinExtractedMethods.get(oldMethod);
-				for(MethodInvocation methodInvocation : methodInvocations) {
-					if(methodInvocation.resolveMethodBinding().isEqualTo(method.resolveBinding()))
-						incomingDependencyMethods.add(oldMethod);
+	private double getAverageLevelOfTargets(String methodBindingKey, Map<MethodDeclaration, Integer> levelMap, AdjacencyList adjacency) {
+		Node n = new Node(methodBindingKey);
+		LinkedHashSet<Edge> edges = adjacency.getAdjacent(n);
+		int levelSum = 0;
+		int targetSum = 0;
+		for(Edge edge : edges) {
+			Node target = edge.getTarget();
+			for(MethodDeclaration methodDeclaration : levelMap.keySet()) {
+				int level = levelMap.get(methodDeclaration);
+				if(methodDeclaration.resolveBinding().getKey().equals(target.getName())) {
+					if(level != -1) {
+						levelSum += level;
+						targetSum++;
+					}
+					break;
 				}
 			}
 		}
-		return incomingDependencyMethods.size();
+		if(targetSum == 0)
+			return Double.MAX_VALUE;
+		else
+			return (double)levelSum/(double)targetSum;
+	}
+
+	private boolean allExtractedMethodsObtainedLevel(Map<MethodDeclaration, Integer> levelMap) {
+		for(MethodDeclaration method : levelMap.keySet()) {
+			if(levelMap.get(method) == -1)
+				return false;
+		}
+		return true;
 	}
 
 	private MethodDeclaration getExtractedMethod(IMethodBinding methodBinding) {

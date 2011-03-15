@@ -113,6 +113,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	private Set<MethodDeclaration> extractedMethods;
 	private Set<MethodDeclaration> delegateMethods;
 	private String extractedTypeName;
+	private boolean leaveDelegateForPublicMethods;
 	private Map<Statement, ASTRewrite> statementRewriteMap;
 	
 	public ExtractClassRefactoring(IFile sourceFile, CompilationUnit sourceCompilationUnit, TypeDeclaration sourceTypeDeclaration,
@@ -142,6 +143,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.extractedMethods = extractedMethods;
 		this.delegateMethods = delegateMethods;
 		this.extractedTypeName = extractedTypeName;
+		this.leaveDelegateForPublicMethods = false;
 		this.statementRewriteMap = new LinkedHashMap<Statement, ASTRewrite>();
 		for(MethodDeclaration extractedMethod : extractedMethods) {
 			additionalArgumentsAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<String>());
@@ -157,6 +159,10 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.extractedTypeName = targetTypeName;
 	}
 
+	public void setLeaveDelegateForPublicMethods(boolean leaveDelegateForPublicMethods) {
+		this.leaveDelegateForPublicMethods = leaveDelegateForPublicMethods;
+	}
+
 	public CompilationUnit getSourceCompilationUnit() {
 		return sourceCompilationUnit;
 	}
@@ -166,6 +172,13 @@ public class ExtractClassRefactoring extends Refactoring {
 	}
 
 	public void apply() {
+		if(leaveDelegateForPublicMethods) {
+			for(MethodDeclaration method : extractedMethods) {
+				int modifiers = method.getModifiers();
+				if((modifiers & Modifier.PRIVATE) == 0)
+					delegateMethods.add(method);
+			}
+		}
 		removeFieldFragmentsInSourceClass(extractedFieldFragments);
 		modifyExtractedFieldAssignmentsInSourceClass(extractedFieldFragments);
 		modifyExtractedFieldAccessesInSourceClass(extractedFieldFragments);

@@ -174,6 +174,8 @@ public class ASTReader {
 		        		classObject.setAccess(Access.PROTECTED);
 		        	else if((modifiers & Modifier.PRIVATE) != 0)
 		        		classObject.setAccess(Access.PRIVATE);
+		        	else
+		        		classObject.setAccess(Access.NONE);
 		        	
 		        	if((modifiers & Modifier.STATIC) != 0)
 		        		classObject.setStatic(true);
@@ -214,6 +216,8 @@ public class ASTReader {
 		                		fieldObject.setAccess(Access.PROTECTED);
 		                	else if((fieldModifiers & Modifier.PRIVATE) != 0)
 		                		fieldObject.setAccess(Access.PRIVATE);
+		                	else
+		                		fieldObject.setAccess(Access.NONE);
 		                	
 		                	if((fieldModifiers & Modifier.STATIC) != 0)
 		                		fieldObject.setStatic(true);
@@ -237,6 +241,8 @@ public class ASTReader {
 		            		constructorObject.setAccess(Access.PROTECTED);
 		            	else if((methodModifiers & Modifier.PRIVATE) != 0)
 		            		constructorObject.setAccess(Access.PRIVATE);
+		            	else
+		            		constructorObject.setAccess(Access.NONE);
 		        		
 		        		List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
 		        		for(SingleVariableDeclaration parameter : parameters) {

@@ -102,6 +102,9 @@ public class ExtractClassInputPage extends UserInputWizardPage {
 		final Button restoreButton = new Button(result, SWT.PUSH);
 		restoreButton.setText("Restore Defaults");
 		
+		final Button delegateButton = new Button(result, SWT.CHECK);
+		delegateButton.setText("Keep original public methods as delegates to the extracted methods");
+		
 		for(Text field : textMap.keySet()) {
 			field.addModifyListener(new ModifyListener() {
 				public void modifyText(ModifyEvent e) {
@@ -115,6 +118,18 @@ public class ExtractClassInputPage extends UserInputWizardPage {
 				for(Text field : defaultNamingMap.keySet()) {
 					field.setText(defaultNamingMap.get(field));
 				}
+				delegateButton.setSelection(false);
+				refactoring.setLeaveDelegateForPublicMethods(false);
+			}
+		});
+		
+		delegateButton.addSelectionListener(new SelectionAdapter() {
+			public void widgetSelected(SelectionEvent event) {
+				Button source = (Button)event.getSource();
+				if(source.getSelection())
+					refactoring.setLeaveDelegateForPublicMethods(true);
+				else
+					refactoring.setLeaveDelegateForPublicMethods(false);
 			}
 		});
 		

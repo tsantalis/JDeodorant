@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
+import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 
@@ -34,6 +35,9 @@ public class MyRefactoringWizard extends RefactoringWizard {
 		}
 		else if(refactoring instanceof ExtractClassRefactoring) {
 			addPage(new ExtractClassInputPage((ExtractClassRefactoring)refactoring));
+		}
+		else if(refactoring instanceof MoveMethodRefactoring) {
+			addPage(new MoveMethodInputPage((MoveMethodRefactoring)refactoring));
 		}
 	}
 	

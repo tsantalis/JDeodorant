@@ -326,7 +326,7 @@ public class TypeChecking extends ViewPart {
 		tableViewer.setColumnProperties(new String[] {"type", "source", "methodName", "systemOccurrences", "classOccurrences", "averageStatements", "rate"});
 		tableViewer.setCellEditors(new CellEditor[] {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
-				new ComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+				new MyComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
 		
 		tableViewer.setCellModifier(new ICellModifier() {

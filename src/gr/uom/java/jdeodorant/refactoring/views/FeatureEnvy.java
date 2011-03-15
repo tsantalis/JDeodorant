@@ -62,8 +62,6 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.jface.action.*;
-import org.eclipse.jface.dialogs.IInputValidator;
-import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
@@ -104,7 +102,6 @@ public class FeatureEnvy extends ViewPart {
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
-	private Action renameMethodAction;
 	private Action saveResultsAction;
 	private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
@@ -256,7 +253,6 @@ public class FeatureEnvy extends ViewPart {
 						tableViewer.remove(candidateRefactoringTable);*/
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
 					evolutionAnalysisAction.setEnabled(false);
 				}
@@ -308,7 +304,7 @@ public class FeatureEnvy extends ViewPart {
 		tableViewer.setColumnProperties(new String[] {"type", "source", "target", "ep", "rate"});
 		tableViewer.setCellEditors(new CellEditor[] {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
-				new ComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+				new MyComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
 		
 		tableViewer.setCellModifier(new ICellModifier() {
@@ -394,7 +390,6 @@ public class FeatureEnvy extends ViewPart {
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
 					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
 					evolutionAnalysisAction.setEnabled(false);
 				}
@@ -416,7 +411,6 @@ public class FeatureEnvy extends ViewPart {
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
-		manager.add(renameMethodAction);
 		manager.add(saveResultsAction);
 		manager.add(evolutionAnalysisAction);
 	}
@@ -428,7 +422,6 @@ public class FeatureEnvy extends ViewPart {
 				candidateRefactoringTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
-				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
 				evolutionAnalysisAction.setEnabled(true);
 			}
@@ -612,28 +605,6 @@ public class FeatureEnvy extends ViewPart {
 				}
 			}
 		};
-		
-		renameMethodAction = new Action() {
-			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				if(entry instanceof MoveMethodCandidateRefactoring) {
-					MoveMethodCandidateRefactoring candidate = (MoveMethodCandidateRefactoring)entry;
-					String methodName = candidate.getMovedMethodName();
-					IInputValidator methodNameValidator = new MethodNameValidator();
-					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
-					dialog.open();
-					if(dialog.getValue() != null) {
-						candidate.setMovedMethodName(dialog.getValue());
-						tableViewer.refresh();
-					}
-				}
-			}
-		};
-		renameMethodAction.setToolTipText("Rename Method");
-		renameMethodAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-				getImageDescriptor(ISharedImages.IMG_OBJ_FILE));
-		renameMethodAction.setEnabled(false);
 	}
 
 	private void hookDoubleClickAction() {

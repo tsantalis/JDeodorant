@@ -311,7 +311,7 @@ public class GodClass extends ViewPart {
 		treeViewer.setColumnProperties(new String[] {"type", "group", "source", "ep", "rate"});
 		treeViewer.setCellEditors(new CellEditor[] {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
-				new ComboBoxCellEditor(treeViewer.getTree(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+				new MyComboBoxCellEditor(treeViewer.getTree(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
 		
 		treeViewer.setCellModifier(new ICellModifier() {

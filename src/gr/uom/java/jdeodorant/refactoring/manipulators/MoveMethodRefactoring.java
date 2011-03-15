@@ -134,6 +134,18 @@ public class MoveMethodRefactoring extends Refactoring {
 		return fChanges;
 	}
 
+	public String getMovedMethodName() {
+		return movedMethodName;
+	}
+
+	public void setMovedMethodName(String movedMethodName) {
+		this.movedMethodName = movedMethodName;
+	}
+
+	public void setLeaveDelegate(boolean leaveDelegate) {
+		this.leaveDelegate = leaveDelegate;
+	}
+
 	public void apply() {
 		createMovedMethod();
 		if(!sourceCompilationUnit.equals(targetCompilationUnit))

@@ -8,17 +8,19 @@ import static gr.uom.java.ast.util.math.DoubleArray.insertRows;
 import gr.uom.java.distance.Entity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class Hierarchical extends Clustering {
 	
-	private double threshold;
+	private HashSet<Cluster> clusterSet;
 	
-	public Hierarchical(double[][] distanceMatrix, double threshold) {
+	public Hierarchical(double[][] distanceMatrix) {
 		this.distanceMatrix = distanceMatrix;
-		this.threshold = threshold;
+		this.clusterSet = new HashSet<Cluster>();
 	}
 
-	public ArrayList<Cluster> clustering(ArrayList<Entity> entities) {
+	public HashSet<Cluster> clustering(ArrayList<Entity> entities) {
 		ArrayList<Cluster> clusters = new ArrayList<Cluster>();
 		for(Entity entity : entities) {
 			Cluster cluster = new Cluster();
@@ -29,18 +31,16 @@ public class Hierarchical extends Clustering {
 			double minVal = 2.0;
 			int minRow = 0;
 			int minCol = 1;
-			for(int i=0; i<distanceMatrix.length;i++) {
-				for(int j=0;j<distanceMatrix.length;j++) {
-					if (i != j) {
-						if (distanceMatrix[i][j] < minVal) {
-							minVal = distanceMatrix[i][j];
-							minRow = i;
-							minCol = j;
-						}
+			for(int i=1; i<distanceMatrix.length;i++) {
+				for(int j=0;j<i;j++) {
+					if (distanceMatrix[i][j] < minVal) {
+						minVal = distanceMatrix[i][j];
+						minRow = i;
+						minCol = j;
 					}
 				}
 			}
-			if(minVal >= threshold) break;
+			
 			
 			if(minRow < minCol) {
 				clusters.get(minRow).addEntities(clusters.get(minCol).getEntities());
@@ -103,14 +103,20 @@ public class Hierarchical extends Clustering {
 					
 				}
 				distanceMatrix = deleteRows(distanceMatrix, minRow, minCol);
-				distanceMatrix = deleteColumns(distanceMatrix, minCol);
-				distanceMatrix = insertRows(distanceMatrix, minCol, newDistances);
 				distanceMatrix = deleteColumns(distanceMatrix, minRow);
+				distanceMatrix = insertRows(distanceMatrix, minCol, newDistances);
+				distanceMatrix = deleteColumns(distanceMatrix, minCol);
 				distanceMatrix = insertColumns(distanceMatrix, minCol, newDistances);
 				clusters.remove(minRow);
 			}
+			for(Cluster cluster : clusters) {
+				if(cluster.getEntities().size() > 1) {
+					Cluster c = new Cluster(cluster.getEntities());
+					clusterSet.add(c);
+				}
+			}
 		}
-		return clusters;
+		return clusterSet;
 	}
 
 }

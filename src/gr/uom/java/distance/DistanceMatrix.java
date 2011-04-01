@@ -474,26 +474,14 @@ public class DistanceMatrix {
     				&& !sourceClass.getAttributeList().isEmpty()) {
     			ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
     			double[][] distanceMatrix = candidate.getJaccardDistanceMatrix();
-    			ArrayList<Cluster> totalClusters = new ArrayList<Cluster>();
-    			ArrayList<Cluster> finalClusters = new ArrayList<Cluster>();
-    			for (double i = 0.0; i < 1.0; i += 0.1) {
-    				Clustering clustering = Clustering.getInstance(0,
-    						distanceMatrix, i);
-    				ArrayList<Entity> entities = new ArrayList<Entity>();
-    				entities.addAll(sourceClass.getAttributeList());
-    				entities.addAll(sourceClass.getMethodList());
-    				ArrayList<Cluster> clusters = clustering
-    				.clustering(entities);
-    				for (Cluster cluster : clusters) {
-    					if (cluster.getEntities().size() > 1) {
-    						if (!totalClusters.contains(cluster)) {
-    							finalClusters.add(cluster);
-    							totalClusters.add(cluster);
-    						}
-    					}
-    				}
-    			}
-    			for (Cluster cluster : finalClusters) {
+				Clustering clustering = Clustering.getInstance(0,
+						distanceMatrix);
+				ArrayList<Entity> entities = new ArrayList<Entity>();
+				entities.addAll(sourceClass.getAttributeList());
+				entities.addAll(sourceClass.getMethodList());
+				HashSet<Cluster> clusters = clustering
+				.clustering(entities);
+				for (Cluster cluster : clusters) {
     				candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
     				for (Entity entity : cluster.getEntities()) {
     					candidate.addEntity(entity);

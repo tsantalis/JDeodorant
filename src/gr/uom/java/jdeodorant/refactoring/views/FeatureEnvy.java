@@ -686,7 +686,7 @@ public class FeatureEnvy extends ViewPart {
 			for(ClassObject classObject : classObjectsToBeExamined) {
 				classNamesToBeExamined.add(classObject.getName());
 			}
-			MySystem system = new MySystem(systemObject);
+			MySystem system = new MySystem(systemObject, false);
 			final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {

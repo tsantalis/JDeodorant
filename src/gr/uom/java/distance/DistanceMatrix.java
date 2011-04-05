@@ -470,17 +470,14 @@ public class DistanceMatrix {
     	for(MyClass sourceClass : oldClasses) {
     		if(monitor != null && monitor.isCanceled())
     			throw new OperationCanceledException();
-    		if (!sourceClass.getMethodList().isEmpty()
-    				&& !sourceClass.getAttributeList().isEmpty()) {
+    		if (!sourceClass.getMethodList().isEmpty() && !sourceClass.getAttributeList().isEmpty()) {
     			ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
     			double[][] distanceMatrix = candidate.getJaccardDistanceMatrix();
-				Clustering clustering = Clustering.getInstance(0,
-						distanceMatrix);
+				Clustering clustering = Clustering.getInstance(0, distanceMatrix);
 				ArrayList<Entity> entities = new ArrayList<Entity>();
 				entities.addAll(sourceClass.getAttributeList());
 				entities.addAll(sourceClass.getMethodList());
-				HashSet<Cluster> clusters = clustering
-				.clustering(entities);
+				HashSet<Cluster> clusters = clustering.clustering(entities);
 				for (Cluster cluster : clusters) {
     				candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
     				for (Entity entity : cluster.getEntities()) {
@@ -488,8 +485,7 @@ public class DistanceMatrix {
     				}
     				if (candidate.isApplicable()) {
     					candidate.apply();
-    					double entityPlacement1 = candidate
-    					.getEntityPlacement();
+    					double entityPlacement1 = candidate.getEntityPlacement();
     					double d = entityPlacement1 - entityPlacement0;
     					if (d < 0) {
     						candidateList.add(candidate);

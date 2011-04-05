@@ -18,7 +18,7 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.text.Position;
 
-public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
+public class ExtractClassCandidateRefactoring extends CandidateRefactoring implements Comparable<ExtractClassCandidateRefactoring> {
 
 	private MySystem system;
 	private MyClass sourceClass;
@@ -178,11 +178,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 	}
 
 	private void virtualApplication(MySystem virtualSystem) {
-
-		if(sourceClass.getName().equals("CH.ifa.draw.figures.TextFigureSize")) {
-			System.out.println();
-		}
-
 		newSourceClass = virtualSystem.getClass(sourceClass.getName());
 		productClass = new MyClass(sourceClass.toString()+"Product");
 		virtualSystem.addClass(productClass);
@@ -523,6 +518,13 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 						|| overridesMethod(method) || method.isAbstract())
 					return false;
 			}
+			else if(entity instanceof MyAttribute) {
+				MyAttribute attribute = (MyAttribute)entity;
+				if(!attribute.getAccess().equals("private")) {
+					if(system.getSystemObject().containsFieldInstruction(attribute.getFieldObject().generateFieldInstruction(), sourceClass.getClassObject()))
+						return false;
+				}
+			}
 		}
 		if(extractedEntities.size() == 1 || methodCounter == 0) {
 			return false;
@@ -592,7 +594,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 				positions.add(position);
 			} else if(entity instanceof MyAttribute) {
 				MyAttribute attribute = (MyAttribute)entity;
-				Position position = new Position(((FieldDeclaration)attribute.getFieldObject().getVariableDeclarationFragment().getParent()).getStartPosition(), ((FieldDeclaration)attribute.getFieldObject().getVariableDeclarationFragment().getParent()).getLength());
+				Position position = new Position(attribute.getFieldObject().getVariableDeclarationFragment().getStartPosition(), attribute.getFieldObject().getVariableDeclarationFragment().getLength());
 				positions.add(position);
 			}
 		}
@@ -624,6 +626,10 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 		return null;
 	}
 
+	public String toString() {
+        return sourceClass.toString() + "\t" + extractedEntities.toString() + "\t" + entityPlacement;
+    }
+
 	public String getAnnotationText() {
 		return "";
 	}
@@ -644,5 +650,9 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring {
 
 	public void setUserRate(Integer userRate) {
 		this.userRate = userRate;
+	}
+
+	public int compareTo(ExtractClassCandidateRefactoring other) {
+		return Double.compare(this.entityPlacement, other.entityPlacement);
 	}
 }

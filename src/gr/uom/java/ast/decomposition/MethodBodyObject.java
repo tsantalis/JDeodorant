@@ -226,6 +226,10 @@ public class MethodBodyObject {
 		return compositeStatement.containsMethodInvocation(methodInvocation);
 	}
 
+	public boolean containsFieldInstruction(FieldInstructionObject fieldInstruction) {
+		return compositeStatement.containsFieldInstruction(fieldInstruction);
+	}
+
 	public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
 		return compositeStatement.containsSuperMethodInvocation(superMethodInvocation);
 	}

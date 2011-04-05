@@ -3,7 +3,6 @@ package gr.uom.java.ast.util.math;
 import gr.uom.java.distance.Entity;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 
 public abstract class Clustering {

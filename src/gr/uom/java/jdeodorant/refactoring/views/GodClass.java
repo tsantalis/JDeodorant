@@ -1,8 +1,10 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 
+import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
@@ -30,6 +32,7 @@ import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
@@ -90,6 +93,7 @@ public class GodClass extends ViewPart {
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
+	private Action saveResultsAction;
 	private ExtractClassCandidatesGroup[] candidateRefactoringTable;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
@@ -189,10 +193,8 @@ public class GodClass extends ViewPart {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
 			if (obj1 instanceof CandidateRefactoring
 					&& obj2 instanceof CandidateRefactoring) {
-				double value1 = ((CandidateRefactoring) obj1)
-				.getEntityPlacement();
-				double value2 = ((CandidateRefactoring) obj2)
-				.getEntityPlacement();
+				double value1 = ((CandidateRefactoring) obj1).getEntityPlacement();
+				double value2 = ((CandidateRefactoring) obj2).getEntityPlacement();
 				if (value1 < value2) {
 					return -1;
 				} else if (value1 > value2) {
@@ -201,10 +203,8 @@ public class GodClass extends ViewPart {
 					return 0;
 				}
 			} else {
-				double value1 = ((ExtractClassCandidatesGroup) obj1)
-				.getMinEP();
-				double value2 = ((ExtractClassCandidatesGroup) obj2)
-				.getMinEP();
+				double value1 = ((ExtractClassCandidatesGroup) obj1).getMinEP();
+				double value2 = ((ExtractClassCandidatesGroup) obj2).getMinEP();
 				if (value1 < value2) {
 					return -1;
 				} else if (value1 > value2) {
@@ -267,6 +267,7 @@ public class GodClass extends ViewPart {
 						tableViewer.remove(candidateRefactoringTable);*/
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
+					saveResultsAction.setEnabled(false);
 				}
 			}
 		}
@@ -414,6 +415,7 @@ public class GodClass extends ViewPart {
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
 					applyRefactoringAction.setEnabled(false);
+					saveResultsAction.setEnabled(false);
 				}
 			}
 		});
@@ -425,11 +427,10 @@ public class GodClass extends ViewPart {
 		fillLocalToolBar(bars.getToolBarManager());
 	}
 
-
-
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
+		manager.add(saveResultsAction);
 	}
 
 	private void makeActions() {
@@ -439,12 +440,23 @@ public class GodClass extends ViewPart {
 				candidateRefactoringTable = getTable();
 				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
+				saveResultsAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
 		identifyBadSmellsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 				getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
 		identifyBadSmellsAction.setEnabled(false);
+
+		saveResultsAction = new Action() {
+			public void run() {
+				saveResults();
+			}
+		};
+		saveResultsAction.setToolTipText("Save Results");
+		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
+		saveResultsAction.setEnabled(false);
 
 		applyRefactoringAction = new Action() {
 			public void run() {
@@ -654,7 +666,7 @@ public class GodClass extends ViewPart {
 			for(ClassObject classObject : classObjectsToBeExamined) {
 				classNamesToBeExamined.add(classObject.getName());
 			}
-			MySystem system = new MySystem(systemObject);
+			MySystem system = new MySystem(systemObject, true);
 			final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
@@ -708,5 +720,38 @@ public class GodClass extends ViewPart {
 			}
 		}
 		return null;
+	}
+
+	private void saveResults() {
+		FileDialog fd = new FileDialog(getSite().getWorkbenchWindow().getShell(), SWT.SAVE);
+		fd.setText("Save Results");
+		String[] filterExt = { "*.txt" };
+		fd.setFilterExtensions(filterExt);
+		String selected = fd.open();
+		if(selected != null) {
+			try {
+				BufferedWriter out = new BufferedWriter(new FileWriter(selected));
+				Tree tree = treeViewer.getTree();
+				/*TreeColumn[] columns = tree.getColumns();
+				for(int i=0; i<columns.length; i++) {
+					if(i == columns.length-1)
+						out.write(columns[i].getText());
+					else
+						out.write(columns[i].getText() + "\t");
+				}
+				out.newLine();*/
+				for(int i=0; i<tree.getItemCount(); i++) {
+					TreeItem treeItem = tree.getItem(i);
+					ExtractClassCandidatesGroup group = (ExtractClassCandidatesGroup)treeItem.getData();
+					for(CandidateRefactoring candidate : group.getCandidates()) {
+						out.write(candidate.toString());
+						out.newLine();
+					}
+				}
+				out.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 }

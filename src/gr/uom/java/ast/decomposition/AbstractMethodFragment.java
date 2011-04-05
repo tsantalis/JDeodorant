@@ -561,6 +561,10 @@ public abstract class AbstractMethodFragment {
 		return methodInvocationList.contains(methodInvocation);
 	}
 
+	public boolean containsFieldInstruction(FieldInstructionObject fieldInstruction) {
+		return fieldInstructionList.contains(fieldInstruction);
+	}
+
 	public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
 		return superMethodInvocationList.contains(superMethodInvocation);
 	}

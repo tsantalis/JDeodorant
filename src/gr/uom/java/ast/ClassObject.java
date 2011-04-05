@@ -175,6 +175,14 @@ public class ClassObject {
     	return false;
     }
 
+    public boolean containsFieldInstruction(FieldInstructionObject fieldInstruction) {
+    	for(MethodObject method : methodList) {
+    		if(method.containsFieldInstruction(fieldInstruction))
+    			return true;
+    	}
+    	return false;
+    }
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation, MethodObject excludedMethod) {
     	for(MethodObject method : methodList) {
     		if(!method.equals(excludedMethod) && method.containsMethodInvocation(methodInvocation))

@@ -726,6 +726,7 @@ public class MoveMethodRefactoring extends Refactoring {
 						QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 						targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
 					}
+					this.additionalTypeBindingsToBeImportedInTargetClass.add(sourceTypeDeclaration.resolveBinding());
 					setPublicModifierToSourceField(variableBinding);
 				}
 			}
@@ -805,6 +806,7 @@ public class MoveMethodRefactoring extends Refactoring {
 					AST ast = newMethodDeclaration.getAST();
 					SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 					targetRewriter.set(newMethodInvocations.get(i), MethodInvocation.EXPRESSION_PROPERTY, qualifier, null);
+					this.additionalTypeBindingsToBeImportedInTargetClass.add(sourceTypeDeclaration.resolveBinding());
 				}
 			}
 			i++;

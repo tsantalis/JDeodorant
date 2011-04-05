@@ -160,6 +160,14 @@ public class SystemObject {
     	return false;
     }
 
+    public boolean containsFieldInstruction(FieldInstructionObject fieldInstruction, ClassObject excludedClass) {
+    	for(ClassObject classObject : classList) {
+    		if(!excludedClass.equals(classObject) && classObject.containsFieldInstruction(fieldInstruction))
+    			return true;
+    	}
+    	return false;
+    }
+
     public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
     	for(ClassObject classObject : classList) {
     		if(classObject.containsSuperMethodInvocation(superMethodInvocation))

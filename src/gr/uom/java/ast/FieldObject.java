@@ -63,6 +63,12 @@ public class FieldObject implements VariableDeclarationObject {
         _static = s;
     }
 
+    public FieldInstructionObject generateFieldInstruction() {
+    	FieldInstructionObject fieldInstruction = new FieldInstructionObject(this.className, this.type, this.name);
+    	fieldInstruction.setStatic(this._static);
+    	return fieldInstruction;
+    }
+
     public boolean equals(Object o) {
         if(this == o) {
             return true;

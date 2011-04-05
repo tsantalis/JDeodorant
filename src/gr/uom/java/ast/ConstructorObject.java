@@ -143,6 +143,13 @@ public class ConstructorObject {
     		return false;
     }
 
+    public boolean containsFieldInstruction(FieldInstructionObject fieldInstruction) {
+    	if(methodBody != null)
+    		return methodBody.containsFieldInstruction(fieldInstruction);
+    	else
+    		return false;
+    }
+
     public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
     	if(methodBody != null)
     		return methodBody.containsSuperMethodInvocation(superMethodInvocation);

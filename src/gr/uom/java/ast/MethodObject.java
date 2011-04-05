@@ -450,6 +450,10 @@ public class MethodObject {
     	return constructorObject.containsMethodInvocation(methodInvocation);
     }
 
+    public boolean containsFieldInstruction(FieldInstructionObject fieldInstruction) {
+    	return constructorObject.containsFieldInstruction(fieldInstruction);
+    }
+
     public boolean containsSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocation) {
     	return constructorObject.containsSuperMethodInvocation(superMethodInvocation);
     }

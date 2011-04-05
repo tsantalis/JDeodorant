@@ -1,35 +1,37 @@
 package gr.uom.java.distance;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class ExtractClassCandidatesGroup {
 	
 	private String source;
-	private ArrayList<CandidateRefactoring> candidates;
+	private ArrayList<ExtractClassCandidateRefactoring> candidates;
 	private double minEP;
 	
 	public ExtractClassCandidatesGroup(String source) {
 		this.source = source;
-		this.candidates = new ArrayList<CandidateRefactoring>();
+		this.candidates = new ArrayList<ExtractClassCandidateRefactoring>();
 	}
 
 	public String getSource() {
 		return source;
 	}
 	
-	public void addCandidate(CandidateRefactoring candidate) {
+	public void addCandidate(ExtractClassCandidateRefactoring candidate) {
 		this.candidates.add(candidate);
 	}
 
-	public ArrayList<CandidateRefactoring> getCandidates() {
+	public ArrayList<ExtractClassCandidateRefactoring> getCandidates() {
+		Collections.sort(candidates);
 		return candidates;
 	}
 	
 	public double getMinEP() {
-		if (minEP == 0.0) {
+		if(minEP == 0.0) {
 			double min = Double.MAX_VALUE;
-			for (CandidateRefactoring candidate : candidates) {
-				if (candidate.getEntityPlacement() < min) {
+			for(ExtractClassCandidateRefactoring candidate : candidates) {
+				if(candidate.getEntityPlacement() < min) {
 					min = candidate.getEntityPlacement();
 				}
 			}

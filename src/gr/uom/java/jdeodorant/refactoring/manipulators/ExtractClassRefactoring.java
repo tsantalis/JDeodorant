@@ -115,6 +115,8 @@ public class ExtractClassRefactoring extends Refactoring {
 	private String extractedTypeName;
 	private boolean leaveDelegateForPublicMethods;
 	private Map<Statement, ASTRewrite> statementRewriteMap;
+	//this map holds for each constructor the assignment statements that initialize final extracted fields
+	private Map<MethodDeclaration, Map<VariableDeclaration, Assignment>> constructorFinalFieldAssignmentMap;
 	
 	public ExtractClassRefactoring(IFile sourceFile, CompilationUnit sourceCompilationUnit, TypeDeclaration sourceTypeDeclaration,
 			Set<VariableDeclaration> extractedFieldFragments, Set<MethodDeclaration> extractedMethods, Set<MethodDeclaration> delegateMethods, String extractedTypeName) {
@@ -145,6 +147,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.extractedTypeName = extractedTypeName;
 		this.leaveDelegateForPublicMethods = false;
 		this.statementRewriteMap = new LinkedHashMap<Statement, ASTRewrite>();
+		this.constructorFinalFieldAssignmentMap = new LinkedHashMap<MethodDeclaration, Map<VariableDeclaration, Assignment>>();
 		for(MethodDeclaration extractedMethod : extractedMethods) {
 			additionalArgumentsAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<String>());
 			additionalParametersAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<SingleVariableDeclaration>());
@@ -443,6 +446,8 @@ public class ExtractClassRefactoring extends Refactoring {
         extractedClassModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 
         ListRewrite extractedClassBodyRewrite = extractedClassRewriter.getListRewrite(extractedClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+        Set<VariableDeclaration> finalFieldFragments = new LinkedHashSet<VariableDeclaration>();
+        Set<VariableDeclaration> finalFieldFragmentsWithoutInitializer = new LinkedHashSet<VariableDeclaration>();
         for(VariableDeclaration fieldFragment : extractedFieldFragments) {
         	FieldDeclaration extractedFieldDeclaration = extractedClassAST.newFieldDeclaration((VariableDeclarationFragment)ASTNode.copySubtree(extractedClassAST, fieldFragment));
         	FieldDeclaration originalFieldDeclaration = (FieldDeclaration)fieldFragment.getParent();
@@ -455,6 +460,9 @@ public class ExtractClassRefactoring extends Refactoring {
     				Modifier modifier = (Modifier)extendedModifier;
     				if(modifier.isFinal()) {
     					extractedFieldDeclarationModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
+    					finalFieldFragments.add(fieldFragment);
+    					if(fieldFragment.getInitializer() == null)
+    						finalFieldFragmentsWithoutInitializer.add(fieldFragment);
     				}
     				else if(modifier.isStatic()) {
     					extractedFieldDeclarationModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
@@ -469,11 +477,51 @@ public class ExtractClassRefactoring extends Refactoring {
     		}
     		extractedClassBodyRewrite.insertLast(extractedFieldDeclaration, null);
         }
+        ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+        for(MethodDeclaration constructor : constructorFinalFieldAssignmentMap.keySet()) {
+        	Map<VariableDeclaration, Assignment> finalFieldAssignmentMap = constructorFinalFieldAssignmentMap.get(constructor);
+        	MethodDeclaration extractedClassConstructor = extractedClassAST.newMethodDeclaration();
+        	extractedClassConstructor.setConstructor(true);
+        	extractedClassRewriter.set(extractedClassConstructor, MethodDeclaration.NAME_PROPERTY, extractedClassName, null);
+        	ListRewrite extractedClassConstructorModifiersRewrite = extractedClassRewriter.getListRewrite(extractedClassConstructor, MethodDeclaration.MODIFIERS2_PROPERTY);
+        	extractedClassConstructorModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+        	
+        	Block extractedClassConstructorBody = extractedClassAST.newBlock();
+        	extractedClassRewriter.set(extractedClassConstructor, MethodDeclaration.BODY_PROPERTY, extractedClassConstructorBody, null);
+        	ListRewrite extractedClassConstructorBodyStatementsRewrite = extractedClassRewriter.getListRewrite(extractedClassConstructorBody, Block.STATEMENTS_PROPERTY);
+        	ListRewrite extractedClassConstructorParametersRewrite = extractedClassRewriter.getListRewrite(extractedClassConstructor, MethodDeclaration.PARAMETERS_PROPERTY);
+        	Set<SingleVariableDeclaration> extractedClassConstructorParameters = new LinkedHashSet<SingleVariableDeclaration>();
+        	for(VariableDeclaration fieldFragment : finalFieldAssignmentMap.keySet()) {
+        		Assignment fieldAssignment = finalFieldAssignmentMap.get(fieldFragment);
+        		Assignment newFieldAssignment = extractedClassAST.newAssignment();
+        		List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(fieldAssignment.getRightHandSide());
+        		for(Expression expression : variableInstructions) {
+        			SimpleName simpleName = (SimpleName)expression;
+        			List<SingleVariableDeclaration> originalConstructorParameters = constructor.parameters();
+        			for(SingleVariableDeclaration originalConstructorParameter : originalConstructorParameters) {
+        				if(originalConstructorParameter.resolveBinding().isEqualTo(simpleName.resolveBinding())) {
+        					if(!extractedClassConstructorParameters.contains(originalConstructorParameter)) {
+        						extractedClassConstructorParametersRewrite.insertLast(originalConstructorParameter, null);
+        						extractedClassConstructorParameters.add(originalConstructorParameter);
+        					}
+        				}
+        			}
+        		}
+        		extractedClassRewriter.set(newFieldAssignment, Assignment.LEFT_HAND_SIDE_PROPERTY, fieldAssignment.getLeftHandSide(), null);
+        		extractedClassRewriter.set(newFieldAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, fieldAssignment.getRightHandSide(), null);
+        		extractedClassRewriter.set(newFieldAssignment, Assignment.OPERATOR_PROPERTY, fieldAssignment.getOperator(), null);
+        		ExpressionStatement assignmentStatement = extractedClassAST.newExpressionStatement(newFieldAssignment);
+        		extractedClassConstructorBodyStatementsRewrite.insertLast(assignmentStatement, null);
+        	}
+        	extractedClassBodyRewrite.insertLast(extractedClassConstructor, null);
+        }
         for(VariableDeclaration fieldFragment : extractedFieldFragments) {
         	MethodDeclaration getterMethodDeclaration = createGetterMethodDeclaration(fieldFragment, extractedClassAST, extractedClassRewriter);
         	extractedClassBodyRewrite.insertLast(getterMethodDeclaration, null);
-        	MethodDeclaration setterMethodDeclaration = createSetterMethodDeclaration(fieldFragment, extractedClassAST, extractedClassRewriter);
-        	extractedClassBodyRewrite.insertLast(setterMethodDeclaration, null);
+        	if(!finalFieldFragments.contains(fieldFragment)) {
+        		MethodDeclaration setterMethodDeclaration = createSetterMethodDeclaration(fieldFragment, extractedClassAST, extractedClassRewriter);
+        		extractedClassBodyRewrite.insertLast(setterMethodDeclaration, null);
+        	}
         }
         for(MethodDeclaration method : extractedMethods) {
         	MethodDeclaration extractedMethodDeclaration = createExtractedMethodDeclaration(method, extractedClassAST, extractedClassRewriter);
@@ -2167,11 +2215,61 @@ public class ExtractClassRefactoring extends Refactoring {
 		VariableDeclarationFragment extractedReferenceFragment = contextAST.newVariableDeclarationFragment();
 		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
 		sourceRewriter.set(extractedReferenceFragment, VariableDeclarationFragment.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
-		ClassInstanceCreation initializer = contextAST.newClassInstanceCreation();
-		Type targetType = contextAST.newSimpleType(contextAST.newName(extractedTypeName));
-		sourceRewriter.set(initializer, ClassInstanceCreation.TYPE_PROPERTY, targetType, null);
-		sourceRewriter.set(extractedReferenceFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
-		
+		if(constructorFinalFieldAssignmentMap.isEmpty()) {
+			ClassInstanceCreation initializer = contextAST.newClassInstanceCreation();
+			Type targetType = contextAST.newSimpleType(contextAST.newName(extractedTypeName));
+			sourceRewriter.set(initializer, ClassInstanceCreation.TYPE_PROPERTY, targetType, null);
+			sourceRewriter.set(extractedReferenceFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+		}
+		else {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			for(MethodDeclaration constructor : constructorFinalFieldAssignmentMap.keySet()) {
+				ASTRewrite constructorRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+				ListRewrite constructorBodyStatementsRewrite = constructorRewriter.getListRewrite(constructor.getBody(), Block.STATEMENTS_PROPERTY);
+				
+				Assignment extractedTypeFieldReferenceAssignment = contextAST.newAssignment();
+				FieldAccess extractedTypeFieldAccess = contextAST.newFieldAccess();
+				constructorRewriter.set(extractedTypeFieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+				constructorRewriter.set(extractedTypeFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+				constructorRewriter.set(extractedTypeFieldReferenceAssignment, Assignment.LEFT_HAND_SIDE_PROPERTY, extractedTypeFieldAccess, null);
+				constructorRewriter.set(extractedTypeFieldReferenceAssignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
+				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+				Type targetType = contextAST.newSimpleType(contextAST.newName(extractedTypeName));
+				constructorRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, targetType, null);
+				constructorRewriter.set(extractedTypeFieldReferenceAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
+				ExpressionStatement assignmentStatement = contextAST.newExpressionStatement(extractedTypeFieldReferenceAssignment);
+				
+				Map<VariableDeclaration, Assignment> finalFieldAssignmentMap = constructorFinalFieldAssignmentMap.get(constructor);
+				ListRewrite classInstanceCreationArgumentsRewrite = constructorRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+				Set<SingleVariableDeclaration> extractedClassConstructorParameters = new LinkedHashSet<SingleVariableDeclaration>();
+	        	for(VariableDeclaration fieldFragment : finalFieldAssignmentMap.keySet()) {
+	        		Assignment fieldAssignment = finalFieldAssignmentMap.get(fieldFragment);
+	        		List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(fieldAssignment.getRightHandSide());
+	        		for(Expression expression : variableInstructions) {
+	        			SimpleName simpleName = (SimpleName)expression;
+	        			List<SingleVariableDeclaration> originalConstructorParameters = constructor.parameters();
+	        			for(SingleVariableDeclaration originalConstructorParameter : originalConstructorParameters) {
+	        				if(originalConstructorParameter.resolveBinding().isEqualTo(simpleName.resolveBinding())) {
+	        					if(!extractedClassConstructorParameters.contains(originalConstructorParameter)) {
+	        						classInstanceCreationArgumentsRewrite.insertLast(simpleName, null);
+	        						extractedClassConstructorParameters.add(originalConstructorParameter);
+	        					}
+	        				}
+	        			}
+	        		}
+	        	}
+	        	constructorBodyStatementsRewrite.insertFirst(assignmentStatement, null);
+	        	try {
+	    			TextEdit sourceEdit = constructorRewriter.rewriteAST();
+	    			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+	    			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+	    			change.getEdit().addChild(sourceEdit);
+	    			change.addTextEditGroup(new TextEditGroup("Initialize field holding a reference to the extracted class", new TextEdit[] {sourceEdit}));
+	    		} catch (JavaModelException e) {
+	    			e.printStackTrace();
+	    		}
+			}
+		}
 		FieldDeclaration extractedReferenceFieldDeclaration = contextAST.newFieldDeclaration(extractedReferenceFragment);
 		sourceRewriter.set(extractedReferenceFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 		ListRewrite typeFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(extractedReferenceFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
@@ -2267,12 +2365,30 @@ public class ExtractClassRefactoring extends Refactoring {
 									if(leftHandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
 										if(assignedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(assignedVariableBinding)) {
-											MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
-											sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + modifiedFieldName), null);
-											ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-											setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-											sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
-											sourceRewriter.replace(assignment, setterMethodInvocation, null);
+											if(methodDeclaration.isConstructor() && (assignedVariableBinding.getModifiers() & Modifier.FINAL) != 0) {
+												if(assignment.getParent() instanceof ExpressionStatement) {
+													ExpressionStatement assignmentStatement = (ExpressionStatement)assignment.getParent();
+													ListRewrite constructorStatementsRewrite = sourceRewriter.getListRewrite(methodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
+													constructorStatementsRewrite.remove(assignmentStatement, null);
+													if(constructorFinalFieldAssignmentMap.containsKey(methodDeclaration)) {
+														Map<VariableDeclaration, Assignment> finalFieldAssignmentMap = constructorFinalFieldAssignmentMap.get(methodDeclaration);
+														finalFieldAssignmentMap.put(fieldFragment, assignment);
+													}
+													else {
+														Map<VariableDeclaration, Assignment> finalFieldAssignmentMap = new LinkedHashMap<VariableDeclaration, Assignment>();
+														finalFieldAssignmentMap.put(fieldFragment, assignment);
+														constructorFinalFieldAssignmentMap.put(methodDeclaration, finalFieldAssignmentMap);
+													}
+												}
+											}
+											else {
+												MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + modifiedFieldName), null);
+												ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+												setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												sourceRewriter.replace(assignment, setterMethodInvocation, null);
+											}
 											rewriteAST = true;
 										}
 									}

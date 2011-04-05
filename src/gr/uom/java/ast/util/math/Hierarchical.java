@@ -8,7 +8,6 @@ import static gr.uom.java.ast.util.math.DoubleArray.insertRows;
 import gr.uom.java.distance.Entity;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 
 public class Hierarchical extends Clustering {
@@ -41,7 +40,8 @@ public class Hierarchical extends Clustering {
 				}
 			}
 			
-			
+			if(minVal >= 1.0)
+				break;
 			if(minRow < minCol) {
 				clusters.get(minRow).addEntities(clusters.get(minCol).getEntities());
 				double[] newDistances = new double[distanceMatrix.length-1];

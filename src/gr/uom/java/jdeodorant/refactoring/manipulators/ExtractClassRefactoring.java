@@ -244,9 +244,14 @@ public class ExtractClassRefactoring extends Refactoring {
 		AST ast = sourceMethod.getBody().getAST();
 		MethodInvocation delegation = ast.newMethodInvocation();
 		sourceRewriter.set(delegation, MethodInvocation.NAME_PROPERTY, sourceMethod.getName(), null);
-		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
-		SimpleName expressionName = ast.newSimpleName(modifiedExtractedTypeName);
-		sourceRewriter.set(delegation, MethodInvocation.EXPRESSION_PROPERTY, expressionName, null);
+		if((sourceMethod.getModifiers() & Modifier.STATIC) != 0) {
+			sourceRewriter.set(delegation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(extractedTypeName), null);
+		}
+		else {
+			String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
+			SimpleName expressionName = ast.newSimpleName(modifiedExtractedTypeName);
+			sourceRewriter.set(delegation, MethodInvocation.EXPRESSION_PROPERTY, expressionName, null);
+		}
 		
 		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(delegation, MethodInvocation.ARGUMENTS_PROPERTY);
 		for(SingleVariableDeclaration parameter : sourceMethodParameters) {
@@ -383,8 +388,13 @@ public class ExtractClassRefactoring extends Refactoring {
 											else
 												argumentRewrite.insertLast(ast.newSimpleName(argument), null);
 										}
-										String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
-										sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedExtractedTypeName), null);
+										if((extractedMethod.getModifiers() & Modifier.STATIC) != 0) {
+											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(extractedTypeName), null);
+										}
+										else {
+											String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
+											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedExtractedTypeName), null);
+										}
 										rewriteAST = true;
 									}
 									else {
@@ -2104,11 +2114,19 @@ public class ExtractClassRefactoring extends Refactoring {
 		extractedClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, originalFieldDeclaration.getType(), null);
 		ListRewrite setterMethodParametersRewrite = extractedClassRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		setterMethodParametersRewrite.insertLast(parameter, null);
+		if((originalFieldDeclaration.getModifiers() & Modifier.STATIC) != 0) {
+			setterMethodModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+		}
 		
 		Assignment assignment = extractedClassAST.newAssignment();
-		ThisExpression thisExpression = extractedClassAST.newThisExpression();
 		FieldAccess fieldAccess = extractedClassAST.newFieldAccess();
-		extractedClassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, thisExpression, null);
+		if((originalFieldDeclaration.getModifiers() & Modifier.STATIC) != 0) {
+			extractedClassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, extractedClassAST.newSimpleName(extractedTypeName), null);
+		}
+		else {
+			ThisExpression thisExpression = extractedClassAST.newThisExpression();
+			extractedClassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, thisExpression, null);
+		}
 		extractedClassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, fieldFragment.getName(), null);
 		extractedClassRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, fieldAccess, null);
 		extractedClassRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
@@ -2130,6 +2148,9 @@ public class ExtractClassRefactoring extends Refactoring {
 		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, originalFieldDeclaration.getType(), null);
 		ListRewrite getterMethodModifiersRewrite = extractedClassRewriter.getListRewrite(getterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		getterMethodModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+		if((originalFieldDeclaration.getModifiers() & Modifier.STATIC) != 0) {
+			getterMethodModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+		}
 		ReturnStatement returnStatement = extractedClassAST.newReturnStatement();
 		extractedClassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldFragment.getName(), null);
 		Block getterMethodBody = extractedClassAST.newBlock();
@@ -2386,7 +2407,12 @@ public class ExtractClassRefactoring extends Refactoring {
 												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + modifiedFieldName), null);
 												ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 												setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
-												sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+													sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+												}
+												else {
+													sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												}
 												sourceRewriter.replace(assignment, setterMethodInvocation, null);
 											}
 											rewriteAST = true;
@@ -2411,7 +2437,12 @@ public class ExtractClassRefactoring extends Refactoring {
 											if(arrayVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(arrayVariableBinding)) {
 												MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + modifiedFieldName), null);
-												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												if((arrayVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+												}
+												else {
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												}
 												sourceRewriter.replace(arrayVariable, getterMethodInvocation, null);
 												rewriteAST = true;
 											}
@@ -2426,7 +2457,12 @@ public class ExtractClassRefactoring extends Refactoring {
 										if(accessedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(accessedVariableBinding)) {
 											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + modifiedFieldName), null);
-											sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+											if((accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+											}
 											sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
 											rewriteAST = true;
 										}
@@ -2486,7 +2522,12 @@ public class ExtractClassRefactoring extends Refactoring {
 										if(!isAssignmentChild(expression)) {
 											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + modifiedFieldName), null);
-											sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+											if((accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+											}
 											sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
 											rewriteAST = true;
 										}
@@ -2512,7 +2553,12 @@ public class ExtractClassRefactoring extends Refactoring {
 											if(!isAssignmentChild(expression)) {
 												MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
 												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + modifiedFieldName), null);
-												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												if((arrayVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+												}
+												else {
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												}
 												sourceRewriter.replace(arrayVariable, getterMethodInvocation, null);
 												rewriteAST = true;
 											}

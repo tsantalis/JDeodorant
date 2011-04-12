@@ -50,10 +50,6 @@ public class ASTSlice {
 	private BasicBlock boundaryBlock;
 	private boolean isObjectSlice;
 	private int methodSize;
-	private double averageNumberOfExtractedStatementsInGroup;
-	private int maximumNumberOfExtractedStatementsInGroup;
-	private double averageNumberOfDuplicatedStatementsInGroup;
-	private double averageDuplicationRatioInGroup;
 	private Integer userRate;
 	
 	public ASTSlice(PDGSlice pdgSlice) {
@@ -372,38 +368,6 @@ public class ASTSlice {
 		return new Object[] {annotationMap, duplicationMap};
 	}
 
-	public double getAverageNumberOfExtractedStatementsInGroup() {
-		return averageNumberOfExtractedStatementsInGroup;
-	}
-
-	public void setAverageNumberOfExtractedStatementsInGroup(double averageNumberOfExtractedStatementsInGroup) {
-		this.averageNumberOfExtractedStatementsInGroup = averageNumberOfExtractedStatementsInGroup;
-	}
-
-	public int getMaximumNumberOfExtractedStatementsInGroup() {
-		return maximumNumberOfExtractedStatementsInGroup;
-	}
-
-	public void setMaximumNumberOfExtractedStatementsInGroup(int maximumNumberOfExtractedStatementsInGroup) {
-		this.maximumNumberOfExtractedStatementsInGroup = maximumNumberOfExtractedStatementsInGroup;
-	}
-
-	public double getAverageNumberOfDuplicatedStatementsInGroup() {
-		return averageNumberOfDuplicatedStatementsInGroup;
-	}
-
-	public void setAverageNumberOfDuplicatedStatementsInGroup(double averageNumberOfDuplicatedStatementsInGroup) {
-		this.averageNumberOfDuplicatedStatementsInGroup = averageNumberOfDuplicatedStatementsInGroup;
-	}
-
-	public double getAverageDuplicationRatioInGroup() {
-		return averageDuplicationRatioInGroup;
-	}
-
-	public void setAverageDuplicationRatioInGroup(double averageDuplicationRatioInGroup) {
-		this.averageDuplicationRatioInGroup = averageDuplicationRatioInGroup;
-	}
-
 	public String sliceToString() {
 		StringBuilder sb = new StringBuilder();
 		for(PDGNode sliceNode : sliceNodes) {
@@ -414,6 +378,17 @@ public class ASTSlice {
 				sb.append(sliceNode.getStatement().toString());
 		}
 		return sb.toString();
+	}
+
+	public String toString() {
+		int numberOfSliceStatements = getSliceStatements().size();
+		int numberOfRemovableStatements = getRemovableStatements().size();
+		int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+		return getSourceTypeDeclaration().resolveBinding().getQualifiedName() + "\t" +
+		getSourceMethodDeclaration().resolveBinding().toString() + "\t" +
+		getLocalVariableCriterion().getName().getIdentifier() + "t" +
+		"B" + getBoundaryBlock().getId() + "\t" +
+		numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
 	}
 
 	public Integer getUserRate() {

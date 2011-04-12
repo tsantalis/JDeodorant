@@ -26,7 +26,6 @@ import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnionCollection;
-import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -36,6 +35,7 @@ import gr.uom.java.history.ProjectEvolution;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSliceGroup;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
@@ -59,8 +59,6 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
-import org.eclipse.jface.dialogs.IInputValidator;
-import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -69,29 +67,29 @@ import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.jface.viewers.CellEditor;
 import org.eclipse.jface.viewers.ColumnWeightData;
-import org.eclipse.jface.viewers.ComboBoxCellEditor;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
-import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.ITableLabelProvider;
+import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.TableLayout;
-import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TextCellEditor;
+import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerSorter;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.FileDialog;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
-import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeColumn;
+import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
@@ -104,11 +102,10 @@ import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 public class LongMethod extends ViewPart {
-	private TableViewer tableViewer;
+	private TreeViewer treeViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
-	private Action renameMethodAction;
 	private Action saveResultsAction;
 	private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
@@ -117,65 +114,103 @@ public class LongMethod extends ViewPart {
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private IMethod selectedMethod;
-	private ASTSlice[] sliceTable;
+	private ASTSliceGroup[] sliceGroupTable;
 	private MethodEvolution methodEvolution;
 	
-	class ViewContentProvider implements IStructuredContentProvider {
+	class ViewContentProvider implements ITreeContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
 		}
 		public void dispose() {
 		}
 		public Object[] getElements(Object parent) {
-			if(sliceTable!=null) {
-				return sliceTable;
+			if(sliceGroupTable!=null) {
+				return sliceGroupTable;
 			}
 			else {
-				return new PDGSlice[] {};
+				return new ASTSliceGroup[] {};
 			}
+		}
+		public Object[] getChildren(Object arg) {
+			if (arg instanceof ASTSliceGroup) {
+				return ((ASTSliceGroup)arg).getCandidates().toArray();
+			}
+			else {
+				return new ASTSlice[] {};
+			}
+		}
+		public Object getParent(Object arg0) {
+			if(arg0 instanceof ASTSlice) {
+				ASTSlice slice = (ASTSlice)arg0;
+				for(int i=0; i<sliceGroupTable.length; i++) {
+					if(sliceGroupTable[i].getCandidates().contains(slice))
+						return sliceGroupTable[i];
+				}
+			}
+			return null;
+		}
+		public boolean hasChildren(Object arg0) {
+			return getChildren(arg0).length > 0;
 		}
 	}
 
 	class ViewLabelProvider extends LabelProvider implements ITableLabelProvider {
 		public String getColumnText(Object obj, int index) {
-			ASTSlice entry = (ASTSlice)obj;
-			switch(index){
-			case 0:
-				return "Extract Method";
-			case 1:
-				String declaringClass = entry.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
-				String methodName = entry.getSourceMethodDeclaration().resolveBinding().toString();
-				return declaringClass + "::" + methodName;
-			case 2:
-				return entry.getLocalVariableCriterion().getName().getIdentifier();
-			case 3:
-				return "B" + entry.getBoundaryBlock().getId();
-			case 4:
-				int numberOfSliceStatements = entry.getSliceStatements().size();
-				int numberOfRemovableStatements = entry.getRemovableStatements().size();
-				int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
-				return numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
-			case 5:
-				Integer userRate = entry.getUserRate();
-				return (userRate == null) ? "" : userRate.toString();
-			default:
-				return "";
+			if(obj instanceof ASTSlice) {
+				ASTSlice entry = (ASTSlice)obj;
+				switch(index){
+				case 0:
+					return "Extract Method";
+				/*case 1:
+					String declaringClass = entry.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
+					String methodName = entry.getSourceMethodDeclaration().resolveBinding().toString();
+					return declaringClass + "::" + methodName;
+				case 2:
+					return entry.getLocalVariableCriterion().getName().getIdentifier();*/
+				case 3:
+					return "B" + entry.getBoundaryBlock().getId();
+				case 4:
+					int numberOfSliceStatements = entry.getSliceStatements().size();
+					int numberOfRemovableStatements = entry.getRemovableStatements().size();
+					int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+					return numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
+				case 5:
+					Integer userRate = entry.getUserRate();
+					return (userRate == null) ? "" : userRate.toString();
+				default:
+					return "";
+				}
 			}
-			
+			else if(obj instanceof ASTSliceGroup) {
+				ASTSliceGroup entry = (ASTSliceGroup)obj;
+				switch(index){
+				case 1:
+					String declaringClass = entry.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
+					String methodName = entry.getSourceMethodDeclaration().resolveBinding().toString();
+					return declaringClass + "::" + methodName;
+				case 2:
+					return entry.getLocalVariableCriterion().getName().getIdentifier();
+				default:
+					return "";
+				}
+			}
+			return "";
 		}
 		public Image getColumnImage(Object obj, int index) {
-			ASTSlice entry = (ASTSlice)obj;
-			int rate = -1;
-			Integer userRate = entry.getUserRate();
-			if(userRate != null)
-				rate = userRate;
 			Image image = null;
-			switch(index) {
-			case 5:
-				if(rate != -1) {
-					image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+			if(obj instanceof ASTSlice) {
+				ASTSlice entry = (ASTSlice)obj;
+				int rate = -1;
+				Integer userRate = entry.getUserRate();
+				if(userRate != null)
+					rate = userRate;
+				switch(index) {
+				case 5:
+					if(rate != -1) {
+						image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+					}
+				default:
+					break;
 				}
-			default:
-	            break;
 			}
 			return image;
 		}
@@ -186,47 +221,17 @@ public class LongMethod extends ViewPart {
 
 	class NameSorter extends ViewerSorter {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
-			ASTSlice slice1 = (ASTSlice)obj1;
-			ASTSlice slice2 = (ASTSlice)obj2;
-			
-			double duplicationRatio1 = slice1.getAverageDuplicationRatioInGroup();
-			double duplicationRatio2 = slice2.getAverageDuplicationRatioInGroup();
-			
-			if(duplicationRatio1 < duplicationRatio2)
-				return -1;
-			else if(duplicationRatio1 > duplicationRatio2)
-				return 1;
-			//same duplication ratio
-			double averageNumberOfDuplicatedStatements1 = slice1.getAverageNumberOfDuplicatedStatementsInGroup();
-			double averageNumberOfDuplicatedStatements2 = slice2.getAverageNumberOfDuplicatedStatementsInGroup();
-			
-			if(averageNumberOfDuplicatedStatements1 != 0 && averageNumberOfDuplicatedStatements2 != 0) {
-				if(averageNumberOfDuplicatedStatements1 < averageNumberOfDuplicatedStatements2)
-					return -1;
-				else if(averageNumberOfDuplicatedStatements1 > averageNumberOfDuplicatedStatements2)
-					return 1;
+			if(obj1 instanceof ASTSliceGroup && obj2 instanceof ASTSliceGroup) {
+				ASTSliceGroup sliceGroup1 = (ASTSliceGroup)obj1;
+				ASTSliceGroup sliceGroup2 = (ASTSliceGroup)obj2;
+				return sliceGroup1.compareTo(sliceGroup2);
 			}
-			
-			int maximumNumberOfExtractedStatements1 = slice1.getMaximumNumberOfExtractedStatementsInGroup();
-			int maximumNumberOfExtractedStatements2 = slice2.getMaximumNumberOfExtractedStatementsInGroup();
-			
-			if(averageNumberOfDuplicatedStatements1 == 0 && averageNumberOfDuplicatedStatements2 == 0) {
-				if(maximumNumberOfExtractedStatements1 < maximumNumberOfExtractedStatements2)
-					return 1;
-				else if(maximumNumberOfExtractedStatements1 > maximumNumberOfExtractedStatements2)
-					return -1;
+			else {
+				ASTSlice slice1 = (ASTSlice)obj1;
+				ASTSlice slice2 = (ASTSlice)obj2;
+				//slices belong to the same group
+				return Integer.valueOf(slice1.getBoundaryBlock().getId()).compareTo(Integer.valueOf(slice2.getBoundaryBlock().getId()));
 			}
-			
-			double averageNumberOfExtractedStatements1 = slice1.getAverageNumberOfExtractedStatementsInGroup();
-			double averageNumberOfExtractedStatements2 = slice2.getAverageNumberOfExtractedStatementsInGroup();
-			
-			if(averageNumberOfExtractedStatements1 < averageNumberOfExtractedStatements2)
-				return 1;
-			else if(averageNumberOfExtractedStatements1 > averageNumberOfExtractedStatements2)
-				return -1;
-			
-			//slices belong to the same group
-			return Integer.valueOf(slice1.getBoundaryBlock().getId()).compareTo(Integer.valueOf(slice2.getBoundaryBlock().getId()));
 		}
 	}
 	
@@ -295,7 +300,6 @@ public class LongMethod extends ViewPart {
 						tableViewer.remove(sliceTable);*/
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
 					evolutionAnalysisAction.setEnabled(false);
 				}
@@ -305,11 +309,11 @@ public class LongMethod extends ViewPart {
 
 	@Override
 	public void createPartControl(Composite parent) {
-		tableViewer = new TableViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
-		tableViewer.setContentProvider(new ViewContentProvider());
-		tableViewer.setLabelProvider(new ViewLabelProvider());
-		tableViewer.setSorter(new NameSorter());
-		tableViewer.setInput(getViewSite());
+		treeViewer = new TreeViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
+		treeViewer.setContentProvider(new ViewContentProvider());
+		treeViewer.setLabelProvider(new ViewLabelProvider());
+		treeViewer.setSorter(new NameSorter());
+		treeViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(60, true));
@@ -317,42 +321,44 @@ public class LongMethod extends ViewPart {
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
-		tableViewer.getTable().setLayout(layout);
-		tableViewer.getTable().setLinesVisible(true);
-		tableViewer.getTable().setHeaderVisible(true);
-		TableColumn column0 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		treeViewer.getTree().setLayout(layout);
+		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
+		treeViewer.getTree().setLinesVisible(true);
+		treeViewer.getTree().setHeaderVisible(true);
+		TreeColumn column0 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column0.setText("Refactoring Type");
 		column0.setResizable(true);
 		column0.pack();
-		TableColumn column1 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column1 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column1.setText("Source Method");
 		column1.setResizable(true);
 		column1.pack();
-		TableColumn column2 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column2 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column2.setText("Variable Criterion");
 		column2.setResizable(true);
 		column2.pack();
-		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column3 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column3.setText("Block-Based Region");
 		column3.setResizable(true);
 		column3.pack();
-		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column4 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column4.setText("Duplicated/Extracted");
 		column4.setResizable(true);
 		column4.pack();
 		
-		TableColumn column5 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column5 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column5.setText("Rate it!");
 		column5.setResizable(true);
 		column5.pack();
+		treeViewer.expandAll();
 		
-		tableViewer.setColumnProperties(new String[] {"type", "source", "variable", "block", "duplicationRatio", "rate"});
-		tableViewer.setCellEditors(new CellEditor[] {
+		treeViewer.setColumnProperties(new String[] {"type", "source", "variable", "block", "duplicationRatio", "rate"});
+		treeViewer.setCellEditors(new CellEditor[] {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
-				new MyComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+				new MyComboBoxCellEditor(treeViewer.getTree(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
 		
-		tableViewer.setCellModifier(new ICellModifier() {
+		treeViewer.setCellModifier(new ICellModifier() {
 			public boolean canModify(Object element, String property) {
 				return property.equals("rate");
 			}
@@ -369,7 +375,7 @@ public class LongMethod extends ViewPart {
 			}
 
 			public void modify(Object element, String property, Object value) {
-				TableItem item = (TableItem)element;
+				TreeItem item = (TreeItem)element;
 				Object data = item.getData();
 				if(data instanceof ASTSlice) {
 					ASTSlice slice = (ASTSlice)data;
@@ -377,12 +383,14 @@ public class LongMethod extends ViewPart {
 					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
 					if(allowUsageReporting) {
-						Table table = tableViewer.getTable();
-						int rankingPosition = -1;
-						for(int i=0; i<table.getItemCount(); i++) {
-							TableItem tableItem = table.getItem(i);
-							if(tableItem.equals(item)) {
-								rankingPosition = i;
+						Tree tree = treeViewer.getTree();
+						int groupPosition = -1;
+						int totalGroups = tree.getItemCount();
+						for(int i=0; i<tree.getItemCount(); i++) {
+							TreeItem treeItem = tree.getItem(i);
+							ASTSliceGroup group = (ASTSliceGroup)treeItem.getData();
+							if(group.getCandidates().contains(slice)) {
+								groupPosition = i;
 								break;
 							}
 						}
@@ -401,8 +409,8 @@ public class LongMethod extends ViewPart {
 							int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
 							content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
 							content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
-							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
-							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
 							if(allowSourceCodeReporting) {
 								content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(slice.getSourceMethodDeclaration().toString(), "UTF-8");
 								content += "&" + URLEncoder.encode("slice_statements", "UTF-8") + "=" + URLEncoder.encode(slice.sliceToString(), "UTF-8");
@@ -426,7 +434,7 @@ public class LongMethod extends ViewPart {
 							ioe.printStackTrace();
 						}
 					}
-					tableViewer.update(data, null);
+					treeViewer.update(data, null);
 				}
 			}
 		});
@@ -442,7 +450,6 @@ public class LongMethod extends ViewPart {
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
 					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
 					evolutionAnalysisAction.setEnabled(false);
 				}
@@ -458,7 +465,6 @@ public class LongMethod extends ViewPart {
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
-		manager.add(renameMethodAction);
 		manager.add(saveResultsAction);
 		manager.add(evolutionAnalysisAction);
 	}
@@ -467,10 +473,9 @@ public class LongMethod extends ViewPart {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
 				CompilationUnitCache.getInstance().clearCache();
-				sliceTable = getTable();
-				tableViewer.setContentProvider(new ViewContentProvider());
+				sliceGroupTable = getTable();
+				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
-				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
 				evolutionAnalysisAction.setEnabled(true);
 			}
@@ -493,30 +498,32 @@ public class LongMethod extends ViewPart {
 		evolutionAnalysisAction = new Action() {
 			public void run() {
 				methodEvolution = null;
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				final ASTSlice slice = (ASTSlice)selection.getFirstElement();
-				try {
-					IWorkbench wb = PlatformUI.getWorkbench();
-					IProgressService ps = wb.getProgressService();
-					ps.busyCursorWhile(new IRunnableWithProgress() {
-						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-							ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
-							if(projectEvolution.getProjectEntries().size() > 1) {
-								methodEvolution = new MethodEvolution(projectEvolution, (IMethod)slice.getSourceMethodDeclaration().resolveBinding().getJavaElement(), monitor);
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof ASTSlice) {
+					final ASTSlice slice = (ASTSlice)selection.getFirstElement();
+					try {
+						IWorkbench wb = PlatformUI.getWorkbench();
+						IProgressService ps = wb.getProgressService();
+						ps.busyCursorWhile(new IRunnableWithProgress() {
+							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+								ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
+								if(projectEvolution.getProjectEntries().size() > 1) {
+									methodEvolution = new MethodEvolution(projectEvolution, (IMethod)slice.getSourceMethodDeclaration().resolveBinding().getJavaElement(), monitor);
+								}
 							}
+						});
+						if(methodEvolution != null) {
+							EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), methodEvolution, "Method Evolution", false);
+							dialog.open();
 						}
-					});
-					if(methodEvolution != null) {
-						EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), methodEvolution, "Method Evolution", false);
-						dialog.open();
+						else
+							MessageDialog.openInformation(getSite().getShell(), "Method Evolution",
+							"Method evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
+					} catch (InvocationTargetException e) {
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
 					}
-					else
-						MessageDialog.openInformation(getSite().getShell(), "Method Evolution",
-						"Method evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
-				} catch (InvocationTargetException e) {
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
 				}
 			}
 		};
@@ -527,80 +534,84 @@ public class LongMethod extends ViewPart {
 		
 		applyRefactoringAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				ASTSlice slice = (ASTSlice)selection.getFirstElement();
-				TypeDeclaration sourceTypeDeclaration = slice.getSourceTypeDeclaration();
-				CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
-				IFile sourceFile = slice.getIFile();
-				IPreferenceStore store = Activator.getDefault().getPreferenceStore();
-				boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
-				if(allowUsageReporting) {
-					Table table = tableViewer.getTable();
-					int rankingPosition = -1;
-					for(int i=0; i<table.getItemCount(); i++) {
-						TableItem tableItem = table.getItem(i);
-						if(tableItem.getData().equals(slice)) {
-							rankingPosition = i;
-							break;
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof ASTSlice) {
+					ASTSlice slice = (ASTSlice)selection.getFirstElement();
+					TypeDeclaration sourceTypeDeclaration = slice.getSourceTypeDeclaration();
+					CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
+					IFile sourceFile = slice.getIFile();
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+					if(allowUsageReporting) {
+						Tree tree = treeViewer.getTree();
+						int groupPosition = -1;
+						int totalGroups = tree.getItemCount();
+						for(int i=0; i<tree.getItemCount(); i++) {
+							TreeItem treeItem = tree.getItem(i);
+							ASTSliceGroup group = (ASTSliceGroup)treeItem.getData();
+							if(group.getCandidates().contains(slice)) {
+								groupPosition = i;
+								break;
+							}
 						}
+						try {
+							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+							String declaringClass = slice.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
+							String methodName = slice.getSourceMethodDeclaration().resolveBinding().toString();
+							String sourceMethodName = declaringClass + "::" + methodName;
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+							content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
+							content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
+							content += "&" + URLEncoder.encode("object_slice", "UTF-8") + "=" + URLEncoder.encode(slice.isObjectSlice() ? "1" : "0", "UTF-8");
+							int numberOfSliceStatements = slice.getSliceStatements().size();
+							int numberOfRemovableStatements = slice.getRemovableStatements().size();
+							int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+							content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
+							content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
+							if(allowSourceCodeReporting) {
+								content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(slice.getSourceMethodDeclaration().toString(), "UTF-8");
+								content += "&" + URLEncoder.encode("slice_statements", "UTF-8") + "=" + URLEncoder.encode(slice.sliceToString(), "UTF-8");
+							}
+							content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode(String.valueOf("1"), "UTF-8");
+							content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(slice.getExtractedMethodName(), "UTF-8");
+							content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+							content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("2", "UTF-8");
+							URL url = new URL(Activator.RANK_URL);
+							URLConnection urlConn = url.openConnection();
+							urlConn.setDoInput(true);
+							urlConn.setDoOutput(true);
+							urlConn.setUseCaches(false);
+							urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+							printout.writeBytes(content);
+							printout.flush();
+							printout.close();
+							DataInputStream input = new DataInputStream(urlConn.getInputStream());
+							input.close();
+						} catch (IOException ioe) {
+							ioe.printStackTrace();
+						}
+					}
+					Refactoring refactoring = new ExtractMethodRefactoring(sourceCompilationUnit, slice);
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(getSite().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
+						e.printStackTrace();
 					}
 					try {
-						boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
-						String declaringClass = slice.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
-						String methodName = slice.getSourceMethodDeclaration().resolveBinding().toString();
-						String sourceMethodName = declaringClass + "::" + methodName;
-						String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
-						content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
-						content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
-						content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
-						content += "&" + URLEncoder.encode("object_slice", "UTF-8") + "=" + URLEncoder.encode(slice.isObjectSlice() ? "1" : "0", "UTF-8");
-						int numberOfSliceStatements = slice.getSliceStatements().size();
-						int numberOfRemovableStatements = slice.getRemovableStatements().size();
-						int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
-						content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
-						content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
-						content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
-						content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
-						if(allowSourceCodeReporting) {
-							content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(slice.getSourceMethodDeclaration().toString(), "UTF-8");
-							content += "&" + URLEncoder.encode("slice_statements", "UTF-8") + "=" + URLEncoder.encode(slice.sliceToString(), "UTF-8");
-						}
-						content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode(String.valueOf("1"), "UTF-8");
-						content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(slice.getExtractedMethodName(), "UTF-8");
-						content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
-						content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("2", "UTF-8");
-						URL url = new URL(Activator.RANK_URL);
-						URLConnection urlConn = url.openConnection();
-						urlConn.setDoInput(true);
-						urlConn.setDoOutput(true);
-						urlConn.setUseCaches(false);
-						urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-						DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
-						printout.writeBytes(content);
-						printout.flush();
-						printout.close();
-						DataInputStream input = new DataInputStream(urlConn.getInputStream());
-						input.close();
-					} catch (IOException ioe) {
-						ioe.printStackTrace();
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						JavaUI.openInEditor(sourceJavaElement);
+					} catch (PartInitException e) {
+						e.printStackTrace();
+					} catch (JavaModelException e) {
+						e.printStackTrace();
 					}
-				}
-				Refactoring refactoring = new ExtractMethodRefactoring(sourceCompilationUnit, slice);
-				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
-				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
-				try { 
-					String titleForFailedChecks = ""; //$NON-NLS-1$ 
-					op.run(getSite().getShell(), titleForFailedChecks); 
-				} catch(InterruptedException e) {
-					e.printStackTrace();
-				}
-				try {
-					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-					JavaUI.openInEditor(sourceJavaElement);
-				} catch (PartInitException e) {
-					e.printStackTrace();
-				} catch (JavaModelException e) {
-					e.printStackTrace();
 				}
 			}
 		};
@@ -609,71 +620,54 @@ public class LongMethod extends ViewPart {
 				getImageDescriptor(ISharedImages.IMG_DEF_VIEW));
 		applyRefactoringAction.setEnabled(false);
 		
-		renameMethodAction = new Action() {
-			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				ASTSlice slice = (ASTSlice)selection.getFirstElement();
-				String methodName = slice.getExtractedMethodName();
-				IInputValidator methodNameValidator = new MethodNameValidator();
-				InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Extracted Method", "Please enter a new name", methodName, methodNameValidator);
-				dialog.open();
-				if(dialog.getValue() != null) {
-					slice.setExtractedMethodName(dialog.getValue());
-					tableViewer.refresh();
-				}
-			}
-		};
-		renameMethodAction.setToolTipText("Rename Extracted Method");
-		renameMethodAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-				getImageDescriptor(ISharedImages.IMG_OBJ_FILE));
-		renameMethodAction.setEnabled(false);
-		
 		doubleClickAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				ASTSlice slice = (ASTSlice)selection.getFirstElement();
-				IFile sourceFile = slice.getIFile();
-				try {
-					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-					ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
-					Object[] highlightPositionMaps = slice.getHighlightPositions();
-					Map<Position, String> annotationMap = (Map<Position, String>)highlightPositionMaps[0];
-					Map<Position, Boolean> duplicationMap = (Map<Position, Boolean>)highlightPositionMaps[1];
-					AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
-					Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
-					while(annotationIterator.hasNext()) {
-						Annotation currentAnnotation = annotationIterator.next();
-						if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION) || currentAnnotation.getType().equals(SliceAnnotation.DUPLICATION)) {
-							annotationModel.removeAnnotation(currentAnnotation);
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof ASTSlice) {
+					ASTSlice slice = (ASTSlice)selection.getFirstElement();
+					IFile sourceFile = slice.getIFile();
+					try {
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
+						Object[] highlightPositionMaps = slice.getHighlightPositions();
+						Map<Position, String> annotationMap = (Map<Position, String>)highlightPositionMaps[0];
+						Map<Position, Boolean> duplicationMap = (Map<Position, Boolean>)highlightPositionMaps[1];
+						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
+						while(annotationIterator.hasNext()) {
+							Annotation currentAnnotation = annotationIterator.next();
+							if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION) || currentAnnotation.getType().equals(SliceAnnotation.DUPLICATION)) {
+								annotationModel.removeAnnotation(currentAnnotation);
+							}
 						}
+						for(Position position : annotationMap.keySet()) {
+							SliceAnnotation annotation = null;
+							String annotationText = annotationMap.get(position);
+							boolean duplicated = duplicationMap.get(position);
+							if(duplicated)
+								annotation = new SliceAnnotation(SliceAnnotation.DUPLICATION, annotationText);
+							else
+								annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, annotationText);
+							annotationModel.addAnnotation(annotation, position);
+						}
+						List<Position> positions = new ArrayList<Position>(annotationMap.keySet());
+						Position firstPosition = positions.get(0);
+						Position lastPosition = positions.get(positions.size()-1);
+						int offset = firstPosition.getOffset();
+						int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
+						sourceEditor.setHighlightRange(offset, length, true);
+					} catch (PartInitException e) {
+						e.printStackTrace();
+					} catch (JavaModelException e) {
+						e.printStackTrace();
 					}
-					for(Position position : annotationMap.keySet()) {
-						SliceAnnotation annotation = null;
-						String annotationText = annotationMap.get(position);
-						boolean duplicated = duplicationMap.get(position);
-						if(duplicated)
-							annotation = new SliceAnnotation(SliceAnnotation.DUPLICATION, annotationText);
-						else
-							annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, annotationText);
-						annotationModel.addAnnotation(annotation, position);
-					}
-					List<Position> positions = new ArrayList<Position>(annotationMap.keySet());
-					Position firstPosition = positions.get(0);
-					Position lastPosition = positions.get(positions.size()-1);
-					int offset = firstPosition.getOffset();
-					int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
-					sourceEditor.setHighlightRange(offset, length, true);
-				} catch (PartInitException e) {
-					e.printStackTrace();
-				} catch (JavaModelException e) {
-					e.printStackTrace();
 				}
 			}
 		};
 	}
 
 	private void hookDoubleClickAction() {
-		tableViewer.addDoubleClickListener(new IDoubleClickListener() {
+		treeViewer.addDoubleClickListener(new IDoubleClickListener() {
 			public void doubleClick(DoubleClickEvent event) {
 				doubleClickAction.run();
 			}
@@ -682,7 +676,7 @@ public class LongMethod extends ViewPart {
 
 	@Override
 	public void setFocus() {
-		tableViewer.getControl().setFocus();
+		treeViewer.getControl().setFocus();
 	}
 
 	public void dispose() {
@@ -690,8 +684,8 @@ public class LongMethod extends ViewPart {
 		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
 	}
 
-	private ASTSlice[] getTable() {
-		ASTSlice[] table = null;
+	private ASTSliceGroup[] getTable() {
+		ASTSliceGroup[] table = null;
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
@@ -732,7 +726,7 @@ public class LongMethod extends ViewPart {
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 			}
-			final List<ASTSlice> extractedSlices = new ArrayList<ASTSlice>();
+			final List<ASTSliceGroup> extractedSliceGroups = new ArrayList<ASTSliceGroup>();
 
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
@@ -748,7 +742,7 @@ public class LongMethod extends ViewPart {
 								if(monitor.isCanceled())
 									throw new OperationCanceledException();
 								MethodObject methodObject = methodIterator.next();
-								processMethod(extractedSlices,classObject, methodObject);
+								processMethod(extractedSliceGroups,classObject, methodObject);
 								monitor.worked(1);
 							}
 						}
@@ -760,7 +754,7 @@ public class LongMethod extends ViewPart {
 							if(monitor.isCanceled())
 								throw new OperationCanceledException();
 							ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
-							processMethod(extractedSlices, classObject, methodObject);
+							processMethod(extractedSliceGroups, classObject, methodObject);
 							monitor.worked(1);
 						}
 					}
@@ -768,9 +762,9 @@ public class LongMethod extends ViewPart {
 				}
 			});
 
-			table = new ASTSlice[extractedSlices.size()];
-			for(int i=0; i<extractedSlices.size(); i++) {
-				table[i] = extractedSlices.get(i);
+			table = new ASTSliceGroup[extractedSliceGroups.size()];
+			for(int i=0; i<extractedSliceGroups.size(); i++) {
+				table[i] = extractedSliceGroups.get(i);
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
@@ -780,7 +774,7 @@ public class LongMethod extends ViewPart {
 		return table;
 	}
 
-	private void processMethod(final List<ASTSlice> extractedSlices, ClassObject classObject, MethodObject methodObject) {
+	private void processMethod(final List<ASTSliceGroup> extractedSliceGroups, ClassObject classObject, MethodObject methodObject) {
 		if(methodObject.getMethodBody() != null) {
 			IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 			int minimumMethodSize = store.getInt(PreferenceConstants.P_MINIMUM_METHOD_SIZE);
@@ -794,11 +788,12 @@ public class LongMethod extends ViewPart {
 				for(VariableDeclaration declaration : pdg.getVariableDeclarationsInMethod()) {
 					PlainVariable variable = new PlainVariable(declaration);
 					PDGSliceUnionCollection sliceUnionCollection = new PDGSliceUnionCollection(pdg, variable);
-					List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
 					double sumOfExtractedStatementsInGroup = 0.0;
 					double sumOfDuplicatedStatementsInGroup = 0.0;
 					double sumOfDuplicationRatioInGroup = 0.0;
 					int maximumNumberOfExtractedStatementsInGroup = 0;
+					int groupSize = sliceUnionCollection.getSliceUnions().size();
+					ASTSliceGroup sliceGroup = new ASTSliceGroup();
 					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(sliceUnion);
 						int numberOfExtractedStatements = slice.getSliceStatements().size();
@@ -810,24 +805,25 @@ public class LongMethod extends ViewPart {
 						sumOfDuplicationRatioInGroup += duplicationRatio;
 						if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
 							maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
-						variableSlices.add(slice);
-						extractedSlices.add(slice);
+						sliceGroup.addCandidate(slice);
 					}
-					for(ASTSlice slice : variableSlices) {
-						slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
-						slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
-						slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
-						slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+					if(!sliceGroup.getCandidates().isEmpty()) {
+						sliceGroup.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)groupSize);
+						sliceGroup.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)groupSize);
+						sliceGroup.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)groupSize);
+						sliceGroup.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+						extractedSliceGroups.add(sliceGroup);
 					}
 				}
 				for(VariableDeclaration declaration : pdg.getVariableDeclarationsAndAccessedFieldsInMethod()) {
 					PlainVariable variable = new PlainVariable(declaration);
 					PDGObjectSliceUnionCollection objectSliceUnionCollection = new PDGObjectSliceUnionCollection(pdg, variable);
-					List<ASTSlice> variableSlices = new ArrayList<ASTSlice>();
 					double sumOfExtractedStatementsInGroup = 0.0;
 					double sumOfDuplicatedStatementsInGroup = 0.0;
 					double sumOfDuplicationRatioInGroup = 0.0;
 					int maximumNumberOfExtractedStatementsInGroup = 0;
+					int groupSize = objectSliceUnionCollection.getSliceUnions().size();
+					ASTSliceGroup sliceGroup = new ASTSliceGroup();
 					for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(objectSliceUnion);
 						int numberOfExtractedStatements = slice.getSliceStatements().size();
@@ -839,14 +835,14 @@ public class LongMethod extends ViewPart {
 						sumOfDuplicationRatioInGroup += duplicationRatio;
 						if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
 							maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
-						variableSlices.add(slice);
-						extractedSlices.add(slice);
+						sliceGroup.addCandidate(slice);
 					}
-					for(ASTSlice slice : variableSlices) {
-						slice.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)variableSlices.size());
-						slice.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)variableSlices.size());
-						slice.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)variableSlices.size());
-						slice.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+					if(!sliceGroup.getCandidates().isEmpty()) {
+						sliceGroup.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)groupSize);
+						sliceGroup.setAverageNumberOfDuplicatedStatementsInGroup(sumOfDuplicatedStatementsInGroup/(double)groupSize);
+						sliceGroup.setAverageDuplicationRatioInGroup(sumOfDuplicationRatioInGroup/(double)groupSize);
+						sliceGroup.setMaximumNumberOfExtractedStatementsInGroup(maximumNumberOfExtractedStatementsInGroup);
+						extractedSliceGroups.add(sliceGroup);
 					}
 				}
 				CompilationUnitCache.getInstance().releaseLock();
@@ -863,25 +859,23 @@ public class LongMethod extends ViewPart {
         if(selected != null) {
         	try {
         		BufferedWriter out = new BufferedWriter(new FileWriter(selected));
-        		Table table = tableViewer.getTable();
-        		TableColumn[] columns = table.getColumns();
+        		Tree tree = treeViewer.getTree();
+        		/*TreeColumn[] columns = tree.getColumns();
         		for(int i=0; i<columns.length; i++) {
         			if(i == columns.length-1)
         				out.write(columns[i].getText());
         			else
         				out.write(columns[i].getText() + "\t");
         		}
-        		out.newLine();
-        		for(int i=0; i<table.getItemCount(); i++) {
-        			TableItem tableItem = table.getItem(i);
-        			for(int j=0; j<table.getColumnCount(); j++) {
-        				if(j == table.getColumnCount()-1)
-        					out.write(tableItem.getText(j));
-        				else
-        					out.write(tableItem.getText(j) + "\t");
-        			}
-        			out.newLine();
-        		}
+        		out.newLine();*/
+        		for(int i=0; i<tree.getItemCount(); i++) {
+					TreeItem treeItem = tree.getItem(i);
+					ASTSliceGroup group = (ASTSliceGroup)treeItem.getData();
+					for(ASTSlice candidate : group.getCandidates()) {
+						out.write(candidate.toString());
+						out.newLine();
+					}
+				}
         		out.close();
         	} catch (IOException e) {
         		e.printStackTrace();

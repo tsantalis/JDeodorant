@@ -138,6 +138,14 @@ public class ExtractMethodRefactoring extends Refactoring {
 		}
 	}
 
+	public String getExtractedMethodName() {
+		return slice.getExtractedMethodName();
+	}
+
+	public void setExtractedMethodName(String extractedMethodName) {
+		slice.setExtractedMethodName(extractedMethodName);
+	}
+
 	private void processTryStatement(TryStatement tryStatement) {
 		List<Statement> nestedStatements = getStatements(tryStatement);
 		Set<Statement> removableStatements = slice.getRemovableStatements();

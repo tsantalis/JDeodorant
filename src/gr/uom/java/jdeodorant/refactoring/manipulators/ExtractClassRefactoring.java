@@ -117,6 +117,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	private Map<Statement, ASTRewrite> statementRewriteMap;
 	//this map holds for each constructor the assignment statements that initialize final extracted fields
 	private Map<MethodDeclaration, Map<VariableDeclaration, Assignment>> constructorFinalFieldAssignmentMap;
+	private Set<VariableDeclaration> extractedFieldsWithThisExpressionInTheirInitializer;
 	
 	public ExtractClassRefactoring(IFile sourceFile, CompilationUnit sourceCompilationUnit, TypeDeclaration sourceTypeDeclaration,
 			Set<VariableDeclaration> extractedFieldFragments, Set<MethodDeclaration> extractedMethods, Set<MethodDeclaration> delegateMethods, String extractedTypeName) {
@@ -148,6 +149,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.leaveDelegateForPublicMethods = false;
 		this.statementRewriteMap = new LinkedHashMap<Statement, ASTRewrite>();
 		this.constructorFinalFieldAssignmentMap = new LinkedHashMap<MethodDeclaration, Map<VariableDeclaration, Assignment>>();
+		this.extractedFieldsWithThisExpressionInTheirInitializer = new LinkedHashSet<VariableDeclaration>();
 		for(MethodDeclaration extractedMethod : extractedMethods) {
 			additionalArgumentsAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<String>());
 			additionalParametersAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<SingleVariableDeclaration>());
@@ -205,6 +207,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		
 		createExtractedClass();
 		modifyExtractedMethodInvocationsInSourceClass();
+		handleInitializationOfExtractedFieldsWithThisExpressionInTheirInitializer();
 		for(Statement statement : statementRewriteMap.keySet()) {
 			ASTRewrite sourceRewriter = statementRewriteMap.get(statement);
 			try {
@@ -227,6 +230,43 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		if(methodsToBeRemoved.size() > 0)
 			removeSourceMethods(methodsToBeRemoved);
+	}
+
+	private void handleInitializationOfExtractedFieldsWithThisExpressionInTheirInitializer() {
+		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
+		for(VariableDeclaration fieldFragment : extractedFieldsWithThisExpressionInTheirInitializer) {
+			String originalFieldName = fieldFragment.getName().getIdentifier();
+			String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+			for(MethodDeclaration methodDeclaration : sourceTypeDeclaration.getMethods()) {
+				if(methodDeclaration.isConstructor()) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
+					ListRewrite constructorBodyRewrite = sourceRewriter.getListRewrite(methodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
+					AST contextAST = sourceTypeDeclaration.getAST();
+					MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
+					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + modifiedFieldName), null);
+					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+					setterMethodInvocationArgumentsRewrite.insertLast(fieldFragment.getInitializer(), null);
+					if((fieldFragment.resolveBinding().getModifiers() & Modifier.STATIC) != 0) {
+						sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+					}
+					else {
+						sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+					}
+					ExpressionStatement expressionStatement = contextAST.newExpressionStatement(setterMethodInvocation);
+					constructorBodyRewrite.insertLast(expressionStatement, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Initialize extracted field " + fieldFragment.getName().getIdentifier(), new TextEdit[] {sourceEdit}));
+					}
+					catch(JavaModelException javaModelException) {
+						javaModelException.printStackTrace();
+					}
+				}
+			}
+		}
 	}
 
 	private void addDelegationInExtractedMethod(MethodDeclaration sourceMethod) {
@@ -456,10 +496,21 @@ public class ExtractClassRefactoring extends Refactoring {
         extractedClassModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 
         ListRewrite extractedClassBodyRewrite = extractedClassRewriter.getListRewrite(extractedClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+        ExpressionExtractor expressionExtractor = new ExpressionExtractor();
         Set<VariableDeclaration> finalFieldFragments = new LinkedHashSet<VariableDeclaration>();
         Set<VariableDeclaration> finalFieldFragmentsWithoutInitializer = new LinkedHashSet<VariableDeclaration>();
         for(VariableDeclaration fieldFragment : extractedFieldFragments) {
-        	FieldDeclaration extractedFieldDeclaration = extractedClassAST.newFieldDeclaration((VariableDeclarationFragment)ASTNode.copySubtree(extractedClassAST, fieldFragment));
+        	List<Expression> initializerThisExpressions = expressionExtractor.getThisExpressions(fieldFragment.getInitializer());
+        	FieldDeclaration extractedFieldDeclaration = null;
+        	if(initializerThisExpressions.isEmpty()) {
+        		extractedFieldDeclaration = extractedClassAST.newFieldDeclaration((VariableDeclarationFragment)ASTNode.copySubtree(extractedClassAST, fieldFragment));
+        	}
+        	else {
+        		this.extractedFieldsWithThisExpressionInTheirInitializer.add(fieldFragment);
+        		VariableDeclarationFragment fragment = extractedClassAST.newVariableDeclarationFragment();
+        		extractedClassRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, extractedClassAST.newSimpleName(fieldFragment.getName().getIdentifier()), null);
+        		extractedFieldDeclaration = extractedClassAST.newFieldDeclaration(fragment);
+        	}
         	FieldDeclaration originalFieldDeclaration = (FieldDeclaration)fieldFragment.getParent();
         	extractedClassRewriter.set(extractedFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclaration.getType(), null);
     		ListRewrite extractedFieldDeclarationModifiersRewrite = extractedClassRewriter.getListRewrite(extractedFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
@@ -487,7 +538,6 @@ public class ExtractClassRefactoring extends Refactoring {
     		}
     		extractedClassBodyRewrite.insertLast(extractedFieldDeclaration, null);
         }
-        ExpressionExtractor expressionExtractor = new ExpressionExtractor();
         for(MethodDeclaration constructor : constructorFinalFieldAssignmentMap.keySet()) {
         	Map<VariableDeclaration, Assignment> finalFieldAssignmentMap = constructorFinalFieldAssignmentMap.get(constructor);
         	MethodDeclaration extractedClassConstructor = extractedClassAST.newMethodDeclaration();
@@ -1853,7 +1903,15 @@ public class ExtractClassRefactoring extends Refactoring {
 			targetRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName("get" + modifiedFieldName), null);
 		}
 		targetRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
-		targetRewriter.replace(newAccessedVariable, getterMethodInvocation, null);
+		if(newAccessedVariable.getParent() instanceof FieldAccess) {
+			FieldAccess newFieldAccess = (FieldAccess)newAccessedVariable.getParent();
+			if(newFieldAccess.getExpression() instanceof ThisExpression) {
+				targetRewriter.replace(newFieldAccess, getterMethodInvocation, null);
+			}
+		}
+		else {
+			targetRewriter.replace(newAccessedVariable, getterMethodInvocation, null);
+		}
 		return sourceClassParameter;
 	}
 

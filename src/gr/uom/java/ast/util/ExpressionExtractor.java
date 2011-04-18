@@ -156,6 +156,12 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of ThisExpression objects
+	public List<Expression> getThisExpressions(Expression expression) {
+		instanceChecker = new InstanceOfThisExpression();
+		return getExpressions(expression);
+	}
+		
 	// returns a List of TypeLiteral objects
 	public List<Expression> getTypeLiterals(Statement statement) {
 		instanceChecker = new InstanceOfTypeLiteral();

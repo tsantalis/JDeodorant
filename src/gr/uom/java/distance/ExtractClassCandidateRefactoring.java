@@ -1,8 +1,12 @@
 package gr.uom.java.distance;
 
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.util.TopicFinder;
+import gr.uom.java.ast.util.math.HumaniseCamelCase;
+import gr.uom.java.ast.util.math.Stemmer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -16,9 +20,10 @@ import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jface.text.Position;
 
-public class ExtractClassCandidateRefactoring extends CandidateRefactoring implements Comparable<ExtractClassCandidateRefactoring> {
+public class ExtractClassCandidateRefactoring extends CandidateRefactoring implements Comparable<ExtractClassCandidateRefactoring>,TopicFinder {
 
 	private MySystem system;
 	private MyClass sourceClass;
@@ -38,6 +43,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	private Map<MyMethod, MyMethod> new2oldMethods;
 	private Map<MyAttribute, String> extractedVariableBindingKeys;
 	private Integer userRate;
+	private String topic;
 
 	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass, DistanceMatrix originalDistanceMatrix) {
 		super();
@@ -594,7 +600,15 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 				positions.add(position);
 			} else if(entity instanceof MyAttribute) {
 				MyAttribute attribute = (MyAttribute)entity;
-				Position position = new Position(attribute.getFieldObject().getVariableDeclarationFragment().getStartPosition(), attribute.getFieldObject().getVariableDeclarationFragment().getLength());
+				VariableDeclarationFragment fragment = attribute.getFieldObject().getVariableDeclarationFragment();
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				Position position = null;
+				if(fieldDeclaration.fragments().size() > 1) {
+					position = new Position(fragment.getStartPosition(), fragment.getLength());
+				}
+				else {
+					position = new Position(fieldDeclaration.getStartPosition(), fieldDeclaration.getLength());
+				}
 				positions.add(position);
 			}
 		}
@@ -654,5 +668,71 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 
 	public int compareTo(ExtractClassCandidateRefactoring other) {
 		return Double.compare(this.entityPlacement, other.entityPlacement);
+	}
+
+	public void findTopic(Stemmer stemmer, HumaniseCamelCase humaniser,
+			ArrayList<String> stopWords) {
+		HashMap<String, Integer> vocabulary = new HashMap<String, Integer>();
+		for (Entity entity : this.extractedEntities) {
+			String[] tokens = null;
+			if (entity instanceof MyAttribute) {
+				tokens = humaniser.humanise(((MyAttribute) entity).getName())
+						.split("\\s");
+			} else {
+				tokens = humaniser
+						.humanise(((MyMethod) entity).getMethodName()).split(
+								"\\s");
+			}
+			for (String token : tokens) {
+				if (!token.toUpperCase().equals(token)) {
+					stemmer.add(token.toLowerCase().toCharArray(),
+							token.length());
+					stemmer.stem();
+					if (!stopWords.contains(token)
+							&& !stopWords.contains(stemmer.toString()
+									.toLowerCase())) {
+						if (!vocabulary.containsKey(stemmer.toString()
+								.toLowerCase())) {
+							vocabulary.put(stemmer.toString().toLowerCase(), 1);
+						} else {
+							vocabulary.put(stemmer.toString().toLowerCase(),
+									vocabulary.get(stemmer.toString()
+											.toLowerCase()) + 1);
+						}
+					}
+				} else {
+					if (!vocabulary.containsKey(token)) {
+						vocabulary.put(token, 1);
+					} else {
+						vocabulary.put(token, vocabulary.get(token) + 1);
+					}
+				}
+			}
+			int max = 0;
+			ArrayList<String> frequentTermList = new ArrayList<String>();
+			String frequentTerm = "";
+			if (!vocabulary.isEmpty()) {
+				for (String term : vocabulary.keySet()) {
+					if (vocabulary.get(term) >= max) {
+						max = vocabulary.get(term);
+					}
+				}
+				for (String term : vocabulary.keySet()) {
+					if (vocabulary.get(term) == max) {
+						frequentTermList.add(term);
+					}
+				}
+				for (int i = 0; i < frequentTermList.size() - 1; i++) {
+					frequentTerm += frequentTermList.get(i) + " + ";
+				}
+				frequentTerm += frequentTermList
+						.get(frequentTermList.size() - 1);
+			}
+			topic = frequentTerm;
+		}
+	}
+
+	public String getTopic() {
+		return topic;
 	}
 }

@@ -6,12 +6,15 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,11 +24,15 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.metrics.ConnectivityMetric;
+import gr.uom.java.ast.metrics.MMImportCoupling;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.DistanceMatrix;
+import gr.uom.java.distance.Entity;
 import gr.uom.java.distance.ExtractClassCandidateRefactoring;
 import gr.uom.java.distance.ExtractClassCandidatesGroup;
+import gr.uom.java.distance.ExtractedConcept;
 import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
@@ -116,15 +123,22 @@ public class GodClass extends ViewPart {
 		}
 		public Object[] getChildren(Object arg0) {
 			if (arg0 instanceof ExtractClassCandidatesGroup) {
-				return ((ExtractClassCandidatesGroup) arg0).getCandidates().toArray();
+				return ((ExtractClassCandidatesGroup) arg0).getExtractedConcepts().toArray();
+			}
+			else if(arg0 instanceof ExtractedConcept) {
+				return ((ExtractedConcept) arg0).getConceptClusters().toArray();
 			}
 			else {
 				return new CandidateRefactoring[] {};
 			}
 		}
 		public Object getParent(Object arg0) {
-			if(arg0 instanceof CandidateRefactoring)
-				return getParentCandidate(((CandidateRefactoring)arg0).getSourceEntity());
+			if(arg0 instanceof ExtractClassCandidateRefactoring) {
+				return getParentConcept((ExtractClassCandidateRefactoring)arg0);
+			}
+			else if(arg0 instanceof ExtractedConcept) {
+				return getParentCandidateGroup(((ExtractedConcept)arg0).getSourceClass());
+			}
 			return null;
 		}
 		public boolean hasChildren(Object arg0) {
@@ -137,11 +151,9 @@ public class GodClass extends ViewPart {
 				ExtractClassCandidatesGroup entry = (ExtractClassCandidatesGroup) obj;
 				switch (index) {
 				case 0:
-					return "Extract Class";
+					return "";
 				case 1:
 					return entry.getSource();
-				case 2:
-					return "";
 				case 3:
 					return ""+entry.getMinEP();
 				default:
@@ -149,15 +161,26 @@ public class GodClass extends ViewPart {
 				}
 			}
 			else if(obj instanceof CandidateRefactoring) {
-				CandidateRefactoring entry = (CandidateRefactoring)obj;
+				ExtractClassCandidateRefactoring entry = (ExtractClassCandidateRefactoring)obj;
 				switch(index) {
+				case 0:
+					return "Extract Class";
 				case 2:
-					return entry.getSourceEntity();
+					return entry.getTopic();
 				case 3:
 					return ""+entry.getEntityPlacement();
 				case 4:
 					Integer userRate = ((ExtractClassCandidateRefactoring)entry).getUserRate();
 					return (userRate == null) ? "" : userRate.toString();
+				default:
+					return "";
+				}
+			}
+			else if(obj instanceof ExtractedConcept){
+				ExtractedConcept entry = (ExtractedConcept)obj;
+				switch(index) {
+				case 1:
+					return "      "+entry.getTopic();
 				default:
 					return "";
 				}
@@ -202,7 +225,20 @@ public class GodClass extends ViewPart {
 				} else {
 					return 0;
 				}
-			} else {
+			} 
+			else if(obj1 instanceof ExtractedConcept
+					&& obj2 instanceof ExtractedConcept) {
+				double value1 = ((ExtractedConcept) obj1).getMinEP();
+				double value2 = ((ExtractedConcept) obj2).getMinEP();
+				if (value1 < value2) {
+					return -1;
+				} else if (value1 > value2) {
+					return 1;
+				} else {
+					return 0;
+				}
+			}
+			else {
 				double value1 = ((ExtractClassCandidatesGroup) obj1).getMinEP();
 				double value2 = ((ExtractClassCandidatesGroup) obj2).getMinEP();
 				if (value1 < value2) {
@@ -299,8 +335,8 @@ public class GodClass extends ViewPart {
 		treeViewer.getTree().setLayout(layout);
 		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Refactoring Type");
-		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Group Name");
-		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Source Entity");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Source Class/General Concept");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Extractable Concept");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Entity Placement");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Rate it!");
 		treeViewer.expandAll();
@@ -627,6 +663,8 @@ public class GodClass extends ViewPart {
 	}
 
 	private ExtractClassCandidatesGroup[] getTable() {
+		ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
+		long start = bean.getCurrentThreadCpuTime();
 		ExtractClassCandidatesGroup[] table = null;
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
@@ -680,24 +718,27 @@ public class GodClass extends ViewPart {
 					extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, monitor));
 				}
 			});
-			HashMap<String, ExtractClassCandidatesGroup> groupedBySourceClassList = new HashMap<String, ExtractClassCandidatesGroup>();
+			HashMap<String, ExtractClassCandidatesGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidatesGroup>();
 			for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
-				if(groupedBySourceClassList.keySet().contains(candidate.getSourceEntity())) {
-					groupedBySourceClassList.get(candidate.getSourceEntity()).addCandidate(candidate);
+				if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
+					groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
 				}
 				else {
 					ExtractClassCandidatesGroup group = new ExtractClassCandidatesGroup(candidate.getSourceEntity());
 					group.addCandidate(candidate);
-					groupedBySourceClassList.put(candidate.getSourceEntity(), group);
+					groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
 				}
 			}
+			for(String sourceClass : groupedBySourceClassMap.keySet()) {
+				groupedBySourceClassMap.get(sourceClass).groupConcepts();
+			}
 
-			table = new ExtractClassCandidatesGroup[groupedBySourceClassList.values().size() + 1];
+			table = new ExtractClassCandidatesGroup[groupedBySourceClassMap.values().size() + 1];
 			ExtractClassCandidatesGroup currentSystem = new ExtractClassCandidatesGroup("current system");
 			currentSystem.setMinEP(new CurrentSystem(distanceMatrix).getEntityPlacement());
 			table[0] = currentSystem;
 			int counter = 1;
-			for(ExtractClassCandidatesGroup candidate : groupedBySourceClassList.values()) {
+			for(ExtractClassCandidatesGroup candidate : groupedBySourceClassMap.values()) {
 				table[counter] = candidate;
 				counter++;
 			}
@@ -706,10 +747,12 @@ public class GodClass extends ViewPart {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+		long end = bean.getCurrentThreadCpuTime();
+		System.out.println(end-start);
 		return table;		
 	}
 
-	private ExtractClassCandidatesGroup getParentCandidate(String sourceClass) {
+	private ExtractClassCandidatesGroup getParentCandidateGroup(String sourceClass) {
 		String[] classes = new String[candidateRefactoringTable.length];
 		for(int i=0; i<candidateRefactoringTable.length; i++) {
 			classes[i] = candidateRefactoringTable[i].getSource();
@@ -717,6 +760,19 @@ public class GodClass extends ViewPart {
 		for(int i=0; i<classes.length; i++) {
 			if(classes[i].equals(sourceClass)) {
 				return candidateRefactoringTable[i];
+			}
+		}
+		return null;
+	}
+	
+	private ExtractedConcept getParentConcept(ExtractClassCandidateRefactoring candidate) {
+		for(int i=0; i<candidateRefactoringTable.length; i++) {
+			for(ExtractedConcept concept : candidateRefactoringTable[i].getExtractedConcepts()) {
+				HashSet<Entity> copiedConceptEntities = new HashSet<Entity>(concept.getConceptEntities());
+				copiedConceptEntities.retainAll(candidate.getExtractedEntities());
+				if(!copiedConceptEntities.isEmpty()) {
+					return concept;
+				}
 			}
 		}
 		return null;

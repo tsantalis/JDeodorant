@@ -6,8 +6,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -24,8 +22,6 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.ast.metrics.ConnectivityMetric;
-import gr.uom.java.ast.metrics.MMImportCoupling;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.DistanceMatrix;
@@ -386,7 +382,7 @@ public class GodClass extends ViewPart {
 							if(group.getSource().equals(candidate.getSource())) {
 								groupPosition = i;
 							}
-							totalOpportunities += treeItem.getItemCount();
+							totalOpportunities += group.getCandidates().size();
 						}
 						try {
 							Set<VariableDeclaration> extractedFieldFragments = candidate.getExtractedFieldFragments();
@@ -408,7 +404,7 @@ public class GodClass extends ViewPart {
 								extractedElementsSourceCode += method.toString() + "\n";
 							}
 							content += "&" + URLEncoder.encode("extracted_methods", "UTF-8") + "=" + URLEncoder.encode(extractedMethodsText, "UTF-8");
-							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("group_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
 							content += "&" + URLEncoder.encode("total_groups", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
 							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalOpportunities), "UTF-8");
 							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
@@ -522,7 +518,7 @@ public class GodClass extends ViewPart {
 									if(group.getSource().equals(candidate.getSource())) {
 										groupPosition = i;
 									}
-									totalOpportunities += treeItem.getItemCount();
+									totalOpportunities += group.getCandidates().size();
 								}
 								try {
 									boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
@@ -542,7 +538,7 @@ public class GodClass extends ViewPart {
 										extractedElementsSourceCode += method.toString() + "\n";
 									}
 									content += "&" + URLEncoder.encode("extracted_methods", "UTF-8") + "=" + URLEncoder.encode(extractedMethodsText, "UTF-8");
-									content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+									content += "&" + URLEncoder.encode("group_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
 									content += "&" + URLEncoder.encode("total_groups", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
 									content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalOpportunities), "UTF-8");
 									content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
@@ -662,9 +658,12 @@ public class GodClass extends ViewPart {
 		treeViewer.getControl().setFocus();
 	}
 
+	public void dispose() {
+		super.dispose();
+		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
+	}
+
 	private ExtractClassCandidatesGroup[] getTable() {
-		ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
-		long start = bean.getCurrentThreadCpuTime();
 		ExtractClassCandidatesGroup[] table = null;
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
@@ -747,8 +746,6 @@ public class GodClass extends ViewPart {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		long end = bean.getCurrentThreadCpuTime();
-		System.out.println(end-start);
 		return table;		
 	}
 

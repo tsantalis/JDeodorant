@@ -63,32 +63,26 @@ public class ExtractClassCandidatesGroup {
 	}
 
 	public void groupConcepts() {
-		ArrayList<ExtractClassCandidateRefactoring> tempCandidates = new ArrayList<ExtractClassCandidateRefactoring>(
-				candidates);
+		ArrayList<ExtractClassCandidateRefactoring> tempCandidates = new ArrayList<ExtractClassCandidateRefactoring>(candidates);
 		Collections.sort(tempCandidates, new ClusterSizeComparator());
 		while (!tempCandidates.isEmpty()) {
-			Set<Entity> conceptEntities = new HashSet<Entity>(tempCandidates
-					.get(0).getExtractedEntities());
+			Set<Entity> conceptEntities = new HashSet<Entity>(tempCandidates.get(0).getExtractedEntities());
 			Set<Integer> indexSet = new LinkedHashSet<Integer>();
 			indexSet.add(0);
 			int previousSize = 0;
 			do {
 				previousSize = conceptEntities.size();
 				for (int i = 1; i < tempCandidates.size(); i++) {
-					HashSet<Entity> copiedConceptEntities = new HashSet<Entity>(
-							conceptEntities);
-					copiedConceptEntities.retainAll(tempCandidates.get(i)
-							.getExtractedEntities());
+					HashSet<Entity> copiedConceptEntities = new HashSet<Entity>(conceptEntities);
+					copiedConceptEntities.retainAll(tempCandidates.get(i).getExtractedEntities());
 					if (!copiedConceptEntities.isEmpty()) {
-						conceptEntities.addAll(tempCandidates.get(i)
-								.getExtractedEntities());
+						conceptEntities.addAll(tempCandidates.get(i).getExtractedEntities());
 						indexSet.add(i);
 					}
 				}
 			} while (previousSize < conceptEntities.size());
 			Set<ExtractClassCandidateRefactoring> candidatesToBeRemoved = new HashSet<ExtractClassCandidateRefactoring>();
-			ExtractedConcept newConcept = new ExtractedConcept(conceptEntities,
-					source);
+			ExtractedConcept newConcept = new ExtractedConcept(conceptEntities, source);
 			for (Integer j : indexSet) {
 				newConcept.addConceptCluster(tempCandidates.get(j));
 				candidatesToBeRemoved.add(tempCandidates.get(j));
@@ -100,7 +94,6 @@ public class ExtractClassCandidatesGroup {
 	}
 
 	private void findConceptTerms() {
-
 		Stemmer stemmer = new Stemmer();
 		HumaniseCamelCase humaniser = new HumaniseCamelCase();
 		ArrayList<String> stopWords = getStopWords();
@@ -109,7 +102,6 @@ public class ExtractClassCandidatesGroup {
 			for (ExtractClassCandidateRefactoring conceptCluster : concept.getConceptClusters()) {
 				conceptCluster.findTopic(stemmer, humaniser, stopWords);
 			}
-		
 		}
 	}
 
@@ -128,10 +120,8 @@ public class ExtractClassCandidatesGroup {
 			in.close();
 
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return stopWords;

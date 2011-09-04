@@ -359,7 +359,8 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature = getRequiredImportDeclarationsBasedOnSignature();
 		ImportRewrite abstractImportRewrite = ImportRewrite.create(abstractCompilationUnit, true);
 		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-			abstractImportRewrite.addImport(typeBinding);
+			if(!typeBinding.isNested())
+				abstractImportRewrite.addImport(typeBinding);
 		}
 		
 		try {
@@ -654,11 +655,13 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			
 			ImportRewrite subclassImportRewrite = ImportRewrite.create(subclassCompilationUnit, true);
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-				subclassImportRewrite.addImport(typeBinding);
+				if(!typeBinding.isNested())
+					subclassImportRewrite.addImport(typeBinding);
 			}
 			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
 			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-				subclassImportRewrite.addImport(typeBinding);
+				if(!typeBinding.isNested())
+					subclassImportRewrite.addImport(typeBinding);
 			}
 			
 			try {

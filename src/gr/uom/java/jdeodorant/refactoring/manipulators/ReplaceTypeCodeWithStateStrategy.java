@@ -546,7 +546,8 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 	private void addRequiredImportDeclarationsToContext() {
 		ImportRewrite sourceImportRewrite = ImportRewrite.create(sourceCompilationUnit, true);
 		for(ITypeBinding typeBinding : requiredImportDeclarationsForContext) {
-			sourceImportRewrite.addImport(typeBinding);
+			if(!typeBinding.isNested())
+				sourceImportRewrite.addImport(typeBinding);
 		}
 
 		try {
@@ -1105,7 +1106,8 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				
 				ImportRewrite stateStrategyImportRewrite = ImportRewrite.create(stateStrategyCompilationUnit, true);
 				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-					stateStrategyImportRewrite.addImport(typeBinding);
+					if(!typeBinding.isNested())
+						stateStrategyImportRewrite.addImport(typeBinding);
 				}
 				
 				TextEdit stateStrategyImportEdit = stateStrategyImportRewrite.rewriteImports(null);
@@ -1514,11 +1516,13 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					
 					ImportRewrite subclassImportRewrite = ImportRewrite.create(subclassCompilationUnit, true);
 					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-						subclassImportRewrite.addImport(typeBinding);
+						if(!typeBinding.isNested())
+							subclassImportRewrite.addImport(typeBinding);
 					}
 					Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
 					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-						subclassImportRewrite.addImport(typeBinding);
+						if(!typeBinding.isNested())
+							subclassImportRewrite.addImport(typeBinding);
 					}
 					
 					TextEdit subclassImportEdit = subclassImportRewrite.rewriteImports(null);
@@ -1812,11 +1816,13 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				
 				ImportRewrite intermediateClassImportRewrite = ImportRewrite.create(intermediateClassCompilationUnit, true);
 				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-					intermediateClassImportRewrite.addImport(typeBinding);
+					if(!typeBinding.isNested())
+						intermediateClassImportRewrite.addImport(typeBinding);
 				}
 				Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(typeCheckStatements);
 				for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-					intermediateClassImportRewrite.addImport(typeBinding);
+					if(!typeBinding.isNested())
+						intermediateClassImportRewrite.addImport(typeBinding);
 				}
 				
 				TextEdit intermediateClassImportEdit = intermediateClassImportRewrite.rewriteImports(null);
@@ -2596,7 +2602,8 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		String sourcePackageDeclarationName = "";
 		if(sourcePackageDeclaration != null)
 			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();     
-		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(sourcePackageDeclarationName)) {
+		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") &&
+				!qualifiedPackageName.equals(sourcePackageDeclarationName) && !typeBinding.isNested()) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
 			boolean found = false;
 			for(ImportDeclaration importDeclaration : importDeclarationList) {

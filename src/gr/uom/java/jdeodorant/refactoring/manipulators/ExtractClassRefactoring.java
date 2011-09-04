@@ -2260,7 +2260,8 @@ public class ExtractClassRefactoring extends Refactoring {
 		String sourcePackageDeclarationName = "";
 		if(sourcePackageDeclaration != null)
 			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();     
-		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") && !qualifiedPackageName.equals(sourcePackageDeclarationName)) {
+		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") &&
+				!qualifiedPackageName.equals(sourcePackageDeclarationName) && !typeBinding.isNested()) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
 			boolean found = false;
 			for(ImportDeclaration importDeclaration : importDeclarationList) {

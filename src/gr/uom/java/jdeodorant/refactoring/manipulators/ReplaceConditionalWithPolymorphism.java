@@ -632,6 +632,9 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				modifySubclassMethodInvocations(oldMethodInvocations, newMethodInvocations, subclassAST, subclassRewriter, subclassTypeDeclaration, subclassCastInvoker);
 				replaceThisExpressionWithContextParameterInMethodInvocationArguments(newMethodInvocations, subclassAST, subclassRewriter);
 				replaceThisExpressionWithContextParameterInClassInstanceCreationArguments(newStatement, subclassAST, subclassRewriter);
+				List<Expression> oldCastExpressions = expressionExtractor.getCastExpressions(statement);
+				List<Expression> newCastExpressions = expressionExtractor.getCastExpressions(newStatement);
+				replaceCastExpressionWithThisExpression(oldCastExpressions, newCastExpressions, subclassTypeDeclaration, subclassAST, subclassRewriter);
 				if(insert) {
 					if(ifStatementBodyRewrite != null)
 						ifStatementBodyRewrite.insertLast(newStatement, null);
@@ -679,6 +682,28 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			} catch (CoreException e) {
 				e.printStackTrace();
 			}
+		}
+	}
+
+	private void replaceCastExpressionWithThisExpression(List<Expression> oldCastExpressions, List<Expression> newCastExpressions, TypeDeclaration subclassTypeDeclaration, AST subclassAST, ASTRewrite subclassRewriter) {
+		int j = 0;
+		for(Expression expression : oldCastExpressions) {
+			CastExpression castExpression = (CastExpression)expression;
+			if(castExpression.getType().resolveBinding().isEqualTo(subclassTypeDeclaration.resolveBinding())) {
+				if(castExpression.getExpression() instanceof SimpleName) {
+					SimpleName castSimpleName = (SimpleName)castExpression.getExpression();
+					if(typeVariable != null && typeVariable.getName().resolveBinding().isEqualTo(castSimpleName.resolveBinding())) {
+						subclassRewriter.replace(newCastExpressions.get(j), subclassAST.newThisExpression(), null);
+					}
+				}
+				else if(castExpression.getExpression() instanceof MethodInvocation) {
+					MethodInvocation castMethodInvocation = (MethodInvocation)castExpression.getExpression();
+					if(typeMethodInvocation != null && typeMethodInvocation.subtreeMatch(new ASTMatcher(), castMethodInvocation)) {
+						subclassRewriter.replace(newCastExpressions.get(j), subclassAST.newThisExpression(), null);
+					}
+				}
+			}
+			j++;
 		}
 	}
 

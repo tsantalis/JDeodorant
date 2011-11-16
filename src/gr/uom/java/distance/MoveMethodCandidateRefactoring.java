@@ -3,6 +3,7 @@ package gr.uom.java.distance;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -91,7 +92,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
 
     public boolean isApplicable() {
     	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
-    			validTargetObject() && !oneToManyRelationshipWithTargetClass())
+    			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable())
     		return true;
     	else
     		return false;
@@ -148,6 +149,15 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
     	}
     	else
     		return false;
+    }
+    
+    private boolean containsAssignmentToTargetClassVariable() {
+    	Set<PlainVariable> definedVariables = sourceMethod.getMethodObject().getDefinedLocalVariables();
+    	for(PlainVariable variable : definedVariables) {
+    		if(variable.isParameter() && variable.getVariableType().equals(targetClass.getName()))
+    			return true;
+    	}
+    	return false;
     }
 
     private boolean containsSuperMethodInvocation() {

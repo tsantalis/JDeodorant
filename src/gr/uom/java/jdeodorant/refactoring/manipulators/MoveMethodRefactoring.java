@@ -356,6 +356,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		replaceTargetClassVariableNameWithThisExpressionInCastExpressions(newMethodDeclaration, targetRewriter);
 		replaceTargetClassVariableNameWithThisExpressionInInstanceofExpressions(newMethodDeclaration, targetRewriter);
 		replaceTargetClassVariableNameWithThisExpressionInAssignments(newMethodDeclaration, targetRewriter);
+		replaceTargetClassVariableNameWithThisExpressionInReturnStatements(newMethodDeclaration, targetRewriter);
 		replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(newMethodDeclaration, targetRewriter);
 		replaceThisExpressionWithSourceClassParameterInClassInstanceCreationArguments(newMethodDeclaration, targetRewriter);
 		replaceThisExpressionWithSourceClassParameterInVariableDeclarationInitializers(newMethodDeclaration, targetRewriter);
@@ -1492,7 +1493,30 @@ public class MoveMethodRefactoring extends Refactoring {
 			}
 		}
 	}
-	
+
+	private void replaceTargetClassVariableNameWithThisExpressionInReturnStatements(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter) {
+		StatementExtractor extractor = new StatementExtractor();
+		List<Statement> returnStatements = extractor.getReturnStatements(newMethodDeclaration.getBody());
+		for(Statement statement : returnStatements) {
+			ReturnStatement returnStatement = (ReturnStatement)statement;
+			if(returnStatement.getExpression() instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)returnStatement.getExpression();
+				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
+			else if(returnStatement.getExpression() instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)returnStatement.getExpression();
+				SimpleName simpleName = fieldAccess.getName();
+				if(simpleName.getIdentifier().equals(targetClassVariableName)) {
+					AST ast = newMethodDeclaration.getAST();
+					targetRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+				}
+			}
+		}
+	}
+
 	private void replaceThisExpressionWithSourceClassParameterInMethodInvocationArguments(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter) {
 		ExpressionExtractor extractor = new ExpressionExtractor();
 		List<Expression> methodInvocations = extractor.getMethodInvocations(newMethodDeclaration.getBody());

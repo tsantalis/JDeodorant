@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
@@ -35,6 +36,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -120,6 +122,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
 					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 				methodInvocationArgumentsRewrite.insertLast(clientAST.newThisExpression(), null);
+				setPublicModifierToSourceTypeDeclaration();
 			}
 			ExpressionStatement expressionStatement = clientAST.newExpressionStatement(abstractMethodInvocation);
 			typeCheckCodeFragmentParentBlockStatementsRewrite.replace(typeCheckElimination.getTypeCheckCodeFragment(), expressionStatement, null);
@@ -156,6 +159,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
 					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 				methodInvocationArgumentsRewrite.insertLast(clientAST.newThisExpression(), null);
+				setPublicModifierToSourceTypeDeclaration();
 			}
 			if(returnedVariable != null) {
 				Assignment assignment = clientAST.newAssignment();
@@ -184,6 +188,67 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			change.addTextEditGroup(new TextEditGroup("Replace conditional structure with polymorphic method invocation", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private void setPublicModifierToSourceTypeDeclaration() {
+		PackageDeclaration sourcePackageDeclaration = sourceCompilationUnit.getPackage();
+		InheritanceTree tree = null;
+		if(typeCheckElimination.getExistingInheritanceTree() != null)
+			tree = typeCheckElimination.getExistingInheritanceTree();
+		else if(typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes() != null)
+			tree = typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes();
+		String abstractClassName = null;
+		if(tree != null) {
+			DefaultMutableTreeNode root = tree.getRootNode();
+			abstractClassName = (String)root.getUserObject();
+		}
+		if(sourcePackageDeclaration != null && abstractClassName != null && abstractClassName.contains(".")) {
+			String sourcePackageName = sourcePackageDeclaration.getName().getFullyQualifiedName();
+			String targetPackageName = abstractClassName.substring(0, abstractClassName.lastIndexOf("."));
+			if(!sourcePackageName.equals(targetPackageName)) {
+				ASTRewrite sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
+				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+				Modifier publicModifier = sourceTypeDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+				boolean modifierFound = false;
+				List<IExtendedModifier> modifiers = sourceTypeDeclaration.modifiers();
+				for(IExtendedModifier extendedModifier : modifiers) {
+					if(extendedModifier.isModifier()) {
+						Modifier modifier = (Modifier)extendedModifier;
+						if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+							modifierFound = true;
+						}
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
+								modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+							modifierFound = true;
+							modifierRewrite.replace(modifier, publicModifier, null);
+							try {
+								TextEdit sourceEdit = sourceRewriter.rewriteAST();
+								ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+								CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+								change.getEdit().addChild(sourceEdit);
+								change.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+							}
+							catch(JavaModelException javaModelException) {
+								javaModelException.printStackTrace();
+							}
+						}
+					}
+				}
+				if(!modifierFound) {
+					modifierRewrite.insertFirst(publicModifier, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+					}
+					catch(JavaModelException javaModelException) {
+						javaModelException.printStackTrace();
+					}
+				}
+			}
 		}
 	}
 

@@ -2074,20 +2074,43 @@ public class ExtractClassRefactoring extends Refactoring {
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0 &&
-						sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
-					AST ast = newMethodDeclaration.getAST();
-					SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
-					if(simpleName.getParent() instanceof FieldAccess) {
-						FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
-						targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+						AST ast = newMethodDeclaration.getAST();
+						SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+						if(simpleName.getParent() instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
+							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+						}
+						else if(!(simpleName.getParent() instanceof QualifiedName)) {
+							SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
+							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
+							targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
+						}
+						setPublicModifierToSourceField(variableBinding);
 					}
-					else if(!(simpleName.getParent() instanceof QualifiedName)) {
-						SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
-						QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
-						targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
+					else {
+						AST ast = newMethodDeclaration.getAST();
+						SimpleName qualifier = null;
+						if((variableBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+							qualifier = ast.newSimpleName(variableBinding.getDeclaringClass().getName());
+							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+							typeBindings.add(variableBinding.getDeclaringClass());
+							getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+						}
+						else {
+							qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+						}
+						if(simpleName.getParent() instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
+							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
+						}
+						else if(!(simpleName.getParent() instanceof QualifiedName)) {
+							SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
+							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
+							targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
+						}
 					}
-					setPublicModifierToSourceField(variableBinding);
 				}
 			}
 			i++;

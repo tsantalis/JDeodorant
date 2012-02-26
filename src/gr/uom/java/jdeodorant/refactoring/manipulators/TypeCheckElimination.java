@@ -47,7 +47,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
-public class TypeCheckElimination {
+public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 	private Map<Expression, ArrayList<Statement>> typeCheckMap;
 	private ArrayList<Statement> defaultCaseStatements;
 	private Map<Expression, List<SimpleName>> staticFieldMap;
@@ -82,9 +82,7 @@ public class TypeCheckElimination {
 	private Map<Expression, DefaultMutableTreeNode> remainingIfStatementExpressionMap;
 	private String abstractMethodName;
 	private volatile int hashCode = 0;
-	private int groupSizeAtSystemLevel;
 	private int groupSizeAtClassLevel;
-	private double averageNumberOfStatementsInGroup;
 	private double averageNumberOfStatements;
 	private Integer userRate;
 	
@@ -1124,28 +1122,12 @@ public class TypeCheckElimination {
 			typeCheckMethod.resolveBinding().toString();
 	}
 
-	public int getGroupSizeAtSystemLevel() {
-		return groupSizeAtSystemLevel;
-	}
-
-	public void setGroupSizeAtSystemLevel(int groupSizeAtSystemLevel) {
-		this.groupSizeAtSystemLevel = groupSizeAtSystemLevel;
-	}
-
 	public int getGroupSizeAtClassLevel() {
 		return groupSizeAtClassLevel;
 	}
 
 	public void setGroupSizeAtClassLevel(int groupSizeAtClassLevel) {
 		this.groupSizeAtClassLevel = groupSizeAtClassLevel;
-	}
-
-	public double getAverageNumberOfStatementsInGroup() {
-		return averageNumberOfStatementsInGroup;
-	}
-
-	public void setAverageNumberOfStatementsInGroup(double averageNumberOfStatementsInGroup) {
-		this.averageNumberOfStatementsInGroup = averageNumberOfStatementsInGroup;
 	}
 
 	public boolean matchingStatesOrSubTypes(TypeCheckElimination other) {
@@ -1187,5 +1169,26 @@ public class TypeCheckElimination {
 
 	public void setUserRate(Integer userRate) {
 		this.userRate = userRate;
+	}
+
+	public int compareTo(TypeCheckElimination other) {
+		int groupSizeAtClassLevel1 = this.getGroupSizeAtClassLevel();
+		int groupSizeAtClassLevel2 = other.getGroupSizeAtClassLevel();
+		double averageNumberOfStatements1 = this.getAverageNumberOfStatements();
+		double averageNumberOfStatements2 = other.getAverageNumberOfStatements();
+		String refactoringName1 = this.toString();
+		String refactoringName2 = other.toString();
+		
+		if(groupSizeAtClassLevel1 > groupSizeAtClassLevel2)
+			return -1;
+		if(groupSizeAtClassLevel1 < groupSizeAtClassLevel2)
+			return 1;
+		
+		if(averageNumberOfStatements1 > averageNumberOfStatements2)
+			return -1;
+		else if(averageNumberOfStatements1 < averageNumberOfStatements2)
+			return 1;
+		
+		return refactoringName1.compareTo(refactoringName2);
 	}
 }

@@ -12,6 +12,7 @@ import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
+import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckEliminationGroup;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
@@ -30,9 +31,9 @@ import java.util.Set;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.FileDialog;
-import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
-import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeColumn;
+import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.part.*;
 import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
@@ -59,6 +60,7 @@ import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
 import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.layout.GridData;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
@@ -88,7 +90,7 @@ import org.eclipse.swt.SWT;
  */
 
 public class TypeChecking extends ViewPart {
-	private TableViewer tableViewer;
+	private TreeViewer treeViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
@@ -100,7 +102,7 @@ public class TypeChecking extends ViewPart {
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
-	private TypeCheckElimination[] typeCheckEliminationTable;
+	private TypeCheckEliminationGroup[] typeCheckEliminationGroupTable;
 	private TypeCheckingEvolution typeCheckingEvolution;
 
 	/*
@@ -113,24 +115,46 @@ public class TypeChecking extends ViewPart {
 	 * (like Task List, for example).
 	 */
 	 
-	class ViewContentProvider implements IStructuredContentProvider {
+	class ViewContentProvider implements ITreeContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
 		}
 		public void dispose() {
 		}
 		public Object[] getElements(Object parent) {
-			if(typeCheckEliminationTable != null) {
-				return typeCheckEliminationTable;
+			if(typeCheckEliminationGroupTable != null) {
+				return typeCheckEliminationGroupTable;
+			}
+			else {
+				return new TypeCheckEliminationGroup[] {};
+			}
+		}
+		public Object[] getChildren(Object arg) {
+			if (arg instanceof TypeCheckEliminationGroup) {
+				return ((TypeCheckEliminationGroup)arg).getCandidates().toArray();
 			}
 			else {
 				return new TypeCheckElimination[] {};
 			}
 		}
+		public Object getParent(Object arg0) {
+			if(arg0 instanceof TypeCheckElimination) {
+				TypeCheckElimination elimination = (TypeCheckElimination)arg0;
+				for(int i=0; i<typeCheckEliminationGroupTable.length; i++) {
+					if(typeCheckEliminationGroupTable[i].getCandidates().contains(elimination))
+						return typeCheckEliminationGroupTable[i];
+				}
+			}
+			return null;
+		}
+		public boolean hasChildren(Object arg0) {
+			return getChildren(arg0).length > 0;
+		}
 	}
 	class ViewLabelProvider extends LabelProvider implements ITableLabelProvider {
 		public String getColumnText(Object obj, int index) {
-			TypeCheckElimination typeCheckElimination = (TypeCheckElimination)obj;
-			switch(index) {
+			if(obj instanceof TypeCheckElimination) {
+				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)obj;
+				switch(index) {
 				case 0:
 					if(typeCheckElimination.getExistingInheritanceTree() == null)
 						return "Replace Type Code with State/Strategy";
@@ -140,8 +164,8 @@ public class TypeChecking extends ViewPart {
 					return typeCheckElimination.toString();
 				case 2:
 					return typeCheckElimination.getAbstractMethodName();
-				case 3:
-					return Integer.toString(typeCheckElimination.getGroupSizeAtSystemLevel());
+				/*case 3:
+					return Integer.toString(typeCheckElimination.getGroupSizeAtSystemLevel());*/
 				case 4:
 					return Integer.toString(typeCheckElimination.getGroupSizeAtClassLevel());
 				case 5:
@@ -151,22 +175,41 @@ public class TypeChecking extends ViewPart {
 					return (userRate == null) ? "" : userRate.toString();
 				default:
 					return "";
+				}
 			}
+			else if(obj instanceof TypeCheckEliminationGroup) {
+				TypeCheckEliminationGroup group = (TypeCheckEliminationGroup)obj;
+				switch(index){
+				case 1:
+					return group.toString();
+				case 3:
+					return Integer.toString(group.getGroupSizeAtSystemLevel());
+				case 4:
+					return Double.toString(group.getAverageGroupSizeAtClassLevel());
+				case 5:
+					return Double.toString(group.getAverageNumberOfStatementsInGroup());
+				default:
+					return "";
+				}
+			}
+			return "";
 		}
 		public Image getColumnImage(Object obj, int index) {
-			TypeCheckElimination entry = (TypeCheckElimination)obj;
-			int rate = -1;
-			Integer userRate = entry.getUserRate();
-			if(userRate != null)
-				rate = userRate;
 			Image image = null;
-			switch(index) {
-			case 6:
-				if(rate != -1) {
-					image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+			if(obj instanceof TypeCheckElimination) {
+				TypeCheckElimination entry = (TypeCheckElimination)obj;
+				int rate = -1;
+				Integer userRate = entry.getUserRate();
+				if(userRate != null)
+					rate = userRate;
+				switch(index) {
+				case 6:
+					if(rate != -1) {
+						image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
+					}
+				default:
+					break;
 				}
-			default:
-	            break;
 			}
 			return image;
 		}
@@ -176,42 +219,16 @@ public class TypeChecking extends ViewPart {
 	}
 	class NameSorter extends ViewerSorter {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
-			TypeCheckElimination typeCheckElimination1 = (TypeCheckElimination)obj1;
-			TypeCheckElimination typeCheckElimination2 = (TypeCheckElimination)obj2;
-			
-			int groupSizeAtSystemLevel1 = typeCheckElimination1.getGroupSizeAtSystemLevel();
-			int groupSizeAtSystemLevel2 = typeCheckElimination2.getGroupSizeAtSystemLevel();
-			double averageNumberOfStatementsInGroup1 = typeCheckElimination1.getAverageNumberOfStatementsInGroup();
-			double averageNumberOfStatementsInGroup2 = typeCheckElimination2.getAverageNumberOfStatementsInGroup();
-			
-			if(groupSizeAtSystemLevel1 > groupSizeAtSystemLevel2)
-				return -1;
-			if(groupSizeAtSystemLevel1 < groupSizeAtSystemLevel2)
-				return 1;
-			
-			if(averageNumberOfStatementsInGroup1 > averageNumberOfStatementsInGroup2)
-				return -1;
-			if(averageNumberOfStatementsInGroup1 < averageNumberOfStatementsInGroup2)
-				return 1;
-			
-			int groupSizeAtClassLevel1 = typeCheckElimination1.getGroupSizeAtClassLevel();
-			int groupSizeAtClassLevel2 = typeCheckElimination2.getGroupSizeAtClassLevel();
-			double averageNumberOfStatements1 = typeCheckElimination1.getAverageNumberOfStatements();
-			double averageNumberOfStatements2 = typeCheckElimination2.getAverageNumberOfStatements();
-			String refactoringName1 = typeCheckElimination1.toString();
-			String refactoringName2 = typeCheckElimination2.toString();
-			
-			if(groupSizeAtClassLevel1 > groupSizeAtClassLevel2)
-				return -1;
-			if(groupSizeAtClassLevel1 < groupSizeAtClassLevel2)
-				return 1;
-			
-			if(averageNumberOfStatements1 > averageNumberOfStatements2)
-				return -1;
-			else if(averageNumberOfStatements1 < averageNumberOfStatements2)
-				return 1;
-			
-			return refactoringName1.compareTo(refactoringName2);	
+			if(obj1 instanceof TypeCheckEliminationGroup && obj2 instanceof TypeCheckEliminationGroup) {
+				TypeCheckEliminationGroup typeCheckEliminationGroup1 = (TypeCheckEliminationGroup)obj1;
+				TypeCheckEliminationGroup typeCheckEliminationGroup2 = (TypeCheckEliminationGroup)obj2;
+				return typeCheckEliminationGroup1.compareTo(typeCheckEliminationGroup2);
+			}
+			else {
+				TypeCheckElimination typeCheckElimination1 = (TypeCheckElimination)obj1;
+				TypeCheckElimination typeCheckElimination2 = (TypeCheckElimination)obj2;
+				return typeCheckElimination1.compareTo(typeCheckElimination2);
+			}	
 		}
 	}
 
@@ -277,11 +294,11 @@ public class TypeChecking extends ViewPart {
 	 * to create the viewer and initialize it.
 	 */
 	public void createPartControl(Composite parent) {
-		tableViewer = new TableViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
-		tableViewer.setContentProvider(new ViewContentProvider());
-		tableViewer.setLabelProvider(new ViewLabelProvider());
-		tableViewer.setSorter(new NameSorter());
-		tableViewer.setInput(getViewSite());
+		treeViewer = new TreeViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
+		treeViewer.setContentProvider(new ViewContentProvider());
+		treeViewer.setLabelProvider(new ViewLabelProvider());
+		treeViewer.setSorter(new NameSorter());
+		treeViewer.setInput(getViewSite());
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(50, true));
 		layout.addColumnData(new ColumnWeightData(100, true));
@@ -290,46 +307,48 @@ public class TypeChecking extends ViewPart {
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
 		layout.addColumnData(new ColumnWeightData(20, true));
-		tableViewer.getTable().setLayout(layout);
-		tableViewer.getTable().setLinesVisible(true);
-		tableViewer.getTable().setHeaderVisible(true);
-		TableColumn column0 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		treeViewer.getTree().setLayout(layout);
+		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
+		treeViewer.getTree().setLinesVisible(true);
+		treeViewer.getTree().setHeaderVisible(true);
+		TreeColumn column0 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column0.setText("Refactoring Type");
 		column0.setResizable(true);
 		column0.pack();
-		TableColumn column1 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column1 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column1.setText("Type Checking Method");
 		column1.setResizable(true);
 		column1.pack();
-		TableColumn column2 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column2 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column2.setText("Abstract Method Name");
 		column2.setResizable(true);
 		column2.pack();
-		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column3 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column3.setText("System-Level Occurrences");
 		column3.setResizable(true);
 		column3.pack();
-		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column4 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column4.setText("Class-Level Occurrences");
 		column4.setResizable(true);
 		column4.pack();
-		TableColumn column5 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column5 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column5.setText("Average #statements per case");
 		column5.setResizable(true);
 		column5.pack();
 		
-		TableColumn column6 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
+		TreeColumn column6 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
 		column6.setText("Rate it!");
 		column6.setResizable(true);
 		column6.pack();
+		treeViewer.expandAll();
 		
-		tableViewer.setColumnProperties(new String[] {"type", "source", "methodName", "systemOccurrences", "classOccurrences", "averageStatements", "rate"});
-		tableViewer.setCellEditors(new CellEditor[] {
+		treeViewer.setColumnProperties(new String[] {"type", "source", "methodName", "systemOccurrences", "classOccurrences", "averageStatements", "rate"});
+		treeViewer.setCellEditors(new CellEditor[] {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
-				new MyComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
+				new MyComboBoxCellEditor(treeViewer.getTree(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
 		
-		tableViewer.setCellModifier(new ICellModifier() {
+		treeViewer.setCellModifier(new ICellModifier() {
 			public boolean canModify(Object element, String property) {
 				return property.equals("rate");
 			}
@@ -346,7 +365,7 @@ public class TypeChecking extends ViewPart {
 			}
 
 			public void modify(Object element, String property, Object value) {
-				TableItem item = (TableItem)element;
+				TreeItem item = (TreeItem)element;
 				Object data = item.getData();
 				if(data instanceof TypeCheckElimination) {
 					TypeCheckElimination elimination = (TypeCheckElimination)data;
@@ -354,12 +373,16 @@ public class TypeChecking extends ViewPart {
 					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
 					if(allowUsageReporting) {
-						Table table = tableViewer.getTable();
-						int rankingPosition = -1;
-						for(int i=0; i<table.getItemCount(); i++) {
-							TableItem tableItem = table.getItem(i);
-							if(tableItem.equals(item)) {
-								rankingPosition = i;
+						Tree tree = treeViewer.getTree();
+						int groupPosition = -1;
+						int totalGroups = tree.getItemCount();
+						int groupSizeAtSystemLevel = 0;
+						for(int i=0; i<tree.getItemCount(); i++) {
+							TreeItem treeItem = tree.getItem(i);
+							TypeCheckEliminationGroup group = (TypeCheckEliminationGroup)treeItem.getData();
+							if(group.getCandidates().contains(elimination)) {
+								groupPosition = i;
+								groupSizeAtSystemLevel = group.getGroupSizeAtSystemLevel();
 								break;
 							}
 						}
@@ -370,7 +393,7 @@ public class TypeChecking extends ViewPart {
 							String sourceMethodName = declaringClass + "::" + methodName;
 							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
-							content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getGroupSizeAtSystemLevel()), "UTF-8");
+							content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupSizeAtSystemLevel), "UTF-8");
 							content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getGroupSizeAtClassLevel()), "UTF-8");
 							content += "&" + URLEncoder.encode("average_statements_per_branch", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getAverageNumberOfStatements()), "UTF-8");
 							content += "&" + URLEncoder.encode("branches", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getTypeCheckExpressions().size()), "UTF-8");
@@ -378,8 +401,8 @@ public class TypeChecking extends ViewPart {
 							if(elimination.getExistingInheritanceTree() == null && elimination.getInheritanceTreeMatchingWithStaticTypes() == null)
 								totalNumberOfStates = elimination.getStaticFields().size() + elimination.getAdditionalStaticFields().size();
 							content += "&" + URLEncoder.encode("total_states", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalNumberOfStates), "UTF-8");
-							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
-							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
 							if(allowSourceCodeReporting)
 								content += "&" + URLEncoder.encode("conditional_code_fragment", "UTF-8") + "=" + URLEncoder.encode(elimination.getTypeCheckCodeFragment().toString(), "UTF-8");
 							content += "&" + URLEncoder.encode("rating", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getUserRate()), "UTF-8");
@@ -401,7 +424,7 @@ public class TypeChecking extends ViewPart {
 							ioe.printStackTrace();
 						}
 					}
-					tableViewer.update(data, null);
+					treeViewer.update(data, null);
 				}
 			}
 		});
@@ -442,8 +465,8 @@ public class TypeChecking extends ViewPart {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
 				CompilationUnitCache.getInstance().clearCache();
-				typeCheckEliminationTable = getTable();
-				tableViewer.setContentProvider(new ViewContentProvider());
+				typeCheckEliminationGroupTable = getTable();
+				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
@@ -468,30 +491,32 @@ public class TypeChecking extends ViewPart {
 		evolutionAnalysisAction = new Action() {
 			public void run() {
 				typeCheckingEvolution = null;
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				final TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
-				try {
-					IWorkbench wb = PlatformUI.getWorkbench();
-					IProgressService ps = wb.getProgressService();
-					ps.busyCursorWhile(new IRunnableWithProgress() {
-						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-							ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
-							if(projectEvolution.getProjectEntries().size() > 1) {
-								typeCheckingEvolution = new TypeCheckingEvolution(projectEvolution, typeCheckElimination, monitor);
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+					final TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
+					try {
+						IWorkbench wb = PlatformUI.getWorkbench();
+						IProgressService ps = wb.getProgressService();
+						ps.busyCursorWhile(new IRunnableWithProgress() {
+							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+								ProjectEvolution projectEvolution = new ProjectEvolution(selectedProject);
+								if(projectEvolution.getProjectEntries().size() > 1) {
+									typeCheckingEvolution = new TypeCheckingEvolution(projectEvolution, typeCheckElimination, monitor);
+								}
 							}
+						});
+						if(typeCheckingEvolution != null) {
+							EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), typeCheckingEvolution, "Type Checking Evolution", false);
+							dialog.open();
 						}
-					});
-					if(typeCheckingEvolution != null) {
-						EvolutionDialog dialog = new EvolutionDialog(getSite().getWorkbenchWindow(), typeCheckingEvolution, "Type Checking Evolution", false);
-						dialog.open();
+						else
+							MessageDialog.openInformation(getSite().getShell(), "Type Checking Evolution",
+									"Type Checking evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
+					} catch (InvocationTargetException e) {
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
 					}
-					else
-						MessageDialog.openInformation(getSite().getShell(), "Type Checking Evolution",
-						"Type Checking evolution analysis cannot be performed, since only a single version of the examined project is loaded in the workspace.");
-				} catch (InvocationTargetException e) {
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
 				}
 			}
 		};
@@ -502,84 +527,90 @@ public class TypeChecking extends ViewPart {
 		
 		applyRefactoringAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
-				TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
-				CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
-				IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
-				IPreferenceStore store = Activator.getDefault().getPreferenceStore();
-				boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
-				if(allowUsageReporting) {
-					Table table = tableViewer.getTable();
-					int rankingPosition = -1;
-					for(int i=0; i<table.getItemCount(); i++) {
-						TableItem tableItem = table.getItem(i);
-						if(tableItem.getData().equals(typeCheckElimination)) {
-							rankingPosition = i;
-							break;
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+					TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
+					TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
+					CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
+					IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
+					IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+					boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+					if(allowUsageReporting) {
+						Tree tree = treeViewer.getTree();
+						int groupPosition = -1;
+						int totalGroups = tree.getItemCount();
+						int groupSizeAtSystemLevel = 0;
+						for(int i=0; i<tree.getItemCount(); i++) {
+							TreeItem treeItem = tree.getItem(i);
+							TypeCheckEliminationGroup group = (TypeCheckEliminationGroup)treeItem.getData();
+							if(group.getCandidates().contains(typeCheckElimination)) {
+								groupPosition = i;
+								groupSizeAtSystemLevel = group.getGroupSizeAtSystemLevel();
+								break;
+							}
+						}
+						try {
+							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+							String declaringClass = typeCheckElimination.getTypeCheckClass().resolveBinding().getQualifiedName();
+							String methodName = typeCheckElimination.getTypeCheckMethod().resolveBinding().toString();
+							String sourceMethodName = declaringClass + "::" + methodName;
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
+							content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupSizeAtSystemLevel), "UTF-8");
+							content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getGroupSizeAtClassLevel()), "UTF-8");
+							content += "&" + URLEncoder.encode("average_statements_per_branch", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getAverageNumberOfStatements()), "UTF-8");
+							content += "&" + URLEncoder.encode("branches", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getTypeCheckExpressions().size()), "UTF-8");
+							int totalNumberOfStates = -1;
+							if(typeCheckElimination.getExistingInheritanceTree() == null && typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes() == null)
+								totalNumberOfStates = typeCheckElimination.getStaticFields().size() + typeCheckElimination.getAdditionalStaticFields().size();
+							content += "&" + URLEncoder.encode("total_states", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalNumberOfStates), "UTF-8");
+							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
+							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
+							if(allowSourceCodeReporting)
+								content += "&" + URLEncoder.encode("conditional_code_fragment", "UTF-8") + "=" + URLEncoder.encode(typeCheckElimination.getTypeCheckCodeFragment().toString(), "UTF-8");
+							content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode(String.valueOf("1"), "UTF-8");
+							content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(typeCheckElimination.getAbstractMethodName(), "UTF-8");
+							content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+							content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
+							URL url = new URL(Activator.RANK_URL);
+							URLConnection urlConn = url.openConnection();
+							urlConn.setDoInput(true);
+							urlConn.setDoOutput(true);
+							urlConn.setUseCaches(false);
+							urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+							DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+							printout.writeBytes(content);
+							printout.flush();
+							printout.close();
+							DataInputStream input = new DataInputStream(urlConn.getInputStream());
+							input.close();
+						} catch (IOException ioe) {
+							ioe.printStackTrace();
 						}
 					}
-					try {
-						boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
-						String declaringClass = typeCheckElimination.getTypeCheckClass().resolveBinding().getQualifiedName();
-						String methodName = typeCheckElimination.getTypeCheckMethod().resolveBinding().toString();
-						String sourceMethodName = declaringClass + "::" + methodName;
-						String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
-						content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
-						content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getGroupSizeAtSystemLevel()), "UTF-8");
-						content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getGroupSizeAtClassLevel()), "UTF-8");
-						content += "&" + URLEncoder.encode("average_statements_per_branch", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getAverageNumberOfStatements()), "UTF-8");
-						content += "&" + URLEncoder.encode("branches", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getTypeCheckExpressions().size()), "UTF-8");
-						int totalNumberOfStates = -1;
-						if(typeCheckElimination.getExistingInheritanceTree() == null && typeCheckElimination.getInheritanceTreeMatchingWithStaticTypes() == null)
-							totalNumberOfStates = typeCheckElimination.getStaticFields().size() + typeCheckElimination.getAdditionalStaticFields().size();
-						content += "&" + URLEncoder.encode("total_states", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalNumberOfStates), "UTF-8");
-						content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
-						content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()), "UTF-8");
-						if(allowSourceCodeReporting)
-							content += "&" + URLEncoder.encode("conditional_code_fragment", "UTF-8") + "=" + URLEncoder.encode(typeCheckElimination.getTypeCheckCodeFragment().toString(), "UTF-8");
-						content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode(String.valueOf("1"), "UTF-8");
-						content += "&" + URLEncoder.encode("application_selected_name", "UTF-8") + "=" + URLEncoder.encode(typeCheckElimination.getAbstractMethodName(), "UTF-8");
-						content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
-						content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
-						URL url = new URL(Activator.RANK_URL);
-						URLConnection urlConn = url.openConnection();
-						urlConn.setDoInput(true);
-						urlConn.setDoOutput(true);
-						urlConn.setUseCaches(false);
-						urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-						DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
-						printout.writeBytes(content);
-						printout.flush();
-						printout.close();
-						DataInputStream input = new DataInputStream(urlConn.getInputStream());
-						input.close();
-					} catch (IOException ioe) {
-						ioe.printStackTrace();
+					Refactoring refactoring = null;
+					if(typeCheckElimination.getExistingInheritanceTree() == null) {
+						refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 					}
-				}
-				Refactoring refactoring = null;
-				if(typeCheckElimination.getExistingInheritanceTree() == null) {
-					refactoring = new ReplaceTypeCodeWithStateStrategy(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-				}
-				else {
-					refactoring = new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
-				}
-				MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
-				RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
-				try { 
-					String titleForFailedChecks = ""; //$NON-NLS-1$ 
-					op.run(getSite().getShell(), titleForFailedChecks); 
-				} catch(InterruptedException e) {
-					e.printStackTrace();
-				}
-				try {
-					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-					JavaUI.openInEditor(sourceJavaElement);
-				} catch (PartInitException e) {
-					e.printStackTrace();
-				} catch (JavaModelException e) {
-					e.printStackTrace();
+					else {
+						refactoring = new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
+					}
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(getSite().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
+						e.printStackTrace();
+					}
+					try {
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						JavaUI.openInEditor(sourceJavaElement);
+					} catch (PartInitException e) {
+						e.printStackTrace();
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		};
@@ -590,15 +621,17 @@ public class TypeChecking extends ViewPart {
 		
 		renameMethodAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				TypeCheckElimination entry = (TypeCheckElimination)selection.getFirstElement();
-				String methodName = entry.getAbstractMethodName();
-				IInputValidator methodNameValidator = new MethodNameValidator();
-				InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
-				dialog.open();
-				if(dialog.getValue() != null) {
-					entry.setAbstractMethodName(dialog.getValue());
-					tableViewer.refresh();
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+					TypeCheckElimination entry = (TypeCheckElimination)selection.getFirstElement();
+					String methodName = entry.getAbstractMethodName();
+					IInputValidator methodNameValidator = new MethodNameValidator();
+					InputDialog dialog = new InputDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Rename Method", "Please enter a new name", methodName, methodNameValidator);
+					dialog.open();
+					if(dialog.getValue() != null) {
+						entry.setAbstractMethodName(dialog.getValue());
+						treeViewer.refresh();
+					}
 				}
 			}
 		};
@@ -609,37 +642,39 @@ public class TypeChecking extends ViewPart {
 		
 		doubleClickAction = new Action() {
 			public void run() {
-				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
-				TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
-				IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
-				String typeCheckMethodName = typeCheckElimination.toString();
-				Statement typeCheckCodeFragment = typeCheckElimination.getTypeCheckCodeFragment();
-				try {
-					IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
-					ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
-					AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
-					Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
-					while(annotationIterator.hasNext()) {
-						Annotation currentAnnotation = annotationIterator.next();
-						if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION)) {
-							annotationModel.removeAnnotation(currentAnnotation);
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+					TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
+					IFile sourceFile = typeCheckElimination.getTypeCheckIFile();
+					String typeCheckMethodName = typeCheckElimination.toString();
+					Statement typeCheckCodeFragment = typeCheckElimination.getTypeCheckCodeFragment();
+					try {
+						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
+						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
+						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
+						while(annotationIterator.hasNext()) {
+							Annotation currentAnnotation = annotationIterator.next();
+							if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION)) {
+								annotationModel.removeAnnotation(currentAnnotation);
+							}
 						}
+						SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, typeCheckMethodName);
+						Position position = new Position(typeCheckCodeFragment.getStartPosition(), typeCheckCodeFragment.getLength());
+						annotationModel.addAnnotation(annotation, position);
+						sourceEditor.setHighlightRange(typeCheckCodeFragment.getStartPosition(), typeCheckCodeFragment.getLength(), true);
+					} catch (PartInitException e) {
+						e.printStackTrace();
+					} catch (JavaModelException e) {
+						e.printStackTrace();
 					}
-					SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, typeCheckMethodName);
-					Position position = new Position(typeCheckCodeFragment.getStartPosition(), typeCheckCodeFragment.getLength());
-					annotationModel.addAnnotation(annotation, position);
-					sourceEditor.setHighlightRange(typeCheckCodeFragment.getStartPosition(), typeCheckCodeFragment.getLength(), true);
-				} catch (PartInitException e) {
-					e.printStackTrace();
-				} catch (JavaModelException e) {
-					e.printStackTrace();
 				}
 			}
 		};
 	}
 
 	private void hookDoubleClickAction() {
-		tableViewer.addDoubleClickListener(new IDoubleClickListener() {
+		treeViewer.addDoubleClickListener(new IDoubleClickListener() {
 			public void doubleClick(DoubleClickEvent event) {
 				doubleClickAction.run();
 			}
@@ -650,7 +685,7 @@ public class TypeChecking extends ViewPart {
 	 * Passing the focus request to the viewer's control.
 	 */
 	public void setFocus() {
-		tableViewer.getControl().setFocus();
+		treeViewer.getControl().setFocus();
 	}
 
 	public void dispose() {
@@ -658,8 +693,8 @@ public class TypeChecking extends ViewPart {
 		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
 	}
 
-	private TypeCheckElimination[] getTable() {
-		TypeCheckElimination[] table = null;
+	private TypeCheckEliminationGroup[] getTable() {
+		TypeCheckEliminationGroup[] table = null;
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
@@ -694,17 +729,17 @@ public class TypeChecking extends ViewPart {
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 			}
-			final List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
+			final List<TypeCheckEliminationGroup> typeCheckEliminationGroups = new ArrayList<TypeCheckEliminationGroup>();
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					typeCheckEliminations.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, monitor));
+					typeCheckEliminationGroups.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, monitor));
 				}
 			});
 			
-			table = new TypeCheckElimination[typeCheckEliminations.size()];
+			table = new TypeCheckEliminationGroup[typeCheckEliminationGroups.size()];
 			int i = 0;
-			for(TypeCheckElimination typeCheckElimination : typeCheckEliminations) {
-				table[i] = typeCheckElimination;
+			for(TypeCheckEliminationGroup typeCheckEliminationGroup : typeCheckEliminationGroups) {
+				table[i] = typeCheckEliminationGroup;
 				i++;
 			}
 		} catch (InvocationTargetException e) {
@@ -724,24 +759,22 @@ public class TypeChecking extends ViewPart {
         if(selected != null) {
         	try {
         		BufferedWriter out = new BufferedWriter(new FileWriter(selected));
-        		Table table = tableViewer.getTable();
-        		TableColumn[] columns = table.getColumns();
+        		Tree tree = treeViewer.getTree();
+        		/*TableColumn[] columns = table.getColumns();
         		for(int i=0; i<columns.length; i++) {
         			if(i == columns.length-1)
         				out.write(columns[i].getText());
         			else
         				out.write(columns[i].getText() + "\t");
         		}
-        		out.newLine();
-        		for(int i=0; i<table.getItemCount(); i++) {
-        			TableItem tableItem = table.getItem(i);
-        			for(int j=0; j<table.getColumnCount(); j++) {
-        				if(j == table.getColumnCount()-1)
-        					out.write(tableItem.getText(j));
-        				else
-        					out.write(tableItem.getText(j) + "\t");
+        		out.newLine();*/
+        		for(int i=0; i<tree.getItemCount(); i++) {
+        			TreeItem treeItem = tree.getItem(i);
+        			TypeCheckEliminationGroup group = (TypeCheckEliminationGroup)treeItem.getData();
+        			for(TypeCheckElimination candidate : group.getCandidates()) {
+        				out.write(candidate.toString());
+        				out.newLine();
         			}
-        			out.newLine();
         		}
         		out.close();
         	} catch (IOException e) {

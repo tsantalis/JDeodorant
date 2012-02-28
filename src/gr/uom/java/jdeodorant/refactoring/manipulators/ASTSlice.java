@@ -386,7 +386,7 @@ public class ASTSlice {
 		int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
 		return getSourceTypeDeclaration().resolveBinding().getQualifiedName() + "\t" +
 		getSourceMethodDeclaration().resolveBinding().toString() + "\t" +
-		getLocalVariableCriterion().getName().getIdentifier() + "t" +
+		getLocalVariableCriterion().getName().getIdentifier() + "\t" +
 		"B" + getBoundaryBlock().getId() + "\t" +
 		numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
 	}

@@ -221,6 +221,7 @@ public class DistanceMatrix {
 
     public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByAccess(Set<String> classNamesToBeExamined, IProgressMonitor monitor) {
     	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
+    	double entityPlacement0 = this.getSystemEntityPlacementValue();
     	if(monitor != null)
     		monitor.beginTask("Identification and virtual application of Move Method refactoring opportunities", distanceMatrix.length);
     	for(int i=0; i<distanceMatrix.length; i++) {
@@ -320,7 +321,11 @@ public class DistanceMatrix {
     									if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
     										if(candidate.isApplicable() && !targetClassInheritedByAnotherCandidateTargetClass(targetClass, accessMap.keySet())) {
     											candidate.apply();
-    											candidateRefactoringList.add(candidate);
+    											double entityPlacement1 = candidate.getEntityPlacement();
+    					    					double d = entityPlacement1 - entityPlacement0;
+    					    					if (d < 0) {
+    					    						candidateRefactoringList.add(candidate);
+    					    					}
     											candidateFound = true;
     										}
     									}
@@ -344,6 +349,7 @@ public class DistanceMatrix {
 
     public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByDistance() {
     	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
+    	double entityPlacement0 = this.getSystemEntityPlacementValue();
     	for(int i=0; i<distanceMatrix.length; i++) {
     		Entity entity = entityList.get(i);
     		if(entity instanceof MyMethod) {
@@ -436,7 +442,11 @@ public class DistanceMatrix {
 		                        if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
 		                            if(candidate.isApplicable()) {
 		                            	candidate.apply();
-		                            	candidateRefactoringList.add(candidate);
+		                            	double entityPlacement1 = candidate.getEntityPlacement();
+		            					double d = entityPlacement1 - entityPlacement0;
+		            					if (d < 0) {
+		            						candidateRefactoringList.add(candidate);
+		            					}
 		                            	candidateFound = true;
 		                            }
 		                        }

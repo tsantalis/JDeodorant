@@ -22,7 +22,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jface.text.Position;
 
-public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
+public class MoveMethodCandidateRefactoring extends CandidateRefactoring implements Comparable<MoveMethodCandidateRefactoring> {
     private MySystem system;
 	private MyClass sourceClass;
     private MyClass targetClass;
@@ -437,5 +437,9 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring {
 
 	public void setUserRate(Integer userRate) {
 		this.userRate = userRate;
+	}
+
+	public int compareTo(MoveMethodCandidateRefactoring other) {
+		return Double.compare(this.entityPlacement, other.entityPlacement);
 	}
 }

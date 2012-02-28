@@ -27,7 +27,7 @@ import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.Entity;
 import gr.uom.java.distance.ExtractClassCandidateRefactoring;
-import gr.uom.java.distance.ExtractClassCandidatesGroup;
+import gr.uom.java.distance.ExtractClassCandidateGroup;
 import gr.uom.java.distance.ExtractedConcept;
 import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
@@ -97,7 +97,7 @@ public class GodClass extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action saveResultsAction;
-	private ExtractClassCandidatesGroup[] candidateRefactoringTable;
+	private ExtractClassCandidateGroup[] candidateRefactoringTable;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
@@ -114,12 +114,12 @@ public class GodClass extends ViewPart {
 				return candidateRefactoringTable;
 			}
 			else {
-				return new ExtractClassCandidatesGroup[] {};
+				return new ExtractClassCandidateGroup[] {};
 			}
 		}
 		public Object[] getChildren(Object arg0) {
-			if (arg0 instanceof ExtractClassCandidatesGroup) {
-				return ((ExtractClassCandidatesGroup) arg0).getExtractedConcepts().toArray();
+			if (arg0 instanceof ExtractClassCandidateGroup) {
+				return ((ExtractClassCandidateGroup) arg0).getExtractedConcepts().toArray();
 			}
 			else if(arg0 instanceof ExtractedConcept) {
 				return ((ExtractedConcept) arg0).getConceptClusters().toArray();
@@ -143,8 +143,8 @@ public class GodClass extends ViewPart {
 	}
 	class ViewLabelProvider extends LabelProvider implements ITableLabelProvider {
 		public String getColumnText(Object obj, int index) {
-			if (obj instanceof ExtractClassCandidatesGroup) {
-				ExtractClassCandidatesGroup entry = (ExtractClassCandidatesGroup) obj;
+			if (obj instanceof ExtractClassCandidateGroup) {
+				ExtractClassCandidateGroup entry = (ExtractClassCandidateGroup) obj;
 				switch (index) {
 				case 0:
 					return "";
@@ -235,8 +235,8 @@ public class GodClass extends ViewPart {
 				}
 			}
 			else {
-				double value1 = ((ExtractClassCandidatesGroup) obj1).getMinEP();
-				double value2 = ((ExtractClassCandidatesGroup) obj2).getMinEP();
+				double value1 = ((ExtractClassCandidateGroup) obj1).getMinEP();
+				double value2 = ((ExtractClassCandidateGroup) obj2).getMinEP();
 				if (value1 < value2) {
 					return -1;
 				} else if (value1 > value2) {
@@ -378,7 +378,7 @@ public class GodClass extends ViewPart {
 						int totalOpportunities = 0;
 						for(int i=0; i<tree.getItemCount(); i++) {
 							TreeItem treeItem = tree.getItem(i);
-							ExtractClassCandidatesGroup group = (ExtractClassCandidatesGroup)treeItem.getData();
+							ExtractClassCandidateGroup group = (ExtractClassCandidateGroup)treeItem.getData();
 							if(group.getSource().equals(candidate.getSource())) {
 								groupPosition = i;
 							}
@@ -514,7 +514,7 @@ public class GodClass extends ViewPart {
 								int totalOpportunities = 0;
 								for(int i=0; i<tree.getItemCount(); i++) {
 									TreeItem treeItem = tree.getItem(i);
-									ExtractClassCandidatesGroup group = (ExtractClassCandidatesGroup)treeItem.getData();
+									ExtractClassCandidateGroup group = (ExtractClassCandidateGroup)treeItem.getData();
 									if(group.getSource().equals(candidate.getSource())) {
 										groupPosition = i;
 									}
@@ -663,8 +663,8 @@ public class GodClass extends ViewPart {
 		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
 	}
 
-	private ExtractClassCandidatesGroup[] getTable() {
-		ExtractClassCandidatesGroup[] table = null;
+	private ExtractClassCandidateGroup[] getTable() {
+		ExtractClassCandidateGroup[] table = null;
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
@@ -717,13 +717,13 @@ public class GodClass extends ViewPart {
 					extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, monitor));
 				}
 			});
-			HashMap<String, ExtractClassCandidatesGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidatesGroup>();
+			HashMap<String, ExtractClassCandidateGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidateGroup>();
 			for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
 				if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
 					groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
 				}
 				else {
-					ExtractClassCandidatesGroup group = new ExtractClassCandidatesGroup(candidate.getSourceEntity());
+					ExtractClassCandidateGroup group = new ExtractClassCandidateGroup(candidate.getSourceEntity());
 					group.addCandidate(candidate);
 					groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
 				}
@@ -732,12 +732,12 @@ public class GodClass extends ViewPart {
 				groupedBySourceClassMap.get(sourceClass).groupConcepts();
 			}
 
-			table = new ExtractClassCandidatesGroup[groupedBySourceClassMap.values().size() + 1];
-			ExtractClassCandidatesGroup currentSystem = new ExtractClassCandidatesGroup("current system");
+			table = new ExtractClassCandidateGroup[groupedBySourceClassMap.values().size() + 1];
+			ExtractClassCandidateGroup currentSystem = new ExtractClassCandidateGroup("current system");
 			currentSystem.setMinEP(new CurrentSystem(distanceMatrix).getEntityPlacement());
 			table[0] = currentSystem;
 			int counter = 1;
-			for(ExtractClassCandidatesGroup candidate : groupedBySourceClassMap.values()) {
+			for(ExtractClassCandidateGroup candidate : groupedBySourceClassMap.values()) {
 				table[counter] = candidate;
 				counter++;
 			}
@@ -749,7 +749,7 @@ public class GodClass extends ViewPart {
 		return table;		
 	}
 
-	private ExtractClassCandidatesGroup getParentCandidateGroup(String sourceClass) {
+	private ExtractClassCandidateGroup getParentCandidateGroup(String sourceClass) {
 		String[] classes = new String[candidateRefactoringTable.length];
 		for(int i=0; i<candidateRefactoringTable.length; i++) {
 			classes[i] = candidateRefactoringTable[i].getSource();
@@ -795,7 +795,7 @@ public class GodClass extends ViewPart {
 				out.newLine();*/
 				for(int i=0; i<tree.getItemCount(); i++) {
 					TreeItem treeItem = tree.getItem(i);
-					ExtractClassCandidatesGroup group = (ExtractClassCandidatesGroup)treeItem.getData();
+					ExtractClassCandidateGroup group = (ExtractClassCandidateGroup)treeItem.getData();
 					for(CandidateRefactoring candidate : group.getCandidates()) {
 						out.write(candidate.toString());
 						out.newLine();

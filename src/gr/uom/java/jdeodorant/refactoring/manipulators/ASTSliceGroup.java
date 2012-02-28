@@ -91,6 +91,13 @@ public class ASTSliceGroup implements Comparable<ASTSliceGroup> {
 		else if(averageNumberOfExtractedStatements1 > averageNumberOfExtractedStatements2)
 			return -1;
 		
-		return 0;
+		String group1 = this.getSourceTypeDeclaration().resolveBinding().getQualifiedName() + "::" +
+						this.getSourceMethodDeclaration().resolveBinding().toString() + "::" +
+						this.getLocalVariableCriterion().getName().getIdentifier();
+		
+		String group2 = other.getSourceTypeDeclaration().resolveBinding().getQualifiedName() + "::" +
+						other.getSourceMethodDeclaration().resolveBinding().toString() + "::" +
+						other.getLocalVariableCriterion().getName().getIdentifier();
+		return group1.compareTo(group2);
 	}
 }

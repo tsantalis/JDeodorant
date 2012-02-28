@@ -3,27 +3,29 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.inheritance.InheritanceTree;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.SimpleName;
 
 public class TypeCheckEliminationGroup implements Comparable<TypeCheckEliminationGroup> {
-	private Set<TypeCheckElimination> candidates;
+	private List<TypeCheckElimination> candidates;
 	private int groupSizeAtSystemLevel;
 	private double averageGroupSizeAtClassLevel;
 	private double averageNumberOfStatementsInGroup;
 	
 	public TypeCheckEliminationGroup() {
-		this.candidates = new LinkedHashSet<TypeCheckElimination>();
+		this.candidates = new ArrayList<TypeCheckElimination>();
 	}
 
 	public void addCandidate(TypeCheckElimination elimination) {
 		this.candidates.add(elimination);
 	}
 
-	public Set<TypeCheckElimination> getCandidates() {
+	public List<TypeCheckElimination> getCandidates() {
+		Collections.sort(candidates);
 		return candidates;
 	}
 
@@ -51,6 +53,30 @@ public class TypeCheckEliminationGroup implements Comparable<TypeCheckEliminatio
 		this.averageNumberOfStatementsInGroup = averageNumberOfStatementsInGroup;
 	}
 
+	public Set<String> getConstantVariables() {
+		TypeCheckElimination elimination = (TypeCheckElimination)candidates.toArray()[0];
+		if(elimination.getExistingInheritanceTree() == null && elimination.getInheritanceTreeMatchingWithStaticTypes() == null) {
+			Set<String> constantVariables = new LinkedHashSet<String>();
+			for(SimpleName simpleName : elimination.getStaticFields())
+				constantVariables.add(simpleName.getIdentifier());
+			for(SimpleName simpleName : elimination.getAdditionalStaticFields())
+				constantVariables.add(simpleName.getIdentifier());
+			return constantVariables;
+		}
+		return null;
+	}
+
+	public InheritanceTree getInheritanceTree() {
+		TypeCheckElimination elimination = (TypeCheckElimination)candidates.toArray()[0];
+		InheritanceTree tree = null;
+		if(elimination.getExistingInheritanceTree() != null)
+			tree = elimination.getExistingInheritanceTree();
+		else if(elimination.getInheritanceTreeMatchingWithStaticTypes() != null) {
+			tree = elimination.getInheritanceTreeMatchingWithStaticTypes();
+		}
+		return tree;
+	}
+
 	public int compareTo(TypeCheckEliminationGroup other) {
 		int groupSizeAtSystemLevel1 = this.getGroupSizeAtSystemLevel();
 		int groupSizeAtSystemLevel2 = other.getGroupSizeAtSystemLevel();
@@ -67,30 +93,38 @@ public class TypeCheckEliminationGroup implements Comparable<TypeCheckEliminatio
 		if(averageNumberOfStatementsInGroup1 < averageNumberOfStatementsInGroup2)
 			return 1;
 		
+		Set<String> constantVariables1 = this.getConstantVariables();
+		Set<String> constantVariables2 = other.getConstantVariables();
+		if(constantVariables1 != null && constantVariables2 != null) {
+			if(!constantVariables1.equals(constantVariables2)) {
+				StringBuilder sb1 = new StringBuilder();
+				for(String s : constantVariables1)
+					sb1.append(s);
+				StringBuilder sb2 = new StringBuilder();
+				for(String s : constantVariables2)
+					sb2.append(s);
+				return sb1.toString().compareTo(sb2.toString());
+			}
+		}
+		InheritanceTree tree1 = this.getInheritanceTree();
+		InheritanceTree tree2 = other.getInheritanceTree();
+		if(tree1 != null && tree2 != null) {
+			String root1 = (String)tree1.getRootNode().getUserObject();
+			String root2 = (String)tree2.getRootNode().getUserObject();
+			if(!root1.equals(root2)) {
+				return root1.compareTo(root2);
+			}
+		}
 		return 0;
 	}
 
 	public String toString() {
-		TypeCheckElimination elimination = new ArrayList<TypeCheckElimination>(candidates).get(0);
-		if(elimination.getExistingInheritanceTree() == null && elimination.getInheritanceTreeMatchingWithStaticTypes() == null) {
-			Set<String> states = new TreeSet<String>();
-			for(SimpleName simpleName : elimination.getStaticFields())
-				states.add(simpleName.getIdentifier());
-			for(SimpleName simpleName : elimination.getAdditionalStaticFields())
-				states.add(simpleName.getIdentifier());
-			return "states: " + states.toString();
-		}
-		else {
-			InheritanceTree tree = null;
-			if(elimination.getExistingInheritanceTree() != null)
-				tree = elimination.getExistingInheritanceTree();
-			else if(elimination.getInheritanceTreeMatchingWithStaticTypes() != null) {
-				tree = elimination.getInheritanceTreeMatchingWithStaticTypes();
-			}
-			if(tree != null)
-				return "inheritance hierarchy: " + "[" + tree.getRootNode().getUserObject().toString() + "]";
-			
-		}
+		Set<String> constantVariables = this.getConstantVariables();
+		if(constantVariables != null)
+			return "constant variables: " + constantVariables;
+		InheritanceTree tree = this.getInheritanceTree();
+		if(tree != null)
+			return "inheritance hierarchy: " + "[" + tree.getRootNode().getUserObject().toString() + "]";
 		return "";
 	}
 }

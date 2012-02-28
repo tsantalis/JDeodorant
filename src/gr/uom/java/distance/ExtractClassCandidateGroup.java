@@ -14,14 +14,14 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class ExtractClassCandidatesGroup {
+public class ExtractClassCandidateGroup implements Comparable<ExtractClassCandidateGroup> {
 
 	private String source;
 	private ArrayList<ExtractClassCandidateRefactoring> candidates;
 	private ArrayList<ExtractedConcept> extractedConcepts;
 	private double minEP;
 
-	public ExtractClassCandidatesGroup(String source) {
+	public ExtractClassCandidateGroup(String source) {
 		this.source = source;
 		this.candidates = new ArrayList<ExtractClassCandidateRefactoring>();
 		this.extractedConcepts = new ArrayList<ExtractedConcept>();
@@ -125,5 +125,13 @@ public class ExtractClassCandidatesGroup {
 			e.printStackTrace();
 		}
 		return stopWords;
+	}
+
+	public int compareTo(ExtractClassCandidateGroup other) {
+		if(this.getMinEP() < other.getMinEP())
+			return -1;
+		else if(this.getMinEP() > other.getMinEP())
+			return 1;
+		return this.source.compareTo(other.source);
 	}
 }

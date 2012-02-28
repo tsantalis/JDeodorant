@@ -1181,7 +1181,7 @@ public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 		
 		if(groupSizeAtClassLevel1 > groupSizeAtClassLevel2)
 			return -1;
-		if(groupSizeAtClassLevel1 < groupSizeAtClassLevel2)
+		else if(groupSizeAtClassLevel1 < groupSizeAtClassLevel2)
 			return 1;
 		
 		if(averageNumberOfStatements1 > averageNumberOfStatements2)

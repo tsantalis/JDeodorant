@@ -458,8 +458,10 @@ public class SystemObject {
     	}
     	for(String rootNode : inheritanceTreeMap.keySet()) {
     		ArrayList<TypeCheckElimination> typeCheckEliminations = inheritanceTreeMap.get(rootNode);
-    		typeCheckEliminationResults.addAll(typeCheckEliminations);
-    		typeCheckEliminationGroups.add(handleGroup(typeCheckEliminations));
+    		if(typeCheckEliminations.size() > 0) {
+    			typeCheckEliminationResults.addAll(typeCheckEliminations);
+    			typeCheckEliminationGroups.add(handleGroup(typeCheckEliminations));
+    		}
     	}
     	List<TypeCheckElimination> sortedEliminations = new ArrayList<TypeCheckElimination>();
     	List<Integer> keyList = new ArrayList<Integer>(staticFieldRankMap.keySet());
@@ -507,8 +509,10 @@ public class SystemObject {
     			if(!elimination.isTypeCheckMethodStateSetter())
     				typeCheckEliminations.add(elimination);
     		}
-    		typeCheckEliminationResults.addAll(typeCheckEliminations);
-    		typeCheckEliminationGroups.add(handleGroup(typeCheckEliminations));
+    		if(typeCheckEliminations.size() > 0) {
+    			typeCheckEliminationResults.addAll(typeCheckEliminations);
+    			typeCheckEliminationGroups.add(handleGroup(typeCheckEliminations));
+    		}
     		sortedEliminations.removeAll(affectedEliminations);
     	}
     	identifySuperFieldAccessorMethods(typeCheckEliminationResults);

@@ -446,7 +446,7 @@ public class PDG extends Graph {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
 		ReachingAliasSet reachingAliasSet = new ReachingAliasSet();
 		firstPDGNode.updateReachingAliasSet(reachingAliasSet);
-		aliasSearch(firstPDGNode, false, reachingAliasSet);
+		aliasSearch(firstPDGNode, new LinkedHashSet<PDGNode>(), false, reachingAliasSet);
 	}
 
 	private void createDataDependencies() {
@@ -477,7 +477,11 @@ public class PDG extends Graph {
 		}
 	}
 
-	private void aliasSearch(PDGNode currentNode, boolean visitedFromLoopbackFlow, ReachingAliasSet reachingAliasSet) {
+	private void aliasSearch(PDGNode currentNode, Set<PDGNode> visitedNodes, boolean visitedFromLoopbackFlow, ReachingAliasSet reachingAliasSet) {
+		if(visitedNodes.contains(currentNode))
+			return;
+		else
+			visitedNodes.add(currentNode);
 		CFGNode currentCFGNode = currentNode.getCFGNode();
 		for(GraphEdge edge : currentCFGNode.outgoingEdges) {
 			Flow flow = (Flow)edge;
@@ -490,9 +494,9 @@ public class PDG extends Graph {
 				dstPDGNode.updateReachingAliasSet(reachingAliasSetCopy);
 				if(!(srcCFGNode instanceof CFGBranchDoLoopNode && flow.isTrueControlFlow())) {
 					if(flow.isLoopbackFlow())
-						aliasSearch(dstPDGNode, true, reachingAliasSetCopy);
+						aliasSearch(dstPDGNode, visitedNodes, true, reachingAliasSetCopy);
 					else
-						aliasSearch(dstPDGNode, false, reachingAliasSetCopy);
+						aliasSearch(dstPDGNode, visitedNodes, false, reachingAliasSetCopy);
 				}
 			}
 		}

@@ -335,6 +335,10 @@ public class ExpressionExtractor {
 		}
 		else if(statement instanceof TryStatement) {
 			TryStatement tryStatement = (TryStatement)statement;
+			List<VariableDeclarationExpression> resources = tryStatement.resources();
+			for(VariableDeclarationExpression expression : resources) {
+				expressionList.addAll(getExpressions(expression));
+			}
 			expressionList.addAll(getExpressions(tryStatement.getBody()));
 			List<CatchClause> catchClauses = tryStatement.catchClauses();
 			for(CatchClause catchClause : catchClauses) {

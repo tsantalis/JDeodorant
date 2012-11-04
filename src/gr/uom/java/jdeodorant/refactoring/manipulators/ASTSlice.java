@@ -29,6 +29,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jface.text.Position;
 
@@ -354,6 +355,15 @@ public class ASTSlice {
 					duplicationMap.put(position, true);
 				else
 					duplicationMap.put(position, false);
+				List<VariableDeclarationExpression> resources = tryStatement.resources();
+				for(VariableDeclarationExpression expression : resources) {
+					Position resourcePosition = new Position(expression.getStartPosition(), expression.getLength());
+					annotationMap.put(resourcePosition, sliceNode.getAnnotation());
+					if(duplicatedStatements.contains(statement))
+						duplicationMap.put(resourcePosition, true);
+					else
+						duplicationMap.put(resourcePosition, false);
+				}
 			}
 			else {
 				Position position = new Position(statement.getStartPosition(), statement.getLength());

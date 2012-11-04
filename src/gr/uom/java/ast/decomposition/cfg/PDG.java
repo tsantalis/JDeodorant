@@ -30,7 +30,6 @@ public class PDG extends Graph {
 	private Set<VariableDeclaration> variableDeclarationsInMethod;
 	private Set<VariableDeclaration> fieldsAccessedInMethod;
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
-	private Set<PDGNode> tryNodes;
 	private IFile iFile;
 	private IProgressMonitor monitor;
 	
@@ -71,12 +70,6 @@ public class PDG extends Graph {
 			createDataDependencies();
 		}
 		this.dominatedBlockMap = new LinkedHashMap<PDGNode, Set<BasicBlock>>();
-		this.tryNodes = new LinkedHashSet<PDGNode>();
-		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
-		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
-			PDGStatementNode pdgNode = new PDGStatementNode(tryNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
-			tryNodes.add(pdgNode);
-		}
 		GraphNode.resetNodeNum();
 		handleSwitchCaseNodes();
 		handleJumpNodes();
@@ -103,6 +96,16 @@ public class PDG extends Graph {
 
 	public Set<VariableDeclaration> getFieldsAccessedInMethod() {
 		return fieldsAccessedInMethod;
+	}
+
+	public List<PDGNode> getNestedNodesWithinTryNode(PDGTryNode tryNode) {
+		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
+		List<CFGNode> directlyNestedCFGNodes = directlyNestedNodesInTryBlocks.get((CFGTryNode)tryNode.getCFGNode());
+		List<PDGNode> directlyNestedPDGNodes = new ArrayList<PDGNode>();
+		for(CFGNode cfgNode : directlyNestedCFGNodes) {
+			directlyNestedPDGNodes.add(cfgNode.getPDGNode());
+		}
+		return directlyNestedPDGNodes;
 	}
 
 	public Set<VariableDeclaration> getVariableDeclarationsAndAccessedFieldsInMethod() {
@@ -196,7 +199,7 @@ public class PDG extends Graph {
 							break;
 						}
 					}
-					if(matchingTryNode) {
+					if(matchingTryNode && cfgNode instanceof CFGThrowNode) {
 						for(CFGNode directlyNestedNode : directlyNestedNodes) {
 							if(directlyNestedNode.getPDGNode().getId() > pdgNode.getId()) {
 								PDGControlDependence cd = new PDGControlDependence(pdgNode, directlyNestedNode.getPDGNode(), false);
@@ -206,19 +209,6 @@ public class PDG extends Graph {
 						break;
 					}
 				}
-				/*if(!matchingTryNode) {
-					for(GraphEdge edge : entryNode.outgoingEdges) {
-						PDGDependence dependence = (PDGDependence)edge;
-						if(dependence instanceof PDGControlDependence) {
-							PDGControlDependence controlDependence = (PDGControlDependence)dependence;
-							PDGNode dstPDGNode  = (PDGNode)controlDependence.dst;
-							if(dstPDGNode.getId() > pdgNode.getId()) {
-								PDGControlDependence cd = new PDGControlDependence(pdgNode, dstPDGNode, false);
-								edges.add(cd);
-							}
-						}
-					}
-				}*/
 			}
 		}
 	}
@@ -386,6 +376,11 @@ public class PDG extends Graph {
 				processCFGNode(entryNode, cfgNode, true);
 			}
 		}
+		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
+		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
+			if(!tryNode.hasResources())
+				processCFGNode(entryNode, tryNode, true);
+		}
 	}
 
 	private void processCFGNode(PDGNode previousNode, CFGNode cfgNode, boolean controlType) {
@@ -402,6 +397,8 @@ public class PDG extends Graph {
 			PDGNode pdgNode = null;
 			if(cfgNode instanceof CFGExitNode)
 				pdgNode = new PDGExitNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+			else if(cfgNode instanceof CFGTryNode)
+				pdgNode = new PDGTryNode((CFGTryNode)cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			else
 				pdgNode = new PDGStatementNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(pdgNode);
@@ -658,7 +655,7 @@ public class PDG extends Graph {
 		Set<PDGNode> regionNodes = new LinkedHashSet<PDGNode>();
 		Set<BasicBlock> reachableBlocks = forwardReachableBlocks(block);
 		for(BasicBlock reachableBlock : reachableBlocks) {
-			List<CFGNode> blockNodes = reachableBlock.getAllNodes();
+			List<CFGNode> blockNodes = reachableBlock.getAllNodesIncludingTry();
 			for(CFGNode cfgNode : blockNodes) {
 				regionNodes.add(cfgNode.getPDGNode());
 			}

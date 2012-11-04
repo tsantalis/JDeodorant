@@ -14,6 +14,10 @@ public class TryStatementObject extends CompositeStatementObject {
 		this.catchClauses = new ArrayList<CatchClauseObject>();
 	}
 
+	public boolean hasResources() {
+		return !getExpressions().isEmpty();
+	}
+
 	public void addCatchClause(CatchClauseObject catchClause) {
 		catchClauses.add(catchClause);
 		catchClause.setParent(this);

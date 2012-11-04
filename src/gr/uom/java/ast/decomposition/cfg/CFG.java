@@ -87,12 +87,29 @@ public class CFG extends Graph {
 					previousNodes = process(previousNodes, compositeStatement);
 				}
 				else if(compositeStatement.getStatement() instanceof TryStatement) {
-					CFGTryNode tryNode = new CFGTryNode(compositeStatement);
-					//nodes.add(tryNode);
-					directlyNestedNodeInTryBlock(tryNode);
-					directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
-					AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
-					previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+					TryStatementObject tryStatement = (TryStatementObject)compositeStatement;
+					if(!tryStatement.hasResources()) {
+						//if a try node does not have resources, it is treated as a block and is omitted
+						CFGTryNode tryNode = new CFGTryNode(compositeStatement);
+						//nodes.add(tryNode);
+						directlyNestedNodeInTryBlock(tryNode);
+						directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
+						AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
+						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+					}
+					else {
+						//if a try node has resources, it is treated as a non-composite node
+						CFGTryNode tryNode = new CFGTryNode(compositeStatement);
+						directlyNestedNodeInTryBlock(tryNode);
+						nodes.add(tryNode);
+						directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
+						createTopDownFlow(previousNodes, tryNode);
+						ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
+						currentNodes.add(tryNode);
+						previousNodes = currentNodes;
+						AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
+						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+					}
 				}
 				else if(isLoop(compositeStatement)) {
 					CFGBranchNode currentNode = new CFGBranchLoopNode(compositeStatement);

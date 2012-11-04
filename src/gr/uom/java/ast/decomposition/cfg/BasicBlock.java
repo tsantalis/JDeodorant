@@ -8,6 +8,7 @@ public class BasicBlock {
 	private int id;
 	private CFGNode leader;
 	private List<CFGNode> nodes;
+	private List<CFGTryNode> tryNodes;
 	private BasicBlock previousBasicBlock;
 	private BasicBlock nextBasicBlock;
 	
@@ -17,6 +18,7 @@ public class BasicBlock {
 		this.leader = node;
 		node.setBasicBlock(this);
 		this.nodes = new ArrayList<CFGNode>();
+		this.tryNodes = new ArrayList<CFGTryNode>();
 	}
 
 	public int getId() {
@@ -38,6 +40,14 @@ public class BasicBlock {
 		return allNodes;
 	}
 
+	public List<CFGNode> getAllNodesIncludingTry() {
+		List<CFGNode> allNodes = new ArrayList<CFGNode>();
+		allNodes.add(leader);
+		allNodes.addAll(nodes);
+		allNodes.addAll(tryNodes);
+		return allNodes;
+	}
+
 	public CFGNode getLastNode() {
 		if(!nodes.isEmpty())
 			return nodes.get(nodes.size()-1);
@@ -48,6 +58,11 @@ public class BasicBlock {
 	public void add(CFGNode node) {
 		nodes.add(node);
 		node.setBasicBlock(this);
+	}
+
+	public void addTryNode(CFGTryNode tryNode) {
+		tryNodes.add(tryNode);
+		tryNode.setBasicBlock(this);
 	}
 
 	public BasicBlock getPreviousBasicBlock() {

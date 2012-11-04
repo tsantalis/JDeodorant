@@ -9,14 +9,20 @@ import gr.uom.java.ast.decomposition.TryStatementObject;
 
 public class CFGTryNode extends CFGNode {
 	private List<String> handledExceptions;
-	
+	private boolean hasResources;
+
 	public CFGTryNode(AbstractStatement statement) {
 		super(statement);
 		this.handledExceptions = new ArrayList<String>();
 		TryStatementObject tryStatement = (TryStatementObject)statement;
+		this.hasResources = tryStatement.hasResources();
 		for(CatchClauseObject catchClause : tryStatement.getCatchClauses()) {
 			handledExceptions.add(catchClause.getExceptionType());
 		}
+	}
+	
+	public boolean hasResources() {
+		return hasResources;
 	}
 
 	public List<String> getHandledExceptions() {

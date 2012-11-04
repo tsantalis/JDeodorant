@@ -277,7 +277,7 @@ public class PDGSlice extends Graph {
 		duplicatedNodes.addAll(sliceNodes);
 		duplicatedNodes.retainAll(indispensableNodes);
 		for(PDGNode node : duplicatedNodes) {
-			if(node.declaresLocalVariable(localVariableCriterion))
+			if(node.declaresLocalVariable(localVariableCriterion) && !(node instanceof PDGTryNode))
 				return true;
 		}
 		return false;
@@ -322,7 +322,7 @@ public class PDGSlice extends Graph {
 					if(edges.contains(dependence) && dependence instanceof PDGAntiDependence) {
 						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
 						PDGNode srcPDGNode = (PDGNode)antiDependence.src;
-						if(!removableNodes.contains(srcPDGNode) && !nodeDependsOnNonRemovableNode(srcPDGNode))
+						if(!removableNodes.contains(srcPDGNode) && !nodeDependsOnNonRemovableNode(srcPDGNode, antiDependence.getData()))
 							return true;
 					}
 				}
@@ -331,14 +331,16 @@ public class PDGSlice extends Graph {
 		return false;
 	}
 
-	private boolean nodeDependsOnNonRemovableNode(PDGNode node) {
+	private boolean nodeDependsOnNonRemovableNode(PDGNode node, AbstractVariable variable) {
 		for(GraphEdge edge : node.incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;
 			if(edges.contains(dependence) && dependence instanceof PDGDataDependence) {
 				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-				PDGNode srcPDGNode = (PDGNode)dataDependence.src;
-				if(!removableNodes.contains(srcPDGNode))
-					return true;
+				if(dataDependence.getData().equals(variable)) {
+					PDGNode srcPDGNode = (PDGNode)dataDependence.src;
+					if(!removableNodes.contains(srcPDGNode))
+						return true;
+				}
 			}
 		}
 		return false;

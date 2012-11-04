@@ -52,7 +52,7 @@ public class CompilationUnitCache extends Indexer {
 				return compilationUnitList.get(position);
 			}
 			else {
-				ASTParser parser = ASTParser.newParser(AST.JLS3);
+				ASTParser parser = ASTParser.newParser(AST.JLS4);
 				parser.setKind(ASTParser.K_COMPILATION_UNIT);
 				parser.setSource(iTypeRoot);
 				parser.setResolveBindings(true);

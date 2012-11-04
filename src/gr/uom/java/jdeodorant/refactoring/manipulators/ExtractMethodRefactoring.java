@@ -7,6 +7,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
@@ -123,8 +124,16 @@ public class ExtractMethodRefactoring extends Refactoring {
 		for(Statement sliceStatement : slice.getSliceStatements()) {
 			Set<ITypeBinding> thrownExceptionTypes = getThrownExceptionTypes(sliceStatement);
 			if(thrownExceptionTypes.size() > 0) {
-				if(!isSurroundedByTryBlock(sliceStatement))
+				TryStatement surroundingTryBlock = surroundingTryBlock(sliceStatement);
+				if(surroundingTryBlock == null || !slice.getSliceStatements().contains(surroundingTryBlock)) {
 					exceptionTypesThatShouldBeThrownByExtractedMethod.addAll(thrownExceptionTypes);
+				}
+				if(surroundingTryBlock != null && slice.getSliceStatements().contains(surroundingTryBlock)) {
+					for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
+						if(!tryBlockCatchesExceptionType(surroundingTryBlock, thrownExceptionType))
+							exceptionTypesThatShouldBeThrownByExtractedMethod.add(thrownExceptionType);
+					}
+				}
 			}
 		}
 		this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = false;
@@ -134,6 +143,9 @@ public class ExtractMethodRefactoring extends Refactoring {
 			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
 			int depthOfNestingForExtractedMethodInvocationInsertionStatement = depthOfNesting(extractedMethodInvocationInsertionStatement);
 			if(depthOfNestingForVariableCriterionDeclarationStatement > depthOfNestingForExtractedMethodInvocationInsertionStatement)
+				this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = true;
+			if(depthOfNestingForVariableCriterionDeclarationStatement == depthOfNestingForExtractedMethodInvocationInsertionStatement &&
+					variableCriterionDeclarationStatement instanceof TryStatement)
 				this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = true;
 		}
 	}
@@ -162,20 +174,22 @@ public class ExtractMethodRefactoring extends Refactoring {
 					sliceStatementThrowsException = true;
 			}
 		}
-		if(allNestedStatementsAreRemovable)
-			tryStatementsToBeRemoved.add(tryStatement);
-		else if(sliceStatementThrowsException)
-			tryStatementsToBeCopied.add(tryStatement);
+		if(slice.getSliceStatements().contains(tryStatement)) {
+			if(allNestedStatementsAreRemovable)
+				tryStatementsToBeRemoved.add(tryStatement);
+			else if(sliceStatementThrowsException)
+				tryStatementsToBeCopied.add(tryStatement);
+		}
 	}
 
-	private boolean isSurroundedByTryBlock(Statement statement) {
+	private TryStatement surroundingTryBlock(Statement statement) {
 		ASTNode parent = statement.getParent();
 		while(!(parent instanceof MethodDeclaration)) {
 			if(parent instanceof TryStatement)
-				return true;
+				return (TryStatement)parent;
 			parent = parent.getParent();
 		}
-		return false;
+		return null;
 	}
 
 	private int depthOfNesting(Statement statement) {
@@ -186,6 +200,16 @@ public class ExtractMethodRefactoring extends Refactoring {
 			parent = parent.getParent();
 		}
 		return depthOfNesting;
+	}
+
+	private boolean tryBlockCatchesExceptionType(TryStatement tryStatement, ITypeBinding exceptionType) {
+		List<CatchClause> catchClauses = tryStatement.catchClauses();
+		for(CatchClause catchClause : catchClauses) {
+			SingleVariableDeclaration exceptionDeclaration = catchClause.getException();
+			if(exceptionDeclaration.getType().resolveBinding().isEqualTo(exceptionType))
+				return true;
+		}
+		return false;
 	}
 
 	public void apply() {
@@ -408,6 +432,9 @@ public class ExtractMethodRefactoring extends Refactoring {
 					PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;
 					bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
 				}
+				else if(node instanceof PDGTryNode) {
+					sliceNodes.remove(node);
+				}
 				else {
 					bodyRewrite.insertLast(node.getASTStatement(), null);
 					sliceNodes.remove(node);
@@ -448,6 +475,11 @@ public class ExtractMethodRefactoring extends Refactoring {
 				}
 				else {
 					TryStatement newTryStatement = ast.newTryStatement();
+					ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+					List<VariableDeclarationExpression> resources = tryStatementParent.resources();
+					for(VariableDeclarationExpression expression : resources) {
+						resourceRewrite.insertLast(expression, null);
+					}
 					ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
 					List<CatchClause> catchClauses = tryStatementParent.catchClauses();
 					for(CatchClause catchClause : catchClauses) {

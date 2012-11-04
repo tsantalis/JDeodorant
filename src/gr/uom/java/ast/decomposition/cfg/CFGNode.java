@@ -4,7 +4,7 @@ import org.eclipse.jdt.core.dom.Statement;
 
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
-public class CFGNode extends GraphNode {
+public class CFGNode extends GraphNode implements Comparable<CFGNode> {
 	private AbstractStatement statement;
 	private BasicBlock basicBlock;
 	private PDGNode pdgNode;
@@ -94,5 +94,14 @@ public class CFGNode extends GraphNode {
 
 	public String toString() {
 		return id + "\t" + statement.toString();
+	}
+
+	public int compareTo(CFGNode node) {
+		if(this.getId() > node.getId())
+			return 1;
+		else if(this.getId() < node.getId())
+			return -1;
+		else
+			return 0;
 	}
 }

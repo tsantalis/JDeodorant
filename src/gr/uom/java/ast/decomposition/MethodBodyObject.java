@@ -42,6 +42,8 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -473,6 +475,11 @@ public class MethodBodyObject {
 		else if(statement instanceof TryStatement) {
 			TryStatement tryStatement = (TryStatement)statement;
 			TryStatementObject child = new TryStatementObject(tryStatement, "try");
+			List<VariableDeclarationExpression> resources = tryStatement.resources();
+			for(VariableDeclarationExpression expression : resources) {
+				AbstractExpression variableDeclarationExpression = new AbstractExpression(expression);
+				child.addExpression(variableDeclarationExpression);
+			}
 			parent.addStatement(child);
 			processStatement(child, tryStatement.getBody());
 			List<CatchClause> catchClauses = tryStatement.catchClauses();

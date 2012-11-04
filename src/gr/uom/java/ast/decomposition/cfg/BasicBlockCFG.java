@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class BasicBlockCFG {
 	private List<BasicBlock> basicBlocks;
@@ -14,9 +15,22 @@ public class BasicBlockCFG {
 	public BasicBlockCFG(CFG cfg) {
 		this.basicBlocks = new ArrayList<BasicBlock>();
 		this.forwardReachableBlocks = new LinkedHashMap<BasicBlock, Set<BasicBlock>>();
-		for(GraphNode node : cfg.nodes) {
+		TreeSet<GraphNode> allNodes = new TreeSet<GraphNode>(cfg.nodes);
+		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
+		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
+			if(!tryNode.hasResources())
+				allNodes.add(tryNode);
+		}
+		for(GraphNode node : allNodes) {
 			CFGNode cfgNode = (CFGNode)node;
-			if(cfgNode.isLeader()) {
+			if(cfgNode instanceof CFGTryNode && !((CFGTryNode)cfgNode).hasResources()) {
+				CFGTryNode tryNode = (CFGTryNode)cfgNode;
+				if(!basicBlocks.isEmpty()) {
+					BasicBlock basicBlock = basicBlocks.get(basicBlocks.size()-1);
+					basicBlock.addTryNode(tryNode);
+				}
+			}
+			else if(cfgNode.isLeader()) {
 				BasicBlock basicBlock = new BasicBlock(cfgNode);
 				if(!basicBlocks.isEmpty()) {
 					BasicBlock previousBlock = basicBlocks.get(basicBlocks.size()-1);
@@ -28,6 +42,13 @@ public class BasicBlockCFG {
 			else {
 				BasicBlock basicBlock = basicBlocks.get(basicBlocks.size()-1);
 				basicBlock.add(cfgNode);
+			}
+		}
+		//special handling for the try statement that is first node
+		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
+			if(tryNode.id == 1 && !basicBlocks.isEmpty() && !tryNode.hasResources()) {
+				BasicBlock basicBlock = basicBlocks.get(0);
+				basicBlock.addTryNode(tryNode);
 			}
 		}
 		BasicBlock.resetBlockNum();

@@ -42,7 +42,7 @@ public class LibraryClassStorage extends Indexer {
 			CompilationUnit compilationUnit = null;
 			try {
 				if(!unMatchedClassFiles.contains(classFile)) {
-					ASTParser parser = ASTParser.newParser(AST.JLS3);
+					ASTParser parser = ASTParser.newParser(AST.JLS4);
 					parser.setSource(classFile);
 					parser.setResolveBindings(true);
 					compilationUnit = (CompilationUnit)parser.createAST(null);

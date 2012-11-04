@@ -268,7 +268,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		IJavaElement abstractJavaElement = JavaCore.create(abstractClassFile);
 		javaElementsToOpenInEditor.add(abstractJavaElement);
 		ICompilationUnit abstractICompilationUnit = (ICompilationUnit)abstractJavaElement;
-        ASTParser abstractParser = ASTParser.newParser(AST.JLS3);
+        ASTParser abstractParser = ASTParser.newParser(AST.JLS4);
         abstractParser.setKind(ASTParser.K_COMPILATION_UNIT);
         abstractParser.setSource(abstractICompilationUnit);
         abstractParser.setResolveBindings(true); // we need bindings later on
@@ -469,7 +469,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
 			javaElementsToOpenInEditor.add(subclassJavaElement);
 			ICompilationUnit subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
-	        ASTParser subclassParser = ASTParser.newParser(AST.JLS3);
+	        ASTParser subclassParser = ASTParser.newParser(AST.JLS4);
 	        subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
 	        subclassParser.setSource(subclassICompilationUnit);
 	        subclassParser.setResolveBindings(true); // we need bindings later on

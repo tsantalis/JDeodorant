@@ -113,7 +113,7 @@ public class TypeCheckingEvolution implements Evolution {
 						IPackageFragment iPackageFragment = (IPackageFragment)child;
 						ICompilationUnit[] iCompilationUnits = iPackageFragment.getCompilationUnits();
 						for(ICompilationUnit iCompilationUnit : iCompilationUnits) {
-							ASTParser parser = ASTParser.newParser(AST.JLS3);
+							ASTParser parser = ASTParser.newParser(AST.JLS4);
 					        parser.setKind(ASTParser.K_COMPILATION_UNIT);
 					        parser.setSource(iCompilationUnit);
 					        parser.setResolveBindings(true); // we need bindings later on

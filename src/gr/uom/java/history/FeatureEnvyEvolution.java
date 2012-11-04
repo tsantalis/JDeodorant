@@ -123,7 +123,7 @@ public class FeatureEnvyEvolution implements Evolution {
 		int numberOfEnviedElements = 0;
 		if(method != null) {
 			ICompilationUnit iCompilationUnit = method.getCompilationUnit();
-			ASTParser parser = ASTParser.newParser(AST.JLS3);
+			ASTParser parser = ASTParser.newParser(AST.JLS4);
 			parser.setKind(ASTParser.K_COMPILATION_UNIT);
 			parser.setSource(iCompilationUnit);
 			parser.setResolveBindings(true);

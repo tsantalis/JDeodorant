@@ -101,7 +101,7 @@ public class MethodEvolution implements Evolution {
 		List<String> stringRepresentation = null;
 		if(method != null) {
 			ICompilationUnit iCompilationUnit = method.getCompilationUnit();
-			ASTParser parser = ASTParser.newParser(AST.JLS3);
+			ASTParser parser = ASTParser.newParser(AST.JLS4);
 			parser.setKind(ASTParser.K_COMPILATION_UNIT);
 			parser.setSource(iCompilationUnit);
 			parser.setResolveBindings(true);

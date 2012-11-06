@@ -65,6 +65,7 @@ import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -206,8 +207,19 @@ public class ExtractMethodRefactoring extends Refactoring {
 		List<CatchClause> catchClauses = tryStatement.catchClauses();
 		for(CatchClause catchClause : catchClauses) {
 			SingleVariableDeclaration exceptionDeclaration = catchClause.getException();
-			if(exceptionDeclaration.getType().resolveBinding().isEqualTo(exceptionType))
-				return true;
+			Type exceptionDeclarationType = exceptionDeclaration.getType();
+			if(exceptionDeclarationType instanceof UnionType) {
+				UnionType unionType = (UnionType)exceptionDeclarationType;
+				List<Type> types = unionType.types();
+				for(Type type : types) {
+					if(type.resolveBinding().isEqualTo(exceptionType))
+						return true;
+				}
+			}
+			else {
+				if(exceptionDeclarationType.resolveBinding().isEqualTo(exceptionType))
+					return true;
+			}
 		}
 		return false;
 	}

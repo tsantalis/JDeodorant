@@ -5,10 +5,9 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.TryStatement;
-
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.TryStatementObject;
 
 public class CFGBranchIfNode extends CFGBranchConditionalNode {
 
@@ -27,7 +26,7 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 			if(trueControlFlowStatement.getStatement() instanceof Block) {
 				CompositeStatementObject blockStatement = (CompositeStatementObject)trueControlFlowStatement;
 				for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
-					if(statementInsideBlock.getStatement() instanceof TryStatement) {
+					if(statementInsideBlock instanceof TryStatementObject) {
 						CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
 						processTryStatement(nestedStatements, tryStatement);
 					}
@@ -35,7 +34,7 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 						nestedStatements.add(statementInsideBlock);
 				}
 			}
-			else if(trueControlFlowStatement.getStatement() instanceof TryStatement) {
+			else if(trueControlFlowStatement instanceof TryStatementObject) {
 				CompositeStatementObject tryStatement = (CompositeStatementObject)trueControlFlowStatement;
 				processTryStatement(nestedStatements, tryStatement);
 			}
@@ -67,7 +66,7 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 				if(falseControlFlowStatement.getStatement() instanceof Block) {
 					CompositeStatementObject blockStatement = (CompositeStatementObject)falseControlFlowStatement;
 					for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
-						if(statementInsideBlock.getStatement() instanceof TryStatement) {
+						if(statementInsideBlock instanceof TryStatementObject) {
 							CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
 							processTryStatement(nestedStatements, tryStatement);
 						}
@@ -75,7 +74,7 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 							nestedStatements.add(statementInsideBlock);
 					}
 				}
-				else if(falseControlFlowStatement.getStatement() instanceof TryStatement) {
+				else if(falseControlFlowStatement instanceof TryStatementObject) {
 					CompositeStatementObject tryStatement = (CompositeStatementObject)falseControlFlowStatement;
 					processTryStatement(nestedStatements, tryStatement);
 				}
@@ -98,8 +97,10 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 
 	private void processTryStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject tryStatement) {
 		CompositeStatementObject tryBlock = (CompositeStatementObject)tryStatement.getStatements().get(0);
+		/*if(((TryStatementObject)tryStatement).hasResources())
+			nestedStatements.add(tryStatement);*/
 		for(AbstractStatement statementInsideBlock : tryBlock.getStatements()) {
-			if(statementInsideBlock.getStatement() instanceof TryStatement) {
+			if(statementInsideBlock instanceof TryStatementObject) {
 				CompositeStatementObject nestedTryStatement = (CompositeStatementObject)statementInsideBlock;
 				processTryStatement(nestedStatements, nestedTryStatement);
 			}

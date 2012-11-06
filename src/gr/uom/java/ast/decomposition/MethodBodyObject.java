@@ -42,6 +42,8 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
@@ -487,7 +489,17 @@ public class MethodBodyObject {
 				Block catchClauseBody = catchClause.getBody();
 				CompositeStatementObject catchClauseStatementObject = new CompositeStatementObject(catchClauseBody, "{");
 				SingleVariableDeclaration variableDeclaration = catchClause.getException();
-				catchClauseObject.setExceptionType(variableDeclaration.getType().resolveBinding().getQualifiedName());
+				Type variableDeclarationType = variableDeclaration.getType();
+				if(variableDeclarationType instanceof UnionType) {
+					UnionType unionType = (UnionType)variableDeclarationType;
+					List<Type> types = unionType.types();
+					for(Type type : types) {
+						catchClauseObject.addExceptionType(type.resolveBinding().getQualifiedName());
+					}
+				}
+				else {
+					catchClauseObject.addExceptionType(variableDeclarationType.resolveBinding().getQualifiedName());
+				}
 				AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName());
 				catchClauseObject.addExpression(variableDeclarationName);
 				if(variableDeclaration.getInitializer() != null) {

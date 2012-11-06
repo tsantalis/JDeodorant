@@ -6,10 +6,9 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.TryStatement;
-
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.TryStatementObject;
 
 public abstract class CFGBranchNode extends CFGNode {
 
@@ -61,7 +60,7 @@ public abstract class CFGBranchNode extends CFGNode {
 				if(statement.getStatement() instanceof Block) {
 					CompositeStatementObject blockStatement = (CompositeStatementObject)statement;
 					for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
-						if(statementInsideBlock.getStatement() instanceof TryStatement) {
+						if(statementInsideBlock instanceof TryStatementObject) {
 							CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
 							processTryStatement(nestedStatements, tryStatement);
 						}
@@ -69,7 +68,7 @@ public abstract class CFGBranchNode extends CFGNode {
 							nestedStatements.add(statementInsideBlock);
 					}
 				}
-				else if(statement.getStatement() instanceof TryStatement) {
+				else if(statement instanceof TryStatementObject) {
 					CompositeStatementObject tryStatement = (CompositeStatementObject)statement;
 					processTryStatement(nestedStatements, tryStatement);
 				}
@@ -95,8 +94,10 @@ public abstract class CFGBranchNode extends CFGNode {
 
 	private void processTryStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject tryStatement) {
 		CompositeStatementObject tryBlock = (CompositeStatementObject)tryStatement.getStatements().get(0);
+		/*if(((TryStatementObject)tryStatement).hasResources())
+			nestedStatements.add(tryStatement);*/
 		for(AbstractStatement statementInsideBlock : tryBlock.getStatements()) {
-			if(statementInsideBlock.getStatement() instanceof TryStatement) {
+			if(statementInsideBlock instanceof TryStatementObject) {
 				CompositeStatementObject nestedTryStatement = (CompositeStatementObject)statementInsideBlock;
 				processTryStatement(nestedStatements, nestedTryStatement);
 			}

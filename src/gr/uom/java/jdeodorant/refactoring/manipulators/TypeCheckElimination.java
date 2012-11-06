@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -979,7 +980,16 @@ public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 					for(CatchClause catchClause : catchClauses) {
 						SingleVariableDeclaration exception = catchClause.getException();
 						Type exceptionType = exception.getType();
-						catchClauseExceptions.add(exceptionType.resolveBinding());
+						if(exceptionType instanceof UnionType) {
+							UnionType unionType = (UnionType)exceptionType;
+							List<Type> types = unionType.types();
+							for(Type type : types) {
+								catchClauseExceptions.add(type.resolveBinding());
+							}
+						}
+						else {
+							catchClauseExceptions.add(exceptionType.resolveBinding());
+						}
 					}
 				}
 				for(Expression expression : methodInvocations) {

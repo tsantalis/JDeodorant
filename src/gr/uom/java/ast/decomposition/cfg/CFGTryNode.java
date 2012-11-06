@@ -17,7 +17,7 @@ public class CFGTryNode extends CFGNode {
 		TryStatementObject tryStatement = (TryStatementObject)statement;
 		this.hasResources = tryStatement.hasResources();
 		for(CatchClauseObject catchClause : tryStatement.getCatchClauses()) {
-			handledExceptions.add(catchClause.getExceptionType());
+			handledExceptions.addAll(catchClause.getExceptionTypes());
 		}
 	}
 	

@@ -19,7 +19,6 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
-import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 import gr.uom.java.ast.MethodObject;
@@ -71,7 +70,7 @@ public class CFG extends Graph {
 	}
 
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
-		if(composite.getStatement() instanceof TryStatement) {
+		if(composite instanceof TryStatementObject) {
 			AbstractStatement firstStatement = composite.getStatements().get(0);
 			composite = (CompositeStatementObject)firstStatement;
 		}
@@ -86,7 +85,7 @@ public class CFG extends Graph {
 				if(compositeStatement.getStatement() instanceof Block) {
 					previousNodes = process(previousNodes, compositeStatement);
 				}
-				else if(compositeStatement.getStatement() instanceof TryStatement) {
+				else if(compositeStatement instanceof TryStatementObject) {
 					TryStatementObject tryStatement = (TryStatementObject)compositeStatement;
 					if(!tryStatement.hasResources()) {
 						//if a try node does not have resources, it is treated as a block and is omitted
@@ -178,7 +177,7 @@ public class CFG extends Graph {
 		if(parent.getStatement() instanceof Block)
 			parent = parent.getParent();
 		int position = i;
-		while(parent != null && parent.getStatement() instanceof TryStatement) {
+		while(parent != null && parent instanceof TryStatementObject) {
 			CompositeStatementObject tryStatement = parent;
 			CompositeStatementObject tryStatementParent = tryStatement.getParent();
 			List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
@@ -193,11 +192,19 @@ public class CFG extends Graph {
 				}
 				j++;
 			}
-			tryParentStatements.remove(tryStatement);
-			tryParentStatements.addAll(positionOfTryStatementInParent, statements);
+			if(((TryStatementObject)tryStatement).hasResources()) {
+				tryParentStatements.addAll(positionOfTryStatementInParent + 1, statements);
+			}
+			else {
+				tryParentStatements.remove(tryStatement);
+				tryParentStatements.addAll(positionOfTryStatementInParent, statements);
+			}
 			statements = tryParentStatements;
 			parent = tryStatementParent;
-			position = positionOfTryStatementInParent + position;
+			if(((TryStatementObject)tryStatement).hasResources())
+				position = positionOfTryStatementInParent + position + 1;
+			else
+				position = positionOfTryStatementInParent + position;
 		}
 		if(parent != null && parent.getStatement() instanceof SwitchStatement &&
 				parentComposite.getStatement() instanceof Block) {
@@ -230,7 +237,7 @@ public class CFG extends Graph {
 			if(position >= 1)
 				previousStatement = statements.get(position-1);
 			int j = 0;
-			while(previousStatement != null && previousStatement.getStatement() instanceof TryStatement) {
+			while(previousStatement != null && previousStatement instanceof TryStatementObject && !((TryStatementObject)previousStatement).hasResources()) {
 				CompositeStatementObject tryStatement = (CompositeStatementObject)previousStatement;
 				AbstractStatement firstStatement = tryStatement.getStatements().get(0);
 				if(firstStatement instanceof CompositeStatementObject) {

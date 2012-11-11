@@ -87,6 +87,7 @@ public class MoveMethodRefactoring extends Refactoring {
 	private boolean leaveDelegate;
 	private String movedMethodName;
 	private boolean isTargetClassVariableParameter;
+	private int targetClassVariableParameterIndex;
 	private Map<ICompilationUnit, CompilationUnitChange> fChanges;
 	private MultiTextEdit sourceMultiTextEdit;
 	private MultiTextEdit targetMultiTextEdit;
@@ -109,6 +110,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		this.leaveDelegate = leaveDelegate;
 		this.movedMethodName = movedMethodName;
 		this.isTargetClassVariableParameter = false;
+		this.targetClassVariableParameterIndex = -1;
 		this.fChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
 		
 		ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
@@ -231,6 +233,7 @@ public class MoveMethodRefactoring extends Refactoring {
 						parametersRewrite.remove(newMethodParameters.get(i), null);
 						removeParamTagElementFromJavadoc(newMethodDeclaration, targetRewriter, targetClassVariableName);
 						isTargetClassVariableParameter = true;
+						targetClassVariableParameterIndex = i;
 						break;
 					}
 				}
@@ -1275,8 +1278,29 @@ public class MoveMethodRefactoring extends Refactoring {
 							}
 							if(argumentSimpleName != null) {
 								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-								if(argumentSimpleName.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
-										targetTypeDeclaration.resolveBinding().isEqualTo(argumentSimpleName.resolveTypeBinding().getSuperclass())) {
+								if(( argumentSimpleName.resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+										targetTypeDeclaration.resolveBinding().isEqualTo(argumentSimpleName.resolveTypeBinding().getSuperclass()) ) &&
+										targetClassVariableParameterIndex == j) {
+									argumentRewrite.remove(arguments.get(j), null);
+									targetRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, arguments.get(j), null);
+									argumentFound = true;
+									break;
+								}
+							}
+							j++;
+						}
+					}
+					if(!argumentFound && isTargetClassVariableParameter) {
+						List<Expression> sourceMethodInvocationArguments = sourceMethodInvocation.arguments();
+						int j = 0;
+						for(Expression argument : sourceMethodInvocationArguments) {
+							if(argument instanceof MethodInvocation) {
+								MethodInvocation argumentMethodInvocation = (MethodInvocation)argument;
+								ITypeBinding returnTypeBinding = argumentMethodInvocation.resolveMethodBinding().getReturnType();
+								ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+								if(( returnTypeBinding.isEqualTo(targetTypeDeclaration.resolveBinding()) ||
+										targetTypeDeclaration.resolveBinding().isEqualTo(returnTypeBinding.getSuperclass()) ) &&
+										targetClassVariableParameterIndex == j) {
 									argumentRewrite.remove(arguments.get(j), null);
 									targetRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, arguments.get(j), null);
 									break;

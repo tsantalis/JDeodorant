@@ -1133,4 +1133,11 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 		return false;
 	}
+
+	public boolean isEquivalent(PDGNode node) {
+		if(this instanceof PDGMethodEntryNode && node instanceof PDGMethodEntryNode)
+			return true;
+		else
+			return this.getCFGNode().isEquivalent(node.getCFGNode());
+	}
 }

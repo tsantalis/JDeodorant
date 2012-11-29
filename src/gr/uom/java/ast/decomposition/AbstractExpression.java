@@ -28,6 +28,7 @@ public class AbstractExpression extends AbstractMethodFragment {
 		processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
 		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
 		processArrayCreations(expressionExtractor.getArrayCreations(expression));
+		processLiterals(expressionExtractor.getLiterals(expression));
     }
 
     public void setOwner(CompositeStatementObject owner) {

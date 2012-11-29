@@ -45,7 +45,7 @@ public class ExtractMethodInputPage extends UserInputWizardPage {
 		Font font = new Font(parent.getDisplay(), labelFontData);
 
 		Label extractedClassNameLabel = new Label(result, SWT.NONE);
-		extractedClassNameLabel.setText("Extracted Class Name");
+		extractedClassNameLabel.setText("Extracted Method Name");
 		extractedClassNameLabel.setFont(font);
 
 		Text extractedClassNameField = new Text(result, SWT.SINGLE | SWT.LEFT | SWT.BORDER);

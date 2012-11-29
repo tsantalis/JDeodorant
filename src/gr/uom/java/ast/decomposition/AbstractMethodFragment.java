@@ -4,6 +4,7 @@ import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
+import gr.uom.java.ast.LiteralObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
@@ -47,6 +48,7 @@ public abstract class AbstractMethodFragment {
 	private List<LocalVariableDeclarationObject> localVariableDeclarationList;
 	private List<LocalVariableInstructionObject> localVariableInstructionList;
 	private List<CreationObject> creationList;
+	private List<LiteralObject> literalList;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters;
@@ -82,6 +84,7 @@ public abstract class AbstractMethodFragment {
 		this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
 		this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
 		this.creationList = new ArrayList<CreationObject>();
+		this.literalList = new ArrayList<LiteralObject>();
 		this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
 		this.invokedMethodsThroughParameters = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
@@ -353,6 +356,13 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	protected void processLiterals(List<Expression> literals) {
+		for(Expression literal : literals) {
+			LiteralObject literalObject = new LiteralObject(literal);
+			literalList.add(literalObject);
+		}
+	}
+
 	private void addInvokedMethodThroughField(AbstractVariable field, MethodInvocationObject methodInvocation) {
 		if(invokedMethodsThroughFields.containsKey(field)) {
 			LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(field);
@@ -555,6 +565,10 @@ public abstract class AbstractMethodFragment {
 
 	public List<CreationObject> getCreations() {
 		return creationList;
+	}
+
+	public List<LiteralObject> getLiterals() {
+		return literalList;
 	}
 
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {

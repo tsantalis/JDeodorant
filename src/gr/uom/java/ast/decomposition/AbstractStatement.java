@@ -29,6 +29,7 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 		processMethodInvocations(expressionExtractor.getMethodInvocations(statement));
 		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(statement));
 		processArrayCreations(expressionExtractor.getArrayCreations(statement));
+		processLiterals(expressionExtractor.getLiterals(statement));
     }
 
     public void setParent(CompositeStatementObject parent) {
@@ -45,4 +46,12 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
     }
     
     public abstract List<String> stringRepresentation();
+
+	public boolean isEquivalent(AbstractStatement s) {
+		if(this instanceof CompositeStatementObject && s instanceof CompositeStatementObject)
+			return ((CompositeStatementObject)this).isEquivalent((CompositeStatementObject)s);
+		else if(this instanceof StatementObject && s instanceof StatementObject)
+			return ((StatementObject)this).isEquivalent((StatementObject)s);
+		return false;
+	}
 }

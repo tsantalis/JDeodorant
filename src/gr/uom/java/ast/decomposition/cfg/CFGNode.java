@@ -104,4 +104,16 @@ public class CFGNode extends GraphNode implements Comparable<CFGNode> {
 		else
 			return 0;
 	}
+
+	public boolean isEquivalent(CFGNode node) {
+		if(this.getClass() == node.getClass()) {
+			AbstractStatement s1 = this.getStatement();
+			AbstractStatement s2 = node.getStatement();
+			if(s1.toString().equals(s2.toString()))
+				return true;
+			else
+				return s1.isEquivalent(s2);
+		}
+		return false;
+	}
 }

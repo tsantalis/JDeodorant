@@ -35,4 +35,16 @@ public class StatementObject extends AbstractStatement {
 		stringRepresentation.add(this.toString());
 		return stringRepresentation;
 	}
+	
+	public boolean isEquivalent(StatementObject s) {
+		return this.getCreations().size() == s.getCreations().size() &&
+		this.getFieldInstructions().size() == s.getFieldInstructions().size() &&
+		this.getSuperFieldInstructions().size() == s.getSuperFieldInstructions().size() &&
+		this.getSuperMethodInvocations().size() == s.getSuperMethodInvocations().size() &&
+		this.getLocalVariableDeclarations().size() == s.getLocalVariableDeclarations().size() &&
+		this.getLocalVariableInstructions().size() == s.getLocalVariableInstructions().size() &&
+		this.getMethodInvocations().size() == s.getMethodInvocations().size() &&
+		this.getLiterals().size() == s.getLiterals().size() &&
+		this.getInvokedStaticMethods().size() == s.getInvokedStaticMethods().size();
+	}
 }

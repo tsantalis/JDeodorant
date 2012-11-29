@@ -11,8 +11,10 @@ import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
+import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
@@ -28,6 +30,8 @@ import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.NullLiteral;
+import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
@@ -36,6 +40,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -168,6 +173,18 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of Type, String, Boolean, Character, Number, and Null Literal objects
+	public List<Expression> getLiterals(Statement statement) {
+		instanceChecker = new InstanceOfLiteral();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of Type, String, Boolean, Character, Number, and Null Literal objects
+	public List<Expression> getLiterals(Expression expression) {
+		instanceChecker = new InstanceOfLiteral();
+		return getExpressions(expression);
+	}
+
 	// returns a List of CastExpression objects
 	public List<Expression> getCastExpressions(Statement statement) {
 		instanceChecker = new InstanceOfCastExpression();
@@ -531,6 +548,31 @@ public class ExpressionExtractor {
 			TypeLiteral typeLiteral = (TypeLiteral)expression;
 			if(instanceChecker.instanceOf(typeLiteral))
 				expressionList.add(typeLiteral);
+		}
+		else if(expression instanceof StringLiteral) {
+			StringLiteral stringLiteral = (StringLiteral)expression;
+			if(instanceChecker.instanceOf(stringLiteral))
+				expressionList.add(stringLiteral);
+		}
+		else if(expression instanceof NullLiteral) {
+			NullLiteral nullLiteral = (NullLiteral)expression;
+			if(instanceChecker.instanceOf(nullLiteral))
+				expressionList.add(nullLiteral);
+		}
+		else if(expression instanceof NumberLiteral) {
+			NumberLiteral numberLiteral = (NumberLiteral)expression;
+			if(instanceChecker.instanceOf(numberLiteral))
+				expressionList.add(numberLiteral);
+		}
+		else if(expression instanceof BooleanLiteral) {
+			BooleanLiteral booleanLiteral = (BooleanLiteral)expression;
+			if(instanceChecker.instanceOf(booleanLiteral))
+				expressionList.add(booleanLiteral);
+		}
+		else if(expression instanceof CharacterLiteral) {
+			CharacterLiteral characterLiteral = (CharacterLiteral)expression;
+			if(instanceChecker.instanceOf(characterLiteral))
+				expressionList.add(characterLiteral);
 		}
 		return expressionList;
 	}

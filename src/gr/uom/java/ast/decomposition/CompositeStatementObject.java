@@ -194,6 +194,30 @@ public class CompositeStatementObject extends AbstractStatement {
 		this.getLocalVariableInstructionsInExpressions().size() == comp.getLocalVariableInstructionsInExpressions().size() &&
 		this.getMethodInvocationsInExpressions().size() == comp.getMethodInvocationsInExpressions().size() &&
 		this.getLiteralsInExpressions().size() == comp.getLiteralsInExpressions().size() &&
-		this.getInvokedStaticMethodsInExpressions().size() == comp.getInvokedStaticMethodsInExpressions().size();
+		this.getInvokedStaticMethodsInExpressions().size() == comp.getInvokedStaticMethodsInExpressions().size() &&
+		this.equivalentVariableTypes(comp);
+	}
+	
+	private boolean equivalentVariableTypes(CompositeStatementObject comp) {
+		List<LocalVariableDeclarationObject> variableDeclarations1 = this.getLocalVariableDeclarationsInExpressions();
+		List<LocalVariableDeclarationObject> variableDeclarations2 = comp.getLocalVariableDeclarationsInExpressions();
+		for(int i=0; i<variableDeclarations1.size(); i++) {
+			LocalVariableDeclarationObject variableDeclaration1 = variableDeclarations1.get(i);
+			LocalVariableDeclarationObject variableDeclaration2 = variableDeclarations2.get(i);
+			if(!variableDeclaration1.getType().equals(variableDeclaration2.getType())) {
+				return false;
+			}
+		}
+		
+		List<LocalVariableInstructionObject> variableInstructions1 = this.getLocalVariableInstructionsInExpressions();
+		List<LocalVariableInstructionObject> variableInstructions2 = comp.getLocalVariableInstructionsInExpressions();
+		for(int i=0; i<variableInstructions1.size(); i++) {
+			LocalVariableInstructionObject variableInstruction1 = variableInstructions1.get(i);
+			LocalVariableInstructionObject variableInstruction2 = variableInstructions2.get(i);
+			if(!variableInstruction1.getType().equals(variableInstruction2.getType())) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

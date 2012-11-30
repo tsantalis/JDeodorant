@@ -1,5 +1,8 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.LocalVariableDeclarationObject;
+import gr.uom.java.ast.LocalVariableInstructionObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,6 +48,30 @@ public class StatementObject extends AbstractStatement {
 		this.getLocalVariableInstructions().size() == s.getLocalVariableInstructions().size() &&
 		this.getMethodInvocations().size() == s.getMethodInvocations().size() &&
 		this.getLiterals().size() == s.getLiterals().size() &&
-		this.getInvokedStaticMethods().size() == s.getInvokedStaticMethods().size();
+		this.getInvokedStaticMethods().size() == s.getInvokedStaticMethods().size() &&
+		this.equivalentVariableTypes(s);
+	}
+	
+	private boolean equivalentVariableTypes(StatementObject s) {
+		List<LocalVariableDeclarationObject> variableDeclarations1 = this.getLocalVariableDeclarations();
+		List<LocalVariableDeclarationObject> variableDeclarations2 = s.getLocalVariableDeclarations();
+		for(int i=0; i<variableDeclarations1.size(); i++) {
+			LocalVariableDeclarationObject variableDeclaration1 = variableDeclarations1.get(i);
+			LocalVariableDeclarationObject variableDeclaration2 = variableDeclarations2.get(i);
+			if(!variableDeclaration1.getType().equals(variableDeclaration2.getType())) {
+				return false;
+			}
+		}
+		
+		List<LocalVariableInstructionObject> variableInstructions1 = this.getLocalVariableInstructions();
+		List<LocalVariableInstructionObject> variableInstructions2 = s.getLocalVariableInstructions();
+		for(int i=0; i<variableInstructions1.size(); i++) {
+			LocalVariableInstructionObject variableInstruction1 = variableInstructions1.get(i);
+			LocalVariableInstructionObject variableInstruction2 = variableInstructions2.get(i);
+			if(!variableInstruction1.getType().equals(variableInstruction2.getType())) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

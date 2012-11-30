@@ -7,8 +7,10 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
@@ -45,6 +47,8 @@ public class SliceProfileAction implements IObjectActionDelegate {
 			if(selection instanceof IStructuredSelection) {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 				Object element = structuredSelection.getFirstElement();
+				//remove the next statement
+				final List list = structuredSelection.toList();
 				if(element instanceof IMethod) {
 					this.pdg = null;
 					this.selectedMethodHasNoBody = false;
@@ -77,6 +81,15 @@ public class SliceProfileAction implements IObjectActionDelegate {
 									CompilationUnitCache.getInstance().lock(typeRoot);
 									CFG cfg = new CFG(methodObject);
 									pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject), monitor);
+									//remove this code
+									if(list.size() > 1) {
+										IMethod method2 = (IMethod)list.get(1);
+										MethodObject methodObject2 = systemObject.getMethodObject(method2);
+										CFG cfg2 = new CFG(methodObject2);
+										PDG pdg2 = new PDG(cfg2, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject2), monitor);
+										PDGMapper mapper = new PDGMapper(pdg, pdg2);
+									}//
+									
 									CompilationUnitCache.getInstance().releaseLock();
 								}
 								else {

@@ -4,6 +4,7 @@ import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.decomposition.cfg.mapping.Replacement;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import org.eclipse.jdt.core.dom.Expression;
@@ -53,5 +54,13 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 		else if(this instanceof StatementObject && s instanceof StatementObject)
 			return ((StatementObject)this).isEquivalent((StatementObject)s);
 		return false;
+	}
+
+	public List<Replacement> findReplacements(AbstractStatement s) {
+		if(this instanceof CompositeStatementObject && s instanceof CompositeStatementObject)
+			return ((CompositeStatementObject)this).findReplacements((CompositeStatementObject)s);
+		else if(this instanceof StatementObject && s instanceof StatementObject)
+			return ((StatementObject)this).findReplacements((StatementObject)s);
+		return null;
 	}
 }

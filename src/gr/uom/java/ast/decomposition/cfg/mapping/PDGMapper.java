@@ -28,7 +28,11 @@ public class PDGMapper {
 			while(nodeIterator2.hasNext()) {
 				PDGNode node2 = (PDGNode)nodeIterator2.next();
 				if(node1.isEquivalent(node2)) {
-					System.out.println(node1 + "-->" + node2);
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2);
+					if(mapping.isValidMatch()) {
+						System.out.println(mapping);
+						System.out.println("--------------------------------------------------------------");
+					}
 				}
 			}
 		}

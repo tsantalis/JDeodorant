@@ -8,6 +8,11 @@ import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
+import gr.uom.java.ast.decomposition.cfg.mapping.FieldInstructionReplacement;
+import gr.uom.java.ast.decomposition.cfg.mapping.LiteralReplacement;
+import gr.uom.java.ast.decomposition.cfg.mapping.Replacement;
+import gr.uom.java.ast.decomposition.cfg.mapping.VariableDeclarationReplacement;
+import gr.uom.java.ast.decomposition.cfg.mapping.VariableInstructionReplacement;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -181,6 +186,7 @@ public class CompositeStatementObject extends AbstractStatement {
 				sb.append(expression.toString());
 			sb.append(")");
 		}
+		sb.append("\n");
 		return sb.toString();
 	}
 	
@@ -195,10 +201,10 @@ public class CompositeStatementObject extends AbstractStatement {
 		this.getMethodInvocationsInExpressions().size() == comp.getMethodInvocationsInExpressions().size() &&
 		this.getLiteralsInExpressions().size() == comp.getLiteralsInExpressions().size() &&
 		this.getInvokedStaticMethodsInExpressions().size() == comp.getInvokedStaticMethodsInExpressions().size() &&
-		this.equivalentVariableTypes(comp);
+		this.equivalentTypes(comp);
 	}
 	
-	private boolean equivalentVariableTypes(CompositeStatementObject comp) {
+	private boolean equivalentTypes(CompositeStatementObject comp) {
 		List<LocalVariableDeclarationObject> variableDeclarations1 = this.getLocalVariableDeclarationsInExpressions();
 		List<LocalVariableDeclarationObject> variableDeclarations2 = comp.getLocalVariableDeclarationsInExpressions();
 		for(int i=0; i<variableDeclarations1.size(); i++) {
@@ -218,6 +224,74 @@ public class CompositeStatementObject extends AbstractStatement {
 				return false;
 			}
 		}
+
+		List<FieldInstructionObject> fieldInstructions1 = this.getFieldInstructionsInExpressions();
+		List<FieldInstructionObject> fieldInstructions2 = comp.getFieldInstructionsInExpressions();
+		for(int i=0; i<fieldInstructions1.size(); i++) {
+			FieldInstructionObject fieldInstruction1 = fieldInstructions1.get(i);
+			FieldInstructionObject fieldInstruction2 = fieldInstructions2.get(i);
+			if(!fieldInstruction1.getType().equals(fieldInstruction2.getType())) {
+				return false;
+			}
+		}
+		
+		List<LiteralObject> literals1 = this.getLiteralsInExpressions();
+		List<LiteralObject> literals2 = comp.getLiteralsInExpressions();
+		for(int i=0; i<literals1.size(); i++) {
+			LiteralObject literal1 = literals1.get(i);
+			LiteralObject literal2 = literals2.get(i);
+			if(!literal1.getType().equals(literal2.getType())) {
+				return false;
+			}
+		}
 		return true;
+	}
+	
+	public List<Replacement> findReplacements(CompositeStatementObject comp) {
+		List<Replacement> replacements = new ArrayList<Replacement>();
+		List<LocalVariableDeclarationObject> variableDeclarations1 = this.getLocalVariableDeclarationsInExpressions();
+		List<LocalVariableDeclarationObject> variableDeclarations2 = comp.getLocalVariableDeclarationsInExpressions();
+		for(int i=0; i<variableDeclarations1.size(); i++) {
+			LocalVariableDeclarationObject variableDeclaration1 = variableDeclarations1.get(i);
+			LocalVariableDeclarationObject variableDeclaration2 = variableDeclarations2.get(i);
+			if(!variableDeclaration1.getName().equals(variableDeclaration2.getName())) {
+				VariableDeclarationReplacement replacement = new VariableDeclarationReplacement(variableDeclaration1, variableDeclaration2);
+				replacements.add(replacement);
+			}
+		}
+		
+		List<LocalVariableInstructionObject> variableInstructions1 = this.getLocalVariableInstructionsInExpressions();
+		List<LocalVariableInstructionObject> variableInstructions2 = comp.getLocalVariableInstructionsInExpressions();
+		for(int i=0; i<variableInstructions1.size(); i++) {
+			LocalVariableInstructionObject variableInstruction1 = variableInstructions1.get(i);
+			LocalVariableInstructionObject variableInstruction2 = variableInstructions2.get(i);
+			if(!variableInstruction1.getName().equals(variableInstruction2.getName())) {
+				VariableInstructionReplacement replacement = new VariableInstructionReplacement(variableInstruction1, variableInstruction2);
+				replacements.add(replacement);
+			}
+		}
+		
+		List<FieldInstructionObject> fieldInstructions1 = this.getFieldInstructionsInExpressions();
+		List<FieldInstructionObject> fieldInstructions2 = comp.getFieldInstructionsInExpressions();
+		for(int i=0; i<fieldInstructions1.size(); i++) {
+			FieldInstructionObject fieldInstruction1 = fieldInstructions1.get(i);
+			FieldInstructionObject fieldInstruction2 = fieldInstructions2.get(i);
+			if(!fieldInstruction1.getName().equals(fieldInstruction2.getName())) {
+				FieldInstructionReplacement replacement = new FieldInstructionReplacement(fieldInstruction1, fieldInstruction2);
+				replacements.add(replacement);
+			}
+		}
+		
+		List<LiteralObject> literals1 = this.getLiteralsInExpressions();
+		List<LiteralObject> literals2 = comp.getLiteralsInExpressions();
+		for(int i=0; i< literals1.size(); i++) {
+			LiteralObject literal1 = literals1.get(i);
+			LiteralObject literal2 = literals2.get(i);
+			if(!literal1.getValue().equals(literal2.getValue())) {
+				LiteralReplacement replacement = new LiteralReplacement(literal1, literal2);
+				replacements.add(replacement);
+			}
+		}
+		return replacements;
 	}
 }

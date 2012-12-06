@@ -5,7 +5,7 @@ public class PDGControlDependence extends PDGDependence {
 	private volatile int hashCode = 0;
 	
 	public PDGControlDependence(PDGNode src, PDGNode dst, boolean trueControlDependence) {
-		super(src, dst);
+		super(src, dst, PDGDependenceType.CONTROL);
 		this.trueControlDependence = trueControlDependence;
 		src.addOutgoingEdge(this);
 		dst.addIncomingEdge(this);

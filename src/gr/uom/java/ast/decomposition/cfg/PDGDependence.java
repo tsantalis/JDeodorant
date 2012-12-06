@@ -1,9 +1,11 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 public abstract class PDGDependence extends GraphEdge {
-
-	public PDGDependence(PDGNode src, PDGNode dst) {
+	private PDGDependenceType type;
+	
+	public PDGDependence(PDGNode src, PDGNode dst, PDGDependenceType type) {
 		super(src, dst);
+		this.type = type;
 	}
 
 	public GraphNode getSrc() {
@@ -12,5 +14,9 @@ public abstract class PDGDependence extends GraphEdge {
 
 	public GraphNode getDst() {
 		return dst;
+	}
+
+	public PDGDependenceType getType() {
+		return type;
 	}
 }

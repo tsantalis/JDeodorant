@@ -96,6 +96,13 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return cfgNode;
 	}
 
+	public Iterator<GraphEdge> getDependenceIterator() {
+		Set<GraphEdge> allEdges = new LinkedHashSet<GraphEdge>();
+		allEdges.addAll(incomingEdges);
+		allEdges.addAll(outgoingEdges);
+		return allEdges.iterator();
+	}
+
 	public Iterator<GraphEdge> getOutgoingDependenceIterator() {
 		return outgoingEdges.iterator();
 	}
@@ -1135,8 +1142,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	public boolean isEquivalent(PDGNode node) {
-		if(this instanceof PDGMethodEntryNode && node instanceof PDGMethodEntryNode)
-			return true;
+		if(this instanceof PDGMethodEntryNode || node instanceof PDGMethodEntryNode)
+			return false;
 		else
 			return this.getCFGNode().isEquivalent(node.getCFGNode());
 	}

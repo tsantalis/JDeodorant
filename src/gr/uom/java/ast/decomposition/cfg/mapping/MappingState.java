@@ -27,19 +27,54 @@ public class MappingState {
 		traverse(this, initialNodeMapping);
 	}
 	
+	public List<MappingState> getMaximumCommonSubgraph() {
+		List<MappingState> set = new ArrayList<MappingState>();
+		this.findMaximum(set, 0);
+		return set;
+	}
+	
+	private void findMaximum(List<MappingState> set, int max) {
+		int newMax = max;
+		if(this.getSize() > max) {
+			set.clear();
+			set.add(this);
+			newMax = this.getSize();
+		}
+		else if(this.getSize() == max) {
+			set.add(this);
+		}
+		for(MappingState child : children) {
+			child.findMaximum(set, newMax);
+		}
+	}
+	
+	public int getSize() {
+		return nodeMappings.size() + edgeMappings.size();
+	}
+
 	private void traverse(MappingState state, PDGNodeMapping nodeMapping) {
 		PDGNode nodeG1 = nodeMapping.getNodeG1();
 		PDGNode nodeG2 = nodeMapping.getNodeG2();
-		Iterator<GraphEdge> nodeG1EdgeIterator = nodeG1.getOutgoingDependenceIterator();
+		Iterator<GraphEdge> nodeG1EdgeIterator = nodeG1.getDependenceIterator();
 		while(nodeG1EdgeIterator.hasNext()) {
 			PDGDependence edgeG1 = (PDGDependence)nodeG1EdgeIterator.next();
-			Iterator<GraphEdge> nodeG2EdgeIterator = nodeG2.getOutgoingDependenceIterator();
+			Iterator<GraphEdge> nodeG2EdgeIterator = nodeG2.getDependenceIterator();
 			while(nodeG2EdgeIterator.hasNext()) {
 				PDGDependence edgeG2 = (PDGDependence)nodeG2EdgeIterator.next();
 				PDGEdgeMapping edgeMapping = new PDGEdgeMapping(edgeG1, edgeG2);
 				if(edgeMapping.isCompatible(nodeMapping)) {
-					PDGNode dstNodeG1 = (PDGNode)edgeG1.getDst();
-					PDGNode dstNodeG2 = (PDGNode)edgeG2.getDst();
+					PDGNode dstNodeG1 = null;
+					PDGNode dstNodeG2 = null;
+					if(edgeG1.getSrc().equals(nodeG1) && edgeG2.getSrc().equals(nodeG2)) {
+						//get destination nodes if the edge is outgoing
+						dstNodeG1 = (PDGNode)edgeG1.getDst();
+						dstNodeG2 = (PDGNode)edgeG2.getDst();
+					}
+					else {
+						//get source nodes if the edge is incoming
+						dstNodeG1 = (PDGNode)edgeG1.getSrc();
+						dstNodeG2 = (PDGNode)edgeG2.getSrc();
+					}
 					if(dstNodeG1.isEquivalent(dstNodeG2)) {
 						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2);
 						if(dstNodeMapping.isValidMatch()) {
@@ -48,7 +83,7 @@ public class MappingState {
 								childState.edgeMappings.add(edgeMapping);
 								childState.propagateEdgeMappingToChildren(edgeMapping);
 							}
-							else {
+							else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
 								MappingState newMappingState = state.copy();
 								state.children.add(newMappingState);
 								newMappingState.edgeMappings.add(edgeMapping);
@@ -61,7 +96,17 @@ public class MappingState {
 			}
 		}
 	}
-	
+
+	private boolean containsAtLeastOneNodeInMappings(PDGNodeMapping dstNodeMapping) {
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG1().equals(dstNodeMapping.getNodeG1()) ||
+					nodeMapping.getNodeG2().equals(dstNodeMapping.getNodeG2())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private void propagateEdgeMappingToChildren(PDGEdgeMapping edgeMapping) {
 		for(MappingState state : children) {
 			state.edgeMappings.add(edgeMapping);

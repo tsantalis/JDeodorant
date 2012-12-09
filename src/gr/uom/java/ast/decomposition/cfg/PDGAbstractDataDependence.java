@@ -62,6 +62,10 @@ public abstract class PDGAbstractDataDependence extends PDGDependence {
 	}
 
 	public String toString() {
-		return src.toString() + "-->" + data.toString() + "\n" + dst.toString();
+		String loopInfo = isLoopCarried() ? " through loop " + loop.getId() : "";
+		return src.toString() + "-->" + data.toString() +
+				" <" + getType().toString().toLowerCase() + ">" +
+				loopInfo +
+				"\n" + dst.toString();
 	}
 }

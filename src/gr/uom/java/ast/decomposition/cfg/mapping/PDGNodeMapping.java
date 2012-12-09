@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 public class PDGNodeMapping {
@@ -58,19 +59,36 @@ public class PDGNodeMapping {
 	}
 
 	public boolean matchingVariableReplacement(AbstractVariable variable1, AbstractVariable variable2) {
-		for(Replacement replacement : replacements) {
-			if(replacement instanceof FieldInstructionReplacement) {
-				if(variable1.isField() && variable2.isField() &&
-						replacement.getValue1().equals(variable1.getVariableName()) &&
-						replacement.getValue2().equals(variable2.getVariableName())) {
-					return true;
-				}
+		if(variable1.getClass() == variable2.getClass()) {
+			String rightPartVariable1 = null;
+			String rightPartVariable2 = null;
+			if(variable1 instanceof CompositeVariable) {
+				CompositeVariable comp1 = (CompositeVariable)variable1;
+				CompositeVariable comp2 = (CompositeVariable)variable2;
+				rightPartVariable1 = comp1.getRightPart().toString();
+				rightPartVariable2 = comp2.getRightPart().toString();
 			}
-			else if(replacement instanceof VariableDeclarationReplacement || replacement instanceof VariableInstructionReplacement) {
-				if(!variable1.isField() && !variable2.isField() &&
-						replacement.getValue1().equals(variable1.getVariableName()) &&
-						replacement.getValue2().equals(variable2.getVariableName())) {
-					return true;
+			boolean equalRightPart = false;
+			if(rightPartVariable1 != null && rightPartVariable2 != null) {
+				equalRightPart = rightPartVariable1.equals(rightPartVariable2);
+			}
+			else {
+				equalRightPart = true;
+			}
+			for(Replacement replacement : replacements) {
+				if(replacement instanceof FieldInstructionReplacement) {
+					if(variable1.isField() && variable2.isField() && equalRightPart &&
+							replacement.getValue1().equals(variable1.getVariableName()) &&
+							replacement.getValue2().equals(variable2.getVariableName())) {
+						return true;
+					}
+				}
+				else if(replacement instanceof VariableDeclarationReplacement || replacement instanceof VariableInstructionReplacement) {
+					if(!variable1.isField() && !variable2.isField() && equalRightPart &&
+							replacement.getValue1().equals(variable1.getVariableName()) &&
+							replacement.getValue2().equals(variable2.getVariableName())) {
+						return true;
+					}
 				}
 			}
 		}

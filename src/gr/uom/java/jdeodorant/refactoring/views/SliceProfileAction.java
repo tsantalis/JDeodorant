@@ -7,6 +7,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.mapping.MappingState;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 
 import java.lang.reflect.InvocationTargetException;
@@ -88,6 +89,7 @@ public class SliceProfileAction implements IObjectActionDelegate {
 										CFG cfg2 = new CFG(methodObject2);
 										PDG pdg2 = new PDG(cfg2, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject2), monitor);
 										PDGMapper mapper = new PDGMapper(pdg, pdg2);
+										MappingState maxState = mapper.getMaximumState();
 									}//
 									
 									CompilationUnitCache.getInstance().releaseLock();

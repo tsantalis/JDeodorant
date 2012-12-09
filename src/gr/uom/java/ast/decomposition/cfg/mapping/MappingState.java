@@ -6,27 +6,37 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MappingState {
-	private List<PDGNodeMapping> nodeMappings;
-	private List<PDGEdgeMapping> edgeMappings;
+	private Set<PDGNodeMapping> nodeMappings;
+	private Set<PDGEdgeMapping> edgeMappings;
 	private List<MappingState> children;
 
 	private MappingState() {
-		this.nodeMappings = new ArrayList<PDGNodeMapping>();
-		this.edgeMappings = new ArrayList<PDGEdgeMapping>();
+		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
+		this.edgeMappings = new LinkedHashSet<PDGEdgeMapping>();
 		this.children = new ArrayList<MappingState>();
 	}
 
 	public MappingState(PDGNodeMapping initialNodeMapping) {
-		this.nodeMappings = new ArrayList<PDGNodeMapping>();
-		this.edgeMappings = new ArrayList<PDGEdgeMapping>();
+		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
+		this.edgeMappings = new LinkedHashSet<PDGEdgeMapping>();
 		this.children = new ArrayList<MappingState>();
 		this.nodeMappings.add(initialNodeMapping);
 		traverse(this, initialNodeMapping);
 	}
-	
+
+	public Set<PDGNodeMapping> getNodeMappings() {
+		return nodeMappings;
+	}
+
+	public Set<PDGEdgeMapping> getEdgeMappings() {
+		return edgeMappings;
+	}
+
 	public List<MappingState> getMaximumCommonSubgraph() {
 		List<MappingState> set = new ArrayList<MappingState>();
 		this.findMaximum(set, 0);
@@ -47,7 +57,15 @@ public class MappingState {
 			child.findMaximum(set, newMax);
 		}
 	}
-	
+
+	public int getNodeMappingSize() {
+		return nodeMappings.size();
+	}
+
+	public int getEdgeMappingSize() {
+		return edgeMappings.size();
+	}
+
 	public int getSize() {
 		return nodeMappings.size() + edgeMappings.size();
 	}
@@ -80,8 +98,10 @@ public class MappingState {
 						if(dstNodeMapping.isValidMatch()) {
 							MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
 							if(childState != null) {
-								childState.edgeMappings.add(edgeMapping);
-								childState.propagateEdgeMappingToChildren(edgeMapping);
+								if(!childState.edgeMappings.contains(edgeMapping)) {
+									childState.edgeMappings.add(edgeMapping);
+									childState.propagateEdgeMappingToChildren(edgeMapping);
+								}
 							}
 							else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
 								MappingState newMappingState = state.copy();

@@ -37,7 +37,8 @@ public class StatementObject extends AbstractStatement {
 	}
 
 	public String toString() {
-		return getStatement().toString();
+		//return getStatement().toString();
+		return getEntireString();
 	}
 
 	public List<String> stringRepresentation() {
@@ -110,7 +111,9 @@ public class StatementObject extends AbstractStatement {
 			LocalVariableDeclarationObject variableDeclaration1 = variableDeclarations1.get(i);
 			LocalVariableDeclarationObject variableDeclaration2 = variableDeclarations2.get(i);
 			if(!variableDeclaration1.getName().equals(variableDeclaration2.getName())) {
-				VariableDeclarationReplacement replacement = new VariableDeclarationReplacement(variableDeclaration1, variableDeclaration2);
+				int startPosition1 = fixIndex(variableDeclaration1.getVariableDeclaration().getName().getStartPosition() - this.getStartPosition(), this.toString(), variableDeclaration1.getName());
+				int startPosition2 = fixIndex(variableDeclaration2.getVariableDeclaration().getName().getStartPosition() - s.getStartPosition(), s.toString(), variableDeclaration2.getName());
+				VariableDeclarationReplacement replacement = new VariableDeclarationReplacement(variableDeclaration1, variableDeclaration2, startPosition1, startPosition2);
 				replacements.add(replacement);
 			}
 		}
@@ -121,7 +124,9 @@ public class StatementObject extends AbstractStatement {
 			LocalVariableInstructionObject variableInstruction1 = variableInstructions1.get(i);
 			LocalVariableInstructionObject variableInstruction2 = variableInstructions2.get(i);
 			if(!variableInstruction1.getName().equals(variableInstruction2.getName())) {
-				VariableInstructionReplacement replacement = new VariableInstructionReplacement(variableInstruction1, variableInstruction2);
+				int startPosition1 = fixIndex(variableInstruction1.getSimpleName().getStartPosition() - this.getStartPosition(), this.toString(), variableInstruction1.getName());
+				int startPosition2 = fixIndex(variableInstruction2.getSimpleName().getStartPosition() - s.getStartPosition(), s.toString(), variableInstruction2.getName());
+				VariableInstructionReplacement replacement = new VariableInstructionReplacement(variableInstruction1, variableInstruction2, startPosition1, startPosition2);
 				replacements.add(replacement);
 			}
 		}
@@ -132,7 +137,9 @@ public class StatementObject extends AbstractStatement {
 			FieldInstructionObject fieldInstruction1 = fieldInstructions1.get(i);
 			FieldInstructionObject fieldInstruction2 = fieldInstructions2.get(i);
 			if(!fieldInstruction1.getName().equals(fieldInstruction2.getName())) {
-				FieldInstructionReplacement replacement = new FieldInstructionReplacement(fieldInstruction1, fieldInstruction2);
+				int startPosition1 = fixIndex(fieldInstruction1.getSimpleName().getStartPosition() - this.getStartPosition(), this.toString(), fieldInstruction1.getName());
+				int startPosition2 = fixIndex(fieldInstruction2.getSimpleName().getStartPosition() - s.getStartPosition(), s.toString(), fieldInstruction2.getName());
+				FieldInstructionReplacement replacement = new FieldInstructionReplacement(fieldInstruction1, fieldInstruction2, startPosition1, startPosition2);
 				replacements.add(replacement);
 			}
 		}
@@ -143,10 +150,54 @@ public class StatementObject extends AbstractStatement {
 			LiteralObject literal1 = literals1.get(i);
 			LiteralObject literal2 = literals2.get(i);
 			if(!literal1.getValue().equals(literal2.getValue())) {
-				LiteralReplacement replacement = new LiteralReplacement(literal1, literal2);
+				int startPosition1 = fixIndex(literal1.getLiteral().getStartPosition() - this.getStartPosition(), this.toString(), literal1.getValue());
+				int startPosition2 = fixIndex(literal2.getLiteral().getStartPosition() - s.getStartPosition(), s.toString(), literal2.getValue());
+				LiteralReplacement replacement = new LiteralReplacement(literal1, literal2, startPosition1, startPosition2);
 				replacements.add(replacement);
 			}
 		}
 		return replacements;
+	}
+
+	private int fixIndex(int startPosition, String statement, String s) {
+		//searching left
+		int decrement = 0;
+		boolean decrementFound = false;
+		while(!statement.substring(startPosition - decrement, startPosition - decrement + s.length()).equals(s) &&
+				(startPosition - decrement) >= 0) {
+			decrement++;
+		}
+		if(statement.substring(startPosition - decrement, startPosition - decrement + s.length()).equals(s))
+			decrementFound = true;
+		
+		//searching right
+		int increment = 0;
+		boolean incrementFound = false;
+		while(!statement.substring(startPosition + increment, startPosition + increment + s.length()).equals(s) &&
+				(startPosition + increment) < (statement.length() - s.length()) ) {
+			increment++;
+		}
+		if(statement.substring(startPosition + increment, startPosition + increment + s.length()).equals(s))
+			incrementFound = true;
+		
+		//update indices
+		if(decrementFound && !incrementFound) {
+			startPosition -= decrement;
+		}
+		else if(!decrementFound && incrementFound) {
+			startPosition += increment;
+		}
+		else if(decrementFound && incrementFound) {
+			if(decrement < increment) {
+				startPosition -= decrement;
+			}
+			else if(increment < decrement) {
+				startPosition += increment;
+			}
+			else {
+				//increment1 = decrement1
+			}
+		}
+		return startPosition;
 	}
 }

@@ -1,9 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -26,11 +25,15 @@ public class PDGNodeMapping {
 		AbstractStatement s2 = nodeG2.getStatement();
 		if(!s1.toString().equals(s2.toString())) {
 			List<Replacement> replacements = s1.findReplacements(s2);
+			Collections.sort(replacements);
 			String tempS1 = s1.toString();
+			int replacementLengthDiff = 0;
 			for(Replacement replacement : replacements) {
-				//we need to make a safer replacement strategy
-				//Scenario: literal '0' is part of a variable name, we don't want literal '0' to be replaced in the variable name, but only in the literal's position
-				tempS1 = tempS1.replaceFirst(Pattern.quote(replacement.getValue1()), Matcher.quoteReplacement(replacement.getValue2()));
+				String start = tempS1.substring(0, replacement.getStartPosition1() + replacementLengthDiff);
+				String middle = replacement.getValue2();
+				String end = s1.toString().substring(replacement.getStartPosition1() + replacement.getLength1(), s1.toString().length());
+				tempS1 = start + middle + end;
+				replacementLengthDiff += replacement.getLength2() - replacement.getLength1();
 			}
 			if(tempS1.equals(s2.toString())) {
 				this.replacements.addAll(replacements);

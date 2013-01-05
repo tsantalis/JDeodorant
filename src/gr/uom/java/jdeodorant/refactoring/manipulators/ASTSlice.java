@@ -381,11 +381,7 @@ public class ASTSlice {
 	public String sliceToString() {
 		StringBuilder sb = new StringBuilder();
 		for(PDGNode sliceNode : sliceNodes) {
-			AbstractStatement statement = sliceNode.getStatement();
-			if(statement instanceof CompositeStatementObject)
-				sb.append(sliceNode.getStatement().toString()).append("\n");
-			else
-				sb.append(sliceNode.getStatement().toString());
+			sb.append(sliceNode.getStatement().toString());
 		}
 		return sb.toString();
 	}

@@ -19,6 +19,9 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
     public AbstractStatement(Statement statement) {
     	//this.statement = statement;
     	super();
+    	this.startPosition = statement.getStartPosition();
+    	this.length = statement.getLength();
+    	this.entireString = statement.toString();
     	this.statement = ASTInformationGenerator.generateASTInformation(statement);
     	this.parent = null;
         
@@ -45,8 +48,8 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
     	//return statement;
     	return (Statement)this.statement.recoverASTNode();
     }
-    
-    public abstract List<String> stringRepresentation();
+
+	public abstract List<String> stringRepresentation();
 
 	public boolean isEquivalent(AbstractStatement s) {
 		if(this instanceof CompositeStatementObject && s instanceof CompositeStatementObject)

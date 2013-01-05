@@ -17,6 +17,9 @@ public class AbstractExpression extends AbstractMethodFragment {
     public AbstractExpression(Expression expression) {
     	//this.expression = expression;
     	super();
+    	this.startPosition = expression.getStartPosition();
+    	this.length = expression.getLength();
+    	this.entireString = expression.toString();
     	this.expression = ASTInformationGenerator.generateASTInformation(expression);
     	this.owner = null;
         
@@ -45,6 +48,7 @@ public class AbstractExpression extends AbstractMethodFragment {
     }
 
 	public String toString() {
-		return getExpression().toString();
+		//return getExpression().toString();
+		return getEntireString();
 	}
 }

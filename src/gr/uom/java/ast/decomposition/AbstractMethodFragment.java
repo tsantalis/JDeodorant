@@ -41,6 +41,9 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class AbstractMethodFragment {
+	protected int startPosition;
+	protected int length;
+	protected String entireString;
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
 	private List<FieldInstructionObject> fieldInstructionList;
@@ -111,6 +114,18 @@ public abstract class AbstractMethodFragment {
 		this.usedLocalVariables = new LinkedHashSet<PlainVariable>();
 		this.parametersPassedAsArgumentsInMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.parametersPassedAsArgumentsInSuperMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
+	}
+
+    public int getStartPosition() {
+		return startPosition;
+	}
+
+	public int getLength() {
+		return length;
+	}
+
+	public String getEntireString() {
+		return entireString;
 	}
 
 	protected void processVariables(List<Expression> variableInstructions, List<Expression> assignments,

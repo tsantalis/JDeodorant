@@ -8,6 +8,7 @@ public class CFGNode extends GraphNode implements Comparable<CFGNode> {
 	private AbstractStatement statement;
 	private BasicBlock basicBlock;
 	private PDGNode pdgNode;
+	private volatile int hashCode = 0;
 
 	public CFGNode(AbstractStatement statement) {
 		super();
@@ -83,13 +84,18 @@ public class CFGNode extends GraphNode implements Comparable<CFGNode> {
     	
     	if(o instanceof CFGNode) {
     		CFGNode node = (CFGNode)o;
-    		return this.statement.equals(node.statement);
+    		return this.getId() == node.getId();
     	}
     	return false;
 	}
 
 	public int hashCode() {
-		return statement.hashCode();
+		if(hashCode == 0) {
+			int result = 17;
+			result = 37*result + getId();
+			hashCode = result;
+		}
+		return hashCode;
 	}
 
 	public String toString() {

@@ -178,42 +178,14 @@ public class CompositeStatementObject extends AbstractStatement {
 	}
 
 	public String toString() {
-		if(getEntireString().contains("\n")) {
-			String compositeString = getEntireString().substring(0, getEntireString().indexOf("\n"));
-			//find all occurrences of ")"
-			List<Integer> indices = new ArrayList<Integer>();
-			int index = compositeString.indexOf(")");
-			while (index >= 0) {
-			    indices.add(index);
-			    index = compositeString.indexOf(")", index + 1);
-			}
-			int searchIndex = compositeString.length();
-			if(compositeString.contains("{")) {
-				searchIndex = compositeString.indexOf("{");
-			}
-			else if(expressionList.size() > 0) {
-				AbstractExpression expression = expressionList.get(expressionList.size()-1);
-				int expressionStartPosition = expression.getStartPosition();
-				int expressionLength = expression.getLength();
-				searchIndex = expressionStartPosition - getStartPosition() + expressionLength;
-			}
-			int minimumDistance = Integer.MAX_VALUE;
-			int closestClosingParenthesis = -1;
-			for(Integer closingParenthesisIndex : indices) {
-				int distance = Math.abs(searchIndex - closingParenthesisIndex);
-				if(distance < minimumDistance) {
-					closestClosingParenthesis = closingParenthesisIndex;
-					minimumDistance = distance;
-				}
-			}
-			if(closestClosingParenthesis != -1) {
-				return getEntireString().substring(0, closestClosingParenthesis + 1) + "\n";
-			}
-			else {
-				return compositeString + "\n";
-			}
+		String compositeString = getEntireString().substring(0, getEntireString().indexOf("\n"));
+		if(expressionList.size() > 0) {
+			AbstractExpression expression = expressionList.get(expressionList.size()-1);
+			String expressionString = expression.toString();
+			int indexOfExpression = compositeString.indexOf(expressionString);
+			return compositeString.substring(0, indexOfExpression + expressionString.length() + 1) + "\n";
 		}
-		return getEntireString() + "\n";
+		return compositeString + "\n";
 	}
 	
 	public boolean isEquivalent(CompositeStatementObject comp) {

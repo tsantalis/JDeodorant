@@ -38,12 +38,10 @@ import org.eclipse.jdt.core.dom.Statement;
 public class CompositeStatementObject extends AbstractStatement {
 	
 	private List<AbstractStatement> statementList;
-	private List<AbstractExpression> expressionList;
 
 	public CompositeStatementObject(Statement statement, StatementType type) {
 		super(statement, type);
 		this.statementList = new ArrayList<AbstractStatement>();
-		this.expressionList = new ArrayList<AbstractExpression>();
 	}
 
 	public void addStatement(AbstractStatement statement) {
@@ -53,15 +51,6 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<AbstractStatement> getStatements() {
 		return statementList;
-	}
-
-	public void addExpression(AbstractExpression expression) {
-		expressionList.add(expression);
-		expression.setOwner(this);
-	}
-
-	public List<AbstractExpression> getExpressions() {
-		return expressionList;
 	}
 
 	public List<FieldInstructionObject> getFieldInstructionsInExpressions() {

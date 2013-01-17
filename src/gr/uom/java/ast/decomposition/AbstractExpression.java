@@ -12,11 +12,13 @@ public class AbstractExpression extends AbstractMethodFragment {
 	
 	//private Expression expression;
 	private ASTInformation expression;
-	private CompositeStatementObject owner;
+	private AbstractMethodFragment owner;
+	private ExpressionType type;
     
-    public AbstractExpression(Expression expression) {
+    public AbstractExpression(Expression expression, ExpressionType type) {
     	//this.expression = expression;
     	super();
+    	this.type = type;
     	this.startPosition = expression.getStartPosition();
     	this.length = expression.getLength();
     	this.entireString = expression.toString();
@@ -34,11 +36,11 @@ public class AbstractExpression extends AbstractMethodFragment {
 		processLiterals(expressionExtractor.getLiterals(expression));
     }
 
-    public void setOwner(CompositeStatementObject owner) {
+    public void setOwner(AbstractMethodFragment owner) {
     	this.owner = owner;
     }
 
-    public CompositeStatementObject getOwner() {
+    public AbstractMethodFragment getOwner() {
     	return this.owner;
     }
 
@@ -46,6 +48,10 @@ public class AbstractExpression extends AbstractMethodFragment {
     	//return expression;
     	return (Expression)this.expression.recoverASTNode();
     }
+
+	public ExpressionType getType() {
+		return type;
+	}
 
 	public String toString() {
 		//return getExpression().toString();

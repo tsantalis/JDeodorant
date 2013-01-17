@@ -12,12 +12,14 @@ import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
+import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
+import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -332,6 +334,8 @@ public class ExpressionExtractor {
 		}
 		else if(statement instanceof LabeledStatement) {
 			LabeledStatement labeledStatement = (LabeledStatement)statement;
+			if(labeledStatement.getLabel() != null)
+				expressionList.addAll(getExpressions(labeledStatement.getLabel()));
 			expressionList.addAll(getExpressions(labeledStatement.getBody()));
 		}
 		else if(statement instanceof ReturnStatement) {
@@ -390,6 +394,16 @@ public class ExpressionExtractor {
 			List<Expression> arguments = superConstructorInvocation.arguments();
 			for(Expression argument : arguments)
 				expressionList.addAll(getExpressions(argument));
+		}
+		else if(statement instanceof BreakStatement) {
+			BreakStatement breakStatement = (BreakStatement)statement;
+			if(breakStatement.getLabel() != null)
+				expressionList.addAll(getExpressions(breakStatement.getLabel()));
+		}
+		else if(statement instanceof ContinueStatement) {
+			ContinueStatement continueStatement = (ContinueStatement)statement;
+			if(continueStatement.getLabel() != null)
+				expressionList.addAll(getExpressions(continueStatement.getLabel()));
 		}
 		
 		return expressionList;

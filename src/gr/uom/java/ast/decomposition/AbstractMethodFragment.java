@@ -44,6 +44,7 @@ public abstract class AbstractMethodFragment {
 	protected int startPosition;
 	protected int length;
 	protected String entireString;
+	protected List<AbstractExpression> expressionList;
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
 	private List<FieldInstructionObject> fieldInstructionList;
@@ -80,6 +81,7 @@ public abstract class AbstractMethodFragment {
 	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
 
 	protected AbstractMethodFragment() {
+		this.expressionList = new ArrayList<AbstractExpression>();
 		this.methodInvocationList = new ArrayList<MethodInvocationObject>();
 		this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
 		this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
@@ -126,6 +128,15 @@ public abstract class AbstractMethodFragment {
 
 	public String getEntireString() {
 		return entireString;
+	}
+
+	public void addExpression(AbstractExpression expression) {
+		expressionList.add(expression);
+		expression.setOwner(this);
+	}
+
+	public List<AbstractExpression> getExpressions() {
+		return expressionList;
 	}
 
 	protected void processVariables(List<Expression> variableInstructions, List<Expression> assignments,

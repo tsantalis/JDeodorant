@@ -53,7 +53,7 @@ public class MethodBodyObject {
 	private CompositeStatementObject compositeStatement;
 	
 	public MethodBodyObject(Block methodBody) {
-		this.compositeStatement = new CompositeStatementObject(methodBody, "{");
+		this.compositeStatement = new CompositeStatementObject(methodBody, StatementType.BLOCK);
         List<Statement> statements = methodBody.statements();
 		for(Statement statement : statements) {
 			processStatement(compositeStatement, statement);
@@ -355,7 +355,7 @@ public class MethodBodyObject {
 		if(statement instanceof Block) {
 			Block block = (Block)statement;
 			List<Statement> blockStatements = block.statements();
-			CompositeStatementObject child = new CompositeStatementObject(block, "{");
+			CompositeStatementObject child = new CompositeStatementObject(block, StatementType.BLOCK);
 			parent.addStatement(child);
 			for(Statement blockStatement : blockStatements) {
 				processStatement(child, blockStatement);
@@ -363,7 +363,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof IfStatement) {
 			IfStatement ifStatement = (IfStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(ifStatement, "if");
+			CompositeStatementObject child = new CompositeStatementObject(ifStatement, StatementType.IF);
 			AbstractExpression abstractExpression = new AbstractExpression(ifStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -374,7 +374,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ForStatement) {
 			ForStatement forStatement = (ForStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(forStatement, "for");
+			CompositeStatementObject child = new CompositeStatementObject(forStatement, StatementType.FOR);
 			List<Expression> initializers = forStatement.initializers();
 			for(Expression initializer : initializers) {
 				AbstractExpression abstractExpression = new AbstractExpression(initializer);
@@ -395,7 +395,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof EnhancedForStatement) {
 			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(enhancedForStatement, "for");
+			CompositeStatementObject child = new CompositeStatementObject(enhancedForStatement, StatementType.ENHANCED_FOR);
 			SingleVariableDeclaration variableDeclaration = enhancedForStatement.getParameter();
 			AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName());
 			child.addExpression(variableDeclarationName);
@@ -410,7 +410,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof WhileStatement) {
 			WhileStatement whileStatement = (WhileStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(whileStatement, "while");
+			CompositeStatementObject child = new CompositeStatementObject(whileStatement, StatementType.WHILE);
 			AbstractExpression abstractExpression = new AbstractExpression(whileStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -418,7 +418,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof DoStatement) {
 			DoStatement doStatement = (DoStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(doStatement, "do");
+			CompositeStatementObject child = new CompositeStatementObject(doStatement, StatementType.DO);
 			AbstractExpression abstractExpression = new AbstractExpression(doStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -426,12 +426,12 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ExpressionStatement) {
 			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
-			StatementObject child = new StatementObject(expressionStatement);
+			StatementObject child = new StatementObject(expressionStatement, StatementType.EXPRESSION);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof SwitchStatement) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(switchStatement, "switch");
+			CompositeStatementObject child = new CompositeStatementObject(switchStatement, StatementType.SWITCH);
 			AbstractExpression abstractExpression = new AbstractExpression(switchStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -441,28 +441,28 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof SwitchCase) {
 			SwitchCase switchCase = (SwitchCase)statement;
-			StatementObject child = new StatementObject(switchCase);
+			StatementObject child = new StatementObject(switchCase, StatementType.SWITCH_CASE);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof AssertStatement) {
 			AssertStatement assertStatement = (AssertStatement)statement;
-			StatementObject child = new StatementObject(assertStatement);
+			StatementObject child = new StatementObject(assertStatement, StatementType.ASSERT);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof LabeledStatement) {
 			LabeledStatement labeledStatement = (LabeledStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(labeledStatement, labeledStatement.getLabel().getIdentifier());
+			CompositeStatementObject child = new CompositeStatementObject(labeledStatement, StatementType.LABELED);
 			parent.addStatement(child);
 			processStatement(child, labeledStatement.getBody());
 		}
 		else if(statement instanceof ReturnStatement) {
 			ReturnStatement returnStatement = (ReturnStatement)statement;
-			StatementObject child = new StatementObject(returnStatement);
+			StatementObject child = new StatementObject(returnStatement, StatementType.RETURN);
 			parent.addStatement(child);	
 		}
 		else if(statement instanceof SynchronizedStatement) {
 			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement, "synchronized");
+			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement, StatementType.SYNCHRONIZED);
 			AbstractExpression abstractExpression = new AbstractExpression(synchronizedStatement.getExpression());
 			child.addExpression(abstractExpression);
 			parent.addStatement(child);
@@ -470,12 +470,12 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ThrowStatement) {
 			ThrowStatement throwStatement = (ThrowStatement)statement;
-			StatementObject child = new StatementObject(throwStatement);
+			StatementObject child = new StatementObject(throwStatement, StatementType.THROW);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof TryStatement) {
 			TryStatement tryStatement = (TryStatement)statement;
-			TryStatementObject child = new TryStatementObject(tryStatement, "try");
+			TryStatementObject child = new TryStatementObject(tryStatement);
 			List<VariableDeclarationExpression> resources = tryStatement.resources();
 			for(VariableDeclarationExpression expression : resources) {
 				AbstractExpression variableDeclarationExpression = new AbstractExpression(expression);
@@ -487,7 +487,7 @@ public class MethodBodyObject {
 			for(CatchClause catchClause : catchClauses) {
 				CatchClauseObject catchClauseObject = new CatchClauseObject();
 				Block catchClauseBody = catchClause.getBody();
-				CompositeStatementObject catchClauseStatementObject = new CompositeStatementObject(catchClauseBody, "{");
+				CompositeStatementObject catchClauseStatementObject = new CompositeStatementObject(catchClauseBody, StatementType.BLOCK);
 				SingleVariableDeclaration variableDeclaration = catchClause.getException();
 				Type variableDeclarationType = variableDeclaration.getType();
 				if(variableDeclarationType instanceof UnionType) {
@@ -515,7 +515,7 @@ public class MethodBodyObject {
 			}
 			Block finallyBlock = tryStatement.getFinally();
 			if(finallyBlock != null) {
-				CompositeStatementObject finallyClauseStatementObject = new CompositeStatementObject(finallyBlock, "finally");
+				CompositeStatementObject finallyClauseStatementObject = new CompositeStatementObject(finallyBlock, StatementType.BLOCK);
 				List<Statement> blockStatements = finallyBlock.statements();
 				for(Statement blockStatement : blockStatements) {
 					processStatement(finallyClauseStatementObject, blockStatement);
@@ -525,32 +525,32 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof VariableDeclarationStatement) {
 			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
-			StatementObject child = new StatementObject(variableDeclarationStatement);
+			StatementObject child = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof ConstructorInvocation) {
 			ConstructorInvocation constructorInvocation = (ConstructorInvocation)statement;
-			StatementObject child = new StatementObject(constructorInvocation);
+			StatementObject child = new StatementObject(constructorInvocation, StatementType.CONSTRUCTOR_INVOCATION);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof SuperConstructorInvocation) {
 			SuperConstructorInvocation superConstructorInvocation = (SuperConstructorInvocation)statement;
-			StatementObject child = new StatementObject(superConstructorInvocation);
+			StatementObject child = new StatementObject(superConstructorInvocation, StatementType.SUPER_CONSTRUCTOR_INVOCATION);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof BreakStatement) {
 			BreakStatement breakStatement = (BreakStatement)statement;
-			StatementObject child = new StatementObject(breakStatement);
+			StatementObject child = new StatementObject(breakStatement, StatementType.BREAK);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof ContinueStatement) {
 			ContinueStatement continueStatement = (ContinueStatement)statement;
-			StatementObject child = new StatementObject(continueStatement);
+			StatementObject child = new StatementObject(continueStatement, StatementType.CONTINUE);
 			parent.addStatement(child);
 		}
 		else if(statement instanceof EmptyStatement) {
 			EmptyStatement emptyStatement = (EmptyStatement)statement;
-			StatementObject child = new StatementObject(emptyStatement);
+			StatementObject child = new StatementObject(emptyStatement, StatementType.EMPTY);
 			parent.addStatement(child);
 		}
 	}

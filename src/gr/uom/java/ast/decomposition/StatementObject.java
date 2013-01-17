@@ -32,8 +32,8 @@ import org.eclipse.jdt.core.dom.Statement;
 
 public class StatementObject extends AbstractStatement {
 	
-	public StatementObject(Statement statement) {
-		super(statement);
+	public StatementObject(Statement statement, StatementType type) {
+		super(statement, type);
 	}
 
 	public String toString() {

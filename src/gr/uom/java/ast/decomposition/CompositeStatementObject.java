@@ -39,11 +39,9 @@ public class CompositeStatementObject extends AbstractStatement {
 	
 	private List<AbstractStatement> statementList;
 	private List<AbstractExpression> expressionList;
-	private String type;
 
-	public CompositeStatementObject(Statement statement, String type) {
-		super(statement);
-		this.type = type;
+	public CompositeStatementObject(Statement statement, StatementType type) {
+		super(statement, type);
 		this.statementList = new ArrayList<AbstractStatement>();
 		this.expressionList = new ArrayList<AbstractExpression>();
 	}
@@ -64,10 +62,6 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<AbstractExpression> getExpressions() {
 		return expressionList;
-	}
-
-	public String getType() {
-		return type;
 	}
 
 	public List<FieldInstructionObject> getFieldInstructionsInExpressions() {
@@ -153,7 +147,7 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<CompositeStatementObject> getIfStatements() {
 		List<CompositeStatementObject> ifStatements = new ArrayList<CompositeStatementObject>();
-		if(this.type.equals("if"))
+		if(this.getType().equals(StatementType.IF))
 			ifStatements.add(this);
 		for(AbstractStatement statement : statementList) {
 			if(statement instanceof CompositeStatementObject) {
@@ -166,7 +160,7 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<CompositeStatementObject> getSwitchStatements() {
 		List<CompositeStatementObject> switchStatements = new ArrayList<CompositeStatementObject>();
-		if(this.type.equals("switch"))
+		if(this.getType().equals(StatementType.SWITCH))
 			switchStatements.add(this);
 		for(AbstractStatement statement : statementList) {
 			if(statement instanceof CompositeStatementObject) {

@@ -15,10 +15,12 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 	//private Statement statement;
 	private ASTInformation statement;
 	private CompositeStatementObject parent;
+	private StatementType type;
     
-    public AbstractStatement(Statement statement) {
+    public AbstractStatement(Statement statement, StatementType type) {
     	//this.statement = statement;
     	super();
+    	this.type = type;
     	this.startPosition = statement.getStartPosition();
     	this.length = statement.getLength();
     	this.entireString = statement.toString();
@@ -48,6 +50,10 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
     	//return statement;
     	return (Statement)this.statement.recoverASTNode();
     }
+
+	public StatementType getType() {
+		return type;
+	}
 
 	public abstract List<String> stringRepresentation();
 

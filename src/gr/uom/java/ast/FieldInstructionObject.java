@@ -2,7 +2,7 @@ package gr.uom.java.ast;
 
 import org.eclipse.jdt.core.dom.SimpleName;
 
-public class FieldInstructionObject {
+public class FieldInstructionObject implements TypeHolder {
 
     private String ownerClass;
     private TypeObject type;

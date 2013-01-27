@@ -6,7 +6,7 @@ import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 
-public class SuperMethodInvocationObject {
+public class SuperMethodInvocationObject implements TypeHolder {
 
     private String originClassName;
     private String methodName;
@@ -79,6 +79,10 @@ public class SuperMethodInvocationObject {
     public SuperMethodInvocation getSuperMethodInvocation() {
     	//return this.superMethodInvocation;
     	return (SuperMethodInvocation)this.superMethodInvocation.recoverASTNode();
+    }
+
+    public TypeObject getType() {
+    	return getReturnType();
     }
 
     public boolean equals(Object o) {

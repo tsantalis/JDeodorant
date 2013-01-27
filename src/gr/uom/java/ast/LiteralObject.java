@@ -8,7 +8,7 @@ import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.TypeLiteral;
 
-public class LiteralObject {
+public class LiteralObject implements TypeHolder {
 	private LiteralType literalType;
 	private String value;
 	private TypeObject type;

@@ -6,7 +6,7 @@ import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.MethodInvocation;
 
-public class MethodInvocationObject {
+public class MethodInvocationObject implements TypeHolder {
 
     private String originClassName;
     private String methodName;
@@ -90,6 +90,10 @@ public class MethodInvocationObject {
     public MethodInvocation getMethodInvocation() {
     	//return this.methodInvocation;
     	return (MethodInvocation)this.methodInvocation.recoverASTNode();
+    }
+
+    public TypeObject getType() {
+    	return getReturnType();
     }
 
     public boolean equals(Object o) {

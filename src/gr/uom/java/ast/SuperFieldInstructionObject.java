@@ -2,7 +2,7 @@ package gr.uom.java.ast;
 
 import org.eclipse.jdt.core.dom.SimpleName;
 
-public class SuperFieldInstructionObject {
+public class SuperFieldInstructionObject implements TypeHolder {
 
 	private String ownerClass;
 	private TypeObject type;

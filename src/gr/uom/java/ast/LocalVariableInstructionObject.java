@@ -4,7 +4,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 
-public class LocalVariableInstructionObject {
+public class LocalVariableInstructionObject implements TypeHolder {
 	private TypeObject type;
     private String name;
     //private SimpleName simpleName;

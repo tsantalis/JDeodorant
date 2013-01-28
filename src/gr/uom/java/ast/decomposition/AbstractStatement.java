@@ -4,7 +4,6 @@ import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
-import gr.uom.java.ast.decomposition.cfg.mapping.Replacement;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import org.eclipse.jdt.core.dom.Expression;
@@ -57,19 +56,35 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 
 	public abstract List<String> stringRepresentation();
 
-	public boolean isEquivalent(AbstractStatement s) {
-		if(this instanceof CompositeStatementObject && s instanceof CompositeStatementObject)
-			return ((CompositeStatementObject)this).isEquivalent((CompositeStatementObject)s);
-		else if(this instanceof StatementObject && s instanceof StatementObject)
-			return ((StatementObject)this).isEquivalent((StatementObject)s);
-		return false;
-	}
-
-	public List<Replacement> findReplacements(AbstractStatement s) {
-		if(this instanceof CompositeStatementObject && s instanceof CompositeStatementObject)
-			return ((CompositeStatementObject)this).findReplacements((CompositeStatementObject)s);
-		else if(this instanceof StatementObject && s instanceof StatementObject)
-			return ((StatementObject)this).findReplacements((StatementObject)s);
-		return null;
+	public ASTNodeDifference checkEquivalence(AbstractStatement s) {
+		ASTNodeDifference parentNodeDifference = new ASTNodeDifference(this,s);
+		if(!this.getType().equals(s.getType()))
+		{
+			Difference difference = new Difference(this.toString(),s.toString(),DifferenceType.AST_TYPE_MISMATCH);
+			parentNodeDifference.addDifference(difference);
+			return parentNodeDifference;
+		}
+		else
+		{	
+			List<AbstractExpression> srcExpressionList = this.getExpressions();
+			List<AbstractExpression> tgtExpressionList = s.getExpressions();	
+			if (srcExpressionList.size() != tgtExpressionList.size())
+			{
+				Difference difference = new Difference(this.toString(),s.toString(),DifferenceType.EXPRESSION_NUMBER_MISMATCH);
+				parentNodeDifference.addDifference(difference);
+				return parentNodeDifference;
+			}
+			else
+			{
+				Difference difference = new Difference(this.toString(),s.toString(),DifferenceType.AST_TYPE_MATCH);
+				parentNodeDifference.addDifference(difference);			
+				for(int i=0;i<srcExpressionList.size();i++)
+				{
+					ASTNodeDifference childDifference = srcExpressionList.get(i).checkEquivalence(tgtExpressionList.get(i));
+					parentNodeDifference.addChild(childDifference);
+				}
+				return parentNodeDifference;
+			}				
+		}
 	}
 }

@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchNode;
 import gr.uom.java.ast.decomposition.cfg.PDGAbstractDataDependence;
@@ -26,12 +27,13 @@ public class PDGEdgeMapping {
 				AbstractVariable edgeG2Variable = ((PDGAbstractDataDependence)edgeG2).getData();
 				CFGBranchNode edgeG1LoopNode = ((PDGAbstractDataDependence)edgeG1).getLoop();
 				CFGBranchNode edgeG2LoopNode = ((PDGAbstractDataDependence)edgeG2).getLoop();
-				if(equalData(edgeG1Variable, edgeG2Variable) || nodeMapping.matchingVariableReplacement(edgeG1Variable, edgeG2Variable)) {
+				if(equalData(edgeG1Variable, edgeG2Variable) || nodeMapping.matchingVariableDifference(edgeG1Variable, edgeG2Variable)) {
 					if(edgeG1LoopNode == null && edgeG2LoopNode == null) {
 						return true;
 					}
 					else if(edgeG1LoopNode != null && edgeG2LoopNode != null) {
-						return edgeG1LoopNode.isEquivalent(edgeG2LoopNode);
+						ASTNodeDifference nodeDifference = edgeG1LoopNode.checkEquivalence(edgeG2LoopNode); 
+						return nodeDifference.isParameterizable();
 					}
 				}
 			}

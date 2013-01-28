@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -93,23 +94,22 @@ public class MappingState {
 						dstNodeG1 = (PDGNode)edgeG1.getSrc();
 						dstNodeG2 = (PDGNode)edgeG2.getSrc();
 					}
-					if(dstNodeG1.isEquivalent(dstNodeG2)) {
-						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2);
-						if(dstNodeMapping.isValidMatch()) {
-							MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
-							if(childState != null) {
-								if(!childState.edgeMappings.contains(edgeMapping)) {
-									childState.edgeMappings.add(edgeMapping);
-									childState.propagateEdgeMappingToChildren(edgeMapping);
-								}
+					ASTNodeDifference nodeDifference = dstNodeG1.checkEquivalence(dstNodeG2);
+					if(nodeDifference != null && nodeDifference.isParameterizable()) {
+						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, nodeDifference);
+						MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
+						if(childState != null) {
+							if(!childState.edgeMappings.contains(edgeMapping)) {
+								childState.edgeMappings.add(edgeMapping);
+								childState.propagateEdgeMappingToChildren(edgeMapping);
 							}
-							else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
-								MappingState newMappingState = state.copy();
-								state.children.add(newMappingState);
-								newMappingState.edgeMappings.add(edgeMapping);
-								newMappingState.nodeMappings.add(dstNodeMapping);
-								traverse(newMappingState, dstNodeMapping);
-							}
+						}
+						else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
+							MappingState newMappingState = state.copy();
+							state.children.add(newMappingState);
+							newMappingState.edgeMappings.add(edgeMapping);
+							newMappingState.nodeMappings.add(dstNodeMapping);
+							traverse(newMappingState, dstNodeMapping);
 						}
 					}
 				}

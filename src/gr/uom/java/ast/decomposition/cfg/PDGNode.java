@@ -11,6 +11,7 @@ import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.TypeObject;
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -1141,10 +1142,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return false;
 	}
 
-	public boolean isEquivalent(PDGNode node) {
+	public ASTNodeDifference checkEquivalence(PDGNode node) {
 		if(this instanceof PDGMethodEntryNode || node instanceof PDGMethodEntryNode)
-			return false;
+			return null;
 		else
-			return this.getCFGNode().isEquivalent(node.getCFGNode());
+			return this.getCFGNode().checkEquivalence(node.getCFGNode());
 	}
 }

@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import java.util.Iterator;
 import java.util.List;
 
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -29,17 +30,16 @@ public class PDGMapper {
 			Iterator<GraphNode> nodeIterator2 = pdg2.getNodeIterator();
 			while(nodeIterator2.hasNext()) {
 				PDGNode node2 = (PDGNode)nodeIterator2.next();
-				if(node1.isEquivalent(node2)) {
-					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2);
-					if(mapping.isValidMatch()) {
-						MappingState state = new MappingState(mapping);
-						List<MappingState> maxStates = state.getMaximumCommonSubgraph();
-						if(maximumState == null) {
-							maximumState = maxStates.get(0);
-						}
-						else if(maxStates.get(0).getSize() > maximumState.getSize()) {
-							maximumState = maxStates.get(0);
-						}
+				ASTNodeDifference nodeDifference = node1.checkEquivalence(node2);
+				if(nodeDifference != null && nodeDifference.isParameterizable()) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, nodeDifference);
+					MappingState state = new MappingState(mapping);
+					List<MappingState> maxStates = state.getMaximumCommonSubgraph();
+					if(maximumState == null) {
+						maximumState = maxStates.get(0);
+					}
+					else if(maxStates.get(0).getSize() > maximumState.getSize()) {
+						maximumState = maxStates.get(0);
 					}
 				}
 			}

@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg;
 
 import org.eclipse.jdt.core.dom.Statement;
 
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGNode extends GraphNode implements Comparable<CFGNode> {
@@ -111,12 +112,9 @@ public class CFGNode extends GraphNode implements Comparable<CFGNode> {
 			return 0;
 	}
 
-	public boolean isEquivalent(CFGNode node) {
-		if(this.getClass() == node.getClass()) {
+	public ASTNodeDifference checkEquivalence(CFGNode node) {
 			AbstractStatement s1 = this.getStatement();
 			AbstractStatement s2 = node.getStatement();
-			return s1.isEquivalent(s2);
-		}
-		return false;
+			return s1.checkEquivalence(s2);
 	}
 }

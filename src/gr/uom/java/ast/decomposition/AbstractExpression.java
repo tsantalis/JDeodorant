@@ -5,10 +5,12 @@ import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.AbstractMethodInvocationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LiteralObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
+import gr.uom.java.ast.TypeHolder;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import org.eclipse.jdt.core.dom.Expression;
@@ -67,37 +69,68 @@ public class AbstractExpression extends AbstractMethodFragment {
 		ASTNodeDifference parentNodeDifference = new ASTNodeDifference(this,e);
 		if(!this.getType().equals(e.getType()))
 		{
-			Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.AST_TYPE_MISMATCH);
-			parentNodeDifference.addDifference(difference);
-			if(this.isTypeHolder() && e.isTypeHolder())
+			List<AbstractExpression> srcExpressionList = this.getExpressions();
+			List<AbstractExpression> tgtExpressionList = e.getExpressions();	
+			//two leaf nodes of different types
+			if (srcExpressionList.size() == 0 && tgtExpressionList.size() == 0)
 			{
-				//TODO
+				if(this.isTypeHolder() && e.isTypeHolder())
+				{
+					if(this.isTypeCompatible(e))
+					{
+						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+						parentNodeDifference.addDifference(difference);
+					}
+					else
+					{
+						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.AST_TYPE_MISMATCH);
+						parentNodeDifference.addDifference(difference);
+					}
+				}
+				else
+				{
+					Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					parentNodeDifference.addDifference(difference);
+				}
+			}
+			else //two non-leaf nodes of different types or a non-leaf node vs. leaf node 
+			{
+				if(this.isTypeHolder() && e.isTypeHolder())
+				{
+					if(this.isTypeCompatible(e))
+					{
+						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+						parentNodeDifference.addDifference(difference);
+					}	
+					else
+					{
+						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.AST_TYPE_MISMATCH);
+						parentNodeDifference.addDifference(difference);
+					}
+				}
+				else
+				{
+					Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					parentNodeDifference.addDifference(difference);
+				}	
 			}
 		}		
 		else
 		{
 			List<AbstractExpression> srcExpressionList = this.getExpressions();
 			List<AbstractExpression> tgtExpressionList = e.getExpressions();	
-			//leaf nodes
+			//two leaf nodes of the same type
 			if (srcExpressionList.size() == 0 && tgtExpressionList.size() == 0)
 			{
-				if(!this.getType().equals(e.getType()))
-				{	
-					Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.AST_TYPE_MISMATCH);
-					parentNodeDifference.addDifference(difference);
-				}
-				else 
+				List<Difference> differences = this.extractDifferences(e);
+				if(differences.isEmpty()) 
 				{
-					List<Difference> differences = this.extractDifferences(e);
-					if(differences.isEmpty()) 
-					{
-						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.EXACT_MATCH);
-						differences.add(difference);
-					}
-					parentNodeDifference.addDifferences(differences);
+					Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.EXACT_MATCH);
+					differences.add(difference);
 				}
+				parentNodeDifference.addDifferences(differences);
 			}
-			else //two non-leaf nodes
+			else //two non-leaf nodes of the same type
 			{
 				if(srcExpressionList.size()!=tgtExpressionList.size())
 				{
@@ -181,7 +214,7 @@ public class AbstractExpression extends AbstractMethodFragment {
 	}
 	
 	// method to check if an expression holds the type
-	public boolean isTypeHolder()
+	private boolean isTypeHolder()
 	{
 		ExpressionType expType = this.getType();
 		if(expType.equals(ExpressionType.NUMBER_LITERAL)
@@ -194,6 +227,48 @@ public class AbstractExpression extends AbstractMethodFragment {
 										||expType.equals(ExpressionType.BOOLEAN_LITERAL)
 											||expType.equals(ExpressionType.CHARACTER_LITERAL))
 												return true;
+		return false;
+	}
+	
+	private boolean isTypeCompatible(AbstractExpression exp)
+	{
+		List<AbstractMethodInvocationObject> thisMethodInvocationList = this.getAbstractMethodInvocations();
+		List<AbstractMethodInvocationObject> expMethodInvocationList = exp.getAbstractMethodInvocations();
+		if(thisMethodInvocationList.size() == 0 && expMethodInvocationList.size() == 0)
+		{
+			List<TypeHolder> thisTypeHolderList = this.getLeafTypeHolders();
+			List<TypeHolder> expTypeHolderList = exp.getLeafTypeHolders();
+			if(thisTypeHolderList.size() == 1 && expTypeHolderList.size() == 1)
+			{
+				return thisTypeHolderList.get(0).getType().equals(expTypeHolderList.get(0).getType());
+			}
+		}
+		else {
+			if(thisMethodInvocationList.size() > 0 && expMethodInvocationList.size() == 0)
+			{
+				AbstractMethodInvocationObject methodInvocation = thisMethodInvocationList.get(thisMethodInvocationList.size()-1);
+				List<TypeHolder> expTypeHolderList = exp.getLeafTypeHolders();
+				if(expTypeHolderList.size() == 1)
+				{
+					return methodInvocation.getType().equals(expTypeHolderList.get(0).getType());
+				}
+			}
+			if(thisMethodInvocationList.size() == 0 && expMethodInvocationList.size() > 0)
+			{
+				AbstractMethodInvocationObject methodInvocation = expMethodInvocationList.get(expMethodInvocationList.size()-1);
+				List<TypeHolder> thisTypeHolderList = this.getLeafTypeHolders();
+				if(thisTypeHolderList.size() == 1)
+				{
+					return methodInvocation.getType().equals(thisTypeHolderList.get(0).getType());
+				}
+			}
+			if(thisMethodInvocationList.size() > 0 && expMethodInvocationList.size() > 0)
+			{
+				AbstractMethodInvocationObject thisMethodInvocation = thisMethodInvocationList.get(thisMethodInvocationList.size()-1);
+				AbstractMethodInvocationObject expMethodInvocation = expMethodInvocationList.get(expMethodInvocationList.size()-1);
+				return thisMethodInvocation.getType().equals(expMethodInvocation.getType());
+			}
+		}
 		return false;
 	}
 	

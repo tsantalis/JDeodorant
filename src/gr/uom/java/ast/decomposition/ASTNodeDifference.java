@@ -97,8 +97,9 @@ public class ASTNodeDifference {
 		if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)
 				||diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)
 					||diff.getType().equals(DifferenceType.LITERAL_TYPE_MISMATCH)
-						||diff.getType().equals(DifferenceType.LITERAL_VALUE_MISMATCH))
-							return true;
+						||diff.getType().equals(DifferenceType.LITERAL_VALUE_MISMATCH)
+							||diff.getType().equals(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT))							
+								return true;
 		return false;
 	}
 }

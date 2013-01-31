@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.ArrayAccessObject;
 import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -52,6 +54,7 @@ public abstract class AbstractMethodFragment {
 	private List<LocalVariableDeclarationObject> localVariableDeclarationList;
 	private List<LocalVariableInstructionObject> localVariableInstructionList;
 	private List<CreationObject> creationList;
+	private List<ArrayAccessObject> arrayAccessList;
 	private List<LiteralObject> literalList;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields;
@@ -89,6 +92,7 @@ public abstract class AbstractMethodFragment {
 		this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
 		this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
 		this.creationList = new ArrayList<CreationObject>();
+		this.arrayAccessList = new ArrayList<ArrayAccessObject>();
 		this.literalList = new ArrayList<LiteralObject>();
 		this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
@@ -384,6 +388,18 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	protected void processArrayAccesses(List<Expression> arrayAccesses) {
+		for(Expression arrayAccessExpression : arrayAccesses) {
+			ArrayAccess arrayAccess = (ArrayAccess)arrayAccessExpression;
+			ITypeBinding typeBinding = arrayAccess.resolveTypeBinding();
+			String qualifiedTypeName = typeBinding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
+			ArrayAccessObject arrayAccessObject = new ArrayAccessObject(typeObject);
+			arrayAccessObject.setArrayAccess(arrayAccess);
+			arrayAccessList.add(arrayAccessObject);
+		}
+	}
+
 	protected void processLiterals(List<Expression> literals) {
 		for(Expression literal : literals) {
 			LiteralObject literalObject = new LiteralObject(literal);
@@ -613,6 +629,10 @@ public abstract class AbstractMethodFragment {
 			}
 		}
 		return arrayCreations;
+	}
+
+	public List<ArrayAccessObject> getArrayAccesses() {
+		return arrayAccessList;
 	}
 
 	public List<LiteralObject> getLiterals() {

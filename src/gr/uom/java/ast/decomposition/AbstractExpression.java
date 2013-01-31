@@ -5,6 +5,7 @@ import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.ArrayAccessObject;
 import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
@@ -44,6 +45,7 @@ public class AbstractExpression extends AbstractMethodFragment {
 		processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
 		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
 		processArrayCreations(expressionExtractor.getArrayCreations(expression));
+		processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
 		processLiterals(expressionExtractor.getLiterals(expression));
 	}
 
@@ -90,6 +92,10 @@ public class AbstractExpression extends AbstractMethodFragment {
 		else if(type.equals(ExpressionType.CLASS_INSTANCE_CREATION)) {
 			List<ClassInstanceCreationObject> classInstanceCreations = getClassInstanceCreations();
 			return classInstanceCreations.get(classInstanceCreations.size() - 1);
+		}
+		else if(type.equals(ExpressionType.ARRAY_ACCESS)) {
+			List<ArrayAccessObject> arrayAccesses = getArrayAccesses();
+			return arrayAccesses.get(arrayAccesses.size() - 1);
 		}
 		else if(type.equals(ExpressionType.FIELD_ACCESS)) {
 			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();

@@ -5,25 +5,22 @@ import java.util.List;
 import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.Type;
 
-public class ClassInstanceCreationObject implements CreationObject {
+public class ClassInstanceCreationObject extends CreationObject {
 
-	private TypeObject type;
 	private List<TypeObject> parameterList;
-	private ASTInformation classInstanceCreation;
 	
 	public ClassInstanceCreationObject(TypeObject type) {
-		this.type = type;
+		super(type);
 		this.parameterList = new ArrayList<TypeObject>();
 	}
 
 	public ClassInstanceCreation getClassInstanceCreation() {
-		return (ClassInstanceCreation)this.classInstanceCreation.recoverASTNode();
+		return (ClassInstanceCreation)this.creation.recoverASTNode();
 	}
 
 	public void setClassInstanceCreation(ClassInstanceCreation creation) {
-		this.classInstanceCreation = ASTInformationGenerator.generateASTInformation(creation);
+		this.creation = ASTInformationGenerator.generateASTInformation(creation);
 	}
 
     public boolean addParameter(TypeObject parameterType) {
@@ -45,18 +42,10 @@ public class ClassInstanceCreationObject implements CreationObject {
     	return list;
     }
 
-	public TypeObject getType() {
-		return type;
-	}
-
-	public Type getASTType() {
-		return getClassInstanceCreation().getType();
-	}
-
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("new ");
-		sb.append(type.toString());
+		sb.append(getType().toString());
 		sb.append("(");
 		if(!parameterList.isEmpty()) {
 			for(int i=0; i<parameterList.size()-1; i++)

@@ -1,8 +1,14 @@
 package gr.uom.java.ast;
 
-import org.eclipse.jdt.core.dom.Type;
-
-public interface CreationObject extends TypeHolder {
+public abstract class CreationObject implements TypeHolder {
+	private TypeObject type;
+	protected ASTInformation creation;
 	
-	public Type getASTType();
+	public CreationObject(TypeObject type) {
+		this.type = type;
+	}
+
+	public TypeObject getType() {
+		return type;
+	}
 }

@@ -115,6 +115,12 @@ public class AbstractExpression extends AbstractMethodFragment {
 				return fieldInstructions.get(fieldInstructions.size() - 1);
 			}
 		}
+		else if(type.equals(ExpressionType.QUALIFIED_NAME)) {
+			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
+			if(!fieldInstructions.isEmpty()) {
+				return fieldInstructions.get(fieldInstructions.size() - 1);
+			}
+		}
 		return null;
 	}
 

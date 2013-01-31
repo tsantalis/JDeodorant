@@ -1,6 +1,5 @@
 package gr.uom.java.ast.decomposition;
 
-import gr.uom.java.ast.AbstractMethodInvocationObject;
 import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
@@ -11,7 +10,6 @@ import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
-import gr.uom.java.ast.TypeHolder;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -597,32 +595,28 @@ public abstract class AbstractMethodFragment {
 		return creationList;
 	}
 
+	public List<ClassInstanceCreationObject> getClassInstanceCreations() {
+		List<ClassInstanceCreationObject> classInstanceCreations = new ArrayList<ClassInstanceCreationObject>();
+		for(CreationObject creation : creationList) {
+			if(creation instanceof ClassInstanceCreationObject) {
+				classInstanceCreations.add((ClassInstanceCreationObject)creation);
+			}
+		}
+		return classInstanceCreations;
+	}
+
+	public List<ArrayCreationObject> getArrayCreations() {
+		List<ArrayCreationObject> arrayCreations = new ArrayList<ArrayCreationObject>();
+		for(CreationObject creation : creationList) {
+			if(creation instanceof ArrayCreationObject) {
+				arrayCreations.add((ArrayCreationObject)creation);
+			}
+		}
+		return arrayCreations;
+	}
+
 	public List<LiteralObject> getLiterals() {
 		return literalList;
-	}
-
-	public List<TypeHolder> getLeafTypeHolders() {
-		List<TypeHolder> leafTypeHolderList = new ArrayList<TypeHolder>();
-		leafTypeHolderList.addAll(getLiterals());
-		leafTypeHolderList.addAll(getLocalVariableInstructions());
-		leafTypeHolderList.addAll(getFieldInstructions());
-		leafTypeHolderList.addAll(getSuperFieldInstructions());
-		return leafTypeHolderList;
-	}
-
-	public List<AbstractMethodInvocationObject> getAbstractMethodInvocations() {
-		List<AbstractMethodInvocationObject> methodInvocations = new ArrayList<AbstractMethodInvocationObject>();
-		if(getEntireString().startsWith("super."))
-		{
-			methodInvocations.addAll(getMethodInvocations());
-			methodInvocations.addAll(getSuperMethodInvocations());
-		}
-		else
-		{
-			methodInvocations.addAll(getSuperMethodInvocations());
-			methodInvocations.addAll(getMethodInvocations());
-		}
-		return methodInvocations;
 	}
 
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {

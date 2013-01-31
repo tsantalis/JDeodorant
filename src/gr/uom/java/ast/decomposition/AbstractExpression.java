@@ -5,11 +5,15 @@ import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
-import gr.uom.java.ast.AbstractMethodInvocationObject;
+import gr.uom.java.ast.ArrayCreationObject;
+import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LiteralObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
+import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.SuperFieldInstructionObject;
+import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.TypeHolder;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
@@ -65,18 +69,63 @@ public class AbstractExpression extends AbstractMethodFragment {
 		return getEntireString();
 	}
 
+	private TypeHolder getTopLevelTypeHolder() {
+		if(type.equals(ExpressionType.METHOD_INVOCATION)) {
+			List<MethodInvocationObject> methodInvocations = getMethodInvocations();
+			return methodInvocations.get(methodInvocations.size() - 1);
+		}
+		else if(type.equals(ExpressionType.SUPER_METHOD_INVOCATION)) {
+			List<SuperMethodInvocationObject> superMethodInvocations = getSuperMethodInvocations();
+			return superMethodInvocations.get(superMethodInvocations.size() - 1);
+		}
+		else if(type.equals(ExpressionType.NUMBER_LITERAL) || type.equals(ExpressionType.STRING_LITERAL) ||
+				type.equals(ExpressionType.CHARACTER_LITERAL) || type.equals(ExpressionType.BOOLEAN_LITERAL)) {
+			List<LiteralObject> literals = getLiterals();
+			return literals.get(literals.size() - 1);
+		}
+		else if(type.equals(ExpressionType.ARRAY_CREATION)) {
+			List<ArrayCreationObject> arrayCreations = getArrayCreations();
+			return arrayCreations.get(arrayCreations.size() - 1);
+		}
+		else if(type.equals(ExpressionType.CLASS_INSTANCE_CREATION)) {
+			List<ClassInstanceCreationObject> classInstanceCreations = getClassInstanceCreations();
+			return classInstanceCreations.get(classInstanceCreations.size() - 1);
+		}
+		else if(type.equals(ExpressionType.FIELD_ACCESS)) {
+			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
+			return fieldInstructions.get(fieldInstructions.size() - 1);
+		}
+		else if(type.equals(ExpressionType.SUPER_FIELD_ACCESS)) {
+			List<SuperFieldInstructionObject> superFieldInstructions = getSuperFieldInstructions();
+			return superFieldInstructions.get(superFieldInstructions.size() - 1);
+		}
+		else if(type.equals(ExpressionType.SIMPLE_NAME)) {
+			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
+			List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
+			if(fieldInstructions.isEmpty() && !localVariableInstructions.isEmpty()) {
+				return localVariableInstructions.get(localVariableInstructions.size() - 1);
+			}
+			if(!fieldInstructions.isEmpty() && localVariableInstructions.isEmpty()) {
+				return fieldInstructions.get(fieldInstructions.size() - 1);
+			}
+		}
+		return null;
+	}
+
 	public ASTNodeDifference checkEquivalence(AbstractExpression e) {
 		ASTNodeDifference parentNodeDifference = new ASTNodeDifference(this,e);
 		if(!this.getType().equals(e.getType()))
 		{
 			List<AbstractExpression> srcExpressionList = this.getExpressions();
-			List<AbstractExpression> tgtExpressionList = e.getExpressions();	
+			List<AbstractExpression> tgtExpressionList = e.getExpressions();
 			//two leaf nodes of different types
 			if (srcExpressionList.size() == 0 && tgtExpressionList.size() == 0)
 			{
-				if(this.isTypeHolder() && e.isTypeHolder())
+				TypeHolder thisTypeHolder = this.getTopLevelTypeHolder();
+				TypeHolder expTypeHolder = e.getTopLevelTypeHolder();
+				if(thisTypeHolder != null && expTypeHolder != null)
 				{
-					if(this.isTypeCompatible(e))
+					if(thisTypeHolder.getType().equals(expTypeHolder.getType()))
 					{
 						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 						parentNodeDifference.addDifference(difference);
@@ -95,9 +144,11 @@ public class AbstractExpression extends AbstractMethodFragment {
 			}
 			else //two non-leaf nodes of different types or a non-leaf node vs. leaf node 
 			{
-				if(this.isTypeHolder() && e.isTypeHolder())
+				TypeHolder thisTypeHolder = this.getTopLevelTypeHolder();
+				TypeHolder expTypeHolder = e.getTopLevelTypeHolder();
+				if(thisTypeHolder != null && expTypeHolder != null)
 				{
-					if(this.isTypeCompatible(e))
+					if(thisTypeHolder.getType().equals(expTypeHolder.getType()))
 					{
 						Difference difference = new Difference(this.toString(),e.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 						parentNodeDifference.addDifference(difference);
@@ -118,7 +169,7 @@ public class AbstractExpression extends AbstractMethodFragment {
 		else
 		{
 			List<AbstractExpression> srcExpressionList = this.getExpressions();
-			List<AbstractExpression> tgtExpressionList = e.getExpressions();	
+			List<AbstractExpression> tgtExpressionList = e.getExpressions();
 			//two leaf nodes of the same type
 			if (srcExpressionList.size() == 0 && tgtExpressionList.size() == 0)
 			{
@@ -212,64 +263,4 @@ public class AbstractExpression extends AbstractMethodFragment {
 		}
 		return differences;
 	}
-	
-	// method to check if an expression holds the type
-	private boolean isTypeHolder()
-	{
-		ExpressionType expType = this.getType();
-		if(expType.equals(ExpressionType.NUMBER_LITERAL)
-				||expType.equals(ExpressionType.METHOD_INVOCATION)
-					||expType.equals(ExpressionType.SUPER_METHOD_INVOCATION)
-						||expType.equals(ExpressionType.SUPER_FIELD_ACCESS)
-							||expType.equals(ExpressionType.STRING_LITERAL)
-								||expType.equals(ExpressionType.SIMPLE_NAME)
-									||expType.equals(ExpressionType.FIELD_ACCESS)
-										||expType.equals(ExpressionType.BOOLEAN_LITERAL)
-											||expType.equals(ExpressionType.CHARACTER_LITERAL))
-												return true;
-		return false;
-	}
-	
-	private boolean isTypeCompatible(AbstractExpression exp)
-	{
-		List<AbstractMethodInvocationObject> thisMethodInvocationList = this.getAbstractMethodInvocations();
-		List<AbstractMethodInvocationObject> expMethodInvocationList = exp.getAbstractMethodInvocations();
-		if(thisMethodInvocationList.size() == 0 && expMethodInvocationList.size() == 0)
-		{
-			List<TypeHolder> thisTypeHolderList = this.getLeafTypeHolders();
-			List<TypeHolder> expTypeHolderList = exp.getLeafTypeHolders();
-			if(thisTypeHolderList.size() == 1 && expTypeHolderList.size() == 1)
-			{
-				return thisTypeHolderList.get(0).getType().equals(expTypeHolderList.get(0).getType());
-			}
-		}
-		else {
-			if(thisMethodInvocationList.size() > 0 && expMethodInvocationList.size() == 0)
-			{
-				AbstractMethodInvocationObject methodInvocation = thisMethodInvocationList.get(thisMethodInvocationList.size()-1);
-				List<TypeHolder> expTypeHolderList = exp.getLeafTypeHolders();
-				if(expTypeHolderList.size() == 1)
-				{
-					return methodInvocation.getType().equals(expTypeHolderList.get(0).getType());
-				}
-			}
-			if(thisMethodInvocationList.size() == 0 && expMethodInvocationList.size() > 0)
-			{
-				AbstractMethodInvocationObject methodInvocation = expMethodInvocationList.get(expMethodInvocationList.size()-1);
-				List<TypeHolder> thisTypeHolderList = this.getLeafTypeHolders();
-				if(thisTypeHolderList.size() == 1)
-				{
-					return methodInvocation.getType().equals(thisTypeHolderList.get(0).getType());
-				}
-			}
-			if(thisMethodInvocationList.size() > 0 && expMethodInvocationList.size() > 0)
-			{
-				AbstractMethodInvocationObject thisMethodInvocation = thisMethodInvocationList.get(thisMethodInvocationList.size()-1);
-				AbstractMethodInvocationObject expMethodInvocation = expMethodInvocationList.get(expMethodInvocationList.size()-1);
-				return thisMethodInvocation.getType().equals(expMethodInvocation.getType());
-			}
-		}
-		return false;
-	}
-	
 }

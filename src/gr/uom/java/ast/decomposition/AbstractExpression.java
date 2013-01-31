@@ -79,7 +79,7 @@ public class AbstractExpression extends AbstractMethodFragment {
 			return superMethodInvocations.get(superMethodInvocations.size() - 1);
 		}
 		else if(type.equals(ExpressionType.NUMBER_LITERAL) || type.equals(ExpressionType.STRING_LITERAL) ||
-				type.equals(ExpressionType.CHARACTER_LITERAL) || type.equals(ExpressionType.BOOLEAN_LITERAL)) {
+				type.equals(ExpressionType.CHARACTER_LITERAL) || type.equals(ExpressionType.BOOLEAN_LITERAL) || type.equals(ExpressionType.TYPE_LITERAL)) {
 			List<LiteralObject> literals = getLiterals();
 			return literals.get(literals.size() - 1);
 		}

@@ -24,37 +24,42 @@ public class AbstractExpression extends AbstractMethodFragment {
 
 	//private Expression expression;
 	private ASTInformation expression;
-	private AbstractMethodFragment owner;
 	private ExpressionType type;
 
-	public AbstractExpression(Expression expression, ExpressionType type) {
+	public AbstractExpression(Expression expression, ExpressionType type, AbstractMethodFragment parent) {
 		//this.expression = expression;
-		super();
+		super(parent);
 		this.type = type;
 		this.startPosition = expression.getStartPosition();
 		this.length = expression.getLength();
 		this.entireString = expression.toString();
 		this.expression = ASTInformationGenerator.generateASTInformation(expression);
-		this.owner = null;
 
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> assignments = expressionExtractor.getAssignments(expression);
-		List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(expression);
-		List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(expression);
-		processVariables(expressionExtractor.getVariableInstructions(expression), assignments, postfixExpressions, prefixExpressions);
-		processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
-		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
-		processArrayCreations(expressionExtractor.getArrayCreations(expression));
-		processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
-		processLiterals(expressionExtractor.getLiterals(expression));
-	}
-
-	public void setOwner(AbstractMethodFragment owner) {
-		this.owner = owner;
-	}
-
-	public AbstractMethodFragment getOwner() {
-		return this.owner;
+		if(type.equals(ExpressionType.FIELD_ACCESS) || type.equals(ExpressionType.SUPER_FIELD_ACCESS) ||
+				type.equals(ExpressionType.SIMPLE_NAME) || type.equals(ExpressionType.QUALIFIED_NAME)) {
+			Expression topExpression = getTopExpression(expression);
+			List<Expression> assignments = expressionExtractor.getAssignments(topExpression);
+			List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(topExpression);
+			List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(topExpression);
+			processVariables(expressionExtractor.getVariableInstructions(expression), assignments, postfixExpressions, prefixExpressions);
+		}
+		if(type.equals(ExpressionType.METHOD_INVOCATION) || type.equals(ExpressionType.SUPER_METHOD_INVOCATION)) {
+			processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
+		}
+		if(type.equals(ExpressionType.CLASS_INSTANCE_CREATION)) {
+			processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
+		}
+		if(type.equals(ExpressionType.ARRAY_CREATION)) {
+			processArrayCreations(expressionExtractor.getArrayCreations(expression));
+		}
+		if(type.equals(ExpressionType.ARRAY_ACCESS)) {
+			processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
+		}
+		if(type.equals(ExpressionType.NUMBER_LITERAL) || type.equals(ExpressionType.STRING_LITERAL) || type.equals(ExpressionType.NULL_LITERAL) ||
+				type.equals(ExpressionType.CHARACTER_LITERAL) || type.equals(ExpressionType.BOOLEAN_LITERAL) || type.equals(ExpressionType.TYPE_LITERAL)) {
+			processLiterals(expressionExtractor.getLiterals(expression));
+		}
 	}
 
 	public Expression getExpression() {
@@ -71,54 +76,54 @@ public class AbstractExpression extends AbstractMethodFragment {
 		return getEntireString();
 	}
 
+	private Expression getTopExpression(Expression expression) {
+		Expression topExpression = expression;
+		while(topExpression.getParent() instanceof Expression) {
+			topExpression = (Expression)topExpression.getParent();
+		}
+		return topExpression;
+	}
+
 	private TypeHolder getTopLevelTypeHolder() {
 		if(type.equals(ExpressionType.METHOD_INVOCATION)) {
-			List<MethodInvocationObject> methodInvocations = getMethodInvocations();
-			return methodInvocations.get(methodInvocations.size() - 1);
+			return getMethodInvocations().get(0);
 		}
 		else if(type.equals(ExpressionType.SUPER_METHOD_INVOCATION)) {
-			List<SuperMethodInvocationObject> superMethodInvocations = getSuperMethodInvocations();
-			return superMethodInvocations.get(superMethodInvocations.size() - 1);
+			return getSuperMethodInvocations().get(0);
 		}
 		else if(type.equals(ExpressionType.NUMBER_LITERAL) || type.equals(ExpressionType.STRING_LITERAL) ||
 				type.equals(ExpressionType.CHARACTER_LITERAL) || type.equals(ExpressionType.BOOLEAN_LITERAL) || type.equals(ExpressionType.TYPE_LITERAL)) {
-			List<LiteralObject> literals = getLiterals();
-			return literals.get(literals.size() - 1);
+			return getLiterals().get(0);
 		}
 		else if(type.equals(ExpressionType.ARRAY_CREATION)) {
-			List<ArrayCreationObject> arrayCreations = getArrayCreations();
-			return arrayCreations.get(arrayCreations.size() - 1);
+			return getArrayCreations().get(0);
 		}
 		else if(type.equals(ExpressionType.CLASS_INSTANCE_CREATION)) {
-			List<ClassInstanceCreationObject> classInstanceCreations = getClassInstanceCreations();
-			return classInstanceCreations.get(classInstanceCreations.size() - 1);
+			return getClassInstanceCreations().get(0);
 		}
 		else if(type.equals(ExpressionType.ARRAY_ACCESS)) {
-			List<ArrayAccessObject> arrayAccesses = getArrayAccesses();
-			return arrayAccesses.get(arrayAccesses.size() - 1);
+			return getArrayAccesses().get(0);
 		}
 		else if(type.equals(ExpressionType.FIELD_ACCESS)) {
-			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
-			return fieldInstructions.get(fieldInstructions.size() - 1);
+			return getFieldInstructions().get(0);
 		}
 		else if(type.equals(ExpressionType.SUPER_FIELD_ACCESS)) {
-			List<SuperFieldInstructionObject> superFieldInstructions = getSuperFieldInstructions();
-			return superFieldInstructions.get(superFieldInstructions.size() - 1);
+			return getSuperFieldInstructions().get(0);
 		}
 		else if(type.equals(ExpressionType.SIMPLE_NAME)) {
 			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
 			List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
 			if(fieldInstructions.isEmpty() && !localVariableInstructions.isEmpty()) {
-				return localVariableInstructions.get(localVariableInstructions.size() - 1);
+				return localVariableInstructions.get(0);
 			}
 			if(!fieldInstructions.isEmpty() && localVariableInstructions.isEmpty()) {
-				return fieldInstructions.get(fieldInstructions.size() - 1);
+				return fieldInstructions.get(0);
 			}
 		}
 		else if(type.equals(ExpressionType.QUALIFIED_NAME)) {
 			List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
 			if(!fieldInstructions.isEmpty()) {
-				return fieldInstructions.get(fieldInstructions.size() - 1);
+				return fieldInstructions.get(0);
 			}
 		}
 		return null;

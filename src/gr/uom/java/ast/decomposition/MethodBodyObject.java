@@ -79,7 +79,7 @@ public class MethodBodyObject {
 	private CompositeStatementObject compositeStatement;
 	
 	public MethodBodyObject(Block methodBody) {
-		this.compositeStatement = new CompositeStatementObject(methodBody, StatementType.BLOCK);
+		this.compositeStatement = new CompositeStatementObject(methodBody, StatementType.BLOCK, null);
         List<Statement> statements = methodBody.statements();
 		for(Statement statement : statements) {
 			processStatement(compositeStatement, statement);
@@ -381,7 +381,7 @@ public class MethodBodyObject {
 		if(statement instanceof Block) {
 			Block block = (Block)statement;
 			List<Statement> blockStatements = block.statements();
-			CompositeStatementObject child = new CompositeStatementObject(block, StatementType.BLOCK);
+			CompositeStatementObject child = new CompositeStatementObject(block, StatementType.BLOCK, parent);
 			parent.addStatement(child);
 			for(Statement blockStatement : blockStatements) {
 				processStatement(child, blockStatement);
@@ -389,7 +389,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof IfStatement) {
 			IfStatement ifStatement = (IfStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(ifStatement, StatementType.IF);
+			CompositeStatementObject child = new CompositeStatementObject(ifStatement, StatementType.IF, parent);
 			processExpression(child, ifStatement.getExpression());
 			parent.addStatement(child);
 			processStatement(child, ifStatement.getThenStatement());
@@ -399,7 +399,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ForStatement) {
 			ForStatement forStatement = (ForStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(forStatement, StatementType.FOR);
+			CompositeStatementObject child = new CompositeStatementObject(forStatement, StatementType.FOR, parent);
 			List<Expression> initializers = forStatement.initializers();
 			for(Expression initializer : initializers) {
 				processExpression(child, initializer);
@@ -417,7 +417,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof EnhancedForStatement) {
 			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(enhancedForStatement, StatementType.ENHANCED_FOR);
+			CompositeStatementObject child = new CompositeStatementObject(enhancedForStatement, StatementType.ENHANCED_FOR, parent);
 			SingleVariableDeclaration variableDeclaration = enhancedForStatement.getParameter();
 			processExpression(child, variableDeclaration.getName());
 			if(variableDeclaration.getInitializer() != null) {
@@ -429,27 +429,27 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof WhileStatement) {
 			WhileStatement whileStatement = (WhileStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(whileStatement, StatementType.WHILE);
+			CompositeStatementObject child = new CompositeStatementObject(whileStatement, StatementType.WHILE, parent);
 			processExpression(child, whileStatement.getExpression());
 			parent.addStatement(child);
 			processStatement(child, whileStatement.getBody());
 		}
 		else if(statement instanceof DoStatement) {
 			DoStatement doStatement = (DoStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(doStatement, StatementType.DO);
+			CompositeStatementObject child = new CompositeStatementObject(doStatement, StatementType.DO, parent);
 			processExpression(child, doStatement.getExpression());
 			parent.addStatement(child);
 			processStatement(child, doStatement.getBody());
 		}
 		else if(statement instanceof ExpressionStatement) {
 			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
-			StatementObject child = new StatementObject(expressionStatement, StatementType.EXPRESSION);
+			StatementObject child = new StatementObject(expressionStatement, StatementType.EXPRESSION, parent);
 			processExpression(child, expressionStatement.getExpression());
 			parent.addStatement(child);
 		}
 		else if(statement instanceof SwitchStatement) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(switchStatement, StatementType.SWITCH);
+			CompositeStatementObject child = new CompositeStatementObject(switchStatement, StatementType.SWITCH, parent);
 			processExpression(child, switchStatement.getExpression());
 			parent.addStatement(child);
 			List<Statement> switchStatements = switchStatement.statements();
@@ -458,14 +458,14 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof SwitchCase) {
 			SwitchCase switchCase = (SwitchCase)statement;
-			StatementObject child = new StatementObject(switchCase, StatementType.SWITCH_CASE);
+			StatementObject child = new StatementObject(switchCase, StatementType.SWITCH_CASE, parent);
 			if(switchCase.getExpression() != null)
 				processExpression(child, switchCase.getExpression());
 			parent.addStatement(child);
 		}
 		else if(statement instanceof AssertStatement) {
 			AssertStatement assertStatement = (AssertStatement)statement;
-			StatementObject child = new StatementObject(assertStatement, StatementType.ASSERT);
+			StatementObject child = new StatementObject(assertStatement, StatementType.ASSERT, parent);
 			processExpression(child, assertStatement.getExpression());
 			Expression message = assertStatement.getMessage();
 			if(message != null)
@@ -474,7 +474,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof LabeledStatement) {
 			LabeledStatement labeledStatement = (LabeledStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(labeledStatement, StatementType.LABELED);
+			CompositeStatementObject child = new CompositeStatementObject(labeledStatement, StatementType.LABELED, parent);
 			if(labeledStatement.getLabel() != null)
 				processExpression(child, labeledStatement.getLabel());
 			parent.addStatement(child);
@@ -482,26 +482,26 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ReturnStatement) {
 			ReturnStatement returnStatement = (ReturnStatement)statement;
-			StatementObject child = new StatementObject(returnStatement, StatementType.RETURN);
+			StatementObject child = new StatementObject(returnStatement, StatementType.RETURN, parent);
 			processExpression(child, returnStatement.getExpression());
 			parent.addStatement(child);	
 		}
 		else if(statement instanceof SynchronizedStatement) {
 			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement, StatementType.SYNCHRONIZED);
+			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement, StatementType.SYNCHRONIZED, parent);
 			processExpression(child, synchronizedStatement.getExpression());
 			parent.addStatement(child);
 			processStatement(child, synchronizedStatement.getBody());
 		}
 		else if(statement instanceof ThrowStatement) {
 			ThrowStatement throwStatement = (ThrowStatement)statement;
-			StatementObject child = new StatementObject(throwStatement, StatementType.THROW);
+			StatementObject child = new StatementObject(throwStatement, StatementType.THROW, parent);
 			processExpression(child, throwStatement.getExpression());
 			parent.addStatement(child);
 		}
 		else if(statement instanceof TryStatement) {
 			TryStatement tryStatement = (TryStatement)statement;
-			TryStatementObject child = new TryStatementObject(tryStatement);
+			TryStatementObject child = new TryStatementObject(tryStatement, parent);
 			List<VariableDeclarationExpression> resources = tryStatement.resources();
 			for(VariableDeclarationExpression expression : resources) {
 				processExpression(child, expression);
@@ -512,7 +512,7 @@ public class MethodBodyObject {
 			for(CatchClause catchClause : catchClauses) {
 				CatchClauseObject catchClauseObject = new CatchClauseObject();
 				Block catchClauseBody = catchClause.getBody();
-				CompositeStatementObject catchClauseStatementObject = new CompositeStatementObject(catchClauseBody, StatementType.BLOCK);
+				CompositeStatementObject catchClauseStatementObject = new CompositeStatementObject(catchClauseBody, StatementType.BLOCK, null);
 				SingleVariableDeclaration variableDeclaration = catchClause.getException();
 				Type variableDeclarationType = variableDeclaration.getType();
 				if(variableDeclarationType instanceof UnionType) {
@@ -525,7 +525,7 @@ public class MethodBodyObject {
 				else {
 					catchClauseObject.addExceptionType(variableDeclarationType.resolveBinding().getQualifiedName());
 				}
-				AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName(), ExpressionType.SIMPLE_NAME);
+				AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName(), ExpressionType.SIMPLE_NAME, null);
 				catchClauseObject.addExpression(variableDeclarationName);
 				/*if(variableDeclaration.getInitializer() != null) {
 					AbstractExpression variableDeclarationInitializer = new AbstractExpression(variableDeclaration.getInitializer());
@@ -540,7 +540,7 @@ public class MethodBodyObject {
 			}
 			Block finallyBlock = tryStatement.getFinally();
 			if(finallyBlock != null) {
-				CompositeStatementObject finallyClauseStatementObject = new CompositeStatementObject(finallyBlock, StatementType.BLOCK);
+				CompositeStatementObject finallyClauseStatementObject = new CompositeStatementObject(finallyBlock, StatementType.BLOCK, null);
 				List<Statement> blockStatements = finallyBlock.statements();
 				for(Statement blockStatement : blockStatements) {
 					processStatement(finallyClauseStatementObject, blockStatement);
@@ -550,7 +550,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof VariableDeclarationStatement) {
 			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
-			StatementObject child = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION);
+			StatementObject child = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, parent);
 			List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
 			for(VariableDeclarationFragment fragment : fragments) {
 				processExpression(child, fragment.getName());
@@ -560,7 +560,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof ConstructorInvocation) {
 			ConstructorInvocation constructorInvocation = (ConstructorInvocation)statement;
-			StatementObject child = new StatementObject(constructorInvocation, StatementType.CONSTRUCTOR_INVOCATION);
+			StatementObject child = new StatementObject(constructorInvocation, StatementType.CONSTRUCTOR_INVOCATION, parent);
 			List<Expression> arguments = constructorInvocation.arguments();
 			for(Expression argument : arguments)
 				processExpression(child, argument);
@@ -568,7 +568,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof SuperConstructorInvocation) {
 			SuperConstructorInvocation superConstructorInvocation = (SuperConstructorInvocation)statement;
-			StatementObject child = new StatementObject(superConstructorInvocation, StatementType.SUPER_CONSTRUCTOR_INVOCATION);
+			StatementObject child = new StatementObject(superConstructorInvocation, StatementType.SUPER_CONSTRUCTOR_INVOCATION, parent);
 			if(superConstructorInvocation.getExpression() != null)
 				processExpression(child, superConstructorInvocation.getExpression());
 			List<Expression> arguments = superConstructorInvocation.arguments();
@@ -578,21 +578,21 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof BreakStatement) {
 			BreakStatement breakStatement = (BreakStatement)statement;
-			StatementObject child = new StatementObject(breakStatement, StatementType.BREAK);
+			StatementObject child = new StatementObject(breakStatement, StatementType.BREAK, parent);
 			if(breakStatement.getLabel() != null)
 				processExpression(child, breakStatement.getLabel());
 			parent.addStatement(child);
 		}
 		else if(statement instanceof ContinueStatement) {
 			ContinueStatement continueStatement = (ContinueStatement)statement;
-			StatementObject child = new StatementObject(continueStatement, StatementType.CONTINUE);
+			StatementObject child = new StatementObject(continueStatement, StatementType.CONTINUE, parent);
 			if(continueStatement.getLabel() != null)
 				processExpression(child, continueStatement.getLabel());
 			parent.addStatement(child);
 		}
 		else if(statement instanceof EmptyStatement) {
 			EmptyStatement emptyStatement = (EmptyStatement)statement;
-			StatementObject child = new StatementObject(emptyStatement, StatementType.EMPTY);
+			StatementObject child = new StatementObject(emptyStatement, StatementType.EMPTY, parent);
 			parent.addStatement(child);
 		}
 	}
@@ -600,7 +600,7 @@ public class MethodBodyObject {
 	private void processExpression(AbstractMethodFragment parent, Expression expression) {
 		if(expression instanceof MethodInvocation) {
 			MethodInvocation methodInvocation = (MethodInvocation)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.METHOD_INVOCATION);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.METHOD_INVOCATION, parent);
 			parent.addExpression(parentExpression);
 			if(methodInvocation.getExpression() != null)
 				processExpression(parentExpression, methodInvocation.getExpression());
@@ -610,20 +610,20 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof Assignment) {
 			Assignment assignment = (Assignment)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ASSIGNMENT);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ASSIGNMENT, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, assignment.getLeftHandSide());
 			processExpression(parentExpression, assignment.getRightHandSide());
 		}
 		else if(expression instanceof CastExpression) {
 			CastExpression castExpression = (CastExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CAST);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CAST, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, castExpression.getExpression());
 		}
 		else if(expression instanceof ClassInstanceCreation) {
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CLASS_INSTANCE_CREATION);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CLASS_INSTANCE_CREATION, parent);
 			parent.addExpression(parentExpression);
 			if(classInstanceCreation.getExpression() != null)
 				processExpression(parentExpression, classInstanceCreation.getExpression());
@@ -637,7 +637,7 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof ConditionalExpression) {
 			ConditionalExpression conditionalExpression = (ConditionalExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CONDITIONAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CONDITIONAL, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, conditionalExpression.getExpression());
 			processExpression(parentExpression, conditionalExpression.getThenExpression());
@@ -645,14 +645,14 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.FIELD_ACCESS);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.FIELD_ACCESS, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, fieldAccess.getExpression());
 			processExpression(parentExpression, fieldAccess.getName());
 		}
 		else if(expression instanceof InfixExpression) {
 			InfixExpression infixExpression = (InfixExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.INFIX);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.INFIX, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, infixExpression.getLeftOperand());
 			processExpression(parentExpression, infixExpression.getRightOperand());
@@ -662,31 +662,31 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof InstanceofExpression) {
 			InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.INSTANCE_OF);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.INSTANCE_OF, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, instanceofExpression.getLeftOperand());
 		}
 		else if(expression instanceof ParenthesizedExpression) {
 			ParenthesizedExpression parenthesizedExpression = (ParenthesizedExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.PARENTHESIZED);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.PARENTHESIZED, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, parenthesizedExpression.getExpression());
 		}
 		else if(expression instanceof PostfixExpression) {
 			PostfixExpression postfixExpression = (PostfixExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.POSTFIX);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.POSTFIX, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, postfixExpression.getOperand());
 		}
 		else if(expression instanceof PrefixExpression) {
 			PrefixExpression prefixExpression = (PrefixExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.PREFIX);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.PREFIX, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, prefixExpression.getOperand());
 		}
 		else if(expression instanceof SuperMethodInvocation) {
 			SuperMethodInvocation superMethodInvocation = (SuperMethodInvocation)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.SUPER_METHOD_INVOCATION);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.SUPER_METHOD_INVOCATION, parent);
 			parent.addExpression(parentExpression);
 			List<Expression> arguments = superMethodInvocation.arguments();
 			for(Expression argument : arguments)
@@ -694,7 +694,7 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof VariableDeclarationExpression) {
 			VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.VARIABLE_DECLARATION);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.VARIABLE_DECLARATION, parent);
 			parent.addExpression(parentExpression);
 			List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
 			for(VariableDeclarationFragment fragment : fragments) {
@@ -706,14 +706,14 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof ArrayAccess) {
 			ArrayAccess arrayAccess = (ArrayAccess)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ARRAY_ACCESS);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ARRAY_ACCESS, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, arrayAccess.getArray());
 			processExpression(parentExpression, arrayAccess.getIndex());
 		}
 		else if(expression instanceof ArrayCreation) {
 			ArrayCreation arrayCreation = (ArrayCreation)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ARRAY_CREATION);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ARRAY_CREATION, parent);
 			parent.addExpression(parentExpression);
 			List<Expression> dimensions = arrayCreation.dimensions();
 			for(Expression dimension : dimensions)
@@ -722,7 +722,7 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof ArrayInitializer) {
 			ArrayInitializer arrayInitializer = (ArrayInitializer)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ARRAY_INITIALIZER);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.ARRAY_INITIALIZER, parent);
 			parent.addExpression(parentExpression);
 			List<Expression> expressions = arrayInitializer.expressions();
 			for(Expression arrayInitializerExpression : expressions)
@@ -730,57 +730,57 @@ public class MethodBodyObject {
 		}
 		else if(expression instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.SIMPLE_NAME);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.SIMPLE_NAME, parent);
 			parent.addExpression(parentExpression);
 		}
 		else if(expression instanceof QualifiedName) {
 			QualifiedName qualifiedName = (QualifiedName)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.QUALIFIED_NAME);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.QUALIFIED_NAME, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, qualifiedName.getQualifier());
 			processExpression(parentExpression, qualifiedName.getName());
 		}
 		else if(expression instanceof SuperFieldAccess) {
 			SuperFieldAccess superFieldAccess = (SuperFieldAccess)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.SUPER_FIELD_ACCESS);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.SUPER_FIELD_ACCESS, parent);
 			parent.addExpression(parentExpression);
 			processExpression(parentExpression, superFieldAccess.getName());
 		}
 		else if(expression instanceof ThisExpression) {
 			ThisExpression thisExpression = (ThisExpression)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.THIS);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.THIS, parent);
 			parent.addExpression(parentExpression);
 			if(thisExpression.getQualifier() != null)
 				processExpression(parentExpression, thisExpression.getQualifier());
 		}
 		else if(expression instanceof TypeLiteral) {
 			//TypeLiteral typeLiteral = (TypeLiteral)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.TYPE_LITERAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.TYPE_LITERAL, parent);
 			parent.addExpression(parentExpression);
 		}
 		else if(expression instanceof StringLiteral) {
 			//StringLiteral stringLiteral = (StringLiteral)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.STRING_LITERAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.STRING_LITERAL, parent);
 			parent.addExpression(parentExpression);
 		}
 		else if(expression instanceof NullLiteral) {
 			//NullLiteral nullLiteral = (NullLiteral)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.NULL_LITERAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.NULL_LITERAL, parent);
 			parent.addExpression(parentExpression);
 		}
 		else if(expression instanceof NumberLiteral) {
 			//NumberLiteral numberLiteral = (NumberLiteral)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.NUMBER_LITERAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.NUMBER_LITERAL, parent);
 			parent.addExpression(parentExpression);
 		}
 		else if(expression instanceof BooleanLiteral) {
 			//BooleanLiteral booleanLiteral = (BooleanLiteral)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.BOOLEAN_LITERAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.BOOLEAN_LITERAL, parent);
 			parent.addExpression(parentExpression);
 		}
 		else if(expression instanceof CharacterLiteral) {
 			//CharacterLiteral characterLiteral = (CharacterLiteral)expression;
-			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CHARACTER_LITERAL);
+			AbstractExpression parentExpression = new AbstractExpression(expression, ExpressionType.CHARACTER_LITERAL, parent);
 			parent.addExpression(parentExpression);
 		}
 	}

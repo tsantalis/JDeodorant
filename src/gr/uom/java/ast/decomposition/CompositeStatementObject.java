@@ -34,14 +34,14 @@ public class CompositeStatementObject extends AbstractStatement {
 	
 	private List<AbstractStatement> statementList;
 
-	public CompositeStatementObject(Statement statement, StatementType type) {
-		super(statement, type);
+	public CompositeStatementObject(Statement statement, StatementType type, AbstractMethodFragment parent) {
+		super(statement, type, parent);
 		this.statementList = new ArrayList<AbstractStatement>();
 	}
 
 	public void addStatement(AbstractStatement statement) {
 		statementList.add(statement);
-		statement.setParent(this);
+		//statement.setParent(this);
 	}
 
 	public List<AbstractStatement> getStatements() {

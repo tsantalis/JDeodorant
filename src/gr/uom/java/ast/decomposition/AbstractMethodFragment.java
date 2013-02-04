@@ -46,6 +46,7 @@ public abstract class AbstractMethodFragment {
 	protected int startPosition;
 	protected int length;
 	protected String entireString;
+	private AbstractMethodFragment parent;
 	protected List<AbstractExpression> expressionList;
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
@@ -83,7 +84,8 @@ public abstract class AbstractMethodFragment {
 	private Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations;
 	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
 
-	protected AbstractMethodFragment() {
+	protected AbstractMethodFragment(AbstractMethodFragment parent) {
+		this.parent = parent;
 		this.expressionList = new ArrayList<AbstractExpression>();
 		this.methodInvocationList = new ArrayList<MethodInvocationObject>();
 		this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
@@ -134,9 +136,13 @@ public abstract class AbstractMethodFragment {
 		return entireString;
 	}
 
+    public AbstractMethodFragment getParent() {
+    	return this.parent;
+    }
+
 	public void addExpression(AbstractExpression expression) {
 		expressionList.add(expression);
-		expression.setOwner(this);
+		//expression.setParent(this);
 	}
 
 	public List<AbstractExpression> getExpressions() {
@@ -145,7 +151,9 @@ public abstract class AbstractMethodFragment {
 
 	protected void processVariables(List<Expression> variableInstructions, List<Expression> assignments,
 			List<Expression> postfixExpressions, List<Expression> prefixExpressions) {
-		for(Expression variableInstruction : variableInstructions) {
+		//for(Expression variableInstruction : variableInstructions) {
+		if(!variableInstructions.isEmpty()) {
+			Expression variableInstruction = variableInstructions.get(variableInstructions.size() - 1);
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
@@ -162,14 +170,14 @@ public abstract class AbstractMethodFragment {
 								superFieldInstruction.setSimpleName(simpleName);
 								if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
 									superFieldInstruction.setStatic(true);
-								superFieldInstructionList.add(superFieldInstruction);
+								addSuperFieldInstruction(superFieldInstruction);
 							}
 							else {
 								FieldInstructionObject fieldInstruction = new FieldInstructionObject(originClassName, fieldType, fieldName);
 								fieldInstruction.setSimpleName(simpleName);
 								if((variableBinding.getModifiers() & Modifier.STATIC) != 0)
 									fieldInstruction.setStatic(true);
-								fieldInstructionList.add(fieldInstruction);
+								addFieldInstruction(fieldInstruction);
 								Set<Assignment> fieldAssignments = getMatchingAssignments(simpleName, assignments);
 								Set<PostfixExpression> fieldPostfixAssignments = getMatchingPostfixAssignments(simpleName, postfixExpressions);
 								Set<PrefixExpression> fieldPrefixAssignments = getMatchingPrefixAssignments(simpleName, prefixExpressions);
@@ -210,34 +218,34 @@ public abstract class AbstractMethodFragment {
 							LocalVariableDeclarationObject localVariable = new LocalVariableDeclarationObject(localVariableType, variableName);
 							VariableDeclaration variableDeclaration = (VariableDeclaration)simpleName.getParent();
 							localVariable.setVariableDeclaration(variableDeclaration);
-							localVariableDeclarationList.add(localVariable);
-							declaredLocalVariables.add(variable);
+							addLocalVariableDeclaration(localVariable);
+							addDeclaredLocalVariable(variable);
 						}
 						else {
 							LocalVariableInstructionObject localVariable = new LocalVariableInstructionObject(localVariableType, variableName);
 							localVariable.setSimpleName(simpleName);
-							localVariableInstructionList.add(localVariable);
+							addLocalVariableInstruction(localVariable);
 							Set<Assignment> localVariableAssignments = getMatchingAssignments(simpleName, assignments);
 							Set<PostfixExpression> localVariablePostfixAssignments = getMatchingPostfixAssignments(simpleName, postfixExpressions);
 							Set<PrefixExpression> localVariablePrefixAssignments = getMatchingPrefixAssignments(simpleName, prefixExpressions);
 							if(!localVariableAssignments.isEmpty()) {
-								definedLocalVariables.add(variable);
+								addDefinedLocalVariable(variable);
 								for(Assignment assignment : localVariableAssignments) {
 									Assignment.Operator operator = assignment.getOperator();
 									if(!operator.equals(Assignment.Operator.ASSIGN))
-										usedLocalVariables.add(variable);
+										addUsedLocalVariable(variable);
 								}
 							}
 							if(!localVariablePostfixAssignments.isEmpty()) {
-								definedLocalVariables.add(variable);
-								usedLocalVariables.add(variable);
+								addDefinedLocalVariable(variable);
+								addUsedLocalVariable(variable);
 							}
 							if(!localVariablePrefixAssignments.isEmpty()) {
-								definedLocalVariables.add(variable);
-								usedLocalVariables.add(variable);
+								addDefinedLocalVariable(variable);
+								addUsedLocalVariable(variable);
 							}
 							if(localVariableAssignments.isEmpty() && localVariablePostfixAssignments.isEmpty() && localVariablePrefixAssignments.isEmpty()) {
-								usedLocalVariables.add(variable);
+								addUsedLocalVariable(variable);
 							}
 						}
 					}
@@ -246,8 +254,59 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	private void addFieldInstruction(FieldInstructionObject fieldInstruction) {
+		fieldInstructionList.add(fieldInstruction);
+		if(parent != null) {
+			parent.addFieldInstruction(fieldInstruction);
+		}
+	}
+
+	private void addSuperFieldInstruction(SuperFieldInstructionObject superFieldInstruction) {
+		superFieldInstructionList.add(superFieldInstruction);
+		if(parent != null) {
+			parent.addSuperFieldInstruction(superFieldInstruction);
+		}
+	}
+
+	private void addLocalVariableDeclaration(LocalVariableDeclarationObject localVariable) {
+		localVariableDeclarationList.add(localVariable);
+		if(parent != null) {
+			parent.addLocalVariableDeclaration(localVariable);
+		}
+	}
+
+	private void addLocalVariableInstruction(LocalVariableInstructionObject localVariable) {
+		localVariableInstructionList.add(localVariable);
+		if(parent != null) {
+			parent.addLocalVariableInstruction(localVariable);
+		}
+	}
+
+	private void addDeclaredLocalVariable(PlainVariable variable) {
+		declaredLocalVariables.add(variable);
+		if(parent != null) {
+			parent.addDeclaredLocalVariable(variable);
+		}
+	}
+
+	private void addDefinedLocalVariable(PlainVariable variable) {
+		definedLocalVariables.add(variable);
+		if(parent != null) {
+			parent.addDefinedLocalVariable(variable);
+		}
+	}
+
+	private void addUsedLocalVariable(PlainVariable variable) {
+		usedLocalVariables.add(variable);
+		if(parent != null) {
+			parent.addUsedLocalVariable(variable);
+		}
+	}
+
 	protected void processMethodInvocations(List<Expression> methodInvocations) {
-		for(Expression expression : methodInvocations) {
+		//for(Expression expression : methodInvocations) {
+		if(!methodInvocations.isEmpty()) {
+			Expression expression = methodInvocations.get(methodInvocations.size() - 1);
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
@@ -269,7 +328,7 @@ public abstract class AbstractMethodFragment {
 				}
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
 					methodInvocationObject.setStatic(true);
-				methodInvocationList.add(methodInvocationObject);
+				addMethodInvocation(methodInvocationObject);
 				AbstractVariable invoker = MethodDeclarationUtility.processMethodInvocationExpression(methodInvocation.getExpression());
 				if(invoker != null) {
 					PlainVariable initialVariable = invoker.getInitialVariable();
@@ -331,7 +390,7 @@ public abstract class AbstractMethodFragment {
 				}
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
 					superMethodInvocationObject.setStatic(true);
-				superMethodInvocationList.add(superMethodInvocationObject);
+				addSuperMethodInvocation(superMethodInvocationObject);
 				List<Expression> arguments = superMethodInvocation.arguments();
 				for(Expression argument : arguments) {
 					if(argument instanceof SimpleName) {
@@ -355,8 +414,24 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	private void addMethodInvocation(MethodInvocationObject methodInvocationObject) {
+		methodInvocationList.add(methodInvocationObject);
+		if(parent != null) {
+			parent.addMethodInvocation(methodInvocationObject);
+		}
+	}
+
+	private void addSuperMethodInvocation(SuperMethodInvocationObject superMethodInvocationObject) {
+		superMethodInvocationList.add(superMethodInvocationObject);
+		if(parent != null) {
+			parent.addSuperMethodInvocation(superMethodInvocationObject);
+		}
+	}
+
 	protected void processClassInstanceCreations(List<Expression> classInctanceCreations) {
-		for(Expression classInstanceCreationExpression : classInctanceCreations) {
+		//for(Expression classInstanceCreationExpression : classInctanceCreations) {
+		if(!classInctanceCreations.isEmpty()) {
+			Expression classInstanceCreationExpression = classInctanceCreations.get(classInctanceCreations.size() - 1);
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreationExpression;
 			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
 			Type type = classInstanceCreation.getType();
@@ -371,12 +446,14 @@ public abstract class AbstractMethodFragment {
 				TypeObject parameterTypeObject = TypeObject.extractTypeObject(qualifiedParameterName);
 				creationObject.addParameter(parameterTypeObject);
 			}
-			creationList.add(creationObject);
+			addCreation(creationObject);
 		}
 	}
 
 	protected void processArrayCreations(List<Expression> arrayCreations) {
-		for(Expression arrayCreationExpression : arrayCreations) {
+		//for(Expression arrayCreationExpression : arrayCreations) {
+		if(!arrayCreations.isEmpty()) {
+			Expression arrayCreationExpression = arrayCreations.get(arrayCreations.size() - 1);
 			ArrayCreation arrayCreation = (ArrayCreation)arrayCreationExpression;
 			Type type = arrayCreation.getType();
 			ITypeBinding typeBinding = type.resolveBinding();
@@ -384,26 +461,51 @@ public abstract class AbstractMethodFragment {
 			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
 			ArrayCreationObject creationObject = new ArrayCreationObject(typeObject);
 			creationObject.setArrayCreation(arrayCreation);
-			creationList.add(creationObject);
+			addCreation(creationObject);
+		}
+	}
+
+	private void addCreation(CreationObject creationObject) {
+		creationList.add(creationObject);
+		if(parent != null) {
+			parent.addCreation(creationObject);
 		}
 	}
 
 	protected void processArrayAccesses(List<Expression> arrayAccesses) {
-		for(Expression arrayAccessExpression : arrayAccesses) {
+		//for(Expression arrayAccessExpression : arrayAccesses) {
+		if(!arrayAccesses.isEmpty()) {
+			Expression arrayAccessExpression = arrayAccesses.get(arrayAccesses.size() - 1);
 			ArrayAccess arrayAccess = (ArrayAccess)arrayAccessExpression;
 			ITypeBinding typeBinding = arrayAccess.resolveTypeBinding();
 			String qualifiedTypeName = typeBinding.getQualifiedName();
 			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
 			ArrayAccessObject arrayAccessObject = new ArrayAccessObject(typeObject);
 			arrayAccessObject.setArrayAccess(arrayAccess);
-			arrayAccessList.add(arrayAccessObject);
+			addArrayAccess(arrayAccessObject);
+		}
+	}
+
+	private void addArrayAccess(ArrayAccessObject arrayAccessObject) {
+		arrayAccessList.add(arrayAccessObject);
+		if(parent != null) {
+			parent.addArrayAccess(arrayAccessObject);
 		}
 	}
 
 	protected void processLiterals(List<Expression> literals) {
-		for(Expression literal : literals) {
+		//for(Expression literal : literals) {
+		if(!literals.isEmpty()) {
+			Expression literal = literals.get(literals.size() - 1);
 			LiteralObject literalObject = new LiteralObject(literal);
-			literalList.add(literalObject);
+			addLiteral(literalObject);
+		}
+	}
+
+	private void addLiteral(LiteralObject literalObject) {
+		literalList.add(literalObject);
+		if(parent != null) {
+			parent.addLiteral(literalObject);
 		}
 	}
 
@@ -417,6 +519,9 @@ public abstract class AbstractMethodFragment {
 			methodInvocations.add(methodInvocation);
 			invokedMethodsThroughFields.put(field, methodInvocations);
 		}
+		if(parent != null) {
+			parent.addInvokedMethodThroughField(field, methodInvocation);
+		}
 	}
 
 	private void addNonDistinctInvokedMethodThroughField(AbstractVariable field, MethodInvocationObject methodInvocation) {
@@ -428,6 +533,9 @@ public abstract class AbstractMethodFragment {
 			ArrayList<MethodInvocationObject> methodInvocations = new ArrayList<MethodInvocationObject>();
 			methodInvocations.add(methodInvocation);
 			nonDistinctInvokedMethodsThroughFields.put(field, methodInvocations);
+		}
+		if(parent != null) {
+			parent.addNonDistinctInvokedMethodThroughField(field, methodInvocation);
 		}
 	}
 
@@ -441,6 +549,9 @@ public abstract class AbstractMethodFragment {
 			methodInvocations.add(methodInvocation);
 			invokedMethodsThroughParameters.put(parameter, methodInvocations);
 		}
+		if(parent != null) {
+			parent.addInvokedMethodThroughParameter(parameter, methodInvocation);
+		}
 	}
 
 	private void addNonDistinctInvokedMethodThroughParameter(AbstractVariable parameter, MethodInvocationObject methodInvocation) {
@@ -452,6 +563,9 @@ public abstract class AbstractMethodFragment {
 			ArrayList<MethodInvocationObject> methodInvocations = new ArrayList<MethodInvocationObject>();
 			methodInvocations.add(methodInvocation);
 			nonDistinctInvokedMethodsThroughParameters.put(parameter, methodInvocations);
+		}
+		if(parent != null) {
+			parent.addNonDistinctInvokedMethodThroughParameter(parameter, methodInvocation);
 		}
 	}
 
@@ -465,14 +579,23 @@ public abstract class AbstractMethodFragment {
 			methodInvocations.add(methodInvocation);
 			invokedMethodsThroughLocalVariables.put(localVariable, methodInvocations);
 		}
+		if(parent != null) {
+			parent.addInvokedMethodThroughLocalVariable(localVariable, methodInvocation);
+		}
 	}
 
 	private void addInvokedMethodThroughThisReference(MethodInvocationObject methodInvocation) {
 		invokedMethodsThroughThisReference.add(methodInvocation);
+		if(parent != null) {
+			parent.addInvokedMethodThroughThisReference(methodInvocation);
+		}
 	}
 
 	private void addStaticallyInvokedMethod(MethodInvocationObject methodInvocation) {
 		invokedStaticMethods.add(methodInvocation);
+		if(parent != null) {
+			parent.addStaticallyInvokedMethod(methodInvocation);
+		}
 	}
 
 	private void addParameterPassedAsArgumentInMethodInvocation(PlainVariable parameter, MethodInvocationObject methodInvocation) {
@@ -485,6 +608,9 @@ public abstract class AbstractMethodFragment {
 			methodInvocations.add(methodInvocation);
 			parametersPassedAsArgumentsInMethodInvocations.put(parameter, methodInvocations);
 		}
+		if(parent != null) {
+			parent.addParameterPassedAsArgumentInMethodInvocation(parameter, methodInvocation);
+		}
 	}
 
 	private void addParameterPassedAsArgumentInSuperMethodInvocation(PlainVariable parameter, SuperMethodInvocationObject methodInvocation) {
@@ -496,6 +622,9 @@ public abstract class AbstractMethodFragment {
 			LinkedHashSet<SuperMethodInvocationObject> methodInvocations = new LinkedHashSet<SuperMethodInvocationObject>();
 			methodInvocations.add(methodInvocation);
 			parametersPassedAsArgumentsInSuperMethodInvocations.put(parameter, methodInvocations);
+		}
+		if(parent != null) {
+			parent.addParameterPassedAsArgumentInSuperMethodInvocation(parameter, methodInvocation);
 		}
 	}
 
@@ -559,6 +688,9 @@ public abstract class AbstractMethodFragment {
 				else
 					definedFieldsThroughLocalVariables.add(variable);
 			}
+			if(parent != null) {
+				parent.handleDefinedField(variable);
+			}
 		}
 	}
 
@@ -579,6 +711,9 @@ public abstract class AbstractMethodFragment {
 				}
 				else
 					usedFieldsThroughLocalVariables.add(variable);
+			}
+			if(parent != null) {
+				parent.handleUsedField(variable);
 			}
 		}
 	}

@@ -9,8 +9,8 @@ public class TryStatementObject extends CompositeStatementObject {
 	private List<CatchClauseObject> catchClauses;
 	private CompositeStatementObject finallyClause;
 	
-	public TryStatementObject(Statement statement) {
-		super(statement, StatementType.TRY);
+	public TryStatementObject(Statement statement, AbstractMethodFragment parent) {
+		super(statement, StatementType.TRY, parent);
 		this.catchClauses = new ArrayList<CatchClauseObject>();
 	}
 

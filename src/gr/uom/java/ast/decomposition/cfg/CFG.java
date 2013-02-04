@@ -173,16 +173,16 @@ public class CFG extends Graph {
 	private int getAction(CompositeStatementObject parentComposite, int i, CompositeStatementObject childComposite) {
 		int action = PUSH_NEW_LIST;
 		List<AbstractStatement> statements = new ArrayList<AbstractStatement>(parentComposite.getStatements());
-		CompositeStatementObject parent = statements.get(0).getParent();
+		CompositeStatementObject parent = (CompositeStatementObject) statements.get(0).getParent();
 		if(parent.getStatement() instanceof Block)
-			parent = parent.getParent();
+			parent = (CompositeStatementObject) parent.getParent();
 		int position = i;
 		while(parent != null && parent instanceof TryStatementObject) {
 			CompositeStatementObject tryStatement = parent;
-			CompositeStatementObject tryStatementParent = tryStatement.getParent();
+			CompositeStatementObject tryStatementParent = (CompositeStatementObject) tryStatement.getParent();
 			List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
 			if(tryStatementParent.getStatement() instanceof Block)
-				tryStatementParent = tryStatementParent.getParent();
+				tryStatementParent = (CompositeStatementObject) tryStatementParent.getParent();
 			int positionOfTryStatementInParent = 0;
 			int j = 0;
 			for(AbstractStatement statement : tryParentStatements) {

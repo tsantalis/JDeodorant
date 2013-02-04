@@ -43,11 +43,8 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class AbstractMethodFragment {
-	protected int startPosition;
-	protected int length;
-	protected String entireString;
 	private AbstractMethodFragment parent;
-	protected List<AbstractExpression> expressionList;
+	
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
 	private List<FieldInstructionObject> fieldInstructionList;
@@ -86,7 +83,6 @@ public abstract class AbstractMethodFragment {
 
 	protected AbstractMethodFragment(AbstractMethodFragment parent) {
 		this.parent = parent;
-		this.expressionList = new ArrayList<AbstractExpression>();
 		this.methodInvocationList = new ArrayList<MethodInvocationObject>();
 		this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
 		this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
@@ -124,36 +120,13 @@ public abstract class AbstractMethodFragment {
 		this.parametersPassedAsArgumentsInSuperMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
 	}
 
-    public int getStartPosition() {
-		return startPosition;
-	}
-
-	public int getLength() {
-		return length;
-	}
-
-	public String getEntireString() {
-		return entireString;
-	}
-
     public AbstractMethodFragment getParent() {
     	return this.parent;
     }
 
-	public void addExpression(AbstractExpression expression) {
-		expressionList.add(expression);
-		//expression.setParent(this);
-	}
-
-	public List<AbstractExpression> getExpressions() {
-		return expressionList;
-	}
-
 	protected void processVariables(List<Expression> variableInstructions, List<Expression> assignments,
 			List<Expression> postfixExpressions, List<Expression> prefixExpressions) {
-		//for(Expression variableInstruction : variableInstructions) {
-		if(!variableInstructions.isEmpty()) {
-			Expression variableInstruction = variableInstructions.get(variableInstructions.size() - 1);
+		for(Expression variableInstruction : variableInstructions) {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
@@ -304,9 +277,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	protected void processMethodInvocations(List<Expression> methodInvocations) {
-		//for(Expression expression : methodInvocations) {
-		if(!methodInvocations.isEmpty()) {
-			Expression expression = methodInvocations.get(methodInvocations.size() - 1);
+		for(Expression expression : methodInvocations) {
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
@@ -429,9 +400,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	protected void processClassInstanceCreations(List<Expression> classInctanceCreations) {
-		//for(Expression classInstanceCreationExpression : classInctanceCreations) {
-		if(!classInctanceCreations.isEmpty()) {
-			Expression classInstanceCreationExpression = classInctanceCreations.get(classInctanceCreations.size() - 1);
+		for(Expression classInstanceCreationExpression : classInctanceCreations) {
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreationExpression;
 			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
 			Type type = classInstanceCreation.getType();
@@ -451,9 +420,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	protected void processArrayCreations(List<Expression> arrayCreations) {
-		//for(Expression arrayCreationExpression : arrayCreations) {
-		if(!arrayCreations.isEmpty()) {
-			Expression arrayCreationExpression = arrayCreations.get(arrayCreations.size() - 1);
+		for(Expression arrayCreationExpression : arrayCreations) {
 			ArrayCreation arrayCreation = (ArrayCreation)arrayCreationExpression;
 			Type type = arrayCreation.getType();
 			ITypeBinding typeBinding = type.resolveBinding();
@@ -473,9 +440,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	protected void processArrayAccesses(List<Expression> arrayAccesses) {
-		//for(Expression arrayAccessExpression : arrayAccesses) {
-		if(!arrayAccesses.isEmpty()) {
-			Expression arrayAccessExpression = arrayAccesses.get(arrayAccesses.size() - 1);
+		for(Expression arrayAccessExpression : arrayAccesses) {
 			ArrayAccess arrayAccess = (ArrayAccess)arrayAccessExpression;
 			ITypeBinding typeBinding = arrayAccess.resolveTypeBinding();
 			String qualifiedTypeName = typeBinding.getQualifiedName();
@@ -494,9 +459,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	protected void processLiterals(List<Expression> literals) {
-		//for(Expression literal : literals) {
-		if(!literals.isEmpty()) {
-			Expression literal = literals.get(literals.size() - 1);
+		for(Expression literal : literals) {
 			LiteralObject literalObject = new LiteralObject(literal);
 			addLiteral(literalObject);
 		}

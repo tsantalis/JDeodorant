@@ -1,21 +1,9 @@
 package gr.uom.java.ast.decomposition;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
-import gr.uom.java.ast.ArrayAccessObject;
-import gr.uom.java.ast.ArrayCreationObject;
-import gr.uom.java.ast.ClassInstanceCreationObject;
-import gr.uom.java.ast.FieldInstructionObject;
-import gr.uom.java.ast.LiteralObject;
-import gr.uom.java.ast.LocalVariableDeclarationObject;
-import gr.uom.java.ast.LocalVariableInstructionObject;
-import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.SuperFieldInstructionObject;
-import gr.uom.java.ast.SuperMethodInvocationObject;
-import gr.uom.java.ast.TypeHolder;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import org.eclipse.jdt.core.dom.Expression;
@@ -24,42 +12,24 @@ public class AbstractExpression extends AbstractMethodFragment {
 
 	//private Expression expression;
 	private ASTInformation expression;
-	private ExpressionType type;
+	//private ExpressionType type;
 
-	public AbstractExpression(Expression expression, ExpressionType type, AbstractMethodFragment parent) {
+	public AbstractExpression(Expression expression, AbstractMethodFragment parent) {
 		//this.expression = expression;
 		super(parent);
-		this.type = type;
-		this.startPosition = expression.getStartPosition();
-		this.length = expression.getLength();
-		this.entireString = expression.toString();
+		//this.type = type;
 		this.expression = ASTInformationGenerator.generateASTInformation(expression);
 
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		if(type.equals(ExpressionType.FIELD_ACCESS) || type.equals(ExpressionType.SUPER_FIELD_ACCESS) ||
-				type.equals(ExpressionType.SIMPLE_NAME) || type.equals(ExpressionType.QUALIFIED_NAME)) {
-			Expression topExpression = getTopExpression(expression);
-			List<Expression> assignments = expressionExtractor.getAssignments(topExpression);
-			List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(topExpression);
-			List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(topExpression);
-			processVariables(expressionExtractor.getVariableInstructions(expression), assignments, postfixExpressions, prefixExpressions);
-		}
-		if(type.equals(ExpressionType.METHOD_INVOCATION) || type.equals(ExpressionType.SUPER_METHOD_INVOCATION)) {
-			processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
-		}
-		if(type.equals(ExpressionType.CLASS_INSTANCE_CREATION)) {
-			processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
-		}
-		if(type.equals(ExpressionType.ARRAY_CREATION)) {
-			processArrayCreations(expressionExtractor.getArrayCreations(expression));
-		}
-		if(type.equals(ExpressionType.ARRAY_ACCESS)) {
-			processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
-		}
-		if(type.equals(ExpressionType.NUMBER_LITERAL) || type.equals(ExpressionType.STRING_LITERAL) || type.equals(ExpressionType.NULL_LITERAL) ||
-				type.equals(ExpressionType.CHARACTER_LITERAL) || type.equals(ExpressionType.BOOLEAN_LITERAL) || type.equals(ExpressionType.TYPE_LITERAL)) {
-			processLiterals(expressionExtractor.getLiterals(expression));
-		}
+        List<Expression> assignments = expressionExtractor.getAssignments(expression);
+        List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(expression);
+        List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(expression);
+        processVariables(expressionExtractor.getVariableInstructions(expression), assignments, postfixExpressions, prefixExpressions);
+		processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
+		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
+		processArrayCreations(expressionExtractor.getArrayCreations(expression));
+		processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
+		processLiterals(expressionExtractor.getLiterals(expression));
 	}
 
 	public Expression getExpression() {
@@ -67,23 +37,10 @@ public class AbstractExpression extends AbstractMethodFragment {
 		return (Expression)this.expression.recoverASTNode();
 	}
 
-	public ExpressionType getType() {
-		return type;
-	}
-
 	public String toString() {
-		//return getExpression().toString();
-		return getEntireString();
+		return getExpression().toString();
 	}
-
-	private Expression getTopExpression(Expression expression) {
-		Expression topExpression = expression;
-		while(topExpression.getParent() instanceof Expression) {
-			topExpression = (Expression)topExpression.getParent();
-		}
-		return topExpression;
-	}
-
+/*
 	private TypeHolder getTopLevelTypeHolder() {
 		if(type.equals(ExpressionType.METHOD_INVOCATION)) {
 			return getMethodInvocations().get(0);
@@ -279,5 +236,5 @@ public class AbstractExpression extends AbstractMethodFragment {
 			}
 		}
 		return differences;
-	}
+	}*/
 }

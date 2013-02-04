@@ -2,13 +2,21 @@ package gr.uom.java.ast.decomposition;
 
 public enum StatementType {
 	ASSERT,
-	BLOCK,
+	BLOCK {
+		public String toString() {
+			return "{";
+		}
+	},
 	BREAK,
 	CONSTRUCTOR_INVOCATION,
 	CONTINUE,
 	DO,
 	EMPTY,
-	ENHANCED_FOR,
+	ENHANCED_FOR {
+		public String toString() {
+			return "for";
+		}
+	},
 	EXPRESSION,
 	FOR,
 	IF,
@@ -23,4 +31,8 @@ public enum StatementType {
 	TYPE_DECLARATION,
 	VARIABLE_DECLARATION,
 	WHILE;
+	
+	public String toString() {
+		return name().toLowerCase();
+	}
 }

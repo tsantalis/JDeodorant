@@ -33,10 +33,12 @@ import org.eclipse.jdt.core.dom.Statement;
 public class CompositeStatementObject extends AbstractStatement {
 	
 	private List<AbstractStatement> statementList;
+	private List<AbstractExpression> expressionList;
 
 	public CompositeStatementObject(Statement statement, StatementType type, AbstractMethodFragment parent) {
 		super(statement, type, parent);
 		this.statementList = new ArrayList<AbstractStatement>();
+		this.expressionList = new ArrayList<AbstractExpression>();
 	}
 
 	public void addStatement(AbstractStatement statement) {
@@ -46,6 +48,15 @@ public class CompositeStatementObject extends AbstractStatement {
 
 	public List<AbstractStatement> getStatements() {
 		return statementList;
+	}
+
+	public void addExpression(AbstractExpression expression) {
+		expressionList.add(expression);
+		//expression.setParent(this);
+	}
+
+	public List<AbstractExpression> getExpressions() {
+		return expressionList;
 	}
 
 	public List<FieldInstructionObject> getFieldInstructionsInExpressions() {
@@ -156,13 +167,15 @@ public class CompositeStatementObject extends AbstractStatement {
 	}
 
 	public String toString() {
-		String compositeString = getEntireString().substring(0, getEntireString().indexOf("\n"));
+		StringBuilder sb = new StringBuilder();
+		sb.append(getType().toString());
 		if(expressionList.size() > 0) {
-			AbstractExpression expression = expressionList.get(expressionList.size()-1);
-			String expressionString = expression.toString();
-			int indexOfExpression = compositeString.indexOf(expressionString);
-			return compositeString.substring(0, indexOfExpression + expressionString.length() + 1) + "\n";
+			sb.append("(");
+			for(AbstractExpression expression : expressionList)
+				sb.append(expression.toString());
+			sb.append(")");
 		}
-		return compositeString + "\n";
+		sb.append("\n");
+		return sb.toString();
 	}
 }

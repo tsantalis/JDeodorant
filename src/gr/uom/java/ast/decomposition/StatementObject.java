@@ -1,8 +1,11 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.util.ExpressionExtractor;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.Statement;
 
 /*
@@ -24,11 +27,21 @@ public class StatementObject extends AbstractStatement {
 	
 	public StatementObject(Statement statement, StatementType type, AbstractMethodFragment parent) {
 		super(statement, type, parent);
+		
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+        List<Expression> assignments = expressionExtractor.getAssignments(statement);
+        List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(statement);
+        List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(statement);
+        processVariables(expressionExtractor.getVariableInstructions(statement), assignments, postfixExpressions, prefixExpressions);
+		processMethodInvocations(expressionExtractor.getMethodInvocations(statement));
+		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(statement));
+		processArrayCreations(expressionExtractor.getArrayCreations(statement));
+		processArrayAccesses(expressionExtractor.getArrayAccesses(statement));
+		processLiterals(expressionExtractor.getLiterals(statement));
 	}
 
 	public String toString() {
-		//return getStatement().toString();
-		return getEntireString();
+		return getStatement().toString();
 	}
 
 	public List<String> stringRepresentation() {

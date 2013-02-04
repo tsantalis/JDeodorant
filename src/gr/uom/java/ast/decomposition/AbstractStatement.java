@@ -4,9 +4,7 @@ import java.util.List;
 
 import gr.uom.java.ast.ASTInformation;
 import gr.uom.java.ast.ASTInformationGenerator;
-import gr.uom.java.ast.util.ExpressionExtractor;
 
-import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.Statement;
 
 public abstract class AbstractStatement extends AbstractMethodFragment {
@@ -19,9 +17,6 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
     	//this.statement = statement;
     	super(parent);
     	this.type = type;
-    	this.startPosition = statement.getStartPosition();
-    	this.length = statement.getLength();
-    	this.entireString = statement.toString();
     	this.statement = ASTInformationGenerator.generateASTInformation(statement);
         
         //ExpressionExtractor expressionExtractor = new ExpressionExtractor();
@@ -46,7 +41,7 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 	}
 
 	public abstract List<String> stringRepresentation();
-
+/*
 	public ASTNodeDifference checkEquivalence(AbstractStatement s) {
 		ASTNodeDifference parentNodeDifference = new ASTNodeDifference(this,s);
 		if(!this.getType().equals(s.getType()))
@@ -77,5 +72,5 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 				return parentNodeDifference;
 			}				
 		}
-	}
+	}*/
 }

@@ -36,7 +36,7 @@ public class StatementObject extends AbstractStatement {
 		processMethodInvocations(expressionExtractor.getMethodInvocations(statement));
 		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(statement));
 		processArrayCreations(expressionExtractor.getArrayCreations(statement));
-		processArrayAccesses(expressionExtractor.getArrayAccesses(statement));
+		//processArrayAccesses(expressionExtractor.getArrayAccesses(statement));
 		processLiterals(expressionExtractor.getLiterals(statement));
 	}
 

@@ -28,7 +28,7 @@ public class AbstractExpression extends AbstractMethodFragment {
 		processMethodInvocations(expressionExtractor.getMethodInvocations(expression));
 		processClassInstanceCreations(expressionExtractor.getClassInstanceCreations(expression));
 		processArrayCreations(expressionExtractor.getArrayCreations(expression));
-		processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
+		//processArrayAccesses(expressionExtractor.getArrayAccesses(expression));
 		processLiterals(expressionExtractor.getLiterals(expression));
 	}
 

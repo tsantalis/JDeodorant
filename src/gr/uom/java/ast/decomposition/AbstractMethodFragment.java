@@ -127,7 +127,7 @@ public abstract class AbstractMethodFragment {
 		for(Expression variableInstruction : variableInstructions) {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField()) {
 					if(variableBinding.getDeclaringClass() != null) {

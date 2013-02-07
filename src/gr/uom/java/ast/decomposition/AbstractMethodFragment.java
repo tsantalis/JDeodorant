@@ -50,7 +50,6 @@ public abstract class AbstractMethodFragment {
 	private List<LocalVariableDeclarationObject> localVariableDeclarationList;
 	private List<LocalVariableInstructionObject> localVariableInstructionList;
 	private List<CreationObject> creationList;
-	//private List<ArrayAccessObject> arrayAccessList;
 	private List<LiteralObject> literalList;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields;
@@ -79,6 +78,10 @@ public abstract class AbstractMethodFragment {
 	private Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations;
 	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
 
+	protected AbstractMethodFragment() {
+		
+	}
+	
 	protected AbstractMethodFragment(AbstractMethodFragment parent) {
 		this.parent = parent;
 		this.methodInvocationList = new ArrayList<MethodInvocationObject>();
@@ -88,7 +91,6 @@ public abstract class AbstractMethodFragment {
 		this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
 		this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
 		this.creationList = new ArrayList<CreationObject>();
-		//this.arrayAccessList = new ArrayList<ArrayAccessObject>();
 		this.literalList = new ArrayList<LiteralObject>();
 		this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
@@ -436,26 +438,7 @@ public abstract class AbstractMethodFragment {
 			parent.addCreation(creationObject);
 		}
 	}
-/*
-	protected void processArrayAccesses(List<Expression> arrayAccesses) {
-		for(Expression arrayAccessExpression : arrayAccesses) {
-			ArrayAccess arrayAccess = (ArrayAccess)arrayAccessExpression;
-			ITypeBinding typeBinding = arrayAccess.resolveTypeBinding();
-			String qualifiedTypeName = typeBinding.getQualifiedName();
-			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
-			ArrayAccessObject arrayAccessObject = new ArrayAccessObject(typeObject);
-			arrayAccessObject.setArrayAccess(arrayAccess);
-			addArrayAccess(arrayAccessObject);
-		}
-	}
-
-	private void addArrayAccess(ArrayAccessObject arrayAccessObject) {
-		arrayAccessList.add(arrayAccessObject);
-		if(parent != null) {
-			parent.addArrayAccess(arrayAccessObject);
-		}
-	}
-*/
+	
 	protected void processLiterals(List<Expression> literals) {
 		for(Expression literal : literals) {
 			LiteralObject literalObject = new LiteralObject(literal);

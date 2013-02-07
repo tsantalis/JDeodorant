@@ -3,7 +3,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import java.util.Iterator;
 import java.util.List;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -30,9 +30,10 @@ public class PDGMapper {
 			Iterator<GraphNode> nodeIterator2 = pdg2.getNodeIterator();
 			while(nodeIterator2.hasNext()) {
 				PDGNode node2 = (PDGNode)nodeIterator2.next();
-				ASTNodeDifference nodeDifference = node1.checkEquivalence(node2);
-				if(nodeDifference != null && nodeDifference.isParameterizable()) {
-					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, nodeDifference);
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher();
+				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
+				if(match) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher.getDifferences());
 					MappingState state = new MappingState(mapping);
 					List<MappingState> maxStates = state.getMaximumCommonSubgraph();
 					if(maximumState == null) {

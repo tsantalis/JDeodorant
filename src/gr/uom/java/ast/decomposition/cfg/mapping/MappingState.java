@@ -1,8 +1,9 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.ArrayList;
@@ -94,9 +95,16 @@ public class MappingState {
 						dstNodeG1 = (PDGNode)edgeG1.getSrc();
 						dstNodeG2 = (PDGNode)edgeG2.getSrc();
 					}
-					ASTNodeDifference nodeDifference = dstNodeG1.checkEquivalence(dstNodeG2);
-					if(nodeDifference != null && nodeDifference.isParameterizable()) {
-						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, nodeDifference);
+					
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher();
+					boolean match;
+			
+					if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
+						match = false;
+					else 
+						match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
+					if(match) {
+						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher.getDifferences());
 						MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
 						if(childState != null) {
 							if(!childState.edgeMappings.contains(edgeMapping)) {

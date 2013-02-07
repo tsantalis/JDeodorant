@@ -1,52 +1,60 @@
 package gr.uom.java.ast.decomposition;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
-import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.ConditionalExpression;
-import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
-import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
-import org.eclipse.jdt.core.dom.IfStatement;
-import org.eclipse.jdt.core.dom.InfixExpression;
-import org.eclipse.jdt.core.dom.Initializer;
-import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
-import org.eclipse.jdt.core.dom.ParenthesizedExpression;
-import org.eclipse.jdt.core.dom.PostfixExpression;
-import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.StringLiteral;
-import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
-import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
-import org.eclipse.jdt.core.dom.TypeParameter;
-import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
-import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 public class ASTNodeMatcher extends ASTMatcher{
-	
+
+	private List<ASTNodeDifference> differences = new ArrayList<ASTNodeDifference>();
+
+	public List<ASTNodeDifference> getDifferences() {
+		return differences;
+	}
+
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		for(ASTNodeDifference diff : differences) {
+			sb.append(diff.toString());
+		}
+		return sb.toString();
+	}
+
+	public boolean isParameterizable() {
+		for(ASTNodeDifference diff : differences) {
+			if(!diff.isParameterizable())
+				return false;
+		}
+		return true;
+	}
+
 	public boolean isTypeHolder(Object o) {
 		if(o.getClass().equals(MethodInvocation.class) || o.getClass().equals(SuperMethodInvocation.class)			
 				|| o.getClass().equals(NumberLiteral.class) || o.getClass().equals(StringLiteral.class)
@@ -56,10 +64,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(ClassInstanceCreation.class)
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class))
-				return true;
+			return true;
 		return false;
 	}
-	
+
 	public ITypeBinding getTypeBinding(Object o) {
 		if(o.getClass().equals(MethodInvocation.class)) {
 			MethodInvocation methodInvocation = (MethodInvocation) o;
@@ -119,64 +127,175 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		return null;
 	}
-	
+
 	public boolean match(ArrayAccess node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof ArrayAccess)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				ArrayAccess o = (ArrayAccess) other;
+				return (
+					safeSubtreeMatch(node.getArray(), o.getArray())
+						&& safeSubtreeMatch(node.getIndex(), o.getIndex()));
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(ArrayCreation node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof ArrayCreation)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				ArrayCreation o = (ArrayCreation) other;
+				if(node.dimensions().size() != o.dimensions().size())
+				{
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARRAY_DIMENSION_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					return (
+							safeSubtreeMatch(node.getType(), o.getType())
+							&& safeSubtreeListMatch(node.dimensions(), o.dimensions())
+							&& safeSubtreeMatch(node.getInitializer(), o.getInitializer())
+							);
+				}
+			}	
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
-		/*ArrayCreation o = (ArrayCreation) other;
-		return (
-			safeSubtreeMatch(node.getType(), o.getType())
-				&& safeSubtreeListMatch(node.dimensions(), o.dimensions())
-				&& safeSubtreeMatch(node.getInitializer(), o.getInitializer())
-				);*/
 	}
-	
+
 	public boolean match(Block node, Object other) {
 		if (!(other instanceof Block)) {
 			return false;
 		}
-/*		Block o = (Block) other;
-		return safeSubtreeListMatch(node.statements(), o.statements());*/
 		return true;
 	}
 
 	public boolean match(BooleanLiteral node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof BooleanLiteral)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else 
+			{
+				BooleanLiteral o = (BooleanLiteral) other;
+				if(node.booleanValue() != o.booleanValue())
+				{
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
-/*		BooleanLiteral o = (BooleanLiteral) other;
-		return node.booleanValue() == o.booleanValue();*/
 	}
 
 	public boolean match(CharacterLiteral node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof CharacterLiteral)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else 
+			{
+				CharacterLiteral o = (CharacterLiteral) other;
+				if(!node.getEscapedValue().equals(o.getEscapedValue()))
+				{
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(ClassInstanceCreation node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof ClassInstanceCreation)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				ClassInstanceCreation o = (ClassInstanceCreation) other;
+				if(node.arguments().size() != o.arguments().size()) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					return
+						safeSubtreeMatch(node.getExpression(), o.getExpression())
+						&& safeSubtreeListMatch(node.arguments(), o.arguments())
+						&& safeSubtreeMatch(
+								node.getAnonymousClassDeclaration(),
+								o.getAnonymousClassDeclaration());
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
-		/*ClassInstanceCreation o = (ClassInstanceCreation) other;
-		return
-			safeSubtreeMatch(node.getExpression(), o.getExpression())
-				&& safeSubtreeListMatch(node.arguments(), o.arguments())
-				&& safeSubtreeMatch(
-					node.getAnonymousClassDeclaration(),
-					o.getAnonymousClassDeclaration());*/
 	}
 
 	public boolean match(DoStatement node, Object other) {
@@ -185,8 +304,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		DoStatement o = (DoStatement) other;
 		return (
-			safeSubtreeMatch(node.getExpression(), o.getExpression())
-				/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/);
+				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 
 	public boolean match(EnhancedForStatement node, Object other) {
@@ -195,16 +313,48 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		EnhancedForStatement o = (EnhancedForStatement) other;
 		return (
-			safeSubtreeMatch(node.getParameter(), o.getParameter())
-				&& safeSubtreeMatch(node.getExpression(), o.getExpression())
-				/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/);
+				safeSubtreeMatch(node.getParameter(), o.getParameter())
+				&& safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 
-
 	public boolean match(FieldAccess node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (other instanceof FieldAccess) {
+				FieldAccess o = (FieldAccess) other;
+				if(!node.getName().toString().equals(o.getName().toString())) {
+					Difference diff = new Difference(node.getName().toString(),o.getName().toString(),DifferenceType.VARIABLE_NAME_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				if(!typeMatch) {
+					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				if(!astNodeDifference.isEmpty())
+					differences.add(astNodeDifference);
+				return (
+						safeSubtreeMatch(node.getExpression(), o.getExpression()));
+			}
+			else {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+			if(!astNodeDifference.isEmpty())
+				differences.add(astNodeDifference);
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
@@ -214,10 +364,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ForStatement o = (ForStatement) other;
 		return (
-			safeSubtreeListMatch(node.initializers(), o.initializers())
+				safeSubtreeListMatch(node.initializers(), o.initializers())
 				&& safeSubtreeMatch(node.getExpression(), o.getExpression())
-				&& safeSubtreeListMatch(node.updaters(), o.updaters())
-				/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/);
+				&& safeSubtreeListMatch(node.updaters(), o.updaters()));
 	}
 
 	public boolean match(LabeledStatement node, Object other) {
@@ -226,56 +375,261 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		LabeledStatement o = (LabeledStatement) other;
 		return (
-			safeSubtreeMatch(node.getLabel(), o.getLabel())
-				/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/);
+				safeSubtreeMatch(node.getLabel(), o.getLabel()));
 	}
 
 	public boolean match(MethodInvocation node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveMethodBinding().getReturnType().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof MethodInvocation)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				MethodInvocation o = (MethodInvocation) other;
+				if(node.arguments().size() != o.arguments().size()) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					return (
+						safeSubtreeMatch(node.getExpression(), o.getExpression())
+						&& safeSubtreeMatch(node.getName(), o.getName())
+						&& safeSubtreeListMatch(node.arguments(), o.arguments()));
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(NumberLiteral node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof NumberLiteral)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else 
+			{
+				NumberLiteral o = (NumberLiteral) other;
+				if(!node.getToken().equals(o.getToken()))
+				{
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(QualifiedName node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (other instanceof QualifiedName) {
+				QualifiedName o = (QualifiedName) other;
+				if(!node.getName().toString().equals(o.getName().toString())) {
+					Difference diff = new Difference(node.getName().toString(),o.getName().toString(),DifferenceType.VARIABLE_NAME_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				if(!typeMatch) {
+					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				if(!astNodeDifference.isEmpty()) 
+					differences.add(astNodeDifference);
+				return (
+						safeSubtreeMatch(node.getQualifier(), o.getQualifier()));
+			}
+			else {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+			if(!astNodeDifference.isEmpty()) 
+				differences.add(astNodeDifference);
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(SimpleName node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (other instanceof SimpleName) {
+				SimpleName o = (SimpleName) other;
+				if(!node.getIdentifier().equals(o.getIdentifier())) {
+					IBinding nodeBinding = node.resolveBinding();
+					IBinding otherBinding = o.resolveBinding();
+					if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.METHOD && otherBinding.getKind() == IBinding.METHOD) {
+						Difference diff = new Difference(node.getIdentifier(),o.getIdentifier(),DifferenceType.METHOD_INVOCATION_NAME_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+					else {
+						Difference diff = new Difference(node.getIdentifier(),o.getIdentifier(),DifferenceType.VARIABLE_NAME_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+				}
+				if(!typeMatch) {
+					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+			else {
+				if(typeMatch) {
+					Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+				}
+				else {
+					Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+			if(!astNodeDifference.isEmpty()) 
+				differences.add(astNodeDifference);
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(StringLiteral node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof StringLiteral)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else 
+			{
+				StringLiteral o = (StringLiteral) other;
+				if(!node.getLiteralValue().equals(o.getLiteralValue()))
+				{
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(SuperFieldAccess node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			if (other instanceof SuperFieldAccess) {
+				SuperFieldAccess o = (SuperFieldAccess) other;
+				if(!node.getName().toString().equals(o.getName().toString())) {
+					Difference diff = new Difference(node.getName().toString(),o.getName().toString(),DifferenceType.VARIABLE_NAME_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				if(!typeMatch) {
+					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+			else {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+			if(!astNodeDifference.isEmpty()) 
+				differences.add(astNodeDifference);
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
 	public boolean match(SuperMethodInvocation node, Object other) {
+		AbstractExpression exp1 = new AbstractExpression(node);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			boolean typeMatch = node.resolveMethodBinding().getReturnType().isEqualTo(getTypeBinding(other));
+			if (!(other instanceof SuperMethodInvocation)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				SuperMethodInvocation o = (SuperMethodInvocation) other;
+				if(node.arguments().size() != o.arguments().size()) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					return (
+						safeSubtreeMatch(node.getQualifier(), o.getQualifier())
+						&& safeSubtreeMatch(node.getName(), o.getName())
+						&& safeSubtreeListMatch(node.arguments(), o.arguments()));
+				}
+			}
+			return typeMatch;
 		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
 		return false;
 	}
 
@@ -285,8 +639,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		SwitchStatement o = (SwitchStatement) other;
 		return (
-			safeSubtreeMatch(node.getExpression(), o.getExpression())
-				/*&& safeSubtreeListMatch(node.statements(), o.statements())*/);
+				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 
 	public boolean match(SynchronizedStatement node, Object other) {
@@ -295,8 +648,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		SynchronizedStatement o = (SynchronizedStatement) other;
 		return (
-			safeSubtreeMatch(node.getExpression(), o.getExpression())
-				/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/);
+				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 
 	public boolean match(TryStatement node, Object other) {
@@ -305,10 +657,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		TryStatement o = (TryStatement) other;
 		return (
-			safeSubtreeListMatch(node.resources(), o.resources())
-			/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/
-			&& safeSubtreeListMatch(node.catchClauses(), o.catchClauses())
-			&& safeSubtreeMatch(node.getFinally(), o.getFinally()));
+				safeSubtreeListMatch(node.resources(), o.resources())
+				&& safeSubtreeListMatch(node.catchClauses(), o.catchClauses())
+				&& safeSubtreeMatch(node.getFinally(), o.getFinally()));
 	}
 
 	public boolean match(TypeLiteral node, Object other) {
@@ -324,7 +675,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		WhileStatement o = (WhileStatement) other;
 		return (
-			safeSubtreeMatch(node.getExpression(), o.getExpression())
-				/*&& safeSubtreeMatch(node.getBody(), o.getBody())*/);
+				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 }

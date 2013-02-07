@@ -1,6 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchNode;
 import gr.uom.java.ast.decomposition.cfg.PDGAbstractDataDependence;
@@ -32,8 +32,10 @@ public class PDGEdgeMapping {
 						return true;
 					}
 					else if(edgeG1LoopNode != null && edgeG2LoopNode != null) {
-						ASTNodeDifference nodeDifference = edgeG1LoopNode.checkEquivalence(edgeG2LoopNode); 
-						return nodeDifference.isParameterizable();
+						//ASTNodeDifference nodeDifference = edgeG1LoopNode.checkEquivalence(edgeG2LoopNode); 
+						//return nodeDifference.isParameterizable();
+						boolean nodeDiff = edgeG1LoopNode.getASTStatement().subtreeMatch(new ASTNodeMatcher(), edgeG2LoopNode.getASTStatement());
+						return nodeDiff;
 					}
 				}
 			}

@@ -11,13 +11,13 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 public class PDGNodeMapping {
 	private PDGNode nodeG1;
 	private PDGNode nodeG2;
-	private ASTNodeDifference nodeDifference;
+	private List<ASTNodeDifference> nodeDifferences;
 	private volatile int hashCode = 0;
 	
-	public PDGNodeMapping(PDGNode nodeG1, PDGNode nodeG2, ASTNodeDifference nodeDifference) {
+	public PDGNodeMapping(PDGNode nodeG1, PDGNode nodeG2, List<ASTNodeDifference> nodeDifferences) {
 		this.nodeG1 = nodeG1;
 		this.nodeG2 = nodeG2;
-		this.nodeDifference = nodeDifference;
+		this.nodeDifferences = nodeDifferences;
 	}
 	
 	public PDGNode getNodeG1() {
@@ -45,11 +45,14 @@ public class PDGNodeMapping {
 			else {
 				equalRightPart = true;
 			}
-			List<Difference> leafDifferences = nodeDifference.getLeafDifferences();
-			for(Difference difference : leafDifferences) {
-				if(equalRightPart && difference.getFirstValue().equals(variable1.getVariableName()) &&
-						difference.getSecondValue().equals(variable2.getVariableName())) {
-					return true;
+			for(ASTNodeDifference nodeDifference : nodeDifferences)
+			{
+				List<Difference> differences = nodeDifference.getDifferences();
+				for(Difference difference : differences) {
+					if(equalRightPart && difference.getFirstValue().equals(variable1.getVariableName()) &&
+							difference.getSecondValue().equals(variable2.getVariableName())) {
+						return true;
+					}
 				}
 			}
 		}
@@ -81,7 +84,10 @@ public class PDGNodeMapping {
 		StringBuilder sb = new StringBuilder();
 		sb.append(nodeG1);
 		sb.append(nodeG2);
-		sb.append(nodeDifference.toString());
+		for(ASTNodeDifference nodeDifference : nodeDifferences)
+		{
+			sb.append(nodeDifference.toString());
+		}
 		return sb.toString();
 	}
 }

@@ -17,6 +17,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NumberLiteral;
@@ -367,6 +368,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 				safeSubtreeListMatch(node.initializers(), o.initializers())
 				&& safeSubtreeMatch(node.getExpression(), o.getExpression())
 				&& safeSubtreeListMatch(node.updaters(), o.updaters()));
+	}
+	
+	public boolean match(IfStatement node, Object other) {
+		if (!(other instanceof IfStatement)) {
+			return false;
+		}
+		IfStatement o = (IfStatement) other;
+		return (
+			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 
 	public boolean match(LabeledStatement node, Object other) {

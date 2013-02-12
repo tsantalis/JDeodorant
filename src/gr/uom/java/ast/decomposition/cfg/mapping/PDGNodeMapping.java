@@ -28,6 +28,14 @@ public class PDGNodeMapping {
 		return nodeG2;
 	}
 
+	public int getDifferenceCount() {
+		int count = 0;
+		for(ASTNodeDifference nodeDifference : nodeDifferences) {
+			count += nodeDifference.getDifferences().size();
+		}
+		return count;
+	}
+
 	public boolean matchingVariableDifference(AbstractVariable variable1, AbstractVariable variable2) {
 		if(variable1.getClass() == variable2.getClass()) {
 			String rightPartVariable1 = null;

@@ -23,11 +23,16 @@ public class MappingState {
 		this.children = new ArrayList<MappingState>();
 	}
 
-	public MappingState(PDGNodeMapping initialNodeMapping) {
+	public MappingState(MappingState previous, PDGNodeMapping initialNodeMapping) {
 		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
 		this.edgeMappings = new LinkedHashSet<PDGEdgeMapping>();
 		this.children = new ArrayList<MappingState>();
-		this.nodeMappings.add(initialNodeMapping);
+		if(previous != null) {
+			nodeMappings.addAll(previous.nodeMappings);
+			edgeMappings.addAll(previous.edgeMappings);
+		}
+		if(!containsAtLeastOneNodeInMappings(initialNodeMapping))
+			this.nodeMappings.add(initialNodeMapping);
 		traverse(this, initialNodeMapping);
 	}
 
@@ -39,25 +44,42 @@ public class MappingState {
 		return edgeMappings;
 	}
 
-	public List<MappingState> getMaximumCommonSubgraph() {
-		List<MappingState> set = new ArrayList<MappingState>();
-		this.findMaximum(set, 0);
-		return set;
+	public int getDifferenceCount() {
+		int count = 0;
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			count += nodeMapping.getDifferenceCount();
+		}
+		return count;
 	}
-	
-	private void findMaximum(List<MappingState> set, int max) {
-		int newMax = max;
-		if(this.getSize() > max) {
-			set.clear();
-			set.add(this);
-			newMax = this.getSize();
+
+	public List<MappingState> getMaximumCommonSubGraphs() {
+		List<MappingState> leaves = this.getLeaves();
+		int max = 0;
+		List<MappingState> maximumStates = new ArrayList<MappingState>();
+		for(MappingState state : leaves) {
+			if(state.getSize() > max) {
+				max = state.getSize();
+				maximumStates.clear();
+				maximumStates.add(state);
+			}
+			else if(state.getSize() == max) {
+				maximumStates.add(state);
+			}
 		}
-		else if(this.getSize() == max) {
-			set.add(this);
+		return maximumStates;
+	}
+
+	private List<MappingState> getLeaves() {
+		List<MappingState> list = new ArrayList<MappingState>();
+		if(this.children.isEmpty()) {
+			list.add(this);
 		}
-		for(MappingState child : children) {
-			child.findMaximum(set, newMax);
+		else {
+			for(MappingState childState : this.children) {
+				list.addAll(childState.getLeaves());
+			}
 		}
+		return list;
 	}
 
 	public int getNodeMappingSize() {
@@ -157,6 +179,17 @@ public class MappingState {
 		return state;
 	}
 	
+	public boolean equals(Object o) {
+		if(this == o)
+			return true;
+		if(o instanceof MappingState) {
+			MappingState state = (MappingState)o;
+			return this.nodeMappings.equals(state.nodeMappings) &&
+					this.edgeMappings.equals(state.edgeMappings);
+		}
+		return false;
+	}
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		for(PDGNodeMapping nodeMapping : nodeMappings) {

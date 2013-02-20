@@ -144,9 +144,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				ArrayAccess o = (ArrayAccess) other;
-				return (
-					safeSubtreeMatch(node.getArray(), o.getArray())
-						&& safeSubtreeMatch(node.getIndex(), o.getIndex()));
+				safeSubtreeMatch(node.getArray(), o.getArray());
+				safeSubtreeMatch(node.getIndex(), o.getIndex());
 			}
 			return typeMatch;
 		}
@@ -177,13 +176,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
-				else {
-					return (
-							safeSubtreeMatch(node.getType(), o.getType())
-							&& safeSubtreeListMatch(node.dimensions(), o.dimensions())
-							&& safeSubtreeMatch(node.getInitializer(), o.getInitializer())
-							);
-				}
+				safeSubtreeMatch(node.getType(), o.getType());
+				safeSubtreeListMatch(node.dimensions(), o.dimensions());
+				safeSubtreeMatch(node.getInitializer(), o.getInitializer());
 			}	
 			return typeMatch;
 		}
@@ -282,14 +277,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
-				else {
-					return
-						safeSubtreeMatch(node.getExpression(), o.getExpression())
-						&& safeSubtreeListMatch(node.arguments(), o.arguments())
-						&& safeSubtreeMatch(
-								node.getAnonymousClassDeclaration(),
-								o.getAnonymousClassDeclaration());
-				}
+				safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
+				safeSubtreeListMatch(node.arguments(), o.arguments());
+				safeSubtreeMatch(node.getExpression(), o.getExpression());
 			}
 			return typeMatch;
 		}
@@ -313,9 +303,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		EnhancedForStatement o = (EnhancedForStatement) other;
-		return (
-				safeSubtreeMatch(node.getParameter(), o.getParameter())
-				&& safeSubtreeMatch(node.getExpression(), o.getExpression()));
+		boolean paramMatch = safeSubtreeMatch(node.getParameter(), o.getParameter());
+		boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
+		return paramMatch && expMatch;
 	}
 
 	public boolean match(FieldAccess node, Object other) {
@@ -364,10 +354,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		ForStatement o = (ForStatement) other;
-		return (
-				safeSubtreeListMatch(node.initializers(), o.initializers())
-				&& safeSubtreeMatch(node.getExpression(), o.getExpression())
-				&& safeSubtreeListMatch(node.updaters(), o.updaters()));
+		boolean initializerMatch = safeSubtreeListMatch(node.initializers(), o.initializers());
+		boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
+		boolean updaterMatch = safeSubtreeListMatch(node.updaters(), o.updaters());
+		return initializerMatch && expMatch && updaterMatch;
 	}
 	
 	public boolean match(IfStatement node, Object other) {
@@ -408,12 +398,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
-				else {
-					return (
-						safeSubtreeMatch(node.getExpression(), o.getExpression())
-						&& safeSubtreeMatch(node.getName(), o.getName())
-						&& safeSubtreeListMatch(node.arguments(), o.arguments()));
-				}
+				safeSubtreeMatch(node.getName(), o.getName());
+				safeSubtreeListMatch(node.arguments(), o.arguments());
+				safeSubtreeMatch(node.getExpression(), o.getExpression());
 			}
 			return typeMatch;
 		}
@@ -628,12 +615,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
-				else {
-					return (
-						safeSubtreeMatch(node.getQualifier(), o.getQualifier())
-						&& safeSubtreeMatch(node.getName(), o.getName())
-						&& safeSubtreeListMatch(node.arguments(), o.arguments()));
-				}
+				safeSubtreeMatch(node.getName(), o.getName());
+				safeSubtreeListMatch(node.arguments(), o.arguments());
+				safeSubtreeMatch(node.getQualifier(), o.getQualifier());
 			}
 			return typeMatch;
 		}
@@ -666,10 +650,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		TryStatement o = (TryStatement) other;
-		return (
-				safeSubtreeListMatch(node.resources(), o.resources())
-				&& safeSubtreeListMatch(node.catchClauses(), o.catchClauses())
-				&& safeSubtreeMatch(node.getFinally(), o.getFinally()));
+		boolean resourceMatch = safeSubtreeListMatch(node.resources(), o.resources());
+		boolean catchClauseMatch = safeSubtreeListMatch(node.catchClauses(), o.catchClauses());
+		boolean finallyClauseMatch =  safeSubtreeMatch(node.getFinally(), o.getFinally());
+		return resourceMatch && catchClauseMatch && finallyClauseMatch;
 	}
 
 	public boolean match(TypeLiteral node, Object other) {

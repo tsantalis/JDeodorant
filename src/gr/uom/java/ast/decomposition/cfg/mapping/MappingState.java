@@ -36,6 +36,22 @@ public class MappingState {
 		traverse(this, initialNodeMapping);
 	}
 
+	public boolean containsNodeG1(PDGNode nodeG1) {
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG1().equals(nodeG1))
+				return true;
+		}
+		return false;
+	}
+
+	public boolean containsNodeG2(PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG2().equals(nodeG2))
+				return true;
+		}
+		return false;
+	}
+
 	public Set<PDGNodeMapping> getNodeMappings() {
 		return nodeMappings;
 	}
@@ -118,9 +134,14 @@ public class MappingState {
 						dstNodeG2 = (PDGNode)edgeG2.getSrc();
 					}
 					
+					if(dstNodeG1 instanceof PDGMethodEntryNode && dstNodeG2 instanceof PDGMethodEntryNode) {
+						if(!state.edgeMappings.contains(edgeMapping)) {
+							state.edgeMappings.add(edgeMapping);
+							state.propagateEdgeMappingToChildren(edgeMapping);
+						}
+					}
 					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher();
 					boolean match;
-			
 					if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
 						match = false;
 					else 

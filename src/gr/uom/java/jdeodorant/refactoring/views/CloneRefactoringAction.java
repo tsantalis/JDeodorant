@@ -7,49 +7,44 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.IAction;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.progress.IProgressService;
 
-public class SliceProfileAction implements IObjectActionDelegate {
+public class CloneRefactoringAction implements IObjectActionDelegate {
 
-	private IWorkbenchPart part;
 	private ISelection selection;
-	private PDG pdg;
-	private boolean selectedMethodHasNoBody;
-
-	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
-		this.part = targetPart;
-		JavaCore.addElementChangedListener(new ElementChangedListener());
-	}
-
+	
 	public void run(IAction action) {
 		try {
 			CompilationUnitCache.getInstance().clearCache();
 			if(selection instanceof IStructuredSelection) {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 				Object element = structuredSelection.getFirstElement();
+				final List list = structuredSelection.toList();
 				if(element instanceof IMethod) {
-					this.pdg = null;
-					this.selectedMethodHasNoBody = false;
-					final IMethod method = (IMethod)element;
-					final IJavaProject selectedProject = method.getJavaProject();
+					final IMethod method1 = (IMethod)element;
+					final IJavaProject selectedProject = method1.getJavaProject();
 					IWorkbench wb = PlatformUI.getWorkbench();
 					IProgressService ps = wb.getProgressService();
 					if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
@@ -69,41 +64,45 @@ public class SliceProfileAction implements IObjectActionDelegate {
 					ps.busyCursorWhile(new IRunnableWithProgress() {
 						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 							SystemObject systemObject = ASTReader.getSystemObject();
-							MethodObject methodObject = systemObject.getMethodObject(method);
-							if(methodObject != null) {
-								if(methodObject.getMethodBody() != null) {
-									ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
-									ITypeRoot typeRoot = classObject.getITypeRoot();
-									CompilationUnitCache.getInstance().lock(typeRoot);
-									CFG cfg = new CFG(methodObject);
-									pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject), monitor);
+							if(list.size() == 2) {
+								IMethod method2 = (IMethod)list.get(1);
+								MethodObject methodObject1 = systemObject.getMethodObject(method1);
+								MethodObject methodObject2 = systemObject.getMethodObject(method2);
+								if(methodObject1 != null && methodObject2 != null && methodObject1.getMethodBody() != null && methodObject2.getMethodBody() != null) {
+									ClassObject classObject1 = systemObject.getClassObject(methodObject1.getClassName());
+									ClassObject classObject2 = systemObject.getClassObject(methodObject2.getClassName());
+									ITypeRoot typeRoot1 = classObject1.getITypeRoot();
+									ITypeRoot typeRoot2 = classObject1.getITypeRoot();
+									CompilationUnitCache.getInstance().lock(typeRoot1);
+									CompilationUnitCache.getInstance().lock(typeRoot2);
+									CFG cfg1 = new CFG(methodObject1);
+									final PDG pdg1 = new PDG(cfg1, classObject1.getIFile(), classObject1.getFieldsAccessedInsideMethod(methodObject1), monitor);
+									CFG cfg2 = new CFG(methodObject2);
+									final PDG pdg2 = new PDG(cfg2, classObject2.getIFile(), classObject2.getFieldsAccessedInsideMethod(methodObject2), monitor);
+									PDGMapper mapper = new PDGMapper(pdg1, pdg2, monitor);
+									Refactoring refactoring = new ExtractCloneRefactoring(mapper);
+									MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+									final RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+									Display.getDefault().asyncExec(new Runnable() {
+										public void run() {
+											try { 
+												String titleForFailedChecks = ""; //$NON-NLS-1$ 
+												op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+											} catch(InterruptedException e) {
+												e.printStackTrace();
+											}
+										}
+									});
 									CompilationUnitCache.getInstance().releaseLock();
-								}
-								else {
-									selectedMethodHasNoBody = true;
 								}
 							}
 						}
 					});
-					if(method.isConstructor())
-						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to a constructor.");
-					if(selectedMethodHasNoBody)
-						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to an abstract method.");
-					if(pdg != null) {
-						if(pdg.getVariableDeclarationsInMethod().size() == 0)
-							MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method does not declare any local variables.");
-						else {
-							SliceProfileDialog dialog = new SliceProfileDialog(part.getSite().getWorkbenchWindow(), pdg);
-							dialog.open();
-						}
-					}
 				}
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
 	}
@@ -111,4 +110,9 @@ public class SliceProfileAction implements IObjectActionDelegate {
 	public void selectionChanged(IAction action, ISelection selection) {
 		this.selection = selection;
 	}
+
+	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
+		JavaCore.addElementChangedListener(new ElementChangedListener());
+	}
+
 }

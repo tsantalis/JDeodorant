@@ -48,7 +48,8 @@ public class MyRefactoringWizard extends RefactoringWizard {
 	@Override
 	public boolean performFinish() {
 		boolean finish = super.performFinish();
-		action.setEnabled(false);
+		if(action != null)
+			action.setEnabled(false);
 		Set<IJavaElement> javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
 		if(refactoring instanceof ReplaceTypeCodeWithStateStrategy) {
 			javaElementsToOpenInEditor.addAll(((ReplaceTypeCodeWithStateStrategy)refactoring).getJavaElementsToOpenInEditor());

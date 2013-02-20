@@ -16,7 +16,15 @@ public class PDGEdgeMapping {
 		this.edgeG1 = edgeG1;
 		this.edgeG2 = edgeG2;
 	}
-	
+
+	public PDGDependence getEdgeG1() {
+		return edgeG1;
+	}
+
+	public PDGDependence getEdgeG2() {
+		return edgeG2;
+	}
+
 	public boolean isCompatible(PDGNodeMapping nodeMapping) {
 		if(edgeG1.getClass() == edgeG2.getClass()) {
 			if(edgeG1 instanceof PDGControlDependence) {

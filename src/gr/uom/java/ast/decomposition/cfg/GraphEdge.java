@@ -8,4 +8,12 @@ public class GraphEdge {
 		this.src = src;
 		this.dst = dst;
 	}
+
+	public GraphNode getSrc() {
+		return src;
+	}
+
+	public GraphNode getDst() {
+		return dst;
+	}
 }

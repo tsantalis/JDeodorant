@@ -12,6 +12,14 @@ public class Graph {
 		this.edges = new LinkedHashSet<GraphEdge>();
 	}
 	
+	public Set<GraphNode> getNodes() {
+		return nodes;
+	}
+
+	public Set<GraphEdge> getEdges() {
+		return edges;
+	}
+
 	public void addNode(GraphNode node) {
 		nodes.add(node);
 	}

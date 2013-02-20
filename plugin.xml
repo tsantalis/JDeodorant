@@ -204,6 +204,16 @@
       </objectContribution>
       <objectContribution
             adaptable="false"
+            id="gr.uom.java.jdeodorant.cloneRefactoring"
+            objectClass="org.eclipse.jdt.core.IMethod">
+         <action
+               class="gr.uom.java.jdeodorant.refactoring.views.CloneRefactoringAction"
+               id="gr.uom.java.jdeodorant.cloneRefactoringAction"
+               label="Refactor Duplicated Code...">
+         </action>
+      </objectContribution>
+      <objectContribution
+            adaptable="false"
             id="gr.uom.java.jdeodorant.methodEvolution"
             objectClass="org.eclipse.jdt.core.IMethod">
          <action

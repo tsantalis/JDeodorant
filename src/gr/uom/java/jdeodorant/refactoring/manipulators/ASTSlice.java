@@ -1,7 +1,5 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
-import gr.uom.java.ast.decomposition.AbstractStatement;
-import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.cfg.BasicBlock;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGObjectSliceUnion;

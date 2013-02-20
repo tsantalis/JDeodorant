@@ -1,7 +1,14 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
+import gr.uom.java.ast.decomposition.cfg.CFGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -11,6 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -21,9 +29,12 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -36,21 +47,22 @@ import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
-import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
 import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
 import org.eclipse.text.edits.TextEditGroup;
 
-public class ExtractCloneRefactoring extends Refactoring {
+public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private PDGMapper mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
-
+	private Set<PDGNodeMapping> sortedNodeMappings;
+	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
+		super();
 		this.mapper = mapper;
 		MethodObject methodObject1 = mapper.getPDG1().getMethod();
 		MethodObject methodObject2 = mapper.getPDG2().getMethod();
@@ -68,7 +80,21 @@ public class ExtractCloneRefactoring extends Refactoring {
 		this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration1.getRoot());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration2.getRoot());
-
+		this.sortedNodeMappings = new TreeSet<PDGNodeMapping>(mapper.getMaximumStateWithMinimumDifferences().getNodeMappings());
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			if(cfgNode instanceof CFGBranchDoLoopNode) {
+				CFGBranchDoLoopNode cfgDoLoopNode = (CFGBranchDoLoopNode)cfgNode;
+				doLoopNodes.add(cfgDoLoopNode);
+			}
+		}
+		StatementExtractor statementExtractor = new StatementExtractor();
+		//examining the body of the first method declaration for try blocks
+		List<Statement> tryStatements = statementExtractor.getTryStatements(methodDeclaration1.getBody());
+		for(Statement tryStatement : tryStatements) {
+			processTryStatement((TryStatement)tryStatement);
+		}
 		for(CompilationUnit sourceCompilationUnit : sourceCompilationUnits) {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
 			MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
@@ -82,7 +108,7 @@ public class ExtractCloneRefactoring extends Refactoring {
 		extractClone();
 	}
 
-	public void extractClone() {
+	private void extractClone() {
 		//we need some logic to select the class where the clone will be extracted
 		CompilationUnit sourceCompilationUnit = sourceCompilationUnits.get(0);
 		TypeDeclaration sourceTypeDeclaration = sourceTypeDeclarations.get(0);
@@ -134,7 +160,37 @@ public class ExtractCloneRefactoring extends Refactoring {
 		}
 		
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
-		//ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
+		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
+		List<PDGNode> sliceNodes = new ArrayList<PDGNode>();
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
+			sliceNodes.add(pdgNode);
+		}
+		while(!sliceNodes.isEmpty()) {
+			ListRewrite bodyRewrite = methodBodyRewrite;
+			PDGNode node = sliceNodes.get(0);
+			PDGControlPredicateNode doLoopPredicateNode = isInsideDoLoop(node);
+			if(doLoopPredicateNode != null) {
+				bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, doLoopPredicateNode);
+				if(sliceNodes.contains(doLoopPredicateNode)) {
+					bodyRewrite.insertLast(processPredicateNode(doLoopPredicateNode, ast, sourceRewriter, sliceNodes), null);
+				}
+			}
+			else {
+				bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, node);
+				if(node instanceof PDGControlPredicateNode) {
+					PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;
+					bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
+				}
+				else if(node instanceof PDGTryNode) {
+					sliceNodes.remove(node);
+				}
+				else {
+					bodyRewrite.insertLast(node.getASTStatement(), null);
+					sliceNodes.remove(node);
+				}
+			}
+		}
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 
@@ -146,9 +202,36 @@ public class ExtractCloneRefactoring extends Refactoring {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			change.getEdit().addChild(sourceEdit);
-			change.addTextEditGroup(new TextEditGroup("Create method for the clone", new TextEdit[] {sourceEdit}));
+			change.addTextEditGroup(new TextEditGroup("Create method for the extracted duplicated code", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private void processTryStatement(TryStatement tryStatement) {
+		List<Statement> nestedStatements = getStatements(tryStatement);
+		List<Statement> cloneStatements = new ArrayList<Statement>();
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
+			cloneStatements.add(pdgNode.getASTStatement());
+		}
+		boolean allNestedStatementsAreRemovable = true;
+		boolean sliceStatementThrowsException = false;
+		for(Statement nestedStatement : nestedStatements) {
+			if(!cloneStatements.contains(nestedStatement)) {
+				allNestedStatementsAreRemovable = false;
+			}
+			if(cloneStatements.contains(nestedStatement)) {
+				Set<ITypeBinding> thrownExceptionTypes = getThrownExceptionTypes(nestedStatement);
+				if(thrownExceptionTypes.size() > 0)
+					sliceStatementThrowsException = true;
+			}
+		}
+		if(cloneStatements.contains(tryStatement)) {
+			if(allNestedStatementsAreRemovable)
+				tryStatementsToBeRemoved.add(tryStatement);
+			else if(sliceStatementThrowsException)
+				tryStatementsToBeCopied.add(tryStatement);
 		}
 	}
 

@@ -8,7 +8,7 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
-public class PDGNodeMapping {
+public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 	private PDGNode nodeG1;
 	private PDGNode nodeG2;
 	private List<ASTNodeDifference> nodeDifferences;
@@ -97,5 +97,11 @@ public class PDGNodeMapping {
 			sb.append(nodeDifference.toString());
 		}
 		return sb.toString();
+	}
+
+	public int compareTo(PDGNodeMapping other) {
+		int thisMinId = Math.min(this.nodeG1.getId(), this.nodeG2.getId());
+		int otherMinId = Math.min(other.nodeG1.getId(), other.nodeG2.getId());
+		return Integer.compare(thisMinId, otherMinId);
 	}
 }

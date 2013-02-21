@@ -1,9 +1,11 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
+import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
@@ -108,6 +110,48 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		extractClone();
 	}
 
+	private Type findReturnType() {
+		Set<AbstractVariable> returnedVariables = new LinkedHashSet<AbstractVariable>();
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
+			if(pdgNode instanceof PDGExitNode) {
+				PDGExitNode exitNode = (PDGExitNode)pdgNode;
+				AbstractVariable returnedVariable = exitNode.getReturnedVariable();
+				if(returnedVariable != null)
+					returnedVariables.add(returnedVariable);
+			}
+		}
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFields = mapper.getPDG1().getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(AbstractVariable returnedVariable : returnedVariables) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFields) {
+				if(variableDeclaration.resolveBinding().getKey().equals(returnedVariable.getVariableBindingKey())) {
+					Type returnedVariableType = null;
+					if(variableDeclaration instanceof SingleVariableDeclaration) {
+						SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
+						returnedVariableType = singleVariableDeclaration.getType();
+					}
+					else if(variableDeclaration instanceof VariableDeclarationFragment) {
+						VariableDeclarationFragment fragment = (VariableDeclarationFragment)variableDeclaration;
+						if(fragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+							returnedVariableType = variableDeclarationStatement.getType();
+						}
+						else if(fragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
+							returnedVariableType = variableDeclarationExpression.getType();
+						}
+						else if(fragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+							returnedVariableType = fieldDeclaration.getType();
+						}
+					}
+					return returnedVariableType;
+				}
+			}
+		}
+		return null;
+	}
+
 	private void extractClone() {
 		//we need some logic to select the class where the clone will be extracted
 		CompilationUnit sourceCompilationUnit = sourceCompilationUnits.get(0);
@@ -119,7 +163,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(sourceMethodDeclaration.getName().getIdentifier()), null);
-		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
+		Type returnType = findReturnType();
+		if(returnType != null)
+			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+		else
+			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();

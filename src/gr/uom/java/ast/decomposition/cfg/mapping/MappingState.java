@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class MappingState {
 	private Set<PDGNodeMapping> nodeMappings;
@@ -36,20 +37,20 @@ public class MappingState {
 		traverse(this, initialNodeMapping);
 	}
 
-	public boolean containsNodeG1(PDGNode nodeG1) {
+	public Set<PDGNode> getMappedNodesG1() {
+		Set<PDGNode> nodesG1 = new TreeSet<PDGNode>();
 		for(PDGNodeMapping nodeMapping : nodeMappings) {
-			if(nodeMapping.getNodeG1().equals(nodeG1))
-				return true;
+			nodesG1.add(nodeMapping.getNodeG1());
 		}
-		return false;
+		return nodesG1;
 	}
 
-	public boolean containsNodeG2(PDGNode nodeG2) {
+	public Set<PDGNode> getMappedNodesG2() {
+		Set<PDGNode> nodesG2 = new TreeSet<PDGNode>();
 		for(PDGNodeMapping nodeMapping : nodeMappings) {
-			if(nodeMapping.getNodeG2().equals(nodeG2))
-				return true;
+			nodesG2.add(nodeMapping.getNodeG2());
 		}
-		return false;
+		return nodesG2;
 	}
 
 	public Set<PDGNodeMapping> getNodeMappings() {

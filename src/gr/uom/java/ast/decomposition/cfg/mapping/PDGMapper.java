@@ -9,9 +9,14 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
+import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
@@ -19,6 +24,7 @@ import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 public class PDGMapper {
 	private PDG pdg1;
@@ -30,6 +36,10 @@ public class PDGMapper {
 	private Map<String, ArrayList<VariableDeclaration>> commonPassedParameters;
 	private Set<VariableDeclaration> passedParametersG1;
 	private Set<VariableDeclaration> passedParametersG2;
+	private Set<VariableDeclaration> accessedLocalFieldsG1;
+	private Set<VariableDeclaration> accessedLocalFieldsG2;
+	private Set<MethodInvocationObject> accessedLocalMethodsG1;
+	private Set<MethodInvocationObject> accessedLocalMethodsG2;
 	private IProgressMonitor monitor;
 	
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
@@ -41,72 +51,88 @@ public class PDGMapper {
 		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
 		this.passedParametersG1 = new LinkedHashSet<VariableDeclaration>();
 		this.passedParametersG2 = new LinkedHashSet<VariableDeclaration>();
+		this.accessedLocalFieldsG1 = new LinkedHashSet<VariableDeclaration>();
+		this.accessedLocalFieldsG2 = new LinkedHashSet<VariableDeclaration>();
+		this.accessedLocalMethodsG1 = new LinkedHashSet<MethodInvocationObject>();
+		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodInvocationObject>();
 		this.monitor = monitor;
 		processPDGNodes();
 		this.maximumStateWithMinimumDifferences = findMaximumStateWithMinimumDifferences();
-		Iterator<GraphNode> iterator1 = pdg1.getNodeIterator();
-		while(iterator1.hasNext()) {
-			PDGNode pdgNode = (PDGNode)iterator1.next();
-			if(!maximumStateWithMinimumDifferences.containsNodeG1(pdgNode)) {
-				nonMappedNodesG1.add(pdgNode);
-			}
-		}
-		Iterator<GraphNode> iterator2 = pdg2.getNodeIterator();
-		while(iterator2.hasNext()) {
-			PDGNode pdgNode = (PDGNode)iterator2.next();
-			if(!maximumStateWithMinimumDifferences.containsNodeG2(pdgNode)) {
-				nonMappedNodesG2.add(pdgNode);
-			}
-		}
+		findNonMappedNodes(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), nonMappedNodesG1);
+		findNonMappedNodes(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), nonMappedNodesG2);
 		findPassedParameters();
+		findLocallyAccessedFields(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), accessedLocalFieldsG1, accessedLocalMethodsG1);
+		findLocallyAccessedFields(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), accessedLocalFieldsG2, accessedLocalMethodsG2);
 	}
 
-	private MappingState findMaximumStateWithMinimumDifferences() {
-		MappingState maximumStateWithMinimumDifferences = null;
-		if(maximumStates.size() == 1) {
-			maximumStateWithMinimumDifferences = maximumStates.get(0);
-		}
-		else {
-			int minimum = maximumStates.get(0).getDifferenceCount();
-			maximumStateWithMinimumDifferences = maximumStates.get(0);
-			for(int i=1; i<maximumStates.size(); i++) {
-				MappingState currentState = maximumStates.get(i);
-				if(currentState.getDifferenceCount() < minimum) {
-					minimum = currentState.getDifferenceCount();
-					maximumStateWithMinimumDifferences = currentState;
+	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<VariableDeclaration> accessedFields,
+			Set<MethodInvocationObject> accessedMethods) {
+		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
+		Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
+		Iterator<GraphNode> iterator = pdg.getNodeIterator();
+		while(iterator.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator.next();
+			if(mappedNodes.contains(pdgNode)) {
+				AbstractStatement abstractStatement = pdgNode.getStatement();
+				if(abstractStatement instanceof StatementObject) {
+					StatementObject statement = (StatementObject)abstractStatement;
+					usedLocalFields.addAll(statement.getUsedFieldsThroughThisReference());
+					accessedLocalMethods.addAll(statement.getInvokedMethodsThroughThisReference());
+				}
+				else if(abstractStatement instanceof CompositeStatementObject) {
+					CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+					usedLocalFields.addAll(composite.getUsedFieldsThroughThisReferenceInExpressions());
+					accessedLocalMethods.addAll(composite.getInvokedMethodsThroughThisReferenceInExpressions());
 				}
 			}
 		}
-		return maximumStateWithMinimumDifferences;
+		ITypeBinding declaringClassTypeBinding = pdg.getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass();
+		Set<VariableDeclaration> fieldsAccessedInMethod = pdg.getFieldsAccessedInMethod();
+		for(PlainVariable variable : usedLocalFields) {
+			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod) {
+				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey()) &&
+						fieldDeclaration.resolveBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
+					accessedFields.add(fieldDeclaration);
+					break;
+				}
+			}
+		}
+		for(MethodInvocationObject invocation : accessedLocalMethods) {
+			if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
+				accessedMethods.add(invocation);
+			}
+		}
+	}
+
+	private void findNonMappedNodes(PDG pdg, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
+		Iterator<GraphNode> iterator = pdg.getNodeIterator();
+		while(iterator.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator.next();
+			if(!mappedNodes.contains(pdgNode)) {
+				nonMappedNodes.add(pdgNode);
+			}
+		}
+	}
+
+	private Set<AbstractVariable> extractPassedParameters(PDG pdg,  Set<PDGNode> mappedNodes) {
+		Set<AbstractVariable> passedParameters = new LinkedHashSet<AbstractVariable>();
+		for(GraphEdge edge : pdg.getEdges()) {
+			PDGDependence dependence = (PDGDependence)edge;
+			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
+			PDGNode dstPDGNode = (PDGNode)dependence.getDst();
+			if(dependence instanceof PDGDataDependence) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode)) {
+					passedParameters.add(dataDependence.getData());
+				}
+			}
+		}
+		return passedParameters;
 	}
 
 	private void findPassedParameters() {
-		Set<AbstractVariable> passedParametersG1 = new LinkedHashSet<AbstractVariable>();
-		for(GraphEdge edge : pdg1.getEdges()) {
-			PDGDependence dependence = (PDGDependence)edge;
-			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
-			PDGNode dstPDGNode = (PDGNode)dependence.getDst();
-			if(dependence instanceof PDGDataDependence) {
-				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-				if(!maximumStateWithMinimumDifferences.containsNodeG1(srcPDGNode) &&
-						maximumStateWithMinimumDifferences.containsNodeG1(dstPDGNode)) {
-					passedParametersG1.add(dataDependence.getData());
-				}
-			}
-		}
-		Set<AbstractVariable> passedParametersG2 = new LinkedHashSet<AbstractVariable>();
-		for(GraphEdge edge : pdg2.getEdges()) {
-			PDGDependence dependence = (PDGDependence)edge;
-			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
-			PDGNode dstPDGNode = (PDGNode)dependence.getDst();
-			if(dependence instanceof PDGDataDependence) {
-				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-				if(!maximumStateWithMinimumDifferences.containsNodeG2(srcPDGNode) &&
-						maximumStateWithMinimumDifferences.containsNodeG2(dstPDGNode)) {
-					passedParametersG2.add(dataDependence.getData());
-				}
-			}
-		}
+		Set<AbstractVariable> passedParametersG1 = extractPassedParameters(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1());
+		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2());
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
 		for(PDGEdgeMapping edgeMapping : maximumStateWithMinimumDifferences.getEdgeMappings()) {
@@ -183,6 +209,25 @@ public class PDGMapper {
 
 	public Set<VariableDeclaration> getPassedParametersG2() {
 		return passedParametersG2;
+	}
+
+	private MappingState findMaximumStateWithMinimumDifferences() {
+		MappingState maximumStateWithMinimumDifferences = null;
+		if(maximumStates.size() == 1) {
+			maximumStateWithMinimumDifferences = maximumStates.get(0);
+		}
+		else {
+			int minimum = maximumStates.get(0).getDifferenceCount();
+			maximumStateWithMinimumDifferences = maximumStates.get(0);
+			for(int i=1; i<maximumStates.size(); i++) {
+				MappingState currentState = maximumStates.get(i);
+				if(currentState.getDifferenceCount() < minimum) {
+					minimum = currentState.getDifferenceCount();
+					maximumStateWithMinimumDifferences = currentState;
+				}
+			}
+		}
+		return maximumStateWithMinimumDifferences;
 	}
 
 	private void processPDGNodes() {

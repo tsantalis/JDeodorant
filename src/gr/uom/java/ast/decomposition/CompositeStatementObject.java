@@ -8,6 +8,7 @@ import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -129,6 +130,22 @@ public class CompositeStatementObject extends AbstractStatement {
 			staticMethodInvocations.addAll(expression.getInvokedStaticMethods());
 		}
 		return staticMethodInvocations;
+	}
+
+	public Set<PlainVariable> getUsedFieldsThroughThisReferenceInExpressions() {
+		Set<PlainVariable> usedFieldsThroughThisReference = new LinkedHashSet<PlainVariable>();
+		for(AbstractExpression expression : expressionList) {
+			usedFieldsThroughThisReference.addAll(expression.getUsedFieldsThroughThisReference());
+		}
+		return usedFieldsThroughThisReference;
+	}
+
+	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReferenceInExpressions() {
+		Set<MethodInvocationObject> invokedMethodsThroughThisReference = new LinkedHashSet<MethodInvocationObject>();
+		for(AbstractExpression expression : expressionList) {
+			invokedMethodsThroughThisReference.addAll(expression.getInvokedMethodsThroughThisReference());
+		}
+		return invokedMethodsThroughThisReference;
 	}
 
 	public List<String> stringRepresentation() {

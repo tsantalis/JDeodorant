@@ -26,13 +26,17 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -62,6 +66,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<MethodDeclaration> sourceMethodDeclarations;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
+	private TypeDeclaration typeToExtractClone;
 	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
 		super();
@@ -104,6 +109,64 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		}
+		determineTypeToExtractClone();
+	}
+
+	private void determineTypeToExtractClone() {
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
+			this.typeToExtractClone = sourceTypeDeclarations.get(0);
+		}
+		else {
+			//check is they have a common superclass
+			Set<ITypeBinding> superTypes1 = getAllSuperTypes(sourceTypeDeclarations.get(0).resolveBinding());
+			Set<ITypeBinding> superTypes2 = getAllSuperTypes(sourceTypeDeclarations.get(1).resolveBinding());
+			ITypeBinding commonSuperType = null;
+			boolean found = false;
+			for(ITypeBinding superType1 : superTypes1) {
+				for(ITypeBinding superType2 : superTypes2) {
+					if(superType1.isEqualTo(superType2)) {
+						commonSuperType = superType1;
+						found = true;
+						break;
+					}
+				}
+				if(found)
+					break;
+			}
+			if(commonSuperType != null) {
+				IJavaElement javaElement = commonSuperType.getJavaElement();
+				ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
+		        ASTParser parser = ASTParser.newParser(AST.JLS4);
+		        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+		        parser.setSource(iCompilationUnit);
+		        parser.setResolveBindings(true); // we need bindings later on
+		        CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
+				List<AbstractTypeDeclaration> typeDeclarations = compilationUnit.types();
+				for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarations) {
+					if(abstractTypeDeclaration instanceof TypeDeclaration) {
+						TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+						if(typeDeclaration.resolveBinding().isEqualTo(commonSuperType)) {
+							this.typeToExtractClone = typeDeclaration;
+							break;
+						}
+					}
+				}
+				MultiTextEdit multiTextEdit = new MultiTextEdit();
+				CompilationUnitChange compilationUnitChange = new CompilationUnitChange("", iCompilationUnit);
+				compilationUnitChange.setEdit(multiTextEdit);
+				compilationUnitChanges.put(iCompilationUnit, compilationUnitChange);
+			}
+		}
+	}
+
+	private Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
+		Set<ITypeBinding> superTypes = new LinkedHashSet<ITypeBinding>();
+		ITypeBinding superTypeBinding = typeBinding.getSuperclass();
+		if(superTypeBinding != null) {
+			superTypes.add(superTypeBinding);
+			superTypes.addAll(getAllSuperTypes(superTypeBinding));
+		}
+		return superTypes;
 	}
 
 	public void apply() {
@@ -153,11 +216,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void extractClone() {
-		//we need some logic to select the class where the clone will be extracted
-		CompilationUnit sourceCompilationUnit = sourceCompilationUnits.get(0);
-		TypeDeclaration sourceTypeDeclaration = sourceTypeDeclarations.get(0);
+		CompilationUnit sourceCompilationUnit = (CompilationUnit)typeToExtractClone.getRoot();
+		TypeDeclaration sourceTypeDeclaration = typeToExtractClone;
 		MethodDeclaration sourceMethodDeclaration = sourceMethodDeclarations.get(0);
-		//
 		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST ast = sourceTypeDeclaration.getAST();
 		
@@ -168,6 +229,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 		else
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
+		
+		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(typeToExtractClone.resolveBinding())) {
+			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
+			modifierRewrite.insertLast(accessModifier, null);
+		}
+		else {
+			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+			modifierRewrite.insertLast(accessModifier, null);
+		}
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
@@ -243,7 +314,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 
 		ListRewrite methodDeclarationRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		methodDeclarationRewrite.insertAfter(newMethodDeclaration, sourceMethodDeclaration, null);
+		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
 		
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();

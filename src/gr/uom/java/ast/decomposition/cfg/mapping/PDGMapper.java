@@ -25,22 +25,39 @@ public class PDGMapper {
 	private PDG pdg2;
 	private List<MappingState> maximumStates;
 	private MappingState maximumStateWithMinimumDifferences;
+	private Set<PDGNode> nonMappedNodesG1;
+	private Set<PDGNode> nonMappedNodesG2;
 	private Map<String, ArrayList<VariableDeclaration>> commonPassedParameters;
 	private Set<VariableDeclaration> passedParametersG1;
 	private Set<VariableDeclaration> passedParametersG2;
 	private IProgressMonitor monitor;
 	
-	
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
 		this.pdg1 = pdg1;
 		this.pdg2 = pdg2;
 		this.maximumStates = new ArrayList<MappingState>();
+		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
+		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
 		this.passedParametersG1 = new LinkedHashSet<VariableDeclaration>();
 		this.passedParametersG2 = new LinkedHashSet<VariableDeclaration>();
 		this.monitor = monitor;
 		processPDGNodes();
 		this.maximumStateWithMinimumDifferences = findMaximumStateWithMinimumDifferences();
+		Iterator<GraphNode> iterator1 = pdg1.getNodeIterator();
+		while(iterator1.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator1.next();
+			if(!maximumStateWithMinimumDifferences.containsNodeG1(pdgNode)) {
+				nonMappedNodesG1.add(pdgNode);
+			}
+		}
+		Iterator<GraphNode> iterator2 = pdg2.getNodeIterator();
+		while(iterator2.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator2.next();
+			if(!maximumStateWithMinimumDifferences.containsNodeG2(pdgNode)) {
+				nonMappedNodesG2.add(pdgNode);
+			}
+		}
 		findPassedParameters();
 	}
 
@@ -146,6 +163,14 @@ public class PDGMapper {
 
 	public MappingState getMaximumStateWithMinimumDifferences() {
 		return maximumStateWithMinimumDifferences;
+	}
+
+	public Set<PDGNode> getNonMappedNodesG1() {
+		return nonMappedNodesG1;
+	}
+
+	public Set<PDGNode> getNonMappedNodesG2() {
+		return nonMappedNodesG2;
 	}
 
 	public Map<String, ArrayList<VariableDeclaration>> getCommonPassedParameters() {

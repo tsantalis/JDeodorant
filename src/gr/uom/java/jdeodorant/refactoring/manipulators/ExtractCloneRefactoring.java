@@ -22,11 +22,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -38,6 +43,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TryStatement;
@@ -50,23 +56,31 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
+import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.Document;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
 import org.eclipse.text.edits.TextEditGroup;
 
+@SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private PDGMapper mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
+	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
-	private TypeDeclaration typeToExtractClone;
+	//private CompilationUnit compilationUnitToExtractClone;
+	//private TypeDeclaration typeToExtractClone;
+	//private ITypeBinding commonSuperType;
 	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
 		super();
@@ -80,6 +94,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
 		this.sourceMethodDeclarations = new ArrayList<MethodDeclaration>();
 		this.compilationUnitChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
+		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
 		
 		this.sourceMethodDeclarations.add(methodDeclaration1);
 		this.sourceMethodDeclarations.add(methodDeclaration2);
@@ -108,54 +123,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			CompilationUnitChange sourceCompilationUnitChange = new CompilationUnitChange("", sourceICompilationUnit);
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
-		}
-		determineTypeToExtractClone();
-	}
-
-	private void determineTypeToExtractClone() {
-		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
-			this.typeToExtractClone = sourceTypeDeclarations.get(0);
-		}
-		else {
-			//check is they have a common superclass
-			Set<ITypeBinding> superTypes1 = getAllSuperTypes(sourceTypeDeclarations.get(0).resolveBinding());
-			Set<ITypeBinding> superTypes2 = getAllSuperTypes(sourceTypeDeclarations.get(1).resolveBinding());
-			ITypeBinding commonSuperType = null;
-			boolean found = false;
-			for(ITypeBinding superType1 : superTypes1) {
-				for(ITypeBinding superType2 : superTypes2) {
-					if(superType1.isEqualTo(superType2)) {
-						commonSuperType = superType1;
-						found = true;
-						break;
-					}
-				}
-				if(found)
-					break;
-			}
-			if(commonSuperType != null) {
-				IJavaElement javaElement = commonSuperType.getJavaElement();
-				ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
-		        ASTParser parser = ASTParser.newParser(AST.JLS4);
-		        parser.setKind(ASTParser.K_COMPILATION_UNIT);
-		        parser.setSource(iCompilationUnit);
-		        parser.setResolveBindings(true); // we need bindings later on
-		        CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
-				List<AbstractTypeDeclaration> typeDeclarations = compilationUnit.types();
-				for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarations) {
-					if(abstractTypeDeclaration instanceof TypeDeclaration) {
-						TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
-						if(typeDeclaration.resolveBinding().isEqualTo(commonSuperType)) {
-							this.typeToExtractClone = typeDeclaration;
-							break;
-						}
-					}
-				}
-				MultiTextEdit multiTextEdit = new MultiTextEdit();
-				CompilationUnitChange compilationUnitChange = new CompilationUnitChange("", iCompilationUnit);
-				compilationUnitChange.setEdit(multiTextEdit);
-				compilationUnitChanges.put(iCompilationUnit, compilationUnitChange);
-			}
 		}
 	}
 
@@ -216,11 +183,143 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void extractClone() {
-		CompilationUnit sourceCompilationUnit = (CompilationUnit)typeToExtractClone.getRoot();
-		TypeDeclaration sourceTypeDeclaration = typeToExtractClone;
+		CompilationUnit sourceCompilationUnit = null;
+		ICompilationUnit sourceICompilationUnit = null;
+		TypeDeclaration sourceTypeDeclaration = null;
+		ASTRewrite sourceRewriter = null;
+		AST ast = null;
+		Document document = null;
+		IFile file = null;
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
+			sourceCompilationUnit = sourceCompilationUnits.get(0);
+			sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			sourceTypeDeclaration = sourceTypeDeclarations.get(0);
+			sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+			ast = sourceTypeDeclaration.getAST();
+		}
+		else {
+			//check is they have a common superclass
+			Set<ITypeBinding> superTypes1 = getAllSuperTypes(sourceTypeDeclarations.get(0).resolveBinding());
+			Set<ITypeBinding> superTypes2 = getAllSuperTypes(sourceTypeDeclarations.get(1).resolveBinding());
+			boolean found = false;
+			ITypeBinding commonSuperType = null;
+			for(ITypeBinding superType1 : superTypes1) {
+				for(ITypeBinding superType2 : superTypes2) {
+					if(superType1.isEqualTo(superType2)) {
+						commonSuperType = superType1;
+						found = true;
+						break;
+					}
+				}
+				if(found)
+					break;
+			}
+			if(commonSuperType != null) {
+				if(mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
+						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty()) {
+					IJavaElement javaElement = commonSuperType.getJavaElement();
+					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
+					ASTParser parser = ASTParser.newParser(AST.JLS4);
+					parser.setKind(ASTParser.K_COMPILATION_UNIT);
+					parser.setSource(iCompilationUnit);
+					parser.setResolveBindings(true); // we need bindings later on
+					CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
+					List<AbstractTypeDeclaration> typeDeclarations = compilationUnit.types();
+					for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarations) {
+						if(abstractTypeDeclaration instanceof TypeDeclaration) {
+							TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+							if(typeDeclaration.resolveBinding().isEqualTo(commonSuperType)) {
+								sourceCompilationUnit = compilationUnit;
+								sourceICompilationUnit = iCompilationUnit;
+								sourceTypeDeclaration = typeDeclaration;
+								sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+								ast = sourceTypeDeclaration.getAST();
+								break;
+							}
+						}
+					}
+					MultiTextEdit multiTextEdit = new MultiTextEdit();
+					CompilationUnitChange compilationUnitChange = new CompilationUnitChange("", iCompilationUnit);
+					compilationUnitChange.setEdit(multiTextEdit);
+					compilationUnitChanges.put(iCompilationUnit, compilationUnitChange);
+				}
+				else {
+					//create an intermediate superclass
+					String intermediateClassName = "Intermediate" + commonSuperType.getName();
+					CompilationUnit compilationUnit = sourceCompilationUnits.get(0);
+					ICompilationUnit iCompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+					IContainer container = (IContainer)iCompilationUnit.getResource().getParent();
+					if(container instanceof IProject) {
+						IProject contextProject = (IProject)container;
+						file = contextProject.getFile(intermediateClassName + ".java");
+					}
+					else if(container instanceof IFolder) {
+						IFolder contextFolder = (IFolder)container;
+						file = contextFolder.getFile(intermediateClassName + ".java");
+					}
+					boolean intermediateAlreadyExists = false;
+					ICompilationUnit intermediateICompilationUnit = JavaCore.createCompilationUnitFrom(file);
+					ASTParser intermediateParser = ASTParser.newParser(AST.JLS4);
+					intermediateParser.setKind(ASTParser.K_COMPILATION_UNIT);
+					if(file.exists()) {
+						intermediateAlreadyExists = true;
+				        intermediateParser.setSource(intermediateICompilationUnit);
+				        intermediateParser.setResolveBindings(true); // we need bindings later on
+					}
+					else {
+						document = new Document();
+						intermediateParser.setSource(document.get().toCharArray());
+					}
+					CompilationUnit intermediateCompilationUnit = (CompilationUnit)intermediateParser.createAST(null);
+			        AST intermediateAST = intermediateCompilationUnit.getAST();
+			        ASTRewrite intermediateRewriter = ASTRewrite.create(intermediateAST);
+			        ListRewrite intermediateTypesRewrite = intermediateRewriter.getListRewrite(intermediateCompilationUnit, CompilationUnit.TYPES_PROPERTY);
+			        TypeDeclaration intermediateTypeDeclaration = null;
+					if(intermediateAlreadyExists) {
+						List<AbstractTypeDeclaration> abstractTypeDeclarations = intermediateCompilationUnit.types();
+						for(AbstractTypeDeclaration abstractTypeDeclaration : abstractTypeDeclarations) {
+							if(abstractTypeDeclaration instanceof TypeDeclaration) {
+								TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+								if(typeDeclaration.getName().getIdentifier().equals(intermediateClassName)) {
+									intermediateTypeDeclaration = typeDeclaration;
+									int intermediateModifiers = intermediateTypeDeclaration.getModifiers();
+									if((intermediateModifiers & Modifier.ABSTRACT) == 0) {
+										ListRewrite intermediateModifiersRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+										intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+									}
+									break;
+								}
+							}
+						}
+						MultiTextEdit intermediateMultiTextEdit = new MultiTextEdit();
+						CompilationUnitChange intermediateCompilationUnitChange = new CompilationUnitChange("", intermediateICompilationUnit);
+						intermediateCompilationUnitChange.setEdit(intermediateMultiTextEdit);
+						compilationUnitChanges.put(intermediateICompilationUnit, intermediateCompilationUnitChange);
+					}
+					else {
+						if(compilationUnit.getPackage() != null) {
+							intermediateRewriter.set(intermediateCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, compilationUnit.getPackage(), null);
+						}
+						intermediateTypeDeclaration = intermediateAST.newTypeDeclaration();
+						SimpleName intermediateName = intermediateAST.newSimpleName(intermediateClassName);
+						intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.NAME_PROPERTY, intermediateName, null);
+						ListRewrite intermediateModifiersRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+						intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+								intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperType.getName())), null);
+						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
+					}
+					sourceCompilationUnit = intermediateCompilationUnit;
+					sourceICompilationUnit = intermediateICompilationUnit;
+					sourceTypeDeclaration = intermediateTypeDeclaration;
+					sourceRewriter = intermediateRewriter;
+					ast = intermediateAST;
+				}
+			}
+		}
+		
 		MethodDeclaration sourceMethodDeclaration = sourceMethodDeclarations.get(0);
-		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-		AST ast = sourceTypeDeclaration.getAST();
 		
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(sourceMethodDeclaration.getName().getIdentifier()), null);
@@ -231,7 +330,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
 		
 		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(typeToExtractClone.resolveBinding())) {
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
 			modifierRewrite.insertLast(accessModifier, null);
 		}
@@ -317,12 +416,26 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		methodDeclarationRewrite.insertLast(newMethodDeclaration, null);
 		
 		try {
-			TextEdit sourceEdit = sourceRewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-			change.getEdit().addChild(sourceEdit);
-			change.addTextEditGroup(new TextEditGroup("Create method for the extracted duplicated code", new TextEdit[] {sourceEdit}));
+			if(change != null) {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Create method for the extracted duplicated code", new TextEdit[] {sourceEdit}));
+			}
+			if(document != null) {
+				TextEdit intermediateEdit = sourceRewriter.rewriteAST(document, null);
+				intermediateEdit.apply(document);
+				CreateCompilationUnitChange createCompilationUnitChange =
+						new CreateCompilationUnitChange(sourceICompilationUnit, document.get(), file.getCharset());
+				createCompilationUnitChanges.put(sourceICompilationUnit, createCompilationUnitChange);
+			}
 		} catch (JavaModelException e) {
+			e.printStackTrace();
+		} catch (MalformedTreeException e) {
+			e.printStackTrace();
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		} catch (CoreException e) {
 			e.printStackTrace();
 		}
 	}
@@ -384,7 +497,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			OperationCanceledException {
 		try {
 			pm.beginTask("Creating change...", 1);
-			final Collection<CompilationUnitChange> changes = compilationUnitChanges.values();
+			final Collection<Change> changes = new ArrayList<Change>();
+			changes.addAll(compilationUnitChanges.values());
+			changes.addAll(createCompilationUnitChanges.values());
 			CompositeChange change = new CompositeChange(getName(), changes.toArray(new Change[changes.size()])) {
 				@Override
 				public ChangeDescriptor getDescriptor() {

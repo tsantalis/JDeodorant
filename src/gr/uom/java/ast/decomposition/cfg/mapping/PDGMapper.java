@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -18,12 +19,14 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.BasicBlock;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 public class PDGMapper {
@@ -33,6 +36,8 @@ public class PDGMapper {
 	private MappingState maximumStateWithMinimumDifferences;
 	private Set<PDGNode> nonMappedNodesG1;
 	private Set<PDGNode> nonMappedNodesG2;
+	private Set<PDGNode> nonMappedNodesSliceUnionG1;
+	private Set<PDGNode> nonMappedNodesSliceUnionG2;
 	private Map<String, ArrayList<VariableDeclaration>> commonPassedParameters;
 	private Set<VariableDeclaration> passedParametersG1;
 	private Set<VariableDeclaration> passedParametersG2;
@@ -48,6 +53,8 @@ public class PDGMapper {
 		this.maximumStates = new ArrayList<MappingState>();
 		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
+		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();
+		this.nonMappedNodesSliceUnionG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
 		this.passedParametersG1 = new LinkedHashSet<VariableDeclaration>();
 		this.passedParametersG2 = new LinkedHashSet<VariableDeclaration>();
@@ -60,9 +67,23 @@ public class PDGMapper {
 		this.maximumStateWithMinimumDifferences = findMaximumStateWithMinimumDifferences();
 		findNonMappedNodes(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), nonMappedNodesG1);
 		findNonMappedNodes(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), nonMappedNodesG2);
+		computeSliceForNonMappedNodes(pdg1, nonMappedNodesG1, nonMappedNodesSliceUnionG1);
+		computeSliceForNonMappedNodes(pdg2, nonMappedNodesG2, nonMappedNodesSliceUnionG2);
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), accessedLocalFieldsG2, accessedLocalMethodsG2);
+	}
+
+	private void computeSliceForNonMappedNodes(PDG pdg, Set<PDGNode> nonMappedNodes, Set<PDGNode> nonMappedNodesSliceUnion) {
+		List<BasicBlock> basicBlocks = pdg.getBasicBlocks();
+		//we need a strategy to select the appropriate basic block according to the region of the duplicated code
+		BasicBlock block = basicBlocks.get(0);
+		if(!nonMappedNodes.isEmpty()) {
+			PDGSlice subgraph = new PDGSlice(pdg, block);
+			for(PDGNode nodeCriterion : nonMappedNodes) {
+				nonMappedNodesSliceUnion.addAll(subgraph.computeSlice(nodeCriterion));
+			}
+		}
 	}
 
 	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<VariableDeclaration> accessedFields,
@@ -209,6 +230,22 @@ public class PDGMapper {
 
 	public Set<VariableDeclaration> getPassedParametersG2() {
 		return passedParametersG2;
+	}
+
+	public Set<VariableDeclaration> getAccessedLocalFieldsG1() {
+		return accessedLocalFieldsG1;
+	}
+
+	public Set<VariableDeclaration> getAccessedLocalFieldsG2() {
+		return accessedLocalFieldsG2;
+	}
+
+	public Set<MethodInvocationObject> getAccessedLocalMethodsG1() {
+		return accessedLocalMethodsG1;
+	}
+
+	public Set<MethodInvocationObject> getAccessedLocalMethodsG2() {
+		return accessedLocalMethodsG2;
 	}
 
 	private MappingState findMaximumStateWithMinimumDifferences() {

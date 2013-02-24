@@ -11,6 +11,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -40,8 +41,10 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
@@ -54,6 +57,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
@@ -78,9 +82,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
-	//private CompilationUnit compilationUnitToExtractClone;
-	//private TypeDeclaration typeToExtractClone;
-	//private ITypeBinding commonSuperType;
 	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
 		super();
@@ -320,14 +321,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		MethodDeclaration sourceMethodDeclaration = sourceMethodDeclarations.get(0);
-		
+		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(sourceMethodDeclaration.getName().getIdentifier()), null);
 		Type returnType = findReturnType();
-		if(returnType != null)
+		if(returnType != null) {
+			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+			typeBindings.add(returnType.resolveBinding());
+			getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
-		else
+		}
+		else {
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, ast.newPrimitiveType(PrimitiveType.VOID), null);
+		}
 		
 		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
@@ -370,6 +376,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			if(!variableDeclaration.resolveBinding().isField()) {
+				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+				typeBindings.add(variableType.resolveBinding());
+				getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
@@ -382,6 +391,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		List<PDGNode> sliceNodes = new ArrayList<PDGNode>();
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
+			Statement statement = pdgNode.getASTStatement();
+			TypeVisitor typeVisitor = new TypeVisitor();
+			statement.accept(typeVisitor);
+			requiredImportTypeBindings.addAll(typeVisitor.getTypeBindings());
 			sliceNodes.add(pdgNode);
 		}
 		while(!sliceNodes.isEmpty()) {
@@ -418,11 +431,26 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		try {
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			if(change != null) {
+				ImportRewrite importRewrite = ImportRewrite.create(sourceCompilationUnit, true);
+				for(ITypeBinding typeBinding : requiredImportTypeBindings) {
+					if(!typeBinding.isNested())
+						importRewrite.addImport(typeBinding);
+				}
+				
+				TextEdit importEdit = importRewrite.rewriteImports(null);
+				if(importRewrite.getCreatedImports().length > 0) {
+					change.getEdit().addChild(importEdit);
+					change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
+				}
+				
 				TextEdit sourceEdit = sourceRewriter.rewriteAST();
 				change.getEdit().addChild(sourceEdit);
 				change.addTextEditGroup(new TextEditGroup("Create method for the extracted duplicated code", new TextEdit[] {sourceEdit}));
 			}
 			if(document != null) {
+				for(ITypeBinding typeBinding : requiredImportTypeBindings) {
+					addImportDeclaration(typeBinding, sourceCompilationUnit, sourceRewriter);
+				}
 				TextEdit intermediateEdit = sourceRewriter.rewriteAST(document, null);
 				intermediateEdit.apply(document);
 				CreateCompilationUnitChange createCompilationUnitChange =
@@ -437,6 +465,76 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			e.printStackTrace();
 		} catch (CoreException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private void getSimpleTypeBindings(Set<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
+		for(ITypeBinding typeBinding : typeBindings) {
+			if(typeBinding.isPrimitive()) {
+
+			}
+			else if(typeBinding.isArray()) {
+				ITypeBinding elementTypeBinding = typeBinding.getElementType();
+				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
+				typeBindingList.add(elementTypeBinding);
+				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
+			}
+			else if(typeBinding.isParameterizedType()) {
+				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
+				typeBindingList.add(typeBinding.getTypeDeclaration());
+				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
+				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
+					typeBindingList.add(typeArgumentBinding);
+				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
+			}
+			else if(typeBinding.isWildcardType()) {
+				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
+				typeBindingList.add(typeBinding.getBound());
+				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
+			}
+			else {
+				if(typeBinding.isNested()) {
+					finalTypeBindings.add(typeBinding.getDeclaringClass());
+				}
+				finalTypeBindings.add(typeBinding);
+			}
+		}
+	}
+
+	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {
+		String qualifiedName = typeBinding.getQualifiedName();
+		String qualifiedPackageName = "";
+		if(qualifiedName.contains("."))
+			qualifiedPackageName = qualifiedName.substring(0,qualifiedName.lastIndexOf("."));
+		PackageDeclaration sourcePackageDeclaration = sourceCompilationUnits.get(0).getPackage();
+		String sourcePackageDeclarationName = "";
+		if(sourcePackageDeclaration != null)
+			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();     
+		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") &&
+				!qualifiedPackageName.equals(sourcePackageDeclarationName) && !typeBinding.isNested()) {
+			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
+			boolean found = false;
+			for(ImportDeclaration importDeclaration : importDeclarationList) {
+				if(!importDeclaration.isOnDemand()) {
+					if(qualifiedName.equals(importDeclaration.getName().getFullyQualifiedName())) {
+						found = true;
+						break;
+					}
+				}
+				else {
+					if(qualifiedPackageName.equals(importDeclaration.getName().getFullyQualifiedName())) {
+						found = true;
+						break;
+					}
+				}
+			}
+			if(!found) {
+				AST ast = targetCompilationUnit.getAST();
+				ImportDeclaration importDeclaration = ast.newImportDeclaration();
+				targetRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(qualifiedName), null);
+				ListRewrite importRewrite = targetRewriter.getListRewrite(targetCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
+				importRewrite.insertLast(importDeclaration, null);
+			}
 		}
 	}
 

@@ -85,9 +85,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
+	private List<Set<VariableDeclaration>> fieldDeclarationsToBePulledUp;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
+	private String intermediateClassName;
 	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
 		super();
@@ -100,6 +102,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceCompilationUnits = new ArrayList<CompilationUnit>();
 		this.sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
 		this.sourceMethodDeclarations = new ArrayList<MethodDeclaration>();
+		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
+		for(int i=0; i<2; i++) {
+			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
+		}
 		this.compilationUnitChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
 		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
 		
@@ -145,6 +151,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	public void apply() {
 		extractClone();
+		for(int i=0; i<sourceCompilationUnits.size(); i++) {
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), sourceMethodDeclarations.get(i),
+					fieldDeclarationsToBePulledUp.get(i));
+		}
 	}
 
 	private Type findReturnType() {
@@ -224,6 +234,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(commonSuperType != null) {
 				if(mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
 						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty()) {
+					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
 					IJavaElement javaElement = commonSuperType.getJavaElement();
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
 					ASTParser parser = ASTParser.newParser(AST.JLS4);
@@ -252,7 +263,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 				else {
 					//create an intermediate superclass
-					String intermediateClassName = "Intermediate" + commonSuperType.getName();
+					this.intermediateClassName = "Intermediate" + commonSuperType.getName();
 					CompilationUnit compilationUnit = sourceCompilationUnits.get(0);
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 					IContainer container = (IContainer)iCompilationUnit.getResource().getParent();
@@ -341,7 +352,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 					typeBindings.add(localFieldG1.resolveBinding().getType());
 					getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-		        	
+		        	fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
+		        	fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
 		        	VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
 		        	sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
 		        	if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
@@ -554,6 +566,57 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			e.printStackTrace();
 		} catch (CoreException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration, MethodDeclaration methodDeclaration,
+			Set<VariableDeclaration> fieldDeclarationsToBePulledUp) {
+		if(intermediateClassName != null) {
+			AST ast = typeDeclaration.getAST();
+			ASTRewrite superClassTypeRewriter = ASTRewrite.create(ast);
+			superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, ast.newSimpleType(ast.newSimpleName(intermediateClassName)), null);
+			try {
+				TextEdit sourceEdit = superClassTypeRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Modify superclass type", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+			FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
+				boolean found = false;
+				ASTRewrite rewriter = ASTRewrite.create(ast);
+				ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+				for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+					List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+					ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+							found = true;
+							if(fragments.size() > 1) {
+								fragmentsRewrite.remove(fragment, null);
+							}
+							else {
+								bodyRewrite.remove(fieldDeclaration, null);
+							}
+							break;
+						}
+					}
+					if(found)
+						break;
+				}
+				try {
+					TextEdit sourceEdit = rewriter.rewriteAST();
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Pull up field to superclass", new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 

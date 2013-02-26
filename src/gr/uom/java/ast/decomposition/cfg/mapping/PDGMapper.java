@@ -14,6 +14,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -36,8 +37,8 @@ public class PDGMapper {
 	private MappingState maximumStateWithMinimumDifferences;
 	private Set<PDGNode> nonMappedNodesG1;
 	private Set<PDGNode> nonMappedNodesG2;
-	private Set<PDGNode> nonMappedNodesSliceUnionG1;
-	private Set<PDGNode> nonMappedNodesSliceUnionG2;
+	private TreeSet<PDGNode> nonMappedNodesSliceUnionG1;
+	private TreeSet<PDGNode> nonMappedNodesSliceUnionG2;
 	private Map<String, ArrayList<VariableDeclaration>> commonPassedParameters;
 	private Set<VariableDeclaration> passedParametersG1;
 	private Set<VariableDeclaration> passedParametersG2;
@@ -246,6 +247,30 @@ public class PDGMapper {
 
 	public Set<MethodInvocationObject> getAccessedLocalMethodsG2() {
 		return accessedLocalMethodsG2;
+	}
+
+	public Set<PDGNode> getRemovableNodesG1() {
+		Set<PDGNode> removableNodes = maximumStateWithMinimumDifferences.getMappedNodesG1();
+		removableNodes.removeAll(nonMappedNodesSliceUnionG1);
+		return removableNodes;
+	}
+
+	public Set<PDGNode> getRemovableNodesG2() {
+		Set<PDGNode> removableNodes = maximumStateWithMinimumDifferences.getMappedNodesG2();
+		removableNodes.removeAll(nonMappedNodesSliceUnionG2);
+		return removableNodes;
+	}
+
+	public TreeSet<PDGNode> getRemainingNodesG1() {
+		return nonMappedNodesSliceUnionG1;
+	}
+
+	public TreeSet<PDGNode> getRemainingNodesG2() {
+		return nonMappedNodesSliceUnionG2;
+	}
+
+	public List<ASTNodeDifference> getNodeDifferences() {
+		return maximumStateWithMinimumDifferences.getNodeDifferences();
 	}
 
 	private MappingState findMaximumStateWithMinimumDifferences() {

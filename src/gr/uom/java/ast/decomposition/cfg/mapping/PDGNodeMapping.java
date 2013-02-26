@@ -28,6 +28,10 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 		return nodeG2;
 	}
 
+	public List<ASTNodeDifference> getNodeDifferences() {
+		return nodeDifferences;
+	}
+
 	public int getDifferenceCount() {
 		int count = 0;
 		for(ASTNodeDifference nodeDifference : nodeDifferences) {

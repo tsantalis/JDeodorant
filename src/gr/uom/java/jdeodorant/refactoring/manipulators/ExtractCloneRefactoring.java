@@ -49,9 +49,11 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -89,6 +91,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
+	private List<Set<PDGNode>> removableStatements;
+	private List<TreeSet<PDGNode>> remainingStatements;
 	private String intermediateClassName;
 	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
@@ -102,6 +106,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceCompilationUnits = new ArrayList<CompilationUnit>();
 		this.sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
 		this.sourceMethodDeclarations = new ArrayList<MethodDeclaration>();
+		this.removableStatements = new ArrayList<Set<PDGNode>>();
+		removableStatements.add(mapper.getRemovableNodesG1());
+		removableStatements.add(mapper.getRemovableNodesG2());
+		this.remainingStatements = new ArrayList<TreeSet<PDGNode>>();
+		remainingStatements.add(mapper.getRemainingNodesG1());
+		remainingStatements.add(mapper.getRemainingNodesG2());
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
 		for(int i=0; i<2; i++) {
 			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
@@ -152,8 +162,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	public void apply() {
 		extractClone();
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), sourceMethodDeclarations.get(i),
-					fieldDeclarationsToBePulledUp.get(i));
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i));
+			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i), remainingStatements.get(i));
 		}
 	}
 
@@ -569,10 +579,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration, MethodDeclaration methodDeclaration,
-			Set<VariableDeclaration> fieldDeclarationsToBePulledUp) {
+	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldDeclarationsToBePulledUp) {
+		AST ast = typeDeclaration.getAST();
 		if(intermediateClassName != null) {
-			AST ast = typeDeclaration.getAST();
 			ASTRewrite superClassTypeRewriter = ASTRewrite.create(ast);
 			superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, ast.newSimpleType(ast.newSimpleName(intermediateClassName)), null);
 			try {
@@ -584,39 +593,91 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			} catch (JavaModelException e) {
 				e.printStackTrace();
 			}
-			FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
-			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
-				boolean found = false;
-				ASTRewrite rewriter = ASTRewrite.create(ast);
-				ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-				for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-					List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-					ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
-					for(VariableDeclarationFragment fragment : fragments) {
-						if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-							found = true;
-							if(fragments.size() > 1) {
-								fragmentsRewrite.remove(fragment, null);
-							}
-							else {
-								bodyRewrite.remove(fieldDeclaration, null);
-							}
-							break;
+		}
+		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
+			boolean found = false;
+			ASTRewrite rewriter = ASTRewrite.create(ast);
+			ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+				List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+				ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
+				for(VariableDeclarationFragment fragment : fragments) {
+					if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+						found = true;
+						if(fragments.size() > 1) {
+							fragmentsRewrite.remove(fragment, null);
 						}
-					}
-					if(found)
+						else {
+							bodyRewrite.remove(fieldDeclaration, null);
+						}
 						break;
+					}
 				}
-				try {
-					TextEdit sourceEdit = rewriter.rewriteAST();
-					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-					change.getEdit().addChild(sourceEdit);
-					change.addTextEditGroup(new TextEditGroup("Pull up field to superclass", new TextEdit[] {sourceEdit}));
-				} catch (JavaModelException e) {
-					e.printStackTrace();
-				}
+				if(found)
+					break;
 			}
+			try {
+				TextEdit sourceEdit = rewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Pull up field to superclass", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private void modifySourceMethod(CompilationUnit compilationUnit, MethodDeclaration methodDeclaration, Set<PDGNode> removableNodes,
+			TreeSet<PDGNode> remainingNodes) {
+		AST ast = methodDeclaration.getAST();
+		ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
+		MethodInvocation methodInvocation = ast.newMethodInvocation();
+		methodBodyRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(methodDeclaration.getName().getIdentifier()), null);
+		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
+		Set<VariableDeclaration> totalPassedParameters = new LinkedHashSet<VariableDeclaration>();
+		for(String parameterName : commonPassedParameters.keySet()) {
+			List<VariableDeclaration> variableDeclarations = commonPassedParameters.get(parameterName);
+			totalPassedParameters.add(variableDeclarations.get(0));
+		}
+		totalPassedParameters.addAll(mapper.getPassedParametersG1());
+		totalPassedParameters.addAll(mapper.getPassedParametersG2());
+		ListRewrite argumentsRewrite = methodBodyRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+		for(VariableDeclaration parameter : totalPassedParameters) {
+			argumentsRewrite.insertLast(parameter.getName(), null);
+		}
+		Statement methodInvocationStatement = null;
+		if(methodDeclaration.getReturnType2() != null) {
+			ReturnStatement returnStatement = ast.newReturnStatement();
+			methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, methodInvocation, null);
+			methodInvocationStatement = returnStatement;
+		}
+		else {
+			methodInvocationStatement = ast.newExpressionStatement(methodInvocation);
+		}
+		if(!remainingNodes.isEmpty()) {
+			Statement lastStatement = remainingNodes.last().getASTStatement();
+			Block parentStatement = (Block)lastStatement.getParent();
+			ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+			blockRewrite.insertAfter(methodInvocationStatement, lastStatement, null);
+		}
+		else {
+			ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(methodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
+			blockRewrite.insertLast(methodInvocationStatement, null);
+		}
+		for(PDGNode pdgNode : removableNodes) {
+			Statement statement = pdgNode.getASTStatement();
+			methodBodyRewriter.remove(statement, null);
+		}
+		try {
+			TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Modify source method", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
 		}
 	}
 

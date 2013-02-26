@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
@@ -59,6 +60,14 @@ public class MappingState {
 
 	public Set<PDGEdgeMapping> getEdgeMappings() {
 		return edgeMappings;
+	}
+
+	public List<ASTNodeDifference> getNodeDifferences() {
+		List<ASTNodeDifference> nodeDifferences = new ArrayList<ASTNodeDifference>();
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			nodeDifferences.addAll(nodeMapping.getNodeDifferences());
+		}
+		return nodeDifferences;
 	}
 
 	public int getDifferenceCount() {

@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
@@ -33,6 +35,8 @@ import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 public class PDGMapper {
 	private PDG pdg1;
 	private PDG pdg2;
+	private ICompilationUnit iCompilationUnit1;
+	private ICompilationUnit iCompilationUnit2;
 	private List<MappingState> maximumStates;
 	private MappingState maximumStateWithMinimumDifferences;
 	private Set<PDGNode> nonMappedNodesG1;
@@ -51,6 +55,10 @@ public class PDGMapper {
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
 		this.pdg1 = pdg1;
 		this.pdg2 = pdg2;
+		CompilationUnit cu1 = (CompilationUnit)pdg1.getMethod().getMethodDeclaration().getRoot();
+		this.iCompilationUnit1 = (ICompilationUnit)cu1.getJavaElement();
+		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
+		this.iCompilationUnit2 = (ICompilationUnit)cu2.getJavaElement();
 		this.maximumStates = new ArrayList<MappingState>();
 		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
@@ -303,10 +311,10 @@ public class PDGMapper {
 			List<MappingState> currentStates = new ArrayList<MappingState>();
 			while(nodeIterator2.hasNext()) {
 				PDGNode node2 = (PDGNode)nodeIterator2.next();
-				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher();
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
 				if(match) {
-					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher.getDifferences());
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 					if(finalStates.isEmpty()) {
 						MappingState state = new MappingState(null, mapping);
 						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();

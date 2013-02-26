@@ -1,8 +1,11 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.ASTInformationGenerator;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
@@ -35,9 +38,24 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 public class ASTNodeMatcher extends ASTMatcher{
 
 	private List<ASTNodeDifference> differences = new ArrayList<ASTNodeDifference>();
+	private ITypeRoot typeRoot1;
+	private ITypeRoot typeRoot2;
+	
+	public ASTNodeMatcher(ITypeRoot root1, ITypeRoot root2) {
+		this.typeRoot1 = root1;
+		this.typeRoot2 = root2;
+	}
 
 	public List<ASTNodeDifference> getDifferences() {
 		return differences;
+	}
+
+	public ITypeRoot getTypeRoot1() {
+		return typeRoot1;
+	}
+
+	public ITypeRoot getTypeRoot2() {
+		return typeRoot2;
 	}
 
 	public String toString() {
@@ -130,7 +148,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ArrayAccess node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -156,7 +176,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ArrayCreation node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -196,7 +218,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(BooleanLiteral node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -227,7 +251,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(CharacterLiteral node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -258,7 +284,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ClassInstanceCreation node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -309,7 +337,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(FieldAccess node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -379,7 +409,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(MethodInvocation node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -411,7 +443,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(NumberLiteral node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -442,7 +476,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(QualifiedName node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -483,7 +519,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(SimpleName node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -528,7 +566,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(StringLiteral node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -559,7 +599,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(SuperFieldAccess node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
@@ -596,7 +638,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(SuperMethodInvocation node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {

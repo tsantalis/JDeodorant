@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
@@ -9,6 +10,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.util.StatementExtractor;
@@ -644,8 +646,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		totalPassedParameters.addAll(mapper.getPassedParametersG1());
 		totalPassedParameters.addAll(mapper.getPassedParametersG2());
 		ListRewrite argumentsRewrite = methodBodyRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-		for(VariableDeclaration parameter : totalPassedParameters) {
-			argumentsRewrite.insertLast(parameter.getName(), null);
+		for(VariableDeclaration variableDeclaration : totalPassedParameters) {
+			Expression expression = determineArgumentToBePassedInExtractedMethodInvocation(variableDeclaration, remainingNodes);
+			argumentsRewrite.insertLast(expression, null);
 		}
 		Statement methodInvocationStatement = null;
 		if(methodDeclaration.getReturnType2() != null) {
@@ -678,6 +681,40 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			change.addTextEditGroup(new TextEditGroup("Modify source method", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private Expression determineArgumentToBePassedInExtractedMethodInvocation(VariableDeclaration variableDeclaration, TreeSet<PDGNode> remainingNodes) {
+		if(variableDeclaration.resolveBinding().isParameter()) {
+			return variableDeclaration.getName();
+		}
+		boolean remainingNodesDeclareVariable = false;
+		PlainVariable plainVariable = new PlainVariable(variableDeclaration);
+		for(PDGNode node : remainingNodes) {
+			if(node.declaresLocalVariable(plainVariable)) {
+				remainingNodesDeclareVariable = true;
+				break;
+			}
+		}
+		if(remainingNodesDeclareVariable) {
+			return variableDeclaration.getName();
+		}
+		else {
+			List<ASTNodeDifference> nodeDifferences = mapper.getNodeDifferences();
+			Expression expressionToBeReturned = null;
+			for(ASTNodeDifference nodeDifference : nodeDifferences) {
+				Expression exp1 = nodeDifference.getExpression1().getExpression();
+				Expression exp2 = nodeDifference.getExpression2().getExpression();
+				if(exp1.toString().equals(variableDeclaration.getName().getIdentifier())) {
+					expressionToBeReturned = exp2;
+					break;
+				}
+				else if(exp2.toString().equals(variableDeclaration.getName().getIdentifier())) {
+					expressionToBeReturned = exp1;
+					break;
+				}
+			}
+			return expressionToBeReturned;
 		}
 	}
 

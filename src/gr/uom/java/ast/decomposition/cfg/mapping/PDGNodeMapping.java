@@ -2,7 +2,10 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.List;
 
+import org.eclipse.jdt.core.ITypeRoot;
+
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
@@ -11,13 +14,15 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 	private PDGNode nodeG1;
 	private PDGNode nodeG2;
+	private ASTNodeMatcher matcher;
 	private List<ASTNodeDifference> nodeDifferences;
 	private volatile int hashCode = 0;
 	
-	public PDGNodeMapping(PDGNode nodeG1, PDGNode nodeG2, List<ASTNodeDifference> nodeDifferences) {
+	public PDGNodeMapping(PDGNode nodeG1, PDGNode nodeG2, ASTNodeMatcher matcher) {
 		this.nodeG1 = nodeG1;
 		this.nodeG2 = nodeG2;
-		this.nodeDifferences = nodeDifferences;
+		this.matcher = matcher;
+		this.nodeDifferences = matcher.getDifferences();
 	}
 	
 	public PDGNode getNodeG1() {
@@ -30,6 +35,14 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return nodeDifferences;
+	}
+
+	public ITypeRoot getTypeRoot1() {
+		return matcher.getTypeRoot1();
+	}
+
+	public ITypeRoot getTypeRoot2() {
+		return matcher.getTypeRoot2();
 	}
 
 	public int getDifferenceCount() {

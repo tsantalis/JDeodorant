@@ -150,14 +150,14 @@ public class MappingState {
 							state.propagateEdgeMappingToChildren(edgeMapping);
 						}
 					}
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher();
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
 					boolean match;
 					if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
 						match = false;
 					else 
 						match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
 					if(match) {
-						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher.getDifferences());
+						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 						MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
 						if(childState != null) {
 							if(!childState.edgeMappings.contains(edgeMapping)) {

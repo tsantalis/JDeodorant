@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ASTNodeDifference {
-	private AbstractMethodFragment fragment1;
-	private AbstractMethodFragment fragment2;
+	private AbstractExpression expression1;
+	private AbstractExpression expression2;
 	private List<Difference> differences;
 	
-	public ASTNodeDifference(AbstractMethodFragment f1,AbstractMethodFragment f2) {
-		this.fragment1=f1;
-		this.fragment2=f2;
+	public ASTNodeDifference(AbstractExpression e1, AbstractExpression e2) {
+		this.expression1=e1;
+		this.expression2=e2;
 		differences = new ArrayList<Difference>();
 	}
 	
@@ -18,12 +18,12 @@ public class ASTNodeDifference {
 		return differences;
 	}
 	
-	public AbstractMethodFragment getFragment1() {
-		return fragment1;
+	public AbstractExpression getExpression1() {
+		return expression1;
 	}
 
-	public AbstractMethodFragment getFragment2() {
-		return fragment2;
+	public AbstractExpression getExpression2() {
+		return expression2;
 	}
 
 	public void addDifference(Difference diff)

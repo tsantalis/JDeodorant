@@ -184,6 +184,7 @@ public class CFG extends Graph {
 		int action = PUSH_NEW_LIST;
 		List<AbstractStatement> statements = new ArrayList<AbstractStatement>(parentComposite.getStatements());
 		CompositeStatementObject parent = (CompositeStatementObject) statements.get(0).getParent();
+		boolean isBlockWithoutCompositeParent = isBlockWithoutCompositeParent(parent);
 		if(parent.getStatement() instanceof Block)
 			parent = (CompositeStatementObject) parent.getParent();
 		int position = i;
@@ -233,6 +234,22 @@ public class CFG extends Graph {
 			statements = switchStatements;
 			position = positionOfBlockInParentSwitch + position;
 		}
+		if(parent != null && isBlockWithoutCompositeParent) {
+			List<AbstractStatement> blockStatements = new ArrayList<AbstractStatement>(parent.getStatements());
+			int positionOfBlockInParent = 0;
+			int j = 0;
+			for(AbstractStatement statement : blockStatements) {
+				if(statement.equals(parentComposite)) {
+					positionOfBlockInParent = j;
+					break;
+				}
+				j++;
+			}
+			blockStatements.remove(parentComposite);
+			blockStatements.addAll(positionOfBlockInParent, statements);
+			statements = blockStatements;
+			position = positionOfBlockInParent + position;
+		}
 		if(statements.size() == 1) {
 			action = JOIN_TOP_LIST;
 			if(parent != null) {
@@ -267,6 +284,14 @@ public class CFG extends Graph {
 				}
 				j++;
 			}
+			while(previousStatement != null && isBlockWithoutCompositeParent(previousStatement)) {
+				CompositeStatementObject block = (CompositeStatementObject)previousStatement;
+				List<AbstractStatement> blockStatements = block.getStatements();
+				if(blockStatements.size() > 0) {
+					//previous statement is the last statement of this block
+					previousStatement = blockStatements.get(blockStatements.size()-1);
+				}
+			}
 			if(statements.get(statements.size()-1).equals(childComposite)) {
 				//current if statement is the last statement of the composite statement
 				if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement) {
@@ -292,6 +317,19 @@ public class CFG extends Graph {
 			}
 		}
 		return action;
+	}
+
+	private boolean isBlockWithoutCompositeParent(AbstractStatement statement) {
+		boolean isBlock = false;
+		if(statement.getStatement() instanceof Block) {
+			isBlock = true;
+		}
+		boolean parentIsBlock = false;
+		AbstractStatement parent = (AbstractStatement)statement.getParent();
+		if(parent != null && parent.getStatement() instanceof Block) {
+			parentIsBlock = true;
+		}
+		return isBlock && parentIsBlock;
 	}
 
 	private List<CFGNode> processNonCompositeStatement(List<CFGNode> previousNodes, StatementObject statement,

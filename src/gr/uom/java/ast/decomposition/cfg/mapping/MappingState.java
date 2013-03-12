@@ -78,6 +78,15 @@ public class MappingState {
 		return count;
 	}
 
+	//returns the sum of the differences in the node Ids of the mapped nodes
+	public int getNodeMappingIdDiff() {
+		int sum = 0;
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			sum += Math.abs(nodeMapping.getNodeG1().getId() - nodeMapping.getNodeG2().getId());
+		}
+		return sum;
+	}
+
 	public List<MappingState> getMaximumCommonSubGraphs() {
 		List<MappingState> leaves = this.getLeaves();
 		int max = 0;
@@ -209,7 +218,12 @@ public class MappingState {
 		state.edgeMappings.addAll(this.edgeMappings);
 		return state;
 	}
-	
+
+	public boolean equalMappings(MappingState state) {
+		return this.nodeMappings.containsAll(state.nodeMappings) && state.nodeMappings.containsAll(this.nodeMappings)/* &&
+			this.edgeMappings.containsAll(state.edgeMappings) && state.edgeMappings.containsAll(this.edgeMappings)*/;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

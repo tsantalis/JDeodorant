@@ -74,7 +74,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return true;
 	}
 
-	public boolean isTypeHolder(Object o) {
+	private boolean isTypeHolder(Object o) {
 		if(o.getClass().equals(MethodInvocation.class) || o.getClass().equals(SuperMethodInvocation.class)			
 				|| o.getClass().equals(NumberLiteral.class) || o.getClass().equals(StringLiteral.class)
 				|| o.getClass().equals(CharacterLiteral.class) || o.getClass().equals(BooleanLiteral.class)
@@ -87,7 +87,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	public ITypeBinding getTypeBinding(Object o) {
+	private ITypeBinding getTypeBinding(Object o) {
 		if(o.getClass().equals(MethodInvocation.class)) {
 			MethodInvocation methodInvocation = (MethodInvocation) o;
 			return methodInvocation.resolveMethodBinding().getReturnType();
@@ -147,6 +147,16 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return null;
 	}
 
+	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
+		if(binding1.isEqualTo(binding2))
+			return true;
+		ITypeBinding superclass1 = binding1.getSuperclass();
+		ITypeBinding superclass2 = binding2.getSuperclass();
+		if(superclass1 != null && superclass2 != null && superclass1.isEqualTo(superclass2))
+			return true;
+		return false;
+	}
+
 	public boolean match(ArrayAccess node, Object other) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
@@ -154,7 +164,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ArrayAccess)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -182,7 +192,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ArrayCreation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -224,7 +234,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof BooleanLiteral)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -257,7 +267,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof CharacterLiteral)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -290,7 +300,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ClassInstanceCreation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -343,7 +353,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof FieldAccess) {
 				FieldAccess o = (FieldAccess) other;
 				if(!node.getName().toString().equals(o.getName().toString())) {
@@ -415,7 +425,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveMethodBinding().getReturnType().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
 			if (!(other instanceof MethodInvocation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -449,7 +459,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof NumberLiteral)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -482,7 +492,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof QualifiedName) {
 				QualifiedName o = (QualifiedName) other;
 				if(!node.getName().toString().equals(o.getName().toString())) {
@@ -525,7 +535,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof SimpleName) {
 				SimpleName o = (SimpleName) other;
 				if(!node.getIdentifier().equals(o.getIdentifier())) {
@@ -533,6 +543,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 					IBinding otherBinding = o.resolveBinding();
 					if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.METHOD && otherBinding.getKind() == IBinding.METHOD) {
 						Difference diff = new Difference(node.getIdentifier(),o.getIdentifier(),DifferenceType.METHOD_INVOCATION_NAME_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+					else if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.TYPE && otherBinding.getKind() == IBinding.TYPE) {
+						Difference diff = new Difference(node.getIdentifier(),o.getIdentifier(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
 					else {
@@ -572,7 +586,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof StringLiteral)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -605,7 +619,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveTypeBinding().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof SuperFieldAccess) {
 				SuperFieldAccess o = (SuperFieldAccess) other;
 				if(!node.getName().toString().equals(o.getName().toString())) {
@@ -644,7 +658,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			boolean typeMatch = node.resolveMethodBinding().getReturnType().isEqualTo(getTypeBinding(other));
+			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
 			if (!(other instanceof SuperMethodInvocation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
@@ -702,7 +716,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 
 	public boolean match(TypeLiteral node, Object other) {
 		if(isTypeHolder(other)) {
-			return (node.resolveTypeBinding().isEqualTo(getTypeBinding(other)));
+			return typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 		}
 		return false;
 	}

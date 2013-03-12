@@ -186,7 +186,7 @@ public class PDG extends Graph {
 		for(GraphNode node : this.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			CFGNode cfgNode = pdgNode.getCFGNode();
-			if(cfgNode instanceof CFGThrowNode || pdgNode.throwsException()) {
+			if(cfgNode instanceof CFGThrowNode || pdgNode.throwsException() || pdgNode.callsJUnitFailMethod()) {
 				boolean matchingTryNode = false;
 				Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
 				for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {

@@ -96,6 +96,9 @@ public class PDGTryNode extends PDGNode {
 				}
 				for(MethodInvocationObject methodInvocationObject : expression.getInvokedStaticMethods()) {
 					thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
+					if(methodInvocationObject.getOriginClassName().equals("junit.framework.Assert") &&
+							methodInvocationObject.getMethodName().equals("fail") && methodInvocationObject.isStatic())
+						callsJUnitFailMethod = true;
 					processArgumentsOfInternalMethodInvocation(methodInvocationObject, null);
 				}
 				List<SuperMethodInvocationObject> superMethodInvocations = expression.getSuperMethodInvocations();

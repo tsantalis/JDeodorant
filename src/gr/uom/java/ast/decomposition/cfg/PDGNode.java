@@ -65,6 +65,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	private Set<AbstractVariable> originalDefinedVariables;
 	private Set<AbstractVariable> originalUsedVariables;
 	private int maximumCallGraphAnalysisDepth;
+	protected boolean callsJUnitFailMethod;
 	
 	public PDGNode() {
 		super();
@@ -157,6 +158,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		if(!thrownExceptionTypes.isEmpty())
 			return true;
 		return false;
+	}
+
+	public boolean callsJUnitFailMethod() {
+		return callsJUnitFailMethod;
 	}
 
 	public BasicBlock getBasicBlock() {

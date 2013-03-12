@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.ThrowStatement;
 
 /*
  * StatementObject represents the following AST Statement subclasses:
@@ -38,6 +39,9 @@ public class StatementObject extends AbstractStatement {
 		processArrayCreations(expressionExtractor.getArrayCreations(statement));
 		//processArrayAccesses(expressionExtractor.getArrayAccesses(statement));
 		processLiterals(expressionExtractor.getLiterals(statement));
+		if(statement instanceof ThrowStatement) {
+			processThrowStatement((ThrowStatement)statement);
+		}
 	}
 
 	public String toString() {

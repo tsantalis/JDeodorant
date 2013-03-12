@@ -37,6 +37,7 @@ import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
@@ -51,6 +52,7 @@ public abstract class AbstractMethodFragment {
 	private List<LocalVariableInstructionObject> localVariableInstructionList;
 	private List<CreationObject> creationList;
 	private List<LiteralObject> literalList;
+	private Set<String> exceptionsInThrowStatements;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields;
 	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters;
@@ -92,6 +94,7 @@ public abstract class AbstractMethodFragment {
 		this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
 		this.creationList = new ArrayList<CreationObject>();
 		this.literalList = new ArrayList<LiteralObject>();
+		this.exceptionsInThrowStatements = new LinkedHashSet<String>();
 		this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
 		this.invokedMethodsThroughParameters = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
@@ -453,6 +456,22 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	protected void processThrowStatement(ThrowStatement throwStatement) {
+		Expression expression = throwStatement.getExpression();
+		if(expression instanceof ClassInstanceCreation) {
+			ClassInstanceCreation creation = (ClassInstanceCreation)expression;
+			ITypeBinding typeBinding = creation.getType().resolveBinding();
+			addExceptionInThrowStatement(typeBinding.getQualifiedName());
+		}
+	}
+
+	private void addExceptionInThrowStatement(String exception) {
+		exceptionsInThrowStatements.add(exception);
+		if(parent != null) {
+			parent.addExceptionInThrowStatement(exception);
+		}
+	}
+
 	private void addInvokedMethodThroughField(AbstractVariable field, MethodInvocationObject methodInvocation) {
 		if(invokedMethodsThroughFields.containsKey(field)) {
 			LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(field);
@@ -712,6 +731,10 @@ public abstract class AbstractMethodFragment {
 
 	public List<LiteralObject> getLiterals() {
 		return literalList;
+	}
+
+	public Set<String> getExceptionsInThrowStatements() {
+		return exceptionsInThrowStatements;
 	}
 
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {

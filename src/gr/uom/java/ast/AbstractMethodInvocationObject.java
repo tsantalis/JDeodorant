@@ -1,15 +1,17 @@
 package gr.uom.java.ast;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 
 public abstract class AbstractMethodInvocationObject implements TypeHolder {
 	private String originClassName;
     private String methodName;
     private TypeObject returnType;
     private List<TypeObject> parameterList;
-    private List<String> thrownExceptions;
+    private Set<String> thrownExceptions;
     private boolean _static;
     //private MethodInvocation methodInvocation;
     protected ASTInformation methodInvocation;
@@ -20,7 +22,7 @@ public abstract class AbstractMethodInvocationObject implements TypeHolder {
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = new ArrayList<TypeObject>();
-        this.thrownExceptions = new ArrayList<String>();
+        this.thrownExceptions = new LinkedHashSet<String>();
         this._static = false;
     }
 
@@ -75,7 +77,7 @@ public abstract class AbstractMethodInvocationObject implements TypeHolder {
     	thrownExceptions.add(type);
     }
 
-    public List<String> getThrownExceptions() {
+    public Set<String> getThrownExceptions() {
     	return this.thrownExceptions;
     }
 

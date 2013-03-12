@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
+import gr.uom.java.ast.LiteralObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
@@ -223,6 +224,14 @@ public class MethodBodyObject {
 
 	public List<CreationObject> getCreations() {
 		return compositeStatement.getCreations();
+	}
+
+	public List<LiteralObject> getLiterals() {
+		return compositeStatement.getLiterals();
+	}
+
+	public Set<String> getExceptionsInThrowStatements() {
+		return compositeStatement.getExceptionsInThrowStatements();
 	}
 
 	public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {

@@ -446,6 +446,14 @@ public class MethodObject {
 		return constructorObject.getCreations();
 	}
 
+	public List<LiteralObject> getLiterals() {
+		return constructorObject.getLiterals();
+	}
+
+	public Set<String> getExceptionsInThrowStatements() {
+		return constructorObject.getExceptionsInThrowStatements();
+	}
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	return constructorObject.containsMethodInvocation(methodInvocation);
     }

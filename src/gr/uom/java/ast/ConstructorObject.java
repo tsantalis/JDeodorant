@@ -136,6 +136,20 @@ public class ConstructorObject {
 			return new ArrayList<CreationObject>();
 	}
 
+	public List<LiteralObject> getLiterals() {
+		if(methodBody != null)
+			return methodBody.getLiterals();
+		else
+			return new ArrayList<LiteralObject>();
+	}
+
+    public Set<String> getExceptionsInThrowStatements() {
+    	if(methodBody != null)
+			return methodBody.getExceptionsInThrowStatements();
+		else
+			return new LinkedHashSet<String>();
+    }
+
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation) {
     	if(methodBody != null)
     		return methodBody.containsMethodInvocation(methodInvocation);

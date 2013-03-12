@@ -632,6 +632,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					usedVariables.add(field);
 				}
 			}
+			thrownExceptionTypes.addAll(methodObject.getExceptionsInThrowStatements());
 			processedMethods.add(methodObject.getMethodDeclaration().resolveBinding().getKey());
 			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = methodObject.getInvokedMethodsThroughFields();
 			for(AbstractVariable originalField : invokedMethodsThroughFields.keySet()) {
@@ -673,10 +674,28 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			}
 			for(MethodInvocationObject methodInvocationObject : methodObject.getInvokedMethodsThroughThisReference()) {
 				MethodObject methodObject2 = classObject.getMethod(methodInvocationObject);
-				if(methodObject2 != null && !methodObject2.equals(methodObject)) {
-					MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-					if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
-						processInternalMethodInvocation(classObject, methodObject2, variableDeclaration, processedMethods);
+				if(methodObject2 != null) { 
+					if(!methodObject2.equals(methodObject)) {
+						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+						if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+							processInternalMethodInvocation(classObject, methodObject2, variableDeclaration, processedMethods);
+					}
+				}
+				else {
+					//the invoked method is an inherited method
+					ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+					if(classObject2 != null) {
+						methodObject2 = classObject2.getMethod(methodInvocationObject);
+						if(methodObject2 != null) {
+							thrownExceptionTypes.addAll(methodObject2.getExceptionsInThrowStatements());
+							//the commented code that follows is causing significant performance deterioration. It's time to reconsider the PDG generation strategy
+							/*
+							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+							if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+								processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
+							*/
+						}
+					}
 				}
 			}
 			for(SuperMethodInvocationObject superMethodInvocationObject : methodObject.getSuperMethodInvocations()) {

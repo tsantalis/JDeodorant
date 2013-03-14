@@ -185,7 +185,7 @@ public class PDGMapper {
 							break;
 						}
 					}
-					commonPassedParameters.put(dataEdgeG1.getData().toString(), variableDeclarations);
+					commonPassedParameters.put(dataEdgeG1.getData().getVariableBindingKey(), variableDeclarations);
 					passedParametersG1.remove(dataEdgeG1.getData());
 					passedParametersG2.remove(dataEdgeG2.getData());
 				}

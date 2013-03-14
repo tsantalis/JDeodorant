@@ -253,6 +253,11 @@ public class ExpressionExtractor {
 		return getExpressions(expression);
 	}
 	
+	public List<Expression> getAllExpressions(Statement statement) {
+		instanceChecker = new InstanceOfExpression();
+		return getExpressions(statement);
+	}
+
 	private List<Expression> getExpressions(Statement statement) {
 		List<Expression> expressionList = new ArrayList<Expression>();
 		if(statement instanceof Block) {

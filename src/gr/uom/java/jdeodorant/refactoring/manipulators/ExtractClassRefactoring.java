@@ -1962,7 +1962,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 		ITypeBinding typeBinding = variableBinding.getType();
 		Type fieldType = null;
-		if(typeBinding.isClass()) {
+		if(typeBinding.isClass() || typeBinding.isInterface()) {
 			fieldType = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
 		}
 		else if(typeBinding.isPrimitive()) {

@@ -11,6 +11,8 @@ import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
+import org.eclipse.jdt.core.dom.CastExpression;
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.DoStatement;
@@ -82,7 +84,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(ArrayCreation.class)
 				|| o.getClass().equals(ClassInstanceCreation.class)
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
-				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class))
+				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
+				|| o.getClass().equals(CastExpression.class))
 			return true;
 		return false;
 	}
@@ -143,6 +146,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		else if(o.getClass().equals(QualifiedName.class)) {
 			QualifiedName qualifiedName = (QualifiedName) o;
 			return qualifiedName.resolveTypeBinding();
+		}
+		else if(o.getClass().equals(CastExpression.class)) {
+			CastExpression castExpression = (CastExpression) o;
+			return castExpression.resolveTypeBinding();
 		}
 		return null;
 	}
@@ -211,7 +218,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				safeSubtreeMatch(node.getType(), o.getType());
 				safeSubtreeListMatch(node.dimensions(), o.dimensions());
 				safeSubtreeMatch(node.getInitializer(), o.getInitializer());
-			}	
+			}
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
@@ -258,6 +265,51 @@ public class ASTNodeMatcher extends ASTMatcher{
 		astNodeDifference.addDifference(diff);
 		differences.add(astNodeDifference);
 		return false;
+	}
+
+	public boolean match(CastExpression node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof CastExpression)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else 
+			{
+				CastExpression o = (CastExpression) other;
+				if(!node.getType().resolveBinding().isEqualTo(o.getType().resolveBinding()) && typeMatch) {
+					Difference diff = new Difference(node.getType().toString(),o.getType().toString(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else
+					safeSubtreeMatch(node.getType(), o.getType());
+				safeSubtreeMatch(node.getExpression(), o.getExpression());
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
+		return false;
+	}
+
+	public boolean match(CatchClause node, Object other) {
+		if (!(other instanceof CatchClause)) {
+			return false;
+		}
+		CatchClause o = (CatchClause) other;
+		return (
+			safeSubtreeMatch(node.getException(), o.getException())
+				&& safeSubtreeListMatch(node.getBody().statements(), o.getBody().statements()));
 	}
 
 	public boolean match(CharacterLiteral node, Object other) {
@@ -710,8 +762,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 		TryStatement o = (TryStatement) other;
 		boolean resourceMatch = safeSubtreeListMatch(node.resources(), o.resources());
 		boolean catchClauseMatch = safeSubtreeListMatch(node.catchClauses(), o.catchClauses());
-		boolean finallyClauseMatch =  safeSubtreeMatch(node.getFinally(), o.getFinally());
-		return resourceMatch && catchClauseMatch && finallyClauseMatch;
+		boolean finallyMatch;
+		if(node.getFinally() == null && o.getFinally() == null)
+			finallyMatch = true;
+		else if(node.getFinally() != null && o.getFinally() != null)
+			finallyMatch = safeSubtreeListMatch(node.getFinally().statements(), o.getFinally().statements());
+		else
+			finallyMatch = false;
+		return resourceMatch && catchClauseMatch && finallyMatch;
 	}
 
 	public boolean match(TypeLiteral node, Object other) {

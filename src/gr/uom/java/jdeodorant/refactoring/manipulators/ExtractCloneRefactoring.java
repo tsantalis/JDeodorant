@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
@@ -43,6 +44,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
@@ -155,6 +157,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
+	private ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
+		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
+		boolean found = false;
+		ITypeBinding commonSuperType = null;
+		for(ITypeBinding superType1 : superTypes1) {
+			for(ITypeBinding superType2 : superTypes2) {
+				if(superType1.isEqualTo(superType2)) {
+					commonSuperType = superType1;
+					found = true;
+					break;
+				}
+			}
+			if(found)
+				break;
+		}
+		return commonSuperType;
+	}
+
 	private Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
 		Set<ITypeBinding> superTypes = new LinkedHashSet<ITypeBinding>();
 		ITypeBinding superTypeBinding = typeBinding.getSuperclass();
@@ -232,21 +253,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		else {
 			//check is they have a common superclass
-			Set<ITypeBinding> superTypes1 = getAllSuperTypes(sourceTypeDeclarations.get(0).resolveBinding());
-			Set<ITypeBinding> superTypes2 = getAllSuperTypes(sourceTypeDeclarations.get(1).resolveBinding());
-			boolean found = false;
-			ITypeBinding commonSuperType = null;
-			for(ITypeBinding superType1 : superTypes1) {
-				for(ITypeBinding superType2 : superTypes2) {
-					if(superType1.isEqualTo(superType2)) {
-						commonSuperType = superType1;
-						found = true;
-						break;
-					}
-				}
-				if(found)
-					break;
-			}
+			ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
+			ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
+			ITypeBinding commonSuperType = commonSuperType(typeBinding1, typeBinding2);
 			if(commonSuperType != null) {
 				if(mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
 						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty()) {
@@ -531,7 +540,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					sliceNodes.remove(node);
 				}
 				else {
-					bodyRewrite.insertLast(node.getASTStatement(), null);
+					processStatementNode(bodyRewrite, node, ast, sourceRewriter);
 					sliceNodes.remove(node);
 				}
 			}
@@ -540,8 +549,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		//add parameters for the differences between the clones
 		int i = 0;
 		for(ASTNodeDifference difference : parameterizedDifferences) {
-			Expression expression = difference.getExpression1().getExpression();
-			ITypeBinding typeBinding = expression.resolveTypeBinding();
+			ITypeBinding typeBinding = null;
+			if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
+				ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
+				ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
+				ITypeBinding commonSuperTypeBinding = commonSuperType(typeBinding1, typeBinding2);
+				if(commonSuperTypeBinding != null) {
+					typeBinding = commonSuperTypeBinding;
+				}
+			}
+			else {
+				typeBinding = difference.getExpression1().getExpression().resolveTypeBinding();
+			}
 			Type type = generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(typeBinding);
@@ -645,16 +664,55 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return parameterizedType;
 	}
 
+	protected TryStatement copyTryStatement(ASTRewrite sourceRewriter, AST ast, TryStatement tryStatementParent) {
+		PDGTryNode pdgTryNode = mapper.getPDG1().getPDGTryNode(tryStatementParent);
+		PDGNodeMapping tryNodeMapping = getNodeMappingForPDGNode(pdgTryNode);
+		TryStatement newTryStatement = ast.newTryStatement();
+		ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+		List<VariableDeclarationExpression> resources = tryStatementParent.resources();
+		for(VariableDeclarationExpression expression : resources) {
+			resourceRewrite.insertLast(expression, null);
+		}
+		ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+		List<CatchClause> catchClauses = tryStatementParent.catchClauses();
+		for(CatchClause catchClause : catchClauses) {
+			CatchClause newCatchClause = ast.newCatchClause();
+			sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
+			Block newCatchBody = ast.newBlock();
+			ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
+			List<Statement> oldStatements = catchClause.getBody().statements();
+			for(Statement oldStatement : oldStatements) {
+				processStatementWithDifferences(newCatchBodyRewrite, ast, sourceRewriter, oldStatement, tryNodeMapping.getNodeDifferences());
+			}
+			sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
+			catchClauseRewrite.insertLast(newCatchClause, null);
+		}
+		if(tryStatementParent.getFinally() != null) {
+			Block newFinallyBody = ast.newBlock();
+			ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
+			List<Statement> oldStatements = tryStatementParent.getFinally().statements();
+			for(Statement oldStatement : oldStatements) {
+				processStatementWithDifferences(newFinallyBodyRewrite, ast, sourceRewriter, oldStatement, tryNodeMapping.getNodeDifferences());
+			}
+			sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
+		}
+		return newTryStatement;
+	}
+
 	protected void processStatementNode(ListRewrite bodyRewrite, PDGNode dstPDGNode, AST ast, ASTRewrite sourceRewriter) {
 		PDGNodeMapping nodeMapping = getNodeMappingForPDGNode(dstPDGNode);
+		Statement oldStatement = dstPDGNode.getASTStatement();
 		List<ASTNodeDifference> differences = nodeMapping.getNodeDifferences();
+		processStatementWithDifferences(bodyRewrite, ast, sourceRewriter, oldStatement, differences);
+	}
+
+	private void processStatementWithDifferences(ListRewrite bodyRewrite, AST ast, ASTRewrite sourceRewriter, Statement oldStatement, List<ASTNodeDifference> differences) {
 		if(differences.isEmpty()) {
-			bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
+			bodyRewrite.insertLast(oldStatement, null);
 		}
 		else {
 			Set<String> parameterBindingKeys = mapper.getCommonPassedParameters().keySet();
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			Statement oldStatement = dstPDGNode.getASTStatement();
 			Statement newStatement = (Statement)ASTNode.copySubtree(ast, oldStatement);
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
@@ -666,18 +724,46 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						isCommonParameter = true;
 				}
 				if(!isCommonParameter) {
-					SimpleName argument = ast.newSimpleName("arg" + parameterizedDifferences.size());
-					parameterizedDifferences.add(difference);
-					int j = 0;
-					List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldStatement);
-					List<Expression> newExpressions = expressionExtractor.getAllExpressions(newStatement);
-					for(Expression expression : oldExpressions) {
-						Expression newExpression = newExpressions.get(j);
-						if(expression.equals(oldExpression)) {
-							sourceRewriter.replace(newExpression, argument, null);
-							break;
+					if(!(oldExpression.getParent() instanceof Type)) {
+						SimpleName argument = ast.newSimpleName("arg" + parameterizedDifferences.size());
+						parameterizedDifferences.add(difference);
+						int j = 0;
+						List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldStatement);
+						List<Expression> newExpressions = expressionExtractor.getAllExpressions(newStatement);
+						for(Expression expression : oldExpressions) {
+							Expression newExpression = newExpressions.get(j);
+							if(expression.equals(oldExpression)) {
+								sourceRewriter.replace(newExpression, argument, null);
+								break;
+							}
+							j++;
 						}
-						j++;
+					}
+					else {
+						Type oldType = (Type)oldExpression.getParent();
+						if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
+							ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
+							ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
+							ITypeBinding commonSuperTypeBinding = commonSuperType(typeBinding1, typeBinding2);
+							if(commonSuperTypeBinding != null) {
+								Type arg = generateTypeFromTypeBinding(commonSuperTypeBinding, ast, sourceRewriter);
+								TypeVisitor oldTypeVisitor = new TypeVisitor();
+								oldStatement.accept(oldTypeVisitor);
+								List<Type> oldTypes = oldTypeVisitor.getTypes();
+								TypeVisitor newTypeVisitor = new TypeVisitor();
+								newStatement.accept(newTypeVisitor);
+								List<Type> newTypes = newTypeVisitor.getTypes();
+								int j = 0;
+								for(Type type : oldTypes) {
+									Type newType = newTypes.get(j);
+									if(type.equals(oldType)) {
+										sourceRewriter.replace(newType, arg, null);
+										break;
+									}
+									j++;
+								}
+							}
+						}
 					}
 				}
 			}

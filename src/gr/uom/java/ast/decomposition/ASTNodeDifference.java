@@ -31,6 +31,15 @@ public class ASTNodeDifference {
 		differences.add(diff);
 	}
 	
+	public boolean containsDifferenceType(DifferenceType type) {
+		for(Difference difference : differences)
+		{
+			if(difference.getType().equals(type))
+				return true;
+		}
+		return false;
+	}
+
 	public boolean isParameterizable()
 	{
 		for(Difference difference : differences)

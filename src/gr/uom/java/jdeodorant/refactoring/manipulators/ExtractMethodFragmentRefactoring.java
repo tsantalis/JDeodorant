@@ -392,8 +392,7 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 		bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
 	}
 
-	protected ListRewrite createTryStatementIfNeeded(ASTRewrite sourceRewriter, AST ast,
-			ListRewrite bodyRewrite, PDGNode node) {
+	protected ListRewrite createTryStatementIfNeeded(ASTRewrite sourceRewriter, AST ast, ListRewrite bodyRewrite, PDGNode node) {
 		Statement statement = node.getASTStatement();
 		ASTNode statementParent = statement.getParent();
 		if(statementParent != null && statementParent instanceof Block)
@@ -405,20 +404,7 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 					bodyRewrite = tryStatementBodyRewriteMap.get(tryStatementParent);
 				}
 				else {
-					TryStatement newTryStatement = ast.newTryStatement();
-					ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
-					List<VariableDeclarationExpression> resources = tryStatementParent.resources();
-					for(VariableDeclarationExpression expression : resources) {
-						resourceRewrite.insertLast(expression, null);
-					}
-					ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
-					List<CatchClause> catchClauses = tryStatementParent.catchClauses();
-					for(CatchClause catchClause : catchClauses) {
-						catchClauseRewrite.insertLast(catchClause, null);
-					}
-					if(tryStatementParent.getFinally() != null) {
-						sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, tryStatementParent.getFinally(), null);
-					}
+					TryStatement newTryStatement = copyTryStatement(sourceRewriter, ast, tryStatementParent);
 					Block tryMethodBody = ast.newBlock();
 					sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, tryMethodBody, null);
 					ListRewrite tryBodyRewrite = sourceRewriter.getListRewrite(tryMethodBody, Block.STATEMENTS_PROPERTY);
@@ -429,6 +415,24 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 			}
 		}
 		return bodyRewrite;
+	}
+
+	protected TryStatement copyTryStatement(ASTRewrite sourceRewriter, AST ast, TryStatement tryStatementParent) {
+		TryStatement newTryStatement = ast.newTryStatement();
+		ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+		List<VariableDeclarationExpression> resources = tryStatementParent.resources();
+		for(VariableDeclarationExpression expression : resources) {
+			resourceRewrite.insertLast(expression, null);
+		}
+		ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+		List<CatchClause> catchClauses = tryStatementParent.catchClauses();
+		for(CatchClause catchClause : catchClauses) {
+			catchClauseRewrite.insertLast(catchClause, null);
+		}
+		if(tryStatementParent.getFinally() != null) {
+			sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, tryStatementParent.getFinally(), null);
+		}
+		return newTryStatement;
 	}
 
 	protected PDGControlPredicateNode isInsideDoLoop(PDGNode node) {

@@ -20,6 +20,7 @@ import java.util.Stack;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
 
@@ -96,6 +97,18 @@ public class PDG extends Graph {
 
 	public Set<VariableDeclaration> getFieldsAccessedInMethod() {
 		return fieldsAccessedInMethod;
+	}
+
+	public PDGTryNode getPDGTryNode(TryStatement tryStatement) {
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode instanceof PDGTryNode) {
+				PDGTryNode pdgTryNode = (PDGTryNode)pdgNode;
+				if(pdgTryNode.getASTStatement().equals(tryStatement))
+					return pdgTryNode;
+			}
+		}
+		return null;
 	}
 
 	public List<PDGNode> getNestedNodesWithinTryNode(PDGTryNode tryNode) {

@@ -153,33 +153,35 @@ public class MappingState {
 						dstNodeG2 = (PDGNode)edgeG2.getSrc();
 					}
 					
-					if(dstNodeG1 instanceof PDGMethodEntryNode && dstNodeG2 instanceof PDGMethodEntryNode) {
-						if(!state.edgeMappings.contains(edgeMapping)) {
-							state.edgeMappings.add(edgeMapping);
-							state.propagateEdgeMappingToChildren(edgeMapping);
-						}
-					}
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
-					boolean match;
-					if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
-						match = false;
-					else 
-						match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
-					if(match && astNodeMatcher.isParameterizable()) {
-						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
-						MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
-						if(childState != null) {
-							if(!childState.edgeMappings.contains(edgeMapping)) {
-								childState.edgeMappings.add(edgeMapping);
-								childState.propagateEdgeMappingToChildren(edgeMapping);
+					if(dstNodeG1 != null && dstNodeG2 != null) {
+						if(dstNodeG1 instanceof PDGMethodEntryNode && dstNodeG2 instanceof PDGMethodEntryNode) {
+							if(!state.edgeMappings.contains(edgeMapping)) {
+								state.edgeMappings.add(edgeMapping);
+								state.propagateEdgeMappingToChildren(edgeMapping);
 							}
 						}
-						else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
-							MappingState newMappingState = state.copy();
-							state.children.add(newMappingState);
-							newMappingState.edgeMappings.add(edgeMapping);
-							newMappingState.nodeMappings.add(dstNodeMapping);
-							traverse(newMappingState, dstNodeMapping);
+						ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
+						boolean match;
+						if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
+							match = false;
+						else 
+							match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
+						if(match && astNodeMatcher.isParameterizable()) {
+							PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
+							MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
+							if(childState != null) {
+								if(!childState.edgeMappings.contains(edgeMapping)) {
+									childState.edgeMappings.add(edgeMapping);
+									childState.propagateEdgeMappingToChildren(edgeMapping);
+								}
+							}
+							else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
+								MappingState newMappingState = state.copy();
+								state.children.add(newMappingState);
+								newMappingState.edgeMappings.add(edgeMapping);
+								newMappingState.nodeMappings.add(dstNodeMapping);
+								traverse(newMappingState, dstNodeMapping);
+							}
 						}
 					}
 				}

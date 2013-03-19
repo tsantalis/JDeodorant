@@ -333,7 +333,7 @@ public class PDGMapper {
 				PDGNode node2 = (PDGNode)nodeIterator2.next();
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
-				if(match) {
+				if(match && astNodeMatcher.isParameterizable()) {
 					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 					if(finalStates.isEmpty()) {
 						MappingState state = new MappingState(null, mapping);

@@ -147,7 +147,7 @@ public class MappingState {
 						dstNodeG1 = (PDGNode)edgeG1.getDst();
 						dstNodeG2 = (PDGNode)edgeG2.getDst();
 					}
-					else {
+					else if(edgeG1.getDst().equals(nodeG1) && edgeG2.getDst().equals(nodeG2)) {
 						//get source nodes if the edge is incoming
 						dstNodeG1 = (PDGNode)edgeG1.getSrc();
 						dstNodeG2 = (PDGNode)edgeG2.getSrc();
@@ -165,7 +165,7 @@ public class MappingState {
 						match = false;
 					else 
 						match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
-					if(match) {
+					if(match && astNodeMatcher.isParameterizable()) {
 						PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 						MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
 						if(childState != null) {

@@ -42,9 +42,9 @@ public class PDGEdgeMapping {
 					else if(edgeG1LoopNode != null && edgeG2LoopNode != null) {
 						//ASTNodeDifference nodeDifference = edgeG1LoopNode.checkEquivalence(edgeG2LoopNode); 
 						//return nodeDifference.isParameterizable();
-						ASTNodeMatcher matcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
-						boolean nodeDiff = edgeG1LoopNode.getASTStatement().subtreeMatch(matcher, edgeG2LoopNode.getASTStatement());
-						return nodeDiff;
+						ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
+						boolean match = edgeG1LoopNode.getASTStatement().subtreeMatch(astNodeMatcher, edgeG2LoopNode.getASTStatement());
+						return match && astNodeMatcher.isParameterizable();
 					}
 				}
 			}

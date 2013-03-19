@@ -3,7 +3,9 @@ package gr.uom.java.ast.decomposition;
 import gr.uom.java.ast.ASTInformationGenerator;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTMatcher;
@@ -157,11 +159,39 @@ public class ASTNodeMatcher extends ASTMatcher{
 	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
 		if(binding1.isEqualTo(binding2))
 			return true;
-		ITypeBinding superclass1 = binding1.getSuperclass();
-		ITypeBinding superclass2 = binding2.getSuperclass();
-		if(superclass1 != null && superclass2 != null && superclass1.isEqualTo(superclass2))
+		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
+		if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
 			return true;
 		return false;
+	}
+
+	private ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
+		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
+		boolean found = false;
+		ITypeBinding commonSuperType = null;
+		for(ITypeBinding superType1 : superTypes1) {
+			for(ITypeBinding superType2 : superTypes2) {
+				if(superType1.isEqualTo(superType2)) {
+					commonSuperType = superType1;
+					found = true;
+					break;
+				}
+			}
+			if(found)
+				break;
+		}
+		return commonSuperType;
+	}
+
+	private Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
+		Set<ITypeBinding> superTypes = new LinkedHashSet<ITypeBinding>();
+		ITypeBinding superTypeBinding = typeBinding.getSuperclass();
+		if(superTypeBinding != null) {
+			superTypes.add(superTypeBinding);
+			superTypes.addAll(getAllSuperTypes(superTypeBinding));
+		}
+		return superTypes;
 	}
 
 	public boolean match(ArrayAccess node, Object other) {

@@ -334,8 +334,8 @@ public class PDGMapper {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
 				if(match && astNodeMatcher.isParameterizable()) {
-					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 					if(finalStates.isEmpty()) {
+						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 						MappingState state = new MappingState(null, mapping);
 						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
 						for(MappingState temp : maxStates) {
@@ -346,11 +346,21 @@ public class PDGMapper {
 					}
 					else {
 						for(MappingState previousState : finalStates) {
-							MappingState state = new MappingState(previousState, mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
+							PDGNode nodeG1ControlParent = node1.getControlDependenceParent();
+							PDGNode nodeG2ControlParent = node2.getControlDependenceParent();
+							boolean proceedToNodeMapping = false;
+							if(previousState.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent))
+								proceedToNodeMapping = true;
+							if(!previousState.containsNodeG1InMappings(nodeG1ControlParent) && !previousState.containsNodeG2InMappings(nodeG2ControlParent))
+								proceedToNodeMapping = true;
+							if(proceedToNodeMapping) {
+								PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+								MappingState state = new MappingState(previousState, mapping);
+								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+								for(MappingState temp : maxStates) {
+									if(!currentStates.contains(temp)) {
+										currentStates.add(temp);
+									}
 								}
 							}
 						}

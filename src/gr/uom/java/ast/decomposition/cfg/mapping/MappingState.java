@@ -35,7 +35,7 @@ public class MappingState {
 		}
 		if(!containsAtLeastOneNodeInMappings(initialNodeMapping))
 			this.nodeMappings.add(initialNodeMapping);
-		traverse(this, initialNodeMapping);
+		traverse(this, initialNodeMapping, new LinkedHashSet<PDGNode>(), new LinkedHashSet<PDGNode>());
 	}
 
 	public Set<PDGNode> getMappedNodesG1() {
@@ -129,9 +129,13 @@ public class MappingState {
 		return nodeMappings.size() + edgeMappings.size();
 	}
 
-	private void traverse(MappingState state, PDGNodeMapping nodeMapping) {
+	private void traverse(MappingState state, PDGNodeMapping nodeMapping, Set<PDGNode> visitedNodesG1, Set<PDGNode> visitedNodesG2) {
 		PDGNode nodeG1 = nodeMapping.getNodeG1();
 		PDGNode nodeG2 = nodeMapping.getNodeG2();
+		if(visitedNodesG1.contains(nodeG1) && visitedNodesG2.contains(nodeG2))
+			return;
+		visitedNodesG1.add(nodeG1);
+		visitedNodesG2.add(nodeG2);
 		Iterator<GraphEdge> nodeG1EdgeIterator = nodeG1.getDependenceIterator();
 		while(nodeG1EdgeIterator.hasNext()) {
 			PDGDependence edgeG1 = (PDGDependence)nodeG1EdgeIterator.next();
@@ -167,6 +171,14 @@ public class MappingState {
 						else 
 							match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
 						if(match && astNodeMatcher.isParameterizable()) {
+							PDGNode nodeG1ControlParent = dstNodeG1.getControlDependenceParent();
+							PDGNode nodeG2ControlParent = dstNodeG2.getControlDependenceParent();
+							boolean proceedToNodeMapping = false;
+							if(state.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent))
+								proceedToNodeMapping = true;
+							if(!state.containsNodeG1InMappings(nodeG1ControlParent) && !state.containsNodeG2InMappings(nodeG2ControlParent))
+								proceedToNodeMapping = true;
+							if(proceedToNodeMapping) {
 							PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 							MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
 							if(childState != null) {
@@ -180,7 +192,8 @@ public class MappingState {
 								state.children.add(newMappingState);
 								newMappingState.edgeMappings.add(edgeMapping);
 								newMappingState.nodeMappings.add(dstNodeMapping);
-								traverse(newMappingState, dstNodeMapping);
+								traverse(newMappingState, dstNodeMapping, visitedNodesG1, visitedNodesG2);
+							}
 							}
 						}
 					}
@@ -195,6 +208,32 @@ public class MappingState {
 					nodeMapping.getNodeG2().equals(dstNodeMapping.getNodeG2())) {
 				return true;
 			}
+		}
+		return false;
+	}
+
+	public boolean containsBothNodesInMappings(PDGNode nodeG1, PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG1().equals(nodeG1) &&
+					nodeMapping.getNodeG2().equals(nodeG2)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean containsNodeG1InMappings(PDGNode nodeG1) {
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG1().equals(nodeG1))
+				return true;
+		}
+		return false;
+	}
+
+	public boolean containsNodeG2InMappings(PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG2().equals(nodeG2))
+				return true;
 		}
 		return false;
 	}

@@ -25,6 +25,7 @@ import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NumberLiteral;
@@ -87,7 +88,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(ClassInstanceCreation.class)
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
-				|| o.getClass().equals(CastExpression.class))
+				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class))
 			return true;
 		return false;
 	}
@@ -152,6 +153,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		else if(o.getClass().equals(CastExpression.class)) {
 			CastExpression castExpression = (CastExpression) o;
 			return castExpression.resolveTypeBinding();
+		}
+		else if(o.getClass().equals(InfixExpression.class)) {
+			InfixExpression infixExpression = (InfixExpression) o;
+			return infixExpression.resolveTypeBinding();
 		}
 		return null;
 	}
@@ -491,6 +496,46 @@ public class ASTNodeMatcher extends ASTMatcher{
 			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
 
+	public boolean match(InfixExpression node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof InfixExpression)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else 
+			{
+				InfixExpression o = (InfixExpression) other;
+				// be careful not to trigger lazy creation of extended operand lists
+				if (node.hasExtendedOperands() && o.hasExtendedOperands()) {
+					if (!safeSubtreeListMatch(node.extendedOperands(), o.extendedOperands())) {
+						return false;
+					}
+				}
+				if (node.hasExtendedOperands() != o.hasExtendedOperands()) {
+					return false;
+				}
+				return (
+					node.getOperator().equals(o.getOperator())
+						&& safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand())
+						&& safeSubtreeMatch(node.getRightOperand(), o.getRightOperand()));
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
+		return false;
+	}
+	
 	public boolean match(LabeledStatement node, Object other) {
 		if (!(other instanceof LabeledStatement)) {
 			return false;

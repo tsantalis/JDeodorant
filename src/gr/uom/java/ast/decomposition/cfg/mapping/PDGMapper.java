@@ -384,18 +384,38 @@ public class PDGMapper {
 	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {
 		int max = 0;
 		List<MappingState> maximumStates = new ArrayList<MappingState>();
-		for(MappingState state : currentStates) {
-			if(state.getSize() > max) {
-				max = state.getSize();
+		for(MappingState currentState : currentStates) {
+			if(currentState.getSize() > max) {
+				max = currentState.getSize();
 				maximumStates.clear();
-				maximumStates.add(state);
+				maximumStates.add(currentState);
 			}
-			else if(state.getSize() == max) {
-				if(!containsState(maximumStates, state))
-					maximumStates.add(state);
+			else if(currentState.getSize() == max) {
+				if(!containsState(maximumStates, currentState))
+					maximumStates.add(currentState);
 			}
 		}
-		return maximumStates;
+		List<MappingState> maximumStatesWithMinimumDifferences = new ArrayList<MappingState>();
+		if(maximumStates.size() == 1) {
+			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
+		}
+		else {
+			int minimum = maximumStates.get(0).getDifferenceCount();
+			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
+			for(int i=1; i<maximumStates.size(); i++) {
+				MappingState currentState = maximumStates.get(i);
+				if(currentState.getDifferenceCount() < minimum) {
+					minimum = currentState.getDifferenceCount();
+					maximumStatesWithMinimumDifferences.clear();
+					maximumStatesWithMinimumDifferences.add(currentState);
+				}
+				else if(currentState.getDifferenceCount() == minimum) {
+					if(!containsState(maximumStatesWithMinimumDifferences, currentState))
+						maximumStatesWithMinimumDifferences.add(currentState);
+				}
+			}
+		}
+		return maximumStatesWithMinimumDifferences;
 	}
 	
 	private boolean containsState(List<MappingState> states, MappingState state) {

@@ -99,7 +99,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Set<PDGNodeMapping> sortedNodeMappings;
 	private List<Set<PDGNode>> removableStatements;
 	private List<TreeSet<PDGNode>> remainingStatements;
-	private List<ASTNodeDifference> parameterizedDifferences;
+	private List<ASTNodeDifference> parameterizedDifferencesWithoutBinding;
+	private Map<IBinding, ASTNodeDifference> parameterizedDifferencesWithBinding;
 	private String intermediateClassName;
 	
 	public ExtractCloneRefactoring(PDGMapper mapper) {
@@ -132,7 +133,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration1.getRoot());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration2.getRoot());
-		this.parameterizedDifferences = new ArrayList<ASTNodeDifference>();
+		this.parameterizedDifferencesWithoutBinding = new ArrayList<ASTNodeDifference>();
+		this.parameterizedDifferencesWithBinding = new LinkedHashMap<IBinding, ASTNodeDifference>();
 		this.sortedNodeMappings = new TreeSet<PDGNodeMapping>(mapper.getMaximumStateWithMinimumDifferences().getNodeMappings());
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
@@ -548,6 +550,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		//add parameters for the differences between the clones
 		int i = 0;
+		List<ASTNodeDifference> parameterizedDifferences = new ArrayList<ASTNodeDifference>();
+		parameterizedDifferences.addAll(parameterizedDifferencesWithBinding.values());
+		parameterizedDifferences.addAll(parameterizedDifferencesWithoutBinding);
 		for(ASTNodeDifference difference : parameterizedDifferences) {
 			ITypeBinding typeBinding = null;
 			if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
@@ -566,10 +571,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			typeBindings.add(typeBinding);
 			getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 			SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
+			if(parameterizedDifferencesWithoutBinding.contains(difference)) {
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
+				i++;
+			}
+			else {
+				for(IBinding binding : parameterizedDifferencesWithBinding.keySet()) {
+					ASTNodeDifference value = parameterizedDifferencesWithBinding.get(binding);
+					if(value.equals(difference)) {
+						sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(binding.getName()), null);
+						break;
+					}
+				}
+			}
 			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 			parameterRewrite.insertLast(parameter, null);
-			i++;
 		}
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 		bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
@@ -716,30 +732,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Statement newStatement = (Statement)ASTNode.copySubtree(ast, oldStatement);
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
+				IBinding binding = null;
 				boolean isCommonParameter = false;
 				if(oldExpression instanceof SimpleName) {
 					SimpleName oldSimpleName = (SimpleName)oldExpression;
-					IBinding binding = oldSimpleName.resolveBinding();
+					binding = oldSimpleName.resolveBinding();
 					if(parameterBindingKeys.contains(binding.getKey()))
 						isCommonParameter = true;
 				}
 				if(!isCommonParameter) {
-					if(!(oldExpression.getParent() instanceof Type)) {
-						SimpleName argument = ast.newSimpleName("arg" + parameterizedDifferences.size());
-						parameterizedDifferences.add(difference);
-						int j = 0;
-						List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldStatement);
-						List<Expression> newExpressions = expressionExtractor.getAllExpressions(newStatement);
-						for(Expression expression : oldExpressions) {
-							Expression newExpression = newExpressions.get(j);
-							if(expression.equals(oldExpression)) {
-								sourceRewriter.replace(newExpression, argument, null);
-								break;
-							}
-							j++;
-						}
-					}
-					else {
+					if(oldExpression.getParent() instanceof Type) {
 						Type oldType = (Type)oldExpression.getParent();
 						if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
 							ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
@@ -763,6 +765,30 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									j++;
 								}
 							}
+						}
+					}
+					else {
+						SimpleName argument;
+						if(binding != null) {
+							argument = ast.newSimpleName(binding.getName());
+							if(!parameterizedDifferencesWithBinding.containsKey(binding)) {
+								parameterizedDifferencesWithBinding.put(binding, difference);
+							}
+						}
+						else {
+							argument = ast.newSimpleName("arg" + parameterizedDifferencesWithoutBinding.size());
+							parameterizedDifferencesWithoutBinding.add(difference);
+						}
+						int j = 0;
+						List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldStatement);
+						List<Expression> newExpressions = expressionExtractor.getAllExpressions(newStatement);
+						for(Expression expression : oldExpressions) {
+							Expression newExpression = newExpressions.get(j);
+							if(expression.equals(oldExpression)) {
+								sourceRewriter.replace(newExpression, argument, null);
+								break;
+							}
+							j++;
 						}
 					}
 				}
@@ -842,6 +868,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			List<VariableDeclaration> variableDeclarations = commonPassedParameters.get(parameterName);
 			argumentsRewrite.insertLast(variableDeclarations.get(index).getName(), null);
 		}
+		List<ASTNodeDifference> parameterizedDifferences = new ArrayList<ASTNodeDifference>();
+		parameterizedDifferences.addAll(parameterizedDifferencesWithBinding.values());
+		parameterizedDifferences.addAll(parameterizedDifferencesWithoutBinding);
 		for(ASTNodeDifference difference : parameterizedDifferences) {
 			List<Expression> expressions = new ArrayList<Expression>();
 			expressions.add(difference.getExpression1().getExpression());

@@ -122,6 +122,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return null;
 	}
 
+	public PDGControlDependence getIncomingControlDependence() {
+		for(GraphEdge edge : incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				return (PDGControlDependence)dependence;
+			}
+		}
+		return null;
+	}
+
 	public boolean hasIncomingControlDependenceFromMethodEntryNode() {
 		for(GraphEdge edge : incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;

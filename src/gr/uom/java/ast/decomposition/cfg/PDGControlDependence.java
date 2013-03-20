@@ -25,6 +25,10 @@ public class PDGControlDependence extends PDGDependence {
 			return true;
 	}
 
+	public boolean sameLabel(PDGControlDependence other) {
+		return this.trueControlDependence == other.trueControlDependence;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
     		return true;

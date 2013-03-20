@@ -28,14 +28,9 @@ public class PDGEdgeMapping {
 	public boolean isCompatible(PDGNodeMapping nodeMapping) {
 		if(edgeG1.getClass() == edgeG2.getClass()) {
 			if(edgeG1 instanceof PDGControlDependence) {
-				/*PDGControlDependence controlG1 = (PDGControlDependence)edgeG1;
+				PDGControlDependence controlG1 = (PDGControlDependence)edgeG1;
 				PDGControlDependence controlG2 = (PDGControlDependence)edgeG2;
-				if(controlG1.isTrueControlDependence() && controlG2.isTrueControlDependence())
-					return true;
-				if(controlG1.isFalseControlDependence() && controlG2.isFalseControlDependence())
-					return true;
-				return false;*/
-				return true;
+				return controlG1.sameLabel(controlG2);
 			}
 			if(edgeG1 instanceof PDGAbstractDataDependence) {
 				AbstractVariable edgeG1Variable = ((PDGAbstractDataDependence)edgeG1).getData();
@@ -47,8 +42,6 @@ public class PDGEdgeMapping {
 						return true;
 					}
 					else if(edgeG1LoopNode != null && edgeG2LoopNode != null) {
-						//ASTNodeDifference nodeDifference = edgeG1LoopNode.checkEquivalence(edgeG2LoopNode); 
-						//return nodeDifference.isParameterizable();
 						ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
 						boolean match = edgeG1LoopNode.getASTStatement().subtreeMatch(astNodeMatcher, edgeG2LoopNode.getASTStatement());
 						return match && astNodeMatcher.isParameterizable();

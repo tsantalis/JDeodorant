@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -173,8 +174,11 @@ public class MappingState {
 						if(match && astNodeMatcher.isParameterizable()) {
 							PDGNode nodeG1ControlParent = dstNodeG1.getControlDependenceParent();
 							PDGNode nodeG2ControlParent = dstNodeG2.getControlDependenceParent();
+							PDGControlDependence nodeG1IncomingControlDependence = dstNodeG1.getIncomingControlDependence();
+							PDGControlDependence nodeG2IncomingControlDependence = dstNodeG2.getIncomingControlDependence();
 							boolean proceedToNodeMapping = false;
-							if(state.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent))
+							if(state.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
+									&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
 								proceedToNodeMapping = true;
 							if(!state.containsNodeG1InMappings(nodeG1ControlParent) && !state.containsNodeG2InMappings(nodeG2ControlParent))
 								proceedToNodeMapping = true;

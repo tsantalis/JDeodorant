@@ -26,6 +26,7 @@ import gr.uom.java.ast.decomposition.cfg.BasicBlock;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -348,8 +349,11 @@ public class PDGMapper {
 						for(MappingState previousState : finalStates) {
 							PDGNode nodeG1ControlParent = node1.getControlDependenceParent();
 							PDGNode nodeG2ControlParent = node2.getControlDependenceParent();
+							PDGControlDependence nodeG1IncomingControlDependence = node1.getIncomingControlDependence();
+							PDGControlDependence nodeG2IncomingControlDependence = node2.getIncomingControlDependence();
 							boolean proceedToNodeMapping = false;
-							if(previousState.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent))
+							if(previousState.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
+									&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
 								proceedToNodeMapping = true;
 							if(!previousState.containsNodeG1InMappings(nodeG1ControlParent) && !previousState.containsNodeG2InMappings(nodeG2ControlParent))
 								proceedToNodeMapping = true;

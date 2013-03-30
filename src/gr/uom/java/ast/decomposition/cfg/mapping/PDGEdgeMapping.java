@@ -28,9 +28,10 @@ public class PDGEdgeMapping {
 	public boolean isCompatible(PDGNodeMapping nodeMapping) {
 		if(edgeG1.getClass() == edgeG2.getClass()) {
 			if(edgeG1 instanceof PDGControlDependence) {
-				PDGControlDependence controlG1 = (PDGControlDependence)edgeG1;
+				/*PDGControlDependence controlG1 = (PDGControlDependence)edgeG1;
 				PDGControlDependence controlG2 = (PDGControlDependence)edgeG2;
-				return controlG1.sameLabel(controlG2);
+				return controlG1.sameLabel(controlG2);*/
+				return true;
 			}
 			if(edgeG1 instanceof PDGAbstractDataDependence) {
 				AbstractVariable edgeG1Variable = ((PDGAbstractDataDependence)edgeG1).getData();

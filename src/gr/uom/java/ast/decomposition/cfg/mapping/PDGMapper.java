@@ -29,6 +29,7 @@ import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -36,9 +37,10 @@ import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 public class PDGMapper {
 	private PDG pdg1;
 	private PDG pdg2;
+	private ControlDependenceTreeNode controlDependenceTreePDG1;
+	private ControlDependenceTreeNode controlDependenceTreePDG2;
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
-	private List<MappingState> maximumStates;
 	private MappingState maximumStateWithMinimumDifferences;
 	private Set<PDGNode> nonMappedNodesG1;
 	private Set<PDGNode> nonMappedNodesG2;
@@ -56,11 +58,12 @@ public class PDGMapper {
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
 		this.pdg1 = pdg1;
 		this.pdg2 = pdg2;
+		this.controlDependenceTreePDG1 = new ControlDependenceTreeNode(null, pdg1.getEntryNode());
+		this.controlDependenceTreePDG2 = new ControlDependenceTreeNode(null, pdg2.getEntryNode());
 		CompilationUnit cu1 = (CompilationUnit)pdg1.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit1 = (ICompilationUnit)cu1.getJavaElement();
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit2 = (ICompilationUnit)cu2.getJavaElement();
-		this.maximumStates = new ArrayList<MappingState>();
 		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();
@@ -74,7 +77,6 @@ public class PDGMapper {
 		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodInvocationObject>();
 		this.monitor = monitor;
 		processPDGNodes();
-		this.maximumStateWithMinimumDifferences = findMaximumStateWithMinimumDifferences();
 		findNonMappedNodes(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), nonMappedNodesG1);
 		findNonMappedNodes(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), nonMappedNodesG2);
 		computeSliceForNonMappedNodes(pdg1, nonMappedNodesG1, nonMappedNodesSliceUnionG1);
@@ -166,7 +168,7 @@ public class PDGMapper {
 		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2());
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
-		for(PDGEdgeMapping edgeMapping : maximumStateWithMinimumDifferences.getEdgeMappings()) {
+		/*for(PDGEdgeMapping edgeMapping : maximumStateWithMinimumDifferences.getEdgeMappings()) {
 			PDGDependence edgeG1 = edgeMapping.getEdgeG1();
 			PDGDependence edgeG2 = edgeMapping.getEdgeG2();
 			if(edgeG1 instanceof PDGDataDependence && edgeG2 instanceof PDGDataDependence) {
@@ -207,7 +209,7 @@ public class PDGMapper {
 					break;
 				}
 			}
-		}
+		}*/
 	}
 
 	public PDG getPDG1() {
@@ -282,7 +284,20 @@ public class PDGMapper {
 		return maximumStateWithMinimumDifferences.getNodeDifferences();
 	}
 
-	private MappingState findMaximumStateWithMinimumDifferences() {
+	private MappingState findMaximumStateWithMinimumDifferences(List<MappingState> states) {
+		int max = 0;
+		List<MappingState> maximumStates = new ArrayList<MappingState>();
+		for(MappingState currentState : states) {
+			if(currentState.getSize() > max) {
+				max = currentState.getSize();
+				maximumStates.clear();
+				maximumStates.add(currentState);
+			}
+			else if(currentState.getSize() == max) {
+				maximumStates.add(currentState);
+			}
+		}
+		
 		List<MappingState> maximumStatesWithMinimumDifferences = new ArrayList<MappingState>();
 		if(maximumStates.size() == 1) {
 			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
@@ -298,8 +313,7 @@ public class PDGMapper {
 					maximumStatesWithMinimumDifferences.add(currentState);
 				}
 				else if(currentState.getDifferenceCount() == minimum) {
-					if(!containsState(maximumStatesWithMinimumDifferences, currentState))
-						maximumStatesWithMinimumDifferences.add(currentState);
+					maximumStatesWithMinimumDifferences.add(currentState);
 				}
 			}
 		}
@@ -321,23 +335,89 @@ public class PDGMapper {
 		}
 	}
 
+	private Set<PDGNode> getNodesInRegion(PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInNextLevel) {
+		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
+		if(!(controlPredicate instanceof PDGMethodEntryNode))
+			nodesInRegion.add(controlPredicate);
+		Iterator<GraphEdge> edgeIterator = controlPredicate.getOutgoingDependenceIterator();
+		while(edgeIterator.hasNext()) {
+			PDGDependence dependence = (PDGDependence)edgeIterator.next();
+			if(dependence instanceof PDGControlDependence) {
+				PDGNode pdgNode = (PDGNode)dependence.getDst();
+				if(!controlPredicateNodesInNextLevel.contains(pdgNode))
+					nodesInRegion.add(pdgNode);
+			}
+		}
+		return nodesInRegion;
+	}
+
 	private void processPDGNodes() {
+		int maxLevel1 = controlDependenceTreePDG1.getMaxLevel();
+		int level1 = maxLevel1;
+		int maxLevel2 = controlDependenceTreePDG2.getMaxLevel();
+		int level2 = maxLevel2;
 		if(monitor != null)
-			monitor.beginTask("Mapping Program Dependence Graphs", pdg1.getTotalNumberOfStatements() * pdg2.getTotalNumberOfStatements());
+			monitor.beginTask("Mapping Program Dependence Graphs", Math.min(maxLevel1, maxLevel2));
+		MappingState finalState = null;
+		while(level1 >= 0 && level2 >= 0) {
+			Set<PDGNode> controlPredicateNodesG1 = controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1);
+			Set<PDGNode> controlPredicateNodesG2 = controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2);
+			Set<PDGNode> controlPredicateNodesInNextLevelG1 = new LinkedHashSet<PDGNode>();
+			Set<PDGNode> controlPredicateNodesInNextLevelG2 = new LinkedHashSet<PDGNode>();
+			if(level1 < maxLevel1) {
+				controlPredicateNodesInNextLevelG1.addAll(controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1+1));
+			}
+			if(level2 < maxLevel2) {
+				controlPredicateNodesInNextLevelG2.addAll(controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2+1));
+			}
+			for(PDGNode predicate1 : controlPredicateNodesG1) {
+				Set<PDGNode> nodesG1 = getNodesInRegion(predicate1, controlPredicateNodesInNextLevelG1);
+				MappingState.setRestrictedNodesG1(nodesG1);
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PDGNode predicate2 : controlPredicateNodesG2) {
+					Set<PDGNode> nodesG2 = getNodesInRegion(predicate2, controlPredicateNodesInNextLevelG2);
+					MappingState.setRestrictedNodesG2(nodesG2);
+					List<MappingState> maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+					for(MappingState temp : maxStates) {
+						if(!currentStates.contains(temp)) {
+							currentStates.add(temp);
+						}
+					}
+				}
+				if(!currentStates.isEmpty()) {
+					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
+					List<PDGNodeMapping> nodeMappings = new ArrayList<PDGNodeMapping>(best.getNodeMappings());
+					for(PDGNodeMapping mapping : nodeMappings) {
+						if(mapping.getNodeG1().equals(predicate1)) {
+							controlPredicateNodesG2.remove(mapping.getNodeG2());
+							break;
+						}
+					}
+					finalState = best;
+				}
+			}
+			level1--;
+			level2--;
+			if(monitor != null)
+				monitor.worked(1);
+		}
+		if(monitor != null)
+			monitor.done();
+		maximumStateWithMinimumDifferences = finalState;
+	}
+	
+	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		List<MappingState> finalStates = new ArrayList<MappingState>();
-		Iterator<GraphNode> nodeIterator1 = pdg1.getNodeIterator();
-		while(nodeIterator1.hasNext()) {
-			PDGNode node1 = (PDGNode)nodeIterator1.next();
-			Iterator<GraphNode> nodeIterator2 = pdg2.getNodeIterator();
+		for(PDGNode node1 : nodesG1) {
 			List<MappingState> currentStates = new ArrayList<MappingState>();
-			while(nodeIterator2.hasNext()) {
-				PDGNode node2 = (PDGNode)nodeIterator2.next();
+			for(PDGNode node2 : nodesG2) {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
 				if(match && astNodeMatcher.isParameterizable()) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 					if(finalStates.isEmpty()) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						MappingState state = new MappingState(null, mapping);
+						MappingState state = new MappingState(parent, mapping);
+						state.traverse(mapping);
 						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
 						for(MappingState temp : maxStates) {
 							if(!currentStates.contains(temp)) {
@@ -347,19 +427,10 @@ public class PDGMapper {
 					}
 					else {
 						for(MappingState previousState : finalStates) {
-							PDGNode nodeG1ControlParent = node1.getControlDependenceParent();
-							PDGNode nodeG2ControlParent = node2.getControlDependenceParent();
-							PDGControlDependence nodeG1IncomingControlDependence = node1.getIncomingControlDependence();
-							PDGControlDependence nodeG2IncomingControlDependence = node2.getIncomingControlDependence();
-							boolean proceedToNodeMapping = false;
-							if(previousState.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
-									&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
-								proceedToNodeMapping = true;
-							if(!previousState.containsNodeG1InMappings(nodeG1ControlParent) && !previousState.containsNodeG2InMappings(nodeG2ControlParent))
-								proceedToNodeMapping = true;
-							if(proceedToNodeMapping) {
-								PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+							if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
 								MappingState state = new MappingState(previousState, mapping);
+								previousState.addChild(state);
+								state.traverse(mapping);
 								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
 								for(MappingState temp : maxStates) {
 									if(!currentStates.contains(temp)) {
@@ -370,15 +441,11 @@ public class PDGMapper {
 						}
 					}
 				}
-				if(monitor != null)
-					monitor.worked(1);
 			}
 			if(!currentStates.isEmpty())
 				finalStates = getMaximumStates(currentStates);
 		}
-		maximumStates = finalStates;
-		if(monitor != null)
-			monitor.done();
+		return finalStates;
 	}
 	
 	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {
@@ -391,8 +458,7 @@ public class PDGMapper {
 				maximumStates.add(currentState);
 			}
 			else if(currentState.getSize() == max) {
-				if(!containsState(maximumStates, currentState))
-					maximumStates.add(currentState);
+				maximumStates.add(currentState);
 			}
 		}
 		List<MappingState> maximumStatesWithMinimumDifferences = new ArrayList<MappingState>();
@@ -410,19 +476,10 @@ public class PDGMapper {
 					maximumStatesWithMinimumDifferences.add(currentState);
 				}
 				else if(currentState.getDifferenceCount() == minimum) {
-					if(!containsState(maximumStatesWithMinimumDifferences, currentState))
-						maximumStatesWithMinimumDifferences.add(currentState);
+					maximumStatesWithMinimumDifferences.add(currentState);
 				}
 			}
 		}
 		return maximumStatesWithMinimumDifferences;
-	}
-	
-	private boolean containsState(List<MappingState> states, MappingState state) {
-		for(MappingState oldState : states) {
-			if(oldState.equalMappings(state))
-				return true;
-		}
-		return false;
 	}
 }

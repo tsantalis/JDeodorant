@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
@@ -9,6 +10,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -16,32 +18,38 @@ import java.util.Set;
 import java.util.TreeSet;
 
 public class MappingState {
-	private Set<PDGNodeMapping> nodeMappings;
-	private Set<PDGEdgeMapping> edgeMappings;
+	private MappingState parent;
 	private List<MappingState> children;
-
-	private MappingState() {
-		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
-		this.edgeMappings = new LinkedHashSet<PDGEdgeMapping>();
+	private Set<PDGNodeMapping> nodeMappings;
+	private Set<PDGDependence> visitedEdgesG1;
+	private static Set<PDGNode> restrictedNodesG1;
+	private static Set<PDGNode> restrictedNodesG2;
+	
+	public MappingState(MappingState parent, PDGNodeMapping nodeMapping) {
+		this.parent = parent;
 		this.children = new ArrayList<MappingState>();
+		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
+		this.visitedEdgesG1 = new LinkedHashSet<PDGDependence>();
+		if(parent != null)
+			this.visitedEdgesG1.addAll(parent.visitedEdgesG1);
+		this.nodeMappings.add(nodeMapping);
 	}
 
-	public MappingState(MappingState previous, PDGNodeMapping initialNodeMapping) {
-		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
-		this.edgeMappings = new LinkedHashSet<PDGEdgeMapping>();
-		this.children = new ArrayList<MappingState>();
-		if(previous != null) {
-			nodeMappings.addAll(previous.nodeMappings);
-			edgeMappings.addAll(previous.edgeMappings);
-		}
-		if(!containsAtLeastOneNodeInMappings(initialNodeMapping))
-			this.nodeMappings.add(initialNodeMapping);
-		traverse(this, initialNodeMapping, new LinkedHashSet<PDGNode>(), new LinkedHashSet<PDGNode>());
+	public static void setRestrictedNodesG1(Set<PDGNode> restrictedNodesG1) {
+		MappingState.restrictedNodesG1 = restrictedNodesG1;
+	}
+
+	public static void setRestrictedNodesG2(Set<PDGNode> restrictedNodesG2) {
+		MappingState.restrictedNodesG2 = restrictedNodesG2;
+	}
+
+	public void addChild(MappingState state) {
+		children.add(state);
 	}
 
 	public Set<PDGNode> getMappedNodesG1() {
 		Set<PDGNode> nodesG1 = new TreeSet<PDGNode>();
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			nodesG1.add(nodeMapping.getNodeG1());
 		}
 		return nodesG1;
@@ -49,23 +57,15 @@ public class MappingState {
 
 	public Set<PDGNode> getMappedNodesG2() {
 		Set<PDGNode> nodesG2 = new TreeSet<PDGNode>();
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			nodesG2.add(nodeMapping.getNodeG2());
 		}
 		return nodesG2;
 	}
 
-	public Set<PDGNodeMapping> getNodeMappings() {
-		return nodeMappings;
-	}
-
-	public Set<PDGEdgeMapping> getEdgeMappings() {
-		return edgeMappings;
-	}
-
 	public List<ASTNodeDifference> getNodeDifferences() {
 		List<ASTNodeDifference> nodeDifferences = new ArrayList<ASTNodeDifference>();
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			nodeDifferences.addAll(nodeMapping.getNodeDifferences());
 		}
 		return nodeDifferences;
@@ -73,7 +73,7 @@ public class MappingState {
 
 	public int getDifferenceCount() {
 		int count = 0;
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			count += nodeMapping.getDifferenceCount();
 		}
 		return count;
@@ -82,7 +82,7 @@ public class MappingState {
 	//returns the sum of the differences in the node Ids of the mapped nodes
 	public int getNodeMappingIdDiff() {
 		int sum = 0;
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			sum += Math.abs(nodeMapping.getNodeG1().getId() - nodeMapping.getNodeG2().getId());
 		}
 		return sum;
@@ -99,10 +99,19 @@ public class MappingState {
 				maximumStates.add(state);
 			}
 			else if(state.getSize() == max) {
-				maximumStates.add(state);
+				if(!containsSameState(maximumStates, state))
+					maximumStates.add(state);
 			}
 		}
 		return maximumStates;
+	}
+
+	private boolean containsSameState(List<MappingState> states, MappingState state) {
+		for(MappingState oldState : states) {
+			if(oldState.sameNodeMappings(state))
+				return true;
+		}
+		return false;
 	}
 
 	private List<MappingState> getLeaves() {
@@ -119,85 +128,77 @@ public class MappingState {
 	}
 
 	public int getNodeMappingSize() {
-		return nodeMappings.size();
-	}
-
-	public int getEdgeMappingSize() {
-		return edgeMappings.size();
+		return getNodeMappings().size();
 	}
 
 	public int getSize() {
-		return nodeMappings.size() + edgeMappings.size();
+		return getNodeMappingSize();
 	}
 
-	private void traverse(MappingState state, PDGNodeMapping nodeMapping, Set<PDGNode> visitedNodesG1, Set<PDGNode> visitedNodesG2) {
-		PDGNode nodeG1 = nodeMapping.getNodeG1();
-		PDGNode nodeG2 = nodeMapping.getNodeG2();
-		if(visitedNodesG1.contains(nodeG1) && visitedNodesG2.contains(nodeG2))
-			return;
-		visitedNodesG1.add(nodeG1);
-		visitedNodesG2.add(nodeG2);
+	public void traverse(PDGNodeMapping initialNodeMapping) {
+		PDGNode nodeG1 = initialNodeMapping.getNodeG1();
+		PDGNode nodeG2 = initialNodeMapping.getNodeG2();
 		Iterator<GraphEdge> nodeG1EdgeIterator = nodeG1.getDependenceIterator();
 		while(nodeG1EdgeIterator.hasNext()) {
 			PDGDependence edgeG1 = (PDGDependence)nodeG1EdgeIterator.next();
-			Iterator<GraphEdge> nodeG2EdgeIterator = nodeG2.getDependenceIterator();
-			while(nodeG2EdgeIterator.hasNext()) {
-				PDGDependence edgeG2 = (PDGDependence)nodeG2EdgeIterator.next();
-				PDGEdgeMapping edgeMapping = new PDGEdgeMapping(edgeG1, edgeG2);
-				if(edgeMapping.isCompatible(nodeMapping)) {
-					PDGNode dstNodeG1 = null;
-					PDGNode dstNodeG2 = null;
-					if(edgeG1.getSrc().equals(nodeG1) && edgeG2.getSrc().equals(nodeG2)) {
-						//get destination nodes if the edge is outgoing
-						dstNodeG1 = (PDGNode)edgeG1.getDst();
-						dstNodeG2 = (PDGNode)edgeG2.getDst();
-					}
-					else if(edgeG1.getDst().equals(nodeG1) && edgeG2.getDst().equals(nodeG2)) {
-						//get source nodes if the edge is incoming
-						dstNodeG1 = (PDGNode)edgeG1.getSrc();
-						dstNodeG2 = (PDGNode)edgeG2.getSrc();
-					}
-					
-					if(dstNodeG1 != null && dstNodeG2 != null) {
-						if(dstNodeG1 instanceof PDGMethodEntryNode && dstNodeG2 instanceof PDGMethodEntryNode) {
-							if(!state.edgeMappings.contains(edgeMapping)) {
-								state.edgeMappings.add(edgeMapping);
-								state.propagateEdgeMappingToChildren(edgeMapping);
+			if(!visitedEdgesG1.contains(edgeG1)) {
+				visitedEdgesG1.add(edgeG1);
+				Set<PDGEdgeMapping> edgeMappings = new HashSet<PDGEdgeMapping>();
+				Iterator<GraphEdge> nodeG2EdgeIterator = nodeG2.getDependenceIterator();
+				while(nodeG2EdgeIterator.hasNext()) {
+					PDGDependence edgeG2 = (PDGDependence)nodeG2EdgeIterator.next();
+					PDGEdgeMapping edgeMapping = new PDGEdgeMapping(edgeG1, edgeG2);
+					if(!edgeMappingWithAlreadyVisitedNodes(edgeMappings, edgeMapping) && edgeMapping.isCompatible(initialNodeMapping)) {
+						edgeMappings.add(edgeMapping);
+						PDGNode dstNodeG1 = null;
+						PDGNode dstNodeG2 = null;
+						if(edgeG1.getSrc().equals(nodeG1) && edgeG2.getSrc().equals(nodeG2)) {
+							//get destination nodes if the edge is outgoing
+							dstNodeG1 = (PDGNode)edgeG1.getDst();
+							dstNodeG2 = (PDGNode)edgeG2.getDst();
+						}
+						else if(edgeG1.getDst().equals(nodeG1) && edgeG2.getDst().equals(nodeG2)) {
+							//get source nodes if the edge is incoming
+							dstNodeG1 = (PDGNode)edgeG1.getSrc();
+							dstNodeG2 = (PDGNode)edgeG2.getSrc();
+						}
+						else {
+							if(edgeG1.getSrc().equals(nodeG1)) {
+								dstNodeG1 = (PDGNode)edgeG1.getDst();
+							}
+							else {
+								dstNodeG1 = (PDGNode)edgeG1.getSrc();
+							}
+							if(edgeG2.getSrc().equals(nodeG2)) {
+								dstNodeG2 = (PDGNode)edgeG2.getDst();
+							}
+							else {
+								dstNodeG2 = (PDGNode)edgeG2.getSrc();
+							}
+							if(!symmetricalIfNodes(nodeG1, nodeG2, dstNodeG1, dstNodeG2)) {
+								dstNodeG1 = null;
+								dstNodeG2 = null;
 							}
 						}
-						ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(nodeMapping.getTypeRoot1(), nodeMapping.getTypeRoot2());
-						boolean match;
-						if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
-							match = false;
-						else 
-							match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
-						if(match && astNodeMatcher.isParameterizable()) {
-							PDGNode nodeG1ControlParent = dstNodeG1.getControlDependenceParent();
-							PDGNode nodeG2ControlParent = dstNodeG2.getControlDependenceParent();
-							PDGControlDependence nodeG1IncomingControlDependence = dstNodeG1.getIncomingControlDependence();
-							PDGControlDependence nodeG2IncomingControlDependence = dstNodeG2.getIncomingControlDependence();
-							boolean proceedToNodeMapping = false;
-							if(state.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
-									&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
-								proceedToNodeMapping = true;
-							if(!state.containsNodeG1InMappings(nodeG1ControlParent) && !state.containsNodeG2InMappings(nodeG2ControlParent))
-								proceedToNodeMapping = true;
-							if(proceedToNodeMapping) {
-							PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
-							MappingState childState = state.getChildStateWithNodeMapping(dstNodeMapping);
-							if(childState != null) {
-								if(!childState.edgeMappings.contains(edgeMapping)) {
-									childState.edgeMappings.add(edgeMapping);
-									childState.propagateEdgeMappingToChildren(edgeMapping);
+						if(dstNodeG1 != null && dstNodeG2 != null && restrictedNodesG1.contains(dstNodeG1) && restrictedNodesG2.contains(dstNodeG2)) {
+							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(initialNodeMapping.getTypeRoot1(), initialNodeMapping.getTypeRoot2());
+							boolean match;
+							if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
+								match = false;
+							else 
+								match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
+							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) ||
+									symmetricalIfNodes(nodeG1, nodeG2, dstNodeG1, dstNodeG2))) {
+								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
+								if(!this.containsAtLeastOneNodeInMappings(dstNodeMapping) && this.getChildStateWithNodeMapping(dstNodeMapping) == null) {
+									MappingState newMappingState = new MappingState(this, dstNodeMapping);
+									boolean pruneBranch = pruneBranch(newMappingState);
+									if(!pruneBranch) {
+										this.children.add(newMappingState);
+										//newMappingState.visitedEdgesG1.addAll(this.visitedEdgesG1);
+										newMappingState.traverse(dstNodeMapping);
+									}
 								}
-							}
-							else if(!state.containsAtLeastOneNodeInMappings(dstNodeMapping)) {
-								MappingState newMappingState = state.copy();
-								state.children.add(newMappingState);
-								newMappingState.edgeMappings.add(edgeMapping);
-								newMappingState.nodeMappings.add(dstNodeMapping);
-								traverse(newMappingState, dstNodeMapping, visitedNodesG1, visitedNodesG2);
-							}
 							}
 						}
 					}
@@ -206,18 +207,87 @@ public class MappingState {
 		}
 	}
 
-	private boolean containsAtLeastOneNodeInMappings(PDGNodeMapping dstNodeMapping) {
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
-			if(nodeMapping.getNodeG1().equals(dstNodeMapping.getNodeG1()) ||
-					nodeMapping.getNodeG2().equals(dstNodeMapping.getNodeG2())) {
+	private boolean edgeMappingWithAlreadyVisitedNodes(Set<PDGEdgeMapping> edgeMappings, PDGEdgeMapping edgeMapping) {
+		PDGNode srcEdgeG1 = (PDGNode)edgeMapping.getEdgeG1().getSrc();
+		PDGNode srcEdgeG2 = (PDGNode)edgeMapping.getEdgeG2().getSrc();
+		PDGNode dstEdgeG1 = (PDGNode)edgeMapping.getEdgeG1().getDst();
+		PDGNode dstEdgeG2 = (PDGNode)edgeMapping.getEdgeG2().getDst();
+		for(PDGEdgeMapping mapping : edgeMappings) {
+			PDGNode srcG1 = (PDGNode)mapping.getEdgeG1().getSrc();
+			PDGNode srcG2 = (PDGNode)mapping.getEdgeG2().getSrc();
+			PDGNode dstG1 = (PDGNode)mapping.getEdgeG1().getDst();
+			PDGNode dstG2 = (PDGNode)mapping.getEdgeG2().getDst();
+			if(srcG1.equals(srcEdgeG1) && srcG2.equals(srcEdgeG2) &&
+					dstG1.equals(dstEdgeG1) && dstG2.equals(dstEdgeG2))
 				return true;
+		}
+		return false;
+	}
+
+	private MappingState getRoot() {
+		if(parent==null)
+			return this;
+		else 
+			return parent.getRoot();
+	}
+	
+	private boolean pruneBranch(MappingState state) {
+		MappingState root = getRoot();
+		List<MappingState> leaves = root.getLeaves();
+		Set<PDGNodeMapping> stateNodeMappings = state.getNodeMappings();
+		for(MappingState leaf : leaves) {
+			Set<PDGNodeMapping> leafNodeMappings = leaf.getNodeMappings();
+			if(leafNodeMappings.containsAll(stateNodeMappings))
+				return true;
+		}
+		return false;
+	}
+	
+	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2, PDGNode dstNodeG1, PDGNode dstNodeG2) {
+		PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
+		PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();
+		PDGNode dstNodeG1ControlParent = dstNodeG1.getControlDependenceParent();
+		PDGNode dstNodeG2ControlParent = dstNodeG2.getControlDependenceParent();
+		if(((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
+				(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) &&
+				dstNodeG1.getCFGNode() instanceof CFGBranchIfNode && dstNodeG2.getCFGNode() instanceof CFGBranchIfNode) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean mappedControlParents(PDGNode dstNodeG1, PDGNode dstNodeG2) {
+		PDGNode nodeG1ControlParent = dstNodeG1.getControlDependenceParent();
+		PDGNode nodeG2ControlParent = dstNodeG2.getControlDependenceParent();
+		PDGControlDependence nodeG1IncomingControlDependence = dstNodeG1.getIncomingControlDependence();
+		PDGControlDependence nodeG2IncomingControlDependence = dstNodeG2.getIncomingControlDependence();
+		if(this.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
+				/*&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence)*/)
+			return true;
+		if(!this.containsNodeG1InMappings(nodeG1ControlParent) && !this.containsNodeG2InMappings(nodeG2ControlParent))
+			return true;
+		//special case
+		if(dstNodeG1.getCFGNode() instanceof CFGBranchIfNode && dstNodeG2.getCFGNode() instanceof CFGBranchIfNode) {
+			if(nodeG1ControlParent.getCFGNode() instanceof CFGBranchIfNode && nodeG1IncomingControlDependence.isFalseControlDependence()) {
+				PDGNode nodeG1ControlGrandParent = nodeG1ControlParent.getControlDependenceParent();
+				PDGControlDependence nodeG1ParentIncomingControlDependence = nodeG1ControlParent.getIncomingControlDependence();
+				if(nodeG1ControlGrandParent != null && this.containsBothNodesInMappings(nodeG1ControlGrandParent, nodeG2ControlParent)
+						&& nodeG1ParentIncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
+					return true;
+			}
+			if(nodeG2ControlParent.getCFGNode() instanceof CFGBranchIfNode && nodeG2IncomingControlDependence.isFalseControlDependence()) {
+				PDGNode nodeG2ControlGrandParent = nodeG2ControlParent.getControlDependenceParent();
+				PDGControlDependence nodeG2ParentIncomingControlDependence = nodeG2ControlParent.getIncomingControlDependence();
+				if(nodeG2ControlGrandParent != null && this.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlGrandParent)
+						&& nodeG1IncomingControlDependence.sameLabel(nodeG2ParentIncomingControlDependence))
+					return true;
 			}
 		}
 		return false;
 	}
 
-	public boolean containsBothNodesInMappings(PDGNode nodeG1, PDGNode nodeG2) {
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+	private boolean containsBothNodesInMappings(PDGNode nodeG1, PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			if(nodeMapping.getNodeG1().equals(nodeG1) &&
 					nodeMapping.getNodeG2().equals(nodeG2)) {
 				return true;
@@ -226,27 +296,20 @@ public class MappingState {
 		return false;
 	}
 
-	public boolean containsNodeG1InMappings(PDGNode nodeG1) {
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+	private boolean containsNodeG1InMappings(PDGNode nodeG1) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			if(nodeMapping.getNodeG1().equals(nodeG1))
 				return true;
 		}
 		return false;
 	}
 
-	public boolean containsNodeG2InMappings(PDGNode nodeG2) {
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+	private boolean containsNodeG2InMappings(PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			if(nodeMapping.getNodeG2().equals(nodeG2))
 				return true;
 		}
 		return false;
-	}
-
-	private void propagateEdgeMappingToChildren(PDGEdgeMapping edgeMapping) {
-		for(MappingState state : children) {
-			state.edgeMappings.add(edgeMapping);
-			state.propagateEdgeMappingToChildren(edgeMapping);
-		}
 	}
 
 	private MappingState getChildStateWithNodeMapping(PDGNodeMapping nodeMapping) {
@@ -256,33 +319,45 @@ public class MappingState {
 		}
 		return null;
 	}
-
-	private MappingState copy() {
-		MappingState state = new MappingState();
-		state.nodeMappings.addAll(this.nodeMappings);
-		state.edgeMappings.addAll(this.edgeMappings);
-		return state;
+	
+	public boolean containsAtLeastOneNodeInMappings(PDGNodeMapping dstNodeMapping) {
+		Set<PDGNodeMapping> nodeMappings = getNodeMappings();
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG1().equals(dstNodeMapping.getNodeG1()) ||
+					nodeMapping.getNodeG2().equals(dstNodeMapping.getNodeG2()))
+				return true;
+		}
+		return false;
 	}
 
-	public boolean equalMappings(MappingState state) {
-		return this.nodeMappings.containsAll(state.nodeMappings) && state.nodeMappings.containsAll(this.nodeMappings)/* &&
-			this.edgeMappings.containsAll(state.edgeMappings) && state.edgeMappings.containsAll(this.edgeMappings)*/;
+	public Set<PDGNodeMapping> getNodeMappings() {
+		Set<PDGNodeMapping> nodeMappings = new LinkedHashSet<PDGNodeMapping>();
+		if(parent != null) {
+			nodeMappings.addAll(parent.getNodeMappings());
+		}
+		nodeMappings.addAll(this.nodeMappings);
+		return nodeMappings;
 	}
 
+	private boolean sameNodeMappings(MappingState other) {
+		Set<PDGNodeMapping> thisNodeMappings = this.getNodeMappings();
+		Set<PDGNodeMapping> otherNodeMappings = other.getNodeMappings();
+		return thisNodeMappings.size() == otherNodeMappings.size() && thisNodeMappings.containsAll(otherNodeMappings);
+	}
+	
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;
 		if(o instanceof MappingState) {
 			MappingState state = (MappingState)o;
-			return this.nodeMappings.equals(state.nodeMappings) &&
-					this.edgeMappings.equals(state.edgeMappings);
+			return this.getNodeMappings().equals(state.getNodeMappings());
 		}
 		return false;
 	}
 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		for(PDGNodeMapping nodeMapping : nodeMappings) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			sb.append(nodeMapping).append("\n");
 		}
 		return sb.toString();

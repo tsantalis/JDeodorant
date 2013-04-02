@@ -18,7 +18,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 public class MappingState {
-	private MappingState parent;
 	private List<MappingState> children;
 	private Set<PDGNodeMapping> nodeMappings;
 	private Set<PDGDependence> visitedEdgesG1;
@@ -26,12 +25,13 @@ public class MappingState {
 	private static Set<PDGNode> restrictedNodesG2;
 	
 	public MappingState(MappingState parent, PDGNodeMapping nodeMapping) {
-		this.parent = parent;
 		this.children = new ArrayList<MappingState>();
 		this.nodeMappings = new LinkedHashSet<PDGNodeMapping>();
 		this.visitedEdgesG1 = new LinkedHashSet<PDGDependence>();
-		if(parent != null)
+		if(parent != null) {
+			this.nodeMappings.addAll(parent.nodeMappings);
 			this.visitedEdgesG1.addAll(parent.visitedEdgesG1);
+		}
 		this.nodeMappings.add(nodeMapping);
 	}
 
@@ -192,12 +192,8 @@ public class MappingState {
 								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 								if(!this.containsAtLeastOneNodeInMappings(dstNodeMapping) && this.getChildStateWithNodeMapping(dstNodeMapping) == null) {
 									MappingState newMappingState = new MappingState(this, dstNodeMapping);
-									boolean pruneBranch = pruneBranch(newMappingState);
-									if(!pruneBranch) {
-										this.children.add(newMappingState);
-										//newMappingState.visitedEdgesG1.addAll(this.visitedEdgesG1);
-										newMappingState.traverse(dstNodeMapping);
-									}
+									this.children.add(newMappingState);
+									newMappingState.traverse(dstNodeMapping);
 								}
 							}
 						}
@@ -223,7 +219,7 @@ public class MappingState {
 		}
 		return false;
 	}
-
+/*
 	private MappingState getRoot() {
 		if(parent==null)
 			return this;
@@ -242,7 +238,7 @@ public class MappingState {
 		}
 		return false;
 	}
-	
+*/
 	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2, PDGNode dstNodeG1, PDGNode dstNodeG2) {
 		PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
 		PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();
@@ -262,7 +258,7 @@ public class MappingState {
 		PDGControlDependence nodeG1IncomingControlDependence = dstNodeG1.getIncomingControlDependence();
 		PDGControlDependence nodeG2IncomingControlDependence = dstNodeG2.getIncomingControlDependence();
 		if(this.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
-				/*&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence)*/)
+				&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
 			return true;
 		if(!this.containsNodeG1InMappings(nodeG1ControlParent) && !this.containsNodeG2InMappings(nodeG2ControlParent))
 			return true;
@@ -331,12 +327,7 @@ public class MappingState {
 	}
 
 	public Set<PDGNodeMapping> getNodeMappings() {
-		Set<PDGNodeMapping> nodeMappings = new LinkedHashSet<PDGNodeMapping>();
-		if(parent != null) {
-			nodeMappings.addAll(parent.getNodeMappings());
-		}
-		nodeMappings.addAll(this.nodeMappings);
-		return nodeMappings;
+		return this.nodeMappings;
 	}
 
 	private boolean sameNodeMappings(MappingState other) {

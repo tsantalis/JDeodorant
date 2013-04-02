@@ -366,7 +366,8 @@ public class ConstructorObject {
             sb.append(parameterList.get(parameterList.size()-1).toString());
         }
         sb.append(")");
-        sb.append("\n").append(methodBody.toString());
+        if(methodBody != null)
+        	sb.append("\n").append(methodBody.toString());
         return sb.toString();
     }
 }

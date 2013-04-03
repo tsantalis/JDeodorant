@@ -46,11 +46,11 @@ public class PDGMapper {
 	private Set<PDGNode> nonMappedNodesG2;
 	private TreeSet<PDGNode> nonMappedNodesSliceUnionG1;
 	private TreeSet<PDGNode> nonMappedNodesSliceUnionG2;
-	private Map<String, ArrayList<VariableDeclaration>> commonPassedParameters;
-	private Set<VariableDeclaration> passedParametersG1;
-	private Set<VariableDeclaration> passedParametersG2;
-	private Set<VariableDeclaration> accessedLocalFieldsG1;
-	private Set<VariableDeclaration> accessedLocalFieldsG2;
+	private Map<String, ArrayList<AbstractVariable>> commonPassedParameters;
+	private Set<AbstractVariable> passedParametersG1;
+	private Set<AbstractVariable> passedParametersG2;
+	private Set<AbstractVariable> accessedLocalFieldsG1;
+	private Set<AbstractVariable> accessedLocalFieldsG2;
 	private Set<MethodInvocationObject> accessedLocalMethodsG1;
 	private Set<MethodInvocationObject> accessedLocalMethodsG2;
 	private IProgressMonitor monitor;
@@ -68,11 +68,11 @@ public class PDGMapper {
 		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();
 		this.nonMappedNodesSliceUnionG2 = new TreeSet<PDGNode>();
-		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
-		this.passedParametersG1 = new LinkedHashSet<VariableDeclaration>();
-		this.passedParametersG2 = new LinkedHashSet<VariableDeclaration>();
-		this.accessedLocalFieldsG1 = new LinkedHashSet<VariableDeclaration>();
-		this.accessedLocalFieldsG2 = new LinkedHashSet<VariableDeclaration>();
+		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
+		this.passedParametersG1 = new LinkedHashSet<AbstractVariable>();
+		this.passedParametersG2 = new LinkedHashSet<AbstractVariable>();
+		this.accessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
+		this.accessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
 		this.accessedLocalMethodsG1 = new LinkedHashSet<MethodInvocationObject>();
 		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodInvocationObject>();
 		this.monitor = monitor;
@@ -98,7 +98,7 @@ public class PDGMapper {
 		}
 	}
 
-	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<VariableDeclaration> accessedFields,
+	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> accessedFields,
 			Set<MethodInvocationObject> accessedMethods) {
 		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
 		Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
@@ -125,7 +125,7 @@ public class PDGMapper {
 			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod) {
 				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey()) &&
 						fieldDeclaration.resolveBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
-					accessedFields.add(fieldDeclaration);
+					accessedFields.add(variable);
 					break;
 				}
 			}
@@ -166,50 +166,37 @@ public class PDGMapper {
 	private void findPassedParameters() {
 		Set<AbstractVariable> passedParametersG1 = extractPassedParameters(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1());
 		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2());
-		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
-		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
-		/*for(PDGEdgeMapping edgeMapping : maximumStateWithMinimumDifferences.getEdgeMappings()) {
-			PDGDependence edgeG1 = edgeMapping.getEdgeG1();
-			PDGDependence edgeG2 = edgeMapping.getEdgeG2();
-			if(edgeG1 instanceof PDGDataDependence && edgeG2 instanceof PDGDataDependence) {
-				PDGDataDependence dataEdgeG1 = (PDGDataDependence)edgeG1;
-				PDGDataDependence dataEdgeG2 = (PDGDataDependence)edgeG2;
-				if(passedParametersG1.contains(dataEdgeG1.getData()) && passedParametersG2.contains(dataEdgeG2.getData())) {
-					ArrayList<VariableDeclaration> variableDeclarations = new ArrayList<VariableDeclaration>();
-					for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod1) {
-						if(variableDeclaration.resolveBinding().getKey().equals(dataEdgeG1.getData().getVariableBindingKey())) {
-							variableDeclarations.add(variableDeclaration);
-							break;
-						}
-					}
-					for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod2) {
-						if(variableDeclaration.resolveBinding().getKey().equals(dataEdgeG2.getData().getVariableBindingKey())) {
-							variableDeclarations.add(variableDeclaration);
-							break;
-						}
-					}
-					commonPassedParameters.put(dataEdgeG1.getData().getVariableBindingKey(), variableDeclarations);
-					passedParametersG1.remove(dataEdgeG1.getData());
-					passedParametersG2.remove(dataEdgeG2.getData());
+		for(PDGNodeMapping nodeMapping : maximumStateWithMinimumDifferences.getNodeMappings()) {
+			PDGNode nodeG1 = nodeMapping.getNodeG1();
+			PDGNode nodeG2 = nodeMapping.getNodeG2();
+			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringVariables();
+			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();
+			dataDependences1.retainAll(passedParametersG1);
+			dataDependences2.retainAll(passedParametersG2);
+			//remove already mapped parameters
+			for(ArrayList<AbstractVariable> variableDeclarations : commonPassedParameters.values()) {
+				AbstractVariable variableDeclaration1 = variableDeclarations.get(0);
+				AbstractVariable variableDeclaration2 = variableDeclarations.get(1);
+				dataDependences1.remove(variableDeclaration1);
+				dataDependences2.remove(variableDeclaration2);
+			}
+			if(dataDependences1.size() == 1 && dataDependences2.size() == 1) {
+				List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
+				List<AbstractVariable> variables2 = new ArrayList<AbstractVariable>(dataDependences2);
+				AbstractVariable variable1 = variables1.get(0);
+				AbstractVariable variable2 = variables2.get(0);
+				if(passedParametersG1.contains(variable1) && passedParametersG2.contains(variable2)) {
+					ArrayList<AbstractVariable> variableDeclarations = new ArrayList<AbstractVariable>();
+					variableDeclarations.add(variable1);
+					variableDeclarations.add(variable2);
+					commonPassedParameters.put(variable1.getVariableBindingKey(), variableDeclarations);
+					passedParametersG1.remove(variable1);
+					passedParametersG2.remove(variable2);
 				}
 			}
 		}
-		for(AbstractVariable variable1 : passedParametersG1) {
-			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod1) {
-				if(variableDeclaration.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
-					this.passedParametersG1.add(variableDeclaration);
-					break;
-				}
-			}
-		}
-		for(AbstractVariable variable2 : passedParametersG2) {
-			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod2) {
-				if(variableDeclaration.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
-					this.passedParametersG2.add(variableDeclaration);
-					break;
-				}
-			}
-		}*/
+		this.passedParametersG1.addAll(passedParametersG1);
+		this.passedParametersG2.addAll(passedParametersG2);
 	}
 
 	public PDG getPDG1() {
@@ -233,22 +220,84 @@ public class PDGMapper {
 	}
 
 	public Map<String, ArrayList<VariableDeclaration>> getCommonPassedParameters() {
+		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(String key : this.commonPassedParameters.keySet()) {
+			ArrayList<AbstractVariable> value = this.commonPassedParameters.get(key);
+			AbstractVariable variableDeclaration1 = value.get(0);
+			AbstractVariable variableDeclaration2 = value.get(1);
+			ArrayList<VariableDeclaration> variableDeclarations = new ArrayList<VariableDeclaration>();
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod1) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variableDeclaration1.getVariableBindingKey())) {
+					variableDeclarations.add(variableDeclaration);
+					break;
+				}
+			}
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod2) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variableDeclaration2.getVariableBindingKey())) {
+					variableDeclarations.add(variableDeclaration);
+					break;
+				}
+			}
+			commonPassedParameters.put(key, variableDeclarations);
+		}
 		return commonPassedParameters;
 	}
 
 	public Set<VariableDeclaration> getPassedParametersG1() {
+		Set<VariableDeclaration> passedParametersG1 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(AbstractVariable variable1 : this.passedParametersG1) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod1) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
+					passedParametersG1.add(variableDeclaration);
+					break;
+				}
+			}
+		}
 		return passedParametersG1;
 	}
 
 	public Set<VariableDeclaration> getPassedParametersG2() {
+		Set<VariableDeclaration> passedParametersG2 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(AbstractVariable variable2 : this.passedParametersG2) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod2) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
+					passedParametersG2.add(variableDeclaration);
+					break;
+				}
+			}
+		}
 		return passedParametersG2;
 	}
 
 	public Set<VariableDeclaration> getAccessedLocalFieldsG1() {
+		Set<VariableDeclaration> accessedLocalFieldsG1 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> fieldsAccessedInMethod1 = pdg1.getFieldsAccessedInMethod();
+		for(AbstractVariable variable : this.accessedLocalFieldsG1) {
+			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod1) {
+				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey())) {
+					accessedLocalFieldsG1.add(fieldDeclaration);
+					break;
+				}
+			}
+		}
 		return accessedLocalFieldsG1;
 	}
 
 	public Set<VariableDeclaration> getAccessedLocalFieldsG2() {
+		Set<VariableDeclaration> accessedLocalFieldsG2 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> fieldsAccessedInMethod2 = pdg2.getFieldsAccessedInMethod();
+		for(AbstractVariable variable : this.accessedLocalFieldsG2) {
+			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod2) {
+				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey())) {
+					accessedLocalFieldsG2.add(fieldDeclaration);
+					break;
+				}
+			}
+		}
 		return accessedLocalFieldsG2;
 	}
 

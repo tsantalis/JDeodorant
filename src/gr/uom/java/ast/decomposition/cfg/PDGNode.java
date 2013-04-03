@@ -144,6 +144,21 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return false;
 	}
 
+	public Set<AbstractVariable> incomingDataDependencesFromNodesDeclaringVariables() {
+		Set<AbstractVariable> dataDependences = new LinkedHashSet<AbstractVariable>();
+		for(GraphEdge edge : incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGDataDependence) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				PDGNode srcNode = (PDGNode)dependence.src;
+				if(srcNode.declaresLocalVariable(dataDependence.getData())) {
+					dataDependences.add(dataDependence.getData());
+				}
+			}
+		}
+		return dataDependences;
+	}
+
 	public boolean declaresLocalVariable(AbstractVariable variable) {
 		return declaredVariables.contains(variable);
 	}

@@ -152,6 +152,7 @@ public class MappingState {
 						edgeMappings.add(edgeMapping);
 						PDGNode dstNodeG1 = null;
 						PDGNode dstNodeG2 = null;
+						boolean symmetricalIfNodes = false;
 						if(edgeG1.getSrc().equals(nodeG1) && edgeG2.getSrc().equals(nodeG2)) {
 							//get destination nodes if the edge is outgoing
 							dstNodeG1 = (PDGNode)edgeG1.getDst();
@@ -179,6 +180,9 @@ public class MappingState {
 								dstNodeG1 = null;
 								dstNodeG2 = null;
 							}
+							else {
+								symmetricalIfNodes = true;
+							}
 						}
 						if(dstNodeG1 != null && dstNodeG2 != null && restrictedNodesG1.contains(dstNodeG1) && restrictedNodesG2.contains(dstNodeG2)) {
 							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(initialNodeMapping.getTypeRoot1(), initialNodeMapping.getTypeRoot2());
@@ -187,8 +191,7 @@ public class MappingState {
 								match = false;
 							else 
 								match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
-							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) ||
-									symmetricalIfNodes(nodeG1, nodeG2, dstNodeG1, dstNodeG2))) {
+							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) || symmetricalIfNodes)) {
 								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 								if(!this.containsAtLeastOneNodeInMappings(dstNodeMapping) && this.getChildStateWithNodeMapping(dstNodeMapping) == null) {
 									MappingState newMappingState = new MappingState(this, dstNodeMapping);

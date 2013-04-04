@@ -29,6 +29,7 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -48,7 +49,9 @@ import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.UnionType;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -476,4 +479,27 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 		return false;
 	}
 
+	protected Type extractType(VariableDeclaration variableDeclaration) {
+		Type returnedVariableType = null;
+		if(variableDeclaration instanceof SingleVariableDeclaration) {
+			SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
+			returnedVariableType = singleVariableDeclaration.getType();
+		}
+		else if(variableDeclaration instanceof VariableDeclarationFragment) {
+			VariableDeclarationFragment fragment = (VariableDeclarationFragment)variableDeclaration;
+			if(fragment.getParent() instanceof VariableDeclarationStatement) {
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+				returnedVariableType = variableDeclarationStatement.getType();
+			}
+			else if(fragment.getParent() instanceof VariableDeclarationExpression) {
+				VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
+				returnedVariableType = variableDeclarationExpression.getType();
+			}
+			else if(fragment.getParent() instanceof FieldDeclaration) {
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				returnedVariableType = fieldDeclaration.getType();
+			}
+		}
+		return returnedVariableType;
+	}
 }

@@ -42,6 +42,8 @@ public class PDGMapper {
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
 	private MappingState maximumStateWithMinimumDifferences;
+	private Set<PDGNode> mappedNodesG1;
+	private Set<PDGNode> mappedNodesG2;
 	private Set<PDGNode> nonMappedNodesG1;
 	private Set<PDGNode> nonMappedNodesG2;
 	private TreeSet<PDGNode> nonMappedNodesSliceUnionG1;
@@ -53,6 +55,8 @@ public class PDGMapper {
 	private Set<AbstractVariable> accessedLocalFieldsG2;
 	private Set<MethodInvocationObject> accessedLocalMethodsG1;
 	private Set<MethodInvocationObject> accessedLocalMethodsG2;
+	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG1;
+	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
 	private IProgressMonitor monitor;
 	
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
@@ -75,15 +79,21 @@ public class PDGMapper {
 		this.accessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
 		this.accessedLocalMethodsG1 = new LinkedHashSet<MethodInvocationObject>();
 		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodInvocationObject>();
+		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1 = new LinkedHashSet<AbstractVariable>();
+		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		this.monitor = monitor;
 		processPDGNodes();
-		findNonMappedNodes(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), nonMappedNodesG1);
-		findNonMappedNodes(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), nonMappedNodesG2);
+		this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
+		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
+		findNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1);
+		findNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2);
 		computeSliceForNonMappedNodes(pdg1, nonMappedNodesG1, nonMappedNodesSliceUnionG1);
 		computeSliceForNonMappedNodes(pdg2, nonMappedNodesG2, nonMappedNodesSliceUnionG2);
 		findPassedParameters();
-		findLocallyAccessedFields(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1(), accessedLocalFieldsG1, accessedLocalMethodsG1);
-		findLocallyAccessedFields(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2(), accessedLocalFieldsG2, accessedLocalMethodsG2);
+		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
+		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
+		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
+		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 	}
 
 	private void computeSliceForNonMappedNodes(PDG pdg, Set<PDGNode> nonMappedNodes, Set<PDGNode> nonMappedNodesSliceUnion) {
@@ -164,8 +174,8 @@ public class PDGMapper {
 	}
 
 	private void findPassedParameters() {
-		Set<AbstractVariable> passedParametersG1 = extractPassedParameters(pdg1, maximumStateWithMinimumDifferences.getMappedNodesG1());
-		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, maximumStateWithMinimumDifferences.getMappedNodesG2());
+		Set<AbstractVariable> passedParametersG1 = extractPassedParameters(pdg1, mappedNodesG1);
+		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, mappedNodesG2);
 		for(PDGNodeMapping nodeMapping : maximumStateWithMinimumDifferences.getNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
@@ -205,6 +215,20 @@ public class PDGMapper {
 
 	public PDG getPDG2() {
 		return pdg2;
+	}
+
+	private void findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes, Set<AbstractVariable> variables) {
+		for(PDGNode mappedNode : mappedNodes) {
+			for(Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				for(PDGNode node : nonMappedNodes) {
+					if(node.usesLocalVariable(declaredVariable) || node.definesLocalVariable(declaredVariable)) {
+						variables.add(declaredVariable);
+						break;
+					}
+				}
+			}
+		}
 	}
 
 	public MappingState getMaximumStateWithMinimumDifferences() {
@@ -310,13 +334,13 @@ public class PDGMapper {
 	}
 
 	public Set<PDGNode> getRemovableNodesG1() {
-		Set<PDGNode> removableNodes = maximumStateWithMinimumDifferences.getMappedNodesG1();
+		Set<PDGNode> removableNodes = mappedNodesG1;
 		removableNodes.removeAll(nonMappedNodesSliceUnionG1);
 		return removableNodes;
 	}
 
 	public Set<PDGNode> getRemovableNodesG2() {
-		Set<PDGNode> removableNodes = maximumStateWithMinimumDifferences.getMappedNodesG2();
+		Set<PDGNode> removableNodes = mappedNodesG2;
 		removableNodes.removeAll(nonMappedNodesSliceUnionG2);
 		return removableNodes;
 	}
@@ -331,6 +355,34 @@ public class PDGMapper {
 
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return maximumStateWithMinimumDifferences.getNodeDifferences();
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
+		Set<VariableDeclaration> declaredVariablesG1 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
+		for(AbstractVariable variable1 : this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod1) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
+					declaredVariablesG1.add(variableDeclaration);
+					break;
+				}
+			}
+		}
+		return declaredVariablesG1;
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2() {
+		Set<VariableDeclaration> declaredVariablesG2 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
+		for(AbstractVariable variable2 : this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod2) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
+					declaredVariablesG2.add(variableDeclaration);
+					break;
+				}
+			}
+		}
+		return declaredVariablesG2;
 	}
 
 	private MappingState findMaximumStateWithMinimumDifferences(List<MappingState> states) {

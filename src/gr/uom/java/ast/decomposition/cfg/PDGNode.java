@@ -92,6 +92,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.maximumCallGraphAnalysisDepth = store.getInt(PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH);
 	}
 
+	public Iterator<AbstractVariable> getDeclaredVariableIterator() {
+		return declaredVariables.iterator();
+	}
+
 	public CFGNode getCFGNode() {
 		return cfgNode;
 	}

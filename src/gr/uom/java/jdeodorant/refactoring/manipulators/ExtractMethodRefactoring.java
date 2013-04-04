@@ -25,7 +25,6 @@ import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
-import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -192,26 +191,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
 			VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
-			Type returnedVariableType = null;
-			if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {
-				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariableDeclaration;
-				returnedVariableType = singleVariableDeclaration.getType();
-			}
-			else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
-				VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
-				if(fragment.getParent() instanceof VariableDeclarationStatement) {
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-					returnedVariableType = variableDeclarationStatement.getType();
-				}
-				else if(fragment.getParent() instanceof VariableDeclarationExpression) {
-					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
-					returnedVariableType = variableDeclarationExpression.getType();
-				}
-				else if(fragment.getParent() instanceof FieldDeclaration) {
-					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
-					returnedVariableType = fieldDeclaration.getType();
-				}
-			}
+			Type returnedVariableType = extractType(returnedVariableDeclaration);
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
 			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
 			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
@@ -286,26 +266,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 		SimpleName returnedVariableSimpleName = returnedVariableDeclaration.getName();
-		Type returnedVariableType = null;
-		if(returnedVariableDeclaration instanceof SingleVariableDeclaration) {
-			SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariableDeclaration;
-			returnedVariableType = singleVariableDeclaration.getType();
-		}
-		else if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
-			VariableDeclarationFragment fragment = (VariableDeclarationFragment)returnedVariableDeclaration;
-			if(fragment.getParent() instanceof VariableDeclarationStatement) {
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-				returnedVariableType = variableDeclarationStatement.getType();
-			}
-			else if(fragment.getParent() instanceof VariableDeclarationExpression) {
-				VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
-				returnedVariableType = variableDeclarationExpression.getType();
-			}
-			else if(fragment.getParent() instanceof FieldDeclaration) {
-				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
-				returnedVariableType = fieldDeclaration.getType();
-			}
-		}
+		Type returnedVariableType = extractType(returnedVariableDeclaration);
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
 		IVariableBinding returnedVariableBinding = returnedVariableDeclaration.resolveBinding();
@@ -326,26 +287,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
-			Type variableType = null;
-			if(variableDeclaration instanceof SingleVariableDeclaration) {
-				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
-				variableType = singleVariableDeclaration.getType();
-			}
-			else if(variableDeclaration instanceof VariableDeclarationFragment) {
-				VariableDeclarationFragment fragment = (VariableDeclarationFragment)variableDeclaration;
-				if(fragment.getParent() instanceof VariableDeclarationStatement) {
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-					variableType = variableDeclarationStatement.getType();
-				}
-				else if(fragment.getParent() instanceof VariableDeclarationExpression) {
-					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
-					variableType = variableDeclarationExpression.getType();
-				}
-				else if(fragment.getParent() instanceof FieldDeclaration) {
-					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
-					variableType = fieldDeclaration.getType();
-				}
-			}
+			Type variableType = extractType(variableDeclaration);
 			if(!variableDeclaration.resolveBinding().isField()) {
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);

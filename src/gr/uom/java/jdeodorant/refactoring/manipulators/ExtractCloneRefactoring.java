@@ -905,25 +905,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			blockRewrite.insertAt(newVariableDeclarationStatement, insertionIndex, null);
 		}
-		/*Statement methodInvocationStatement = null;
-		if(methodDeclaration.getReturnType2() != null) {
-			ReturnStatement returnStatement = ast.newReturnStatement();
-			methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, methodInvocation, null);
-			methodInvocationStatement = returnStatement;
-		}
 		else {
-			methodInvocationStatement = ast.newExpressionStatement(methodInvocation);
+			ITypeBinding returnTypeBinding = findReturnTypeBinding();
+			Statement methodInvocationStatement = null;
+			if(returnTypeBinding != null) {
+				ReturnStatement returnStatement = ast.newReturnStatement();
+				methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, methodInvocation, null);
+				methodInvocationStatement = returnStatement;
+			}
+			else {
+				methodInvocationStatement = ast.newExpressionStatement(methodInvocation);
+			}
+			if(!remainingNodes.isEmpty()) {
+				Statement lastStatement = remainingNodes.last().getASTStatement();
+				Block parentStatement = (Block)lastStatement.getParent();
+				ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+				blockRewrite.insertAfter(methodInvocationStatement, lastStatement, null);
+			}
+			else {
+				ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(methodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
+				blockRewrite.insertLast(methodInvocationStatement, null);
+			}
 		}
-		if(!remainingNodes.isEmpty()) {
-			Statement lastStatement = remainingNodes.last().getASTStatement();
-			Block parentStatement = (Block)lastStatement.getParent();
-			ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
-			blockRewrite.insertAfter(methodInvocationStatement, lastStatement, null);
-		}
-		else {
-			ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(methodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
-			blockRewrite.insertLast(methodInvocationStatement, null);
-		}*/
 		for(PDGNode pdgNode : removableNodes) {
 			Statement statement = pdgNode.getASTStatement();
 			methodBodyRewriter.remove(statement, null);

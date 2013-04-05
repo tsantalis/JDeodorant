@@ -47,16 +47,16 @@ public class MappingState {
 		children.add(state);
 	}
 
-	public Set<PDGNode> getMappedNodesG1() {
-		Set<PDGNode> nodesG1 = new TreeSet<PDGNode>();
+	public TreeSet<PDGNode> getMappedNodesG1() {
+		TreeSet<PDGNode> nodesG1 = new TreeSet<PDGNode>();
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			nodesG1.add(nodeMapping.getNodeG1());
 		}
 		return nodesG1;
 	}
 
-	public Set<PDGNode> getMappedNodesG2() {
-		Set<PDGNode> nodesG2 = new TreeSet<PDGNode>();
+	public TreeSet<PDGNode> getMappedNodesG2() {
+		TreeSet<PDGNode> nodesG2 = new TreeSet<PDGNode>();
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			nodesG2.add(nodeMapping.getNodeG2());
 		}
@@ -193,6 +193,9 @@ public class MappingState {
 								match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
 							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) || symmetricalIfNodes)) {
 								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
+								if(symmetricalIfNodes) {
+									dstNodeMapping.setSymmetricalIfNodePair(true);
+								}
 								if(!this.containsAtLeastOneNodeInMappings(dstNodeMapping) && this.getChildStateWithNodeMapping(dstNodeMapping) == null) {
 									MappingState newMappingState = new MappingState(this, dstNodeMapping);
 									this.children.add(newMappingState);

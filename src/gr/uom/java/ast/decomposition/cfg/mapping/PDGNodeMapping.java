@@ -16,6 +16,7 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 	private PDGNode nodeG2;
 	private ASTNodeMatcher matcher;
 	private List<ASTNodeDifference> nodeDifferences;
+	private boolean symmetricalIfNodePair;
 	private volatile int hashCode = 0;
 	
 	public PDGNodeMapping(PDGNode nodeG1, PDGNode nodeG2, ASTNodeMatcher matcher) {
@@ -51,6 +52,14 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 			count += nodeDifference.getDifferences().size();
 		}
 		return count;
+	}
+
+	public boolean isSymmetricalIfNodePair() {
+		return symmetricalIfNodePair;
+	}
+
+	public void setSymmetricalIfNodePair(boolean symmetricalIfNodePair) {
+		this.symmetricalIfNodePair = symmetricalIfNodePair;
 	}
 
 	public boolean matchingVariableDifference(AbstractVariable variable1, AbstractVariable variable2) {

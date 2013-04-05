@@ -23,6 +23,7 @@ import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.BasicBlock;
+import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
@@ -42,8 +43,8 @@ public class PDGMapper {
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
 	private MappingState maximumStateWithMinimumDifferences;
-	private Set<PDGNode> mappedNodesG1;
-	private Set<PDGNode> mappedNodesG2;
+	private TreeSet<PDGNode> mappedNodesG1;
+	private TreeSet<PDGNode> mappedNodesG2;
 	private Set<PDGNode> nonMappedNodesG1;
 	private Set<PDGNode> nonMappedNodesG2;
 	private TreeSet<PDGNode> nonMappedNodesSliceUnionG1;
@@ -87,23 +88,27 @@ public class PDGMapper {
 		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
 		findNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1);
 		findNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2);
-		computeSliceForNonMappedNodes(pdg1, nonMappedNodesG1, nonMappedNodesSliceUnionG1);
-		computeSliceForNonMappedNodes(pdg2, nonMappedNodesG2, nonMappedNodesSliceUnionG2);
+		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
+		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
+		computeSliceForNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1, nonMappedNodesSliceUnionG1);
+		computeSliceForNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2, nonMappedNodesSliceUnionG2);
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
-		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
-		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 	}
 
-	private void computeSliceForNonMappedNodes(PDG pdg, Set<PDGNode> nonMappedNodes, Set<PDGNode> nonMappedNodesSliceUnion) {
+	private void computeSliceForNonMappedNodes(PDG pdg, TreeSet<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes, Set<PDGNode> nonMappedNodesSliceUnion) {
 		List<BasicBlock> basicBlocks = pdg.getBasicBlocks();
 		//we need a strategy to select the appropriate basic block according to the region of the duplicated code
 		BasicBlock block = basicBlocks.get(0);
 		if(!nonMappedNodes.isEmpty()) {
 			PDGSlice subgraph = new PDGSlice(pdg, block);
 			for(PDGNode nodeCriterion : nonMappedNodes) {
-				nonMappedNodesSliceUnion.addAll(subgraph.computeSlice(nodeCriterion));
+				int nodeId = nodeCriterion.getId();
+				if(nodeId >= mappedNodes.first().getId() && nodeId <= mappedNodes.last().getId())
+					nonMappedNodesSliceUnion.addAll(subgraph.computeSlice(nodeCriterion));
+				else
+					nonMappedNodesSliceUnion.add(nodeCriterion);
 			}
 		}
 	}
@@ -516,6 +521,9 @@ public class PDGMapper {
 				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
 				if(match && astNodeMatcher.isParameterizable()) {
 					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+					boolean symmetricalIfNodes = symmetricalIfNodes(node1, node2);
+					if(symmetricalIfNodes)
+						mapping.setSymmetricalIfNodePair(true);
 					if(finalStates.isEmpty()) {
 						MappingState state = new MappingState(parent, mapping);
 						state.traverse(mapping);
@@ -548,7 +556,56 @@ public class PDGMapper {
 		}
 		return finalStates;
 	}
-	
+
+	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2) {
+		PDGNode dstNodeG1 = falseControlDependentNode(nodeG1);
+		PDGNode dstNodeG2 = falseControlDependentNode(nodeG2);
+		if(dstNodeG1 != null && dstNodeG2 != null) {
+			PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
+			PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();
+			PDGNode dstNodeG1ControlParent = dstNodeG1.getControlDependenceParent();
+			PDGNode dstNodeG2ControlParent = dstNodeG2.getControlDependenceParent();
+			if((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
+					(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private PDGNode falseControlDependentNode(PDGNode node) {
+		PDGNode dstNode = null;
+		int count = 0;
+		for(Iterator<GraphEdge> outgoingDependenceIterator = node.getOutgoingDependenceIterator(); outgoingDependenceIterator.hasNext();) {
+			PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				if(controlDependence.isFalseControlDependence()) {
+					dstNode = (PDGNode)controlDependence.getDst();
+					count++;
+				}
+			}
+		}
+		if(count == 1 && dstNode.getCFGNode() instanceof CFGBranchIfNode)
+			return dstNode;
+		
+		dstNode = null;
+		count = 0;
+		for(Iterator<GraphEdge> incomingDependenceIterator = node.getIncomingDependenceIterator(); incomingDependenceIterator.hasNext();) {
+			PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				if(controlDependence.isFalseControlDependence()) {
+					dstNode = (PDGNode)controlDependence.getSrc();
+					count++;
+				}
+			}
+		}
+		if(count == 1 && dstNode.getCFGNode() instanceof CFGBranchIfNode)
+			return dstNode;
+		return null;
+	}
+
 	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {
 		int max = 0;
 		List<MappingState> maximumStates = new ArrayList<MappingState>();

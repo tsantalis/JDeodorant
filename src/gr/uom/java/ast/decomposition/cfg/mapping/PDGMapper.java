@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -43,6 +44,7 @@ public class PDGMapper {
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
 	private MappingState maximumStateWithMinimumDifferences;
+	private CloneStructureNode cloneStructureRoot;
 	private TreeSet<PDGNode> mappedNodesG1;
 	private TreeSet<PDGNode> mappedNodesG2;
 	private Set<PDGNode> nonMappedNodesG1;
@@ -238,6 +240,10 @@ public class PDGMapper {
 
 	public MappingState getMaximumStateWithMinimumDifferences() {
 		return maximumStateWithMinimumDifferences;
+	}
+
+	public CloneStructureNode getCloneStructureRoot() {
+		return cloneStructureRoot;
 	}
 
 	public Set<PDGNode> getNonMappedNodesG1() {
@@ -464,7 +470,9 @@ public class PDGMapper {
 		int level2 = maxLevel2;
 		if(monitor != null)
 			monitor.beginTask("Mapping Program Dependence Graphs", Math.min(maxLevel1, maxLevel2));
+		CloneStructureNode root = null;
 		MappingState finalState = null;
+		List<CloneStructureNode> parents = new ArrayList<CloneStructureNode>();
 		while(level1 >= 0 && level2 >= 0) {
 			Set<PDGNode> controlPredicateNodesG1 = controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1);
 			Set<PDGNode> controlPredicateNodesG2 = controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2);
@@ -493,13 +501,56 @@ public class PDGMapper {
 				if(!currentStates.isEmpty()) {
 					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
 					List<PDGNodeMapping> nodeMappings = new ArrayList<PDGNodeMapping>(best.getNodeMappings());
+					int index = 0;
 					for(PDGNodeMapping mapping : nodeMappings) {
 						if(mapping.getNodeG1().equals(predicate1)) {
 							controlPredicateNodesG2.remove(mapping.getNodeG2());
 							break;
 						}
+						index++;
 					}
 					finalState = best;
+					CloneStructureNode parent = null;
+					for(int i=index; i<nodeMappings.size(); i++) {
+						PDGNodeMapping mapping = nodeMappings.get(i);
+						if(parent == null) {
+							parent = new CloneStructureNode(mapping);
+						}
+						else {
+							CloneStructureNode child = new CloneStructureNode(parent, mapping);
+							parent.addChild(child);
+						}
+					}
+					if(parent != null) {
+						//add previous parents under the new parent
+						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
+							CloneStructureNode previousParent = parentIterator.next();
+							if(controlDependenceTreePDG1.parentChildRelationship(parent.getMapping().getNodeG1(), previousParent.getMapping().getNodeG1()) &&
+									controlDependenceTreePDG2.parentChildRelationship(parent.getMapping().getNodeG2(), previousParent.getMapping().getNodeG2())) {
+								previousParent.setParent(parent);
+								parent.addChild(previousParent);
+								parentIterator.remove();
+							}
+						}
+						parents.add(parent);
+					}
+					else {
+						//create the root node of the clone structure
+						root = new CloneStructureNode(null);
+						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
+							CloneStructureNode previousParent = parentIterator.next();
+							previousParent.setParent(root);
+							root.addChild(previousParent);
+							parentIterator.remove();
+						}
+						for(PDGNodeMapping nodeMapping : best.getNodeMappings()) {
+							if(nodesG1.contains(nodeMapping.getNodeG1())) {
+								CloneStructureNode childNode = new CloneStructureNode(nodeMapping);
+								childNode.setParent(root);
+								root.addChild(childNode);
+							}
+						}
+					}
 				}
 			}
 			level1--;
@@ -509,7 +560,18 @@ public class PDGMapper {
 		}
 		if(monitor != null)
 			monitor.done();
-		maximumStateWithMinimumDifferences = finalState;
+		if(root == null) {
+			//create the root node of the clone structure
+			root = new CloneStructureNode(null);
+			for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
+				CloneStructureNode previousParent = parentIterator.next();
+				previousParent.setParent(root);
+				root.addChild(previousParent);
+				parentIterator.remove();
+			}
+		}
+		this.maximumStateWithMinimumDifferences = finalState;
+		this.cloneStructureRoot = root;
 	}
 	
 	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {

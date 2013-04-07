@@ -32,6 +32,35 @@ public class ControlDependenceTreeNode {
 		this.processControlDependences();
 	}
 
+	public boolean parentChildRelationship(PDGNode parent, PDGNode child) {
+		ControlDependenceTreeNode root = getRoot();
+		ControlDependenceTreeNode treeParent = root.getNode(parent);
+		if(treeParent != null) {
+			for(ControlDependenceTreeNode treeChild : treeParent.children) {
+				if(treeChild.node.equals(child))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private ControlDependenceTreeNode getNode(PDGNode node) {
+		if(this.node.equals(node)) {
+			return this;
+		}
+		else if(this.isLeaf()) {
+			return null;
+		}
+		else {
+			for(ControlDependenceTreeNode child : this.children) {
+				ControlDependenceTreeNode treeNode = child.getNode(node);
+				if(treeNode != null)
+					return treeNode;
+			}
+		}
+		return null;
+	}
+
 	public Set<PDGNode> getControlPredicateNodesInLevel(int level) {
 		ControlDependenceTreeNode root = getRoot();
 		List<ControlDependenceTreeNode> levelNodes = root.getControlDependenceTreeNodesInLevel(level);

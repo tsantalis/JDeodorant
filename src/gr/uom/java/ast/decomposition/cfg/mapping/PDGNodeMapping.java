@@ -126,8 +126,6 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 	}
 
 	public int compareTo(PDGNodeMapping other) {
-		int thisMinId = Math.min(this.nodeG1.getId(), this.nodeG2.getId());
-		int otherMinId = Math.min(other.nodeG1.getId(), other.nodeG2.getId());
-		return Integer.compare(thisMinId, otherMinId);
+		return Integer.compare(this.nodeG1.getId(), other.nodeG1.getId());
 	}
 }

@@ -3,6 +3,7 @@ package gr.uom.java.ast.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
@@ -253,9 +254,13 @@ public class ExpressionExtractor {
 		return getExpressions(expression);
 	}
 	
-	public List<Expression> getAllExpressions(Statement statement) {
+	public List<Expression> getAllExpressions(ASTNode node) {
 		instanceChecker = new InstanceOfExpression();
-		return getExpressions(statement);
+		if(node instanceof Expression)
+			return getExpressions((Expression)node);
+		else if(node instanceof Statement)
+			return getExpressions((Statement)node);
+		return null;
 	}
 
 	private List<Expression> getExpressions(Statement statement) {

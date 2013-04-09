@@ -31,6 +31,10 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return mapping;
 	}
 
+	public Set<CloneStructureNode> getChildren() {
+		return children;
+	}
+
 	public boolean isRoot() {
 		return parent == null;
 	}

@@ -7,10 +7,10 @@ import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -47,12 +47,16 @@ import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.DoStatement;
+import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -65,6 +69,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -72,6 +77,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
@@ -499,39 +505,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
-		List<PDGNode> sliceNodes = new ArrayList<PDGNode>();
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
-			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
-			Statement statement = pdgNode.getASTStatement();
-			TypeVisitor typeVisitor = new TypeVisitor();
-			statement.accept(typeVisitor);
-			requiredImportTypeBindings.addAll(typeVisitor.getTypeBindings());
-			sliceNodes.add(pdgNode);
+			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
+			Statement statement1 = pdgNode1.getASTStatement();
+			TypeVisitor typeVisitor1 = new TypeVisitor();
+			statement1.accept(typeVisitor1);
+			requiredImportTypeBindings.addAll(typeVisitor1.getTypeBindings());
+			
+			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
+			Statement statement2 = pdgNode2.getASTStatement();
+			TypeVisitor typeVisitor2 = new TypeVisitor();
+			statement2.accept(typeVisitor2);
+			requiredImportTypeBindings.addAll(typeVisitor2.getTypeBindings());
 		}
-		while(!sliceNodes.isEmpty()) {
-			ListRewrite bodyRewrite = methodBodyRewrite;
-			PDGNode node = sliceNodes.get(0);
-			PDGControlPredicateNode doLoopPredicateNode = isInsideDoLoop(node);
-			if(doLoopPredicateNode != null) {
-				bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, doLoopPredicateNode);
-				if(sliceNodes.contains(doLoopPredicateNode)) {
-					bodyRewrite.insertLast(processPredicateNode(doLoopPredicateNode, ast, sourceRewriter, sliceNodes), null);
-				}
-			}
-			else {
-				bodyRewrite = createTryStatementIfNeeded(sourceRewriter, ast, bodyRewrite, node);
-				if(node instanceof PDGControlPredicateNode) {
-					PDGControlPredicateNode predicateNode = (PDGControlPredicateNode)node;
-					bodyRewrite.insertLast(processPredicateNode(predicateNode, ast, sourceRewriter, sliceNodes), null);
-				}
-				else if(node instanceof PDGTryNode) {
-					sliceNodes.remove(node);
-				}
-				else {
-					processStatementNode(bodyRewrite, node, ast, sourceRewriter);
-					sliceNodes.remove(node);
-				}
-			}
+		
+		CloneStructureNode root = mapper.getCloneStructureRoot();
+		for(CloneStructureNode child : root.getChildren()) {
+			processCloneStructureNode(methodBodyRewrite, child, ast, sourceRewriter);
 		}
 		
 		//add parameters for the differences between the clones
@@ -621,6 +611,173 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
+	private void processCloneStructureNode(ListRewrite bodyRewrite, CloneStructureNode node, AST ast, ASTRewrite sourceRewriter) {
+		PDGNodeMapping nodeMapping = node.getMapping();
+		PDGNode parentNodeG1 = nodeMapping.getNodeG1();
+		Statement oldStatement = parentNodeG1.getASTStatement();
+		if(oldStatement instanceof IfStatement) {
+			IfStatement oldIfStatement = (IfStatement)oldStatement;
+			IfStatement newIfStatement = ast.newIfStatement();
+			Expression newIfExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldIfStatement.getExpression(), nodeMapping.getNodeDifferences());
+			sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, newIfExpression, null);
+			if(oldIfStatement.getThenStatement() instanceof Block) {
+				Block thenBlock = ast.newBlock();
+				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
+				ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					PDGNode childNodeG1 = child.getMapping().getNodeG1();
+					PDGControlDependence controlDependence = childNodeG1.getIncomingControlDependence();
+					if(controlDependence.isTrueControlDependence()) {
+						processCloneStructureNode(thenBodyRewrite, child, ast, sourceRewriter);
+					}
+				}
+				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
+			}
+			else {
+				//if statement has a single statement in "then" clause
+			}
+			if(oldIfStatement.getElseStatement() != null) {
+				if(oldIfStatement.getElseStatement() instanceof Block) {
+					Block elseBlock = ast.newBlock();
+					sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+					ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
+					int numberOfFalseControlDependencies = 0;
+					for(CloneStructureNode child : node.getChildren()) {
+						PDGNode childNodeG1 = child.getMapping().getNodeG1();
+						PDGControlDependence controlDependence = childNodeG1.getIncomingControlDependence();
+						if(controlDependence.isFalseControlDependence()) {
+							processCloneStructureNode(elseBodyRewrite, child, ast, sourceRewriter);
+							numberOfFalseControlDependencies++;
+						}
+					}
+					if(numberOfFalseControlDependencies > 0) {
+						sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+					}
+				}
+				else {
+					//if statement has a single statement in "else" clause
+				}
+			}
+			bodyRewrite.insertLast(newIfStatement, null);
+		}
+		else if(oldStatement instanceof TryStatement) {
+			TryStatement oldTryStatement = (TryStatement)oldStatement;
+			TryStatement newTryStatement = ast.newTryStatement();
+			ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+			List<VariableDeclarationExpression> resources = oldTryStatement.resources();
+			for(VariableDeclarationExpression expression : resources) {
+				Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
+				resourceRewrite.insertLast(newResourceExpression, null);
+			}
+			ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+			List<CatchClause> catchClauses = oldTryStatement.catchClauses();
+			for(CatchClause catchClause : catchClauses) {
+				CatchClause newCatchClause = ast.newCatchClause();
+				sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
+				Block newCatchBody = ast.newBlock();
+				ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
+				List<Statement> oldCatchStatements = catchClause.getBody().statements();
+				for(Statement oldCatchStatement : oldCatchStatements) {
+					Statement newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldCatchStatement, nodeMapping.getNodeDifferences());
+					newCatchBodyRewrite.insertLast(newStatement, null);
+				}
+				sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
+				catchClauseRewrite.insertLast(newCatchClause, null);
+			}
+			if(oldTryStatement.getFinally() != null) {
+				Block newFinallyBody = ast.newBlock();
+				ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
+				List<Statement> oldFinallyStatements = oldTryStatement.getFinally().statements();
+				for(Statement oldFinallyStatement : oldFinallyStatements) {
+					Statement newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldFinallyStatement, nodeMapping.getNodeDifferences());
+					newFinallyBodyRewrite.insertLast(newStatement, null);
+				}
+				sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
+			}
+			bodyRewrite.insertLast(newTryStatement, null);
+		}
+		else if(oldStatement instanceof SwitchStatement) {
+			SwitchStatement oldSwitchStatement = (SwitchStatement)oldStatement;
+			SwitchStatement newSwitchStatement = ast.newSwitchStatement();
+			Expression newSwitchExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSwitchStatement.getExpression(), nodeMapping.getNodeDifferences());
+			sourceRewriter.set(newSwitchStatement, IfStatement.EXPRESSION_PROPERTY, newSwitchExpression, null);
+			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				processCloneStructureNode(switchStatementsRewrite, child, ast, sourceRewriter);
+			}
+			bodyRewrite.insertLast(newSwitchStatement, null);
+		}
+		else if(oldStatement instanceof WhileStatement) {
+			WhileStatement oldWhileStatement = (WhileStatement)oldStatement;
+			WhileStatement newWhileStatement = ast.newWhileStatement();
+			Expression newWhileExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldWhileStatement.getExpression(), nodeMapping.getNodeDifferences());
+			sourceRewriter.set(newWhileStatement, WhileStatement.EXPRESSION_PROPERTY, newWhileExpression, null);
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				processCloneStructureNode(loopBlockRewrite, child, ast, sourceRewriter);
+			}
+			sourceRewriter.set(newWhileStatement, WhileStatement.BODY_PROPERTY, loopBlock, null);
+			bodyRewrite.insertLast(newWhileStatement, null);
+		}
+		else if(oldStatement instanceof ForStatement) {
+			ForStatement oldForStatement = (ForStatement)oldStatement;
+			ForStatement newForStatement = ast.newForStatement();
+			Expression newForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldForStatement.getExpression(), nodeMapping.getNodeDifferences());
+			sourceRewriter.set(newForStatement, ForStatement.EXPRESSION_PROPERTY, newForExpression, null);
+			ListRewrite initializerRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.INITIALIZERS_PROPERTY);
+			List<Expression> initializers = oldForStatement.initializers();
+			for(Expression expression : initializers) {
+				Expression newInitializerExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
+				initializerRewrite.insertLast(newInitializerExpression, null);
+			}
+			ListRewrite updaterRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.UPDATERS_PROPERTY);
+			List<Expression> updaters = oldForStatement.updaters();
+			for(Expression expression : updaters) {
+				Expression newUpdaterExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
+				updaterRewrite.insertLast(newUpdaterExpression, null);
+			}
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				processCloneStructureNode(loopBlockRewrite, child, ast, sourceRewriter);
+			}
+			sourceRewriter.set(newForStatement, ForStatement.BODY_PROPERTY, loopBlock, null);
+			bodyRewrite.insertLast(newForStatement, null);
+		}
+		else if(oldStatement instanceof EnhancedForStatement) {
+			EnhancedForStatement oldEnhancedForStatement = (EnhancedForStatement)oldStatement;
+			EnhancedForStatement newEnhancedForStatement = ast.newEnhancedForStatement();
+			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.PARAMETER_PROPERTY, oldEnhancedForStatement.getParameter(), null);
+			Expression newEnhancedForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldEnhancedForStatement.getExpression(), nodeMapping.getNodeDifferences());
+			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.EXPRESSION_PROPERTY, newEnhancedForExpression, null);
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				processCloneStructureNode(loopBlockRewrite, child, ast, sourceRewriter);
+			}
+			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.BODY_PROPERTY, loopBlock, null);
+			bodyRewrite.insertLast(newEnhancedForStatement, null);
+		}
+		else if(oldStatement instanceof DoStatement) {
+			DoStatement oldDoStatement = (DoStatement)oldStatement;
+			DoStatement newDoStatement = ast.newDoStatement();
+			Expression newDoExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldDoStatement.getExpression(), nodeMapping.getNodeDifferences());
+			sourceRewriter.set(newDoStatement, DoStatement.EXPRESSION_PROPERTY, newDoExpression, null);
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				processCloneStructureNode(loopBlockRewrite, child, ast, sourceRewriter);
+			}
+			sourceRewriter.set(newDoStatement, DoStatement.BODY_PROPERTY, loopBlock, null);
+			bodyRewrite.insertLast(newDoStatement, null);
+		}
+		else {
+			Statement newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNodeDifferences());
+			bodyRewrite.insertLast(newStatement, null);
+		}
+	}
+
 	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite rewriter) {
 		Type type = null;
 		if(typeBinding.isClass() || typeBinding.isInterface()) {
@@ -671,56 +828,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return parameterizedType;
 	}
 
-	protected TryStatement copyTryStatement(ASTRewrite sourceRewriter, AST ast, TryStatement tryStatementParent) {
-		PDGTryNode pdgTryNode = mapper.getPDG1().getPDGTryNode(tryStatementParent);
-		PDGNodeMapping tryNodeMapping = getNodeMappingForPDGNode(pdgTryNode);
-		TryStatement newTryStatement = ast.newTryStatement();
-		ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
-		List<VariableDeclarationExpression> resources = tryStatementParent.resources();
-		for(VariableDeclarationExpression expression : resources) {
-			resourceRewrite.insertLast(expression, null);
-		}
-		ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
-		List<CatchClause> catchClauses = tryStatementParent.catchClauses();
-		for(CatchClause catchClause : catchClauses) {
-			CatchClause newCatchClause = ast.newCatchClause();
-			sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
-			Block newCatchBody = ast.newBlock();
-			ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
-			List<Statement> oldStatements = catchClause.getBody().statements();
-			for(Statement oldStatement : oldStatements) {
-				processStatementWithDifferences(newCatchBodyRewrite, ast, sourceRewriter, oldStatement, tryNodeMapping.getNodeDifferences());
-			}
-			sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
-			catchClauseRewrite.insertLast(newCatchClause, null);
-		}
-		if(tryStatementParent.getFinally() != null) {
-			Block newFinallyBody = ast.newBlock();
-			ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
-			List<Statement> oldStatements = tryStatementParent.getFinally().statements();
-			for(Statement oldStatement : oldStatements) {
-				processStatementWithDifferences(newFinallyBodyRewrite, ast, sourceRewriter, oldStatement, tryNodeMapping.getNodeDifferences());
-			}
-			sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
-		}
-		return newTryStatement;
-	}
-
-	protected void processStatementNode(ListRewrite bodyRewrite, PDGNode dstPDGNode, AST ast, ASTRewrite sourceRewriter) {
-		PDGNodeMapping nodeMapping = getNodeMappingForPDGNode(dstPDGNode);
-		Statement oldStatement = dstPDGNode.getASTStatement();
-		List<ASTNodeDifference> differences = nodeMapping.getNodeDifferences();
-		processStatementWithDifferences(bodyRewrite, ast, sourceRewriter, oldStatement, differences);
-	}
-
-	private void processStatementWithDifferences(ListRewrite bodyRewrite, AST ast, ASTRewrite sourceRewriter, Statement oldStatement, List<ASTNodeDifference> differences) {
+	private ASTNode processASTNodeWithDifferences(AST ast, ASTRewrite sourceRewriter, ASTNode oldASTNode, List<ASTNodeDifference> differences) {
 		if(differences.isEmpty()) {
-			bodyRewrite.insertLast(oldStatement, null);
+			return oldASTNode;
 		}
 		else {
 			Set<String> parameterBindingKeys = mapper.getCommonPassedParameters().keySet();
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			Statement newStatement = (Statement)ASTNode.copySubtree(ast, oldStatement);
+			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
 				IBinding binding = null;
@@ -741,10 +856,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							if(commonSuperTypeBinding != null) {
 								Type arg = generateTypeFromTypeBinding(commonSuperTypeBinding, ast, sourceRewriter);
 								TypeVisitor oldTypeVisitor = new TypeVisitor();
-								oldStatement.accept(oldTypeVisitor);
+								oldASTNode.accept(oldTypeVisitor);
 								List<Type> oldTypes = oldTypeVisitor.getTypes();
 								TypeVisitor newTypeVisitor = new TypeVisitor();
-								newStatement.accept(newTypeVisitor);
+								newASTNode.accept(newTypeVisitor);
 								List<Type> newTypes = newTypeVisitor.getTypes();
 								int j = 0;
 								for(Type type : oldTypes) {
@@ -771,8 +886,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							parameterizedDifferencesWithoutBinding.add(difference);
 						}
 						int j = 0;
-						List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldStatement);
-						List<Expression> newExpressions = expressionExtractor.getAllExpressions(newStatement);
+						List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldASTNode);
+						List<Expression> newExpressions = expressionExtractor.getAllExpressions(newASTNode);
 						for(Expression expression : oldExpressions) {
 							Expression newExpression = newExpressions.get(j);
 							if(expression.equals(oldExpression)) {
@@ -784,17 +899,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 			}
-			bodyRewrite.insertLast(newStatement, null);
+			return newASTNode;
 		}
-	}
-
-	private PDGNodeMapping getNodeMappingForPDGNode(PDGNode nodeG1) {
-		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
-			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
-			if(pdgNode.equals(nodeG1))
-				return pdgNodeMapping;
-		}
-		return null;
 	}
 
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldDeclarationsToBePulledUp) {

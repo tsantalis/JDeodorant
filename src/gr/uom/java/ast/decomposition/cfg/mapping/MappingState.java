@@ -194,7 +194,7 @@ public class MappingState {
 							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) || symmetricalIfNodes)) {
 								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 								if(symmetricalIfNodes) {
-									dstNodeMapping.setSymmetricalIfNodePair(true);
+									dstNodeMapping.setSymmetricalIfNodePair(initialNodeMapping);
 								}
 								if(!this.containsAtLeastOneNodeInMappings(dstNodeMapping) && this.getChildStateWithNodeMapping(dstNodeMapping) == null) {
 									MappingState newMappingState = new MappingState(this, dstNodeMapping);

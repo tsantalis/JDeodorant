@@ -24,7 +24,29 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	}
 
 	public void addChild(CloneStructureNode node) {
-		this.children.add(node);
+		CloneStructureNode symmetricalChild = this.containsChildSymmetricalToNode(node);
+		if(symmetricalChild != null) {
+			symmetricalChild.children.add(node);
+			node.setParent(symmetricalChild);
+		}
+		else {
+			this.children.add(node);
+			node.setParent(this);
+		}
+	}
+	
+	private CloneStructureNode containsChildSymmetricalToNode(CloneStructureNode other) {
+		PDGNodeMapping otherNodeMapping = other.getMapping();
+		if(otherNodeMapping.getSymmetricalIfNodePair() != null) {
+			for(CloneStructureNode child : this.children) {
+				PDGNodeMapping childNodeMapping = child.getMapping();
+				if(childNodeMapping.getSymmetricalIfNodePair() != null) {
+					if(otherNodeMapping.getSymmetricalIfNodePair().equals(childNodeMapping))
+						return child;
+				}
+			}
+		}
+		return null;
 	}
 
 	public PDGNodeMapping getMapping() {

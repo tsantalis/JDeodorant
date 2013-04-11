@@ -527,7 +527,6 @@ public class PDGMapper {
 							CloneStructureNode previousParent = parentIterator.next();
 							if(controlDependenceTreePDG1.parentChildRelationship(parent.getMapping().getNodeG1(), previousParent.getMapping().getNodeG1()) &&
 									controlDependenceTreePDG2.parentChildRelationship(parent.getMapping().getNodeG2(), previousParent.getMapping().getNodeG2())) {
-								previousParent.setParent(parent);
 								parent.addChild(previousParent);
 								parentIterator.remove();
 							}
@@ -539,14 +538,12 @@ public class PDGMapper {
 						root = new CloneStructureNode(null);
 						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
 							CloneStructureNode previousParent = parentIterator.next();
-							previousParent.setParent(root);
 							root.addChild(previousParent);
 							parentIterator.remove();
 						}
 						for(PDGNodeMapping nodeMapping : best.getNodeMappings()) {
 							if(nodesG1.contains(nodeMapping.getNodeG1())) {
 								CloneStructureNode childNode = new CloneStructureNode(nodeMapping);
-								childNode.setParent(root);
 								root.addChild(childNode);
 							}
 						}
@@ -565,7 +562,6 @@ public class PDGMapper {
 			root = new CloneStructureNode(null);
 			for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
 				CloneStructureNode previousParent = parentIterator.next();
-				previousParent.setParent(root);
 				root.addChild(previousParent);
 				parentIterator.remove();
 			}
@@ -583,9 +579,9 @@ public class PDGMapper {
 				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
 				if(match && astNodeMatcher.isParameterizable()) {
 					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-					boolean symmetricalIfNodes = symmetricalIfNodes(node1, node2);
-					if(symmetricalIfNodes)
-						mapping.setSymmetricalIfNodePair(true);
+					PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
+					if(symmetricalIfNodes != null)
+						mapping.setSymmetricalIfNodePair(symmetricalIfNodes);
 					if(finalStates.isEmpty()) {
 						MappingState state = new MappingState(parent, mapping);
 						state.traverse(mapping);
@@ -619,7 +615,7 @@ public class PDGMapper {
 		return finalStates;
 	}
 
-	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2) {
+	private PDGNodeMapping symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2) {
 		PDGNode dstNodeG1 = falseControlDependentNode(nodeG1);
 		PDGNode dstNodeG2 = falseControlDependentNode(nodeG2);
 		if(dstNodeG1 != null && dstNodeG2 != null) {
@@ -629,10 +625,12 @@ public class PDGMapper {
 			PDGNode dstNodeG2ControlParent = dstNodeG2.getControlDependenceParent();
 			if((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
 					(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) {
-				return true;
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+				dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
+				return new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 			}
 		}
-		return false;
+		return null;
 	}
 
 	private PDGNode falseControlDependentNode(PDGNode node) {

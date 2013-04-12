@@ -34,6 +34,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGSlice;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 public class PDGMapper {
@@ -447,17 +448,26 @@ public class PDGMapper {
 		}
 	}
 
-	private Set<PDGNode> getNodesInRegion(PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInNextLevel) {
+	private Set<PDGNode> getNodesInRegion(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInNextLevel) {
 		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
 		if(!(controlPredicate instanceof PDGMethodEntryNode))
 			nodesInRegion.add(controlPredicate);
-		Iterator<GraphEdge> edgeIterator = controlPredicate.getOutgoingDependenceIterator();
-		while(edgeIterator.hasNext()) {
-			PDGDependence dependence = (PDGDependence)edgeIterator.next();
-			if(dependence instanceof PDGControlDependence) {
-				PDGNode pdgNode = (PDGNode)dependence.getDst();
-				if(!controlPredicateNodesInNextLevel.contains(pdgNode))
-					nodesInRegion.add(pdgNode);
+		if(controlPredicate instanceof PDGTryNode) {
+			List<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinTryNode((PDGTryNode)controlPredicate);
+			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
+				if(!controlPredicateNodesInNextLevel.contains(nestedNode))
+					nodesInRegion.add(nestedNode);
+			}
+		}
+		else {
+			Iterator<GraphEdge> edgeIterator = controlPredicate.getOutgoingDependenceIterator();
+			while(edgeIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)edgeIterator.next();
+				if(dependence instanceof PDGControlDependence) {
+					PDGNode pdgNode = (PDGNode)dependence.getDst();
+					if(!controlPredicateNodesInNextLevel.contains(pdgNode))
+						nodesInRegion.add(pdgNode);
+				}
 			}
 		}
 		return nodesInRegion;
@@ -479,17 +489,29 @@ public class PDGMapper {
 			Set<PDGNode> controlPredicateNodesInNextLevelG1 = new LinkedHashSet<PDGNode>();
 			Set<PDGNode> controlPredicateNodesInNextLevelG2 = new LinkedHashSet<PDGNode>();
 			if(level1 < maxLevel1) {
-				controlPredicateNodesInNextLevelG1.addAll(controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1+1));
+				Set<PDGNode> nodesInNextLevel = controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1+1);
+				controlPredicateNodesInNextLevelG1.addAll(nodesInNextLevel);
+				for(PDGNode node : nodesInNextLevel) {
+					if(node instanceof PDGTryNode) {
+						controlPredicateNodesInNextLevelG1.addAll(pdg1.getNestedNodesWithinTryNode((PDGTryNode)node));
+					}
+				}
 			}
 			if(level2 < maxLevel2) {
-				controlPredicateNodesInNextLevelG2.addAll(controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2+1));
+				Set<PDGNode> nodesInNextLevel = controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2+1);
+				controlPredicateNodesInNextLevelG2.addAll(nodesInNextLevel);
+				for(PDGNode node : nodesInNextLevel) {
+					if(node instanceof PDGTryNode) {
+						controlPredicateNodesInNextLevelG2.addAll(pdg2.getNestedNodesWithinTryNode((PDGTryNode)node));
+					}
+				}
 			}
 			for(PDGNode predicate1 : controlPredicateNodesG1) {
-				Set<PDGNode> nodesG1 = getNodesInRegion(predicate1, controlPredicateNodesInNextLevelG1);
+				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesInNextLevelG1);
 				MappingState.setRestrictedNodesG1(nodesG1);
 				List<MappingState> currentStates = new ArrayList<MappingState>();
 				for(PDGNode predicate2 : controlPredicateNodesG2) {
-					Set<PDGNode> nodesG2 = getNodesInRegion(predicate2, controlPredicateNodesInNextLevelG2);
+					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesInNextLevelG2);
 					MappingState.setRestrictedNodesG2(nodesG2);
 					List<MappingState> maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
 					for(MappingState temp : maxStates) {

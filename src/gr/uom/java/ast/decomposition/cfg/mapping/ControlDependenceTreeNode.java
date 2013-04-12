@@ -12,6 +12,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 
 public class ControlDependenceTreeNode {
 	private ControlDependenceTreeNode parent;
@@ -156,6 +157,10 @@ public class ControlDependenceTreeNode {
 						ControlDependenceTreeNode treeNode = new ControlDependenceTreeNode(this, dstNode);
 						this.children.add(treeNode);
 					}
+				}
+				else if(dstNode instanceof PDGTryNode) {
+					ControlDependenceTreeNode treeNode = new ControlDependenceTreeNode(this, dstNode);
+					this.children.add(treeNode);
 				}
 			}
 		}

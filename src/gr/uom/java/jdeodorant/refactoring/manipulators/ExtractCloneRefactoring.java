@@ -650,7 +650,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			if(oldIfStatement.getThenStatement() instanceof Block || trueControlDependentChildren.size() > 1) {
 				Block thenBlock = ast.newBlock();
-				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
 				ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
 				for(CloneStructureNode child : trueControlDependentChildren) {
 					thenBodyRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
@@ -663,7 +662,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			if(oldIfStatement.getElseStatement() instanceof Block || falseControlDependentChildren.size() > 1) {
 				Block elseBlock = ast.newBlock();
-				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
 				ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
 				for(CloneStructureNode child : falseControlDependentChildren) {
 					elseBodyRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
@@ -685,6 +683,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
 				resourceRewrite.insertLast(newResourceExpression, null);
 			}
+			Block newBlock = ast.newBlock();
+			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+			}
+			sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, newBlock, null);
 			ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
 			List<CatchClause> catchClauses = oldTryStatement.catchClauses();
 			for(CatchClause catchClause : catchClauses) {

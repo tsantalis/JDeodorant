@@ -198,8 +198,11 @@ public class MappingState {
 								}
 								if(!this.containsAtLeastOneNodeInMappings(dstNodeMapping) && this.getChildStateWithNodeMapping(dstNodeMapping) == null) {
 									MappingState newMappingState = new MappingState(this, dstNodeMapping);
-									this.children.add(newMappingState);
-									newMappingState.traverse(dstNodeMapping);
+									boolean pruneBranch = pruneBranch(newMappingState);
+									if(!pruneBranch) {
+										this.children.add(newMappingState);
+										newMappingState.traverse(dstNodeMapping);
+									}
 								}
 							}
 						}
@@ -225,17 +228,9 @@ public class MappingState {
 		}
 		return false;
 	}
-/*
-	private MappingState getRoot() {
-		if(parent==null)
-			return this;
-		else 
-			return parent.getRoot();
-	}
 	
 	private boolean pruneBranch(MappingState state) {
-		MappingState root = getRoot();
-		List<MappingState> leaves = root.getLeaves();
+		List<MappingState> leaves = this.getLeaves();
 		Set<PDGNodeMapping> stateNodeMappings = state.getNodeMappings();
 		for(MappingState leaf : leaves) {
 			Set<PDGNodeMapping> leafNodeMappings = leaf.getNodeMappings();
@@ -244,7 +239,7 @@ public class MappingState {
 		}
 		return false;
 	}
-*/
+
 	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2, PDGNode dstNodeG1, PDGNode dstNodeG2) {
 		PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
 		PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();

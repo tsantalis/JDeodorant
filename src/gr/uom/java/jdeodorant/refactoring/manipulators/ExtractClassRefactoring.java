@@ -1961,6 +1961,18 @@ public class ExtractClassRefactoring extends Refactoring {
 		AST ast = newMethodDeclaration.getAST();
 		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 		ITypeBinding typeBinding = variableBinding.getType();
+		Type fieldType = generateTypeFromTypeBinding(typeBinding, ast, targetRewriter);
+		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
+		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+		parametersRewrite.insertLast(parameter, null);
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+		typeBindings.add(variableBinding.getType());
+		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+		return parameter;
+	}
+
+	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite targetRewriter) {
 		Type fieldType = null;
 		if(typeBinding.isClass() || typeBinding.isInterface()) {
 			fieldType = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
@@ -1986,20 +1998,13 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		else if(typeBinding.isArray()) {
 			ITypeBinding elementTypeBinding = typeBinding.getElementType();
-			Type elementType = ast.newSimpleType(ast.newSimpleName(elementTypeBinding.getName()));
+			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, targetRewriter);
 			fieldType = ast.newArrayType(elementType, typeBinding.getDimensions());
 		}
 		else if(typeBinding.isParameterizedType()) {
 			fieldType = createParameterizedType(ast, typeBinding, targetRewriter);
 		}
-		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
-		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
-		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-		parametersRewrite.insertLast(parameter, null);
-		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-		typeBindings.add(variableBinding.getType());
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
-		return parameter;
+		return fieldType;
 	}
 
 	private ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite targetRewriter) {

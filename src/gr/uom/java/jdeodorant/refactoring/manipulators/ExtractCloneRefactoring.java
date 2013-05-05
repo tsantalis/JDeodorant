@@ -824,7 +824,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		else if(typeBinding.isArray()) {
 			ITypeBinding elementTypeBinding = typeBinding.getElementType();
-			Type elementType = ast.newSimpleType(ast.newSimpleName(elementTypeBinding.getName()));
+			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, rewriter);
 			type = ast.newArrayType(elementType, typeBinding.getDimensions());
 		}
 		else if(typeBinding.isParameterizedType()) {

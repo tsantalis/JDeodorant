@@ -1,5 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
+
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -19,18 +22,23 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		this.children = new TreeSet<CloneStructureNode>();
 	}
 
-	public void setParent(CloneStructureNode parent) {
+	private void setParent(CloneStructureNode parent) {
 		this.parent = parent;
+		parent.children.add(this);
 	}
 
 	public void addChild(CloneStructureNode node) {
 		CloneStructureNode symmetricalChild = this.containsChildSymmetricalToNode(node);
+		CloneStructureNode controlChild = this.containsControlChildOfNode(node);
 		if(symmetricalChild != null) {
-			symmetricalChild.children.add(node);
 			node.setParent(symmetricalChild);
 		}
+		else if(controlChild != null) {
+			controlChild.parent.children.remove(controlChild);
+			node.setParent(controlChild.parent);
+			controlChild.setParent(node);
+		}
 		else {
-			this.children.add(node);
 			node.setParent(this);
 		}
 	}
@@ -42,6 +50,25 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				PDGNodeMapping childNodeMapping = child.getMapping();
 				if(childNodeMapping.getSymmetricalIfNodePair() != null) {
 					if(otherNodeMapping.getSymmetricalIfNodePair().equals(childNodeMapping))
+						return child;
+				}
+			}
+		}
+		return null;
+	}
+	
+	private CloneStructureNode containsControlChildOfNode(CloneStructureNode other) {
+		PDGNodeMapping otherNodeMapping = other.getMapping();
+		if(otherNodeMapping.getNodeG1().getCFGNode() instanceof CFGBranchIfNode &&
+				otherNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
+			for(CloneStructureNode child : this.children) {
+				PDGNodeMapping childNodeMapping = child.getMapping();
+				if(childNodeMapping.getNodeG1().getCFGNode() instanceof CFGBranchIfNode &&
+						childNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
+					PDGNode nodeG1ControlParent = childNodeMapping.getNodeG1().getControlDependenceParent();
+					PDGNode nodeG2ControlParent = childNodeMapping.getNodeG2().getControlDependenceParent();
+					if(otherNodeMapping.getNodeG1().equals(nodeG1ControlParent) && 
+							otherNodeMapping.getNodeG2().equals(nodeG2ControlParent))
 						return child;
 				}
 			}

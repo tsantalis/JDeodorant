@@ -391,8 +391,10 @@ public class PDG extends Graph {
 		}
 		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
 		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
-			if(!tryNode.hasResources())
-				processCFGNode(entryNode, tryNode, true);
+			if(!tryNode.hasResources()) {
+				PDGTryNode pdgTryNode = new PDGTryNode(tryNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+				nodes.add(pdgTryNode);
+			}
 		}
 	}
 
@@ -410,8 +412,8 @@ public class PDG extends Graph {
 			PDGNode pdgNode = null;
 			if(cfgNode instanceof CFGExitNode)
 				pdgNode = new PDGExitNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
-			else if(cfgNode instanceof CFGTryNode)
-				pdgNode = new PDGTryNode((CFGTryNode)cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+			/*else if(cfgNode instanceof CFGTryNode)
+				pdgNode = new PDGTryNode((CFGTryNode)cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);*/
 			else
 				pdgNode = new PDGStatementNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(pdgNode);

@@ -6,6 +6,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.IfStatement;
+
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -148,8 +150,9 @@ public class ControlDependenceTreeNode {
 					PDGNode nodeControlParent = dstNode.getControlDependenceParent();
 					PDGControlDependence nodeIncomingControlDependence = dstNode.getIncomingControlDependence();
 					if(nodeControlParent.getCFGNode() instanceof CFGBranchIfNode && nodeIncomingControlDependence.isFalseControlDependence() &&
-							numberOfOutgoingFalseControlDependences(nodeControlParent) == 1) {
-						//add as a sibling, not as a child
+							numberOfOutgoingFalseControlDependences(nodeControlParent) == 1 &&
+							dstNode.getASTStatement().getParent() instanceof IfStatement) {
+						//a case of "if/else if" -> add as a sibling, not as a child
 						ControlDependenceTreeNode treeNode = new ControlDependenceTreeNode(this.parent, dstNode);
 						this.parent.children.add(treeNode);
 					}

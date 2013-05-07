@@ -88,7 +88,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(ClassInstanceCreation.class)
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
-				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class))
+				|| o.getClass().equals(CastExpression.class) /*|| o.getClass().equals(InfixExpression.class)*/)
 			return true;
 		return false;
 	}
@@ -154,10 +154,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 			CastExpression castExpression = (CastExpression) o;
 			return castExpression.resolveTypeBinding();
 		}
-		else if(o.getClass().equals(InfixExpression.class)) {
+		/*else if(o.getClass().equals(InfixExpression.class)) {
 			InfixExpression infixExpression = (InfixExpression) o;
 			return infixExpression.resolveTypeBinding();
-		}
+		}*/
 		return null;
 	}
 
@@ -495,7 +495,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return (
 			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
-
+/*
 	public boolean match(InfixExpression node, Object other) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
@@ -535,7 +535,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		differences.add(astNodeDifference);
 		return false;
 	}
-	
+*/
 	public boolean match(LabeledStatement node, Object other) {
 		if (!(other instanceof LabeledStatement)) {
 			return false;

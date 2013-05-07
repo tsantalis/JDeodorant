@@ -430,7 +430,7 @@ public class PDGMapper {
 				}
 			}
 		}
-		//in the case where we have more than one maximum states with minimum differences, return the state where the node mappings have closer Ids
+		//TODO: Introduce comparison of difference "weights" in the case of multiple maximum states with minimum differences
 		if(maximumStatesWithMinimumDifferences.size() == 1) {
 			return maximumStatesWithMinimumDifferences.get(0);
 		}

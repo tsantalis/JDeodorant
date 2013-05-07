@@ -570,6 +570,16 @@ public class ASTNodeMatcher extends ASTMatcher{
 				safeSubtreeMatch(node.getName(), o.getName());
 				safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getExpression(), o.getExpression());
+				if(node.getExpression()==null && o.getExpression()!=null) {
+					Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else if(node.getExpression()!=null && o.getExpression()==null) {
+					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
 			}
 			return typeMatch;
 		}

@@ -66,8 +66,11 @@ public class PDGMapper {
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
 		this.pdg1 = pdg1;
 		this.pdg2 = pdg2;
+		ControlDependenceTreeNode.setPdg(pdg1);
 		this.controlDependenceTreePDG1 = new ControlDependenceTreeNode(null, pdg1.getEntryNode());
+		ControlDependenceTreeNode.setPdg(pdg2);
 		this.controlDependenceTreePDG2 = new ControlDependenceTreeNode(null, pdg2.getEntryNode());
+		ControlDependenceTreeNode.setPdg(null);
 		CompilationUnit cu1 = (CompilationUnit)pdg1.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit1 = (ICompilationUnit)cu1.getJavaElement();
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();

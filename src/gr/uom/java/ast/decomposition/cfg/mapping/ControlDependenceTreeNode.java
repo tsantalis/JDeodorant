@@ -10,6 +10,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
+import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
@@ -17,6 +18,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 
 public class ControlDependenceTreeNode {
+	private static PDG pdg;
 	private ControlDependenceTreeNode parent;
 	private PDGNode node;
 	private int level;
@@ -32,7 +34,14 @@ public class ControlDependenceTreeNode {
 		}
 		this.node = node;
 		this.children = new ArrayList<ControlDependenceTreeNode>();
-		this.processControlDependences();
+		if(parent != null)
+			parent.children.add(this);
+		if(!(node instanceof PDGTryNode))
+			this.processControlDependences();
+	}
+
+	public static void setPdg(PDG pdg) {
+		ControlDependenceTreeNode.pdg = pdg;
 	}
 
 	public boolean parentChildRelationship(PDGNode parent, PDGNode child) {
@@ -153,20 +162,54 @@ public class ControlDependenceTreeNode {
 							numberOfOutgoingFalseControlDependences(nodeControlParent) == 1 &&
 							dstNode.getASTStatement().getParent() instanceof IfStatement) {
 						//a case of "if/else if" -> add as a sibling, not as a child
-						ControlDependenceTreeNode treeNode = new ControlDependenceTreeNode(this.parent, dstNode);
-						this.parent.children.add(treeNode);
+						PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(this.node);
+						if(tryNode != null) {
+							ControlDependenceTreeNode treeNode = searchForNode(tryNode);
+							if(treeNode == null) {
+								treeNode = new ControlDependenceTreeNode(this.parent, tryNode);
+								new ControlDependenceTreeNode(treeNode, dstNode);
+							}
+							else {
+								new ControlDependenceTreeNode(treeNode, dstNode);
+							}
+						}
+						else {
+							new ControlDependenceTreeNode(this.parent, dstNode);
+						}
 					}
 					else {
-						ControlDependenceTreeNode treeNode = new ControlDependenceTreeNode(this, dstNode);
-						this.children.add(treeNode);
+						PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
+						if(tryNode != null) {
+							ControlDependenceTreeNode treeNode = searchForNode(tryNode);
+							if(treeNode == null) {
+								treeNode = new ControlDependenceTreeNode(this, tryNode);
+								new ControlDependenceTreeNode(treeNode, dstNode);
+							}
+							else {
+								new ControlDependenceTreeNode(treeNode, dstNode);
+							}
+						}
+						else {
+							new ControlDependenceTreeNode(this, dstNode);
+						}
 					}
 				}
-				else if(dstNode instanceof PDGTryNode) {
-					ControlDependenceTreeNode treeNode = new ControlDependenceTreeNode(this, dstNode);
-					this.children.add(treeNode);
+				else {
+					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
+					if(tryNode != null) {
+						ControlDependenceTreeNode treeNode = searchForNode(tryNode);
+						if(treeNode == null) {
+							new ControlDependenceTreeNode(this, tryNode);
+						}
+					}
 				}
 			}
 		}
+	}
+
+	private ControlDependenceTreeNode searchForNode(PDGNode node) {
+		ControlDependenceTreeNode root = getRoot();
+		return root.getNode(node);
 	}
 
 	public String toString() {

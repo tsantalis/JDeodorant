@@ -111,6 +111,17 @@ public class PDG extends Graph {
 		return null;
 	}
 
+	public PDGTryNode isDirectlyNestedWithinTryNode(PDGNode node) {
+		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
+		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
+			List<CFGNode> nestedNodes = directlyNestedNodesInTryBlocks.get(tryNode);
+			if(nestedNodes.contains(node.getCFGNode())) {
+				return (PDGTryNode)tryNode.getPDGNode();
+			}
+		}
+		return null;
+	}
+
 	public List<PDGNode> getNestedNodesWithinTryNode(PDGTryNode tryNode) {
 		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
 		List<CFGNode> directlyNestedCFGNodes = directlyNestedNodesInTryBlocks.get((CFGTryNode)tryNode.getCFGNode());

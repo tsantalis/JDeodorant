@@ -53,6 +53,7 @@ public class PDGMapper {
 	private TreeSet<PDGNode> nonMappedNodesSliceUnionG1;
 	private TreeSet<PDGNode> nonMappedNodesSliceUnionG2;
 	private Map<String, ArrayList<AbstractVariable>> commonPassedParameters;
+	private Map<String, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
 	private Set<AbstractVariable> passedParametersG1;
 	private Set<AbstractVariable> passedParametersG2;
 	private Set<AbstractVariable> accessedLocalFieldsG1;
@@ -70,7 +71,6 @@ public class PDGMapper {
 		this.controlDependenceTreePDG1 = new ControlDependenceTreeNode(null, pdg1.getEntryNode());
 		ControlDependenceTreeNode.setPdg(pdg2);
 		this.controlDependenceTreePDG2 = new ControlDependenceTreeNode(null, pdg2.getEntryNode());
-		ControlDependenceTreeNode.setPdg(null);
 		CompilationUnit cu1 = (CompilationUnit)pdg1.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit1 = (ICompilationUnit)cu1.getJavaElement();
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
@@ -80,6 +80,7 @@ public class PDGMapper {
 		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();
 		this.nonMappedNodesSliceUnionG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
+		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
 		this.passedParametersG1 = new LinkedHashSet<AbstractVariable>();
 		this.passedParametersG2 = new LinkedHashSet<AbstractVariable>();
 		this.accessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
@@ -190,6 +191,16 @@ public class PDGMapper {
 		for(PDGNodeMapping nodeMapping : maximumStateWithMinimumDifferences.getNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
+			Iterator<AbstractVariable> declaredVariableIteratorG1 = nodeG1.getDeclaredVariableIterator();
+			Iterator<AbstractVariable> declaredVariableIteratorG2 = nodeG2.getDeclaredVariableIterator();
+			while(declaredVariableIteratorG1.hasNext()) {
+				AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
+				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
+				ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
+				declaredVariables.add(declaredVariableG1);
+				declaredVariables.add(declaredVariableG2);
+				declaredLocalVariablesInMappedNodes.put(declaredVariableG1.getVariableBindingKey(), declaredVariables);
+			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();
 			dataDependences1.retainAll(passedParametersG1);
@@ -282,6 +293,32 @@ public class PDGMapper {
 			commonPassedParameters.put(key, variableDeclarations);
 		}
 		return commonPassedParameters;
+	}
+
+	public Map<String, ArrayList<VariableDeclaration>> getDeclaredLocalVariablesInMappedNodes() {
+		Map<String, ArrayList<VariableDeclaration>> declaredVariables = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(String key : this.declaredLocalVariablesInMappedNodes.keySet()) {
+			ArrayList<AbstractVariable> value = this.declaredLocalVariablesInMappedNodes.get(key);
+			AbstractVariable variableDeclaration1 = value.get(0);
+			AbstractVariable variableDeclaration2 = value.get(1);
+			ArrayList<VariableDeclaration> variableDeclarations = new ArrayList<VariableDeclaration>();
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod1) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variableDeclaration1.getVariableBindingKey())) {
+					variableDeclarations.add(variableDeclaration);
+					break;
+				}
+			}
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod2) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variableDeclaration2.getVariableBindingKey())) {
+					variableDeclarations.add(variableDeclaration);
+					break;
+				}
+			}
+			declaredVariables.put(key, variableDeclarations);
+		}
+		return declaredVariables;
 	}
 
 	public Set<VariableDeclaration> getPassedParametersG1() {
@@ -451,14 +488,15 @@ public class PDGMapper {
 		}
 	}
 
-	private Set<PDGNode> getNodesInRegion(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInNextLevel) {
+	private Set<PDGNode> getNodesInRegion(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
+			Set<PDGNode> controlPredicateNodesInNextLevel) {
 		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
 		if(!(controlPredicate instanceof PDGMethodEntryNode))
 			nodesInRegion.add(controlPredicate);
 		if(controlPredicate instanceof PDGTryNode) {
 			List<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinTryNode((PDGTryNode)controlPredicate);
 			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
-				if(!controlPredicateNodesInNextLevel.contains(nestedNode))
+				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode))
 					nodesInRegion.add(nestedNode);
 			}
 		}
@@ -468,7 +506,7 @@ public class PDGMapper {
 				PDGDependence dependence = (PDGDependence)edgeIterator.next();
 				if(dependence instanceof PDGControlDependence) {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
-					if(!controlPredicateNodesInNextLevel.contains(pdgNode))
+					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode))
 						nodesInRegion.add(pdgNode);
 				}
 			}
@@ -510,11 +548,11 @@ public class PDGMapper {
 				}
 			}
 			for(PDGNode predicate1 : controlPredicateNodesG1) {
-				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesInNextLevelG1);
+				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesG1, controlPredicateNodesInNextLevelG1);
 				MappingState.setRestrictedNodesG1(nodesG1);
 				List<MappingState> currentStates = new ArrayList<MappingState>();
 				for(PDGNode predicate2 : controlPredicateNodesG2) {
-					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesInNextLevelG2);
+					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2);
 					MappingState.setRestrictedNodesG2(nodesG2);
 					List<MappingState> maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
 					for(MappingState temp : maxStates) {

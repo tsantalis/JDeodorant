@@ -854,6 +854,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		else {
 			Set<String> parameterBindingKeys = mapper.getCommonPassedParameters().keySet();
+			Set<String> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			for(ASTNodeDifference difference : differences) {
@@ -863,14 +864,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(oldExpression instanceof SimpleName) {
 					SimpleName oldSimpleName = (SimpleName)oldExpression;
 					binding = oldSimpleName.resolveBinding();
-					if(parameterBindingKeys.contains(binding.getKey()))
+					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
 						isCommonParameter = true;
 				}
 				else if(oldExpression instanceof QualifiedName) {
 					QualifiedName oldQualifiedName = (QualifiedName)oldExpression;
 					SimpleName oldSimpleName = oldQualifiedName.getName();
 					binding = oldSimpleName.resolveBinding();
-					if(parameterBindingKeys.contains(binding.getKey()))
+					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
 						isCommonParameter = true;
 				}
 				if(!isCommonParameter) {

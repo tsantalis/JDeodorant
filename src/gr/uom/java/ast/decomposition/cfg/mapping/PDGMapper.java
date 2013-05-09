@@ -212,18 +212,20 @@ public class PDGMapper {
 				dataDependences1.remove(variableDeclaration1);
 				dataDependences2.remove(variableDeclaration2);
 			}
-			if(dataDependences1.size() == 1 && dataDependences2.size() == 1) {
+			if(dataDependences1.size() == dataDependences2.size()) {
 				List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
 				List<AbstractVariable> variables2 = new ArrayList<AbstractVariable>(dataDependences2);
-				AbstractVariable variable1 = variables1.get(0);
-				AbstractVariable variable2 = variables2.get(0);
-				if(passedParametersG1.contains(variable1) && passedParametersG2.contains(variable2)) {
-					ArrayList<AbstractVariable> variableDeclarations = new ArrayList<AbstractVariable>();
-					variableDeclarations.add(variable1);
-					variableDeclarations.add(variable2);
-					commonPassedParameters.put(variable1.getVariableBindingKey(), variableDeclarations);
-					passedParametersG1.remove(variable1);
-					passedParametersG2.remove(variable2);
+				for(int i=0; i<variables1.size(); i++) {
+					AbstractVariable variable1 = variables1.get(i);
+					AbstractVariable variable2 = variables2.get(i);
+					if(passedParametersG1.contains(variable1) && passedParametersG2.contains(variable2)) {
+						ArrayList<AbstractVariable> variableDeclarations = new ArrayList<AbstractVariable>();
+						variableDeclarations.add(variable1);
+						variableDeclarations.add(variable2);
+						commonPassedParameters.put(variable1.getVariableBindingKey(), variableDeclarations);
+						passedParametersG1.remove(variable1);
+						passedParametersG2.remove(variable2);
+					}
 				}
 			}
 		}

@@ -270,6 +270,10 @@ public class MethodBodyObject {
 		return compositeStatement.getInvokedMethodsThroughThisReference();
 	}
 
+	public List<MethodInvocationObject> getNonDistinctInvokedMethodsThroughThisReference() {
+		return compositeStatement.getNonDistinctInvokedMethodsThroughThisReference();
+	}
+
 	public Set<MethodInvocationObject> getInvokedStaticMethods() {
 		return compositeStatement.getInvokedStaticMethods();
 	}
@@ -318,8 +322,16 @@ public class MethodBodyObject {
 		return compositeStatement.getDefinedFieldsThroughThisReference();
 	}
 
+	public List<PlainVariable> getNonDistinctDefinedFieldsThroughThisReference() {
+		return compositeStatement.getNonDistinctDefinedFieldsThroughThisReference();
+	}
+
 	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
 		return compositeStatement.getUsedFieldsThroughThisReference();
+	}
+
+	public List<PlainVariable> getNonDistinctUsedFieldsThroughThisReference() {
+		return compositeStatement.getNonDistinctUsedFieldsThroughThisReference();
 	}
 
 	public Set<PlainVariable> getDeclaredLocalVariables() {

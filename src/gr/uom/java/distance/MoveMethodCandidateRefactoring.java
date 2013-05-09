@@ -4,6 +4,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.visualization.FeatureEnvyVisualizationData;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -417,6 +418,49 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 		Position position = new Position(getSourceMethodDeclaration().getStartPosition(), getSourceMethodDeclaration().getLength());
 		positions.add(position);
 		return positions;
+	}
+
+	public String getAnnotationText() {
+		FeatureEnvyVisualizationData data = getFeatureEnvyVisualizationData();
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("source field reads:").append("\n");
+		Map<FieldInstructionObject, Integer> sourceFieldReadMap = data.getSourceFieldReadMap();
+		for(FieldInstructionObject fieldInstruction : sourceFieldReadMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(sourceFieldReadMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("source field writes:").append("\n");
+		Map<FieldInstructionObject, Integer> sourceFieldWriteMap = data.getSourceFieldWriteMap();
+		for(FieldInstructionObject fieldInstruction : sourceFieldWriteMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(sourceFieldWriteMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("source method calls:").append("\n");
+		Map<MethodInvocationObject, Integer> sourceMethodInvocationMap = data.getSourceMethodInvocationMap();
+		for(MethodInvocationObject methodInvocation : sourceMethodInvocationMap.keySet()) {
+			sb.append(methodInvocation).append("\t").append(sourceMethodInvocationMap.get(methodInvocation)).append("\n");
+		}
+		sb.append("target field reads:").append("\n");
+		Map<FieldInstructionObject, Integer> targetFieldReadMap = data.getTargetFieldReadMap();
+		for(FieldInstructionObject fieldInstruction : targetFieldReadMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(targetFieldReadMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("target field writes:").append("\n");
+		Map<FieldInstructionObject, Integer> targetFieldWriteMap = data.getTargetFieldWriteMap();
+		for(FieldInstructionObject fieldInstruction : targetFieldWriteMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(targetFieldWriteMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("target method calls:").append("\n");
+		Map<MethodInvocationObject, Integer> targetMethodInvocationMap = data.getTargetMethodInvocationMap();
+		for(MethodInvocationObject methodInvocation : targetMethodInvocationMap.keySet()) {
+			sb.append(methodInvocation).append("\t").append(targetMethodInvocationMap.get(methodInvocation)).append("\n");
+		}
+		return sb.toString();
+	}
+
+	public FeatureEnvyVisualizationData getFeatureEnvyVisualizationData() {
+		FeatureEnvyVisualizationData data = new FeatureEnvyVisualizationData(sourceClass.getClassObject(),
+				sourceMethod.getMethodObject(), targetClass.getClassObject());
+		return data;
 	}
 
 	public int getNumberOfDistinctEnviedElements() {

@@ -178,11 +178,25 @@ public class ConstructorObject {
 			return new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 	}
 
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughFields() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctInvokedMethodsThroughFields();
+		else
+			return new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
+	}
+
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughParameters() {
 		if(methodBody != null)
 			return methodBody.getInvokedMethodsThroughParameters();
 		else
 			return new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+	}
+
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughParameters() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctInvokedMethodsThroughParameters();
+		else
+			return new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
 	}
 
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
@@ -197,6 +211,13 @@ public class ConstructorObject {
 			return methodBody.getInvokedMethodsThroughThisReference();
 		else
 			return new LinkedHashSet<MethodInvocationObject>();
+	}
+
+	public List<MethodInvocationObject> getNonDistinctInvokedMethodsThroughThisReference() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctInvokedMethodsThroughThisReference();
+		else
+			return new ArrayList<MethodInvocationObject>();
 	}
 
 	public Set<MethodInvocationObject> getInvokedStaticMethods() {
@@ -220,6 +241,20 @@ public class ConstructorObject {
 			return new LinkedHashSet<AbstractVariable>();
 	}
 
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughFields() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctDefinedFieldsThroughFields();
+		else
+			return new ArrayList<AbstractVariable>();
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughFields() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctUsedFieldsThroughFields();
+		else
+			return new ArrayList<AbstractVariable>();
+	}
+
 	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
 		if(methodBody != null)
 			return methodBody.getDefinedFieldsThroughParameters();
@@ -232,6 +267,20 @@ public class ConstructorObject {
 			return methodBody.getUsedFieldsThroughParameters();
 		else
 			return new LinkedHashSet<AbstractVariable>();
+	}
+
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughParameters() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctDefinedFieldsThroughParameters();
+		else
+			return new ArrayList<AbstractVariable>();
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughParameters() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctUsedFieldsThroughParameters();
+		else
+			return new ArrayList<AbstractVariable>();
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
@@ -255,11 +304,25 @@ public class ConstructorObject {
 			return new LinkedHashSet<PlainVariable>();
 	}
 
+	public List<PlainVariable> getNonDistinctDefinedFieldsThroughThisReference() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctDefinedFieldsThroughThisReference();
+		else
+			return new ArrayList<PlainVariable>();
+	}
+
 	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
 		if(methodBody != null)
 			return methodBody.getUsedFieldsThroughThisReference();
 		else
 			return new LinkedHashSet<PlainVariable>();
+	}
+
+	public List<PlainVariable> getNonDistinctUsedFieldsThroughThisReference() {
+		if(methodBody != null)
+			return methodBody.getNonDistinctUsedFieldsThroughThisReference();
+		else
+			return new ArrayList<PlainVariable>();
 	}
 
 	public Set<PlainVariable> getDeclaredLocalVariables() {

@@ -370,86 +370,88 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 		ListRewrite bodyDeclarationsRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		
-		Set<VariableDeclaration> accessedLocalFieldsG1 = mapper.getAccessedLocalFieldsG1();
-		Set<VariableDeclaration> accessedLocalFieldsG2 = mapper.getAccessedLocalFieldsG2();
-		for(VariableDeclaration localFieldG1 : accessedLocalFieldsG1) {
-			FieldDeclaration originalFieldDeclarationG1 = (FieldDeclaration)localFieldG1.getParent();
-			for(VariableDeclaration localFieldG2 : accessedLocalFieldsG2) {
-				FieldDeclaration originalFieldDeclarationG2 = (FieldDeclaration)localFieldG2.getParent();
-				if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier()) &&
-						originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
-					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-					typeBindings.add(localFieldG1.resolveBinding().getType());
-					getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-		        	fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
-		        	fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
-		        	VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-		        	sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
-		        	if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
-		        		Expression initializer1 = localFieldG1.getInitializer();
-		        		Expression initializer2 = localFieldG2.getInitializer();
-		        		if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
-		        			sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
-		        		}
-		        	}
-		        	FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
-		        	sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
-		        	if(originalFieldDeclarationG1.getJavadoc() != null) {
-		        		sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
-		        	}
-		    		ListRewrite newFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
-		    		newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-		    		List<IExtendedModifier> originalModifiers = originalFieldDeclarationG1.modifiers();
-		    		for(IExtendedModifier extendedModifier : originalModifiers) {
-		    			if(extendedModifier.isModifier()) {
-		    				Modifier modifier = (Modifier)extendedModifier;
-		    				if(modifier.isFinal()) {
-		    					newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
-		    				}
-		    				else if(modifier.isStatic()) {
-		    					newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
-		    				}
-		    				else if(modifier.isTransient()) {
-		    					newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
-		    				}
-		    				else if(modifier.isVolatile()) {
-		    					newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.VOLATILE_KEYWORD), null);
-		    				}
-		    			}
-		    		}
-		    		bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
-					break;
+		if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
+			Set<VariableDeclaration> accessedLocalFieldsG1 = mapper.getAccessedLocalFieldsG1();
+			Set<VariableDeclaration> accessedLocalFieldsG2 = mapper.getAccessedLocalFieldsG2();
+			for(VariableDeclaration localFieldG1 : accessedLocalFieldsG1) {
+				FieldDeclaration originalFieldDeclarationG1 = (FieldDeclaration)localFieldG1.getParent();
+				for(VariableDeclaration localFieldG2 : accessedLocalFieldsG2) {
+					FieldDeclaration originalFieldDeclarationG2 = (FieldDeclaration)localFieldG2.getParent();
+					if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier()) &&
+							originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
+						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+						typeBindings.add(localFieldG1.resolveBinding().getType());
+						getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+						fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
+						fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
+						VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+						sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
+						if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
+							Expression initializer1 = localFieldG1.getInitializer();
+							Expression initializer2 = localFieldG2.getInitializer();
+							if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
+								sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
+							}
+						}
+						FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
+						sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
+						if(originalFieldDeclarationG1.getJavadoc() != null) {
+							sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
+						}
+						ListRewrite newFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+						newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+						List<IExtendedModifier> originalModifiers = originalFieldDeclarationG1.modifiers();
+						for(IExtendedModifier extendedModifier : originalModifiers) {
+							if(extendedModifier.isModifier()) {
+								Modifier modifier = (Modifier)extendedModifier;
+								if(modifier.isFinal()) {
+									newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
+								}
+								else if(modifier.isStatic()) {
+									newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+								}
+								else if(modifier.isTransient()) {
+									newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
+								}
+								else if(modifier.isVolatile()) {
+									newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.VOLATILE_KEYWORD), null);
+								}
+							}
+						}
+						bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
+						break;
+					}
 				}
 			}
-		}
-		
-		Set<MethodInvocationObject> accessedLocalMethodsG1 = mapper.getAccessedLocalMethodsG1();
-		Set<MethodInvocationObject> accessedLocalMethodsG2 = mapper.getAccessedLocalMethodsG2();
-		for(MethodInvocationObject localMethodG1 : accessedLocalMethodsG1) {
-			for(MethodInvocationObject localMethodG2 : accessedLocalMethodsG2) {
-				if(localMethodG1.getMethodName().equals(localMethodG2.getMethodName()) &&
-						localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) &&
-						localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList())) {
-					MethodDeclaration[] methodDeclarationsG1 = sourceTypeDeclarations.get(0).getMethods();
-					IMethodBinding localMethodBindingG1 = localMethodG1.getMethodInvocation().resolveMethodBinding();
-					for(MethodDeclaration methodDeclarationG1 : methodDeclarationsG1) {
-						if(methodDeclarationG1.resolveBinding().isEqualTo(localMethodBindingG1)) {
-							MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
-							sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclarationG1.getName().getIdentifier()), null);
-							sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclarationG1.getReturnType2(), null);	
-							ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-							modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-							modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-							ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-							List<SingleVariableDeclaration> parameters = methodDeclarationG1.parameters();
-							for(SingleVariableDeclaration parameter : parameters) {
-								parametersRewrite.insertLast(parameter, null);
+
+			Set<MethodInvocationObject> accessedLocalMethodsG1 = mapper.getAccessedLocalMethodsG1();
+			Set<MethodInvocationObject> accessedLocalMethodsG2 = mapper.getAccessedLocalMethodsG2();
+			for(MethodInvocationObject localMethodG1 : accessedLocalMethodsG1) {
+				for(MethodInvocationObject localMethodG2 : accessedLocalMethodsG2) {
+					if(localMethodG1.getMethodName().equals(localMethodG2.getMethodName()) &&
+							localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) &&
+							localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList())) {
+						MethodDeclaration[] methodDeclarationsG1 = sourceTypeDeclarations.get(0).getMethods();
+						IMethodBinding localMethodBindingG1 = localMethodG1.getMethodInvocation().resolveMethodBinding();
+						for(MethodDeclaration methodDeclarationG1 : methodDeclarationsG1) {
+							if(methodDeclarationG1.resolveBinding().isEqualTo(localMethodBindingG1)) {
+								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
+								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclarationG1.getName().getIdentifier()), null);
+								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclarationG1.getReturnType2(), null);	
+								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+								modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+								modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+								ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+								List<SingleVariableDeclaration> parameters = methodDeclarationG1.parameters();
+								for(SingleVariableDeclaration parameter : parameters) {
+									parametersRewrite.insertLast(parameter, null);
+								}
+								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
+								break;
 							}
-							bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
-							break;
 						}
+						break;
 					}
-					break;
 				}
 			}
 		}

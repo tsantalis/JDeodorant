@@ -470,8 +470,16 @@ public class MethodObject {
 		return constructorObject.getInvokedMethodsThroughFields();
 	}
 
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughFields() {
+		return constructorObject.getNonDistinctInvokedMethodsThroughFields();
+	}
+
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughParameters() {
 		return constructorObject.getInvokedMethodsThroughParameters();
+	}
+
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughParameters() {
+		return constructorObject.getNonDistinctInvokedMethodsThroughParameters();
 	}
 
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
@@ -480,6 +488,10 @@ public class MethodObject {
 
 	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReference() {
 		return constructorObject.getInvokedMethodsThroughThisReference();
+	}
+
+	public List<MethodInvocationObject> getNonDistinctInvokedMethodsThroughThisReference() {
+		return constructorObject.getNonDistinctInvokedMethodsThroughThisReference();
 	}
 
 	public Set<MethodInvocationObject> getInvokedStaticMethods() {
@@ -494,12 +506,28 @@ public class MethodObject {
 		return constructorObject.getUsedFieldsThroughFields();
 	}
 
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughFields() {
+		return constructorObject.getNonDistinctDefinedFieldsThroughFields();
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughFields() {
+		return constructorObject.getNonDistinctUsedFieldsThroughFields();
+	}
+
 	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
 		return constructorObject.getDefinedFieldsThroughParameters();
 	}
 
 	public Set<AbstractVariable> getUsedFieldsThroughParameters() {
 		return constructorObject.getUsedFieldsThroughParameters();
+	}
+
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughParameters() {
+		return constructorObject.getNonDistinctDefinedFieldsThroughParameters();
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughParameters() {
+		return constructorObject.getNonDistinctUsedFieldsThroughParameters();
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
@@ -514,8 +542,16 @@ public class MethodObject {
 		return constructorObject.getDefinedFieldsThroughThisReference();
 	}
 
+	public List<PlainVariable> getNonDistinctDefinedFieldsThroughThisReference() {
+		return constructorObject.getNonDistinctDefinedFieldsThroughThisReference();
+	}
+
 	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
 		return constructorObject.getUsedFieldsThroughThisReference();
+	}
+
+	public List<PlainVariable> getNonDistinctUsedFieldsThroughThisReference() {
+		return constructorObject.getNonDistinctUsedFieldsThroughThisReference();
 	}
 
 	public Set<PlainVariable> getDeclaredLocalVariables() {

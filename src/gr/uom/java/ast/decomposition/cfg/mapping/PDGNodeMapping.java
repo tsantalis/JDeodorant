@@ -46,14 +46,6 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 		return matcher.getTypeRoot2();
 	}
 
-	public int getDifferenceCount() {
-		int count = 0;
-		for(ASTNodeDifference nodeDifference : nodeDifferences) {
-			count += nodeDifference.getDifferences().size();
-		}
-		return count;
-	}
-
 	public PDGNodeMapping getSymmetricalIfNodePair() {
 		return symmetricalIfNodePair;
 	}

@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -71,12 +72,14 @@ public class MappingState {
 		return nodeDifferences;
 	}
 
-	public int getDifferenceCount() {
-		int count = 0;
+	public int getDistinctDifferenceCount() {
+		Set<Difference> differences = new LinkedHashSet<Difference>();
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
-			count += nodeMapping.getDifferenceCount();
+			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
+				differences.addAll(difference.getDifferences());
+			}
 		}
-		return count;
+		return differences.size();
 	}
 
 	//returns the sum of the differences in the node Ids of the mapped nodes

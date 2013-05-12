@@ -96,6 +96,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return declaredVariables.iterator();
 	}
 
+	public Iterator<AbstractVariable> getDefinedVariableIterator() {
+		return definedVariables.iterator();
+	}
+
 	public CFGNode getCFGNode() {
 		return cfgNode;
 	}

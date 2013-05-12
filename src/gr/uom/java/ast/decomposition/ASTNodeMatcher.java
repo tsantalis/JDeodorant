@@ -9,8 +9,10 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTMatcher;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.CastExpression;
@@ -88,7 +90,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(ClassInstanceCreation.class)
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
-				|| o.getClass().equals(CastExpression.class) /*|| o.getClass().equals(InfixExpression.class)*/)
+				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class))
 			return true;
 		return false;
 	}
@@ -154,11 +156,20 @@ public class ASTNodeMatcher extends ASTMatcher{
 			CastExpression castExpression = (CastExpression) o;
 			return castExpression.resolveTypeBinding();
 		}
-		/*else if(o.getClass().equals(InfixExpression.class)) {
+		else if(o.getClass().equals(InfixExpression.class)) {
 			InfixExpression infixExpression = (InfixExpression) o;
-			return infixExpression.resolveTypeBinding();
-		}*/
+			if(isArgument(infixExpression))
+				return infixExpression.resolveTypeBinding();
+		}
 		return null;
+	}
+
+	private boolean isArgument(InfixExpression infixExpression) {
+		ASTNode parent = infixExpression.getParent();
+		if(parent instanceof MethodInvocation || parent instanceof SuperMethodInvocation || parent instanceof Assignment ||
+				parent instanceof ClassInstanceCreation || parent instanceof ArrayCreation || parent instanceof ArrayAccess)
+			return true;
+		return false;
 	}
 
 	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
@@ -495,7 +506,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return (
 			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
-/*
+
 	public boolean match(InfixExpression node, Object other) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
@@ -535,7 +546,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		differences.add(astNodeDifference);
 		return false;
 	}
-*/
+
 	public boolean match(LabeledStatement node, Object other) {
 		if (!(other instanceof LabeledStatement)) {
 			return false;

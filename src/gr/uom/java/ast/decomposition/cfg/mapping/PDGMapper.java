@@ -90,7 +90,7 @@ public class PDGMapper {
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1 = new LinkedHashSet<AbstractVariable>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		this.monitor = monitor;
-		processPDGNodes();
+		matchBasedOnControlDependenceTreeStructure();
 		this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
 		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
 		findNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1);
@@ -458,16 +458,16 @@ public class PDGMapper {
 			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
 		}
 		else {
-			int minimum = maximumStates.get(0).getDifferenceCount();
+			int minimum = maximumStates.get(0).getDistinctDifferenceCount();
 			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
 			for(int i=1; i<maximumStates.size(); i++) {
 				MappingState currentState = maximumStates.get(i);
-				if(currentState.getDifferenceCount() < minimum) {
-					minimum = currentState.getDifferenceCount();
+				if(currentState.getDistinctDifferenceCount() < minimum) {
+					minimum = currentState.getDistinctDifferenceCount();
 					maximumStatesWithMinimumDifferences.clear();
 					maximumStatesWithMinimumDifferences.add(currentState);
 				}
-				else if(currentState.getDifferenceCount() == minimum) {
+				else if(currentState.getDistinctDifferenceCount() == minimum) {
 					maximumStatesWithMinimumDifferences.add(currentState);
 				}
 			}
@@ -516,7 +516,7 @@ public class PDGMapper {
 		return nodesInRegion;
 	}
 
-	private void processPDGNodes() {
+	private void matchBasedOnControlDependenceTreeStructure() {
 		int maxLevel1 = controlDependenceTreePDG1.getMaxLevel();
 		int level1 = maxLevel1;
 		int maxLevel2 = controlDependenceTreePDG2.getMaxLevel();
@@ -556,7 +556,7 @@ public class PDGMapper {
 					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2);
 					List<MappingState> maxStates = null;
 					if(level1 == 0 || level2 == 0) {
-						maxStates = processVariableDeclarationPDGNodes(finalState, nodesG1, nodesG2);
+						maxStates = matchBasedOnCodeFragments(finalState, nodesG1, nodesG2);
 					}
 					else {
 						maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
@@ -639,24 +639,63 @@ public class PDGMapper {
 		this.cloneStructureRoot = root;
 	}
 
-	private List<MappingState> processVariableDeclarationPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
-		Set<PDGNode> variableDeclarationNodesG1 = getVariableDeclarationNodes(nodesG1);
-		Set<PDGNode> variableDeclarationNodesG2 = getVariableDeclarationNodes(nodesG2);
-		if(variableDeclarationNodesG1.isEmpty() || variableDeclarationNodesG2.isEmpty())
+	private List<MappingState> matchBasedOnCodeFragments(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		CodeFragmentDecomposer cfd1 = new CodeFragmentDecomposer(nodesG1);
+		CodeFragmentDecomposer cfd2 = new CodeFragmentDecomposer(nodesG2);
+		Map<PlainVariable, Set<PDGNode>> map1 = cfd1.getObjectNodeMap();
+		Map<PlainVariable, Set<PDGNode>> map2 = cfd2.getObjectNodeMap();
+		if(map1.isEmpty() || map2.isEmpty()) {
 			return processPDGNodes(parent, nodesG1, nodesG2);
+		}
 		else {
-			List<MappingState> currentStates = new ArrayList<MappingState>();
-			List<MappingState> previousStates = processPDGNodes(parent, variableDeclarationNodesG1, variableDeclarationNodesG2);
-			for(MappingState previousState : previousStates) {
-				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(nodesG1);
-				Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(nodesG2);
-				for(PDGNodeMapping mapping : previousState.getNodeMappings()) {
-					if(tempNodesG1.contains(mapping.getNodeG1()))
-						tempNodesG1.remove(mapping.getNodeG1());
-					if(tempNodesG2.contains(mapping.getNodeG2()))
-						tempNodesG2.remove(mapping.getNodeG2());
+			MappingState finalState = parent;
+			for(PlainVariable variable1 : map1.keySet()) {
+				Set<PDGNode> variableNodesG1 = map1.get(variable1);
+				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
+				Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
+				for(PlainVariable variable2 : map2.keySet()) {
+					Set<PDGNode> variableNodesG2 = map2.get(variable2);
+					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
+					for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+						if(tempNodesG1.contains(mapping.getNodeG1()))
+							tempNodesG1.remove(mapping.getNodeG1());
+						if(tempNodesG2.contains(mapping.getNodeG2()))
+							tempNodesG2.remove(mapping.getNodeG2());
+					}
+					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+					currentStateMap.put(variable2, maxStates);
 				}
-				List<MappingState> maxStates = processPDGNodes(previousState, tempNodesG1, tempNodesG2);
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PlainVariable variable2 : currentStateMap.keySet()) {
+					currentStates.addAll(currentStateMap.get(variable2));
+				}
+				if(!currentStates.isEmpty()) {
+					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
+					PlainVariable variableToRemove = null;
+					for(PlainVariable variable2 : currentStateMap.keySet()) {
+						if(currentStateMap.get(variable2).contains(best)) {
+							variableToRemove = variable2;
+							break;
+						}
+					}
+					map2.remove(variableToRemove);
+					finalState = best;
+				}
+			}
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(nodesG1);
+			Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(nodesG2);
+			for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+				if(tempNodesG1.contains(mapping.getNodeG1()))
+					tempNodesG1.remove(mapping.getNodeG1());
+				if(tempNodesG2.contains(mapping.getNodeG2()))
+					tempNodesG2.remove(mapping.getNodeG2());
+			}
+			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
+				currentStates.add(finalState);
+			}
+			else {
+				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
 				for(MappingState temp : maxStates) {
 					if(!currentStates.contains(temp)) {
 						currentStates.add(temp);
@@ -665,15 +704,6 @@ public class PDGMapper {
 			}
 			return currentStates;
 		}
-	}
-
-	private Set<PDGNode> getVariableDeclarationNodes(Set<PDGNode> nodes) {
-		Set<PDGNode> variableDeclarationNodes = new LinkedHashSet<PDGNode>();
-		for(PDGNode node : nodes) {
-			if(node.getDeclaredVariableIterator().hasNext())
-				variableDeclarationNodes.add(node);
-		}
-		return variableDeclarationNodes;
 	}
 
 	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
@@ -792,16 +822,16 @@ public class PDGMapper {
 			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
 		}
 		else {
-			int minimum = maximumStates.get(0).getDifferenceCount();
+			int minimum = maximumStates.get(0).getDistinctDifferenceCount();
 			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
 			for(int i=1; i<maximumStates.size(); i++) {
 				MappingState currentState = maximumStates.get(i);
-				if(currentState.getDifferenceCount() < minimum) {
-					minimum = currentState.getDifferenceCount();
+				if(currentState.getDistinctDifferenceCount() < minimum) {
+					minimum = currentState.getDistinctDifferenceCount();
 					maximumStatesWithMinimumDifferences.clear();
 					maximumStatesWithMinimumDifferences.add(currentState);
 				}
-				else if(currentState.getDifferenceCount() == minimum) {
+				else if(currentState.getDistinctDifferenceCount() == minimum) {
 					maximumStatesWithMinimumDifferences.add(currentState);
 				}
 			}

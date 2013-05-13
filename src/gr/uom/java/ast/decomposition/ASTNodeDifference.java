@@ -53,7 +53,8 @@ public class ASTNodeDifference {
 	private boolean typeMismatch(Difference diff)
 	{
 		if(diff.getType().equals(DifferenceType.AST_TYPE_MISMATCH)
-			||diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH))
+			|| diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)
+			|| diff.getType().equals(DifferenceType.INFIX_OPERATOR_MISMATCH))
 					return true;
 		return false;
 	}

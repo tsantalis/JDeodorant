@@ -19,6 +19,8 @@ import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.ConditionalExpression;
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -34,12 +36,14 @@ import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.StringLiteral;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 public class ASTNodeMatcher extends ASTMatcher{
@@ -158,26 +162,31 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		else if(o.getClass().equals(InfixExpression.class)) {
 			InfixExpression infixExpression = (InfixExpression) o;
-			if(isArgument(infixExpression))
+			if(isDirectChild(infixExpression))
 				return infixExpression.resolveTypeBinding();
 		}
 		return null;
 	}
 
-	private boolean isArgument(InfixExpression infixExpression) {
+	private boolean isDirectChild(InfixExpression infixExpression) {
 		ASTNode parent = infixExpression.getParent();
 		if(parent instanceof MethodInvocation || parent instanceof SuperMethodInvocation || parent instanceof Assignment ||
-				parent instanceof ClassInstanceCreation || parent instanceof ArrayCreation || parent instanceof ArrayAccess)
+				parent instanceof ClassInstanceCreation || parent instanceof ArrayCreation || parent instanceof ArrayAccess ||
+				parent instanceof IfStatement || parent instanceof ForStatement || parent instanceof EnhancedForStatement ||
+				parent instanceof DoStatement || parent instanceof WhileStatement || parent instanceof VariableDeclarationFragment ||
+				parent instanceof ConditionalExpression || parent instanceof ConstructorInvocation || parent instanceof SuperConstructorInvocation)
 			return true;
 		return false;
 	}
 
 	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
-		if(binding1.isEqualTo(binding2))
-			return true;
-		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
-		if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
-			return true;
+		if(binding1 != null && binding2 != null) {
+			if(binding1.isEqualTo(binding2))
+				return true;
+			ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
+			if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
+				return true;
+		}
 		return false;
 	}
 
@@ -534,10 +543,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if (node.hasExtendedOperands() != o.hasExtendedOperands()) {
 					return false;
 				}
-				return (
-					node.getOperator().equals(o.getOperator())
-						&& safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand())
-						&& safeSubtreeMatch(node.getRightOperand(), o.getRightOperand()));
+				if(!node.getOperator().equals(o.getOperator())) {
+					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.INFIX_OPERATOR_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand());
+				safeSubtreeMatch(node.getRightOperand(), o.getRightOperand());
 			}
 			return typeMatch;
 		}

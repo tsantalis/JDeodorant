@@ -9,18 +9,14 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTMatcher;
-import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.ConditionalExpression;
-import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -36,14 +32,12 @@ import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.StringLiteral;
-import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 public class ASTNodeMatcher extends ASTMatcher{
@@ -162,31 +156,17 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		else if(o.getClass().equals(InfixExpression.class)) {
 			InfixExpression infixExpression = (InfixExpression) o;
-			if(isDirectChild(infixExpression))
-				return infixExpression.resolveTypeBinding();
+			return infixExpression.resolveTypeBinding();
 		}
 		return null;
 	}
 
-	private boolean isDirectChild(InfixExpression infixExpression) {
-		ASTNode parent = infixExpression.getParent();
-		if(parent instanceof MethodInvocation || parent instanceof SuperMethodInvocation || parent instanceof Assignment ||
-				parent instanceof ClassInstanceCreation || parent instanceof ArrayCreation || parent instanceof ArrayAccess ||
-				parent instanceof IfStatement || parent instanceof ForStatement || parent instanceof EnhancedForStatement ||
-				parent instanceof DoStatement || parent instanceof WhileStatement || parent instanceof VariableDeclarationFragment ||
-				parent instanceof ConditionalExpression || parent instanceof ConstructorInvocation || parent instanceof SuperConstructorInvocation)
-			return true;
-		return false;
-	}
-
 	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
-		if(binding1 != null && binding2 != null) {
-			if(binding1.isEqualTo(binding2))
-				return true;
-			ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
-			if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
-				return true;
-		}
+		if(binding1.isEqualTo(binding2))
+			return true;
+		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
+		if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
+			return true;
 		return false;
 	}
 
@@ -521,6 +501,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(node.getParent() instanceof IfStatement || node.getParent() instanceof InfixExpression ||
+				node.getParent() instanceof WhileStatement || node.getParent() instanceof DoStatement ||
+				node.getParent() instanceof ForStatement) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));

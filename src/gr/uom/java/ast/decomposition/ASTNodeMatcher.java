@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -83,7 +84,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(o.getClass().equals(MethodInvocation.class) || o.getClass().equals(SuperMethodInvocation.class)			
 				|| o.getClass().equals(NumberLiteral.class) || o.getClass().equals(StringLiteral.class)
 				|| o.getClass().equals(CharacterLiteral.class) || o.getClass().equals(BooleanLiteral.class)
-				|| o.getClass().equals(TypeLiteral.class) 
+				|| o.getClass().equals(TypeLiteral.class) || o.getClass().equals(NullLiteral.class)
 				|| o.getClass().equals(ArrayCreation.class)
 				|| o.getClass().equals(ClassInstanceCreation.class)
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
@@ -158,12 +159,22 @@ public class ASTNodeMatcher extends ASTMatcher{
 			InfixExpression infixExpression = (InfixExpression) o;
 			return infixExpression.resolveTypeBinding();
 		}
+		else if(o.getClass().equals(NullLiteral.class)) {
+			NullLiteral nullLiteral = (NullLiteral) o;
+			return nullLiteral.resolveTypeBinding();
+		}
 		return null;
 	}
 
 	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
 		if(binding1.isEqualTo(binding2))
 			return true;
+		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {
+			return true;
+		}
+		if(binding2.getName().equals("null") && !binding1.isPrimitive()) {
+			return true;
+		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
 		if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
 			return true;
@@ -587,6 +598,32 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			if(!astNodeDifference.isEmpty()) 
 				differences.add(astNodeDifference);
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
+		return false;
+	}
+
+	public boolean match(NullLiteral node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof NullLiteral)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				return true;
+			}
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);

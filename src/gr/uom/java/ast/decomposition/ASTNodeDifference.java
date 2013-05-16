@@ -3,6 +3,11 @@ package gr.uom.java.ast.decomposition;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.QualifiedName;
+
 public class ASTNodeDifference {
 	private AbstractExpression expression1;
 	private AbstractExpression expression2;
@@ -53,9 +58,42 @@ public class ASTNodeDifference {
 	private boolean typeMismatch(Difference diff)
 	{
 		if(diff.getType().equals(DifferenceType.AST_TYPE_MISMATCH)
-			|| diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)
+			|| (diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && isVariableTypeMismatch())
 			|| diff.getType().equals(DifferenceType.INFIX_OPERATOR_MISMATCH))
 					return true;
+		return false;
+	}
+
+	private boolean isVariableTypeMismatch() {
+		if(isQualifierOfQualifiedName() || isExpressionOfFieldAccess())
+			return false;
+		return true;
+	}
+	private boolean isQualifierOfQualifiedName() {
+		Expression exp1 = expression1.getExpression();
+		Expression exp2 = expression2.getExpression();
+		ASTNode node1 = exp1.getParent();
+		ASTNode node2 = exp2.getParent();
+		if(node1 instanceof QualifiedName && node2 instanceof QualifiedName) {
+			QualifiedName qual1 = (QualifiedName)node1;
+			QualifiedName qual2 = (QualifiedName)node2;
+			if(qual1.getQualifier().equals(exp1) && qual2.getQualifier().equals(exp2))
+				return true;
+		}
+		return false;
+	}
+
+	private boolean isExpressionOfFieldAccess() {
+		Expression exp1 = expression1.getExpression();
+		Expression exp2 = expression2.getExpression();
+		ASTNode node1 = exp1.getParent();
+		ASTNode node2 = exp2.getParent();
+		if(node1 instanceof FieldAccess && node2 instanceof FieldAccess) {
+			FieldAccess fieldAccess1 = (FieldAccess)node1;
+			FieldAccess fieldAccess2 = (FieldAccess)node2;
+			if(fieldAccess1.getExpression().equals(exp1) && fieldAccess2.getExpression().equals(exp2))
+				return true;
+		}
 		return false;
 	}
 

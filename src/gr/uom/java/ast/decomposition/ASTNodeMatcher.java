@@ -462,10 +462,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
-				if(!astNodeDifference.isEmpty())
-					differences.add(astNodeDifference);
-				return (
-						safeSubtreeMatch(node.getExpression(), o.getExpression()));
+				safeSubtreeMatch(node.getExpression(), o.getExpression());
 			}
 			else {
 				if(typeMatch) {
@@ -696,10 +693,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
-					if(!astNodeDifference.isEmpty()) 
-						differences.add(astNodeDifference);
-					return (
-							safeSubtreeMatch(node.getQualifier(), o.getQualifier()));
+					safeSubtreeMatch(node.getQualifier(), o.getQualifier());
 				}
 				else {
 					if(typeMatch) {

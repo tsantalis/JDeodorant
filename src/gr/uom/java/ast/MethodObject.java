@@ -641,8 +641,8 @@ public class MethodObject {
             sb.append(constructorObject.parameterList.get(constructorObject.parameterList.size()-1).toString());
         }
         sb.append(")");
-        if(constructorObject.methodBody != null)
-        	sb.append("\n").append(constructorObject.methodBody.toString());
+        /*if(constructorObject.methodBody != null)
+        	sb.append("\n").append(constructorObject.methodBody.toString());*/
         return sb.toString();
     }
 }

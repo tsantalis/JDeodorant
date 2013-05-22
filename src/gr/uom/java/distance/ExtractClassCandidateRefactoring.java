@@ -1,9 +1,12 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.FieldObject;
+import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.TopicFinder;
 import gr.uom.java.ast.util.math.HumaniseCamelCase;
 import gr.uom.java.ast.util.math.Stemmer;
+import gr.uom.java.ast.visualization.GodClassVisualizationData;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,7 +72,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		this.extractedVariableBindingKeys = new LinkedHashMap<MyAttribute, String>();
 	}
 
-	public MyClass getProductClass2() {
+	public MyClass getProductClass() {
 		return productClass;
 	}
 
@@ -645,7 +648,24 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
     }
 
 	public String getAnnotationText() {
-		return "";
+		GodClassVisualizationData data = getGodClassVisualizationData();
+		return data.toString();
+	}
+
+	public GodClassVisualizationData getGodClassVisualizationData() {
+		Set<MethodObject> extractedMethods = new LinkedHashSet<MethodObject>();
+		Set<FieldObject> extractedFields = new LinkedHashSet<FieldObject>();
+		for(Entity entity : extractedEntities) {
+			if(entity instanceof MyMethod) {
+				MyMethod myMethod = (MyMethod)entity;
+				extractedMethods.add(myMethod.getMethodObject());
+			}
+			else if(entity instanceof MyAttribute) {
+				MyAttribute myAttribute = (MyAttribute)entity;
+				extractedFields.add(myAttribute.getFieldObject());
+			}
+		}
+		return new GodClassVisualizationData(sourceClass.getClassObject(), extractedMethods, extractedFields);
 	}
 
 	@Override

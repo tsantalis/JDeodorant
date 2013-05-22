@@ -21,8 +21,14 @@ public class FeatureEnvyVisualizationData {
 	private Map<FieldInstructionObject, Integer> sourceFieldWriteMap;
 	private Map<FieldInstructionObject, Integer> targetFieldReadMap;
 	private Map<FieldInstructionObject, Integer> targetFieldWriteMap;
+	private ClassObject sourceClass;
+	private MethodObject methodToBeMoved;
+	private ClassObject targetClass;
 	
 	public FeatureEnvyVisualizationData(ClassObject sourceClass, MethodObject methodToBeMoved, ClassObject targetClass) {
+		this.sourceClass = sourceClass;
+		this.methodToBeMoved = methodToBeMoved;
+		this.targetClass = targetClass;
 		this.sourceMethodInvocationMap = new LinkedHashMap<MethodInvocationObject, Integer>();
 		List<MethodInvocationObject> sourceMethodInvocations = methodToBeMoved.getNonDistinctInvokedMethodsThroughThisReference();
 		for(MethodInvocationObject methodInvocation : sourceMethodInvocations) {
@@ -180,5 +186,53 @@ public class FeatureEnvyVisualizationData {
 
 	public Map<FieldInstructionObject, Integer> getTargetFieldWriteMap() {
 		return targetFieldWriteMap;
+	}
+
+	public ClassObject getSourceClass() {
+		return sourceClass;
+	}
+
+	public MethodObject getMethodToBeMoved() {
+		return methodToBeMoved;
+	}
+
+	public ClassObject getTargetClass() {
+		return targetClass;
+	}
+
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("--SOURCE FIELD READS--").append("\n");
+		Map<FieldInstructionObject, Integer> sourceFieldReadMap = getSourceFieldReadMap();
+		for(FieldInstructionObject fieldInstruction : sourceFieldReadMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(sourceFieldReadMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("--SOURCE FIELD WRITES--").append("\n");
+		Map<FieldInstructionObject, Integer> sourceFieldWriteMap = getSourceFieldWriteMap();
+		for(FieldInstructionObject fieldInstruction : sourceFieldWriteMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(sourceFieldWriteMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("--SOURCE METHOD CALLS--").append("\n");
+		Map<MethodInvocationObject, Integer> sourceMethodInvocationMap = getSourceMethodInvocationMap();
+		for(MethodInvocationObject methodInvocation : sourceMethodInvocationMap.keySet()) {
+			sb.append(methodInvocation).append("\t").append(sourceMethodInvocationMap.get(methodInvocation)).append("\n");
+		}
+		sb.append("\n");
+		sb.append("--TARGET FIELD READS--").append("\n");
+		Map<FieldInstructionObject, Integer> targetFieldReadMap = getTargetFieldReadMap();
+		for(FieldInstructionObject fieldInstruction : targetFieldReadMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(targetFieldReadMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("--TARGET FIELD WRITES--").append("\n");
+		Map<FieldInstructionObject, Integer> targetFieldWriteMap = getTargetFieldWriteMap();
+		for(FieldInstructionObject fieldInstruction : targetFieldWriteMap.keySet()) {
+			sb.append(fieldInstruction).append("\t").append(targetFieldWriteMap.get(fieldInstruction)).append("\n");
+		}
+		sb.append("--TARGET METHOD CALLS--").append("\n");
+		Map<MethodInvocationObject, Integer> targetMethodInvocationMap = getTargetMethodInvocationMap();
+		for(MethodInvocationObject methodInvocation : targetMethodInvocationMap.keySet()) {
+			sb.append(methodInvocation).append("\t").append(targetMethodInvocationMap.get(methodInvocation)).append("\n");
+		}
+		return sb.toString();
 	}
 }

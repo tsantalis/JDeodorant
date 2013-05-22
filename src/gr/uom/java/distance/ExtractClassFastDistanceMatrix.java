@@ -24,7 +24,7 @@ public class ExtractClassFastDistanceMatrix {
 		Set<Entity> newEntities = candidate.getNewEntities();
 		Set<Entity> changedEntities = candidate.getChangedEntities();
 		Set<String> changedClasses = candidate.getChangedClasses();
-		String targetClassName = candidate.getProductClass2().getName();
+		String targetClassName = candidate.getProductClass().getName();
 
 		Iterator<MyClass> classIt = virtualSystem.getClassIterator();
 		while(classIt.hasNext()) {

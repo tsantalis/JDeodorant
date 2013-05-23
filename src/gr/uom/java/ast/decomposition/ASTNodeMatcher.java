@@ -224,6 +224,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
 			}
 			else {
 				ArrayAccess o = (ArrayAccess) other;
@@ -249,6 +254,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if (!(other instanceof ArrayCreation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
@@ -294,6 +304,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
 			}
 			else 
 			{
@@ -324,6 +339,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if (!(other instanceof CastExpression)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
@@ -372,6 +392,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
 			}
 			else 
 			{
@@ -402,6 +427,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if (!(other instanceof ClassInstanceCreation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
@@ -523,6 +553,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
 			}
 			else 
 			{
@@ -572,6 +607,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if (!(other instanceof MethodInvocation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
 			}
@@ -640,6 +679,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if (!(other instanceof NumberLiteral)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
@@ -781,6 +825,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
 			}
 			else 
 			{
@@ -850,6 +899,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if (!(other instanceof SuperMethodInvocation)) {
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}

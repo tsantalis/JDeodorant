@@ -54,28 +54,31 @@ public abstract class AbstractMethodFragment {
 	private List<CreationObject> creationList;
 	private List<LiteralObject> literalList;
 	private Set<String> exceptionsInThrowStatements;
-	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
+	//private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields;
-	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters;
+	//private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughParameters;
-	private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughLocalVariables;
-	private Set<MethodInvocationObject> invokedMethodsThroughThisReference;
+	//private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughLocalVariables;
+	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughLocalVariables;
+	//private Set<MethodInvocationObject> invokedMethodsThroughThisReference;
 	private List<MethodInvocationObject> nonDistinctInvokedMethodsThroughThisReference;
 	private Set<MethodInvocationObject> invokedStaticMethods;
 	
-	private Set<AbstractVariable> definedFieldsThroughFields;
+	//private Set<AbstractVariable> definedFieldsThroughFields;
 	private List<AbstractVariable> nonDistinctDefinedFieldsThroughFields;
-	private Set<AbstractVariable> usedFieldsThroughFields;
+	//private Set<AbstractVariable> usedFieldsThroughFields;
 	private List<AbstractVariable> nonDistinctUsedFieldsThroughFields;
-	private Set<AbstractVariable> definedFieldsThroughParameters;
+	//private Set<AbstractVariable> definedFieldsThroughParameters;
 	private List<AbstractVariable> nonDistinctDefinedFieldsThroughParameters;
-	private Set<AbstractVariable> usedFieldsThroughParameters;
+	//private Set<AbstractVariable> usedFieldsThroughParameters;
 	private List<AbstractVariable> nonDistinctUsedFieldsThroughParameters;
-	private Set<AbstractVariable> definedFieldsThroughLocalVariables;
-	private Set<AbstractVariable> usedFieldsThroughLocalVariables;
-	private Set<PlainVariable> definedFieldsThroughThisReference;
+	//private Set<AbstractVariable> definedFieldsThroughLocalVariables;
+	private List<AbstractVariable> nonDistinctDefinedFieldsThroughLocalVariables;
+	//private Set<AbstractVariable> usedFieldsThroughLocalVariables;
+	private List<AbstractVariable> nonDistinctUsedFieldsThroughLocalVariables;
+	//private Set<PlainVariable> definedFieldsThroughThisReference;
 	private List<PlainVariable> nonDistinctDefinedFieldsThroughThisReference;
-	private Set<PlainVariable> usedFieldsThroughThisReference;
+	//private Set<PlainVariable> usedFieldsThroughThisReference;
 	private List<PlainVariable> nonDistinctUsedFieldsThroughThisReference;
 	
 	private Set<PlainVariable> declaredLocalVariables;
@@ -99,28 +102,31 @@ public abstract class AbstractMethodFragment {
 		this.creationList = new ArrayList<CreationObject>();
 		this.literalList = new ArrayList<LiteralObject>();
 		this.exceptionsInThrowStatements = new LinkedHashSet<String>();
-		this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+		//this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
-		this.invokedMethodsThroughParameters = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+		//this.invokedMethodsThroughParameters = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughParameters = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
-		this.invokedMethodsThroughLocalVariables = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
-		this.invokedMethodsThroughThisReference = new LinkedHashSet<MethodInvocationObject>();
+		//this.invokedMethodsThroughLocalVariables = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+		this.nonDistinctInvokedMethodsThroughLocalVariables = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
+		//this.invokedMethodsThroughThisReference = new LinkedHashSet<MethodInvocationObject>();
 		this.nonDistinctInvokedMethodsThroughThisReference = new ArrayList<MethodInvocationObject>();
 		this.invokedStaticMethods = new LinkedHashSet<MethodInvocationObject>();
 		
-		this.definedFieldsThroughFields = new LinkedHashSet<AbstractVariable>();
+		//this.definedFieldsThroughFields = new LinkedHashSet<AbstractVariable>();
 		this.nonDistinctDefinedFieldsThroughFields = new ArrayList<AbstractVariable>();
-		this.usedFieldsThroughFields = new LinkedHashSet<AbstractVariable>();
+		//this.usedFieldsThroughFields = new LinkedHashSet<AbstractVariable>();
 		this.nonDistinctUsedFieldsThroughFields = new ArrayList<AbstractVariable>();
-		this.definedFieldsThroughParameters = new LinkedHashSet<AbstractVariable>();
+		//this.definedFieldsThroughParameters = new LinkedHashSet<AbstractVariable>();
 		this.nonDistinctDefinedFieldsThroughParameters = new ArrayList<AbstractVariable>();
-		this.usedFieldsThroughParameters = new LinkedHashSet<AbstractVariable>();
+		//this.usedFieldsThroughParameters = new LinkedHashSet<AbstractVariable>();
 		this.nonDistinctUsedFieldsThroughParameters = new ArrayList<AbstractVariable>();
-		this.definedFieldsThroughLocalVariables = new LinkedHashSet<AbstractVariable>();
-		this.usedFieldsThroughLocalVariables = new LinkedHashSet<AbstractVariable>();
-		this.definedFieldsThroughThisReference = new LinkedHashSet<PlainVariable>();
+		//this.definedFieldsThroughLocalVariables = new LinkedHashSet<AbstractVariable>();
+		this.nonDistinctDefinedFieldsThroughLocalVariables = new ArrayList<AbstractVariable>();
+		//this.usedFieldsThroughLocalVariables = new LinkedHashSet<AbstractVariable>();
+		this.nonDistinctUsedFieldsThroughLocalVariables = new ArrayList<AbstractVariable>();
+		//this.definedFieldsThroughThisReference = new LinkedHashSet<PlainVariable>();
 		this.nonDistinctDefinedFieldsThroughThisReference = new ArrayList<PlainVariable>();
-		this.usedFieldsThroughThisReference = new LinkedHashSet<PlainVariable>();
+		//this.usedFieldsThroughThisReference = new LinkedHashSet<PlainVariable>();
 		this.nonDistinctUsedFieldsThroughThisReference = new ArrayList<PlainVariable>();
 		
 		this.declaredLocalVariables = new LinkedHashSet<PlainVariable>();
@@ -314,21 +320,23 @@ public abstract class AbstractMethodFragment {
 				if(invoker != null) {
 					PlainVariable initialVariable = invoker.getInitialVariable();
 					if(initialVariable.isField()) {
-						addInvokedMethodThroughField(invoker, methodInvocationObject);
+						//addInvokedMethodThroughField(invoker, methodInvocationObject);
 						addNonDistinctInvokedMethodThroughField(invoker, methodInvocationObject);
 					}
 					else if(initialVariable.isParameter()) {
-						addInvokedMethodThroughParameter(invoker, methodInvocationObject);
+						//addInvokedMethodThroughParameter(invoker, methodInvocationObject);
 						addNonDistinctInvokedMethodThroughParameter(invoker, methodInvocationObject);
 					}
-					else
-						addInvokedMethodThroughLocalVariable(invoker, methodInvocationObject);
+					else {
+						//addInvokedMethodThroughLocalVariable(invoker, methodInvocationObject);
+						addNonDistinctInvokedMethodThroughLocalVariable(invoker, methodInvocationObject);
+					}
 				}
 				else {
 					if(methodInvocationObject.isStatic())
 						addStaticallyInvokedMethod(methodInvocationObject);
-					else if (methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression){
-						addInvokedMethodThroughThisReference(methodInvocationObject);
+					else if (methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
+						//addInvokedMethodThroughThisReference(methodInvocationObject);
 						addNonDistinctInvokedMethodThroughThisReference(methodInvocationObject);
 					}
 				}
@@ -480,7 +488,7 @@ public abstract class AbstractMethodFragment {
 			parent.addExceptionInThrowStatement(exception);
 		}
 	}
-
+/*
 	private void addInvokedMethodThroughField(AbstractVariable field, MethodInvocationObject methodInvocation) {
 		if(invokedMethodsThroughFields.containsKey(field)) {
 			LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(field);
@@ -495,7 +503,7 @@ public abstract class AbstractMethodFragment {
 			parent.addInvokedMethodThroughField(field, methodInvocation);
 		}
 	}
-
+*/
 	private void addNonDistinctInvokedMethodThroughField(AbstractVariable field, MethodInvocationObject methodInvocation) {
 		if(nonDistinctInvokedMethodsThroughFields.containsKey(field)) {
 			ArrayList<MethodInvocationObject> methodInvocations = nonDistinctInvokedMethodsThroughFields.get(field);
@@ -510,7 +518,7 @@ public abstract class AbstractMethodFragment {
 			parent.addNonDistinctInvokedMethodThroughField(field, methodInvocation);
 		}
 	}
-
+/*
 	private void addInvokedMethodThroughParameter(AbstractVariable parameter, MethodInvocationObject methodInvocation) {
 		if(invokedMethodsThroughParameters.containsKey(parameter)) {
 			LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(parameter);
@@ -525,7 +533,7 @@ public abstract class AbstractMethodFragment {
 			parent.addInvokedMethodThroughParameter(parameter, methodInvocation);
 		}
 	}
-
+*/
 	private void addNonDistinctInvokedMethodThroughParameter(AbstractVariable parameter, MethodInvocationObject methodInvocation) {
 		if(nonDistinctInvokedMethodsThroughParameters.containsKey(parameter)) {
 			ArrayList<MethodInvocationObject> methodInvocations = nonDistinctInvokedMethodsThroughParameters.get(parameter);
@@ -540,7 +548,7 @@ public abstract class AbstractMethodFragment {
 			parent.addNonDistinctInvokedMethodThroughParameter(parameter, methodInvocation);
 		}
 	}
-
+/*
 	private void addInvokedMethodThroughLocalVariable(AbstractVariable localVariable, MethodInvocationObject methodInvocation) {
 		if(invokedMethodsThroughLocalVariables.containsKey(localVariable)) {
 			LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughLocalVariables.get(localVariable);
@@ -555,14 +563,29 @@ public abstract class AbstractMethodFragment {
 			parent.addInvokedMethodThroughLocalVariable(localVariable, methodInvocation);
 		}
 	}
-
+*/
+	private void addNonDistinctInvokedMethodThroughLocalVariable(AbstractVariable localVariable, MethodInvocationObject methodInvocation) {
+		if(nonDistinctInvokedMethodsThroughLocalVariables.containsKey(localVariable)) {
+			ArrayList<MethodInvocationObject> methodInvocations = nonDistinctInvokedMethodsThroughLocalVariables.get(localVariable);
+			methodInvocations.add(methodInvocation);
+		}
+		else {
+			ArrayList<MethodInvocationObject> methodInvocations = new ArrayList<MethodInvocationObject>();
+			methodInvocations.add(methodInvocation);
+			nonDistinctInvokedMethodsThroughLocalVariables.put(localVariable, methodInvocations);
+		}
+		if(parent != null) {
+			parent.addNonDistinctInvokedMethodThroughLocalVariable(localVariable, methodInvocation);
+		}
+	}
+/*
 	private void addInvokedMethodThroughThisReference(MethodInvocationObject methodInvocation) {
 		invokedMethodsThroughThisReference.add(methodInvocation);
 		if(parent != null) {
 			parent.addInvokedMethodThroughThisReference(methodInvocation);
 		}
 	}
-
+*/
 	private void addNonDistinctInvokedMethodThroughThisReference(MethodInvocationObject methodInvocation) {
 		nonDistinctInvokedMethodsThroughThisReference.add(methodInvocation);
 		if(parent != null) {
@@ -653,20 +676,22 @@ public abstract class AbstractMethodFragment {
 		if(variable != null) {
 			PlainVariable initialVariable = variable.getInitialVariable();
 			if(variable instanceof PlainVariable) {
-				definedFieldsThroughThisReference.add((PlainVariable)variable);
+				//definedFieldsThroughThisReference.add((PlainVariable)variable);
 				nonDistinctDefinedFieldsThroughThisReference.add((PlainVariable)variable);
 			}
 			else {
 				if(initialVariable.isField()) {
-					definedFieldsThroughFields.add(variable);
+					//definedFieldsThroughFields.add(variable);
 					nonDistinctDefinedFieldsThroughFields.add(variable);
 				}
 				else if(initialVariable.isParameter()) {
-					definedFieldsThroughParameters.add(variable);
+					//definedFieldsThroughParameters.add(variable);
 					nonDistinctDefinedFieldsThroughParameters.add(variable);
 				}
-				else
-					definedFieldsThroughLocalVariables.add(variable);
+				else {
+					//definedFieldsThroughLocalVariables.add(variable);
+					nonDistinctDefinedFieldsThroughLocalVariables.add(variable);
+				}
 			}
 			if(parent != null) {
 				parent.handleDefinedField(variable);
@@ -678,20 +703,22 @@ public abstract class AbstractMethodFragment {
 		if(variable != null) {
 			PlainVariable initialVariable = variable.getInitialVariable();
 			if(variable instanceof PlainVariable) {
-				usedFieldsThroughThisReference.add((PlainVariable)variable);
+				//usedFieldsThroughThisReference.add((PlainVariable)variable);
 				nonDistinctUsedFieldsThroughThisReference.add((PlainVariable)variable);
 			}
 			else {
 				if(initialVariable.isField()) {
-					usedFieldsThroughFields.add(variable);
+					//usedFieldsThroughFields.add(variable);
 					nonDistinctUsedFieldsThroughFields.add(variable);
 				}
 				else if(initialVariable.isParameter()) {
-					usedFieldsThroughParameters.add(variable);
+					//usedFieldsThroughParameters.add(variable);
 					nonDistinctUsedFieldsThroughParameters.add(variable);
 				}
-				else
-					usedFieldsThroughLocalVariables.add(variable);
+				else {
+					//usedFieldsThroughLocalVariables.add(variable);
+					nonDistinctUsedFieldsThroughLocalVariables.add(variable);
+				}
 			}
 			if(parent != null) {
 				parent.handleUsedField(variable);
@@ -772,10 +799,20 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughFields() {
+		Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields =
+				new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+		for(AbstractVariable key : nonDistinctInvokedMethodsThroughFields.keySet()) {
+			invokedMethodsThroughFields.put(key, new LinkedHashSet<MethodInvocationObject>(nonDistinctInvokedMethodsThroughFields.get(key)));
+		}
 		return invokedMethodsThroughFields;
 	}
 
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughParameters() {
+		Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters =
+				new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+		for(AbstractVariable key : nonDistinctInvokedMethodsThroughParameters.keySet()) {
+			invokedMethodsThroughParameters.put(key, new LinkedHashSet<MethodInvocationObject>(nonDistinctInvokedMethodsThroughParameters.get(key)));
+		}
 		return invokedMethodsThroughParameters;
 	}
 
@@ -788,11 +825,20 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> getInvokedMethodsThroughLocalVariables() {
+		Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughLocalVariables =
+				new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
+		for(AbstractVariable key : nonDistinctInvokedMethodsThroughLocalVariables.keySet()) {
+			invokedMethodsThroughLocalVariables.put(key, new LinkedHashSet<MethodInvocationObject>(nonDistinctInvokedMethodsThroughLocalVariables.get(key)));
+		}
 		return invokedMethodsThroughLocalVariables;
 	}
 
+	public Map<AbstractVariable, ArrayList<MethodInvocationObject>> getNonDistinctInvokedMethodsThroughLocalVariables() {
+		return nonDistinctInvokedMethodsThroughLocalVariables;
+	}
+
 	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReference() {
-		return invokedMethodsThroughThisReference;
+		return new LinkedHashSet<MethodInvocationObject>(nonDistinctInvokedMethodsThroughThisReference);
 	}
 
 	public List<MethodInvocationObject> getNonDistinctInvokedMethodsThroughThisReference() {
@@ -804,11 +850,11 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughFields() {
-		return definedFieldsThroughFields;
+		return new LinkedHashSet<AbstractVariable>(nonDistinctDefinedFieldsThroughFields);
 	}
 
 	public Set<AbstractVariable> getUsedFieldsThroughFields() {
-		return usedFieldsThroughFields;
+		return new LinkedHashSet<AbstractVariable>(nonDistinctUsedFieldsThroughFields);
 	}
 
 	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughFields() {
@@ -820,11 +866,11 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughParameters() {
-		return definedFieldsThroughParameters;
+		return new LinkedHashSet<AbstractVariable>(nonDistinctDefinedFieldsThroughParameters);
 	}
 
 	public Set<AbstractVariable> getUsedFieldsThroughParameters() {
-		return usedFieldsThroughParameters;
+		return new LinkedHashSet<AbstractVariable>(nonDistinctUsedFieldsThroughParameters);
 	}
 
 	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughParameters() {
@@ -836,15 +882,23 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughLocalVariables() {
-		return definedFieldsThroughLocalVariables;
+		return new LinkedHashSet<AbstractVariable>(nonDistinctDefinedFieldsThroughLocalVariables);
 	}
 
 	public Set<AbstractVariable> getUsedFieldsThroughLocalVariables() {
-		return usedFieldsThroughLocalVariables;
+		return new LinkedHashSet<AbstractVariable>(nonDistinctUsedFieldsThroughLocalVariables);
+	}
+
+	public List<AbstractVariable> getNonDistinctDefinedFieldsThroughLocalVariables() {
+		return nonDistinctDefinedFieldsThroughLocalVariables;
+	}
+
+	public List<AbstractVariable> getNonDistinctUsedFieldsThroughLocalVariables() {
+		return nonDistinctUsedFieldsThroughLocalVariables;
 	}
 
 	public Set<PlainVariable> getDefinedFieldsThroughThisReference() {
-		return definedFieldsThroughThisReference;
+		return new LinkedHashSet<PlainVariable>(nonDistinctDefinedFieldsThroughThisReference);
 	}
 
 	public List<PlainVariable> getNonDistinctDefinedFieldsThroughThisReference() {
@@ -852,7 +906,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Set<PlainVariable> getUsedFieldsThroughThisReference() {
-		return usedFieldsThroughThisReference;
+		return new LinkedHashSet<PlainVariable>(nonDistinctUsedFieldsThroughThisReference);
 	}
 
 	public List<PlainVariable> getNonDistinctUsedFieldsThroughThisReference() {

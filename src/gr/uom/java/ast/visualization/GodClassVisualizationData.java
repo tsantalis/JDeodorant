@@ -77,33 +77,35 @@ public class GodClassVisualizationData {
 		for(MethodObject method : extractedMethods) {
 			//replace getter method calls in Source class with field accesses in Extracted class
 			Map<MethodInvocationObject, Integer> methodInvocationMap = externalMethodInvocationMap.get(method);
-			Set<MethodInvocationObject> invocationsToBeRemoved = new LinkedHashSet<MethodInvocationObject>();
-			for(MethodInvocationObject invocation : methodInvocationMap.keySet()) {
-				int count = methodInvocationMap.get(invocation);
-				MethodObject methodDeclaration = sourceClass.getMethod(invocation);
-				if(methodDeclaration != null) {
-					FieldInstructionObject getterFieldInstruction = methodDeclaration.isGetter();
-					if(getterFieldInstruction != null) {
-						if(isAccessToExtractedField(getterFieldInstruction, extractedFields)) {
-							//remove getter method calls in source class
-							invocationsToBeRemoved.add(invocation);
-							//add field reads in extracted class
-							insertToMap(method, getterFieldInstruction, internalFieldReadMap, count);
+			if(methodInvocationMap != null) {
+				Set<MethodInvocationObject> invocationsToBeRemoved = new LinkedHashSet<MethodInvocationObject>();
+				for(MethodInvocationObject invocation : methodInvocationMap.keySet()) {
+					int count = methodInvocationMap.get(invocation);
+					MethodObject methodDeclaration = sourceClass.getMethod(invocation);
+					if(methodDeclaration != null) {
+						FieldInstructionObject getterFieldInstruction = methodDeclaration.isGetter();
+						if(getterFieldInstruction != null) {
+							if(isAccessToExtractedField(getterFieldInstruction, extractedFields)) {
+								//remove getter method calls in source class
+								invocationsToBeRemoved.add(invocation);
+								//add field reads in extracted class
+								insertToMap(method, getterFieldInstruction, internalFieldReadMap, count);
+							}
 						}
-					}
-					FieldInstructionObject setterFieldInstruction = methodDeclaration.isSetter();
-					if(setterFieldInstruction != null) {
-						if(isAccessToExtractedField(setterFieldInstruction, extractedFields)) {
-							//remove setter method calls in source class
-							invocationsToBeRemoved.add(invocation);
-							//add field writes in extracted class
-							insertToMap(method, setterFieldInstruction, internalFieldWriteMap, count);
+						FieldInstructionObject setterFieldInstruction = methodDeclaration.isSetter();
+						if(setterFieldInstruction != null) {
+							if(isAccessToExtractedField(setterFieldInstruction, extractedFields)) {
+								//remove setter method calls in source class
+								invocationsToBeRemoved.add(invocation);
+								//add field writes in extracted class
+								insertToMap(method, setterFieldInstruction, internalFieldWriteMap, count);
+							}
 						}
 					}
 				}
-			}
-			for(MethodInvocationObject invocation : invocationsToBeRemoved) {
-				methodInvocationMap.remove(invocation);
+				for(MethodInvocationObject invocation : invocationsToBeRemoved) {
+					methodInvocationMap.remove(invocation);
+				}
 			}
 		}
 	}

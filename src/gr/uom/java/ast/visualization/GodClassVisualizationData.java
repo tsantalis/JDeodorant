@@ -8,6 +8,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,22 +50,60 @@ public class GodClassVisualizationData {
 			List<PlainVariable> fieldAccesses = method.getNonDistinctUsedFieldsThroughThisReference();
 			for(PlainVariable fieldAccess : fieldAccesses) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(fieldAccess, fieldInstructions);
-				if(isAccessToExtractedField(fieldInstruction, extractedFields)) {
-					insertToMap(method, fieldInstruction, internalFieldReadMap);
-				}
-				else {
-					insertToMap(method, fieldInstruction, externalFieldReadMap);
+				//exclude accesses to static fields
+				if(!fieldInstruction.isStatic()) {
+					if(isAccessToExtractedField(fieldInstruction, extractedFields)) {
+						insertToMap(method, fieldInstruction, internalFieldReadMap, 1);
+					}
+					else {
+						insertToMap(method, fieldInstruction, externalFieldReadMap, 1);
+					}
 				}
 			}
 			List<PlainVariable> fieldWrites = method.getNonDistinctDefinedFieldsThroughThisReference();
 			for(PlainVariable fieldWrite : fieldWrites) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(fieldWrite, fieldInstructions);
-				if(isAccessToExtractedField(fieldInstruction, extractedFields)) {
-					insertToMap(method, fieldInstruction, internalFieldWriteMap);
+				//exclude accesses to static fields
+				if(!fieldInstruction.isStatic()) {
+					if(isAccessToExtractedField(fieldInstruction, extractedFields)) {
+						insertToMap(method, fieldInstruction, internalFieldWriteMap, 1);
+					}
+					else {
+						insertToMap(method, fieldInstruction, externalFieldWriteMap, 1);
+					}
 				}
-				else {
-					insertToMap(method, fieldInstruction, externalFieldWriteMap);
+			}
+		}
+		for(MethodObject method : extractedMethods) {
+			//replace getter method calls in Source class with field accesses in Extracted class
+			Map<MethodInvocationObject, Integer> methodInvocationMap = externalMethodInvocationMap.get(method);
+			Set<MethodInvocationObject> invocationsToBeRemoved = new LinkedHashSet<MethodInvocationObject>();
+			for(MethodInvocationObject invocation : methodInvocationMap.keySet()) {
+				int count = methodInvocationMap.get(invocation);
+				MethodObject methodDeclaration = sourceClass.getMethod(invocation);
+				if(methodDeclaration != null) {
+					FieldInstructionObject getterFieldInstruction = methodDeclaration.isGetter();
+					if(getterFieldInstruction != null) {
+						if(isAccessToExtractedField(getterFieldInstruction, extractedFields)) {
+							//remove getter method calls in source class
+							invocationsToBeRemoved.add(invocation);
+							//add field reads in extracted class
+							insertToMap(method, getterFieldInstruction, internalFieldReadMap, count);
+						}
+					}
+					FieldInstructionObject setterFieldInstruction = methodDeclaration.isSetter();
+					if(setterFieldInstruction != null) {
+						if(isAccessToExtractedField(setterFieldInstruction, extractedFields)) {
+							//remove setter method calls in source class
+							invocationsToBeRemoved.add(invocation);
+							//add field writes in extracted class
+							insertToMap(method, setterFieldInstruction, internalFieldWriteMap, count);
+						}
+					}
 				}
+			}
+			for(MethodInvocationObject invocation : invocationsToBeRemoved) {
+				methodInvocationMap.remove(invocation);
 			}
 		}
 	}
@@ -88,19 +127,19 @@ public class GodClassVisualizationData {
 	}
 
 	private void insertToMap(MethodObject method, FieldInstructionObject fieldInstruction,
-			Map<MethodObject, Map<FieldInstructionObject, Integer>> map) {
+			Map<MethodObject, Map<FieldInstructionObject, Integer>> map, int count) {
 		if(map.containsKey(method)) {
 			Map<FieldInstructionObject, Integer> fieldAccessMap = map.get(method);
 			if(fieldAccessMap.containsKey(fieldInstruction)) {
-				fieldAccessMap.put(fieldInstruction, fieldAccessMap.get(fieldInstruction) + 1);
+				fieldAccessMap.put(fieldInstruction, fieldAccessMap.get(fieldInstruction) + count);
 			}
 			else {
-				fieldAccessMap.put(fieldInstruction, 1);
+				fieldAccessMap.put(fieldInstruction, count);
 			}
 		}
 		else {
 			Map<FieldInstructionObject, Integer> fieldAccessMap = new LinkedHashMap<FieldInstructionObject, Integer>();
-			fieldAccessMap.put(fieldInstruction, 1);
+			fieldAccessMap.put(fieldInstruction, count);
 			map.put(method, fieldAccessMap);
 		}
 	}

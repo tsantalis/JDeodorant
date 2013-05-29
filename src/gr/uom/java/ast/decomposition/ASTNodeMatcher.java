@@ -272,26 +272,29 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 			}
 			else {
 				ArrayCreation o = (ArrayCreation) other;
+				if(!node.getType().resolveBinding().isEqualTo(o.getType().resolveBinding()) && typeMatch) {
+					Difference diff = new Difference(node.getType().resolveBinding().getName(),o.getType().resolveBinding().getName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
 				if(node.dimensions().size() != o.dimensions().size())
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARRAY_DIMENSION_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 				safeSubtreeMatch(node.getType(), o.getType());
 				safeSubtreeListMatch(node.dimensions(), o.dimensions());
 				safeSubtreeMatch(node.getInitializer(), o.getInitializer());
 			}
+			if(!astNodeDifference.isEmpty())
+				differences.add(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
@@ -457,25 +460,28 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 			}
 			else {
 				ClassInstanceCreation o = (ClassInstanceCreation) other;
+				if(!node.getType().resolveBinding().isEqualTo(o.getType().resolveBinding()) && typeMatch) {
+					Difference diff = new Difference(node.getType().resolveBinding().getName(),o.getType().resolveBinding().getName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 				safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
 				safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getExpression(), o.getExpression());
 			}
+			if(!astNodeDifference.isEmpty())
+				differences.add(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);

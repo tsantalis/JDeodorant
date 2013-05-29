@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTMatcher;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.Block;
@@ -210,11 +211,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return superTypes;
 	}
 
+	private boolean isInfixExpressionWithCompositeParent(ASTNode node) {
+		if(node instanceof InfixExpression &&
+				(node.getParent() instanceof IfStatement || node.getParent() instanceof InfixExpression ||
+				node.getParent() instanceof WhileStatement || node.getParent() instanceof DoStatement ||
+				node.getParent() instanceof ForStatement)) {
+			return true;
+		}
+		return false;
+	}
+
 	public boolean match(ArrayAccess node, Object other) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -248,6 +262,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -295,6 +312,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -333,6 +353,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -383,6 +406,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -421,6 +447,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -479,6 +508,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -539,9 +571,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
-		if(node.getParent() instanceof IfStatement || node.getParent() instanceof InfixExpression ||
-				node.getParent() instanceof WhileStatement || node.getParent() instanceof DoStatement ||
-				node.getParent() instanceof ForStatement) {
+		if(isInfixExpressionWithCompositeParent(node) || isInfixExpressionWithCompositeParent((ASTNode)other)) {
 			return super.match(node, other);
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
@@ -601,6 +631,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
@@ -647,6 +680,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -673,6 +709,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -711,6 +750,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch;
@@ -765,6 +807,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -816,6 +861,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -854,6 +902,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
@@ -893,6 +944,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));

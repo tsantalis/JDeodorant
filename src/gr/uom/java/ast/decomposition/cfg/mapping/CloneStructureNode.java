@@ -76,6 +76,10 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return null;
 	}
 
+	public CloneStructureNode getParent() {
+		return parent;
+	}
+
 	public PDGNodeMapping getMapping() {
 		return mapping;
 	}

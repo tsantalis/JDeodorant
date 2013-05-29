@@ -75,6 +75,8 @@ public class PDGMapper {
 		this.iCompilationUnit1 = (ICompilationUnit)cu1.getJavaElement();
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit2 = (ICompilationUnit)cu2.getJavaElement();
+		CDTMapper cdtMapper = new CDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
+		List<CompleteSubTreeMatch> subTreeMatches = cdtMapper.getSolutions();
 		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();

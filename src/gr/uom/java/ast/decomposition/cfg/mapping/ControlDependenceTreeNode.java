@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -23,6 +24,14 @@ public class ControlDependenceTreeNode {
 	private PDGNode node;
 	private int level;
 	private List<ControlDependenceTreeNode> children;
+
+	private ControlDependenceTreeNode(ControlDependenceTreeNode treeNode) {
+		this.parent = treeNode.parent;
+		this.node = treeNode.node;
+		this.level = treeNode.level;
+		this.children = new ArrayList<ControlDependenceTreeNode>();
+		this.children.addAll(treeNode.children);
+	}
 
 	public ControlDependenceTreeNode(ControlDependenceTreeNode parent, PDGNode node) {
 		this.parent = parent;
@@ -210,6 +219,62 @@ public class ControlDependenceTreeNode {
 	private ControlDependenceTreeNode searchForNode(PDGNode node) {
 		ControlDependenceTreeNode root = getRoot();
 		return root.getNode(node);
+	}
+
+	public ControlDependenceTreeNode shallowCopy() {
+		return new ControlDependenceTreeNode(this);
+	}
+
+	public ControlDependenceTreeNode getParent() {
+		return parent;
+	}
+
+	public PDGNode getNode() {
+		return node;
+	}
+
+	public int getLevel() {
+		return level;
+	}
+
+	public List<ControlDependenceTreeNode> getChildren() {
+		return children;
+	}
+
+	public int getNodeCount() {
+		// count 1 for "this" node
+		int count = 1;
+		for(ControlDependenceTreeNode child : children) {
+			count += child.getNodeCount();
+		}
+		return count;
+	}
+
+	public List<ControlDependenceTreeNode> getNodesInBreadthFirstOrder() {
+		List<ControlDependenceTreeNode> nodes = new ArrayList<ControlDependenceTreeNode>();
+		List<ControlDependenceTreeNode> queue = new LinkedList<ControlDependenceTreeNode>();
+		nodes.add(this);
+		queue.add(this);
+		while(!queue.isEmpty()) {
+			ControlDependenceTreeNode node = queue.remove(0);
+			nodes.addAll(node.children);
+			queue.addAll(node.children);
+		}
+		return nodes;
+	}
+
+	public int hashCode() {
+		return this.getNode().hashCode();
+	}
+
+	public boolean equals(Object o) {
+		if(this == o)
+			return true;
+		if(o instanceof ControlDependenceTreeNode) {
+			ControlDependenceTreeNode node = (ControlDependenceTreeNode)o;
+			return this.getNode().equals(node.getNode());
+		}
+		return false;
 	}
 
 	public String toString() {

@@ -1,25 +1,14 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.IfStatement;
-
-import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
-import gr.uom.java.ast.decomposition.cfg.GraphEdge;
-import gr.uom.java.ast.decomposition.cfg.PDG;
-import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
-import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
-import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 
 public class ControlDependenceTreeNode {
-	private static PDG pdg;
 	private ControlDependenceTreeNode parent;
 	private PDGNode node;
 	private int level;
@@ -45,12 +34,6 @@ public class ControlDependenceTreeNode {
 		this.children = new ArrayList<ControlDependenceTreeNode>();
 		if(parent != null)
 			parent.children.add(this);
-		if(!(node instanceof PDGTryNode))
-			this.processControlDependences();
-	}
-
-	public static void setPdg(PDG pdg) {
-		ControlDependenceTreeNode.pdg = pdg;
 	}
 
 	public boolean parentChildRelationship(PDGNode parent, PDGNode child) {
@@ -65,7 +48,7 @@ public class ControlDependenceTreeNode {
 		return false;
 	}
 
-	private ControlDependenceTreeNode getNode(PDGNode node) {
+	public ControlDependenceTreeNode getNode(PDGNode node) {
 		if(this.node.equals(node)) {
 			return this;
 		}
@@ -91,20 +74,6 @@ public class ControlDependenceTreeNode {
 			predicateNodes.add(pdgNode);
 		}
 		return predicateNodes;
-	}
-
-	private int numberOfOutgoingFalseControlDependences(PDGNode pdgNode) {
-		int count = 0;
-		Iterator<GraphEdge> edgeIterator = pdgNode.getOutgoingDependenceIterator();
-		while(edgeIterator.hasNext()) {
-			PDGDependence dependence = (PDGDependence)edgeIterator.next();
-			if(dependence instanceof PDGControlDependence) {
-				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
-				if(controlDependence.isFalseControlDependence())
-					count++;
-			}
-		}
-		return count;
 	}
 
 	public int getMaxLevel() {
@@ -154,71 +123,6 @@ public class ControlDependenceTreeNode {
 			}
 		}
 		return levelNodes;
-	}
-
-	private void processControlDependences() {
-		Iterator<GraphEdge> edgeIterator = node.getOutgoingDependenceIterator();
-		while(edgeIterator.hasNext()) {
-			PDGDependence dependence = (PDGDependence)edgeIterator.next();
-			if(dependence instanceof PDGControlDependence) {
-				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
-				PDGNode dstNode = (PDGNode)controlDependence.getDst();
-				if(dstNode instanceof PDGControlPredicateNode) {
-					//special handling for symmetrical if statements
-					PDGNode nodeControlParent = dstNode.getControlDependenceParent();
-					PDGControlDependence nodeIncomingControlDependence = dstNode.getIncomingControlDependence();
-					if(nodeControlParent.getCFGNode() instanceof CFGBranchIfNode && nodeIncomingControlDependence.isFalseControlDependence() &&
-							numberOfOutgoingFalseControlDependences(nodeControlParent) == 1 &&
-							dstNode.getASTStatement().getParent() instanceof IfStatement) {
-						//a case of "if/else if" -> add as a sibling, not as a child
-						PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(this.node);
-						if(tryNode != null) {
-							ControlDependenceTreeNode treeNode = searchForNode(tryNode);
-							if(treeNode == null) {
-								treeNode = new ControlDependenceTreeNode(this.parent, tryNode);
-								new ControlDependenceTreeNode(treeNode, dstNode);
-							}
-							else {
-								new ControlDependenceTreeNode(treeNode, dstNode);
-							}
-						}
-						else {
-							new ControlDependenceTreeNode(this.parent, dstNode);
-						}
-					}
-					else {
-						PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
-						if(tryNode != null) {
-							ControlDependenceTreeNode treeNode = searchForNode(tryNode);
-							if(treeNode == null) {
-								treeNode = new ControlDependenceTreeNode(this, tryNode);
-								new ControlDependenceTreeNode(treeNode, dstNode);
-							}
-							else {
-								new ControlDependenceTreeNode(treeNode, dstNode);
-							}
-						}
-						else {
-							new ControlDependenceTreeNode(this, dstNode);
-						}
-					}
-				}
-				else {
-					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
-					if(tryNode != null) {
-						ControlDependenceTreeNode treeNode = searchForNode(tryNode);
-						if(treeNode == null) {
-							new ControlDependenceTreeNode(this, tryNode);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	private ControlDependenceTreeNode searchForNode(PDGNode node) {
-		ControlDependenceTreeNode root = getRoot();
-		return root.getNode(node);
 	}
 
 	public ControlDependenceTreeNode shallowCopy() {

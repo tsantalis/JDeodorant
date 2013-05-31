@@ -73,8 +73,34 @@ public class PDGMapper {
 		this.iCompilationUnit1 = (ICompilationUnit)cu1.getJavaElement();
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit2 = (ICompilationUnit)cu2.getJavaElement();
-		CDTMapper cdtMapper = new CDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
-		List<CompleteSubTreeMatch> subTreeMatches = cdtMapper.getSolutions();
+		
+		TopDownCDTMapper topDownCDTMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
+		List<CompleteSubTreeMatch> subTreeMatches = topDownCDTMapper.getSolutions();
+		
+		BottomUpCDTMapper bottomUpCDTMapper = new BottomUpCDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
+		List<CompleteSubTreeMatch> subTreeMatches2 = bottomUpCDTMapper.getSolutions();
+		
+		//we need a strategy in the case we have multiple subTreeMatches
+		ControlDependenceTreeNode controlDependenceSubTreePDG1 = null;
+		ControlDependenceTreeNode controlDependenceSubTreePDG2 = null;
+		if(subTreeMatches.size() == 1) {
+			CompleteSubTreeMatch subTreeMatch = subTreeMatches.get(0);
+			int size1 = controlDependenceTreePDG1.getNodeCount() - 1;
+			int size2 = controlDependenceTreePDG2.getNodeCount() - 1;
+			int subTreeSize = subTreeMatch.getMatchPairs().size();
+			if(subTreeSize == size1 && subTreeSize == size2) {
+				controlDependenceSubTreePDG1 = controlDependenceTreePDG1;
+				controlDependenceSubTreePDG2 = controlDependenceTreePDG2;
+			}
+			else {
+				controlDependenceSubTreePDG1 = new ControlDependenceTreeGenerator(pdg1, subTreeMatch.getControlDependenceTreeNodes1()).getRoot();
+				controlDependenceSubTreePDG2 = new ControlDependenceTreeGenerator(pdg2, subTreeMatch.getControlDependenceTreeNodes2()).getRoot();
+			}
+		}
+		else {
+			controlDependenceSubTreePDG1 = controlDependenceTreePDG1;
+			controlDependenceSubTreePDG2 = controlDependenceTreePDG2;
+		}
 		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
 		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();
@@ -90,7 +116,7 @@ public class PDGMapper {
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1 = new LinkedHashSet<AbstractVariable>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		this.monitor = monitor;
-		matchBasedOnControlDependenceTreeStructure();
+		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
 		this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
 		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
 		findNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1);
@@ -516,7 +542,7 @@ public class PDGMapper {
 		return nodesInRegion;
 	}
 
-	private void matchBasedOnControlDependenceTreeStructure() {
+	private void matchBasedOnControlDependenceTreeStructure(ControlDependenceTreeNode controlDependenceTreePDG1, ControlDependenceTreeNode controlDependenceTreePDG2) {
 		int maxLevel1 = controlDependenceTreePDG1.getMaxLevel();
 		int level1 = maxLevel1;
 		int maxLevel2 = controlDependenceTreePDG2.getMaxLevel();

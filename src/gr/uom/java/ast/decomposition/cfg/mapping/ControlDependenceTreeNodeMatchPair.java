@@ -1,6 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-public class ControlDependenceTreeNodeMatchPair {
+public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDependenceTreeNodeMatchPair> {
 	private ControlDependenceTreeNode node1;
 	private ControlDependenceTreeNode node2;
 	private volatile int hashCode = 0;
@@ -40,5 +40,9 @@ public class ControlDependenceTreeNodeMatchPair {
 
 	public String toString() {
 		return node1.toString() + node2.toString();
+	}
+
+	public int compareTo(ControlDependenceTreeNodeMatchPair other) {
+		return Integer.compare(this.node1.getNode().getId(), other.node1.getNode().getId());
 	}
 }

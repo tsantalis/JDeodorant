@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.Iterator;
+import java.util.List;
 
 import org.eclipse.jdt.core.dom.IfStatement;
 
@@ -21,6 +22,14 @@ public class ControlDependenceTreeGenerator {
 		this.pdg = pdg;
 		//construct CDT from method entry node
 		this.root = new ControlDependenceTreeNode(null, pdg.getEntryNode());
+		processControlDependences(root);
+	}
+
+	public ControlDependenceTreeGenerator(PDG pdg, List<ControlDependenceTreeNode> cdtNodes) {
+		this.pdg = pdg;
+		//construct CDT from the parent of the 1st node in cdtNodes
+		ControlDependenceTreeNode oldCDTNode = cdtNodes.get(0);
+		this.root = new ControlDependenceTreeNode(null, oldCDTNode.getParent().getNode());
 		processControlDependences(root);
 	}
 

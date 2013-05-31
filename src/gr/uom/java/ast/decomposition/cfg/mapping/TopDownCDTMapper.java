@@ -5,26 +5,29 @@ import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 
 import org.eclipse.jdt.core.ICompilationUnit;
 
-public class CDTMapper {
+public class TopDownCDTMapper {
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
 	private List<CompleteSubTreeMatch> solutions;
 
-	public CDTMapper(ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
+	public TopDownCDTMapper(ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
 			ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
 		this.iCompilationUnit1 = iCompilationUnit1;
 		this.iCompilationUnit2 = iCompilationUnit2;
-		//start matching from the roots
-		List<ArrayList<ControlDependenceTreeNodeMatchPair>> matches = findMatches(root1, root2);
+		processTopDown(iCompilationUnit1, iCompilationUnit2, root1, root2);
+	}
+
+	public void processTopDown(ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
+			ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
+		List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches = findTopDownMatches(root1, root2);
 		this.solutions = getMaximumCompleteSubTreeMatches(matches, root1, root2);
 		if(solutions.isEmpty()) {
-			//find the largest common complete subtree
 			List<ControlDependenceTreeNode> nodes1 = root1.getNodesInBreadthFirstOrder();
 			List<ControlDependenceTreeNode> nodes2 = root2.getNodesInBreadthFirstOrder();
-			//find all possible pairs of matched nodes
 			List<ControlDependenceTreeNodeMatchPair> startPoints = new ArrayList<ControlDependenceTreeNodeMatchPair>();
 			for(ControlDependenceTreeNode node1 : nodes1) {
 				for(ControlDependenceTreeNode node2 : nodes2) {
@@ -39,11 +42,11 @@ public class CDTMapper {
 				}
 			}
 			for(ControlDependenceTreeNodeMatchPair startPoint : startPoints) {
-				List<ArrayList<ControlDependenceTreeNodeMatchPair>> innerMatches = findMatches(startPoint.getNode1(), startPoint.getNode2());
+				List<TreeSet<ControlDependenceTreeNodeMatchPair>> innerMatches = findTopDownMatches(startPoint.getNode1(), startPoint.getNode2());
 				List<CompleteSubTreeMatch> tempSolutions = getMaximumCompleteSubTreeMatches(innerMatches, startPoint.getNode1(), startPoint.getNode2());
 				for(CompleteSubTreeMatch tempSolution : tempSolutions) {
 					tempSolution.addStartPoint(startPoint);
-					if(!isSubsumedByCurrentSolutions(tempSolution))
+					if(!isSubsumedByCurrentSolutions(solutions, tempSolution))
 						solutions.add(tempSolution);
 				}
 			}
@@ -67,7 +70,7 @@ public class CDTMapper {
 		return false;
 	}
 
-	private boolean isSubsumedByCurrentSolutions(CompleteSubTreeMatch newSolution) {
+	private boolean isSubsumedByCurrentSolutions(List<CompleteSubTreeMatch> solutions, CompleteSubTreeMatch newSolution) {
 		for(CompleteSubTreeMatch currentSolution : solutions) {
 			if(currentSolution.subsumes(newSolution))
 				return true;
@@ -75,13 +78,13 @@ public class CDTMapper {
 		return false;
 	}
 
-	private List<CompleteSubTreeMatch> getMaximumCompleteSubTreeMatches(List<ArrayList<ControlDependenceTreeNodeMatchPair>> matches,
+	private List<CompleteSubTreeMatch> getMaximumCompleteSubTreeMatches(List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches,
 			ControlDependenceTreeNode parent1, ControlDependenceTreeNode parent2) {
 		List<CompleteSubTreeMatch> solutions = new ArrayList<CompleteSubTreeMatch>();
 		int maximumSize = 0;
 		int subTreeSize1 = parent1.getNodeCount() - 1;
 		int subTreeSize2 = parent2.getNodeCount() - 1;
-		for(ArrayList<ControlDependenceTreeNodeMatchPair> match : matches) {
+		for(TreeSet<ControlDependenceTreeNodeMatchPair> match : matches) {
 			if(match.size() == subTreeSize1 && match.size() == subTreeSize2) {
 				if(match.size() > maximumSize) {
 					maximumSize = match.size();
@@ -96,16 +99,16 @@ public class CDTMapper {
 		return solutions;
 	}
 
-	private List<ArrayList<ControlDependenceTreeNodeMatchPair>> findMatches(ControlDependenceTreeNode treeNode, ControlDependenceTreeNode searchNode) {
+	private List<TreeSet<ControlDependenceTreeNodeMatchPair>> findTopDownMatches(ControlDependenceTreeNode treeNode, ControlDependenceTreeNode searchNode) {
 		List<ControlDependenceTreeNode> searchChildren = searchNode.getChildren();
 		if(searchChildren.isEmpty()) {
-			ArrayList<ControlDependenceTreeNodeMatchPair> pair = new ArrayList<ControlDependenceTreeNodeMatchPair>();
-			List<ArrayList<ControlDependenceTreeNodeMatchPair>> matchPairs = new ArrayList<ArrayList<ControlDependenceTreeNodeMatchPair>>();
+			TreeSet<ControlDependenceTreeNodeMatchPair> pair = new TreeSet<ControlDependenceTreeNodeMatchPair>();
+			List<TreeSet<ControlDependenceTreeNodeMatchPair>> matchPairs = new ArrayList<TreeSet<ControlDependenceTreeNodeMatchPair>>();
 			matchPairs.add(pair);
 			return matchPairs;
 		}
 		else {
-			List<ArrayList<ControlDependenceTreeNodeMatchPair>> matches = new ArrayList<ArrayList<ControlDependenceTreeNodeMatchPair>>();
+			List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches = new ArrayList<TreeSet<ControlDependenceTreeNodeMatchPair>>();
 			ControlDependenceTreeNode searchChild = searchChildren.get(0);
 			ControlDependenceTreeNode searchNode2 = searchNode.shallowCopy();
 			searchNode2.getChildren().remove(searchChild);
@@ -116,19 +119,21 @@ public class CDTMapper {
 				if(match && astNodeMatcher.isParameterizable()) {
 					ControlDependenceTreeNode treeNode2 = treeNode.shallowCopy();
 					treeNode2.getChildren().remove(treeChild);
-					List<ArrayList<ControlDependenceTreeNodeMatchPair>> childMatches = findMatches(treeChild, searchChild);
-					List<ArrayList<ControlDependenceTreeNodeMatchPair>> nodeMatches = findMatches(treeNode2, searchNode2);
+					List<TreeSet<ControlDependenceTreeNodeMatchPair>> childMatches = findTopDownMatches(treeChild, searchChild);
+					List<TreeSet<ControlDependenceTreeNodeMatchPair>> nodeMatches = findTopDownMatches(treeNode2, searchNode2);
 					
-					for(ArrayList<ControlDependenceTreeNodeMatchPair> nodeMatchPairs : nodeMatches) {
-						for(ArrayList<ControlDependenceTreeNodeMatchPair> childMatchPairs : childMatches) {
+					for(TreeSet<ControlDependenceTreeNodeMatchPair> nodeMatchPairs : nodeMatches) {
+						for(TreeSet<ControlDependenceTreeNodeMatchPair> childMatchPairs : childMatches) {
 							ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(treeChild, searchChild);
-							ArrayList<ControlDependenceTreeNodeMatchPair> fullMatchPairs = new ArrayList<ControlDependenceTreeNodeMatchPair>();
+							TreeSet<ControlDependenceTreeNodeMatchPair> fullMatchPairs = new TreeSet<ControlDependenceTreeNodeMatchPair>();
 							fullMatchPairs.add(pair);
 							fullMatchPairs.addAll(childMatchPairs);
 							fullMatchPairs.addAll(nodeMatchPairs);
 							matches.add(fullMatchPairs);
 						}
 					}
+					//apply first-match approach
+					break;
 				}
 			}
 			return matches;

@@ -1,18 +1,40 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class CompleteSubTreeMatch {
-	private List<ControlDependenceTreeNodeMatchPair> matchPairs;
+	private TreeSet<ControlDependenceTreeNodeMatchPair> matchPairs;
 
-	public CompleteSubTreeMatch(List<ControlDependenceTreeNodeMatchPair> matches) {
-		this.matchPairs = matches;
+	public CompleteSubTreeMatch(TreeSet<ControlDependenceTreeNodeMatchPair> matchPairs) {
+		this.matchPairs = matchPairs;
+	}
+
+	public TreeSet<ControlDependenceTreeNodeMatchPair> getMatchPairs() {
+		return matchPairs;
+	}
+
+	public List<ControlDependenceTreeNode> getControlDependenceTreeNodes1() {
+		List<ControlDependenceTreeNode> nodes1 = new ArrayList<ControlDependenceTreeNode>();
+		for(ControlDependenceTreeNodeMatchPair matchPair : this.matchPairs) {
+			nodes1.add(matchPair.getNode1());
+		}
+		return nodes1;
+	}
+
+	public List<ControlDependenceTreeNode> getControlDependenceTreeNodes2() {
+		List<ControlDependenceTreeNode> nodes2 = new ArrayList<ControlDependenceTreeNode>();
+		for(ControlDependenceTreeNodeMatchPair matchPair : this.matchPairs) {
+			nodes2.add(matchPair.getNode2());
+		}
+		return nodes2;
 	}
 
 	public void addStartPoint(ControlDependenceTreeNodeMatchPair pair) {
-		this.matchPairs.add(0, pair);
+		this.matchPairs.add(pair);
 	}
 
 	public boolean subsumes(CompleteSubTreeMatch subTree) {

@@ -99,7 +99,7 @@ public class ControlDependenceTreeNode {
 		return this.children.isEmpty();
 	}
 
-	private List<ControlDependenceTreeNode> getLeaves() {
+	public List<ControlDependenceTreeNode> getLeaves() {
 		List<ControlDependenceTreeNode> leaves = new ArrayList<ControlDependenceTreeNode>();
 		if(this.isLeaf()) {
 			leaves.add(this);
@@ -110,6 +110,29 @@ public class ControlDependenceTreeNode {
 			}
 		}
 		return leaves;
+	}
+
+	public List<ControlDependenceTreeNode> getSiblings() {
+		List<ControlDependenceTreeNode> siblings = new ArrayList<ControlDependenceTreeNode>();
+		if(this.parent != null) {
+			for(ControlDependenceTreeNode sibling : parent.children) {
+				if(!sibling.equals(this))
+					siblings.add(sibling);
+			}
+		}
+		return siblings;
+	}
+
+	public boolean leafSiblings() {
+		if(this.isLeaf()) {
+			ControlDependenceTreeNode parent = this.getParent();
+			for(ControlDependenceTreeNode sibling : parent.children) {
+				if(!sibling.isLeaf())
+					return false;
+			}
+			return true;
+		}
+		return false;
 	}
 
 	private List<ControlDependenceTreeNode> getControlDependenceTreeNodesInLevel(int level) {

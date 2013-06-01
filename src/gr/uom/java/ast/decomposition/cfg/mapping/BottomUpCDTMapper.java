@@ -49,8 +49,15 @@ public class BottomUpCDTMapper {
 				}
 			}
 		}
-		List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches = new ArrayList<TreeSet<ControlDependenceTreeNodeMatchPair>>();
+		//filter leaf pairs for which a sibling leaf pair is already added in the list
+		List<ControlDependenceTreeNodeMatchPair> filteredMatchLeafPairs = new ArrayList<ControlDependenceTreeNodeMatchPair>();
 		for(ControlDependenceTreeNodeMatchPair matchPair : matchLeafPairs) {
+			if(!containsSiblingMatch(filteredMatchLeafPairs, matchPair)) {
+				filteredMatchLeafPairs.add(matchPair);
+			}
+		}
+		List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches = new ArrayList<TreeSet<ControlDependenceTreeNodeMatchPair>>();
+		for(ControlDependenceTreeNodeMatchPair matchPair : filteredMatchLeafPairs) {
 			TreeSet<ControlDependenceTreeNodeMatchPair> bottomUpMatch = new TreeSet<ControlDependenceTreeNodeMatchPair>();
 			findBottomUpMatches(matchPair, bottomUpMatch);
 			mergeOrAdd(matches, bottomUpMatch, matchLeafPairs);
@@ -67,6 +74,16 @@ public class BottomUpCDTMapper {
 					solutions.add(tempSolution);
 			}
 		}
+	}
+
+	private boolean containsSiblingMatch(List<ControlDependenceTreeNodeMatchPair> matchLeafPairs,
+			ControlDependenceTreeNodeMatchPair matchLeafPair) {
+		for(ControlDependenceTreeNodeMatchPair matchPair : matchLeafPairs) {
+			if(matchPair.getNode1().getParent().equals(matchLeafPair.getNode1().getParent()) &&
+					matchPair.getNode2().getParent().equals(matchLeafPair.getNode2().getParent()))
+				return true;
+		}
+		return false;
 	}
 
 	private boolean equalsWithCurrentSolutions(List<CompleteSubTreeMatch> solutions, CompleteSubTreeMatch solution) {

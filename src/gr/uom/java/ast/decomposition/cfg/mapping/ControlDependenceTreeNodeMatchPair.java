@@ -43,6 +43,13 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 	}
 
 	public int compareTo(ControlDependenceTreeNodeMatchPair other) {
-		return Integer.compare(this.node1.getNode().getId(), other.node1.getNode().getId());
+		int val1 = Integer.compare(this.node1.getNode().getId(), other.node1.getNode().getId());
+		int val2 = Integer.compare(this.node2.getNode().getId(), other.node2.getNode().getId());
+		if(val1 != 0)
+			return val1;
+		else if(val2 != 0)
+			return val2;
+		else
+			return 0;
 	}
 }

@@ -106,6 +106,9 @@ public class GodClassVisualizationData {
 				for(MethodInvocationObject invocation : invocationsToBeRemoved) {
 					methodInvocationMap.remove(invocation);
 				}
+				if(methodInvocationMap.isEmpty()){
+					externalMethodInvocationMap.remove(method);
+				}
 			}
 		}
 	}

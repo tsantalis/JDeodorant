@@ -14,7 +14,8 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.jdt.ui,
  org.eclipse.ltk.core.refactoring,
  org.eclipse.ltk.ui.refactoring,
- org.eclipse.compare
+ org.eclipse.compare,
+ org.eclipse.draw2d
 Bundle-ActivationPolicy: lazy
 Import-Package: org.eclipse.jdt.core.refactoring
 Export-Package: gr.uom.java.ast,

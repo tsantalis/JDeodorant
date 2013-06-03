@@ -127,4 +127,18 @@ public abstract class AbstractMethodInvocationObject implements TypeHolder {
         sb.append(":").append(returnType);
         return sb.toString();
     }
+    
+    public String getSignature(){
+    	StringBuilder sb = new StringBuilder();
+        sb.append(methodName);
+        sb.append("(");
+        if(!parameterList.isEmpty()) {
+            for(int i=0; i<parameterList.size()-1; i++)
+                sb.append(parameterList.get(i)).append(", ");
+            sb.append(parameterList.get(parameterList.size()-1));
+        }
+        sb.append(")");
+       // sb.append(":").append(returnType);
+        return sb.toString();
+    }
 }

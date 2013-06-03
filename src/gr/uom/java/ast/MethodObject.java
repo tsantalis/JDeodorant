@@ -645,4 +645,18 @@ public class MethodObject {
         	sb.append("\n").append(constructorObject.methodBody.toString());*/
         return sb.toString();
     }
+    
+    public String getSignature(){
+    	StringBuilder sb = new StringBuilder();
+        sb.append(constructorObject.name);
+        sb.append("(");
+        if(!constructorObject.parameterList.isEmpty()) {
+            for(int i=0; i<constructorObject.parameterList.size()-1; i++)
+                sb.append(constructorObject.parameterList.get(i).getType()).append(", ");
+            sb.append(constructorObject.parameterList.get(constructorObject.parameterList.size()-1).getType());
+        }
+        sb.append(")");
+       // sb.append(":").append(returnType);
+        return sb.toString();
+    }
 }

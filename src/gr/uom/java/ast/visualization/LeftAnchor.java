@@ -12,6 +12,8 @@ public class LeftAnchor extends AbstractConnectionAnchor {
 
 	
 	public Point getLocation(Point reference) {
-		return getOwner().getBounds().getLeft();
+		Point point = getOwner().getBounds().getLeft();
+		getOwner().translateToAbsolute(point);
+		return point;
 	}
 }

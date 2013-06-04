@@ -95,7 +95,18 @@ public class ControlDependenceTreeGenerator {
 					if(tryNode != null) {
 						ControlDependenceTreeNode treeNode = searchForNode(tryNode);
 						if(treeNode == null) {
-							new ControlDependenceTreeNode(cdtNode, tryNode);
+							//check if tryNode is nested inside another tryNode
+							PDGTryNode otherTryNode = pdg.isDirectlyNestedWithinTryNode(tryNode);
+							if(otherTryNode != null) {
+								ControlDependenceTreeNode otherTreeNode = searchForNode(otherTryNode);
+								if(otherTreeNode != null)
+									new ControlDependenceTreeNode(otherTreeNode, tryNode);
+								else
+									new ControlDependenceTreeNode(cdtNode, tryNode);
+							}
+							else {
+								new ControlDependenceTreeNode(cdtNode, tryNode);
+							}
 						}
 					}
 				}

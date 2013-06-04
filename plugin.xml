@@ -83,6 +83,13 @@
             id="gr.uom.java.jdeodorant.views.GodClass"
             name="God Class">
       </view>
+      <view
+            category="gr.uom.java.jdeodorant"
+            class="gr.uom.java.jdeodorant.refactoring.views.CodeSmellVisualization"
+            icon="icons/repair.png"
+            id="gr.uom.java.jdeodorant.views.CodeSmellVisualization"
+            name="Code Smell Visualization">
+      </view>
    </extension>
    <extension
          point="org.eclipse.ui.perspectiveExtensions">

@@ -15,9 +15,12 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ltk.core.refactoring,
  org.eclipse.ltk.ui.refactoring,
  org.eclipse.compare,
- org.eclipse.draw2d
+ org.eclipse.draw2d,
+ org.eclipse.gef
 Bundle-ActivationPolicy: lazy
 Import-Package: org.eclipse.jdt.core.refactoring
 Export-Package: gr.uom.java.ast,
+ gr.uom.java.ast.decomposition.cfg,
+ gr.uom.java.ast.decomposition.cfg.mapping,
  gr.uom.java.distance,
  gr.uom.java.jdeodorant.refactoring.manipulators

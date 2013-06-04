@@ -597,6 +597,11 @@ public class FeatureEnvy extends ViewPart {
 						int offset = firstPosition.getOffset();
 						int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 						sourceEditor.setHighlightRange(offset, length, true);
+						
+						CodeSmellVisualizationDataSingleton.setData(
+								((MoveMethodCandidateRefactoring)candidate).getFeatureEnvyVisualizationData());
+						IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+						page.showView(CodeSmellVisualization.ID);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {

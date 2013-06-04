@@ -12,32 +12,27 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.ConnectionLayer;
-import org.eclipse.draw2d.FigureCanvas;
 import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.Layer;
 import org.eclipse.draw2d.LayeredPane;
-import org.eclipse.draw2d.LightweightSystem;
 import org.eclipse.draw2d.XYLayout;
 import org.eclipse.draw2d.geometry.Rectangle;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 
 public class GodClassDiagram2 {
 	private LayeredPane root;
 	private Layer primary;
 	private ConnectionLayer connections;
-	private FigureCanvas canvas;
 	private List<JConnection> connectionList= new ArrayList<JConnection>();
 
-	public GodClassDiagram2(GodClassVisualizationData data, Composite parent) {
+	public GodClassDiagram2(GodClassVisualizationData data) {
 
 		// Create a root figure and simple layout to contain all other figures
 		root = new LayeredPane();
 		primary = new Layer();
 		primary.setLayoutManager(new XYLayout());
-		root.setFont(parent.getFont());
+		root.setFont(Display.getDefault().getSystemFont());
 		root.add(primary,"Primary");
 
 		connections = new ConnectionLayer();
@@ -604,17 +599,10 @@ public class GodClassDiagram2 {
 
 		root.add(connections, "Connections");
 
-		this.canvas= new FigureCanvas(parent, SWT.DOUBLE_BUFFERED);
-
-
+		//this.canvas= new FigureCanvas(parent, SWT.DOUBLE_BUFFERED);
 	}
 
-	public FigureCanvas createDiagram(){
-
-		canvas.setBackground(ColorConstants.white);
-		LightweightSystem lws = new LightweightSystem(canvas);
-		lws.setContents(this.root);
-		return canvas;
+	public LayeredPane getRoot() {
+		return root;
 	}
-
 }

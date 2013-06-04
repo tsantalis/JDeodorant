@@ -13,7 +13,7 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
-public class FeatureEnvyVisualizationData {
+public class FeatureEnvyVisualizationData implements VisualizationData {
 
 	private Map<MethodInvocationObject, Integer> sourceMethodInvocationMap;
 	private Map<MethodInvocationObject, Integer> targetMethodInvocationMap;

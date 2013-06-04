@@ -87,6 +87,5 @@ public class ClassFigureMover
 	}
 
 	public void mouseHover(MouseEvent event) {
-		System.out.println(event.getSource().getClass());
 	}
 }

@@ -13,29 +13,24 @@ import org.eclipse.draw2d.geometry.*;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.widgets.Composite;
-
-
+import org.eclipse.swt.widgets.Display;
 
 public class FeatureEnvyDiagram {
 
 	private LayeredPane root;
 	private Layer primary;
 	private ConnectionLayer connections;
-	private FigureCanvas canvas;
+	//private FigureCanvas canvas;
 	private List<JConnection> connectionList= new ArrayList<JConnection>();
 
-	public FeatureEnvyDiagram(FeatureEnvyVisualizationData data, Composite parent) {
+	public FeatureEnvyDiagram(FeatureEnvyVisualizationData data) {
 
 		// Create a root figure and simple layout to contain all other figures
 		root = new LayeredPane();
-
 		primary = new Layer();
 		primary.setLayoutManager(new XYLayout());
-
-		root.setFont(parent.getFont());
+		root.setFont(Display.getDefault().getSystemFont());
 		root.add(primary,"Primary");
-
 		connections = new ConnectionLayer();
 
 
@@ -208,27 +203,14 @@ public class FeatureEnvyDiagram {
 		int sourceH = source.getPreferredSize().height;
 		int targetH = target.getPreferredSize().height;
 		primary.add(extractMethod, new Rectangle(startPointX+classWidth + gap, startPointY + Math.min(targetH, sourceH)/2 , -1,-1));
-		;
 		primary.add(legend, new Rectangle(startPointX,sourceH + legendGap, legendWidth, legendHeight));
-
-
 		root.add(connections, "Connections");
 
-		this.canvas = new FigureCanvas(parent, SWT.DOUBLE_BUFFERED);
-
-
-
+		//this.canvas = new FigureCanvas(parent, SWT.DOUBLE_BUFFERED);
 	}
 
-	public FigureCanvas createDiagram(){
-
-		canvas.setBackground(ColorConstants.white);
-		LightweightSystem lws = new LightweightSystem(canvas);
-		lws.setContents(this.root);		
-		return canvas;
+	public LayeredPane getRoot() {
+		return root;
 	}
-
-
-
 }
 

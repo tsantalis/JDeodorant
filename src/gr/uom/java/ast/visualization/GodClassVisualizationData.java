@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class GodClassVisualizationData {
+public class GodClassVisualizationData implements VisualizationData {
 	//the MethodObject keys correspond to the methods suggested to be extracted in a new class
 	private Map<MethodObject, Map<MethodInvocationObject, Integer>> internalMethodInvocationMap;
 	private Map<MethodObject, Map<MethodInvocationObject, Integer>> externalMethodInvocationMap;

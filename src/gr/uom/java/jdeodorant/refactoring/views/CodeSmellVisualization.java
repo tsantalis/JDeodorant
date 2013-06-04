@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.visualization.VisualizationData;
 
+import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.FigureCanvas;
 import org.eclipse.gef.EditDomain;
 import org.eclipse.gef.editparts.ScalableRootEditPart;
@@ -23,6 +24,7 @@ public class CodeSmellVisualization extends ViewPart {
 		graphicalViewer.setEditDomain(new EditDomain());
 		
 		figureCanvas = (FigureCanvas) graphicalViewer.createControl(parent);
+		figureCanvas.setBackground(ColorConstants.white);
 		VisualizationData data = CodeSmellVisualizationDataSingleton.getData();
 		if(data != null) {
 			CodeSmellVisualizationEditPart editPart = new CodeSmellVisualizationEditPart(data);

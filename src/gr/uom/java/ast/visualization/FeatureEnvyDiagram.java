@@ -46,6 +46,7 @@ public class FeatureEnvyDiagram {
 
 		// Create Extract Method figure that goes in the middle
 		EntityFigure extractMethod = new EntityFigure(data.getMethodToBeMoved().getName(), EntityFigure.METHOD);
+		new ClassFigureMover(extractMethod);
 		extractMethod.setLabelAlignment(2);
 		extractMethod.setToolTip(new Label("Method to be Extracted"));
 		Font font = new Font(null, "Arial", 10, SWT.BOLD);

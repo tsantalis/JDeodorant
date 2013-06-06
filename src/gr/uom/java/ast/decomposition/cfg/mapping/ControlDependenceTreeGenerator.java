@@ -58,15 +58,24 @@ public class ControlDependenceTreeGenerator {
 							if(treeNode == null) {
 								treeNode = new ControlDependenceTreeNode(cdtNode.getParent(), tryNode);
 								ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(treeNode, dstNode);
+								ControlDependenceTreeNode ifParent = searchForNode(nodeControlParent);
+								ifParent.setElseIfChild(tmp);
+								tmp.setIfParent(ifParent);
 								processControlDependences(tmp);
 							}
 							else {
 								ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(treeNode, dstNode);
+								ControlDependenceTreeNode ifParent = searchForNode(nodeControlParent);
+								ifParent.setElseIfChild(tmp);
+								tmp.setIfParent(ifParent);
 								processControlDependences(tmp);
 							}
 						}
 						else {
 							ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(cdtNode.getParent(), dstNode);
+							ControlDependenceTreeNode ifParent = searchForNode(nodeControlParent);
+							ifParent.setElseIfChild(tmp);
+							tmp.setIfParent(ifParent);
 							processControlDependences(tmp);
 						}
 					}

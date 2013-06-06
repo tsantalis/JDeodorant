@@ -158,7 +158,8 @@ public class BottomUpCDTMapper {
 			for(ControlDependenceTreeNode searchSibling : searchSiblings) {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 				boolean match = treeSibling.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getNode().getASTStatement());
-				if(match && astNodeMatcher.isParameterizable() && !alreadyMapped(matches, treeSibling, searchSibling)) {
+				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
+						!alreadyMapped(matches, treeSibling, searchSibling)) {
 					ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
 					matches.add(siblingMatchPair);
 					//apply first-match approach
@@ -176,11 +177,18 @@ public class BottomUpCDTMapper {
 				match = false;
 			else
 				match = treeParent.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getNode().getASTStatement());
-			if(match && astNodeMatcher.isParameterizable()) {
+			if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeParent, searchParent)) {
 				ControlDependenceTreeNodeMatchPair newMatchPair = new ControlDependenceTreeNodeMatchPair(treeParent, searchParent);
 				findBottomUpMatches(newMatchPair, matches);
 			}
 		}
+	}
+
+	private boolean ifStatementsWithEqualElseIfChains(ControlDependenceTreeNode treeNode, ControlDependenceTreeNode searchNode) {
+		if(treeNode.ifStatementInsideElseIfChain() && searchNode.ifStatementInsideElseIfChain()) {
+			return treeNode.getLengthOfElseIfChain() == searchNode.getLengthOfElseIfChain();
+		}
+		return true;
 	}
 
 	private boolean alreadyMapped(Set<ControlDependenceTreeNodeMatchPair> matches,

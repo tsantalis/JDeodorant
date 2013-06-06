@@ -13,6 +13,8 @@ public class ControlDependenceTreeNode {
 	private PDGNode node;
 	private int level;
 	private List<ControlDependenceTreeNode> children;
+	private ControlDependenceTreeNode ifParent;
+	private ControlDependenceTreeNode elseIfChild;
 
 	private ControlDependenceTreeNode(ControlDependenceTreeNode treeNode) {
 		this.parent = treeNode.parent;
@@ -111,6 +113,28 @@ public class ControlDependenceTreeNode {
 		}
 		return leaves;
 	}
+	
+	public boolean ifStatementInsideElseIfChain() {
+		return ifParent != null || elseIfChild != null;
+	}
+
+	public int getNumberOfIfParents() {
+		if(ifParent == null)
+			return 0;
+		else 
+			return ifParent.getNumberOfIfParents() + 1;
+	}
+	
+	public int getNumberOfElseIfChildren() {
+		if(elseIfChild == null)
+			return 0;
+		else 
+			return elseIfChild.getNumberOfElseIfChildren() + 1;
+	}
+	
+	public int getLengthOfElseIfChain() {
+		return getNumberOfIfParents() + getNumberOfElseIfChildren();
+	}
 
 	public List<ControlDependenceTreeNode> getSiblings() {
 		List<ControlDependenceTreeNode> siblings = new ArrayList<ControlDependenceTreeNode>();
@@ -188,6 +212,22 @@ public class ControlDependenceTreeNode {
 			queue.addAll(node.children);
 		}
 		return nodes;
+	}
+
+	public ControlDependenceTreeNode getIfParent() {
+		return ifParent;
+	}
+
+	public void setIfParent(ControlDependenceTreeNode ifParent) {
+		this.ifParent = ifParent;
+	}
+
+	public ControlDependenceTreeNode getElseIfChild() {
+		return elseIfChild;
+	}
+
+	public void setElseIfChild(ControlDependenceTreeNode elseIfChild) {
+		this.elseIfChild = elseIfChild;
 	}
 
 	public int hashCode() {

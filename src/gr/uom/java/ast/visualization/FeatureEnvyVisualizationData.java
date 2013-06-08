@@ -151,7 +151,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 				variable = (PlainVariable)abstractVariable;
 			}
 			if(variable.getVariableType().equals(targetClass.getName())) {
-				List<MethodInvocationObject> externalMethodInvocations = externalMethodInvocationMap.get(variable);
+				List<MethodInvocationObject> externalMethodInvocations = externalMethodInvocationMap.get(abstractVariable);
 				for(MethodInvocationObject methodInvocation : externalMethodInvocations) {
 					if(targetMethodInvocationMap.containsKey(methodInvocation)) {
 						targetMethodInvocationMap.put(methodInvocation, targetMethodInvocationMap.get(methodInvocation) + 1);

@@ -4,6 +4,7 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
@@ -12,6 +13,8 @@ import java.util.TreeSet;
 import org.eclipse.jdt.core.ICompilationUnit;
 
 public class BottomUpCDTMapper {
+	private static final int CDT_1 = 1;
+	private static final int CDT_2 = 2;
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
 	private List<CompleteSubTreeMatch> solutions;
@@ -31,11 +34,11 @@ public class BottomUpCDTMapper {
 		List<ControlDependenceTreeNode> leavesWithLeafSiblings1 = new ArrayList<ControlDependenceTreeNode>();
 		List<ControlDependenceTreeNode> leavesWithLeafSiblings2 = new ArrayList<ControlDependenceTreeNode>();
 		for(ControlDependenceTreeNode leaf1 : leaves1) {
-			if(leaf1.leafSiblings())
+			if(leaf1.areAllSiblingsLeaves())
 				leavesWithLeafSiblings1.add(leaf1);
 		}
 		for(ControlDependenceTreeNode leaf2 : leaves2) {
-			if(leaf2.leafSiblings())
+			if(leaf2.areAllSiblingsLeaves())
 				leavesWithLeafSiblings2.add(leaf2);
 		}
 		List<ControlDependenceTreeNodeMatchPair> matchLeafPairs = new ArrayList<ControlDependenceTreeNodeMatchPair>();
@@ -62,11 +65,32 @@ public class BottomUpCDTMapper {
 			findBottomUpMatches(matchPair, bottomUpMatch);
 			mergeOrAdd(matches, bottomUpMatch, matchLeafPairs);
 		}
+		Set<ControlDependenceTreeNode> nonMatchedNodesCDT1 = findUnMatchedNodes(root1.getNodesInBreadthFirstOrder(), matches, CDT_1);
+		Set<ControlDependenceTreeNode> nonMatchedNodesCDT2 = findUnMatchedNodes(root2.getNodesInBreadthFirstOrder(), matches, CDT_2);
 		for(TreeSet<ControlDependenceTreeNodeMatchPair> match : matches) {
 			//check if the subtrees are complete
 			ControlDependenceTreeNodeMatchPair first = match.first();
-			int subTreeSize1 = first.getNode1().getParent().getNodeCount() - 1;
-			int subTreeSize2 = first.getNode2().getParent().getNodeCount() - 1;
+			
+			Set<ControlDependenceTreeNode> nonMatchedNodesSubTrees1 = new LinkedHashSet<ControlDependenceTreeNode>();
+			nonMatchedNodesSubTrees1.addAll(first.getNode1().getParent().getNodesInBreadthFirstOrder());
+			nonMatchedNodesSubTrees1.remove(first.getNode1().getParent());
+			nonMatchedNodesSubTrees1.retainAll(nonMatchedNodesCDT1);
+			int totalNodesInNonMatchedSubTrees1 = 0;
+			for(ControlDependenceTreeNode nonMatchedNode : nonMatchedNodesSubTrees1) {
+				totalNodesInNonMatchedSubTrees1 += nonMatchedNode.getNodeCount();
+			}
+			
+			Set<ControlDependenceTreeNode> nonMatchedNodesSubTrees2 = new LinkedHashSet<ControlDependenceTreeNode>();
+			nonMatchedNodesSubTrees2.addAll(first.getNode2().getParent().getNodesInBreadthFirstOrder());
+			nonMatchedNodesSubTrees2.remove(first.getNode2().getParent());
+			nonMatchedNodesSubTrees2.retainAll(nonMatchedNodesCDT2);
+			int totalNodesInNonMatchedSubTrees2 = 0;
+			for(ControlDependenceTreeNode nonMatchedNode : nonMatchedNodesSubTrees2) {
+				totalNodesInNonMatchedSubTrees2 += nonMatchedNode.getNodeCount();
+			}
+			
+			int subTreeSize1 = first.getNode1().getParent().getNodeCount() - 1 - totalNodesInNonMatchedSubTrees1;
+			int subTreeSize2 = first.getNode2().getParent().getNodeCount() - 1 - totalNodesInNonMatchedSubTrees2;
 			if(match.size() == subTreeSize1 && match.size() == subTreeSize2) {
 				CompleteSubTreeMatch tempSolution = new CompleteSubTreeMatch(match);
 				if(!isSubsumedByCurrentSolutions(solutions, tempSolution) && !overlapsWithCurrentSolutions(solutions, tempSolution) &&
@@ -74,6 +98,33 @@ public class BottomUpCDTMapper {
 					solutions.add(tempSolution);
 			}
 		}
+	}
+
+	private Set<ControlDependenceTreeNode> findUnMatchedNodes(List<ControlDependenceTreeNode> nodes,
+			List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches, int cdt) {
+		Set<ControlDependenceTreeNode> unMatchedNodes = new LinkedHashSet<ControlDependenceTreeNode>();
+		for(ControlDependenceTreeNode node : nodes) {
+			boolean found = false;
+			for(TreeSet<ControlDependenceTreeNodeMatchPair> match : matches) {
+				for(ControlDependenceTreeNodeMatchPair matchPair : match) {
+					ControlDependenceTreeNode matchPairNode = null;
+					if(cdt == CDT_1)
+						matchPairNode = matchPair.getNode1();
+					else if(cdt == CDT_2)
+						matchPairNode = matchPair.getNode2();
+					if(matchPairNode.equals(node)) {
+						found = true;
+						break;
+					}
+				}
+				if(found)
+					break;
+			}
+			if(!found && node.getParent() != null) {
+				unMatchedNodes.add(node);
+			}
+		}
+		return unMatchedNodes;
 	}
 
 	private boolean containsSiblingMatch(List<ControlDependenceTreeNodeMatchPair> matchLeafPairs,
@@ -121,19 +172,14 @@ public class BottomUpCDTMapper {
 		}
 		else {
 			boolean merged = false;
-			TreeSet<ControlDependenceTreeNodeMatchPair> bottomUpMatchWithoutLeafPairs =
-					new TreeSet<ControlDependenceTreeNodeMatchPair>(bottomUpMatch);
-			bottomUpMatchWithoutLeafPairs.removeAll(leafPairs);
 			ListIterator<TreeSet<ControlDependenceTreeNodeMatchPair>> matchIterator = matches.listIterator();
 			while(matchIterator.hasNext()) {
 				TreeSet<ControlDependenceTreeNodeMatchPair> match = matchIterator.next();
-				TreeSet<ControlDependenceTreeNodeMatchPair> matchWithoutLeafPairs =
-						new TreeSet<ControlDependenceTreeNodeMatchPair>(match);
-				matchWithoutLeafPairs.removeAll(leafPairs);
-				if( (bottomUpMatchWithoutLeafPairs.containsAll(matchWithoutLeafPairs) && !matchWithoutLeafPairs.isEmpty()) ||
-						(matchWithoutLeafPairs.containsAll(bottomUpMatchWithoutLeafPairs) && !bottomUpMatchWithoutLeafPairs.isEmpty()) ) {
-					TreeSet<ControlDependenceTreeNodeMatchPair> mergedMatch =
-							new TreeSet<ControlDependenceTreeNodeMatchPair>();
+				TreeSet<ControlDependenceTreeNodeMatchPair> intersection = new TreeSet<ControlDependenceTreeNodeMatchPair>();
+				intersection.addAll(bottomUpMatch);
+				intersection.retainAll(match);
+				if(!intersection.isEmpty() && !conflictingMatches(bottomUpMatch, match)) {
+					TreeSet<ControlDependenceTreeNodeMatchPair> mergedMatch = new TreeSet<ControlDependenceTreeNodeMatchPair>();
 					mergedMatch.addAll(match);
 					mergedMatch.addAll(bottomUpMatch);
 					matchIterator.set(mergedMatch);
@@ -145,6 +191,24 @@ public class BottomUpCDTMapper {
 				matches.add(bottomUpMatch);
 			}
 		}
+	}
+
+	private boolean conflictingMatches(TreeSet<ControlDependenceTreeNodeMatchPair> matches1,
+			TreeSet<ControlDependenceTreeNodeMatchPair> matches2) {
+		//if the two sub-trees have matched the same node to a different one, then they cannot be merged
+		for(ControlDependenceTreeNodeMatchPair pair1 : matches1) {
+			for(ControlDependenceTreeNodeMatchPair pair2 : matches2) {
+				if(pair1.getNode1().equals(pair2.getNode1())) {
+					if(!pair1.getNode2().equals(pair2.getNode2()))
+						return true;
+				}
+				if(pair1.getNode2().equals(pair2.getNode2())) {
+					if(!pair1.getNode1().equals(pair2.getNode1()))
+						return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private void findBottomUpMatches(ControlDependenceTreeNodeMatchPair matchPair, Set<ControlDependenceTreeNodeMatchPair> matches) {

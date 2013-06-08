@@ -147,14 +147,16 @@ public class ControlDependenceTreeNode {
 		return siblings;
 	}
 
-	public boolean leafSiblings() {
+	public boolean areAllSiblingsLeaves() {
 		if(this.isLeaf()) {
 			ControlDependenceTreeNode parent = this.getParent();
-			for(ControlDependenceTreeNode sibling : parent.children) {
-				if(!sibling.isLeaf())
-					return false;
+			if(parent != null) {
+				for(ControlDependenceTreeNode sibling : parent.children) {
+					if(!sibling.isLeaf())
+						return false;
+				}
+				return true;
 			}
-			return true;
 		}
 		return false;
 	}

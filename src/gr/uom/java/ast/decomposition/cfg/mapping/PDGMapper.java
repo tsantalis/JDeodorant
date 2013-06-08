@@ -62,6 +62,7 @@ public class PDGMapper {
 	private Set<MethodInvocationObject> accessedLocalMethodsG2;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG1;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
+	private List<CompleteSubTreeMatch> bottomUpSubTreeMatches;
 	private IProgressMonitor monitor;
 	
 	public PDGMapper(PDG pdg1, PDG pdg2, IProgressMonitor monitor) {
@@ -74,17 +75,14 @@ public class PDGMapper {
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
 		this.iCompilationUnit2 = (ICompilationUnit)cu2.getJavaElement();
 		
-		TopDownCDTMapper topDownCDTMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
-		List<CompleteSubTreeMatch> subTreeMatches = topDownCDTMapper.getSolutions();
-		
 		BottomUpCDTMapper bottomUpCDTMapper = new BottomUpCDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
-		List<CompleteSubTreeMatch> subTreeMatches2 = bottomUpCDTMapper.getSolutions();
+		this.bottomUpSubTreeMatches = bottomUpCDTMapper.getSolutions();
 		
 		//we need a strategy in the case we have multiple subTreeMatches
 		ControlDependenceTreeNode controlDependenceSubTreePDG1 = null;
 		ControlDependenceTreeNode controlDependenceSubTreePDG2 = null;
-		if(subTreeMatches.size() == 1) {
-			CompleteSubTreeMatch subTreeMatch = subTreeMatches.get(0);
+		if(bottomUpSubTreeMatches.size() == 1) {
+			CompleteSubTreeMatch subTreeMatch = bottomUpSubTreeMatches.get(0);
 			int size1 = controlDependenceTreePDG1.getNodeCount() - 1;
 			int size2 = controlDependenceTreePDG2.getNodeCount() - 1;
 			int subTreeSize = subTreeMatch.getMatchPairs().size();
@@ -128,6 +126,10 @@ public class PDGMapper {
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
+	}
+
+	public List<CompleteSubTreeMatch> getBottomUpSubTreeMatches() {
+		return this.bottomUpSubTreeMatches;
 	}
 
 	private void computeSliceForNonMappedNodes(PDG pdg, TreeSet<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes, Set<PDGNode> nonMappedNodesSliceUnion) {

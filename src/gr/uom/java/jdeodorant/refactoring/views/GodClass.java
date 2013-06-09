@@ -29,7 +29,6 @@ import gr.uom.java.distance.Entity;
 import gr.uom.java.distance.ExtractClassCandidateRefactoring;
 import gr.uom.java.distance.ExtractClassCandidateGroup;
 import gr.uom.java.distance.ExtractedConcept;
-import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
@@ -637,9 +636,10 @@ public class GodClass extends ViewPart {
 							CodeSmellVisualizationDataSingleton.setData(
 									((ExtractClassCandidateRefactoring)candidate).getGodClassVisualizationData());
 							IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-							if(CodeSmellVisualizationDataSingleton.getViewPart() != null)
-								page.hideView(CodeSmellVisualizationDataSingleton.getViewPart());
-							CodeSmellVisualizationDataSingleton.setViewPart(page.showView(CodeSmellVisualization.ID));
+							IViewPart viewPart = page.findView(CodeSmellVisualization.ID);
+							if(viewPart != null)
+								page.hideView(viewPart);
+							page.showView(CodeSmellVisualization.ID);
 						} catch (PartInitException e) {
 							e.printStackTrace();
 						} catch (JavaModelException e) {

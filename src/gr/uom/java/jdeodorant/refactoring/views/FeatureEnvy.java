@@ -601,9 +601,10 @@ public class FeatureEnvy extends ViewPart {
 						CodeSmellVisualizationDataSingleton.setData(
 								((MoveMethodCandidateRefactoring)candidate).getFeatureEnvyVisualizationData());
 						IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-						if(CodeSmellVisualizationDataSingleton.getViewPart() != null)
-							page.hideView(CodeSmellVisualizationDataSingleton.getViewPart());
-						CodeSmellVisualizationDataSingleton.setViewPart(page.showView(CodeSmellVisualization.ID));
+						IViewPart viewPart = page.findView(CodeSmellVisualization.ID);
+						if(viewPart != null)
+							page.hideView(viewPart);
+						page.showView(CodeSmellVisualization.ID);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {

@@ -5,8 +5,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.jdt.core.dom.ITypeBinding;
+
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
+import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -41,12 +44,13 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 		}
 		
 		this.targetMethodInvocationMap = new LinkedHashMap<MethodInvocationObject, Integer>();
-		Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughFieldsMap = methodToBeMoved.getNonDistinctInvokedMethodsThroughFields();
-		processExternalMethodInvocations(externalMethodInvocationsThroughFieldsMap, targetClass);
-		Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughParametersMap = methodToBeMoved.getNonDistinctInvokedMethodsThroughParameters();
-		processExternalMethodInvocations(externalMethodInvocationsThroughParametersMap, targetClass);
-		
 		List<FieldInstructionObject> fieldInstructions = methodToBeMoved.getFieldInstructions();
+		List<LocalVariableInstructionObject> localVariableInstructions = methodToBeMoved.getLocalVariableInstructions();
+		Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughFieldsMap = methodToBeMoved.getNonDistinctInvokedMethodsThroughFields();
+		processExternalMethodInvocations(externalMethodInvocationsThroughFieldsMap, fieldInstructions, localVariableInstructions, targetClass);
+		Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughParametersMap = methodToBeMoved.getNonDistinctInvokedMethodsThroughParameters();
+		processExternalMethodInvocations(externalMethodInvocationsThroughParametersMap, fieldInstructions, localVariableInstructions, targetClass);
+		
 		this.sourceFieldReadMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<PlainVariable> usedFieldsThroughThisReference = methodToBeMoved.getNonDistinctUsedFieldsThroughThisReference();
 		for(PlainVariable variable : usedFieldsThroughThisReference) {
@@ -73,19 +77,19 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 		
 		this.targetFieldReadMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<AbstractVariable> usedFieldsThroughFields = methodToBeMoved.getNonDistinctUsedFieldsThroughFields();
-		handleUsedFields(usedFieldsThroughFields, fieldInstructions, targetClass);
+		handleUsedFields(usedFieldsThroughFields, fieldInstructions, localVariableInstructions, targetClass);
 		List<AbstractVariable> usedFieldsThroughParameters = methodToBeMoved.getNonDistinctUsedFieldsThroughParameters();
-		handleUsedFields(usedFieldsThroughParameters, fieldInstructions, targetClass);
+		handleUsedFields(usedFieldsThroughParameters, fieldInstructions, localVariableInstructions, targetClass);
 		
 		this.targetFieldWriteMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<AbstractVariable> definedFieldsThroughFields = methodToBeMoved.getNonDistinctDefinedFieldsThroughFields();
-		handleDefinedFields(definedFieldsThroughFields, fieldInstructions, targetClass);
+		handleDefinedFields(definedFieldsThroughFields, fieldInstructions, localVariableInstructions, targetClass);
 		List<AbstractVariable> definedFieldsThroughParameters = methodToBeMoved.getNonDistinctDefinedFieldsThroughParameters();
-		handleDefinedFields(definedFieldsThroughParameters, fieldInstructions, targetClass);
+		handleDefinedFields(definedFieldsThroughParameters, fieldInstructions, localVariableInstructions, targetClass);
 	}
 
 	private void handleUsedFields(List<AbstractVariable> usedFields, List<FieldInstructionObject> fieldInstructions,
-			ClassObject targetClass) {
+			List<LocalVariableInstructionObject> localVariableInstructions, ClassObject targetClass) {
 		for(AbstractVariable abstractVariable : usedFields) {
 			CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
 			AbstractVariable leftPart = compositeVariable.getLeftPart();
@@ -96,7 +100,20 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			else {
 				variable = (PlainVariable)leftPart;
 			}
-			if(variable.getVariableType().equals(targetClass.getName())) {
+			ITypeBinding variableTypeBinding = null;
+			if(variable.isField()) {
+				FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
+				if(fieldInstruction != null)
+					variableTypeBinding = fieldInstruction.getSimpleName().resolveTypeBinding();
+			}
+			else if(variable.isParameter()) {
+				LocalVariableInstructionObject localVariableInstruction = findLocalVariableInstruction(variable, localVariableInstructions);
+				if(localVariableInstruction != null)
+					variableTypeBinding = localVariableInstruction.getSimpleName().resolveTypeBinding();
+			}
+			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+			if(variable.getVariableType().equals(targetClass.getName()) ||
+					(variableTypeBinding != null && variableTypeBinding.getSuperclass().isEqualTo(targetClassBinding))) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(compositeVariable.getFinalVariable(), fieldInstructions);
 				if(targetFieldReadMap.containsKey(fieldInstruction)) {
 					targetFieldReadMap.put(fieldInstruction, targetFieldReadMap.get(fieldInstruction) + 1);
@@ -109,7 +126,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 	}
 
 	private void handleDefinedFields(List<AbstractVariable> definedFields, List<FieldInstructionObject> fieldInstructions,
-			ClassObject targetClass) {
+			List<LocalVariableInstructionObject> localVariableInstructions, ClassObject targetClass) {
 		for(AbstractVariable abstractVariable : definedFields) {
 			CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
 			AbstractVariable leftPart = compositeVariable.getLeftPart();
@@ -120,7 +137,20 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			else {
 				variable = (PlainVariable)leftPart;
 			}
-			if(variable.getVariableType().equals(targetClass.getName())) {
+			ITypeBinding variableTypeBinding = null;
+			if(variable.isField()) {
+				FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
+				if(fieldInstruction != null)
+					variableTypeBinding = fieldInstruction.getSimpleName().resolveTypeBinding();
+			}
+			else if(variable.isParameter()) {
+				LocalVariableInstructionObject localVariableInstruction = findLocalVariableInstruction(variable, localVariableInstructions);
+				if(localVariableInstruction != null)
+					variableTypeBinding = localVariableInstruction.getSimpleName().resolveTypeBinding();
+			}
+			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+			if(variable.getVariableType().equals(targetClass.getName()) ||
+					(variableTypeBinding != null && variableTypeBinding.getSuperclass().isEqualTo(targetClassBinding))) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(compositeVariable.getFinalVariable(), fieldInstructions);
 				if(targetFieldWriteMap.containsKey(fieldInstruction)) {
 					targetFieldWriteMap.put(fieldInstruction, targetFieldWriteMap.get(fieldInstruction) + 1);
@@ -140,8 +170,16 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 		return null;
 	}
 
+	private LocalVariableInstructionObject findLocalVariableInstruction(PlainVariable variable, List<LocalVariableInstructionObject> localVariableInstructions) {
+		for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
+			if(localVariableInstruction.getSimpleName().resolveBinding().getKey().equals(variable.getVariableBindingKey()))
+				return localVariableInstruction;
+		}
+		return null;
+	}
+
 	private void processExternalMethodInvocations(Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationMap,
-			ClassObject targetClass) {
+			List<FieldInstructionObject> fieldInstructions, List<LocalVariableInstructionObject> localVariableInstructions, ClassObject targetClass) {
 		for(AbstractVariable abstractVariable : externalMethodInvocationMap.keySet()) {
 			PlainVariable variable = null;
 			if(abstractVariable instanceof CompositeVariable) {
@@ -150,7 +188,20 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			else {
 				variable = (PlainVariable)abstractVariable;
 			}
-			if(variable.getVariableType().equals(targetClass.getName())) {
+			ITypeBinding variableTypeBinding = null;
+			if(variable.isField()) {
+				FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
+				if(fieldInstruction != null)
+					variableTypeBinding = fieldInstruction.getSimpleName().resolveTypeBinding();
+			}
+			else if(variable.isParameter()) {
+				LocalVariableInstructionObject localVariableInstruction = findLocalVariableInstruction(variable, localVariableInstructions);
+				if(localVariableInstruction != null)
+					variableTypeBinding = localVariableInstruction.getSimpleName().resolveTypeBinding();
+			}
+			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+			if(variable.getVariableType().equals(targetClass.getName()) ||
+					(variableTypeBinding != null && variableTypeBinding.getSuperclass().isEqualTo(targetClassBinding))) {
 				List<MethodInvocationObject> externalMethodInvocations = externalMethodInvocationMap.get(abstractVariable);
 				for(MethodInvocationObject methodInvocation : externalMethodInvocations) {
 					if(targetMethodInvocationMap.containsKey(methodInvocation)) {

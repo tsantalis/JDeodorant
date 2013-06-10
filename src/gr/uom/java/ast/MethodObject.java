@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -352,6 +353,31 @@ public class MethodObject {
     			if(fieldObject.equals(fieldInstruction) && targetClass.getName().equals(association.getTo()) &&
     					association.isContainer())
     				return true;
+    		}
+    	}
+    	return false;
+    }
+
+    public boolean containsMethodCallWithThisExpressionAsArgument() {
+    	List<MethodInvocationObject> methodInvocations = getMethodInvocations();
+    	for(MethodInvocationObject methodInvocation : methodInvocations) {
+    		MethodInvocation invocation = methodInvocation.getMethodInvocation();
+    		List<Expression> arguments = invocation.arguments();
+    		for(Expression argument : arguments) {
+    			if(argument instanceof ThisExpression)
+    				return true;
+    		}
+    	}
+    	List<CreationObject> creations = getCreations();
+    	for(CreationObject creation : creations) {
+    		if(creation instanceof ClassInstanceCreationObject) {
+    			ClassInstanceCreationObject classInstanceCreationObject = (ClassInstanceCreationObject)creation;
+    			ClassInstanceCreation classInstanceCreation = classInstanceCreationObject.getClassInstanceCreation();
+    			List<Expression> arguments = classInstanceCreation.arguments();
+    			for(Expression argument : arguments) {
+        			if(argument instanceof ThisExpression)
+        				return true;
+        		}
     		}
     	}
     	return false;

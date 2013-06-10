@@ -96,7 +96,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 
     public boolean isApplicable() {
     	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
-    			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable())
+    			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable() &&
+    			!containsMethodCallWithThisExpressionAsArgument())
     		return true;
     	else
     		return false;
@@ -176,6 +177,14 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     private boolean isSynchronized() {
     	if(sourceMethod.getMethodObject().isSynchronized()) {
     		//System.out.println(this.toString() + "\tis synchronized");
+    		return true;
+    	}
+    	else
+    		return false;
+    }
+
+    private boolean containsMethodCallWithThisExpressionAsArgument() {
+    	if(sourceMethod.getMethodObject().containsMethodCallWithThisExpressionAsArgument()) {
     		return true;
     	}
     	else

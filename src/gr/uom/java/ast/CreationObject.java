@@ -1,6 +1,6 @@
 package gr.uom.java.ast;
 
-public abstract class CreationObject implements TypeHolder {
+public abstract class CreationObject {
 	private TypeObject type;
 	protected ASTInformation creation;
 	

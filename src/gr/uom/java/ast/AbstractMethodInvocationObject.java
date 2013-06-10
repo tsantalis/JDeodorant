@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
-public abstract class AbstractMethodInvocationObject implements TypeHolder {
+public abstract class AbstractMethodInvocationObject {
 	private String originClassName;
     private String methodName;
     private TypeObject returnType;

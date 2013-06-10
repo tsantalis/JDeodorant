@@ -2,7 +2,7 @@ package gr.uom.java.ast;
 
 import org.eclipse.jdt.core.dom.ArrayAccess;
 
-public class ArrayAccessObject implements TypeHolder {
+public class ArrayAccessObject {
 	private TypeObject type;
 	private ASTInformation arrayAccess;
 	

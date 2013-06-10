@@ -75,22 +75,22 @@ public class BottomUpCDTMapper {
 			nonMatchedNodesSubTrees1.addAll(first.getNode1().getParent().getNodesInBreadthFirstOrder());
 			nonMatchedNodesSubTrees1.remove(first.getNode1().getParent());
 			nonMatchedNodesSubTrees1.retainAll(nonMatchedNodesCDT1);
-			int totalNodesInNonMatchedSubTrees1 = 0;
+			Set<ControlDependenceTreeNode> totalNodesInNonMatchedSubTrees1 = new LinkedHashSet<ControlDependenceTreeNode>();
 			for(ControlDependenceTreeNode nonMatchedNode : nonMatchedNodesSubTrees1) {
-				totalNodesInNonMatchedSubTrees1 += nonMatchedNode.getNodeCount();
+				totalNodesInNonMatchedSubTrees1.addAll(nonMatchedNode.getNodesInBreadthFirstOrder());
 			}
 			
 			Set<ControlDependenceTreeNode> nonMatchedNodesSubTrees2 = new LinkedHashSet<ControlDependenceTreeNode>();
 			nonMatchedNodesSubTrees2.addAll(first.getNode2().getParent().getNodesInBreadthFirstOrder());
 			nonMatchedNodesSubTrees2.remove(first.getNode2().getParent());
 			nonMatchedNodesSubTrees2.retainAll(nonMatchedNodesCDT2);
-			int totalNodesInNonMatchedSubTrees2 = 0;
+			Set<ControlDependenceTreeNode> totalNodesInNonMatchedSubTrees2 = new LinkedHashSet<ControlDependenceTreeNode>();
 			for(ControlDependenceTreeNode nonMatchedNode : nonMatchedNodesSubTrees2) {
-				totalNodesInNonMatchedSubTrees2 += nonMatchedNode.getNodeCount();
+				totalNodesInNonMatchedSubTrees2.addAll(nonMatchedNode.getNodesInBreadthFirstOrder());
 			}
 			
-			int subTreeSize1 = first.getNode1().getParent().getNodeCount() - 1 - totalNodesInNonMatchedSubTrees1;
-			int subTreeSize2 = first.getNode2().getParent().getNodeCount() - 1 - totalNodesInNonMatchedSubTrees2;
+			int subTreeSize1 = first.getNode1().getParent().getNodeCount() - 1 - totalNodesInNonMatchedSubTrees1.size();
+			int subTreeSize2 = first.getNode2().getParent().getNodeCount() - 1 - totalNodesInNonMatchedSubTrees2.size();
 			if(match.size() == subTreeSize1 && match.size() == subTreeSize2) {
 				CompleteSubTreeMatch tempSolution = new CompleteSubTreeMatch(match);
 				if(!isSubsumedByCurrentSolutions(solutions, tempSolution) && !overlapsWithCurrentSolutions(solutions, tempSolution) &&

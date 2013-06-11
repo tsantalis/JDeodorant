@@ -156,12 +156,12 @@ public class Legend extends Figure {
 
 		this.add(MethodSectionCompartment);
 
-		this.add(toSourceReadFigure.addToSourceWeakReadConnection(ConnectionType.READ_FIELD_SOURCE,toSourceReadFigure,2));
-		this.add(toSourceWriteFigure.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE,toSourceWriteFigure, 2));
-		this.add(toTargetReadFigure.addToSourceReadConnection(ConnectionType.READ_FIELD_TARGET,toTargetReadFigure, 2));
-		this.add(toTargetWriteFigure.addToSourceWriteConnection(ConnectionType.WRITE_FIELD_TARGET,toTargetWriteFigure, 2));
-		this.add(toSourceMethodFigure.addToSourceMethodConnection(ConnectionType.METHOD_CALL_SOURCE, toSourceMethodFigure, 2));
-		this.add(toTargetMethodFigure.addLeftRightMethodConnection(ConnectionType.METHOD_CALL_TARGET, toTargetMethodFigure, 2));
+		this.add(toSourceReadFigure.addToSourceWeakReadConnection(ConnectionType.READ_FIELD_SOURCE,toSourceReadFigure,JConnection.NO_OCCURENCES));
+		this.add(toSourceWriteFigure.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE,toSourceWriteFigure, JConnection.NO_OCCURENCES));
+		this.add(toTargetReadFigure.addToSourceReadConnection(ConnectionType.READ_FIELD_TARGET,toTargetReadFigure, JConnection.NO_OCCURENCES));
+		this.add(toTargetWriteFigure.addToSourceWriteConnection(ConnectionType.WRITE_FIELD_TARGET,toTargetWriteFigure, JConnection.NO_OCCURENCES));
+		this.add(toSourceMethodFigure.addToSourceMethodConnection(ConnectionType.METHOD_CALL_SOURCE, toSourceMethodFigure, JConnection.NO_OCCURENCES));
+		this.add(toTargetMethodFigure.addLeftRightMethodConnection(ConnectionType.METHOD_CALL_TARGET, toTargetMethodFigure, JConnection.NO_OCCURENCES));
 
 
 

@@ -113,7 +113,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			}
 			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
 			if(variable.getVariableType().equals(targetClass.getName()) ||
-					(variableTypeBinding != null && variableTypeBinding.getSuperclass().isEqualTo(targetClassBinding))) {
+					(variableTypeBinding != null && targetClassBinding.isEqualTo(variableTypeBinding.getSuperclass()))) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(compositeVariable.getFinalVariable(), fieldInstructions);
 				if(targetFieldReadMap.containsKey(fieldInstruction)) {
 					targetFieldReadMap.put(fieldInstruction, targetFieldReadMap.get(fieldInstruction) + 1);
@@ -150,7 +150,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			}
 			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
 			if(variable.getVariableType().equals(targetClass.getName()) ||
-					(variableTypeBinding != null && variableTypeBinding.getSuperclass().isEqualTo(targetClassBinding))) {
+					(variableTypeBinding != null && targetClassBinding.isEqualTo(variableTypeBinding.getSuperclass()))) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(compositeVariable.getFinalVariable(), fieldInstructions);
 				if(targetFieldWriteMap.containsKey(fieldInstruction)) {
 					targetFieldWriteMap.put(fieldInstruction, targetFieldWriteMap.get(fieldInstruction) + 1);
@@ -201,7 +201,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			}
 			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
 			if(variable.getVariableType().equals(targetClass.getName()) ||
-					(variableTypeBinding != null && variableTypeBinding.getSuperclass().isEqualTo(targetClassBinding))) {
+					(variableTypeBinding != null && targetClassBinding.isEqualTo(variableTypeBinding.getSuperclass()))) {
 				List<MethodInvocationObject> externalMethodInvocations = externalMethodInvocationMap.get(abstractVariable);
 				for(MethodInvocationObject methodInvocation : externalMethodInvocations) {
 					if(targetMethodInvocationMap.containsKey(methodInvocation)) {

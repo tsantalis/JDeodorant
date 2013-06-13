@@ -3,11 +3,9 @@ package gr.uom.java.ast.visualization;
 import java.util.List;
 
 
-import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.ConnectionEndpointLocator;
 import org.eclipse.draw2d.ConnectionLocator;
 import org.eclipse.draw2d.Label;
-import org.eclipse.draw2d.LineBorder;
 import org.eclipse.draw2d.MouseEvent;
 import org.eclipse.draw2d.MouseMotionListener;
 import org.eclipse.draw2d.PolygonDecoration;
@@ -60,8 +58,7 @@ public class EntityFigureListener implements MouseMotionListener{
 					
 			
 				l.setFont(new Font(null, fontStyle, 14 , SWT.BOLD));
-				//l.setForegroundColor(ColorConstants.black);
-
+			
 				connection.add(l, locator);
 			}
 
@@ -84,7 +81,6 @@ public class EntityFigureListener implements MouseMotionListener{
 			
 			if(l != null){
 				l.setFont(new Font(null, "Arial", 10, SWT.BOLD));
-				//l.setForegroundColor(ColorConstants.black);	
 				ConnectionLocator locator = connection.getLocator();
 				locator.setRelativePosition(PositionConstants.CENTER);
 				connection.add(l, locator);

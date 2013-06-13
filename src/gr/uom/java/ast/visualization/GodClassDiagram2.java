@@ -176,7 +176,8 @@ public class GodClassDiagram2 {
 					EntityFigure entity = (EntityFigure) child;
 					if (entity.getName().equals(fieldFigure.getName())){
 						contains = true;
-						JConnection connection = connectionSource.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE, entity, occurences);
+						//JConnection connection = connectionSource.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE, entity, occurences);
+						JConnection connection = connectionSource.addToSourceBendConnection(ConnectionType.WRITE_FIELD_SOURCE, entity, occurences);
 						connectionList.add(connection);
 						connections.add(connection);
 					}

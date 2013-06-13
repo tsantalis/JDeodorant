@@ -130,7 +130,8 @@ public class FeatureEnvyDiagram {
 				EntityFigure entity = (EntityFigure) child;
 				if (entity.getName().equals(fieldFigure.getName()))
 					contains = true;
-				JConnection connection = extractMethod.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE,entity, occurences);
+				//JConnection connection = extractMethod.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE,entity, occurences);
+				JConnection connection = extractMethod.addToSourceBendConnection(ConnectionType.WRITE_FIELD_SOURCE,entity, occurences);
 				connectionList.add(connection);
 				connections.add(connection);
 

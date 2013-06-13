@@ -74,7 +74,7 @@ public class EntityFigure extends Label{
 		connection.setLeftLeftAnchors(this, label);
 
 		//connection.setSourceBendRouter(bendHeight, classWidth);
-		connection.setSourceBendRouter(bendHeight);
+		connection.setFullBendRouter(bendHeight);
 		connection.setLabel(occurences);
 		outgoingConnections.add(connection);
 
@@ -89,7 +89,7 @@ public class EntityFigure extends Label{
 		connection.setRightRightAnchors(this, label);
 
 		//connection.setSourceBendRouter(-bendHeight, -classWidth);
-		connection.setSourceBendRouter(-bendHeight);
+		connection.setFullBendRouter(-bendHeight);
 		connection.setLabel(occurences);
 		outgoingConnections.add(connection);
 
@@ -206,6 +206,7 @@ public class EntityFigure extends Label{
 
 	public JConnection addToSourceReadConnection(ConnectionType type, EntityFigure name, Integer occurences){
 		JConnection connection = addLeftRightConnection(type, name, occurences);
+		
 
 		connection.setReadStyle();
 
@@ -224,7 +225,7 @@ public class EntityFigure extends Label{
 	public JConnection addToSourceWeakReadConnection(ConnectionType type, EntityFigure name, Integer occurences){
 		JConnection connection = addToSourceReadConnection(type, name, occurences);
 		connection.setDottedLine();
-
+		
 		return connection;
 	}
 
@@ -237,7 +238,16 @@ public class EntityFigure extends Label{
 
 	public JConnection addToTargetBendConnection(ConnectionType type, EntityFigure name, Integer occurences){
 		JConnection connection = addRightLeftConnection(type, name, occurences);
-		connection.setTargetBendRouter();
+		connection.setSlightBendRouter();
+		connection.setWriteStyle();
+
+		return connection;
+	}
+	
+	public JConnection addToSourceBendConnection(ConnectionType type, EntityFigure name, Integer occurences){
+		JConnection connection = addLeftRightConnection(type, name, occurences);
+		connection.setSlightBendRouter();
+		connection.setDottedLine();
 		connection.setWriteStyle();
 
 		return connection;

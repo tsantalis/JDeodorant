@@ -18,6 +18,9 @@ import org.eclipse.swt.graphics.Font;
 
 public class JConnection extends PolylineConnection {
 	private ConnectionType type;
+	private Label label;
+	private ConnectionLocator locator;
+	private boolean isWrite = false;
 	
 	//public static Color methodToMethodColor = ColorConstants.cyan;
 	//public static Color methodToMethodColor = new Color(null, 49,79,79);
@@ -32,8 +35,23 @@ public class JConnection extends PolylineConnection {
 	public ConnectionType getType() {
 		return type;
 	}
+	
+
+	public Label getLabel() {
+		return label;
+	}
+	
+	
+	public boolean isWrite(){
+		return isWrite;
+	}
+
+	public ConnectionLocator getLocator() {
+		return locator;
+	}
 
 	public PolylineConnection setRightLeftAnchors(Label source, Label target){
+		
 		RightAnchor sourceAnchor = new RightAnchor(source);
 		LeftAnchor targetAnchor = new LeftAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
@@ -44,6 +62,7 @@ public class JConnection extends PolylineConnection {
 
 
 	public PolylineConnection setLeftLeftAnchors(Label source, Label target){
+		
 		LeftAnchor sourceAnchor = new LeftAnchor(source);
 		LeftAnchor targetAnchor = new LeftAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
@@ -74,7 +93,7 @@ public class JConnection extends PolylineConnection {
 	public PolylineConnection setMethodToMethodStyle(){
 		PolygonDecoration decoration = new PolygonDecoration();
 		decoration.setTemplate(PolygonDecoration.TRIANGLE_TIP);
-		decoration.setBackgroundColor(ColorConstants.black);
+		decoration.setBackgroundColor(JConnection.methodToMethodColor);
 		this.setTargetDecoration(decoration);
 
 		this.setForegroundColor(JConnection.methodToMethodColor);
@@ -83,8 +102,10 @@ public class JConnection extends PolylineConnection {
 	}
 
 	public PolylineConnection setWriteStyle(){
-		PolylineDecoration decoration = new PolylineDecoration();
-		decoration.setOpaque(true);
+		isWrite = true;
+		PolygonDecoration decoration = new PolygonDecoration();
+		decoration.setTemplate(PolygonDecoration.TRIANGLE_TIP);
+		decoration.setBackgroundColor(ColorConstants.red);
 		this.setTargetDecoration(decoration);
 		this.setForegroundColor(ColorConstants.red);
 
@@ -115,19 +136,21 @@ public class JConnection extends PolylineConnection {
 		if(occurences != NO_OCCURENCES){
 			l = new Label(Integer.toString(occurences));
 			ConnectionLocator locator = new ConnectionLocator(this, ConnectionLocator.MIDDLE);
-			locator.setGap(5);
+			//locator.setGap(5);
 			l.setFont(new Font(null, "Arial", 10, SWT.BOLD));
 			l.setForegroundColor(ColorConstants.black);
 			this.add(l,locator);
+			this.label=l;
+			this.locator = locator;
 		}
 
 		return this;
 	}
 
-	public PolylineConnection setTargetBendRouter(){
+	public PolylineConnection setSlightBendRouter(){
 		BendpointConnectionRouter router = new BendpointConnectionRouter();
 		RelativeBendpoint bp1 = new RelativeBendpoint(this);
-		bp1.setRelativeDimensions(new Dimension(8,8), new Dimension(8, 8));
+		bp1.setRelativeDimensions(new Dimension(20,20), new Dimension(20, 20));
 		bp1.setWeight(0.5f);
 
 		router.setConstraint(this, Arrays.asList(new Bendpoint[] {bp1}));
@@ -136,8 +159,9 @@ public class JConnection extends PolylineConnection {
 
 		return this;
 	}
-
-	public PolylineConnection setSourceBendRouter(int bendHeightX){
+	
+	
+	public PolylineConnection setFullBendRouter(int bendHeightX){
 		float weight = 0.3f;
 		int bendHeightY = 50;
 

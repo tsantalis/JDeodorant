@@ -262,7 +262,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ITypeBinding commonSuperType = commonSuperType(typeBinding1, typeBinding2);
 			if(commonSuperType != null) {
 				if(mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
-						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty()) {
+						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty() &&
+						 !commonSuperType.getQualifiedName().equals("java.lang.Object")) {
 					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
 					IJavaElement javaElement = commonSuperType.getJavaElement();
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();

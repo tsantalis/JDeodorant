@@ -18,56 +18,57 @@ public class TopDownCDTMapper {
 			ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
 		this.iCompilationUnit1 = iCompilationUnit1;
 		this.iCompilationUnit2 = iCompilationUnit2;
-		processTopDown(iCompilationUnit1, iCompilationUnit2, root1, root2);
+		this.solutions = new ArrayList<CompleteSubTreeMatch>();
+		processTopDown(root1, root2);
 	}
 
-	public void processTopDown(ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
-			ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
+	public void processTopDown(ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
 		List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches = findTopDownMatches(root1, root2);
-		this.solutions = getMaximumCompleteSubTreeMatches(matches, root1, root2);
+		List<CompleteSubTreeMatch> tmpSolutions = getMaximumCompleteSubTreeMatches(matches, root1, root2);
+		for(CompleteSubTreeMatch tmpSolution : tmpSolutions) {
+			ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+			boolean match = root1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, root2.getNode().getASTStatement());
+			if(match && astNodeMatcher.isParameterizable()) {
+				ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(root1, root2);
+				tmpSolution.addStartPoint(pair);
+				if(!isSubsumedByCurrentSolutions(solutions, tmpSolution))
+					solutions.add(tmpSolution);
+			}
+		}
 		if(solutions.isEmpty()) {
-			List<ControlDependenceTreeNode> nodes1 = root1.getNodesInBreadthFirstOrder();
-			List<ControlDependenceTreeNode> nodes2 = root2.getNodesInBreadthFirstOrder();
-			List<ControlDependenceTreeNodeMatchPair> startPoints = new ArrayList<ControlDependenceTreeNodeMatchPair>();
-			for(ControlDependenceTreeNode node1 : nodes1) {
-				for(ControlDependenceTreeNode node2 : nodes2) {
-					if(!(node1.getNode() instanceof PDGMethodEntryNode) && !(node2.getNode() instanceof PDGMethodEntryNode)) {
-						ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-						boolean match = node1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getNode().getASTStatement());
-						if(match && astNodeMatcher.isParameterizable()) {
-							ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(node1, node2);
-							startPoints.add(pair);
-						}
+			secondPhase(root1, root2);
+		}
+	}
+
+	private void secondPhase(ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
+		List<ControlDependenceTreeNode> nodes1 = root1.getNodesInBreadthFirstOrder();
+		List<ControlDependenceTreeNode> nodes2 = root2.getNodesInBreadthFirstOrder();
+		List<ControlDependenceTreeNodeMatchPair> startPoints = new ArrayList<ControlDependenceTreeNodeMatchPair>();
+		for(ControlDependenceTreeNode node1 : nodes1) {
+			for(ControlDependenceTreeNode node2 : nodes2) {
+				if(!(node1.getNode() instanceof PDGMethodEntryNode) && !(node2.getNode() instanceof PDGMethodEntryNode)) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match = node1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getNode().getASTStatement());
+					if(match && astNodeMatcher.isParameterizable()) {
+						ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(node1, node2);
+						startPoints.add(pair);
 					}
 				}
 			}
-			for(ControlDependenceTreeNodeMatchPair startPoint : startPoints) {
-				List<TreeSet<ControlDependenceTreeNodeMatchPair>> innerMatches = findTopDownMatches(startPoint.getNode1(), startPoint.getNode2());
-				List<CompleteSubTreeMatch> tempSolutions = getMaximumCompleteSubTreeMatches(innerMatches, startPoint.getNode1(), startPoint.getNode2());
-				for(CompleteSubTreeMatch tempSolution : tempSolutions) {
-					tempSolution.addStartPoint(startPoint);
-					if(!isSubsumedByCurrentSolutions(solutions, tempSolution))
-						solutions.add(tempSolution);
-				}
+		}
+		for(ControlDependenceTreeNodeMatchPair startPoint : startPoints) {
+			List<TreeSet<ControlDependenceTreeNodeMatchPair>> innerMatches = findTopDownMatches(startPoint.getNode1(), startPoint.getNode2());
+			List<CompleteSubTreeMatch> tmpSolutions = getMaximumCompleteSubTreeMatches(innerMatches, startPoint.getNode1(), startPoint.getNode2());
+			for(CompleteSubTreeMatch tmpSolution : tmpSolutions) {
+				tmpSolution.addStartPoint(startPoint);
+				if(!isSubsumedByCurrentSolutions(solutions, tmpSolution))
+					solutions.add(tmpSolution);
 			}
 		}
 	}
 
 	public List<CompleteSubTreeMatch> getSolutions() {
-		List<CompleteSubTreeMatch> nonOverlappingSolutions = new ArrayList<CompleteSubTreeMatch>();
-		for(CompleteSubTreeMatch solution : solutions) {
-			if(!overlapsWithCurrentSolutions(nonOverlappingSolutions, solution))
-				nonOverlappingSolutions.add(solution);
-		}
-		return nonOverlappingSolutions;
-	}
-
-	private boolean overlapsWithCurrentSolutions(List<CompleteSubTreeMatch> solutions, CompleteSubTreeMatch solution) {
-		for(CompleteSubTreeMatch currentSolution : solutions) {
-			if(currentSolution.overlaps(solution))
-				return true;
-		}
-		return false;
+		return solutions;
 	}
 
 	private boolean isSubsumedByCurrentSolutions(List<CompleteSubTreeMatch> solutions, CompleteSubTreeMatch newSolution) {

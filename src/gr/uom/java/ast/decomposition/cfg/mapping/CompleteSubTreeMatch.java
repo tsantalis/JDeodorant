@@ -38,11 +38,7 @@ public class CompleteSubTreeMatch {
 	}
 
 	public boolean subsumes(CompleteSubTreeMatch subTree) {
-		return this.matchPairs.containsAll(subTree.matchPairs);
-	}
-
-	public boolean overlaps(CompleteSubTreeMatch subTree) {
-		//an overlap takes places when two subtrees contain matches for the same sets of nodes in different combinations
+		//return this.matchPairs.containsAll(subTree.matchPairs);
 		Set<ControlDependenceTreeNode> thisNodes1 = new LinkedHashSet<ControlDependenceTreeNode>();
 		Set<ControlDependenceTreeNode> thisNodes2 = new LinkedHashSet<ControlDependenceTreeNode>();
 		for(ControlDependenceTreeNodeMatchPair matchPair : this.matchPairs) {
@@ -55,8 +51,7 @@ public class CompleteSubTreeMatch {
 			otherNodes1.add(matchPair.getNode1());
 			otherNodes2.add(matchPair.getNode2());
 		}
-		if(thisNodes1.size() == otherNodes1.size() && thisNodes1.containsAll(otherNodes1) &&
-				thisNodes2.size() == otherNodes2.size() && thisNodes2.containsAll(otherNodes2))
+		if(thisNodes1.containsAll(otherNodes1) && thisNodes2.containsAll(otherNodes2))
 			return true;
 		return false;
 	}

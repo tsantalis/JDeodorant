@@ -513,7 +513,7 @@ public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 					}
 					if(leftHandSideName != null) {
 						IBinding leftHandSideBinding = leftHandSideName.resolveBinding();
-						if(leftHandSideBinding.getKind() == IBinding.VARIABLE) {
+						if(leftHandSideBinding != null && leftHandSideBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding leftHandSideVariableBinding = (IVariableBinding)leftHandSideBinding;
 							if(!leftHandSideVariableBinding.isField()) {
 								boolean variableIsDeclaredInsideBranch = false;

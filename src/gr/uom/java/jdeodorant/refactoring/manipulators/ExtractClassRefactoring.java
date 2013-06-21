@@ -1063,7 +1063,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			Expression newRightHandSide = newAssignment.getRightHandSide();
 			if(oldAssignedVariable != null) {
 				IBinding binding = oldAssignedVariable.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
+				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
@@ -1165,7 +1165,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					SimpleName oldAccessedVariable = (SimpleName)expression2;
 					SimpleName newAccessedVariable = (SimpleName)newAccessedVariables.get(j);
 					IBinding rightHandBinding = oldAccessedVariable.resolveBinding();
-					if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+					if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
 							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
@@ -1206,7 +1206,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				SimpleName oldAccessedVariable = (SimpleName)expression2;
 				SimpleName newAccessedVariable = (SimpleName)newAccessedVariables.get(j);
 				IBinding rightHandBinding = oldAccessedVariable.resolveBinding();
-				if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+				if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 					if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
 						if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
@@ -1261,7 +1261,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			}
 			if(oldAssignedVariable != null) {
 				IBinding binding = oldAssignedVariable.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
+				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
@@ -1331,7 +1331,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					SimpleName oldAccessedVariable = (SimpleName)expression2;
 					SimpleName newAccessedVariable = (SimpleName)newAccessedVariables.get(j);
 					IBinding rightHandBinding = oldAccessedVariable.resolveBinding();
-					if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+					if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
 							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
@@ -1393,7 +1393,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			if(oldAssignedVariable != null && (oldOperator.equals(PrefixExpression.Operator.INCREMENT) ||
 					oldOperator.equals(PrefixExpression.Operator.DECREMENT))) {
 				IBinding binding = oldAssignedVariable.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
+				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
@@ -1463,7 +1463,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					SimpleName oldAccessedVariable = (SimpleName)expression2;
 					SimpleName newAccessedVariable = (SimpleName)newAccessedVariables.get(j);
 					IBinding rightHandBinding = oldAccessedVariable.resolveBinding();
-					if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+					if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
 							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
@@ -1504,7 +1504,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		for(Expression expression : sourceFieldInstructions) {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
@@ -2077,7 +2077,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		for(Expression expression : sourceVariableInstructions) {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
 					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
@@ -2470,7 +2470,7 @@ public class ExtractClassRefactoring extends Refactoring {
 								String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 								if(assignedVariable != null) {
 									IBinding leftHandBinding = assignedVariable.resolveBinding();
-									if(leftHandBinding.getKind() == IBinding.VARIABLE) {
+									if(leftHandBinding != null && leftHandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding assignedVariableBinding = (IVariableBinding)leftHandBinding;
 										if(assignedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(assignedVariableBinding)) {
 											if(methodDeclaration.isConstructor() && (assignedVariableBinding.getModifiers() & Modifier.FINAL) != 0) {
@@ -2519,7 +2519,7 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									if(arrayVariable != null) {
 										IBinding arrayBinding = arrayVariable.resolveBinding();
-										if(arrayBinding.getKind() == IBinding.VARIABLE) {
+										if(arrayBinding != null && arrayBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding arrayVariableBinding = (IVariableBinding)arrayBinding;
 											if(arrayVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(arrayVariableBinding)) {
 												MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
@@ -2539,7 +2539,7 @@ public class ExtractClassRefactoring extends Refactoring {
 								for(Expression expression2 : accessedVariables) {
 									SimpleName accessedVariable = (SimpleName)expression2;
 									IBinding rightHandBinding = accessedVariable.resolveBinding();
-									if(rightHandBinding.getKind() == IBinding.VARIABLE) {
+									if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 										if(accessedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(accessedVariableBinding)) {
 											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
@@ -2603,7 +2603,7 @@ public class ExtractClassRefactoring extends Refactoring {
 							for(Expression expression : accessedVariables) {
 								SimpleName accessedVariable = (SimpleName)expression;
 								IBinding binding = accessedVariable.resolveBinding();
-								if(binding.getKind() == IBinding.VARIABLE) {
+								if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 									IVariableBinding accessedVariableBinding = (IVariableBinding)binding;
 									if(accessedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(accessedVariableBinding)) {
 										if(!isAssignmentChild(expression)) {
@@ -2634,7 +2634,7 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 								if(arrayVariable != null) {
 									IBinding arrayBinding = arrayVariable.resolveBinding();
-									if(arrayBinding.getKind() == IBinding.VARIABLE) {
+									if(arrayBinding != null && arrayBinding.getKind() == IBinding.VARIABLE) {
 										IVariableBinding arrayVariableBinding = (IVariableBinding)arrayBinding;
 										if(arrayVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(arrayVariableBinding)) {
 											if(!isAssignmentChild(expression)) {

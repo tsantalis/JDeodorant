@@ -264,7 +264,7 @@ public class MethodObject {
 	    			else if(methodInvocationExpression instanceof SimpleName) {
 	    				SimpleName simpleName = (SimpleName)methodInvocationExpression;
 	    				IBinding binding = simpleName.resolveBinding();
-	    				if(binding.getKind() == IBinding.VARIABLE) {
+	    				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 	    					IVariableBinding variableBinding = (IVariableBinding)binding;
 	    					if(variableBinding.isField() || variableBinding.isParameter()) {
 	    						for(MethodInvocationObject methodInvocationObject : methodInvocations) {

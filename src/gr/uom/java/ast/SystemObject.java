@@ -535,7 +535,7 @@ public class SystemObject {
     	}
     	if(invoker != null) {
     		IBinding binding = invoker.resolveBinding();
-    		if(binding.getKind() == IBinding.VARIABLE) {
+    		if(binding != null && binding.getKind() == IBinding.VARIABLE) {
     			IVariableBinding variableBinding = (IVariableBinding)binding;
     			if(variableBinding.isField()) {
     				ListIterator<FieldObject> fieldIterator = typeCheckClassObject.getFieldIterator();
@@ -659,7 +659,7 @@ public class SystemObject {
 										MemberRef memberRef = (MemberRef)fragment;
 										IBinding staticFieldNameBinding = staticField.resolveBinding();
 										ITypeBinding staticFieldNameDeclaringClass = null;
-										if(staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+										if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
 											staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
 										}
@@ -686,7 +686,7 @@ public class SystemObject {
 	private boolean allStaticFieldsWithinSystemBoundary(List<SimpleName> staticFields) {
 		for(SimpleName staticField : staticFields) {
 			IBinding binding = staticField.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				ITypeBinding declaringClassTypeBinding = variableBinding.getDeclaringClass();
 				if(declaringClassTypeBinding != null) {

@@ -303,7 +303,7 @@ public class MoveMethodRefactoring extends Refactoring {
 									for(Expression expression : delegateMethodVariableInstructions) {
 										SimpleName fieldInstruction = (SimpleName)expression;
 										IBinding fieldInstructionBinding = fieldInstruction.resolveBinding();
-										if(fieldInstructionBinding.getKind() == IBinding.VARIABLE) {
+										if(fieldInstructionBinding != null && fieldInstructionBinding.getKind() == IBinding.VARIABLE) {
 											IVariableBinding fieldInstructionVariableBinding = (IVariableBinding)fieldInstructionBinding;
 											if(fieldInstructionVariableBinding.isField() && fieldInstructionVariableBinding.getType().isEqualTo(targetTypeDeclaration.resolveBinding())) {
 												targetClassVariableName = fieldInstruction.getIdentifier();
@@ -717,7 +717,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		for(Expression expression : sourceVariableInstructions) {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
 					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
@@ -923,7 +923,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		for(Expression expression : sourceFieldInstructions) {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
 					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {

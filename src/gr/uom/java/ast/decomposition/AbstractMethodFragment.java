@@ -345,7 +345,7 @@ public abstract class AbstractMethodFragment {
 					if(argument instanceof SimpleName) {
 						SimpleName argumentName = (SimpleName)argument;
 						IBinding binding = argumentName.resolveBinding();
-						if(binding.getKind() == IBinding.VARIABLE) {
+						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)binding;
 							if(variableBinding.isParameter()) {
 								String variableBindingKey = variableBinding.getKey();
@@ -387,7 +387,7 @@ public abstract class AbstractMethodFragment {
 					if(argument instanceof SimpleName) {
 						SimpleName argumentName = (SimpleName)argument;
 						IBinding binding = argumentName.resolveBinding();
-						if(binding.getKind() == IBinding.VARIABLE) {
+						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)binding;
 							if(variableBinding.isParameter()) {
 								String variableBindingKey = variableBinding.getKey();

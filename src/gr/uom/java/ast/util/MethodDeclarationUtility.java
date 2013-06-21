@@ -78,7 +78,7 @@ public class MethodDeclarationUtility {
 	    			else if(methodInvocationExpression instanceof SimpleName) {
 	    				SimpleName simpleName = (SimpleName)methodInvocationExpression;
 	    				IBinding binding = simpleName.resolveBinding();
-	    				if(binding.getKind() == IBinding.VARIABLE) {
+	    				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 	    					IVariableBinding variableBinding = (IVariableBinding)binding;
 	    					if(variableBinding.isField() || variableBinding.isParameter()) {
 	    						return methodInvocation;
@@ -155,7 +155,7 @@ public class MethodDeclarationUtility {
 
 	public static AbstractVariable createVariable(SimpleName simpleName, AbstractVariable rightPart) {
 		IBinding binding = simpleName.resolveBinding();
-		if(binding.getKind() == IBinding.VARIABLE) {
+		if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 			IVariableBinding variableBinding = (IVariableBinding)binding;
 			String variableBindingKey = variableBinding.getKey();
 			String variableName = variableBinding.getName();

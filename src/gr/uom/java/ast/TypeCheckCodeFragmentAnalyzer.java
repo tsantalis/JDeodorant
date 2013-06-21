@@ -79,7 +79,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 				if(switchStatementExpressionName instanceof SimpleName) {
 					SimpleName switchStatementExpressionSimpleName = (SimpleName)switchStatementExpressionName;
 					IBinding switchStatementExpressionNameBinding = switchStatementExpressionSimpleName.resolveBinding();
-					if(switchStatementExpressionNameBinding.getKind() == IBinding.VARIABLE) {
+					if(switchStatementExpressionNameBinding != null && switchStatementExpressionNameBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding switchStatementExpressionNameVariableBinding = (IVariableBinding)switchStatementExpressionNameBinding;
 						if(switchStatementExpressionNameVariableBinding.isField()) {
 							for(FieldDeclaration field : fields) {
@@ -167,7 +167,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 				if(typeCheckExpression instanceof SimpleName) {
 					SimpleName simpleName = (SimpleName)typeCheckExpression;
 					IBinding binding = simpleName.resolveBinding();
-					if(binding.getKind() == IBinding.VARIABLE) {
+					if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableBinding = (IVariableBinding)binding;
 						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
 							ArrayList<SimpleName> staticTypes = new ArrayList<SimpleName>();
@@ -179,7 +179,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 				else if(typeCheckExpression instanceof QualifiedName) {
 					QualifiedName qualifiedName = (QualifiedName)typeCheckExpression;
 					IBinding binding = qualifiedName.resolveBinding();
-					if(binding.getKind() == IBinding.VARIABLE) {
+					if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableBinding = (IVariableBinding)binding;
 						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
 							ArrayList<SimpleName> staticTypes = new ArrayList<SimpleName>();
@@ -247,7 +247,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 						if(leftOperandExpression instanceof SimpleName) {
 							SimpleName leftOperandName = (SimpleName)leftOperandExpression;
 							IBinding leftOperandNameBinding = leftOperandName.resolveBinding();
-							if(leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
+							if(leftOperandNameBinding != null && leftOperandNameBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding leftOperandNameVariableBinding = (IVariableBinding)leftOperandNameBinding;
 								if(leftOperandNameVariableBinding.isField() && (leftOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0)
 									staticFieldName = leftOperandName;
@@ -256,7 +256,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 						if(rightOperandExpression instanceof SimpleName) {
 							SimpleName rightOperandName = (SimpleName)rightOperandExpression;
 							IBinding rightOperandNameBinding = rightOperandName.resolveBinding();
-							if(rightOperandNameBinding.getKind() == IBinding.VARIABLE) {
+							if(rightOperandNameBinding != null && rightOperandNameBinding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding rightOperandNameVariableBinding = (IVariableBinding)rightOperandNameBinding;
 								if(rightOperandNameVariableBinding.isField() && (rightOperandNameVariableBinding.getModifiers() & Modifier.STATIC) != 0)
 									staticFieldName = rightOperandName;
@@ -410,7 +410,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 					}
 				}
 				IBinding binding = typeVariable.resolveBinding();
-				if(binding.getKind() == IBinding.VARIABLE) {
+				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField()) {
 						for(FieldDeclaration field : fields) {
@@ -585,7 +585,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 				for(Expression variableInstruction : variableInstructions) {
 					SimpleName simpleName = (SimpleName)variableInstruction;
 					IBinding variableInstructionBinding = simpleName.resolveBinding();
-					if(variableInstructionBinding.getKind() == IBinding.VARIABLE) {
+					if(variableInstructionBinding != null && variableInstructionBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableInstructionVariableBinding = (IVariableBinding)variableInstructionBinding;
 						if(variableInstructionVariableBinding.isField()) {
 							if(variableInstructionVariableBinding.getDeclaringClass() != null) {
@@ -861,7 +861,7 @@ public class TypeCheckCodeFragmentAnalyzer {
 					for(Expression variableInstruction : variableInstructions) {
 						SimpleName simpleName = (SimpleName)variableInstruction;
 						IBinding variableInstructionBinding = simpleName.resolveBinding();
-						if(variableInstructionBinding.getKind() == IBinding.VARIABLE) {
+						if(variableInstructionBinding != null && variableInstructionBinding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableInstructionVariableBinding = (IVariableBinding)variableInstructionBinding;
 							if(variableInstructionVariableBinding.isField()) {
 								if(variableInstructionVariableBinding.getDeclaringClass() != null) {

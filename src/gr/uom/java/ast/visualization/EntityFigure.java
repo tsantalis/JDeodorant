@@ -6,9 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.MarginBorder;
-import org.eclipse.jdt.ui.ISharedImages;
-import org.eclipse.jdt.ui.JavaUI;
-import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 
 
@@ -17,12 +14,7 @@ public class EntityFigure extends Label{
 
 	private String name;
 	private List<JConnection> outgoingConnections = new ArrayList<JConnection>();
-	public static Color entityColor = new Color(null,255,255,240);
-
-	public static final Image FIELD = JavaUI.getSharedImages().getImage(ISharedImages.IMG_FIELD_PRIVATE);	
-	public static final Image METHOD = JavaUI.getSharedImages().getImage(ISharedImages.IMG_OBJS_PUBLIC);
-
-
+	
 	public EntityFigure(String name){
 		super(name);
 		this.name= name;

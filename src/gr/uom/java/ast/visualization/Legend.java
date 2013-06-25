@@ -16,7 +16,6 @@ import org.eclipse.draw2d.LineBorder;
 import org.eclipse.draw2d.MarginBorder;
 import org.eclipse.draw2d.ToggleModel;
 import org.eclipse.draw2d.ToolbarLayout;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.widgets.Display;
 
@@ -37,7 +36,7 @@ public class Legend extends Figure {
 
 		setOpaque(true);
 
-		Font classFont = new Font(null, "Arial", 12, SWT.BOLD);
+		Font classFont = DecorationConstants.classFont;
 		Label className = new Label("Legend");
 		className.setFont(classFont);
 
@@ -156,12 +155,12 @@ public class Legend extends Figure {
 
 		this.add(MethodSectionCompartment);
 
-		this.add(toSourceReadFigure.addToSourceWeakReadConnection(ConnectionType.READ_FIELD_SOURCE,toSourceReadFigure,JConnection.NO_OCCURENCES));
-		this.add(toSourceWriteFigure.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE,toSourceWriteFigure, JConnection.NO_OCCURENCES));
-		this.add(toTargetReadFigure.addToSourceReadConnection(ConnectionType.READ_FIELD_TARGET,toTargetReadFigure, JConnection.NO_OCCURENCES));
-		this.add(toTargetWriteFigure.addToSourceWriteConnection(ConnectionType.WRITE_FIELD_TARGET,toTargetWriteFigure, JConnection.NO_OCCURENCES));
-		this.add(toSourceMethodFigure.addToSourceMethodConnection(ConnectionType.METHOD_CALL_SOURCE, toSourceMethodFigure, JConnection.NO_OCCURENCES));
-		this.add(toTargetMethodFigure.addLeftRightMethodConnection(ConnectionType.METHOD_CALL_TARGET, toTargetMethodFigure, JConnection.NO_OCCURENCES));
+		this.add(toSourceReadFigure.addToSourceWeakReadConnection(ConnectionType.READ_FIELD_SOURCE,toSourceReadFigure,DecorationConstants.NO_OCCURENCES));
+		this.add(toSourceWriteFigure.addToSourceWeakWriteConnection(ConnectionType.WRITE_FIELD_SOURCE,toSourceWriteFigure, DecorationConstants.NO_OCCURENCES));
+		this.add(toTargetReadFigure.addToSourceReadConnection(ConnectionType.READ_FIELD_TARGET,toTargetReadFigure, DecorationConstants.NO_OCCURENCES));
+		this.add(toTargetWriteFigure.addToSourceWriteConnection(ConnectionType.WRITE_FIELD_TARGET,toTargetWriteFigure, DecorationConstants.NO_OCCURENCES));
+		this.add(toSourceMethodFigure.addToSourceMethodConnection(ConnectionType.METHOD_CALL_SOURCE, toSourceMethodFigure, DecorationConstants.NO_OCCURENCES));
+		this.add(toTargetMethodFigure.addLeftRightMethodConnection(ConnectionType.METHOD_CALL_TARGET, toTargetMethodFigure, DecorationConstants.NO_OCCURENCES));
 
 
 

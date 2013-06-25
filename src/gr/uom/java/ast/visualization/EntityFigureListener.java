@@ -10,19 +10,11 @@ import org.eclipse.draw2d.MouseEvent;
 import org.eclipse.draw2d.MouseMotionListener;
 import org.eclipse.draw2d.PolygonDecoration;
 import org.eclipse.draw2d.PositionConstants;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.Font;
 
 
 public class EntityFigureListener implements MouseMotionListener{
 
 	private final EntityFigure figure;
-	public static Color labelColor = new Color(null,72,61,139);
-	//public static Color labelColor = new Color(null,139,69,19);
-
-
-	//private Point location;
 
 	public EntityFigureListener(EntityFigure figure) {
 		this.figure = figure;
@@ -36,18 +28,18 @@ public class EntityFigureListener implements MouseMotionListener{
 	}
 
 	public void mouseEntered(MouseEvent me) {
-		
+
 		List<JConnection> connections = figure.getOutgoingConnections();
 		for(JConnection connection: connections){
-			
+
 			connection.setLineWidth(3);
 			Label l = connection.getLabel();
-								
+
 			if(l != null){
-				
-				String fontStyle = "Arial";
+
+				//String fontStyle = "Arial";
 				ConnectionEndpointLocator locator = new ConnectionEndpointLocator(connection, true);
-				
+
 				if(connection.isWrite()){
 					locator.setUDistance(95);
 					locator.setVDistance(0);
@@ -55,10 +47,11 @@ public class EntityFigureListener implements MouseMotionListener{
 					locator.setUDistance(42);
 					locator.setVDistance(0);
 				}
-					
-			
-				l.setFont(new Font(null, fontStyle, 14 , SWT.BOLD));
-			
+
+
+				//l.setFont(new Font(null, fontStyle, 14 , SWT.BOLD));
+				l.setFont(DecorationConstants.highlightFont);
+
 				connection.add(l, locator);
 			}
 
@@ -71,16 +64,17 @@ public class EntityFigureListener implements MouseMotionListener{
 	}
 
 	public void mouseExited(MouseEvent me) {
-		
+
 		List<JConnection> connections = figure.getOutgoingConnections();
 		for(JConnection connection: connections){
 			connection.setAlpha(null);
 			connection.setLineWidth(1);
 			Label l = connection.getLabel();
-			
-			
+
+
 			if(l != null){
-				l.setFont(new Font(null, "Arial", 10, SWT.BOLD));
+				//l.setFont(new Font(null, "Arial", 10, SWT.BOLD));
+				l.setFont(DecorationConstants.normalFont);
 				ConnectionLocator locator = connection.getLocator();
 				locator.setRelativePosition(PositionConstants.CENTER);
 				connection.add(l, locator);

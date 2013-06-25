@@ -22,7 +22,7 @@ public class CompartmentFigure extends Figure {
 	
 	//adds EntityFigure with different color and border
 	public void addFigure(Figure figure){
-		figure.setBackgroundColor(EntityFigure.entityColor);
+		figure.setBackgroundColor(DecorationConstants.entityColor);
 		figure.setBorder(new CompoundBorder( new LineBorder(1), new MarginBorder(3,3,3,3)));
 		add(figure);
 	}

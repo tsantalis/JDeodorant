@@ -10,8 +10,6 @@ import java.util.Map.Entry;
 
 import org.eclipse.draw2d.*;
 import org.eclipse.draw2d.geometry.*;
-
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.widgets.Display;
 
@@ -35,25 +33,25 @@ public class FeatureEnvyDiagram {
 
 
 		// Create source class
-		final ClassFigure source = new ClassFigure(data.getSourceClass().getName(), ClassFigure.classColor);
+		final ClassFigure source = new ClassFigure(data.getSourceClass().getName(), DecorationConstants.classColor);
 		source.setToolTip(new Label("Source Class"));
 		source.addThreeCompartments();
 
 		// Create target class
-		final ClassFigure target = new ClassFigure(data.getTargetClass().getName(), ClassFigure.classColor);
+		final ClassFigure target = new ClassFigure(data.getTargetClass().getName(), DecorationConstants.classColor);
 		target.addTwoCompartments();
 		target.setToolTip(new Label("Target Class"));
 
 		// Create Extract Method figure that goes in the middle
-		EntityFigure extractMethod = new EntityFigure(data.getMethodToBeMoved().getName(), EntityFigure.METHOD);
+		EntityFigure extractMethod = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD);
 		new ClassFigureMover(extractMethod);
 		extractMethod.setLabelAlignment(2);
 		extractMethod.setToolTip(new Label("Method to be Extracted"));
-		Font font = new Font(null, "Arial", 10, SWT.BOLD);
+		Font font = DecorationConstants.normalFont;
 		extractMethod.setFont(font);
 
 		// Create Extract Method figure that goes in Source Class
-		EntityFigure extractMethod1 = new EntityFigure(data.getMethodToBeMoved().getName(), EntityFigure.METHOD);
+		EntityFigure extractMethod1 = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD);
 		extractMethod1.setFont(font);
 		extractMethod1.setLabelAlignment(2);
 		extractMethod1.setBorder(new SimpleRaisedBorder(3));
@@ -75,7 +73,7 @@ public class FeatureEnvyDiagram {
 			weight=weight - interval1;
 
 			//EntityFigure methodFigure = new EntityFigure(method.toString(),EntityFigure.METHOD);
-			EntityFigure methodFigure = new EntityFigure(method.getSignature(),EntityFigure.METHOD);
+			EntityFigure methodFigure = new EntityFigure(method.getSignature(),DecorationConstants.METHOD);
 			source.getMethodsCompartment().add(methodFigure);
 			JConnection connection=extractMethod.addToSourceMethodConnection(ConnectionType.METHOD_CALL_SOURCE,methodFigure, occurences);
 			connectionList.add(connection);
@@ -89,7 +87,7 @@ public class FeatureEnvyDiagram {
 			Integer occurences = entry.getValue();
 
 			//EntityFigure methodFigure = new EntityFigure(method.toString(), EntityFigure.METHOD);
-			EntityFigure methodFigure = new EntityFigure(method.getSignature(), EntityFigure.METHOD);
+			EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD);
 			target.getMethodsCompartment().add(methodFigure);
 			JConnection connection=extractMethod.addToTargetMethodConnection(ConnectionType.METHOD_CALL_TARGET,methodFigure, occurences);
 			connectionList.add(connection);
@@ -106,7 +104,7 @@ public class FeatureEnvyDiagram {
 
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(),EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(),EntityFigure.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(),DecorationConstants.FIELD);
 			source.getFieldsCompartment().add(fieldFigure);
 			JConnection connection =extractMethod.addToSourceWeakReadConnection(ConnectionType.READ_FIELD_SOURCE,fieldFigure, occurences);
 			connectionList.add(connection);
@@ -123,7 +121,7 @@ public class FeatureEnvyDiagram {
 			weight=weight + interval3;
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(), EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), EntityFigure.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
 			boolean contains = false;
 
 			for(Object child : source.getFieldsCompartment().getChildren()){
@@ -151,7 +149,7 @@ public class FeatureEnvyDiagram {
 			Integer occurences = entry.getValue();
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(), EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), EntityFigure.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
 			target.getFieldsCompartment().add(fieldFigure);
 			JConnection connection =extractMethod.addToTargetReadConnection(ConnectionType.READ_FIELD_TARGET,fieldFigure, occurences);
 			connectionList.add(connection);
@@ -164,7 +162,7 @@ public class FeatureEnvyDiagram {
 			Integer occurences = entry.getValue();
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(), EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), EntityFigure.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
 
 			boolean contains = false;
 			for(Object child : target.getFieldsCompartment().getChildren()){
@@ -193,7 +191,7 @@ public class FeatureEnvyDiagram {
 		int startPointY = 50;
 		int methodWidth = 150;
 		int gap = 100;
-		extractMethod.setMaximumSize(new Dimension(methodWidth,-1));
+		extractMethod.setMaximumSize(new Dimension(methodWidth,20));
 
 		final Legend legend = new Legend(connectionList, false);
 		int legendHeight = 150;

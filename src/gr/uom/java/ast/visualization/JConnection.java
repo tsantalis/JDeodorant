@@ -9,12 +9,9 @@ import org.eclipse.draw2d.ConnectionLocator;
 import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.PolygonDecoration;
 import org.eclipse.draw2d.PolylineConnection;
-import org.eclipse.draw2d.PolylineDecoration;
 import org.eclipse.draw2d.RelativeBendpoint;
 import org.eclipse.draw2d.geometry.Dimension;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.graphics.Font;
+
 
 public class JConnection extends PolylineConnection {
 	private ConnectionType type;
@@ -22,12 +19,6 @@ public class JConnection extends PolylineConnection {
 	private ConnectionLocator locator;
 	private boolean isWrite = false;
 	
-	//public static Color methodToMethodColor = ColorConstants.cyan;
-	//public static Color methodToMethodColor = new Color(null, 49,79,79);
-	public static Color methodToMethodColor = new Color(null,60,179,113);
-	public static final int NO_OCCURENCES = -1;
-
-
 	public JConnection(ConnectionType type){
 		this.type = type;
 	}
@@ -93,10 +84,10 @@ public class JConnection extends PolylineConnection {
 	public PolylineConnection setMethodToMethodStyle(){
 		PolygonDecoration decoration = new PolygonDecoration();
 		decoration.setTemplate(PolygonDecoration.TRIANGLE_TIP);
-		decoration.setBackgroundColor(JConnection.methodToMethodColor);
+		decoration.setBackgroundColor(DecorationConstants.methodToMethodColor);
 		this.setTargetDecoration(decoration);
 
-		this.setForegroundColor(JConnection.methodToMethodColor);
+		this.setForegroundColor(DecorationConstants.methodToMethodColor);
 
 		return this;
 	}
@@ -133,11 +124,11 @@ public class JConnection extends PolylineConnection {
 	public PolylineConnection setLabel(Integer occurences){
 
 		Label l;
-		if(occurences != NO_OCCURENCES){
+		if(occurences != DecorationConstants.NO_OCCURENCES){
 			l = new Label(Integer.toString(occurences));
 			ConnectionLocator locator = new ConnectionLocator(this, ConnectionLocator.MIDDLE);
 			//locator.setGap(5);
-			l.setFont(new Font(null, "Arial", 10, SWT.BOLD));
+			l.setFont(DecorationConstants.normalFont);
 			l.setForegroundColor(ColorConstants.black);
 			this.add(l,locator);
 			this.label=l;

@@ -26,7 +26,7 @@ public class MethodClassSection extends Figure {
 
 	public void addFigure(Figure figure){
 		this.add(figure);
-		figure.setBackgroundColor(EntityFigure.entityColor);
+		figure.setBackgroundColor(DecorationConstants.entityColor);
 		figure.setBorder(new CompoundBorder( new LineBorder(1), new MarginBorder(3,3,3,3)));
 		numOfMethods++;
 	}

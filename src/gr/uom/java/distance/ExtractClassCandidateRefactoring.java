@@ -45,6 +45,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	private Map<MyMethod, MyMethodInvocation> oldInvocations;
 	private Map<MyMethod, MyMethod> new2oldMethods;
 	private Map<MyAttribute, String> extractedVariableBindingKeys;
+	private GodClassVisualizationData visualizationData;
 	private Integer userRate;
 	private String topic;
 
@@ -653,19 +654,22 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	}
 
 	public GodClassVisualizationData getGodClassVisualizationData() {
-		Set<MethodObject> extractedMethods = new LinkedHashSet<MethodObject>();
-		Set<FieldObject> extractedFields = new LinkedHashSet<FieldObject>();
-		for(Entity entity : extractedEntities) {
-			if(entity instanceof MyMethod) {
-				MyMethod myMethod = (MyMethod)entity;
-				extractedMethods.add(myMethod.getMethodObject());
+		if(visualizationData == null) {
+			Set<MethodObject> extractedMethods = new LinkedHashSet<MethodObject>();
+			Set<FieldObject> extractedFields = new LinkedHashSet<FieldObject>();
+			for(Entity entity : extractedEntities) {
+				if(entity instanceof MyMethod) {
+					MyMethod myMethod = (MyMethod)entity;
+					extractedMethods.add(myMethod.getMethodObject());
+				}
+				else if(entity instanceof MyAttribute) {
+					MyAttribute myAttribute = (MyAttribute)entity;
+					extractedFields.add(myAttribute.getFieldObject());
+				}
 			}
-			else if(entity instanceof MyAttribute) {
-				MyAttribute myAttribute = (MyAttribute)entity;
-				extractedFields.add(myAttribute.getFieldObject());
-			}
+			this.visualizationData = new GodClassVisualizationData(sourceClass.getClassObject(), extractedMethods, extractedFields);
 		}
-		return new GodClassVisualizationData(sourceClass.getClassObject(), extractedMethods, extractedFields);
+		return visualizationData;
 	}
 
 	@Override

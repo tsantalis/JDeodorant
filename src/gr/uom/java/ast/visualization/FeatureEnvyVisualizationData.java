@@ -34,57 +34,122 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 		this.targetClass = targetClass;
 		this.sourceMethodInvocationMap = new LinkedHashMap<MethodInvocationObject, Integer>();
 		List<MethodInvocationObject> sourceMethodInvocations = methodToBeMoved.getNonDistinctInvokedMethodsThroughThisReference();
-		for(MethodInvocationObject methodInvocation : sourceMethodInvocations) {
-			if(sourceMethodInvocationMap.containsKey(methodInvocation)) {
-				sourceMethodInvocationMap.put(methodInvocation, sourceMethodInvocationMap.get(methodInvocation) + 1);
-			}
-			else {
-				sourceMethodInvocationMap.put(methodInvocation, 1);
-			}
-		}
 		
 		this.targetMethodInvocationMap = new LinkedHashMap<MethodInvocationObject, Integer>();
 		List<FieldInstructionObject> fieldInstructions = methodToBeMoved.getFieldInstructions();
 		List<LocalVariableInstructionObject> localVariableInstructions = methodToBeMoved.getLocalVariableInstructions();
 		Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughFieldsMap = methodToBeMoved.getNonDistinctInvokedMethodsThroughFields();
-		processExternalMethodInvocations(externalMethodInvocationsThroughFieldsMap, fieldInstructions, localVariableInstructions, targetClass);
 		Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughParametersMap = methodToBeMoved.getNonDistinctInvokedMethodsThroughParameters();
-		processExternalMethodInvocations(externalMethodInvocationsThroughParametersMap, fieldInstructions, localVariableInstructions, targetClass);
 		
 		this.sourceFieldReadMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<PlainVariable> usedFieldsThroughThisReference = methodToBeMoved.getNonDistinctUsedFieldsThroughThisReference();
-		for(PlainVariable variable : usedFieldsThroughThisReference) {
-			FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
-			if(sourceFieldReadMap.containsKey(fieldInstruction)) {
-				sourceFieldReadMap.put(fieldInstruction, sourceFieldReadMap.get(fieldInstruction) + 1);
-			}
-			else {
-				sourceFieldReadMap.put(fieldInstruction, 1);
-			}
-		}
 		
 		this.sourceFieldWriteMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<PlainVariable> definedFieldsThroughThisReference = methodToBeMoved.getNonDistinctDefinedFieldsThroughThisReference();
-		for(PlainVariable variable : definedFieldsThroughThisReference) {
-			FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
-			if(sourceFieldWriteMap.containsKey(fieldInstruction)) {
-				sourceFieldWriteMap.put(fieldInstruction, sourceFieldWriteMap.get(fieldInstruction) + 1);
-			}
-			else {
-				sourceFieldWriteMap.put(fieldInstruction, 1);
-			}
-		}
 		
 		this.targetFieldReadMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<AbstractVariable> usedFieldsThroughFields = methodToBeMoved.getNonDistinctUsedFieldsThroughFields();
-		handleUsedFields(usedFieldsThroughFields, fieldInstructions, localVariableInstructions, targetClass);
 		List<AbstractVariable> usedFieldsThroughParameters = methodToBeMoved.getNonDistinctUsedFieldsThroughParameters();
-		handleUsedFields(usedFieldsThroughParameters, fieldInstructions, localVariableInstructions, targetClass);
 		
 		this.targetFieldWriteMap = new LinkedHashMap<FieldInstructionObject, Integer>();
 		List<AbstractVariable> definedFieldsThroughFields = methodToBeMoved.getNonDistinctDefinedFieldsThroughFields();
-		handleDefinedFields(definedFieldsThroughFields, fieldInstructions, localVariableInstructions, targetClass);
 		List<AbstractVariable> definedFieldsThroughParameters = methodToBeMoved.getNonDistinctDefinedFieldsThroughParameters();
+		
+		for(MethodInvocationObject methodInvocation : sourceMethodInvocations) {
+			boolean delegatesToTarget = false;
+			MethodObject delegateMethod = sourceClass.getMethod(methodInvocation);
+			if(delegateMethod != null) {
+				MethodInvocationObject delegateMethodInvocation = delegateMethod.isDelegate();
+				if(delegateMethodInvocation != null && delegateMethodInvocation.getOriginClassName().equals(targetClass.getName())) {
+					delegatesToTarget = true;
+					//include delegate method in the analysis
+					fieldInstructions.addAll(delegateMethod.getFieldInstructions());
+					localVariableInstructions.addAll(delegateMethod.getLocalVariableInstructions());
+					Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughFieldsMapDelegate = delegateMethod.getNonDistinctInvokedMethodsThroughFields();
+					for(AbstractVariable variable : externalMethodInvocationsThroughFieldsMapDelegate.keySet()) {
+						if(externalMethodInvocationsThroughFieldsMap.containsKey(variable)) {
+							externalMethodInvocationsThroughFieldsMap.get(variable).addAll(externalMethodInvocationsThroughFieldsMapDelegate.get(variable));
+						}
+						else {
+							externalMethodInvocationsThroughFieldsMap.put(variable, externalMethodInvocationsThroughFieldsMapDelegate.get(variable));
+						}
+					}
+					Map<AbstractVariable, ArrayList<MethodInvocationObject>> externalMethodInvocationsThroughParametersMapDelegate = delegateMethod.getNonDistinctInvokedMethodsThroughParameters();
+					for(AbstractVariable variable : externalMethodInvocationsThroughParametersMapDelegate.keySet()) {
+						if(externalMethodInvocationsThroughParametersMap.containsKey(variable)) {
+							externalMethodInvocationsThroughParametersMap.get(variable).addAll(externalMethodInvocationsThroughParametersMapDelegate.get(variable));
+						}
+						else {
+							externalMethodInvocationsThroughParametersMap.put(variable, externalMethodInvocationsThroughParametersMapDelegate.get(variable));
+						}
+					}
+					usedFieldsThroughThisReference.addAll(delegateMethod.getNonDistinctUsedFieldsThroughThisReference());
+					definedFieldsThroughThisReference.addAll(delegateMethod.getNonDistinctDefinedFieldsThroughThisReference());
+					usedFieldsThroughFields.addAll(delegateMethod.getNonDistinctUsedFieldsThroughFields());
+					usedFieldsThroughParameters.addAll(delegateMethod.getNonDistinctUsedFieldsThroughParameters());
+					definedFieldsThroughFields.addAll(delegateMethod.getNonDistinctDefinedFieldsThroughFields());
+					definedFieldsThroughParameters.addAll(delegateMethod.getNonDistinctDefinedFieldsThroughParameters());
+				}
+			}
+			if(!delegatesToTarget) {
+				if(sourceMethodInvocationMap.containsKey(methodInvocation)) {
+					sourceMethodInvocationMap.put(methodInvocation, sourceMethodInvocationMap.get(methodInvocation) + 1);
+				}
+				else {
+					sourceMethodInvocationMap.put(methodInvocation, 1);
+				}
+			}
+		}
+		
+		processExternalMethodInvocations(externalMethodInvocationsThroughFieldsMap, fieldInstructions, localVariableInstructions, targetClass);
+		processExternalMethodInvocations(externalMethodInvocationsThroughParametersMap, fieldInstructions, localVariableInstructions, targetClass);
+		
+		for(PlainVariable variable : usedFieldsThroughThisReference) {
+			FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
+			if(fieldInstruction.getOwnerClass().equals(targetClass.getName())) {
+				//the used field in inherited from a superclass which is the target
+				if(targetFieldReadMap.containsKey(fieldInstruction)) {
+					targetFieldReadMap.put(fieldInstruction, targetFieldReadMap.get(fieldInstruction) + 1);
+				}
+				else {
+					targetFieldReadMap.put(fieldInstruction, 1);
+				}
+			}
+			else {
+				if(sourceFieldReadMap.containsKey(fieldInstruction)) {
+					sourceFieldReadMap.put(fieldInstruction, sourceFieldReadMap.get(fieldInstruction) + 1);
+				}
+				else {
+					sourceFieldReadMap.put(fieldInstruction, 1);
+				}
+			}
+		}
+		
+		for(PlainVariable variable : definedFieldsThroughThisReference) {
+			FieldInstructionObject fieldInstruction = findFieldInstruction(variable, fieldInstructions);
+			if(fieldInstruction.getOwnerClass().equals(targetClass.getName())) {
+				//the defined field in inherited from a superclass which is the target
+				if(targetFieldWriteMap.containsKey(fieldInstruction)) {
+					targetFieldWriteMap.put(fieldInstruction, targetFieldWriteMap.get(fieldInstruction) + 1);
+				}
+				else {
+					targetFieldWriteMap.put(fieldInstruction, 1);
+				}
+			}
+			else {
+				if(sourceFieldWriteMap.containsKey(fieldInstruction)) {
+					sourceFieldWriteMap.put(fieldInstruction, sourceFieldWriteMap.get(fieldInstruction) + 1);
+				}
+				else {
+					sourceFieldWriteMap.put(fieldInstruction, 1);
+				}
+			}
+		}
+		
+		handleUsedFields(usedFieldsThroughFields, fieldInstructions, localVariableInstructions, targetClass);
+		handleUsedFields(usedFieldsThroughParameters, fieldInstructions, localVariableInstructions, targetClass);
+		
+		handleDefinedFields(definedFieldsThroughFields, fieldInstructions, localVariableInstructions, targetClass);
 		handleDefinedFields(definedFieldsThroughParameters, fieldInstructions, localVariableInstructions, targetClass);
 	}
 

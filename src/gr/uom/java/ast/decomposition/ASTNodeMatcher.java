@@ -600,20 +600,25 @@ public class ASTNodeMatcher extends ASTMatcher{
 				InfixExpression o = (InfixExpression) other;
 				// be careful not to trigger lazy creation of extended operand lists
 				if (node.hasExtendedOperands() && o.hasExtendedOperands()) {
-					if (!safeSubtreeListMatch(node.extendedOperands(), o.extendedOperands())) {
-						return false;
+					if(node.extendedOperands().size() != o.extendedOperands().size()) {
+						Difference diff = new Difference(node.toString(),o.toString(),DifferenceType.INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+					else {
+						safeSubtreeListMatch(node.extendedOperands(), o.extendedOperands());
 					}
 				}
 				if (node.hasExtendedOperands() != o.hasExtendedOperands()) {
-					return false;
+					Difference diff = new Difference(node.toString(),o.toString(),DifferenceType.INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH);
+					astNodeDifference.addDifference(diff);
 				}
 				if(!node.getOperator().equals(o.getOperator())) {
 					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.INFIX_OPERATOR_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
 				}
 				safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand());
 				safeSubtreeMatch(node.getRightOperand(), o.getRightOperand());
+				differences.add(astNodeDifference);
 			}
 			return typeMatch;
 		}

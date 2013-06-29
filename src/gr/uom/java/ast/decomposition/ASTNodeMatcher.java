@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
+import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.StringLiteral;
@@ -88,7 +89,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(TypeLiteral.class) || o.getClass().equals(NullLiteral.class)
 				|| o.getClass().equals(ArrayCreation.class)
 				|| o.getClass().equals(ClassInstanceCreation.class)
-				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class) || o.getClass().equals(SuperFieldAccess.class)
+				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class)
+				|| o.getClass().equals(SuperFieldAccess.class) || o.getClass().equals(ParenthesizedExpression.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
 				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class))
 			return true;
@@ -163,6 +165,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		else if(o.getClass().equals(NullLiteral.class)) {
 			NullLiteral nullLiteral = (NullLiteral) o;
 			return nullLiteral.resolveTypeBinding();
+		}
+		else if(o.getClass().equals(ParenthesizedExpression.class)) {
+			ParenthesizedExpression expression = (ParenthesizedExpression) o;
+			return expression.resolveTypeBinding();
 		}
 		return null;
 	}
@@ -618,7 +624,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand());
 				safeSubtreeMatch(node.getRightOperand(), o.getRightOperand());
-				differences.add(astNodeDifference);
+				if(!astNodeDifference.isEmpty())
+					differences.add(astNodeDifference);
 			}
 			return typeMatch;
 		}
@@ -747,6 +754,41 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
+		return false;
+	}
+
+	public boolean match(ParenthesizedExpression node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof ParenthesizedExpression)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				ParenthesizedExpression o = (ParenthesizedExpression) other;
+				safeSubtreeMatch(node.getExpression(), o.getExpression());
 			}
 			return typeMatch;
 		}

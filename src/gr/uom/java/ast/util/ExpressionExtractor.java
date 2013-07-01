@@ -463,6 +463,8 @@ public class ExpressionExtractor {
 			expressionList.addAll(getExpressions(conditionalExpression.getExpression()));
 			expressionList.addAll(getExpressions(conditionalExpression.getThenExpression()));
 			expressionList.addAll(getExpressions(conditionalExpression.getElseExpression()));
+			if(instanceChecker.instanceOf(conditionalExpression))
+				expressionList.add(conditionalExpression);
 		}
 		else if(expression instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)expression;
@@ -490,6 +492,8 @@ public class ExpressionExtractor {
 		else if(expression instanceof ParenthesizedExpression) {
 			ParenthesizedExpression parenthesizedExpression = (ParenthesizedExpression)expression;
 			expressionList.addAll(getExpressions(parenthesizedExpression.getExpression()));
+			if(instanceChecker.instanceOf(parenthesizedExpression))
+				expressionList.add(parenthesizedExpression);
 		}
 		else if(expression instanceof PostfixExpression) {
 			PostfixExpression postfixExpression = (PostfixExpression)expression;
@@ -544,6 +548,8 @@ public class ExpressionExtractor {
 			List<Expression> expressions = arrayInitializer.expressions();
 			for(Expression arrayInitializerExpression : expressions)
 				expressionList.addAll(getExpressions(arrayInitializerExpression));
+			if(instanceChecker.instanceOf(arrayInitializer))
+				expressionList.add(arrayInitializer);
 		}
 		else if(expression instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expression;
@@ -554,6 +560,8 @@ public class ExpressionExtractor {
 			QualifiedName qualifiedName = (QualifiedName)expression;
 			expressionList.addAll(getExpressions(qualifiedName.getQualifier()));
 			expressionList.addAll(getExpressions(qualifiedName.getName()));
+			if(instanceChecker.instanceOf(qualifiedName))
+				expressionList.add(qualifiedName);
 		}
 		else if(expression instanceof SuperFieldAccess) {
 			SuperFieldAccess superFieldAccess = (SuperFieldAccess)expression;

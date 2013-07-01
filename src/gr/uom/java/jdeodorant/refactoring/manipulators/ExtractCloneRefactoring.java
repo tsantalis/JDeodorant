@@ -7,9 +7,13 @@ import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
+import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
@@ -83,6 +87,7 @@ import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
+import org.eclipse.jdt.internal.corext.refactoring.base.JavaStatusContext;
 import org.eclipse.jdt.internal.corext.refactoring.changes.CreateCompilationUnitChange;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
@@ -91,6 +96,7 @@ import org.eclipse.ltk.core.refactoring.ChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 import org.eclipse.ltk.core.refactoring.RefactoringChangeDescriptor;
 import org.eclipse.ltk.core.refactoring.RefactoringStatus;
+import org.eclipse.ltk.core.refactoring.RefactoringStatusContext;
 import org.eclipse.text.edits.MalformedTreeException;
 import org.eclipse.text.edits.MultiTextEdit;
 import org.eclipse.text.edits.TextEdit;
@@ -106,7 +112,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
-	private List<Set<PDGNode>> removableStatements;
+	private List<TreeSet<PDGNode>> removableStatements;
 	private List<TreeSet<PDGNode>> remainingStatements;
 	private List<ASTNodeDifference> parameterizedDifferencesWithoutBinding;
 	private Map<IBinding, ASTNodeDifference> parameterizedDifferencesWithBinding;
@@ -125,7 +131,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceCompilationUnits = new ArrayList<CompilationUnit>();
 		this.sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
 		this.sourceMethodDeclarations = new ArrayList<MethodDeclaration>();
-		this.removableStatements = new ArrayList<Set<PDGNode>>();
+		this.removableStatements = new ArrayList<TreeSet<PDGNode>>();
 		removableStatements.add(mapper.getRemovableNodesG1());
 		removableStatements.add(mapper.getRemovableNodesG2());
 		this.remainingStatements = new ArrayList<TreeSet<PDGNode>>();
@@ -991,7 +997,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceMethod(CompilationUnit compilationUnit, MethodDeclaration methodDeclaration, Set<PDGNode> removableNodes,
+	private void modifySourceMethod(CompilationUnit compilationUnit, MethodDeclaration methodDeclaration, TreeSet<PDGNode> removableNodes,
 			TreeSet<PDGNode> remainingNodes, List<VariableDeclaration> returnedVariables, int index) {
 		AST ast = methodDeclaration.getAST();
 		ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
@@ -1015,6 +1021,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(!isReturnedVariable)
 				argumentsRewrite.insertLast(expression, null);
 		}
+		//place the code in the parent block of the first removable node
+		Statement firstStatement = removableNodes.first().getASTStatement();
+		Block parentBlock = (Block)firstStatement.getParent();
+		ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentBlock, Block.STATEMENTS_PROPERTY);
+		for(PDGNode remainingNode : remainingNodes) {
+			if(remainingNode.getId() >= removableNodes.first().getId() && remainingNode.getId() <= removableNodes.last().getId()) {
+				blockRewrite.insertBefore(remainingNode.getASTStatement(), firstStatement, null);
+			}
+		}
 		if(returnedVariables.size() == 1) {
 			//create a variable declaration statement
 			VariableDeclaration variableDeclaration = returnedVariables.get(0);
@@ -1024,30 +1039,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			VariableDeclarationStatement newVariableDeclarationStatement = ast.newVariableDeclarationStatement(newFragment);
 			Type variableType = extractType(variableDeclaration);
 			methodBodyRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableType, null);
-			//find the statement in which the variable was originally declared
-			Statement insertionStatement = null;
-			for(PDGNode removableNode : removableNodes) {
-				Iterator<AbstractVariable> declaredVariableIterator = removableNode.getDeclaredVariableIterator();
-				while(declaredVariableIterator.hasNext()) {
-					AbstractVariable variable = declaredVariableIterator.next();
-					if(variable.getVariableBindingKey().equals(variableDeclaration.resolveBinding().getKey())) {
-						insertionStatement = removableNode.getASTStatement();
-						break;
-					}
-				}
-				if(insertionStatement != null)
-					break;
-			}
-			Block parentStatement = (Block)insertionStatement.getParent();
-			ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
-			int insertionIndex = 0;
-			List<ASTNode> originalList = blockRewrite.getOriginalList();
-			for(ASTNode node : originalList) {
-				if(node.equals(insertionStatement))
-					break;
-				insertionIndex++;
-			}
-			blockRewrite.insertAt(newVariableDeclarationStatement, insertionIndex, null);
+			blockRewrite.insertBefore(newVariableDeclarationStatement, firstStatement, null);
 		}
 		else {
 			ITypeBinding returnTypeBinding = findReturnTypeBinding();
@@ -1060,16 +1052,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				methodInvocationStatement = ast.newExpressionStatement(methodInvocation);
 			}
-			if(!remainingNodes.isEmpty()) {
-				Statement lastStatement = remainingNodes.last().getASTStatement();
-				Block parentStatement = (Block)lastStatement.getParent();
-				ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
-				blockRewrite.insertAfter(methodInvocationStatement, lastStatement, null);
-			}
-			else {
-				ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(methodDeclaration.getBody(), Block.STATEMENTS_PROPERTY);
-				blockRewrite.insertLast(methodInvocationStatement, null);
-			}
+			blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
 		}
 		for(PDGNode pdgNode : removableNodes) {
 			Statement statement = pdgNode.getASTStatement();
@@ -1218,10 +1201,101 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		RefactoringStatus status= new RefactoringStatus();
 		try {
 			pm.beginTask("Checking preconditions...", 1);
+			for(int i=0; i<sourceCompilationUnits.size(); i++) {
+				TreeSet<PDGNode> removableNodes = removableStatements.get(i);
+				TreeSet<PDGNode> remainingNodes = remainingStatements.get(i);
+				for(PDGNode node : remainingNodes) {
+					if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
+						String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() :
+							mapper.getPDG2().getMethod().getName();
+						String message = "Non-matched statement in method " + methodName + " cannot be moved before the extracted code";
+						RefactoringStatusContext context = JavaStatusContext.create(
+								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
+						status.merge(RefactoringStatus.createErrorStatus(message, context));
+					}
+				}
+			}
+			List<ASTNodeDifference> differences = mapper.getNodeDifferences();
+			for(ASTNodeDifference difference : differences) {
+				for(int i=0; i<sourceCompilationUnits.size(); i++) {
+					TreeSet<PDGNode> removableNodes = removableStatements.get(i);
+					Expression expression = (i==0) ? difference.getExpression1().getExpression() :
+						difference.getExpression2().getExpression();
+					if(!isParameterizableExpression(removableNodes, expression)) {
+						String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() :
+							mapper.getPDG2().getMethod().getName();
+						Expression expr = isMethodName(expression) ? (Expression)expression.getParent() : expression;
+						String message = "Expression " + expression.toString() + " in method " + methodName + " cannot be parameterized";
+						RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), expr);
+						status.merge(RefactoringStatus.createErrorStatus(message, context));
+					}
+				}
+			}
 		} finally {
 			pm.done();
 		}
 		return status;
+	}
+
+	//precondition: non-mapped statement can be moved before the first mapped statement
+	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		int nodeId = nonMappedNode.getId();
+		if(nodeId >= mappedNodes.first().getId() && nodeId <= mappedNodes.last().getId()) {
+			Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
+			while(incomingDependenceIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+				if(dependence instanceof PDGDataDependence) {
+					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+					PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
+					if(mappedNodes.contains(srcPDGNode))
+						return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	//precondition: differences in expressions should be parameterizable
+	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, Expression initialExpression) {
+		Expression expr;
+		if(isMethodName(initialExpression)) {
+			expr = (Expression)initialExpression.getParent();
+		}
+		else {
+			expr = initialExpression;
+		}
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expr);
+		for(Expression expression : simpleNames) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				for(PDGNode mappedNode : mappedNodes) {
+					Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator();
+					while(declaredVariableIterator.hasNext()) {
+						AbstractVariable declaredVariable = declaredVariableIterator.next();
+						if(declaredVariable instanceof PlainVariable) {
+							PlainVariable plainVariable = (PlainVariable)declaredVariable;
+							if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
+								return false;
+							}
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	private boolean isMethodName(Expression expression) {
+		if(expression instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.METHOD) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override

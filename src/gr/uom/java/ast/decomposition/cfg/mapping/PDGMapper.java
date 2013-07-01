@@ -23,7 +23,6 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
-import gr.uom.java.ast.decomposition.cfg.BasicBlock;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
@@ -33,7 +32,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGSlice;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
@@ -48,10 +46,8 @@ public class PDGMapper {
 	private CloneStructureNode cloneStructureRoot;
 	private TreeSet<PDGNode> mappedNodesG1;
 	private TreeSet<PDGNode> mappedNodesG2;
-	private Set<PDGNode> nonMappedNodesG1;
-	private Set<PDGNode> nonMappedNodesG2;
-	private TreeSet<PDGNode> nonMappedNodesSliceUnionG1;
-	private TreeSet<PDGNode> nonMappedNodesSliceUnionG2;
+	private TreeSet<PDGNode> nonMappedNodesG1;
+	private TreeSet<PDGNode> nonMappedNodesG2;
 	private Map<String, ArrayList<AbstractVariable>> commonPassedParameters;
 	private Map<String, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
 	private Set<AbstractVariable> passedParametersG1;
@@ -99,10 +95,8 @@ public class PDGMapper {
 			controlDependenceSubTreePDG1 = controlDependenceTreePDG1;
 			controlDependenceSubTreePDG2 = controlDependenceTreePDG2;
 		}
-		this.nonMappedNodesG1 = new LinkedHashSet<PDGNode>();
-		this.nonMappedNodesG2 = new LinkedHashSet<PDGNode>();
-		this.nonMappedNodesSliceUnionG1 = new TreeSet<PDGNode>();
-		this.nonMappedNodesSliceUnionG2 = new TreeSet<PDGNode>();
+		this.nonMappedNodesG1 = new TreeSet<PDGNode>();
+		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
 		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
 		this.passedParametersG1 = new LinkedHashSet<AbstractVariable>();
@@ -121,8 +115,6 @@ public class PDGMapper {
 		findNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2);
 		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
-		computeSliceForNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1, nonMappedNodesSliceUnionG1);
-		computeSliceForNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2, nonMappedNodesSliceUnionG2);
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
@@ -131,7 +123,7 @@ public class PDGMapper {
 	public List<CompleteSubTreeMatch> getBottomUpSubTreeMatches() {
 		return this.bottomUpSubTreeMatches;
 	}
-
+/*
 	private void computeSliceForNonMappedNodes(PDG pdg, TreeSet<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes, Set<PDGNode> nonMappedNodesSliceUnion) {
 		List<BasicBlock> basicBlocks = pdg.getBasicBlocks();
 		//we need a strategy to select the appropriate basic block according to the region of the duplicated code
@@ -147,7 +139,7 @@ public class PDGMapper {
 			}
 		}
 	}
-
+*/
 	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> accessedFields,
 			Set<MethodInvocationObject> accessedMethods) {
 		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
@@ -415,24 +407,20 @@ public class PDGMapper {
 		return accessedLocalMethodsG2;
 	}
 
-	public Set<PDGNode> getRemovableNodesG1() {
-		Set<PDGNode> removableNodes = mappedNodesG1;
-		removableNodes.removeAll(nonMappedNodesSliceUnionG1);
-		return removableNodes;
+	public TreeSet<PDGNode> getRemovableNodesG1() {
+		return mappedNodesG1;
 	}
 
-	public Set<PDGNode> getRemovableNodesG2() {
-		Set<PDGNode> removableNodes = mappedNodesG2;
-		removableNodes.removeAll(nonMappedNodesSliceUnionG2);
-		return removableNodes;
+	public TreeSet<PDGNode> getRemovableNodesG2() {
+		return mappedNodesG2;
 	}
 
 	public TreeSet<PDGNode> getRemainingNodesG1() {
-		return nonMappedNodesSliceUnionG1;
+		return nonMappedNodesG1;
 	}
 
 	public TreeSet<PDGNode> getRemainingNodesG2() {
-		return nonMappedNodesSliceUnionG2;
+		return nonMappedNodesG2;
 	}
 
 	public List<ASTNodeDifference> getNodeDifferences() {

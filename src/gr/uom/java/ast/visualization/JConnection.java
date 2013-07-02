@@ -41,39 +41,115 @@ public class JConnection extends PolylineConnection {
 		return locator;
 	}
 
-	public PolylineConnection setRightLeftAnchors(Label source, Label target){
+	//changed Label to EntityFigure
+	public PolylineConnection setRightLeftAnchors(EntityFigure source, EntityFigure target){
+		RightAnchor sourceAnchor;
+		LeftAnchor targetAnchor;
 		
-		RightAnchor sourceAnchor = new RightAnchor(source);
-		LeftAnchor targetAnchor = new LeftAnchor(target);
-		this.setSourceAnchor(sourceAnchor);
-		this.setTargetAnchor(targetAnchor);
-
-		return this;
-	}
-
-
-	public PolylineConnection setLeftLeftAnchors(Label source, Label target){
+		if (source.getRightAnchor() != null)
+			sourceAnchor = source.getRightAnchor();
+		else{
+			sourceAnchor = new RightAnchor(source);
+			source.setRightAnchor(sourceAnchor);
+		}
 		
-		LeftAnchor sourceAnchor = new LeftAnchor(source);
-		LeftAnchor targetAnchor = new LeftAnchor(target);
+		if(target.getLeftAnchor() != null){
+			targetAnchor  = target.getLeftAnchor();
+		}
+		else {
+			targetAnchor  = new LeftAnchor(target);
+			target.setLeftAnchor(targetAnchor);
+		}
+		
 		this.setSourceAnchor(sourceAnchor);
 		this.setTargetAnchor(targetAnchor);
 
 		return this;
 	}
 
-	public PolylineConnection setLeftRightAnchors(Label source, Label target){
-		LeftAnchor sourceAnchor = new LeftAnchor(source);
-		RightAnchor targetAnchor = new RightAnchor(target);
+
+	public PolylineConnection setLeftLeftAnchors(EntityFigure source, EntityFigure target){
+		LeftAnchor sourceAnchor;
+		LeftAnchor targetAnchor;
+		
+		if (source.getLeftAnchor() != null)
+			sourceAnchor = source.getLeftAnchor();
+		else{
+			sourceAnchor = new LeftAnchor(source);
+			source.setLeftAnchor(sourceAnchor);
+		}
+		
+		if(target.getLeftAnchor() != null){
+			targetAnchor  = target.getLeftAnchor();
+		}
+		else {
+			targetAnchor  = new LeftAnchor(target);
+			target.setLeftAnchor(targetAnchor);
+		}
+		
+		
+		
+		//	LeftAnchor sourceAnchor = new LeftAnchor(source);
+		//LeftAnchor targetAnchor = new LeftAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
 		this.setTargetAnchor(targetAnchor);
 
 		return this;
 	}
 
-	public PolylineConnection setRightRightAnchors(Label source, Label target){
-		RightAnchor sourceAnchor = new RightAnchor(source);
-		RightAnchor targetAnchor = new RightAnchor(target);
+	public PolylineConnection setLeftRightAnchors(EntityFigure source, EntityFigure target){
+		LeftAnchor sourceAnchor;
+		RightAnchor targetAnchor;
+		
+		if (source.getLeftAnchor() != null)
+			sourceAnchor = source.getLeftAnchor();
+		else{
+			sourceAnchor = new LeftAnchor(source);
+			source.setLeftAnchor(sourceAnchor);
+		}
+		
+		if(target.getRightAnchor() != null){
+			targetAnchor  = target.getRightAnchor();
+		}
+		else {
+			targetAnchor  = new RightAnchor(target);
+			target.setRightAnchor(targetAnchor);
+		}
+		
+		
+		
+		
+		
+		//LeftAnchor sourceAnchor = new LeftAnchor(source);
+		//RightAnchor targetAnchor = new RightAnchor(target);
+		this.setSourceAnchor(sourceAnchor);
+		this.setTargetAnchor(targetAnchor);
+
+		return this;
+	}
+
+	public PolylineConnection setRightRightAnchors(EntityFigure source, EntityFigure target){
+		RightAnchor sourceAnchor;
+		RightAnchor targetAnchor;
+		
+		if (source.getRightAnchor() != null)
+			sourceAnchor = source.getRightAnchor();
+		else{
+			sourceAnchor = new RightAnchor(source);
+			source.setRightAnchor(sourceAnchor);
+		}
+		
+		if(target.getRightAnchor() != null){
+			targetAnchor  = target.getRightAnchor();
+		}
+		else {
+			targetAnchor  = new RightAnchor(target);
+			target.setRightAnchor(targetAnchor);
+		}
+		
+		
+		//RightAnchor sourceAnchor = new RightAnchor(source);
+		//RightAnchor targetAnchor = new RightAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
 		this.setTargetAnchor(targetAnchor);
 

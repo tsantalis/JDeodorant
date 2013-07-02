@@ -14,6 +14,8 @@ public class EntityFigure extends Label{
 
 	private String name;
 	private List<JConnection> outgoingConnections = new ArrayList<JConnection>();
+	private LeftAnchor leftAnchor= null;
+	private RightAnchor rightAnchor= null;
 	
 	public EntityFigure(String name){
 		super(name);
@@ -47,6 +49,24 @@ public class EntityFigure extends Label{
 		setToolTip(new Label(name));
 
 
+	}
+	
+	
+
+	public LeftAnchor getLeftAnchor() {
+		return leftAnchor;
+	}
+
+	public void setLeftAnchor(LeftAnchor leftAnchor) {
+		this.leftAnchor = leftAnchor;
+	}
+
+	public RightAnchor getRightAnchor() {
+		return rightAnchor;
+	}
+
+	public void setRightAnchor(RightAnchor rightAnchor) {
+		this.rightAnchor = rightAnchor;
 	}
 
 	public String getName() {

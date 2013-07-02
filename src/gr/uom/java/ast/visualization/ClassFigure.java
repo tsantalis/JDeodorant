@@ -17,8 +17,6 @@ public class ClassFigure extends Figure {
 	private SectionCompartment methodSectionCompartment ;
 	private SectionCompartment fieldSectionCompartment = new SectionCompartment(3) ;
 	
-
-
 	public ClassFigure(String name, Color color) {
 		ToolbarLayout layout = new ToolbarLayout();
 		layout.setSpacing(5);
@@ -26,19 +24,16 @@ public class ClassFigure extends Figure {
 		setBorder(new CompoundBorder( new LineBorder(1), new MarginBorder(0, 0, 0, 0)));
 		setBackgroundColor(color);
 		setOpaque(true);
-		
 
 		Label className = new Label(name, DecorationConstants.CLASS);
 		className.setToolTip(new Label(name));
 		className.setFont(DecorationConstants.classFont);
-		
+
 		add(className);
-		
+
 		new ClassFigureMover(this);
+
 	}
-
-
-		
 
 	public void addThreeCompartments(){
 		addFieldCompartment();
@@ -53,26 +48,26 @@ public class ClassFigure extends Figure {
 		methodFigure.setBorder(new CompartmentFigureBorder());
 		add(methodFigure);
 	}
-	
+
 	public void addFieldCompartment(){
 		fieldFigure.setBorder(new CompartmentFigureBorder());
 		add(fieldFigure);
 	}
-	
+
 	public void addMethodSectionCompartment(int columns){
 		methodSectionCompartment = new SectionCompartment(columns);
 		add(methodSectionCompartment);
 	}
-	
+
 	public void addFieldSectionCompartment(){
 		add(fieldSectionCompartment);
 	}
-	
+
 	public SectionCompartment getFieldSectionCompartment() {
 		return fieldSectionCompartment;
 	}
 
-	
+
 	public SectionCompartment getMethodSectionCompartment() {
 		return methodSectionCompartment;
 	}

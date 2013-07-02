@@ -13,31 +13,35 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import org.eclipse.draw2d.ConnectionLayer;
+import org.eclipse.draw2d.FreeformLayer;
+import org.eclipse.draw2d.FreeformLayeredPane;
+import org.eclipse.draw2d.FreeformLayout;
 import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.Layer;
 import org.eclipse.draw2d.LayeredPane;
+import org.eclipse.draw2d.ScalableFreeformLayeredPane;
+import org.eclipse.draw2d.ScalableLayeredPane;
 import org.eclipse.draw2d.XYLayout;
 import org.eclipse.draw2d.geometry.Rectangle;
 import org.eclipse.swt.widgets.Display;
 
 public class GodClassDiagram2 {
-	private LayeredPane root;
-	private Layer primary;
+	private ScalableFreeformLayeredPane root;
+	private FreeformLayer primary;
 	private ConnectionLayer connections;
 	private List<JConnection> connectionList= new ArrayList<JConnection>();
 
 	public GodClassDiagram2(GodClassVisualizationData data) {
 
 		// Create a root figure and simple layout to contain all other figures
-		root = new LayeredPane();
-		primary = new Layer();
-		primary.setLayoutManager(new XYLayout());
+		root = new ScalableFreeformLayeredPane();
+		primary = new FreeformLayer();
+		primary.setLayoutManager(new FreeformLayout());
 		root.setFont(Display.getDefault().getSystemFont());
 		root.add(primary,"Primary");
 
 		connections = new ConnectionLayer();
-		//connections.setConnectionRouter( new ShortestPathConnectionRouter(primary));
-
+		
 		int sourceClassWidth = 200;
 		int targetClassWidth = 450;
 		
@@ -599,11 +603,11 @@ public class GodClassDiagram2 {
 		primary.add(legend, new Rectangle(startPointX,sourceH+ legendGap, legendWidth, legendHeight));
 
 		root.add(connections, "Connections");
-
+		
 		//this.canvas= new FigureCanvas(parent, SWT.DOUBLE_BUFFERED);
 	}
 
-	public LayeredPane getRoot() {
+	public ScalableFreeformLayeredPane getRoot() {
 		return root;
 	}
 }

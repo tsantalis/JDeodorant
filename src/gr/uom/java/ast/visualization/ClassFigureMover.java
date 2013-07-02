@@ -60,6 +60,7 @@ public class ClassFigureMover
 		layoutMgr.setConstraint(figure, bounds);
 		figure.translate(offset.width, offset.height);
 		updateMgr.addDirtyRegion(figure.getParent(), bounds);
+		
 		event.consume();
 	}
 

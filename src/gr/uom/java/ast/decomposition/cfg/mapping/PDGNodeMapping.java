@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.ITypeRoot;
@@ -36,6 +37,23 @@ public class PDGNodeMapping implements Comparable<PDGNodeMapping> {
 
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return nodeDifferences;
+	}
+
+	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
+		List<ASTNodeDifference> nonOverlappingDifferences = new ArrayList<ASTNodeDifference>(nodeDifferences);
+		for(int i=0; i<nodeDifferences.size(); i++) {
+			ASTNodeDifference nodeDifferenceI = nodeDifferences.get(i);
+			for(int j=i+1; j<nodeDifferences.size(); j++) {
+				ASTNodeDifference nodeDifferenceJ = nodeDifferences.get(j);
+				if(nodeDifferenceI.isParentNodeDifferenceOf(nodeDifferenceJ)) {
+					nonOverlappingDifferences.remove(nodeDifferenceJ);
+				}
+				else if(nodeDifferenceJ.isParentNodeDifferenceOf(nodeDifferenceI)) {
+					nonOverlappingDifferences.remove(nodeDifferenceI);
+				}
+			}
+		}
+		return nonOverlappingDifferences;
 	}
 
 	public ITypeRoot getTypeRoot1() {

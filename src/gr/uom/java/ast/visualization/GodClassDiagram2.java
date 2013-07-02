@@ -14,14 +14,9 @@ import java.util.Map.Entry;
 
 import org.eclipse.draw2d.ConnectionLayer;
 import org.eclipse.draw2d.FreeformLayer;
-import org.eclipse.draw2d.FreeformLayeredPane;
 import org.eclipse.draw2d.FreeformLayout;
 import org.eclipse.draw2d.Label;
-import org.eclipse.draw2d.Layer;
-import org.eclipse.draw2d.LayeredPane;
 import org.eclipse.draw2d.ScalableFreeformLayeredPane;
-import org.eclipse.draw2d.ScalableLayeredPane;
-import org.eclipse.draw2d.XYLayout;
 import org.eclipse.draw2d.geometry.Rectangle;
 import org.eclipse.swt.widgets.Display;
 

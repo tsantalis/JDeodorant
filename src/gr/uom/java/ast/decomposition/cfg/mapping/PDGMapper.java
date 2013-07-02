@@ -427,6 +427,10 @@ public class PDGMapper {
 		return maximumStateWithMinimumDifferences.getNodeDifferences();
 	}
 
+	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
+		return maximumStateWithMinimumDifferences.getNonOverlappingNodeDifferences();
+	}
+
 	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
 		Set<VariableDeclaration> declaredVariablesG1 = new LinkedHashSet<VariableDeclaration>();
 		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();

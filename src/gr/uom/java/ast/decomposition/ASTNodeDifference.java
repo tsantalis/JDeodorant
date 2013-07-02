@@ -6,7 +6,9 @@ import java.util.List;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SimpleName;
 
 public class ASTNodeDifference {
 	private AbstractExpression expression1;
@@ -101,6 +103,45 @@ public class ASTNodeDifference {
 		return differences.isEmpty();
 	}
 	
+	public boolean isParentNodeDifferenceOf(ASTNodeDifference nodeDifference) {
+		Expression thisExpression1 = expression1.getExpression();
+		Expression thisExpression2 = expression2.getExpression();
+		
+		if(isMethodName(thisExpression1))
+			thisExpression1 = (Expression)thisExpression1.getParent();
+		if(isMethodName(thisExpression2))
+			thisExpression2 = (Expression)thisExpression2.getParent();
+		
+		Expression otherExpression1 = nodeDifference.expression1.getExpression();
+		Expression otherExpression2 = nodeDifference.expression2.getExpression();
+		
+		if(isParent(thisExpression1, otherExpression1) && isParent(thisExpression2, otherExpression2))
+			return true;
+		return false;
+	}
+	
+	private boolean isParent(Expression parent, Expression child) {
+		if(child.getParent().equals(parent))
+			return true;
+		else if(child.getParent() instanceof Expression) {
+			return isParent(parent, (Expression)child.getParent());
+		}
+		else {
+			return false;
+		}
+	}
+
+	private boolean isMethodName(Expression expression) {
+		if(expression instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.METHOD) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public String toString()
 	{
 		StringBuilder sb = new StringBuilder();

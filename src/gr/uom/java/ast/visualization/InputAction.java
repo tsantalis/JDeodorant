@@ -14,9 +14,9 @@ public class InputAction extends Action implements IWorkbenchAction{
 	private static final String ID = "gr.uom.java.ast.visualiztion.InputAction";  
 	private ScalableFreeformLayeredPane root;
 
-	public InputAction(ScalableFreeformLayeredPane root2){  
+	public InputAction(ScalableFreeformLayeredPane root){  
 		setId(ID); 
-		this.root = root2;
+		this.root = root;
 	}  
 
 	public void run() {  

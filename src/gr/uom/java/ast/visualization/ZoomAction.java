@@ -1,9 +1,7 @@
 package gr.uom.java.ast.visualization;
 
-import org.eclipse.draw2d.FigureCanvas;
 import org.eclipse.draw2d.FreeformViewport;
 import org.eclipse.draw2d.ScalableFreeformLayeredPane;
-import org.eclipse.draw2d.ScalableLayeredPane;
 import org.eclipse.draw2d.geometry.Rectangle;
 import org.eclipse.jface.action.Action;
 import org.eclipse.ui.actions.ActionFactory.IWorkbenchAction;
@@ -14,33 +12,28 @@ public class ZoomAction extends Action implements IWorkbenchAction {
 	private double scale;
 	private ScalableFreeformLayeredPane root;
 	
-	public ZoomAction(ScalableFreeformLayeredPane root2, double scale){  
+	public ZoomAction(ScalableFreeformLayeredPane root, double scale){  
 		setId(ID);  
 		
 		this.scale = scale;
-		this.root = root2;
+		this.root = root;
 	}  
 
 	public void run() {  
 		if(root != null){
 			if(scale!= 0){
-				
 				this.root.setScale(this.scale);
-			}else
+			}
+			else
 				scaleToFit();
 		}
-
-
-
-	}  
+	}
 
 	public void dispose() {
-		// TODO Auto-generated method stub
-
+		
 	}
 
 	private void scaleToFit(){
-
 		FreeformViewport viewport = (FreeformViewport) root.getParent();
 		Rectangle viewArea = viewport.getClientArea();
 

@@ -630,7 +630,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(oldStatement instanceof IfStatement) {
 			IfStatement oldIfStatement = (IfStatement)oldStatement;
 			IfStatement newIfStatement = ast.newIfStatement();
-			Expression newIfExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldIfStatement.getExpression(), nodeMapping.getNodeDifferences());
+			Expression newIfExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldIfStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
 			sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, newIfExpression, null);
 			List<CloneStructureNode> trueControlDependentChildren = new ArrayList<CloneStructureNode>();
 			List<CloneStructureNode> falseControlDependentChildren = new ArrayList<CloneStructureNode>();
@@ -689,7 +689,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
 			List<VariableDeclarationExpression> resources = oldTryStatement.resources();
 			for(VariableDeclarationExpression expression : resources) {
-				Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
+				Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
 				resourceRewrite.insertLast(newResourceExpression, null);
 			}
 			Block newBlock = ast.newBlock();
@@ -707,7 +707,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
 				List<Statement> oldCatchStatements = catchClause.getBody().statements();
 				for(Statement oldCatchStatement : oldCatchStatements) {
-					Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldCatchStatement, nodeMapping.getNodeDifferences());
+					Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldCatchStatement, nodeMapping.getNonOverlappingNodeDifferences());
 					newCatchBodyRewrite.insertLast(newStatement2, null);
 				}
 				sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
@@ -718,7 +718,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
 				List<Statement> oldFinallyStatements = oldTryStatement.getFinally().statements();
 				for(Statement oldFinallyStatement : oldFinallyStatements) {
-					Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldFinallyStatement, nodeMapping.getNodeDifferences());
+					Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldFinallyStatement, nodeMapping.getNonOverlappingNodeDifferences());
 					newFinallyBodyRewrite.insertLast(newStatement2, null);
 				}
 				sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
@@ -728,7 +728,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else if(oldStatement instanceof SwitchStatement) {
 			SwitchStatement oldSwitchStatement = (SwitchStatement)oldStatement;
 			SwitchStatement newSwitchStatement = ast.newSwitchStatement();
-			Expression newSwitchExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSwitchStatement.getExpression(), nodeMapping.getNodeDifferences());
+			Expression newSwitchExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSwitchStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
 			sourceRewriter.set(newSwitchStatement, SwitchStatement.EXPRESSION_PROPERTY, newSwitchExpression, null);
 			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
@@ -739,7 +739,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else if(oldStatement instanceof WhileStatement) {
 			WhileStatement oldWhileStatement = (WhileStatement)oldStatement;
 			WhileStatement newWhileStatement = ast.newWhileStatement();
-			Expression newWhileExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldWhileStatement.getExpression(), nodeMapping.getNodeDifferences());
+			Expression newWhileExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldWhileStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
 			sourceRewriter.set(newWhileStatement, WhileStatement.EXPRESSION_PROPERTY, newWhileExpression, null);
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
@@ -752,18 +752,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else if(oldStatement instanceof ForStatement) {
 			ForStatement oldForStatement = (ForStatement)oldStatement;
 			ForStatement newForStatement = ast.newForStatement();
-			Expression newForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldForStatement.getExpression(), nodeMapping.getNodeDifferences());
+			Expression newForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldForStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
 			sourceRewriter.set(newForStatement, ForStatement.EXPRESSION_PROPERTY, newForExpression, null);
 			ListRewrite initializerRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.INITIALIZERS_PROPERTY);
 			List<Expression> initializers = oldForStatement.initializers();
 			for(Expression expression : initializers) {
-				Expression newInitializerExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
+				Expression newInitializerExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
 				initializerRewrite.insertLast(newInitializerExpression, null);
 			}
 			ListRewrite updaterRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.UPDATERS_PROPERTY);
 			List<Expression> updaters = oldForStatement.updaters();
 			for(Expression expression : updaters) {
-				Expression newUpdaterExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNodeDifferences());
+				Expression newUpdaterExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
 				updaterRewrite.insertLast(newUpdaterExpression, null);
 			}
 			Block loopBlock = ast.newBlock();
@@ -778,7 +778,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			EnhancedForStatement oldEnhancedForStatement = (EnhancedForStatement)oldStatement;
 			EnhancedForStatement newEnhancedForStatement = ast.newEnhancedForStatement();
 			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.PARAMETER_PROPERTY, oldEnhancedForStatement.getParameter(), null);
-			Expression newEnhancedForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldEnhancedForStatement.getExpression(), nodeMapping.getNodeDifferences());
+			Expression newEnhancedForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldEnhancedForStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
 			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.EXPRESSION_PROPERTY, newEnhancedForExpression, null);
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
@@ -791,7 +791,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else if(oldStatement instanceof DoStatement) {
 			DoStatement oldDoStatement = (DoStatement)oldStatement;
 			DoStatement newDoStatement = ast.newDoStatement();
-			Expression newDoExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldDoStatement.getExpression(), nodeMapping.getNodeDifferences());
+			Expression newDoExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldDoStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
 			sourceRewriter.set(newDoStatement, DoStatement.EXPRESSION_PROPERTY, newDoExpression, null);
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
@@ -802,7 +802,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			newStatement = newDoStatement;
 		}
 		else {
-			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNodeDifferences());
+			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNonOverlappingNodeDifferences());
 		}
 		return newStatement;
 	}
@@ -870,7 +870,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				Expression oldExpression = difference.getExpression1().getExpression();
 				IBinding binding = null;
 				boolean isCommonParameter = false;
-				if(oldExpression instanceof SimpleName) {
+				if(isMethodName(oldExpression)) {
+					SimpleName oldSimpleName = (SimpleName)oldExpression;
+					binding = oldSimpleName.resolveBinding();
+					//get method invocation from method name
+					oldExpression = (Expression)oldExpression.getParent();
+					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
+						isCommonParameter = true;
+				}
+				else if(oldExpression instanceof SimpleName) {
 					SimpleName oldSimpleName = (SimpleName)oldExpression;
 					binding = oldSimpleName.resolveBinding();
 					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
@@ -1014,8 +1022,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		parameterizedDifferences.addAll(parameterizedDifferencesWithoutBinding);
 		for(ASTNodeDifference difference : parameterizedDifferences) {
 			List<Expression> expressions = new ArrayList<Expression>();
-			expressions.add(difference.getExpression1().getExpression());
-			expressions.add(difference.getExpression2().getExpression());
+			Expression expression1 = difference.getExpression1().getExpression();
+			expressions.add(isMethodName(expression1) ? (Expression)expression1.getParent() : expression1);
+			Expression expression2 = difference.getExpression2().getExpression();
+			expressions.add(isMethodName(expression2) ? (Expression)expression2.getParent() : expression2);
 			Expression expression = expressions.get(index);
 			boolean isReturnedVariable = isReturnedVariable(expression, returnedVariables);
 			if(!isReturnedVariable)
@@ -1075,14 +1085,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			SimpleName simpleName = (SimpleName)expression;
 			binding = simpleName.resolveBinding();
 		}
-		boolean isReturnedVariable = false;
 		for(VariableDeclaration returnedVariable : returnedVariables) {
 			if(returnedVariable.resolveBinding().isEqualTo(binding)) {
-				isReturnedVariable = true;
-				break;
+				return true;
 			}
 		}
-		return isReturnedVariable;
+		return false;
 	}
 
 	private void getSimpleTypeBindings(Set<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
@@ -1215,7 +1223,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 			}
-			List<ASTNodeDifference> differences = mapper.getNodeDifferences();
+			List<ASTNodeDifference> differences = mapper.getNonOverlappingNodeDifferences();
 			for(ASTNodeDifference difference : differences) {
 				for(int i=0; i<sourceCompilationUnits.size(); i++) {
 					TreeSet<PDGNode> removableNodes = removableStatements.get(i);
@@ -1257,13 +1265,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	//precondition: differences in expressions should be parameterizable
 	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, Expression initialExpression) {
-		Expression expr;
-		if(isMethodName(initialExpression)) {
-			expr = (Expression)initialExpression.getParent();
-		}
-		else {
-			expr = initialExpression;
-		}
+		Expression expr = isMethodName(initialExpression) ? (Expression)initialExpression.getParent() : initialExpression;
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expr);
 		for(Expression expression : simpleNames) {

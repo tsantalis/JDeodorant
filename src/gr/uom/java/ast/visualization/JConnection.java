@@ -26,12 +26,10 @@ public class JConnection extends PolylineConnection {
 	public ConnectionType getType() {
 		return type;
 	}
-	
 
 	public Label getLabel() {
 		return label;
 	}
-	
 	
 	public boolean isWrite(){
 		return isWrite;
@@ -86,10 +84,7 @@ public class JConnection extends PolylineConnection {
 			targetAnchor  = new LeftAnchor(target);
 			target.setLeftAnchor(targetAnchor);
 		}
-		
-		
-		
-		//	LeftAnchor sourceAnchor = new LeftAnchor(source);
+		//LeftAnchor sourceAnchor = new LeftAnchor(source);
 		//LeftAnchor targetAnchor = new LeftAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
 		this.setTargetAnchor(targetAnchor);
@@ -115,11 +110,6 @@ public class JConnection extends PolylineConnection {
 			targetAnchor  = new RightAnchor(target);
 			target.setRightAnchor(targetAnchor);
 		}
-		
-		
-		
-		
-		
 		//LeftAnchor sourceAnchor = new LeftAnchor(source);
 		//RightAnchor targetAnchor = new RightAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
@@ -146,13 +136,11 @@ public class JConnection extends PolylineConnection {
 			targetAnchor  = new RightAnchor(target);
 			target.setRightAnchor(targetAnchor);
 		}
-		
-		
+
 		//RightAnchor sourceAnchor = new RightAnchor(source);
 		//RightAnchor targetAnchor = new RightAnchor(target);
 		this.setSourceAnchor(sourceAnchor);
 		this.setTargetAnchor(targetAnchor);
-
 
 		return this;
 	}
@@ -263,8 +251,5 @@ public class JConnection extends PolylineConnection {
 		this.setConnectionRouter(router);
 
 		return this;
-
-
-
 	}
 }

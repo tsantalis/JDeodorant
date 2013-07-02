@@ -1,6 +1,5 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
-import java.awt.event.MouseWheelEvent;
 import gr.uom.java.ast.visualization.FeatureEnvyDiagram;
 import gr.uom.java.ast.visualization.FeatureEnvyVisualizationData;
 import gr.uom.java.ast.visualization.GodClassDiagram2;
@@ -9,6 +8,7 @@ import gr.uom.java.ast.visualization.InputAction;
 import gr.uom.java.ast.visualization.VisualizationData;
 import gr.uom.java.ast.visualization.ZoomAction;
 import gr.uom.java.jdeodorant.refactoring.Activator;
+
 import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.FigureCanvas;
 import org.eclipse.draw2d.FreeformViewport;
@@ -31,6 +31,7 @@ import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.part.ViewPart;
 
 public class CodeSmellVisualization extends ViewPart {
+	
 	public static final String ID = "gr.uom.java.jdeodorant.views.CodeSmellVisualization";
 	private FigureCanvas figureCanvas; 
 	private ScalableFreeformLayeredPane root = null;
@@ -45,11 +46,9 @@ public class CodeSmellVisualization extends ViewPart {
 		VisualizationData data = CodeSmellVisualizationDataSingleton.getData();
 
 		if(data != null) {
-
 			if(data instanceof GodClassVisualizationData) {
 				GodClassDiagram2 diagram = new GodClassDiagram2((GodClassVisualizationData)data);
 				root= diagram.getRoot();
-
 			}
 			if(data instanceof FeatureEnvyVisualizationData) {
 				FeatureEnvyDiagram diagram = new FeatureEnvyDiagram((FeatureEnvyVisualizationData)data);
@@ -58,32 +57,29 @@ public class CodeSmellVisualization extends ViewPart {
 
 			figureCanvas.setViewport(new FreeformViewport());
 			MouseWheelListener listener = new MouseWheelListener() {
-				private double zoomPercent;
-				private static final int UP = 1;
-				private static final int DOWN = 2;
+				private double scale;
+				private static final double ZOOM_INCRENENT = 0.1;
+				private static final double ZOOM_DECREMENT = 0.1;
 
-				private void zoom(int direction) {
-
-
-					if (direction == UP) {
-						zoomPercent= zoomPercent+0.1;
+				private void zoom(int count) {
+					if (count > 0) {
+						scale += ZOOM_INCRENENT;
 
 					} else {
-						zoomPercent= zoomPercent - 0.1;
+						scale -= ZOOM_DECREMENT;
 					}
 
-					if (zoomPercent <= 0) {
-						zoomPercent = 0;
+					if (scale <= 0) {
+						scale = 0;
 					}
 
-					root.setScale(zoomPercent);
+					root.setScale(scale);
 				}
 
 				public void mouseScrolled(MouseEvent e) {
-					zoomPercent = root.getScale();
+					scale = root.getScale();
 					int count = e.count;
-					int direction = (count > 0) ? UP : DOWN;
-					zoom(direction);
+					zoom(count);
 				}
 			};
 
@@ -153,11 +149,6 @@ public class CodeSmellVisualization extends ViewPart {
 	public void setFocus() {
 
 	}
-
-	//public void disposeCanvas(){
-
-		//figureCanvas.dispose();
-	//}
 
 	public ZoomAction newZoomAction(double scale){
 		ZoomAction zoomAction = new ZoomAction(root, scale);

@@ -13,6 +13,7 @@ import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.FigureCanvas;
 import org.eclipse.draw2d.FreeformViewport;
 import org.eclipse.draw2d.ScalableFreeformLayeredPane;
+import org.eclipse.draw2d.geometry.Point;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.IAction;
@@ -21,6 +22,8 @@ import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.KeyEvent;
+import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseWheelListener;
 import org.eclipse.swt.layout.FillLayout;
@@ -31,10 +34,11 @@ import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.part.ViewPart;
 
 public class CodeSmellVisualization extends ViewPart {
-	
+
 	public static final String ID = "gr.uom.java.jdeodorant.views.CodeSmellVisualization";
 	private FigureCanvas figureCanvas; 
 	private ScalableFreeformLayeredPane root = null;
+	private boolean ctrlPressed= false;
 
 	public void createPartControl(Composite parent) {
 
@@ -56,12 +60,29 @@ public class CodeSmellVisualization extends ViewPart {
 			}
 
 			figureCanvas.setViewport(new FreeformViewport());
+
+
+			figureCanvas.addKeyListener( new KeyListener() {
+
+				public void keyPressed(KeyEvent e) {
+					if(e.keyCode == SWT.CTRL){
+						ctrlPressed = true;
+					}
+				}
+
+				public void keyReleased(KeyEvent e) {
+					if(e.keyCode== SWT.CTRL)
+						ctrlPressed = false;
+
+				}
+			});
+
 			MouseWheelListener listener = new MouseWheelListener() {
 				private double scale;
 				private static final double ZOOM_INCRENENT = 0.1;
 				private static final double ZOOM_DECREMENT = 0.1;
 
-				private void zoom(int count) {
+				private void zoom(int count, Point point) {
 					if (count > 0) {
 						scale += ZOOM_INCRENENT;
 
@@ -72,20 +93,31 @@ public class CodeSmellVisualization extends ViewPart {
 					if (scale <= 0) {
 						scale = 0;
 					}
+					FreeformViewport viewport = (FreeformViewport) root.getParent();
+
+					if(scale>1){
+						viewport.setHorizontalLocation((int) (point.x*(scale -1)+ scale*viewport.getLocation().x));
+						viewport.setVerticalLocation((int) (point.y*(scale-1)+scale*viewport.getLocation().y));
+					}
 
 					root.setScale(scale);
 				}
 
 				public void mouseScrolled(MouseEvent e) {
-					scale = root.getScale();
-					int count = e.count;
-					zoom(count);
+
+					if(ctrlPressed == true){
+						scale = root.getScale();
+						Point point = new Point(e.x,e.y);
+						int count = e.count;
+						zoom(count, point);
+
+					}
+
 				}
 			};
 
-			figureCanvas.setContents(root);
 			figureCanvas.addMouseWheelListener(listener);
-
+			figureCanvas.setContents(root);
 		}
 
 		// Custom Action for the View's Menu  

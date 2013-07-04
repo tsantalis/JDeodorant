@@ -14,11 +14,13 @@ public class ASTNodeDifference {
 	private AbstractExpression expression1;
 	private AbstractExpression expression2;
 	private List<Difference> differences;
+	private BindingSignaturePair bindingSignaturePair;
 	
 	public ASTNodeDifference(AbstractExpression e1, AbstractExpression e2) {
 		this.expression1=e1;
 		this.expression2=e2;
-		differences = new ArrayList<Difference>();
+		this.bindingSignaturePair = new BindingSignaturePair(e1, e2);
+		this.differences = new ArrayList<Difference>();
 	}
 	
 	public List<Difference> getDifferences() {
@@ -31,6 +33,10 @@ public class ASTNodeDifference {
 
 	public AbstractExpression getExpression2() {
 		return expression2;
+	}
+
+	public BindingSignaturePair getBindingSignaturePair() {
+		return bindingSignaturePair;
 	}
 
 	public void addDifference(Difference diff)

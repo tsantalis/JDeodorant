@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
@@ -114,8 +115,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Set<PDGNodeMapping> sortedNodeMappings;
 	private List<TreeSet<PDGNode>> removableStatements;
 	private List<TreeSet<PDGNode>> remainingStatements;
-	private List<ASTNodeDifference> parameterizedDifferencesWithoutBinding;
-	private Map<IBinding, ASTNodeDifference> parameterizedDifferencesWithBinding;
+	private Map<String, ArrayList<VariableDeclaration>> originalPassedParameters;
+	private Map<BindingSignaturePair, ASTNodeDifference> parameterizedDifferenceMap;
 	private List<ArrayList<VariableDeclaration>> returnedVariables;
 	private String intermediateClassName;
 	private String extractedMethodName;
@@ -153,8 +154,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration1.getRoot());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration2.getRoot());
-		this.parameterizedDifferencesWithoutBinding = new ArrayList<ASTNodeDifference>();
-		this.parameterizedDifferencesWithBinding = new LinkedHashMap<IBinding, ASTNodeDifference>();
+		this.originalPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
+		this.parameterizedDifferenceMap = new LinkedHashMap<BindingSignaturePair, ASTNodeDifference>();
 		this.sortedNodeMappings = new TreeSet<PDGNodeMapping>(mapper.getMaximumStateWithMinimumDifferences().getNodeMappings());
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
@@ -499,17 +500,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
 		for(String parameterName : commonPassedParameters.keySet()) {
-			List<VariableDeclaration> variableDeclarations = commonPassedParameters.get(parameterName);
-			VariableDeclaration variableDeclaration = variableDeclarations.get(0);
-			Type variableType = extractType(variableDeclaration);
-			if(!variableDeclaration.resolveBinding().isField()) {
-				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-				typeBindings.add(variableType.resolveBinding());
-				getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
-				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
-				parameterRewrite.insertLast(parameter, null);
+			ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(parameterName);
+			VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
+			VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
+			if(parameterIsUsedByNodesWithoutDifferences(variableDeclaration1, variableDeclaration2)) {
+				if(!variableDeclaration1.resolveBinding().isField()) {
+					Type variableType = extractType(variableDeclaration1);
+					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+					typeBindings.add(variableType.resolveBinding());
+					getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+					SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+					sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration1.getName(), null);
+					sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
+					parameterRewrite.insertLast(parameter, null);
+					originalPassedParameters.put(parameterName, variableDeclarations);
+				}
 			}
 		}
 		
@@ -537,10 +542,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		//add parameters for the differences between the clones
 		int i = 0;
-		List<ASTNodeDifference> parameterizedDifferences = new ArrayList<ASTNodeDifference>();
-		parameterizedDifferences.addAll(parameterizedDifferencesWithBinding.values());
-		parameterizedDifferences.addAll(parameterizedDifferencesWithoutBinding);
-		for(ASTNodeDifference difference : parameterizedDifferences) {
+		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			Expression expression1 = difference.getExpression1().getExpression();
 			Expression expression2 = difference.getExpression2().getExpression();
 			boolean isReturnedVariable = isReturnedVariable(expression1, this.returnedVariables.get(0));
@@ -562,19 +564,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				typeBindings.add(typeBinding);
 				getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-				if(parameterizedDifferencesWithoutBinding.contains(difference)) {
-					sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
-					i++;
-				}
-				else {
-					for(IBinding binding : parameterizedDifferencesWithBinding.keySet()) {
-						ASTNodeDifference value = parameterizedDifferencesWithBinding.get(binding);
-						if(value.equals(difference)) {
-							sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(binding.getName()), null);
-							break;
-						}
-					}
-				}
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
+				i++;
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
 				parameterRewrite.insertLast(parameter, null);
 			}
@@ -620,6 +611,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private boolean parameterIsUsedByNodesWithoutDifferences(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+		PlainVariable variable1 = new PlainVariable(variableDeclaration1);
+		PlainVariable variable2 = new PlainVariable(variableDeclaration2);
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode node1 = pdgNodeMapping.getNodeG1();
+			PDGNode node2 = pdgNodeMapping.getNodeG2();
+			if(node1.usesLocalVariable(variable1) && node2.usesLocalVariable(variable2)) {
+				List<ASTNodeDifference> differences = pdgNodeMapping.getNonOverlappingNodeDifferences();
+				if(differences.isEmpty())
+					return true;
+				for(ASTNodeDifference difference : differences) {
+					BindingSignaturePair signaturePair = difference.getBindingSignaturePair();
+					if(!signaturePair.getSignature1().containsBinding(variableDeclaration1.resolveBinding().getKey()) &&
+							!signaturePair.getSignature2().containsBinding(variableDeclaration2.resolveBinding().getKey())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private Statement processCloneStructureNode(CloneStructureNode node, AST ast, ASTRewrite sourceRewriter) {
@@ -862,17 +875,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			return oldASTNode;
 		}
 		else {
-			Set<String> parameterBindingKeys = mapper.getCommonPassedParameters().keySet();
+			Set<String> parameterBindingKeys = originalPassedParameters.keySet();
 			Set<String> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
-				IBinding binding = null;
 				boolean isCommonParameter = false;
 				if(isMethodName(oldExpression)) {
 					SimpleName oldSimpleName = (SimpleName)oldExpression;
-					binding = oldSimpleName.resolveBinding();
+					IBinding binding = oldSimpleName.resolveBinding();
 					//get method invocation from method name
 					oldExpression = (Expression)oldExpression.getParent();
 					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
@@ -880,14 +892,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 				else if(oldExpression instanceof SimpleName) {
 					SimpleName oldSimpleName = (SimpleName)oldExpression;
-					binding = oldSimpleName.resolveBinding();
+					IBinding binding = oldSimpleName.resolveBinding();
 					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
 						isCommonParameter = true;
 				}
 				else if(oldExpression instanceof QualifiedName) {
 					QualifiedName oldQualifiedName = (QualifiedName)oldExpression;
 					SimpleName oldSimpleName = oldQualifiedName.getName();
-					binding = oldSimpleName.resolveBinding();
+					IBinding binding = oldSimpleName.resolveBinding();
 					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
 						isCommonParameter = true;
 				}
@@ -920,15 +932,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 					else {
 						SimpleName argument;
-						if(binding != null) {
-							argument = ast.newSimpleName(binding.getName());
-							if(!parameterizedDifferencesWithBinding.containsKey(binding)) {
-								parameterizedDifferencesWithBinding.put(binding, difference);
-							}
+						if(parameterizedDifferenceMap.containsKey(difference.getBindingSignaturePair())) {
+							List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
+							int index = list.indexOf(difference.getBindingSignaturePair());
+							argument = ast.newSimpleName("arg" + index);
 						}
 						else {
-							argument = ast.newSimpleName("arg" + parameterizedDifferencesWithoutBinding.size());
-							parameterizedDifferencesWithoutBinding.add(difference);
+							argument = ast.newSimpleName("arg" + parameterizedDifferenceMap.size());
+							parameterizedDifferenceMap.put(difference.getBindingSignaturePair(), difference);
 						}
 						int j = 0;
 						List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldASTNode);
@@ -1011,16 +1022,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 		MethodInvocation methodInvocation = ast.newMethodInvocation();
 		methodBodyRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(extractedMethodName), null);
-		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
 		ListRewrite argumentsRewrite = methodBodyRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-		for(String parameterName : commonPassedParameters.keySet()) {
-			List<VariableDeclaration> variableDeclarations = commonPassedParameters.get(parameterName);
+		for(String parameterName : originalPassedParameters.keySet()) {
+			List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
 			argumentsRewrite.insertLast(variableDeclarations.get(index).getName(), null);
 		}
-		List<ASTNodeDifference> parameterizedDifferences = new ArrayList<ASTNodeDifference>();
-		parameterizedDifferences.addAll(parameterizedDifferencesWithBinding.values());
-		parameterizedDifferences.addAll(parameterizedDifferencesWithoutBinding);
-		for(ASTNodeDifference difference : parameterizedDifferences) {
+		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			List<Expression> expressions = new ArrayList<Expression>();
 			Expression expression1 = difference.getExpression1().getExpression();
 			expressions.add(isMethodName(expression1) ? (Expression)expression1.getParent() : expression1);

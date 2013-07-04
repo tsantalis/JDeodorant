@@ -5,6 +5,7 @@ import gr.uom.java.ast.decomposition.Difference;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.ArrayAccess;
@@ -36,7 +37,6 @@ import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
-import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.ParameterizedType;
@@ -78,15 +78,8 @@ import org.eclipse.swt.graphics.TextStyle;
 
 public class StyledStringVisitor extends ASTVisitor {
 
-	// private List<ASTNode> leaves = new ArrayList<ASTNode>();
+	//The main field, to which all the text is appended.
 	private StyledString styledString;
-
-	/*
-	private Styler keywordFormatting;
-	private Styler stringFormatting;
-	private Styler ordinaryFormatting;
-	private Styler differenceFormatting;
-	 */
 
 	//TextStyle Experiment
 	private TextStyle keywordStyle;
@@ -96,6 +89,9 @@ public class StyledStringVisitor extends ASTVisitor {
 	private TextStyle namedConstantStyle;
 
 	private List<ASTNode> astNodesThatAreDifferences;
+	
+	private ASTNode currentCompositeDiffNode = null;
+	
 
 	public StyledStringVisitor(List<ASTNodeDifference> differences, NodeVisualComparePosition position) {
 		this.styledString = new StyledString();
@@ -148,17 +144,28 @@ public class StyledStringVisitor extends ASTVisitor {
 	// Visit Methods
 	public boolean visit(ArrayAccess expr) {
 		/*
-		 * ArrayAccess: Expression [ Expression ]
+		 * Expression [ Expression ]
 		 */
+		activateDiffStyle(expr);
 		handleExpression((Expression) expr.getArray());
 		appendOpenBracket();
 		handleExpression((Expression) expr.getIndex());
 		appendClosedBracket();
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
 	public boolean visit(ArrayCreation expr) {
-		styledString.append("new", new StyledStringStyler(keywordStyle));
+		/*
+		 	new PrimitiveType [ Expression ] { [ Expression ] } { [ ] }
+    		new TypeName [ < Type { , Type } > ]
+        		[ Expression ] { [ Expression ] } { [ ] }
+    		new PrimitiveType [ ] { [ ] } ArrayInitializer
+    		new TypeName [ < Type { , Type } > ]
+        		[ ] { [ ] } ArrayInitializer
+		 */
+		activateDiffStyle(expr);
+		styledString.append("new", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		appendSpace();
 		handleType(expr.getType());
 		for (int i = 0; i < expr.dimensions().size(); i++) {
@@ -166,6 +173,7 @@ public class StyledStringVisitor extends ASTVisitor {
 			handleExpression((Expression) expr.dimensions().get(i));
 			appendClosedBracket();
 		}
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -173,6 +181,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * ArrayInitializer: { [ Expression { , Expression} [ , ]] }
 		 */
+		activateDiffStyle(expr);
 		appendOpenCurlyBracket();
 		for (int i = 0; i < expr.expressions().size(); i++) {
 			handleExpression((Expression) expr.expressions().get(i));
@@ -182,11 +191,14 @@ public class StyledStringVisitor extends ASTVisitor {
 
 		}
 		appendClosedCurlyBracket();
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
 	public boolean visit(ArrayType type) {
+		activateDiffStyle(type);
 		handleType(type.getElementType());
+		deactivateDiffStyle(type);
 		return false;
 	}
 
@@ -205,11 +217,13 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(Assignment expr) {
+		activateDiffStyle(expr);
 		handleExpression((Expression) expr.getLeftHandSide());
 		appendSpace();
-		styledString.append(expr.getOperator().toString(), new StyledStringStyler(ordinaryStyle));
+		styledString.append(expr.getOperator().toString(), determineDiffStyle(expr, new StyledStringStyler(ordinaryStyle)));
 		appendSpace();
 		handleExpression((Expression) expr.getRightHandSide());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -238,10 +252,12 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(CastExpression expr) {
+		activateDiffStyle(expr);
 		appendOpenParenthesis();
 		handleType(expr.getType());
 		appendClosedParenthesis();
 		handleExpression((Expression) expr.getExpression());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -249,10 +265,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * 
 		 */
-		StyledStringStyler styler = new StyledStringStyler(stringStyle);
-		if (isDifference(expr)){
-			styler.appendTextStyle(differenceStyle);
-		}
+		StyledStringStyler styler = determineDiffStyle(expr, new StyledStringStyler(stringStyle));
 		styledString.append(expr.getEscapedValue(), styler);
 		return false;
 	}
@@ -263,12 +276,13 @@ public class StyledStringVisitor extends ASTVisitor {
 		 * [ Expression . ] new [ < Type { , Type } > ] Type ( [ Expression { ,
 		 * Expression } ] ) [ AnonymousClassDeclaration ]
 		 */
-		// if ()
-		styledString.append("new", new StyledStringStyler(keywordStyle));
+		activateDiffStyle(expr);
+		styledString.append("new", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		appendSpace();
 		handleType(expr.getType());
 		// Get arguments (each is an Expression) and handle them one by one.
 		handleParameters(expr.arguments());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -276,11 +290,13 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * ConditionalExpression: Expression ? Expression : Expression
 		 */
+		activateDiffStyle(expr);
 		handleExpression((Expression) expr.getExpression());
 		appendQuestionMark();
 		handleExpression((Expression) expr.getThenExpression());
 		appendColon();
 		handleExpression((Expression) expr.getElseExpression());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -362,9 +378,11 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(FieldAccess expr) {
+		activateDiffStyle(expr);
 		handleExpression(expr.getExpression());
 		appendPeriod();
 		visit(expr.getName());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -381,13 +399,24 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(InfixExpression expr) {
+		activateDiffStyle(expr);
+		StyledStringStyler styler = determineDiffStyle(expr, new StyledStringStyler(ordinaryStyle));
+		
 		Expression leftExpression = expr.getLeftOperand();
 		handleExpression(leftExpression);
-		styledString.append(" ", new StyledStringStyler(ordinaryStyle));
-		styledString.append(expr.getOperator().toString());
-		styledString.append(" ", new StyledStringStyler(ordinaryStyle));
+		appendSpace();
+		styledString.append(expr.getOperator().toString(), styler);
+		appendSpace();
 		Expression rightExpression = expr.getRightOperand();
 		handleExpression(rightExpression);
+		for (int i = 0; i < expr.extendedOperands().size(); i++){
+			appendSpace();
+			styledString.append(expr.getOperator().toString(), styler);
+			appendSpace();
+			handleExpression((Expression) expr.extendedOperands().get(i));
+		}
+		
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -395,11 +424,15 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * InstanceofExpression: Expression instanceof Type
 		 */
+		activateDiffStyle(expr);
+		
 		handleExpression((Expression) expr.getLeftOperand());
 		appendSpace();
-		styledString.append("instanceof", new StyledStringStyler(keywordStyle));
+		styledString.append("instanceof", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		appendSpace();
 		handleType((Type) expr.getRightOperand());
+		
+		deactivateDiffStyle(expr);
 		return false;
 	}
 	public boolean visit(LabeledStatement stmnt){
@@ -407,26 +440,27 @@ public class StyledStringVisitor extends ASTVisitor {
 		 * Identifier : Statement
 		 */
 		visit(stmnt.getLabel());
+		appendColon();
 		return false;
 	}
 	public boolean visit(MethodInvocation expr) {
+		activateDiffStyle(expr);
+		
 		if (expr.getExpression() != null) {
 			handleExpression((Expression) expr.getExpression());
 			appendPeriod();
 		}
 		visit(expr.getName());
 		handleParameters(expr.arguments());
+		
+		deactivateDiffStyle(expr);
 		return false;
 	}
-
 	public boolean visit(Modifier modifier) {
-		styledString
-		.append(modifier.getKeyword().toString(), new StyledStringStyler(keywordStyle));
-		return false;
-	}
-
-	public boolean visit(Name expr) {
-		handleExpression(expr);
+		/*
+		 * public protected private static abstract final native synchronized transient volatile strictfp
+		 */
+		styledString.append(modifier.getKeyword().toString(), determineDiffStyle(modifier, new StyledStringStyler(keywordStyle)));
 		return false;
 	}
 
@@ -434,16 +468,12 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * null
 		 */
-		styledString.append("null", new StyledStringStyler(keywordStyle));
+		styledString.append("null", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		return false;
 	}
 
 	public boolean visit(NumberLiteral expr) {
-		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
-		if (isDifference(expr)){
-			styler.appendTextStyle(differenceStyle);
-		}
-		styledString.append(expr.getToken(), styler);
+		styledString.append(expr.getToken(),  determineDiffStyle(expr, new StyledStringStyler(ordinaryStyle)));
 		return false;
 	}
 
@@ -451,6 +481,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * ParameterizedType: Type < Type { , Type } >
 		 */
+		activateDiffStyle(type);
 		handleType(type.getType());
 		appendOpenBrace();
 		for (int i = 0; i < type.typeArguments().size(); i++) {
@@ -460,6 +491,7 @@ public class StyledStringVisitor extends ASTVisitor {
 			}
 		}
 		appendClosedBrace();
+		deactivateDiffStyle(type);
 		return false;
 	}
 
@@ -467,15 +499,19 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * ParenthesizedExpression: ( Expression )
 		 */
+		activateDiffStyle(expr);
 		appendOpenParenthesis();
 		handleExpression((Expression) expr.getExpression());
 		appendClosedParenthesis();
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
 	public boolean visit(PostfixExpression expr) {
+		activateDiffStyle(expr);
 		handleExpression(expr.getOperand());
-		styledString.append(expr.getOperator().toString(), new StyledStringStyler(ordinaryStyle));
+		styledString.append(expr.getOperator().toString(), determineDiffStyle(expr, new StyledStringStyler(ordinaryStyle)));
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -483,26 +519,29 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * PrefixExpression: PrefixOperator Expression
 		 */
-		styledString.append(expr.getOperator().toString(), new StyledStringStyler(ordinaryStyle));
+		activateDiffStyle(expr);
+		styledString.append(expr.getOperator().toString(), determineDiffStyle(expr, new StyledStringStyler(ordinaryStyle)));
 		handleExpression((Expression) expr.getOperand());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
 	public boolean visit(PrimitiveType type) {
-		styledString.append(type.getPrimitiveTypeCode().toString(),
-				new StyledStringStyler(keywordStyle));
+		styledString.append(type.getPrimitiveTypeCode().toString(), determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
 		return false;
 	}
 
 	public boolean visit(QualifiedName name) {
+		/*
+		 * Name . SimpleName
+		 */
+		activateDiffStyle(name);
 		if (name.getQualifier() != null) {
-			visit(name.getQualifier());
-			styledString.append(".", new StyledStringStyler(ordinaryStyle));
+			handleExpression(name.getQualifier());
+			appendPeriod();
 		}
 		visit(name.getName());
-		// styledString.append(".", ordinaryFormatting);
-
-		// Why is this true??
+		deactivateDiffStyle(name);
 		return false;
 	}
 
@@ -510,14 +549,16 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * QualifiedType: Type . SimpleName
 		 */
+		activateDiffStyle(type);
 		handleType(type.getQualifier());
 		visit(type.getName());
+		deactivateDiffStyle(type);
 		return false;
 	}
 
-	public boolean visit(ReturnStatement statement) {
+	public boolean visit(ReturnStatement stmnt) {
 		styledString.append("return", new StyledStringStyler(keywordStyle));
-		Expression expression = statement.getExpression();
+		Expression expression = stmnt.getExpression();
 		if (expression != null){
 			appendSpace();
 			handleExpression(expression);
@@ -527,36 +568,28 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(SimpleName name) {
-		StyledStringStyler styler = null;
-		if (isDifference(name)){
-			styler = new StyledStringStyler(differenceStyle);
-		}
-		else{
-			styler = new StyledStringStyler(ordinaryStyle);
-		}
-		
+		/*
+		 * Identifier
+		 */
+		StyledStringStyler styler = determineDiffStyle(name, new StyledStringStyler(ordinaryStyle));
 		if (isNamedConstant(name)){
 			styler.appendTextStyle(namedConstantStyle);
 		}
-		
 		styledString.append(name.toString(), styler);
 		return false;
 	}
 
 	public boolean visit(SimpleType type) {
-		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
-		if (isDifference(type)){
-			styler.appendTextStyle(differenceStyle);
-		}
+		/*
+		 * This kind of node is used to convert a name (Name) into a type (Type) by wrapping it. 
+		 */
+		StyledStringStyler styler = determineDiffStyle(type, new StyledStringStyler(ordinaryStyle));
 		styledString.append(type.toString(), styler);
 		return false;
 	}
 
 	public boolean visit(StringLiteral expr) {
-		StyledStringStyler styler = new StyledStringStyler(stringStyle);
-		if (isDifference(expr)){
-			styler.appendTextStyle(differenceStyle);
-		}
+		StyledStringStyler styler = determineDiffStyle(expr, new StyledStringStyler(stringStyle));
 		styledString.append(expr.toString(), styler);
 		return false;
 	}
@@ -588,13 +621,15 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * SuperFieldAccess: [ ClassName . ] super . Identifier
 		 */
+		activateDiffStyle(expr);
 		if (expr.getQualifier() != null) {
 			handleExpression(expr.getQualifier());
 			appendPeriod();
 		}
-		styledString.append("super", new StyledStringStyler(keywordStyle));
+		styledString.append("super", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		appendPeriod();
 		visit(expr.getName());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -603,11 +638,12 @@ public class StyledStringVisitor extends ASTVisitor {
 		  SuperMethodInvocation: [ ClassName . ] super . [ < Type { , Type } >
 		 	] Identifier ( [ Expression { , Expression } ] )
 		 */
+		activateDiffStyle(expr);
 		if (expr.getQualifier() != null) {
 			handleExpression(expr.getQualifier());
 			appendPeriod();
 		}
-		styledString.append("super", new StyledStringStyler(keywordStyle));
+		styledString.append("super", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		appendPeriod();
 		if (expr.typeArguments().size() != 0) {
 			appendOpenBrace();
@@ -621,6 +657,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		}
 		handleExpression((Expression) expr.getName());
 		handleParameters(expr.arguments());
+		deactivateDiffStyle(expr);
 		return false;
 	}
 	public boolean visit(SwitchCase stmnt){
@@ -636,7 +673,6 @@ public class StyledStringVisitor extends ASTVisitor {
 			handleExpression((Expression) stmnt.getExpression());
 			appendSemicolon();
 		}
-
 		return false;
 	}
 	public boolean visit(SwitchStatement stmnt){
@@ -654,7 +690,6 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * synchronized ( Expression ) Block
 		 */
-		//TODO Verify that children get visited
 		styledString.append("synchronized", new StyledStringStyler(keywordStyle));
 		appendOpenParenthesis();
 		handleExpression((Expression) stmnt.getExpression());
@@ -662,7 +697,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		return false;
 	}
 	public boolean visit(ThisExpression expr) {
-		styledString.append("this", new StyledStringStyler(keywordStyle));
+		styledString.append("this", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
 		return false;
 	}
 	public boolean visit(ThrowStatement stmnt){
@@ -692,21 +727,25 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * ( Type | void ) . class
 		 */
+		activateDiffStyle(expr);
 		handleType(expr.getType());
 		appendPeriod();
-		styledString.append("class", new StyledStringStyler(keywordStyle));
+		styledString.append("class", determineDiffStyle(expr, new StyledStringStyler(keywordStyle)));
+		deactivateDiffStyle(expr);
 		return false;
 	}
 	public boolean visit(UnionType type){
 		/*
 		 *  Type | Type { | Type }
 		 */
+		activateDiffStyle(type);
 		for (int i = 0; i < type.types().size(); i++){
 			handleType((Type) type.types().get(i));
 			if (i < type.types().size() - 1){
 				appendPipe();
 			}
 		}
+		deactivateDiffStyle(type);
 		return false;
 	}
 	public boolean visit(VariableDeclarationExpression expr) {
@@ -715,6 +754,7 @@ public class StyledStringVisitor extends ASTVisitor {
     		{ ExtendedModifier } Type VariableDeclarationFragment
          	{ , VariableDeclarationFragment }
 		 */
+		activateDiffStyle(expr);
 		// Append modifiers
 		for (int i = 0; i < expr.modifiers().size(); i++) {
 			visit((Modifier) expr.modifiers().get(i));
@@ -728,6 +768,7 @@ public class StyledStringVisitor extends ASTVisitor {
 			visit((VariableDeclarationFragment) expr.fragments().get(i));
 		}
 		// No semicolon needed as this is an expression
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -735,11 +776,13 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * Identifier { [] } [ = Expression ]
 		 */
+		activateDiffStyle(expr);
 		visit(expr.getName());
 		if (expr.getInitializer() != null) {
 			appendEquals();
 			handleExpression(expr.getInitializer());
 		}
+		deactivateDiffStyle(expr);
 		return false;
 	}
 
@@ -790,15 +833,17 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * WildcardType: ? [ ( extends | super) Type ]
 		 */
+		activateDiffStyle(type);
 		appendOpenBrace();
 		appendQuestionMark();
 		if (type.isUpperBound()) {
-			styledString.append("extends", new StyledStringStyler(keywordStyle));
+			styledString.append("extends", determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
 		} else {
-			styledString.append("super", new StyledStringStyler(keywordStyle));
+			styledString.append("super", determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
 		}
 		handleType(type.getBound());
 		appendClosedBrace();
+		deactivateDiffStyle(type);
 		return false;
 	}
 
@@ -903,69 +948,154 @@ public class StyledStringVisitor extends ASTVisitor {
 		}
 		return false;
 	}
-
-
+	private StyledStringStyler determineDiffStyle(ASTNode expr, StyledStringStyler startingStyle) {
+		//There are two ways difference formatting can be applied: either, this node itself is a difference, or there is a non-null currentCompositeDiffNode acting as a "super difference" across multiple nodes.
+		if (isDifference(expr) || currentCompositeDiffNode != null){
+			startingStyle.appendTextStyle(differenceStyle);
+		}
+		return startingStyle;
+	}
+	/*
+	 * Turns on the currentCompositeDiffNode attribute, which essentially tells future visits that there is a "super difference" in effect.
+	 */
+	private void activateDiffStyle(ASTNode expr){
+		//Change the currentCompositeDiffNode is this node is a difference and no previous node is the super difference.
+		if (isDifference(expr) && currentCompositeDiffNode == null){
+			currentCompositeDiffNode = expr;
+		}
+	}
+	/*
+	 * This method turns off the style if the node passed as parameter is the same node that turned it on.
+	 */
+	private void deactivateDiffStyle(ASTNode expr){
+		if (expr.equals(currentCompositeDiffNode)){
+			currentCompositeDiffNode = null;
+		}
+	}
 	private void appendOpenParenthesis() {
-		styledString.append("(", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("(", styler);
 	}
 
 	private void appendClosedParenthesis() {
-		styledString.append(")", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(")", styler);
 	}
 
 	private void appendOpenBracket() {
-		styledString.append("[", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("[", styler);
 	}
 
 	private void appendClosedBracket() {
-		styledString.append("]", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("]", styler);
 	}
 
 	private void appendOpenBrace() {
-		styledString.append("<", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("<", styler);
 	}
 
 	private void appendClosedBrace() {
-		styledString.append(">", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(">", styler);
 	}
 
 	private void appendOpenCurlyBracket() {
-		styledString.append("{", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("{", styler);
 	}
 
 	private void appendClosedCurlyBracket() {
-		styledString.append("}", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("}", styler);
 	}
 
 	private void appendPeriod() {
-		styledString.append(".", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(".", styler);
 	}
 
 	private void appendColon() {
-		styledString.append(" : ", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(" : ", styler);
 	}
 
 	private void appendSemicolon() {
-		styledString.append(";", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(";", styler);
 	}
 
 	private void appendComma() {
-		styledString.append(", ", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(", ", styler);
 	}
 
 	private void appendEquals() {
-		styledString.append(" = ", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(" = ", styler);
 	}
-
 	private void appendSpace() {
-		styledString.append(" ", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(" ", styler);
 	}
 
 	private void appendQuestionMark() {
-		styledString.append("?", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append("?", styler);
 	}
 	private void appendPipe() {
-		styledString.append(" | ", new StyledStringStyler(ordinaryStyle));
+		StyledStringStyler styler = new StyledStringStyler(ordinaryStyle);
+		if (currentCompositeDiffNode != null){
+			styler.appendTextStyle(differenceStyle);
+		}
+		styledString.append(" | ", styler);
 	}
 
 	/*
@@ -992,7 +1122,7 @@ public class StyledStringVisitor extends ASTVisitor {
 	private TextStyle initializeOrdinaryStyle() {
 		TextStyle ordinaryStyle = new TextStyle();
 		ordinaryStyle.font = initializeFont();
-		ordinaryStyle.foreground = new Color(null, new RGB(0, 0, 0));
+		//ordinaryStyle.foreground = new Color(null, new RGB(0, 0, 0));
 		return ordinaryStyle;
 	}
 	private TextStyle initializeDifferenceStyle() {

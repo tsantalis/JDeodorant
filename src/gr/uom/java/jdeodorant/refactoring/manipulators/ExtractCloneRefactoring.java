@@ -180,6 +180,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
+	public PDGMapper getMapper() {
+		return mapper;
+	}
+
 	private ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
 		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
 		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
@@ -1231,18 +1235,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			List<ASTNodeDifference> differences = mapper.getNonOverlappingNodeDifferences();
+			Set<BindingSignaturePair> renamedVariables = mapper.getRenamedVariables();
 			for(ASTNodeDifference difference : differences) {
-				for(int i=0; i<sourceCompilationUnits.size(); i++) {
-					TreeSet<PDGNode> removableNodes = removableStatements.get(i);
-					Expression expression = (i==0) ? difference.getExpression1().getExpression() :
-						difference.getExpression2().getExpression();
-					if(!isParameterizableExpression(removableNodes, expression)) {
-						String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() :
-							mapper.getPDG2().getMethod().getName();
-						Expression expr = isMethodName(expression) ? (Expression)expression.getParent() : expression;
-						String message = "Expression " + expression.toString() + " in method " + methodName + " cannot be parameterized";
-						RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), expr);
-						status.merge(RefactoringStatus.createErrorStatus(message, context));
+				if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
+					for(int i=0; i<sourceCompilationUnits.size(); i++) {
+						TreeSet<PDGNode> removableNodes = removableStatements.get(i);
+						Expression expression = (i==0) ? difference.getExpression1().getExpression() :
+							difference.getExpression2().getExpression();
+						if(!isParameterizableExpression(removableNodes, expression)) {
+							String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() :
+								mapper.getPDG2().getMethod().getName();
+							Expression expr = isMethodName(expression) ? (Expression)expression.getParent() : expression;
+							String message = "Expression " + expression.toString() + " in method " + methodName + " cannot be parameterized";
+							RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), expr);
+							status.merge(RefactoringStatus.createErrorStatus(message, context));
+						}
 					}
 				}
 			}
@@ -1301,7 +1308,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding != null && binding.getKind() == IBinding.METHOD) {
-				return true;
+				if(expression.getParent() instanceof Expression) {
+					return true;
+				}
 			}
 		}
 		return false;

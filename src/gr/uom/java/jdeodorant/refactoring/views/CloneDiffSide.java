@@ -1,6 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
-public enum NodeVisualComparePosition {
+public enum CloneDiffSide {
 
 	LEFT, RIGHT;
 }

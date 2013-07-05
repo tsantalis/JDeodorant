@@ -7,7 +7,7 @@ import java.util.Set;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 
-public class NodeVisualCompareContentProvider extends ArrayContentProvider
+public class CloneDiffContentProvider extends ArrayContentProvider
 		implements ITreeContentProvider {
 
 	public Object[] getChildren(Object parentElement) {

@@ -2,6 +2,8 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
+
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.ITreeViewerListener;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
@@ -9,58 +11,59 @@ import org.eclipse.jface.viewers.TreeExpansionEvent;
 import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.window.ToolTip;
+import org.eclipse.ltk.ui.refactoring.UserInputWizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.ScrollBar;
-import org.eclipse.swt.widgets.Shell;
-import org.eclipse.swt.widgets.TreeItem;
 
-public class NodeVisualCompare {
+public class CloneDiffWizardPage extends UserInputWizardPage {
 
 	PDGMapper mapper;
 	CloneStructureNode cloneStructureRoot;
 	//Special Boolean for selection synchronization listeners
 	public boolean correspondingTreeAlreadyChanged = false;
 	
-	public NodeVisualCompare(PDGMapper mapper){
-		this.mapper = mapper;
+	public CloneDiffWizardPage(ExtractCloneRefactoring refactoring) {
+		super("Diff Clones");
+		this.mapper = refactoring.getMapper();
 		this.cloneStructureRoot = mapper.getCloneStructureRoot();
 	}
-
 	
-	public void createTree(Shell shell){
-	
+	public void createControl(Composite parent){
+		Composite result= new Composite(parent, SWT.NONE);
+		setControl(result);
 		GridLayout gridLayout = new GridLayout(2, true);
-		gridLayout.numColumns = 6;
-		gridLayout.horizontalSpacing = 15;
-		gridLayout.marginLeft = 15;
-		gridLayout.marginRight = 15;
-		shell.setLayout(gridLayout);
+		//gridLayout.numColumns = 6;
+		//gridLayout.horizontalSpacing = 15;
+		//gridLayout.marginLeft = 15;
+		//gridLayout.marginRight = 15;
+		result.setLayout(gridLayout);
 	
-		Label methodLeftName = new Label(shell, SWT.WRAP);
+		Label methodLeftName = new Label(result, SWT.WRAP);
 		methodLeftName.setText(mapper.getPDG1().getMethod().toString());
-		methodLeftName.setFont(new Font(null, new FontData("consolas", 9, SWT.NORMAL)));
+		methodLeftName.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.NORMAL)));
 		GridData methodLeftNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		methodLeftNameGridData.horizontalSpan = 3;
+		//methodLeftNameGridData.horizontalSpan = 3;
 		methodLeftName.setLayoutData(methodLeftNameGridData);
 		
-		Label methodRightName = new Label(shell, SWT.NONE);
+		Label methodRightName = new Label(result, SWT.WRAP);
 		methodRightName.setText(mapper.getPDG2().getMethod().toString());
-		methodRightName.setFont(new Font(null, new FontData("consolas", 9, SWT.NORMAL)));
+		methodRightName.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.NORMAL)));
 		GridData methodRightNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		methodRightNameGridData.horizontalSpan = 3;
+		//methodRightNameGridData.horizontalSpan = 3;
 		methodRightName.setLayoutData(methodRightNameGridData);
 		
 		
-		final TreeViewer treeViewerLeft = new TreeViewer(shell, SWT.PUSH | SWT.V_SCROLL);
-		treeViewerLeft.setLabelProvider(new NodeVisualCompareStyledLabelProvider(NodeVisualComparePosition.LEFT)); //new NodeVisualCompareLabelProvider(NodeVisualComparePosition.LEFT));
-		treeViewerLeft.setContentProvider(new NodeVisualCompareContentProvider());
+		final TreeViewer treeViewerLeft = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL);
+		treeViewerLeft.setLabelProvider(new CloneDiffStyledLabelProvider(CloneDiffSide.LEFT));
+		treeViewerLeft.setContentProvider(new CloneDiffContentProvider());
 		treeViewerLeft.setInput(new CloneStructureNode[]{cloneStructureRoot});
 		treeViewerLeft.getTree().setLinesVisible(true);
 		treeViewerLeft.expandAll();
@@ -68,13 +71,13 @@ public class NodeVisualCompare {
 		GridData treeLeftGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		treeLeftGridData.horizontalAlignment = SWT.FILL;
 		treeLeftGridData.verticalAlignment = SWT.FILL;
-		treeLeftGridData.horizontalSpan = 3;
-		treeLeftGridData.verticalSpan = 2;
+		//treeLeftGridData.horizontalSpan = 3;
+		//treeLeftGridData.verticalSpan = 2;
 		treeViewerLeft.getTree().setLayoutData(treeLeftGridData);
 		
-		final TreeViewer treeViewerRight = new TreeViewer(shell, SWT.PUSH);
-		treeViewerRight.setLabelProvider(new NodeVisualCompareStyledLabelProvider(NodeVisualComparePosition.RIGHT));
-		treeViewerRight.setContentProvider(new NodeVisualCompareContentProvider());
+		final TreeViewer treeViewerRight = new TreeViewer(result, SWT.PUSH);
+		treeViewerRight.setLabelProvider(new CloneDiffStyledLabelProvider(CloneDiffSide.RIGHT));
+		treeViewerRight.setContentProvider(new CloneDiffContentProvider());
 		treeViewerRight.setInput(new CloneStructureNode[]{cloneStructureRoot});
 		treeViewerRight.getTree().setLinesVisible(true);
 		treeViewerRight.expandAll();
@@ -82,14 +85,9 @@ public class NodeVisualCompare {
 		GridData treeRightGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		treeRightGridData.horizontalAlignment = SWT.FILL;
 		treeRightGridData.verticalAlignment = SWT.FILL;
-		treeRightGridData.horizontalSpan = 3;
-		//Set the Width of the tree, according to the longest statement. Only necessary for one tree since column widths are set to "Equal".
-		TreeItem[] items = treeViewerRight.getTree().getItems();
-		treeRightGridData.widthHint = getMaxLengthOfTreeItems(items[0]) * 10;
-		
-		treeRightGridData.verticalSpan = 2;
+		//treeRightGridData.horizontalSpan = 3;
+		//treeRightGridData.verticalSpan = 2;
 		treeViewerRight.getTree().setLayoutData(treeRightGridData);
-		
 	
 		/*
 		//Information Footer
@@ -149,8 +147,8 @@ public class NodeVisualCompare {
 		//ColumnViewerToolTipSupport.enableFor(treeViewerLeft);
 		//ColumnViewerToolTipSupport.enableFor(treeViewerRight);
 		
-		NodeVisualCompareTooltips.enableFor(treeViewerLeft, ToolTip.NO_RECREATE);
-		NodeVisualCompareTooltips.enableFor(treeViewerRight, ToolTip.NO_RECREATE);
+		CloneDiffTooltip.enableFor(treeViewerLeft, ToolTip.NO_RECREATE);
+		CloneDiffTooltip.enableFor(treeViewerRight, ToolTip.NO_RECREATE);
 		
 		//Selection Listeners - Synchronize Selections
 		treeViewerLeft.addPostSelectionChangedListener(new ISelectionChangedListener() { 
@@ -177,7 +175,6 @@ public class NodeVisualCompare {
 				
 			}
 		});
-		
 		
 		//Synchronize Expands and Collapses
 		treeViewerLeft.addTreeListener(new ITreeViewerListener() {
@@ -207,7 +204,6 @@ public class NodeVisualCompare {
 			}
 		});
 		
-		
 		//Synchronize Scroll Bars
 		ScrollBar leftVertical = treeViewerLeft.getTree().getVerticalBar();
 		leftVertical.addListener(SWT.Selection, new Listener() {
@@ -221,25 +217,5 @@ public class NodeVisualCompare {
 				treeViewerLeft.getTree().setTopItem(treeViewerRight.getTree().getTopItem());
 			}
 		});
-	
-		
-		
-		//TODO Prevents the item in the Tree not currently in focus from graying out. 
-
-		shell.setMaximized(true);
-		shell.pack();
-		
-		
-	}
-	
-	private int getMaxLengthOfTreeItems(TreeItem treeItem){
-		int currentLongest = treeItem.getText().length();
-		TreeItem[] children = treeItem.getItems();
-		for (int i = 0; i < children.length; i++){
-			int maxOfChild = getMaxLengthOfTreeItems(children[i]);
-			if (maxOfChild > currentLongest)
-				currentLongest = maxOfChild;
-		}
-		return currentLongest;
 	}
 }

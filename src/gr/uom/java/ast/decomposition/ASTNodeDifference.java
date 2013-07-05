@@ -142,7 +142,9 @@ public class ASTNodeDifference {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding != null && binding.getKind() == IBinding.METHOD) {
-				return true;
+				if(expression.getParent() instanceof Expression) {
+					return true;
+				}
 			}
 		}
 		return false;

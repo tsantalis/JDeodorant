@@ -93,7 +93,7 @@ public class StyledStringVisitor extends ASTVisitor {
 	private ASTNode currentCompositeDiffNode = null;
 	
 
-	public StyledStringVisitor(List<ASTNodeDifference> differences, NodeVisualComparePosition position) {
+	public StyledStringVisitor(List<ASTNodeDifference> differences, CloneDiffSide position) {
 		this.styledString = new StyledString();
 
 		//TextStyle Experiment
@@ -107,18 +107,18 @@ public class StyledStringVisitor extends ASTVisitor {
 		astNodesThatAreDifferences = new ArrayList<ASTNode>();
 		generateDifferenceASTNodes(differences, position);
 	}
-	private void generateDifferenceASTNodes(List<ASTNodeDifference> differences, NodeVisualComparePosition position){
+	private void generateDifferenceASTNodes(List<ASTNodeDifference> differences, CloneDiffSide position){
 		for (ASTNodeDifference nodeDifference : differences){
 			Expression expr = null;
 			List<Difference> diffs = nodeDifference.getDifferences();
 			List<String> stringDifferences = new ArrayList<String>();
-			if (position == NodeVisualComparePosition.LEFT) {
+			if (position == CloneDiffSide.LEFT) {
 				expr = nodeDifference.getExpression1().getExpression();
 				for(Difference diff : diffs) {
 					stringDifferences.add(diff.getFirstValue());
 				}
 			}
-			else if (position == NodeVisualComparePosition.RIGHT) {
+			else if (position == CloneDiffSide.RIGHT) {
 				expr = nodeDifference.getExpression2().getExpression();
 				for(Difference diff : diffs) {
 					stringDifferences.add(diff.getSecondValue());

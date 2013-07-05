@@ -24,7 +24,6 @@ import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
@@ -34,6 +33,7 @@ import org.eclipse.ui.progress.IProgressService;
 public class CloneRefactoringAction implements IObjectActionDelegate {
 
 	private ISelection selection;
+	private PDGMapper mapper;
 	
 	public void run(IAction action) {
 		try {
@@ -79,25 +79,21 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 									final PDG pdg1 = new PDG(cfg1, classObject1.getIFile(), classObject1.getFieldsAccessedInsideMethod(methodObject1), monitor);
 									CFG cfg2 = new CFG(methodObject2);
 									final PDG pdg2 = new PDG(cfg2, classObject2.getIFile(), classObject2.getFieldsAccessedInsideMethod(methodObject2), monitor);
-									PDGMapper mapper = new PDGMapper(pdg1, pdg2, monitor);
-									Refactoring refactoring = new ExtractCloneRefactoring(mapper);
-									MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-									final RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-									Display.getDefault().asyncExec(new Runnable() {
-										public void run() {
-											try { 
-												String titleForFailedChecks = ""; //$NON-NLS-1$ 
-												op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-											} catch(InterruptedException e) {
-												e.printStackTrace();
-											}
-										}
-									});
+									mapper = new PDGMapper(pdg1, pdg2, monitor);
 									CompilationUnitCache.getInstance().releaseLock();
 								}
 							}
 						}
 					});
+					Refactoring refactoring = new ExtractCloneRefactoring(mapper);
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
 			}
 		} catch (InvocationTargetException e) {

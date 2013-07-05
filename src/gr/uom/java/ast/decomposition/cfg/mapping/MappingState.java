@@ -2,7 +2,9 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.Difference;
+import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -97,6 +99,52 @@ public class MappingState {
 			sum += Math.abs(nodeMapping.getNodeG1().getId() - nodeMapping.getNodeG2().getId());
 		}
 		return sum;
+	}
+
+	public Set<BindingSignaturePair> getRenamedVariables() {
+		List<BindingSignaturePair> variableNameMismatches = new ArrayList<BindingSignaturePair>();
+		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
+			List<Difference> diffs = nodeDifference.getDifferences();
+			for(Difference diff : diffs) {
+				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
+					variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
+					break;
+				}
+			}
+		}
+		Set<BindingSignaturePair> renamedVariables = new LinkedHashSet<BindingSignaturePair>();
+		for(int i=0; i<variableNameMismatches.size(); i++) {
+			BindingSignaturePair signaturePairI = variableNameMismatches.get(i);
+			if(!renamedVariables.contains(signaturePairI)) {
+				boolean isRenamed = true;
+				int count = 0;
+				for(int j=0; j<variableNameMismatches.size(); j++) {
+					BindingSignaturePair signaturePairJ = variableNameMismatches.get(j);
+					if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
+						if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
+							count++;
+						}
+						else {
+							isRenamed = false;
+							break;
+						}
+					}
+					else if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
+						if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
+							count++;
+						}
+						else {
+							isRenamed = false;
+							break;
+						}
+					}
+				}
+				if(isRenamed && count > 1) {
+					renamedVariables.add(signaturePairI);
+				}
+			}
+		}
+		return renamedVariables;
 	}
 
 	public List<MappingState> getMaximumCommonSubGraphs() {

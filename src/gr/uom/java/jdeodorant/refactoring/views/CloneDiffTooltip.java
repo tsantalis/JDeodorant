@@ -21,9 +21,9 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 
 
-public class NodeVisualCompareTooltips extends ColumnViewerToolTipSupport {
+public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 
-	public NodeVisualCompareTooltips(ColumnViewer viewer, int style,
+	public CloneDiffTooltip(ColumnViewer viewer, int style,
 			boolean manualActivation) {
 		super(viewer, style, manualActivation);
 	}
@@ -40,12 +40,12 @@ public class NodeVisualCompareTooltips extends ColumnViewerToolTipSupport {
 			return null;
 		Composite comp = new Composite(parent,SWT.NONE);
 		//First Statement
-		StyledStringVisitor leafVisitor1 = new StyledStringVisitor(differences, NodeVisualComparePosition.LEFT);
+		StyledStringVisitor leafVisitor1 = new StyledStringVisitor(differences, CloneDiffSide.LEFT);
 		astStatement = nodeHoveredOver.getMapping().getNodeG1().getASTStatement();
 		astStatement.accept(leafVisitor1);
 		StyledString styledString1 = leafVisitor1.getStyledString();
 		//Second Statement
-		StyledStringVisitor leafVisitor2 = new StyledStringVisitor(differences, NodeVisualComparePosition.RIGHT);
+		StyledStringVisitor leafVisitor2 = new StyledStringVisitor(differences, CloneDiffSide.RIGHT);
 		astStatement = nodeHoveredOver.getMapping().getNodeG2().getASTStatement();
 		astStatement.accept(leafVisitor2);
 		StyledString styledString2 = leafVisitor2.getStyledString();
@@ -91,7 +91,6 @@ public class NodeVisualCompareTooltips extends ColumnViewerToolTipSupport {
 			table.getColumn(i).pack();
 		}	
 		
-		System.out.println(cell.getElement().toString());
 		return comp;
 	}
 
@@ -102,6 +101,6 @@ public class NodeVisualCompareTooltips extends ColumnViewerToolTipSupport {
 
 
 	public static final void enableFor(ColumnViewer viewer, int style) {
-		new NodeVisualCompareTooltips(viewer,style,false);
+		new CloneDiffTooltip(viewer,style,false);
 	}
 }

@@ -20,6 +20,7 @@ import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -431,6 +432,10 @@ public class PDGMapper {
 		return maximumStateWithMinimumDifferences.getNonOverlappingNodeDifferences();
 	}
 
+	public Set<BindingSignaturePair> getRenamedVariables() {
+		return maximumStateWithMinimumDifferences.getRenamedVariables();
+	}
+
 	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
 		Set<VariableDeclaration> declaredVariablesG1 = new LinkedHashSet<VariableDeclaration>();
 		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
@@ -676,11 +681,13 @@ public class PDGMapper {
 				for(PlainVariable variable2 : map2.keySet()) {
 					Set<PDGNode> variableNodesG2 = map2.get(variable2);
 					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
-					for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-						if(tempNodesG1.contains(mapping.getNodeG1()))
-							tempNodesG1.remove(mapping.getNodeG1());
-						if(tempNodesG2.contains(mapping.getNodeG2()))
-							tempNodesG2.remove(mapping.getNodeG2());
+					if(finalState != null) {
+						for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+							if(tempNodesG1.contains(mapping.getNodeG1()))
+								tempNodesG1.remove(mapping.getNodeG1());
+							if(tempNodesG2.contains(mapping.getNodeG2()))
+								tempNodesG2.remove(mapping.getNodeG2());
+						}
 					}
 					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
 					currentStateMap.put(variable2, maxStates);

@@ -12,12 +12,12 @@ import org.eclipse.jface.viewers.ViewerCell;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Point;
 
-public class NodeVisualCompareStyledLabelProvider extends StyledCellLabelProvider {
+public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 	
-	public NodeVisualComparePosition position;
+	public CloneDiffSide position;
 	
 	//Constructor specifies which mapping position this provider will be working with and generated Regex based on the keywords
-	public NodeVisualCompareStyledLabelProvider(NodeVisualComparePosition position){
+	public CloneDiffStyledLabelProvider(CloneDiffSide position){
 		this.position = position;
 	}
 	
@@ -35,14 +35,14 @@ public class NodeVisualCompareStyledLabelProvider extends StyledCellLabelProvide
 			List<ASTNodeDifference> differences = theNode.getMapping().getNodeDifferences();
 			
 			//Separate LEFT and RIGHT trees...
-			if (position == NodeVisualComparePosition.LEFT) {
-				StyledStringVisitor leafVisitor = new StyledStringVisitor(differences, NodeVisualComparePosition.LEFT);
+			if (position == CloneDiffSide.LEFT) {
+				StyledStringVisitor leafVisitor = new StyledStringVisitor(differences, CloneDiffSide.LEFT);
 				astStatement = theNode.getMapping().getNodeG1().getASTStatement();
 				astStatement.accept(leafVisitor);
 				styledString = leafVisitor.getStyledString();
 			}
-			else if (position == NodeVisualComparePosition.RIGHT){
-				StyledStringVisitor leafVisitor = new StyledStringVisitor(differences, NodeVisualComparePosition.RIGHT);
+			else if (position == CloneDiffSide.RIGHT){
+				StyledStringVisitor leafVisitor = new StyledStringVisitor(differences, CloneDiffSide.RIGHT);
 				astStatement = theNode.getMapping().getNodeG2().getASTStatement();
 				astStatement.accept(leafVisitor);
 				styledString = leafVisitor.getStyledString();

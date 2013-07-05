@@ -52,12 +52,12 @@ public class GodClassDiagram {
 		extractedClass.setToolTip(new Label("Extracted Class"));
 
 		for(FieldObject field : data.getExtractedFields()){
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 			extractedClass.getFieldsCompartment().add(fieldFigure);
 		}
 
 		for(MethodObject method : data.getExtractedMethods()){
-			EntityFigure methodFigure = new EntityFigure(method.getName(), DecorationConstants.METHOD);
+			EntityFigure methodFigure = new EntityFigure(method.getName(), DecorationConstants.METHOD, true);
 			extractedClass.getMethodsCompartment().add(methodFigure);
 		}
 
@@ -81,7 +81,7 @@ public class GodClassDiagram {
 				MethodInvocationObject method = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure methodFigure = new EntityFigure(method.getMethodName(), DecorationConstants.METHOD);
+				EntityFigure methodFigure = new EntityFigure(method.getMethodName(), DecorationConstants.METHOD, true);
 
 				for(Object child : extractedClass.getMethodsCompartment().getChildren()){
 					EntityFigure entity = (EntityFigure) child;
@@ -111,7 +111,7 @@ public class GodClassDiagram {
 				MethodInvocationObject method = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure methodFigure = new EntityFigure(method.getMethodName(), DecorationConstants.METHOD);
+				EntityFigure methodFigure = new EntityFigure(method.getMethodName(), DecorationConstants.METHOD, true);
 				boolean contains= false;
 				for(Object child : source.getMethodsCompartment().getChildren()){
 					EntityFigure entity = (EntityFigure) child;
@@ -152,7 +152,7 @@ public class GodClassDiagram {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 				for(Object child : extractedClass.getFieldsCompartment().getChildren()){
 					EntityFigure entity = (EntityFigure) child;
@@ -183,7 +183,7 @@ public class GodClassDiagram {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 				for(Object child : extractedClass.getFieldsCompartment().getChildren()){
 					EntityFigure entity = (EntityFigure) child;
@@ -214,7 +214,7 @@ public class GodClassDiagram {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 				
 				
 				boolean contains= false;
@@ -258,7 +258,7 @@ public class GodClassDiagram {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 				boolean contains= false;
 				for(Object child : source.getFieldsCompartment().getChildren()){

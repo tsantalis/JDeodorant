@@ -21,7 +21,7 @@ public class EntityFigure extends Label{
 		super(name);
 		this.name= name;
 
-		new EntityFigureListener(this);
+		//new EntityFigureListener(this);
 
 
 		setLabelAlignment(LEFT);
@@ -34,10 +34,12 @@ public class EntityFigure extends Label{
 
 	}
 
-	public EntityFigure(String name, Image image){
+	public EntityFigure(String name, Image image, boolean highlight){
 		super(name, image);
-
+		
+		if (highlight)
 		new EntityFigureListener(this);
+		
 		this.name= name;
 
 		setLabelAlignment(LEFT);

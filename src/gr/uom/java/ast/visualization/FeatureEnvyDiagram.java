@@ -43,7 +43,7 @@ public class FeatureEnvyDiagram {
 		target.setToolTip(new Label("Target Class"));
 
 		// Create Extract Method figure that goes in the middle
-		EntityFigure extractMethod = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD);
+		EntityFigure extractMethod = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD, false);
 		new ClassFigureMover(extractMethod);
 		extractMethod.setLabelAlignment(2);
 		extractMethod.setToolTip(new Label("Method to be Extracted"));
@@ -51,7 +51,7 @@ public class FeatureEnvyDiagram {
 		extractMethod.setFont(font);
 
 		// Create Extract Method figure that goes in Source Class
-		EntityFigure extractMethod1 = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD);
+		EntityFigure extractMethod1 = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD, true);
 		extractMethod1.setFont(font);
 		extractMethod1.setLabelAlignment(2);
 		extractMethod1.setBorder(new SimpleRaisedBorder(3));
@@ -73,7 +73,7 @@ public class FeatureEnvyDiagram {
 			weight=weight - interval1;
 
 			//EntityFigure methodFigure = new EntityFigure(method.toString(),EntityFigure.METHOD);
-			EntityFigure methodFigure = new EntityFigure(method.getSignature(),DecorationConstants.METHOD);
+			EntityFigure methodFigure = new EntityFigure(method.getSignature(),DecorationConstants.METHOD, true);
 			source.getMethodsCompartment().add(methodFigure);
 			JConnection connection=extractMethod.addToSourceMethodConnection(ConnectionType.METHOD_CALL_SOURCE,methodFigure, occurences);
 			connectionList.add(connection);
@@ -87,7 +87,7 @@ public class FeatureEnvyDiagram {
 			Integer occurences = entry.getValue();
 
 			//EntityFigure methodFigure = new EntityFigure(method.toString(), EntityFigure.METHOD);
-			EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD);
+			EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD, true);
 			target.getMethodsCompartment().add(methodFigure);
 			JConnection connection=extractMethod.addToTargetMethodConnection(ConnectionType.METHOD_CALL_TARGET,methodFigure, occurences);
 			connectionList.add(connection);
@@ -104,7 +104,7 @@ public class FeatureEnvyDiagram {
 
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(),EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(),DecorationConstants.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(),DecorationConstants.FIELD, true);
 			source.getFieldsCompartment().add(fieldFigure);
 			JConnection connection =extractMethod.addToSourceWeakReadConnection(ConnectionType.READ_FIELD_SOURCE,fieldFigure, occurences);
 			connectionList.add(connection);
@@ -121,7 +121,7 @@ public class FeatureEnvyDiagram {
 			weight=weight + interval3;
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(), EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 			boolean contains = false;
 
 			for(Object child : source.getFieldsCompartment().getChildren()){
@@ -149,7 +149,7 @@ public class FeatureEnvyDiagram {
 			Integer occurences = entry.getValue();
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(), EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 			target.getFieldsCompartment().add(fieldFigure);
 			JConnection connection =extractMethod.addToTargetReadConnection(ConnectionType.READ_FIELD_TARGET,fieldFigure, occurences);
 			connectionList.add(connection);
@@ -162,7 +162,7 @@ public class FeatureEnvyDiagram {
 			Integer occurences = entry.getValue();
 
 			//EntityFigure fieldFigure = new EntityFigure(field.toString(), EntityFigure.FIELD);
-			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+			EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 			boolean contains = false;
 			for(Object child : target.getFieldsCompartment().getChildren()){

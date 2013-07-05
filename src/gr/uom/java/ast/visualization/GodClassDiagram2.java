@@ -70,7 +70,7 @@ public class GodClassDiagram2 {
 		if(oneSection){
 			extractedClass.addFieldCompartment();
 			for(FieldObject field : data.getExtractedFields()){
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 				extractedClass.getFieldsCompartment().addFigure(fieldFigure);
 			}
 		} else
@@ -78,7 +78,7 @@ public class GodClassDiagram2 {
 			extractedClass.addFieldSectionCompartment();
 
 			for(FieldObject field : data.getExtractedFields()){
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 				extractedClass.getFieldSectionCompartment().getSectionTwo().addFigure(fieldFigure);
 			}
 		}
@@ -103,14 +103,14 @@ public class GodClassDiagram2 {
 			MethodObject extractedMethod = entry.getKey();
 			Map<FieldInstructionObject, Integer> connectionMap = entry.getValue();
 
-			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD);
+			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD, true);
 			sectionOne.addFigure(extractedMethodFigure);
 
 			for(Entry<FieldInstructionObject, Integer> map  : connectionMap.entrySet()){
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 
 				boolean contains= false;
@@ -148,7 +148,7 @@ public class GodClassDiagram2 {
 			EntityFigure connectionSource= null;
 			boolean contains= false;
 
-			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD);
+			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD, true);
 
 			for(Object child : sectionOne.getChildren()){
 				EntityFigure entity = (EntityFigure) child;
@@ -168,7 +168,7 @@ public class GodClassDiagram2 {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 				contains= false;
 				for(Object child : source.getFieldsCompartment().getChildren()){
@@ -204,7 +204,7 @@ public class GodClassDiagram2 {
 			EntityFigure connectionSource= null;
 			boolean contains= false;
 
-			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD);
+			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD, true);
 
 			for(Object child : sectionOne.getChildren()){
 				EntityFigure entity = (EntityFigure) child;
@@ -223,7 +223,7 @@ public class GodClassDiagram2 {
 				MethodInvocationObject method = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD);
+				EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD, true);
 				contains= false;
 				for(Object child : source.getMethodsCompartment().getChildren()){
 					EntityFigure entity = (EntityFigure) child;
@@ -262,7 +262,7 @@ public class GodClassDiagram2 {
 
 			boolean contains= false;
 
-			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD);
+			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD, true);
 
 			for(Object child : sectionOne.getChildren()){
 				EntityFigure entity = (EntityFigure) child;
@@ -285,7 +285,7 @@ public class GodClassDiagram2 {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 				List fields;
 				if (oneSection){
 					fields = extractedClass.getFieldsCompartment().getChildren();
@@ -327,7 +327,7 @@ public class GodClassDiagram2 {
 			boolean contains= false;
 			boolean inRightSection = false;
 
-			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD);
+			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD, true);
 
 			for(Object child : sectionOne.getChildren()){
 				EntityFigure entity = (EntityFigure) child;
@@ -368,7 +368,7 @@ public class GodClassDiagram2 {
 				FieldInstructionObject field = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD);
+				EntityFigure fieldFigure = new EntityFigure(field.getName(), DecorationConstants.FIELD, true);
 
 				List fields;
 				if (oneSection){
@@ -415,7 +415,7 @@ public class GodClassDiagram2 {
 			boolean sourceinRightSection = false;
 			
 
-			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD);
+			EntityFigure extractedMethodFigure = new EntityFigure(extractedMethod.getSignature(), DecorationConstants.METHOD, true);
 
 			//check if method is in Left Section already
 			for(Object child : sectionOne.getChildren()){
@@ -458,7 +458,7 @@ public class GodClassDiagram2 {
 				MethodInvocationObject target = map.getKey();
 				Integer occurences = map.getValue();
 
-				EntityFigure targetFigure = new EntityFigure(target.getSignature(), DecorationConstants.METHOD);
+				EntityFigure targetFigure = new EntityFigure(target.getSignature(), DecorationConstants.METHOD, true);
 
 
 				//checks if Target Connection Method is in Left Section
@@ -546,7 +546,7 @@ public class GodClassDiagram2 {
 		//Adds Methods that were not already added
 		for(MethodObject method : data.getExtractedMethods()){
 			contains = false;
-			EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD);
+			EntityFigure methodFigure = new EntityFigure(method.getSignature(), DecorationConstants.METHOD, true);
 			//checks if Method is in Left Section
 			for(Object child : sectionOne.getChildren()){
 				EntityFigure entity = (EntityFigure) child;

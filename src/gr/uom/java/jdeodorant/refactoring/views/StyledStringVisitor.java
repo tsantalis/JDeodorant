@@ -2,6 +2,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.Difference;
+import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -93,9 +94,9 @@ public class StyledStringVisitor extends ASTVisitor {
 	private ASTNode currentCompositeDiffNode = null;
 	
 
-	public StyledStringVisitor(List<ASTNodeDifference> differences, CloneDiffSide position) {
+	public StyledStringVisitor(CloneStructureNode node, CloneDiffSide position) {
 		this.styledString = new StyledString();
-
+		List<ASTNodeDifference> differences = node.getMapping().getNodeDifferences();
 		//TextStyle Experiment
 		keywordStyle = initializeKeywordStyle();
 		stringStyle = initializeStringStyle();
@@ -103,6 +104,10 @@ public class StyledStringVisitor extends ASTVisitor {
 		differenceStyle = initializeDifferenceStyle();
 		namedConstantStyle = initializeNamedConstantStyle();
 
+		if(node.isNestedUnderElse()) {
+			styledString.append("else", new StyledStringStyler(keywordStyle));
+			appendSpace();
+		}
 		//Use the List of ASTNodeDifferences to recover actual ASTNodes and place them into a new list
 		astNodesThatAreDifferences = new ArrayList<ASTNode>();
 		generateDifferenceASTNodes(differences, position);
@@ -126,11 +131,15 @@ public class StyledStringVisitor extends ASTVisitor {
 			}
 			if (expr instanceof QualifiedName){
 				QualifiedName qualifiedName = (QualifiedName) expr;
-				if(stringDifferences.contains(qualifiedName.getQualifier().toString()))
+				if(stringDifferences.contains(qualifiedName.getQualifier().toString())) {
 					astNodesThatAreDifferences.add(qualifiedName.getQualifier());
-				if(stringDifferences.contains(qualifiedName.getName().toString()))
+				}
+				if(stringDifferences.contains(qualifiedName.getName().toString())) {
 					astNodesThatAreDifferences.add(qualifiedName.getName());
-
+				}
+				if(stringDifferences.contains(qualifiedName.toString())) {
+					astNodesThatAreDifferences.add(qualifiedName);
+				}
 			}
 			else {
 				astNodesThatAreDifferences.add(expr);

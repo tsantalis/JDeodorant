@@ -32,6 +32,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.StringLiteral;
@@ -92,7 +93,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(ArrayAccess.class) || o.getClass().equals(FieldAccess.class)
 				|| o.getClass().equals(SuperFieldAccess.class) || o.getClass().equals(ParenthesizedExpression.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
-				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class))
+				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class)
+				|| o.getClass().equals(PrefixExpression.class))
 			return true;
 		return false;
 	}
@@ -168,6 +170,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		else if(o.getClass().equals(ParenthesizedExpression.class)) {
 			ParenthesizedExpression expression = (ParenthesizedExpression) o;
+			return expression.resolveTypeBinding();
+		}
+		else if(o.getClass().equals(PrefixExpression.class)) {
+			PrefixExpression expression = (PrefixExpression)o;
 			return expression.resolveTypeBinding();
 		}
 		return null;
@@ -789,6 +795,46 @@ public class ASTNodeMatcher extends ASTMatcher{
 			else {
 				ParenthesizedExpression o = (ParenthesizedExpression) other;
 				safeSubtreeMatch(node.getExpression(), o.getExpression());
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
+		return false;
+	}
+
+	public boolean match(PrefixExpression node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof PrefixExpression)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				PrefixExpression o = (PrefixExpression) other;
+				if(!node.getOperator().equals(o.getOperator())) {
+					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.INFIX_OPERATOR_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				safeSubtreeMatch(node.getOperand(), o.getOperand());
 			}
 			return typeMatch;
 		}

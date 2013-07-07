@@ -40,12 +40,12 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 			return null;
 		Composite comp = new Composite(parent,SWT.NONE);
 		//First Statement
-		StyledStringVisitor leafVisitor1 = new StyledStringVisitor(differences, CloneDiffSide.LEFT);
+		StyledStringVisitor leafVisitor1 = new StyledStringVisitor(nodeHoveredOver, CloneDiffSide.LEFT);
 		astStatement = nodeHoveredOver.getMapping().getNodeG1().getASTStatement();
 		astStatement.accept(leafVisitor1);
 		StyledString styledString1 = leafVisitor1.getStyledString();
 		//Second Statement
-		StyledStringVisitor leafVisitor2 = new StyledStringVisitor(differences, CloneDiffSide.RIGHT);
+		StyledStringVisitor leafVisitor2 = new StyledStringVisitor(nodeHoveredOver, CloneDiffSide.RIGHT);
 		astStatement = nodeHoveredOver.getMapping().getNodeG2().getASTStatement();
 		astStatement.accept(leafVisitor2);
 		StyledString styledString2 = leafVisitor2.getStyledString();

@@ -31,18 +31,15 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		CloneStructureNode theNode = (CloneStructureNode) element;
 		
 		if(theNode.getMapping() != null) {
-			//Get differences in the mapping and pass it to the visitor to compare AST nodes to
-			List<ASTNodeDifference> differences = theNode.getMapping().getNodeDifferences();
-			
 			//Separate LEFT and RIGHT trees...
 			if (position == CloneDiffSide.LEFT) {
-				StyledStringVisitor leafVisitor = new StyledStringVisitor(differences, CloneDiffSide.LEFT);
+				StyledStringVisitor leafVisitor = new StyledStringVisitor(theNode, CloneDiffSide.LEFT);
 				astStatement = theNode.getMapping().getNodeG1().getASTStatement();
 				astStatement.accept(leafVisitor);
 				styledString = leafVisitor.getStyledString();
 			}
 			else if (position == CloneDiffSide.RIGHT){
-				StyledStringVisitor leafVisitor = new StyledStringVisitor(differences, CloneDiffSide.RIGHT);
+				StyledStringVisitor leafVisitor = new StyledStringVisitor(theNode, CloneDiffSide.RIGHT);
 				astStatement = theNode.getMapping().getNodeG2().getASTStatement();
 				astStatement.accept(leafVisitor);
 				styledString = leafVisitor.getStyledString();

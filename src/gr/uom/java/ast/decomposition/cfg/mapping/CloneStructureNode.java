@@ -1,8 +1,10 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -25,6 +27,19 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	private void setParent(CloneStructureNode parent) {
 		this.parent = parent;
 		parent.children.add(this);
+	}
+
+	public boolean isNestedUnderElse() {
+		PDGNodeMapping symmetrical = this.getMapping().getSymmetricalIfNodePair();
+		if(symmetrical != null && symmetrical.equals(parent.getMapping()))
+			return true;
+		PDGNode childNodeG1 = this.getMapping().getNodeG1();
+		PDGNode childNodeG2 = this.getMapping().getNodeG2();
+		PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+		PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+		if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence())
+			return true;
+		return false;
 	}
 
 	public void addChild(CloneStructureNode node) {
@@ -50,7 +65,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	private CloneStructureNode containsChildSymmetricalToNode(CloneStructureNode other) {
 		PDGNodeMapping otherNodeMapping = other.getMapping();
 		if(otherNodeMapping.getSymmetricalIfNodePair() != null) {
-			for(CloneStructureNode child : this.children) {
+			for(CloneStructureNode child : getDescendants()) {
 				PDGNodeMapping childNodeMapping = child.getMapping();
 				if(childNodeMapping.getSymmetricalIfNodePair() != null) {
 					if(otherNodeMapping.getSymmetricalIfNodePair().equals(childNodeMapping))
@@ -65,7 +80,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		PDGNodeMapping otherNodeMapping = other.getMapping();
 		if(otherNodeMapping.getNodeG1().getCFGNode() instanceof CFGBranchIfNode &&
 				otherNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
-			for(CloneStructureNode child : this.children) {
+			for(CloneStructureNode child : getDescendants()) {
 				PDGNodeMapping childNodeMapping = child.getMapping();
 				if(childNodeMapping.getNodeG1().getCFGNode() instanceof CFGBranchIfNode &&
 						childNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
@@ -86,7 +101,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				otherNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
 			PDGNode otherNodeG1ControlParent = otherNodeMapping.getNodeG1().getControlDependenceParent();
 			PDGNode otherNodeG2ControlParent = otherNodeMapping.getNodeG2().getControlDependenceParent();
-			for(CloneStructureNode child : this.children) {
+			for(CloneStructureNode child : getDescendants()) {
 				PDGNodeMapping childNodeMapping = child.getMapping();
 				if(childNodeMapping.getNodeG1().getCFGNode() instanceof CFGBranchIfNode &&
 						childNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
@@ -105,6 +120,15 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 
 	public PDGNodeMapping getMapping() {
 		return mapping;
+	}
+
+	public Set<CloneStructureNode> getDescendants() {
+		Set<CloneStructureNode> descendants = new LinkedHashSet<CloneStructureNode>();
+		descendants.addAll(children);
+		for(CloneStructureNode child : this.children) {
+			descendants.addAll(child.getDescendants());
+		}
+		return descendants;
 	}
 
 	public Set<CloneStructureNode> getChildren() {

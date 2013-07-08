@@ -299,12 +299,14 @@ public class BindingSignatureVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(WildcardType type) {
-		if (type.isUpperBound()) {
-			bindingKeys.add("extends");
-		} else {
-			bindingKeys.add("super");
+		if(type.getBound() != null) {
+			if (type.isUpperBound()) {
+				bindingKeys.add("extends");
+			} else {
+				bindingKeys.add("super");
+			}
+			handleType(type.getBound());
 		}
-		handleType(type.getBound());
 		return false;
 	}
 

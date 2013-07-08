@@ -846,12 +846,14 @@ public class StyledStringVisitor extends ASTVisitor {
 		 */
 		activateDiffStyle(type);
 		appendQuestionMark();
-		if (type.isUpperBound()) {
-			styledString.append("extends", determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
-		} else {
-			styledString.append("super", determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
+		if(type.getBound() != null) {
+			if (type.isUpperBound()) {
+				styledString.append("extends", determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
+			} else {
+				styledString.append("super", determineDiffStyle(type, new StyledStringStyler(keywordStyle)));
+			}
+			handleType(type.getBound());
 		}
-		handleType(type.getBound());
 		deactivateDiffStyle(type);
 		return false;
 	}

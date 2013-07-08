@@ -94,13 +94,7 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		return comp;
 	}
 
-
 	public boolean isHideOnMouseDown() {
 		return true;
-	}
-
-
-	public static final void enableFor(ColumnViewer viewer, int style) {
-		new CloneDiffTooltip(viewer,style,false);
 	}
 }

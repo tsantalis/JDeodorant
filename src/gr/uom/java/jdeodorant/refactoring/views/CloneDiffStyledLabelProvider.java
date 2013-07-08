@@ -1,9 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
-
-import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jface.viewers.StyledCellLabelProvider;
@@ -57,7 +54,6 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		cell.setStyleRanges(styledString.getStyleRanges()); 
 		super.update(cell);
 	}
-	
 	
 	//Tooltip
 	public String getToolTipText(Object element) {

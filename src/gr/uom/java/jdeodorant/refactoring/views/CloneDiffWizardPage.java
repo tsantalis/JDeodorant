@@ -147,8 +147,8 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		//ColumnViewerToolTipSupport.enableFor(treeViewerLeft);
 		//ColumnViewerToolTipSupport.enableFor(treeViewerRight);
 		
-		CloneDiffTooltip.enableFor(treeViewerLeft, ToolTip.NO_RECREATE);
-		CloneDiffTooltip.enableFor(treeViewerRight, ToolTip.NO_RECREATE);
+		CloneDiffTooltip tooltipLeft = new CloneDiffTooltip(treeViewerLeft, ToolTip.NO_RECREATE, false);
+		CloneDiffTooltip tooltipRight = new CloneDiffTooltip(treeViewerRight, ToolTip.NO_RECREATE, false);
 		
 		//Selection Listeners - Synchronize Selections
 		treeViewerLeft.addPostSelectionChangedListener(new ISelectionChangedListener() { 

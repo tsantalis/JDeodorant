@@ -1,8 +1,5 @@
 package gr.uom.java.ast.decomposition;
 
-import gr.uom.java.ast.util.ExpressionExtractor;
-
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.Expression;
@@ -14,24 +11,13 @@ public class BindingSignature {
 	private List<String> bindingKeys;
 	
 	public BindingSignature(AbstractExpression expression) {
-		this.bindingKeys = new ArrayList<String>();
 		Expression expr = expression.getExpression();
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		if(isMethodName(expr)) {
 			expr = (Expression)expr.getParent();
 		}
-		List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(expr);
-		for(Expression variableInstruction : variableInstructions) {
-			SimpleName simpleName = (SimpleName)variableInstruction;
-			IBinding binding = simpleName.resolveBinding();
-			if(binding != null) {
-				bindingKeys.add(binding.getKey());
-			}
-		}
-		List<Expression> literals = expressionExtractor.getLiterals(expr);
-		for(Expression literal : literals) {
-			bindingKeys.add(literal.toString());
-		}
+		BindingSignatureVisitor visitor = new BindingSignatureVisitor();
+		expr.accept(visitor);
+		this.bindingKeys = visitor.getBindingKeys();
 		if(bindingKeys.isEmpty())
 			bindingKeys.add(expr.toString());
 	}

@@ -200,6 +200,12 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of InfixExpression objects
+	public List<Expression> getInfixExpressions(Expression expression) {
+		instanceChecker = new InstanceOfInfixExpression();
+		return getExpressions(expression);
+	}
+	
 	// returns a List of InstanceofExpression objects
 	public List<Expression> getInstanceofExpressions(Statement statement) {
 		instanceChecker = new InstanceOfInstanceofExpression();

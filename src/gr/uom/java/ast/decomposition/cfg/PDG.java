@@ -122,10 +122,10 @@ public class PDG extends Graph {
 		return null;
 	}
 
-	public List<PDGNode> getNestedNodesWithinTryNode(PDGTryNode tryNode) {
+	public Set<PDGNode> getNestedNodesWithinTryNode(PDGTryNode tryNode) {
 		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
 		List<CFGNode> directlyNestedCFGNodes = directlyNestedNodesInTryBlocks.get((CFGTryNode)tryNode.getCFGNode());
-		List<PDGNode> directlyNestedPDGNodes = new ArrayList<PDGNode>();
+		Set<PDGNode> directlyNestedPDGNodes = new LinkedHashSet<PDGNode>();
 		for(CFGNode cfgNode : directlyNestedCFGNodes) {
 			directlyNestedPDGNodes.add(cfgNode.getPDGNode());
 		}

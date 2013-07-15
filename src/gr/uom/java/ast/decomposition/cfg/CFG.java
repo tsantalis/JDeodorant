@@ -71,6 +71,9 @@ public class CFG extends Graph {
 
 	private List<CFGNode> process(List<CFGNode> previousNodes, CompositeStatementObject composite) {
 		if(composite instanceof TryStatementObject) {
+			CFGTryNode tryNode = new CFGTryNode(composite);
+			directlyNestedNodeInTryBlock(tryNode);
+			directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
 			AbstractStatement firstStatement = composite.getStatements().get(0);
 			composite = (CompositeStatementObject)firstStatement;
 		}

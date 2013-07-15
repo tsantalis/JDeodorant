@@ -40,6 +40,7 @@ import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.WhileStatement;
@@ -94,7 +95,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(SuperFieldAccess.class) || o.getClass().equals(ParenthesizedExpression.class)
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
 				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class)
-				|| o.getClass().equals(PrefixExpression.class))
+				|| o.getClass().equals(PrefixExpression.class)
+				|| o.getClass().equals(ThisExpression.class))
 			return true;
 		return false;
 	}
@@ -173,7 +175,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return expression.resolveTypeBinding();
 		}
 		else if(o.getClass().equals(PrefixExpression.class)) {
-			PrefixExpression expression = (PrefixExpression)o;
+			PrefixExpression expression = (PrefixExpression) o;
+			return expression.resolveTypeBinding();
+		}
+		else if(o.getClass().equals(ThisExpression.class)) {
+			ThisExpression expression = (ThisExpression) o;
 			return expression.resolveTypeBinding();
 		}
 		return null;
@@ -625,7 +631,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 				}
 				if(!node.getOperator().equals(o.getOperator())) {
-					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.INFIX_OPERATOR_MISMATCH);
+					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.OPERATOR_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
 				safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand());
@@ -830,7 +836,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			else {
 				PrefixExpression o = (PrefixExpression) other;
 				if(!node.getOperator().equals(o.getOperator())) {
-					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.INFIX_OPERATOR_MISMATCH);
+					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.OPERATOR_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 				}
@@ -1096,6 +1102,41 @@ public class ASTNodeMatcher extends ASTMatcher{
 		SynchronizedStatement o = (SynchronizedStatement) other;
 		return (
 				safeSubtreeMatch(node.getExpression(), o.getExpression()));
+	}
+
+	public boolean match(ThisExpression node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof ThisExpression)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+				}
+			}
+			else {
+				ThisExpression o = (ThisExpression) other;
+				safeSubtreeMatch(node.getQualifier(), o.getQualifier());
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		differences.add(astNodeDifference);
+		return false;
 	}
 
 	public boolean match(TryStatement node, Object other) {

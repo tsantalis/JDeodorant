@@ -11,7 +11,7 @@ public enum DifferenceType {
 	SUBCLASS_TYPE_MISMATCH,
 	TYPE_COMPATIBLE_REPLACEMENT,
 	MISSING_METHOD_INVOCATION_EXPRESSION,
-	INFIX_OPERATOR_MISMATCH,
+	OPERATOR_MISMATCH,
 	INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH;
 
 	public String toString(){
@@ -45,8 +45,8 @@ public enum DifferenceType {
 		else if (name().equals(MISSING_METHOD_INVOCATION_EXPRESSION.name())){
 			return "One of the method invocations is not called through an object reference";
 		}
-		else if (name().equals(INFIX_OPERATOR_MISMATCH.name())){
-			return "The operators of the infix expressions are different";
+		else if (name().equals(OPERATOR_MISMATCH.name())){
+			return "The operators of the expressions are different";
 		}
 		else if (name().equals(INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH.name())){
 			return "The infix expressions have a different number of operands";

@@ -30,16 +30,20 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		if(theNode.getMapping() != null) {
 			//Separate LEFT and RIGHT trees...
 			if (position == CloneDiffSide.LEFT) {
-				StyledStringVisitor leafVisitor = new StyledStringVisitor(theNode, CloneDiffSide.LEFT);
-				astStatement = theNode.getMapping().getNodeG1().getASTStatement();
-				astStatement.accept(leafVisitor);
-				styledString = leafVisitor.getStyledString();
+				if(theNode.getMapping().getNodeG1() != null) {
+					StyledStringVisitor leafVisitor = new StyledStringVisitor(theNode, CloneDiffSide.LEFT);
+					astStatement = theNode.getMapping().getNodeG1().getASTStatement();
+					astStatement.accept(leafVisitor);
+					styledString = leafVisitor.getStyledString();
+				}
 			}
-			else if (position == CloneDiffSide.RIGHT){
-				StyledStringVisitor leafVisitor = new StyledStringVisitor(theNode, CloneDiffSide.RIGHT);
-				astStatement = theNode.getMapping().getNodeG2().getASTStatement();
-				astStatement.accept(leafVisitor);
-				styledString = leafVisitor.getStyledString();
+			else if (position == CloneDiffSide.RIGHT) {
+				if(theNode.getMapping().getNodeG2() != null) {
+					StyledStringVisitor leafVisitor = new StyledStringVisitor(theNode, CloneDiffSide.RIGHT);
+					astStatement = theNode.getMapping().getNodeG2().getASTStatement();
+					astStatement.accept(leafVisitor);
+					styledString = leafVisitor.getStyledString();
+				}
 			}
 		}
 		else {

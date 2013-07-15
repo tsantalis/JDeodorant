@@ -16,8 +16,8 @@ import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
-import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
@@ -105,7 +105,7 @@ import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
-	private PDGMapper mapper;
+	private PDGSubTreeMapper mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
@@ -121,7 +121,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private String intermediateClassName;
 	private String extractedMethodName;
 	
-	public ExtractCloneRefactoring(PDGMapper mapper) {
+	public ExtractCloneRefactoring(PDGSubTreeMapper mapper) {
 		super();
 		this.mapper = mapper;
 		MethodObject methodObject1 = mapper.getPDG1().getMethod();
@@ -180,7 +180,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	public PDGMapper getMapper() {
+	public PDGSubTreeMapper getMapper() {
 		return mapper;
 	}
 
@@ -540,8 +540,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		CloneStructureNode root = mapper.getCloneStructureRoot();
 		for(CloneStructureNode child : root.getChildren()) {
-			Statement statement = processCloneStructureNode(child, ast, sourceRewriter);
-			methodBodyRewrite.insertLast(statement, null);
+			if(child.getMapping() instanceof PDGNodeMapping) {
+				Statement statement = processCloneStructureNode(child, ast, sourceRewriter);
+				methodBodyRewrite.insertLast(statement, null);
+			}
 		}
 		
 		//add parameters for the differences between the clones
@@ -640,7 +642,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private Statement processCloneStructureNode(CloneStructureNode node, AST ast, ASTRewrite sourceRewriter) {
-		PDGNodeMapping nodeMapping = node.getMapping();
+		PDGNodeMapping nodeMapping = (PDGNodeMapping) node.getMapping();
 		PDGNode nodeG1 = nodeMapping.getNodeG1();
 		Statement oldStatement = nodeG1.getASTStatement();
 		Statement newStatement = null;
@@ -652,25 +654,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			List<CloneStructureNode> trueControlDependentChildren = new ArrayList<CloneStructureNode>();
 			List<CloneStructureNode> falseControlDependentChildren = new ArrayList<CloneStructureNode>();
 			for(CloneStructureNode child : node.getChildren()) {
-				PDGNodeMapping symmetrical = child.getMapping().getSymmetricalIfNodePair();
-				if(symmetrical != null) {
-					if(symmetrical.equals(nodeMapping)) {
-						falseControlDependentChildren.add(child);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					PDGNodeMapping childMapping = (PDGNodeMapping) child.getMapping();
+					PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
+					if(symmetrical != null) {
+						if(symmetrical.equals(nodeMapping)) {
+							falseControlDependentChildren.add(child);
+						}
+						else {
+							trueControlDependentChildren.add(child);
+						}
 					}
 					else {
-						trueControlDependentChildren.add(child);
-					}
-				}
-				else {
-					PDGNode childNodeG1 = child.getMapping().getNodeG1();
-					PDGNode childNodeG2 = child.getMapping().getNodeG2();
-					PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-					PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-					if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
-						trueControlDependentChildren.add(child);
-					}
-					else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
-						falseControlDependentChildren.add(child);
+						PDGNode childNodeG1 = child.getMapping().getNodeG1();
+						PDGNode childNodeG2 = child.getMapping().getNodeG2();
+						PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+						PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+						if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
+							trueControlDependentChildren.add(child);
+						}
+						else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
+							falseControlDependentChildren.add(child);
+						}
 					}
 				}
 			}
@@ -712,7 +717,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Block newBlock = ast.newBlock();
 			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
-				blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
 			}
 			sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, newBlock, null);
 			ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
@@ -749,7 +756,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(newSwitchStatement, SwitchStatement.EXPRESSION_PROPERTY, newSwitchExpression, null);
 			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
-				switchStatementsRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					switchStatementsRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
 			}
 			newStatement = newSwitchStatement;
 		}
@@ -761,7 +770,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
-				loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
 			}
 			sourceRewriter.set(newWhileStatement, WhileStatement.BODY_PROPERTY, loopBlock, null);
 			newStatement = newWhileStatement;
@@ -786,7 +797,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
-				loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
 			}
 			sourceRewriter.set(newForStatement, ForStatement.BODY_PROPERTY, loopBlock, null);
 			newStatement = newForStatement;
@@ -800,7 +813,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
-				loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
 			}
 			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.BODY_PROPERTY, loopBlock, null);
 			newStatement = newEnhancedForStatement;
@@ -813,7 +828,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Block loopBlock = ast.newBlock();
 			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
 			for(CloneStructureNode child : node.getChildren()) {
-				loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
 			}
 			sourceRewriter.set(newDoStatement, DoStatement.BODY_PROPERTY, loopBlock, null);
 			newStatement = newDoStatement;

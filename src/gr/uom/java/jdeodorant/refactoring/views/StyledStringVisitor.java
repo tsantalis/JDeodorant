@@ -378,8 +378,10 @@ public class StyledStringVisitor extends ASTVisitor {
 			handleExpression((Expression) stmnt.initializers().get(i));
 		}
 		appendSemicolon();
+		appendSpace();
 		handleExpression(stmnt.getExpression());
 		appendSemicolon();
+		appendSpace();
 		// Handle Updaters
 		for (int i = 0; i < stmnt.updaters().size(); i++) {
 			handleExpression((Expression) stmnt.updaters().get(i));
@@ -713,6 +715,7 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 	public boolean visit(ThrowStatement stmnt){
 		styledString.append("throw", new StyledStringStyler(keywordStyle));
+		appendSpace();
 		handleExpression((Expression) stmnt.getExpression());
 		appendSemicolon();
 		return false;

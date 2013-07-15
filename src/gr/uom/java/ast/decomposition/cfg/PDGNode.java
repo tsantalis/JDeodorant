@@ -119,6 +119,19 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return incomingEdges.iterator();
 	}
 
+	public Set<PDGNode> getControlDependentNodes() {
+		Set<PDGNode> nodes = new LinkedHashSet<PDGNode>();
+		for(GraphEdge edge : outgoingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode dstNode = (PDGNode)controlDependence.getDst();
+				nodes.add(dstNode);
+			}
+		}
+		return nodes;
+	}
+
 	public PDGNode getControlDependenceParent() {
 		for(GraphEdge edge : incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;

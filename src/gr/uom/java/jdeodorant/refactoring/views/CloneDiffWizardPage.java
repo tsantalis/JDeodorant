@@ -1,7 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
-import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import org.eclipse.jface.viewers.ISelectionChangedListener;
@@ -25,7 +25,7 @@ import org.eclipse.swt.widgets.ScrollBar;
 
 public class CloneDiffWizardPage extends UserInputWizardPage {
 
-	PDGMapper mapper;
+	PDGSubTreeMapper mapper;
 	CloneStructureNode cloneStructureRoot;
 	//Special Boolean for selection synchronization listeners
 	public boolean correspondingTreeAlreadyChanged = false;

@@ -55,19 +55,22 @@ public class PDGSubTreeMapper {
 	private Set<MethodInvocationObject> accessedLocalMethodsG2;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG1;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
-	private Set<PDGNode> allNodesInSubTreePDG1;
-	private Set<PDGNode> allNodesInSubTreePDG2;
+	private TreeSet<PDGNode> allNodesInSubTreePDG1;
+	private TreeSet<PDGNode> allNodesInSubTreePDG2;
+	//if true full tree match is performed, otherwise subtree match is performed
+	private boolean fullTreeMatch;
 	private IProgressMonitor monitor;
 	
 	public PDGSubTreeMapper(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
 			ControlDependenceTreeNode controlDependenceSubTreePDG1,
 			ControlDependenceTreeNode controlDependenceSubTreePDG2,
-			IProgressMonitor monitor) {
+			boolean fullTreeMatch, IProgressMonitor monitor) {
 		this.pdg1 = pdg1;
 		this.pdg2 = pdg2;
 		this.iCompilationUnit1 = iCompilationUnit1;
 		this.iCompilationUnit2 = iCompilationUnit2;
+		this.fullTreeMatch = fullTreeMatch;
 		this.nonMappedNodesG1 = new TreeSet<PDGNode>();
 		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
@@ -342,10 +345,31 @@ public class PDGSubTreeMapper {
 			}
 			for(PDGNode predicate1 : controlPredicateNodesG1) {
 				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesG1, controlPredicateNodesInNextLevelG1);
+				//special handling in level 0 for sub tree match
+				if(level1 == 0 && !fullTreeMatch) {
+					int maxId = allNodesInSubTreePDG1.last().getId();
+					Set<PDGNode> nodesG1ToBeRemoved = new LinkedHashSet<PDGNode>();
+					for(PDGNode nodeG1 : nodesG1) {
+						if(nodeG1.getId() > maxId) {
+							nodesG1ToBeRemoved.add(nodeG1);
+						}
+					}
+					nodesG1.removeAll(nodesG1ToBeRemoved);
+				}
 				this.allNodesInSubTreePDG1.addAll(nodesG1);
 				List<MappingState> currentStates = new ArrayList<MappingState>();
 				for(PDGNode predicate2 : controlPredicateNodesG2) {
 					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2);
+					if(level2 == 0 && !fullTreeMatch) {
+						int maxId = allNodesInSubTreePDG2.last().getId();
+						Set<PDGNode> nodesG2ToBeRemoved = new LinkedHashSet<PDGNode>();
+						for(PDGNode nodeG2 : nodesG2) {
+							if(nodeG2.getId() > maxId) {
+								nodesG2ToBeRemoved.add(nodeG2);
+							}
+						}
+						nodesG2.removeAll(nodesG2ToBeRemoved);
+					}
 					this.allNodesInSubTreePDG2.addAll(nodesG2);
 					List<MappingState> maxStates = null;
 					if(level1 == 0 || level2 == 0) {

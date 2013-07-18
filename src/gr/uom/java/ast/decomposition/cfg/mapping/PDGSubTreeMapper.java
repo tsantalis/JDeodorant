@@ -90,8 +90,6 @@ public class PDGSubTreeMapper {
 		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
 		this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
 		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
-		allNodesInSubTreePDG1.remove(controlDependenceSubTreePDG1.getNode());
-		allNodesInSubTreePDG2.remove(controlDependenceSubTreePDG2.getNode());
 		findNonMappedNodes(allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
 		findNonMappedNodes(allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
 		for(PDGNode nodeG1 : nonMappedNodesG1) {
@@ -284,9 +282,10 @@ public class PDGSubTreeMapper {
 	}
 
 	private Set<PDGNode> getNodesInRegion(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
-			Set<PDGNode> controlPredicateNodesInNextLevel) {
+			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot) {
 		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
-		if(!(controlPredicate instanceof PDGMethodEntryNode))
+		if(!(controlPredicate instanceof PDGMethodEntryNode) &&
+				!controlPredicate.equals(controlDependenceTreeRoot.getNode()))
 			nodesInRegion.add(controlPredicate);
 		if(controlPredicate instanceof PDGTryNode) {
 			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinTryNode((PDGTryNode)controlPredicate);
@@ -344,7 +343,7 @@ public class PDGSubTreeMapper {
 				}
 			}
 			for(PDGNode predicate1 : controlPredicateNodesG1) {
-				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesG1, controlPredicateNodesInNextLevelG1);
+				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesG1, controlPredicateNodesInNextLevelG1, controlDependenceTreePDG1);
 				//special handling in level 0 for sub tree match
 				if(level1 == 0 && !fullTreeMatch) {
 					int maxId = allNodesInSubTreePDG1.last().getId();
@@ -359,7 +358,7 @@ public class PDGSubTreeMapper {
 				this.allNodesInSubTreePDG1.addAll(nodesG1);
 				List<MappingState> currentStates = new ArrayList<MappingState>();
 				for(PDGNode predicate2 : controlPredicateNodesG2) {
-					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2);
+					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2, controlDependenceTreePDG2);
 					if(level2 == 0 && !fullTreeMatch) {
 						int maxId = allNodesInSubTreePDG2.last().getId();
 						Set<PDGNode> nodesG2ToBeRemoved = new LinkedHashSet<PDGNode>();

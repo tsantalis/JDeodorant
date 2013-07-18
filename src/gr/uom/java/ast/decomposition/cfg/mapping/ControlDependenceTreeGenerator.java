@@ -1,7 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.IfStatement;
@@ -45,7 +44,8 @@ public class ControlDependenceTreeGenerator {
 				PDGControlDependence nodeIncomingControlDependence = dstNode.getIncomingControlDependence();
 				if(nodeControlParent.getCFGNode() instanceof CFGBranchIfNode && nodeIncomingControlDependence.isFalseControlDependence() &&
 						numberOfOutgoingFalseControlDependences(nodeControlParent) == 1 &&
-						dstNode.getASTStatement().getParent() instanceof IfStatement) {
+						dstNode.getASTStatement().getParent() instanceof IfStatement &&
+						dstNode.getASTStatement() instanceof IfStatement) {
 					//a case of "if/else if" -> add as a sibling, not as a child
 					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(cdtNode.getNode());
 					if(tryNode != null) {
@@ -89,12 +89,33 @@ public class ControlDependenceTreeGenerator {
 						}
 					}
 					else {
-						ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(cdtNode, dstNode);
-						processControlDependences(tmp);
+						//check if dstNode is under an else clause and create a "fake else" node
+						if(nodeIncomingControlDependence.isFalseControlDependence()) {
+							//search if the "fake else" node is already created
+							ControlDependenceTreeNode fakeElse = searchForElseNode(nodeControlParent);
+							if(fakeElse == null) {
+								fakeElse = new ControlDependenceTreeNode(cdtNode.getParent(), null);
+								fakeElse.setElseNode(true);
+								ControlDependenceTreeNode ifParent = searchForNode(nodeControlParent);
+								ifParent.setElseIfChild(fakeElse);
+								fakeElse.setIfParent(ifParent);
+								ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(fakeElse, dstNode);
+								processControlDependences(tmp);
+							}
+							else {
+								ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(fakeElse, dstNode);
+								processControlDependences(tmp);
+							}
+						}
+						else {
+							ControlDependenceTreeNode tmp = new ControlDependenceTreeNode(cdtNode, dstNode);
+							processControlDependences(tmp);
+						}
 					}
 				}
 			}
 			else {
+				//dstNode is not a control predicate
 				PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
 				if(tryNode != null) {
 					ControlDependenceTreeNode treeNode = searchForNode(tryNode);
@@ -108,6 +129,22 @@ public class ControlDependenceTreeGenerator {
 							else
 								new ControlDependenceTreeNode(cdtNode, tryNode);
 						}
+						//check if tryNode is nested under an else clause
+						else if(dstNode.getIncomingControlDependence().isFalseControlDependence()) {
+							PDGNode nodeControlParent = dstNode.getControlDependenceParent();
+							ControlDependenceTreeNode fakeElse = searchForElseNode(nodeControlParent);
+							if(fakeElse == null) {
+								fakeElse = new ControlDependenceTreeNode(cdtNode.getParent(), null);
+								fakeElse.setElseNode(true);
+								ControlDependenceTreeNode ifParent = searchForNode(nodeControlParent);
+								ifParent.setElseIfChild(fakeElse);
+								fakeElse.setIfParent(ifParent);
+								new ControlDependenceTreeNode(fakeElse, tryNode);
+							}
+							else {
+								new ControlDependenceTreeNode(fakeElse, tryNode);
+							}
+						}
 						else {
 							new ControlDependenceTreeNode(cdtNode, tryNode);
 						}
@@ -119,6 +156,10 @@ public class ControlDependenceTreeGenerator {
 
 	private ControlDependenceTreeNode searchForNode(PDGNode node) {
 		return root.getNode(node);
+	}
+
+	private ControlDependenceTreeNode searchForElseNode(PDGNode ifParent) {
+		return root.getElseNode(ifParent);
 	}
 
 	private int numberOfOutgoingFalseControlDependences(PDGNode pdgNode) {

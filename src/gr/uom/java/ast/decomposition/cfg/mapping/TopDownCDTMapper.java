@@ -22,12 +22,18 @@ public class TopDownCDTMapper {
 		processTopDown(root1, root2);
 	}
 
-	public void processTopDown(ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
+	private void processTopDown(ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
 		List<TreeSet<ControlDependenceTreeNodeMatchPair>> matches = findTopDownMatches(root1, root2);
 		List<CompleteSubTreeMatch> tmpSolutions = getMaximumCompleteSubTreeMatches(matches, root1, root2);
 		for(CompleteSubTreeMatch tmpSolution : tmpSolutions) {
 			ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-			boolean match = root1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, root2.getNode().getASTStatement());
+			boolean match;
+			if((root1.isElseNode() && !root2.isElseNode()) || (!root1.isElseNode() && root2.isElseNode()))
+				match = false;
+			else if(root1.isElseNode() && root2.isElseNode())
+				match = root1.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, root2.getIfParent().getNode().getASTStatement());
+			else
+				match = root1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, root2.getNode().getASTStatement());
 			if(match && astNodeMatcher.isParameterizable()) {
 				ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(root1, root2);
 				tmpSolution.addStartPoint(pair);
@@ -48,7 +54,13 @@ public class TopDownCDTMapper {
 			for(ControlDependenceTreeNode node2 : nodes2) {
 				if(!(node1.getNode() instanceof PDGMethodEntryNode) && !(node2.getNode() instanceof PDGMethodEntryNode)) {
 					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = node1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getNode().getASTStatement());
+					boolean match;
+					if((node1.isElseNode() && !node2.isElseNode()) || (!node1.isElseNode() && node2.isElseNode()))
+						match = false;
+					else if(node1.isElseNode() && node2.isElseNode())
+						match = node1.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getIfParent().getNode().getASTStatement());
+					else
+						match = node1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getNode().getASTStatement());
 					if(match && astNodeMatcher.isParameterizable()) {
 						ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(node1, node2);
 						startPoints.add(pair);
@@ -116,7 +128,13 @@ public class TopDownCDTMapper {
 
 			for(ControlDependenceTreeNode treeChild : treeNode.getChildren()) {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-				boolean match = treeChild.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchChild.getNode().getASTStatement());
+				boolean match;
+				if((treeChild.isElseNode() && !searchChild.isElseNode()) || (!treeChild.isElseNode() && searchChild.isElseNode()))
+					match = false;
+				else if(treeChild.isElseNode() && searchChild.isElseNode())
+					match = treeChild.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchChild.getIfParent().getNode().getASTStatement());
+				else
+					match = treeChild.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchChild.getNode().getASTStatement());
 				if(match && astNodeMatcher.isParameterizable()) {
 					ControlDependenceTreeNode treeNode2 = treeNode.shallowCopy();
 					treeNode2.getChildren().remove(treeChild);

@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 public class ControlDependenceTreeNode {
@@ -15,6 +16,7 @@ public class ControlDependenceTreeNode {
 	private List<ControlDependenceTreeNode> children;
 	private ControlDependenceTreeNode ifParent;
 	private ControlDependenceTreeNode elseIfChild;
+	private boolean isElseNode = false;
 
 	private ControlDependenceTreeNode(ControlDependenceTreeNode treeNode) {
 		this.parent = treeNode.parent;
@@ -43,7 +45,7 @@ public class ControlDependenceTreeNode {
 		ControlDependenceTreeNode treeParent = root.getNode(parent);
 		if(treeParent != null) {
 			for(ControlDependenceTreeNode treeChild : treeParent.children) {
-				if(treeChild.node.equals(child))
+				if(treeChild.node != null && treeChild.node.equals(child))
 					return true;
 			}
 		}
@@ -51,7 +53,7 @@ public class ControlDependenceTreeNode {
 	}
 
 	public ControlDependenceTreeNode getNode(PDGNode node) {
-		if(this.node.equals(node)) {
+		if(this.node != null && this.node.equals(node)) {
 			return this;
 		}
 		else if(this.isLeaf()) {
@@ -67,13 +69,31 @@ public class ControlDependenceTreeNode {
 		return null;
 	}
 
+	public ControlDependenceTreeNode getElseNode(PDGNode ifParent) {
+		if(this.isElseNode && this.getIfParent().getNode().equals(ifParent)) {
+			return this;
+		}
+		else if(this.isLeaf()) {
+			return null;
+		}
+		else {
+			for(ControlDependenceTreeNode child : this.children) {
+				ControlDependenceTreeNode treeNode = child.getElseNode(ifParent);
+				if(treeNode != null)
+					return treeNode;
+			}
+		}
+		return null;
+	}
+
 	public Set<PDGNode> getControlPredicateNodesInLevel(int level) {
 		ControlDependenceTreeNode root = getRoot();
 		List<ControlDependenceTreeNode> levelNodes = root.getControlDependenceTreeNodesInLevel(level);
 		Set<PDGNode> predicateNodes = new LinkedHashSet<PDGNode>();
 		for(ControlDependenceTreeNode levelNode : levelNodes) {
 			PDGNode pdgNode = levelNode.node;
-			predicateNodes.add(pdgNode);
+			if(pdgNode != null)
+				predicateNodes.add(pdgNode);
 		}
 		return predicateNodes;
 	}
@@ -134,6 +154,32 @@ public class ControlDependenceTreeNode {
 	
 	public int getLengthOfElseIfChain() {
 		return getNumberOfIfParents() + getNumberOfElseIfChildren();
+	}
+
+	public List<ControlDependenceTreeNode> getIfParents() {
+		List<ControlDependenceTreeNode> ifParents = new ArrayList<ControlDependenceTreeNode>();
+		if(ifParent != null) {
+			ifParents.addAll(ifParent.getIfParents());
+			ifParents.add(ifParent);
+		}
+		return ifParents;
+	}
+
+	public List<ControlDependenceTreeNode> getElseIfChildren() {
+		List<ControlDependenceTreeNode> elseIfChildren = new ArrayList<ControlDependenceTreeNode>();
+		if(elseIfChild != null) {
+			elseIfChildren.add(elseIfChild);
+			elseIfChildren.addAll(elseIfChild.getElseIfChildren());
+		}
+		return elseIfChildren;
+	}
+
+	public boolean isElseNode() {
+		return isElseNode;
+	}
+
+	public void setElseNode(boolean isElseNode) {
+		this.isElseNode = isElseNode;
 	}
 
 	public List<ControlDependenceTreeNode> getSiblings() {
@@ -233,7 +279,16 @@ public class ControlDependenceTreeNode {
 	}
 
 	public int hashCode() {
-		return this.getNode().hashCode();
+		if(this.getNode() != null) {
+			return this.getNode().hashCode();
+		}
+		else {
+			//else node
+			int result = 17;
+			result = 37*result + (isElseNode ? 1 : 0);
+			result = 37*result + ifParent.getNode().hashCode();
+			return result;
+		}
 	}
 
 	public boolean equals(Object o) {
@@ -241,12 +296,43 @@ public class ControlDependenceTreeNode {
 			return true;
 		if(o instanceof ControlDependenceTreeNode) {
 			ControlDependenceTreeNode node = (ControlDependenceTreeNode)o;
-			return this.getNode().equals(node.getNode());
+			if(this.getNode() != null && node.getNode() != null) {
+				return this.getNode().equals(node.getNode());
+			}
+			if(this.getNode() == null && node.getNode() == null) {
+				return this.isElseNode == node.isElseNode && this.getIfParent().equals(node.getIfParent());
+			}
 		}
 		return false;
 	}
 
 	public String toString() {
-		return node.toString();
+		if(node != null)
+			return node.toString();
+		else
+			return getId() + "\telse\n";
+	}
+
+	public double getId() {
+		if(isElseNode) {
+			Set<PDGNode> controlDependentNodes = ifParent.getNode().getControlDependentNodes();
+			int id = 0;
+			for(PDGNode controlDependentNode : controlDependentNodes) {
+				PDGControlDependence controlDependence = controlDependentNode.getIncomingControlDependence();
+				if(controlDependence.isFalseControlDependence()) {
+					id = controlDependentNode.getId();
+					break;
+				}
+			}
+			//special handling if a try block follows after else clause
+			for(ControlDependenceTreeNode child : children) {
+				if(child.getId() < id)
+					id = (int) child.getId();
+			}
+			return id - 0.5;
+		}
+		else {
+			return node.getId();
+		}
 	}
 }

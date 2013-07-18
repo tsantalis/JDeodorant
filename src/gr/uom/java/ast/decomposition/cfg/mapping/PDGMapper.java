@@ -45,9 +45,23 @@ public class PDGMapper {
 	private ControlDependenceTreeNode generateControlDependenceSubTree(ControlDependenceTreeNode completeTreeRoot, List<ControlDependenceTreeNode> subTreeNodes) {
 		ControlDependenceTreeNode oldCDTNode = subTreeNodes.get(0);
 		ControlDependenceTreeNode root = new ControlDependenceTreeNode(null, oldCDTNode.getParent().getNode());
+		if(oldCDTNode.getParent().isElseNode()) {
+			root.setElseNode(true);
+			root.setIfParent(oldCDTNode.getParent().getIfParent());
+		}
 		for(ControlDependenceTreeNode cdtNode : subTreeNodes) {
-			ControlDependenceTreeNode parent = root.getNode(cdtNode.getParent().getNode());
+			ControlDependenceTreeNode parent;
+			if(cdtNode.getParent().isElseNode()) {
+				parent = root.getElseNode(cdtNode.getParent().getIfParent().getNode());
+			}
+			else {
+				parent = root.getNode(cdtNode.getParent().getNode());
+			}
 			ControlDependenceTreeNode newNode = new ControlDependenceTreeNode(parent, cdtNode.getNode());
+			if(cdtNode.isElseNode()) {
+				newNode.setElseNode(true);
+				newNode.setIfParent(root.getNode(cdtNode.getIfParent().getNode()));
+			}
 		}
 		return root;
 	}

@@ -183,6 +183,9 @@ public class StyledStringVisitor extends ASTVisitor {
 			appendClosedBracket();
 		}
 		if(expr.getInitializer() != null) {
+			appendOpenBracket();
+			appendClosedBracket();
+			appendSpace();
 			visit(expr.getInitializer());
 		}
 		deactivateDiffStyle(expr);
@@ -220,7 +223,9 @@ public class StyledStringVisitor extends ASTVisitor {
 		styledString.append("assert", new StyledStringStyler(keywordStyle));
 		handleExpression((Expression) stmnt.getExpression());
 		if (stmnt.getMessage() != null) {
+			appendSpace();
 			appendColon();
+			appendSpace();
 			handleExpression((Expression) stmnt.getExpression());
 		}
 		appendSemicolon();
@@ -303,9 +308,13 @@ public class StyledStringVisitor extends ASTVisitor {
 		 */
 		activateDiffStyle(expr);
 		handleExpression((Expression) expr.getExpression());
+		appendSpace();
 		appendQuestionMark();
+		appendSpace();
 		handleExpression((Expression) expr.getThenExpression());
+		appendSpace();
 		appendColon();
+		appendSpace();
 		handleExpression((Expression) expr.getElseExpression());
 		deactivateDiffStyle(expr);
 		return false;
@@ -680,11 +689,13 @@ public class StyledStringVisitor extends ASTVisitor {
 		 */
 		if (stmnt.isDefault()){
 			styledString.append("default", new StyledStringStyler(keywordStyle));
+			appendColon();
 		}
 		else {
 			styledString.append("case", new StyledStringStyler(keywordStyle));
+			appendSpace();
 			handleExpression((Expression) stmnt.getExpression());
-			appendSemicolon();
+			appendColon();
 		}
 		return false;
 	}
@@ -1063,7 +1074,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		if (currentCompositeDiffNode != null){
 			styler.appendTextStyle(differenceStyle);
 		}
-		styledString.append(" : ", styler);
+		styledString.append(":", styler);
 	}
 
 	private void appendSemicolon() {

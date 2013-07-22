@@ -25,10 +25,10 @@ import org.eclipse.swt.widgets.ScrollBar;
 
 public class CloneDiffWizardPage extends UserInputWizardPage {
 
-	PDGSubTreeMapper mapper;
-	CloneStructureNode cloneStructureRoot;
+	private PDGSubTreeMapper mapper;
+	private CloneStructureNode cloneStructureRoot;
 	//Special Boolean for selection synchronization listeners
-	public boolean correspondingTreeAlreadyChanged = false;
+	private boolean correspondingTreeAlreadyChanged = false;
 	
 	public CloneDiffWizardPage(ExtractCloneRefactoring refactoring) {
 		super("Diff Clones");
@@ -61,7 +61,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		methodRightName.setLayoutData(methodRightNameGridData);
 		
 		
-		final TreeViewer treeViewerLeft = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL);
+		final TreeViewer treeViewerLeft = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL | SWT.H_SCROLL);
 		treeViewerLeft.setLabelProvider(new CloneDiffStyledLabelProvider(CloneDiffSide.LEFT));
 		treeViewerLeft.setContentProvider(new CloneDiffContentProvider());
 		treeViewerLeft.setInput(new CloneStructureNode[]{cloneStructureRoot});
@@ -75,7 +75,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		//treeLeftGridData.verticalSpan = 2;
 		treeViewerLeft.getTree().setLayoutData(treeLeftGridData);
 		
-		final TreeViewer treeViewerRight = new TreeViewer(result, SWT.PUSH);
+		final TreeViewer treeViewerRight = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL | SWT.H_SCROLL);
 		treeViewerRight.setLabelProvider(new CloneDiffStyledLabelProvider(CloneDiffSide.RIGHT));
 		treeViewerRight.setContentProvider(new CloneDiffContentProvider());
 		treeViewerRight.setInput(new CloneStructureNode[]{cloneStructureRoot});
@@ -204,7 +204,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 			}
 		});
 		
-		//Synchronize Scroll Bars
+		//Synchronize Vertical ScrollBars
 		ScrollBar leftVertical = treeViewerLeft.getTree().getVerticalBar();
 		leftVertical.addListener(SWT.Selection, new Listener() {
 			public void handleEvent(Event event) {
@@ -215,6 +215,33 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		rightVertical.addListener(SWT.Selection, new Listener() {
 			public void handleEvent(Event event) {
 				treeViewerLeft.getTree().setTopItem(treeViewerRight.getTree().getTopItem());
+			}
+		});
+		
+		//Synchronize Horizontal ScrollBars
+		final ScrollBar leftHorizontal = treeViewerLeft.getTree().getHorizontalBar();
+		final ScrollBar rightHorizontal = treeViewerRight.getTree().getHorizontalBar();
+		leftHorizontal.addListener(SWT.Selection, new Listener() {
+			public void handleEvent(Event event) {
+				rightHorizontal.setValues(
+						leftHorizontal.getSelection(),
+						leftHorizontal.getMinimum(),
+						leftHorizontal.getMaximum(),
+						leftHorizontal.getThumb(),
+						leftHorizontal.getIncrement(),
+						leftHorizontal.getPageIncrement());
+			}
+		});
+		
+		rightHorizontal.addListener(SWT.Selection, new Listener() {
+			public void handleEvent(Event event) {
+				leftHorizontal.setValues(
+						rightHorizontal.getSelection(),
+						rightHorizontal.getMinimum(),
+						rightHorizontal.getMaximum(),
+						rightHorizontal.getThumb(),
+						rightHorizontal.getIncrement(),
+						rightHorizontal.getPageIncrement());
 			}
 		});
 	}

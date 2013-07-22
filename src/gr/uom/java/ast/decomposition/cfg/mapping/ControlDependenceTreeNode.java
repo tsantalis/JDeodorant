@@ -40,16 +40,44 @@ public class ControlDependenceTreeNode {
 			parent.children.add(this);
 	}
 
-	public boolean parentChildRelationship(PDGNode parent, PDGNode child) {
+	public boolean parentChildRelationship(double parentId, double childId) {
 		ControlDependenceTreeNode root = getRoot();
-		ControlDependenceTreeNode treeParent = root.getNode(parent);
+		ControlDependenceTreeNode treeParent = root.getNode(parentId);
 		if(treeParent != null) {
 			for(ControlDependenceTreeNode treeChild : treeParent.children) {
-				if(treeChild.node != null && treeChild.node.equals(child))
+				if(treeChild.getId() == childId)
 					return true;
 			}
 		}
 		return false;
+	}
+
+	public boolean ifElseRelationship(double ifParentId, double elseChildId) {
+		ControlDependenceTreeNode root = getRoot();
+		ControlDependenceTreeNode ifParent = root.getNode(ifParentId);
+		ControlDependenceTreeNode elseChild = root.getNode(elseChildId);
+		if(ifParent != null && elseChild != null) {
+			if(elseChild.isElseNode && elseChild.ifParent.getId() == ifParent.getId())
+				return true;
+		}
+		return false;
+	}
+
+	public ControlDependenceTreeNode getNode(double id) {
+		if(this.getId() == id) {
+			return this;
+		}
+		else if(this.isLeaf()) {
+			return null;
+		}
+		else {
+			for(ControlDependenceTreeNode child : this.children) {
+				ControlDependenceTreeNode treeNode = child.getNode(id);
+				if(treeNode != null)
+					return treeNode;
+			}
+		}
+		return null;
 	}
 
 	public ControlDependenceTreeNode getNode(PDGNode node) {
@@ -96,6 +124,18 @@ public class ControlDependenceTreeNode {
 				predicateNodes.add(pdgNode);
 		}
 		return predicateNodes;
+	}
+
+	public Set<ControlDependenceTreeNode> getElseNodesInLevel(int level) {
+		ControlDependenceTreeNode root = getRoot();
+		List<ControlDependenceTreeNode> levelNodes = root.getControlDependenceTreeNodesInLevel(level);
+		Set<ControlDependenceTreeNode> elseNodes = new LinkedHashSet<ControlDependenceTreeNode>();
+		for(ControlDependenceTreeNode levelNode : levelNodes) {
+			if(levelNode.isElseNode) {
+				elseNodes.add(levelNode);
+			}
+		}
+		return elseNodes;
 	}
 
 	public int getMaxLevel() {

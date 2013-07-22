@@ -10,6 +10,7 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 public class PDGNodeMapping extends NodeMapping {
@@ -22,6 +23,14 @@ public class PDGNodeMapping extends NodeMapping {
 		super(nodeG1, nodeG2);
 		this.matcher = matcher;
 		this.nodeDifferences = matcher.getDifferences();
+	}
+
+	public double getId1() {
+		return nodeG1.getId();
+	}
+
+	public double getId2() {
+		return nodeG2.getId();
 	}
 
 	public List<ASTNodeDifference> getNodeDifferences() {
@@ -59,6 +68,14 @@ public class PDGNodeMapping extends NodeMapping {
 
 	public void setSymmetricalIfNodePair(PDGNodeMapping symmetricalIfNodePair) {
 		this.symmetricalIfNodePair = symmetricalIfNodePair;
+	}
+
+	public boolean isFalseControlDependent() {
+		PDGControlDependence controlDependence1 = nodeG1.getIncomingControlDependence();
+		PDGControlDependence controlDependence2 = nodeG2.getIncomingControlDependence();
+		if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence())
+			return true;
+		return false;
 	}
 
 	public boolean matchingVariableDifference(AbstractVariable variable1, AbstractVariable variable2) {

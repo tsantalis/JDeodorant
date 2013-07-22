@@ -11,7 +11,7 @@ import org.eclipse.swt.graphics.Point;
 
 public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 	
-	public CloneDiffSide position;
+	private CloneDiffSide position;
 	
 	//Constructor specifies which mapping position this provider will be working with and generated Regex based on the keywords
 	public CloneDiffStyledLabelProvider(CloneDiffSide position){

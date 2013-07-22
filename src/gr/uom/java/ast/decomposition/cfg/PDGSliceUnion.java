@@ -488,8 +488,16 @@ public class PDGSliceUnion {
 		return true;
 	}
 
+	private boolean sliceEqualsMethodBody() {
+		int sliceSize = sliceNodes.size();
+		if(sliceSize == methodSize)
+			return true;
+		return false;
+	}
+
 	public boolean satisfiesRules() {
-		if(sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion() || declarationOfVariableCriterionIsDuplicated() ||
+		if(sliceEqualsMethodBody() || sliceContainsOnlyOneNodeCriterionAndDeclarationOfVariableCriterion() ||
+				declarationOfVariableCriterionIsDuplicated() ||
 				variableCriterionIsReturnedVariableInOriginalMethod() || (sliceNodes.size() <= nodeCriteria.size()) ||
 				allNodeCriteriaAreDuplicated() || returnStatementIsControlDependentOnSliceNode() || sliceContainsReturnStatement() ||
 				containsDuplicateNodeWithStateChangingMethodInvocation() ||

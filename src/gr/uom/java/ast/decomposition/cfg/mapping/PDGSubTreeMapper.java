@@ -408,10 +408,16 @@ public class PDGSubTreeMapper {
 					}
 					if(parent != null) {
 						//add previous parents under the new parent
+						PDGNodeMapping parentNodeMapping = (PDGNodeMapping) parent.getMapping();
+						double parentId1 = parentNodeMapping.getId1();
+						double parentId2 = parentNodeMapping.getId2();
 						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
 							CloneStructureNode previousParent = parentIterator.next();
-							if(controlDependenceTreePDG1.parentChildRelationship(parent.getMapping().getNodeG1(), previousParent.getMapping().getNodeG1()) &&
-									controlDependenceTreePDG2.parentChildRelationship(parent.getMapping().getNodeG2(), previousParent.getMapping().getNodeG2())) {
+							PDGNodeMapping previousParentNodeMapping = (PDGNodeMapping) previousParent.getMapping();
+							double previousParentId1 = previousParentNodeMapping.getId1();
+							double previousParentId2 = previousParentNodeMapping.getId2();
+							if(controlDependenceTreePDG1.parentChildRelationship(parentId1, previousParentId1) &&
+									controlDependenceTreePDG2.parentChildRelationship(parentId2, previousParentId2)) {
 								parent.addChild(previousParent);
 								parentIterator.remove();
 							}
@@ -430,6 +436,50 @@ public class PDGSubTreeMapper {
 							if(nodesG1.contains(nodeMapping.getNodeG1())) {
 								CloneStructureNode childNode = new CloneStructureNode(nodeMapping);
 								root.addChild(childNode);
+							}
+						}
+					}
+				}
+			}
+			Set<ControlDependenceTreeNode> elseNodesG1 = controlDependenceTreePDG1.getElseNodesInLevel(level1);
+			Set<ControlDependenceTreeNode> elseNodesG2 = controlDependenceTreePDG2.getElseNodesInLevel(level2);
+			for(ControlDependenceTreeNode elseNodeG1 : elseNodesG1) {
+				for(ControlDependenceTreeNode elseNodeG2 : elseNodesG2) {
+					CloneStructureNode newElseParent = null;
+					for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
+						CloneStructureNode previousParent = parentIterator.next();
+						PDGNodeMapping nodeMapping = (PDGNodeMapping) previousParent.getMapping();
+						double previousParentId1 = nodeMapping.getId1();
+						double previousParentId2 = nodeMapping.getId2();
+						if(controlDependenceTreePDG1.parentChildRelationship(elseNodeG1.getId(), previousParentId1) &&
+								controlDependenceTreePDG2.parentChildRelationship(elseNodeG2.getId(), previousParentId2)) {
+							if(newElseParent == null) {
+								PDGElseMapping elseMapping = new PDGElseMapping(elseNodeG1.getId(), elseNodeG2.getId());
+								newElseParent = new CloneStructureNode(elseMapping);
+							}
+							newElseParent.addChild(previousParent);
+							parentIterator.remove();
+						}
+					}
+					if(newElseParent != null) {
+						PDGElseMapping elseMapping = (PDGElseMapping) newElseParent.getMapping();
+						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
+							CloneStructureNode previousParent = parentIterator.next();
+							PDGNodeMapping nodeMapping = (PDGNodeMapping) previousParent.getMapping();
+							double previousParentId1 = nodeMapping.getId1();
+							double previousParentId2 = nodeMapping.getId2();
+							if(controlDependenceTreePDG1.ifElseRelationship(previousParentId1, elseMapping.getId1()) &&
+									controlDependenceTreePDG2.ifElseRelationship(previousParentId2, elseMapping.getId2())) {
+								//move false control dependent children to 'else' node
+								for(Iterator<CloneStructureNode> childIterator = previousParent.getChildren().iterator(); childIterator.hasNext();) {
+									CloneStructureNode child = childIterator.next();
+									PDGNodeMapping childNodeMapping = (PDGNodeMapping) child.getMapping();
+									if(childNodeMapping.isFalseControlDependent()) {
+										newElseParent.addChild(child);
+										childIterator.remove();
+									}
+								}
+								previousParent.addChild(newElseParent);
 							}
 						}
 					}

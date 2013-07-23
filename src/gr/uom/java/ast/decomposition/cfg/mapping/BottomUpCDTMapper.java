@@ -4,6 +4,7 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -127,53 +128,107 @@ public class BottomUpCDTMapper {
 
 	private void findBottomUpMatches(ControlDependenceTreeNodeMatchPair matchPair, Set<ControlDependenceTreeNodeMatchPair> matches) {
 		ControlDependenceTreeNode treeNode = matchPair.getNode1();
-		List<ControlDependenceTreeNode> treeSiblings = treeNode.getSiblings();
 		ControlDependenceTreeNode searchNode = matchPair.getNode2();
-		List<ControlDependenceTreeNode> searchSiblings = searchNode.getSiblings();	
-		
-		matches.add(matchPair);
-		for(ControlDependenceTreeNode treeSibling : treeSiblings) {
-			for(ControlDependenceTreeNode searchSibling : searchSiblings) {
-				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-				boolean match;
-				if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
-					match = false;
-				else if(treeSibling.isElseNode() && searchSibling.isElseNode())
-					match = treeSibling.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getIfParent().getNode().getASTStatement());
-				else
-					match = treeSibling.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getNode().getASTStatement());
-				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
-						!alreadyMapped(matches, treeSibling, searchSibling)) {
-					ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
-					TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
-					List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
-					if(completeSubTrees.size() == 1) {
-						CompleteSubTreeMatch subTree = completeSubTrees.get(0);
-						if(subTree.getMatchPairs().contains(siblingMatchPair))
-							matches.addAll(subTree.getMatchPairs());
+		boolean proceed = true;
+		if(matchPair.ifStatementInsideElseIfChain()) {
+			List<ControlDependenceTreeNode> treeIfParents = treeNode.getIfParents();
+			List<ControlDependenceTreeNode> treeElseIfChildren = treeNode.getElseIfChildren();
+			List<ControlDependenceTreeNode> treeChain = new ArrayList<ControlDependenceTreeNode>();
+			treeChain.addAll(treeIfParents);
+			treeChain.addAll(treeElseIfChildren);
+			
+			List<ControlDependenceTreeNode> searchIfParents = searchNode.getIfParents();
+			List<ControlDependenceTreeNode> searchElseIfChildren = searchNode.getElseIfChildren();
+			List<ControlDependenceTreeNode> searchChain = new ArrayList<ControlDependenceTreeNode>();
+			searchChain.addAll(searchIfParents);
+			searchChain.addAll(searchElseIfChildren);
+			
+			Set<ControlDependenceTreeNodeMatchPair> elseIfChainMatchedSiblings = new LinkedHashSet<ControlDependenceTreeNodeMatchPair>();
+			Set<ControlDependenceTreeNodeMatchPair> elseIfChainTopDownMatches = new TreeSet<ControlDependenceTreeNodeMatchPair>();
+			for(ControlDependenceTreeNode treeSibling : treeChain) {
+				for(ControlDependenceTreeNode searchSibling : searchChain) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match;
+					if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
+						match = false;
+					else if(treeSibling.isElseNode() && searchSibling.isElseNode())
+						match = treeSibling.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getIfParent().getNode().getASTStatement());
+					else
+						match = treeSibling.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getNode().getASTStatement());
+					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
+							!alreadyMapped(matches, treeSibling, searchSibling) && !alreadyMapped(elseIfChainTopDownMatches, treeSibling, searchSibling)) {
+						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
+						TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
+						List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
+						if(completeSubTrees.size() == 1) {
+							CompleteSubTreeMatch subTree = completeSubTrees.get(0);
+							if(subTree.getMatchPairs().contains(siblingMatchPair)) {
+								elseIfChainMatchedSiblings.add(siblingMatchPair);
+								elseIfChainTopDownMatches.addAll(subTree.getMatchPairs());
+							}
+						}
+						//apply first-match approach
+						break;
 					}
-					//apply first-match approach
-					break;
 				}
+			}
+			if(matchPair.getLengthOfElseIfChain() == elseIfChainMatchedSiblings.size()) {
+				matches.add(matchPair);
+				matches.addAll(elseIfChainTopDownMatches);
+			}
+			else {
+				proceed = false;
 			}
 		}
 		
-		ControlDependenceTreeNode treeParent = treeNode.getParent();
-		ControlDependenceTreeNode searchParent = searchNode.getParent();
-		if(treeParent != null && searchParent != null) {
-			ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-			boolean match;
-			if(treeParent.getNode() instanceof PDGMethodEntryNode || searchParent.getNode() instanceof PDGMethodEntryNode)
-				match = false;
-			else if((treeParent.isElseNode() && !searchParent.isElseNode()) || (!treeParent.isElseNode() && searchParent.isElseNode()))
-				match = false;
-			else if(treeParent.isElseNode() && searchParent.isElseNode())
-				match = treeParent.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getIfParent().getNode().getASTStatement());
-			else
-				match = treeParent.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getNode().getASTStatement());
-			if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeParent, searchParent)) {
-				ControlDependenceTreeNodeMatchPair newMatchPair = new ControlDependenceTreeNodeMatchPair(treeParent, searchParent);
-				findBottomUpMatches(newMatchPair, matches);
+		if(proceed) {
+			if(!matchPair.ifStatementInsideElseIfChain())
+				matches.add(matchPair);
+			List<ControlDependenceTreeNode> treeSiblings = treeNode.getSiblings();
+			List<ControlDependenceTreeNode> searchSiblings = searchNode.getSiblings();
+			for(ControlDependenceTreeNode treeSibling : treeSiblings) {
+				for(ControlDependenceTreeNode searchSibling : searchSiblings) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match;
+					if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
+						match = false;
+					else if(treeSibling.isElseNode() && searchSibling.isElseNode())
+						match = treeSibling.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getIfParent().getNode().getASTStatement());
+					else
+						match = treeSibling.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getNode().getASTStatement());
+					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
+							!alreadyMapped(matches, treeSibling, searchSibling)) {
+						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
+						TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
+						List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
+						if(completeSubTrees.size() == 1) {
+							CompleteSubTreeMatch subTree = completeSubTrees.get(0);
+							if(subTree.getMatchPairs().contains(siblingMatchPair)) {
+								matches.addAll(subTree.getMatchPairs());
+							}
+						}
+						//apply first-match approach
+						break;
+					}
+				}
+			}
+			ControlDependenceTreeNode treeParent = treeNode.getParent();
+			ControlDependenceTreeNode searchParent = searchNode.getParent();
+			if(treeParent != null && searchParent != null) {
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+				boolean match;
+				if(treeParent.getNode() instanceof PDGMethodEntryNode || searchParent.getNode() instanceof PDGMethodEntryNode)
+					match = false;
+				else if((treeParent.isElseNode() && !searchParent.isElseNode()) || (!treeParent.isElseNode() && searchParent.isElseNode()))
+					match = false;
+				else if(treeParent.isElseNode() && searchParent.isElseNode())
+					match = treeParent.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getIfParent().getNode().getASTStatement());
+				else
+					match = treeParent.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getNode().getASTStatement());
+				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeParent, searchParent)) {
+					ControlDependenceTreeNodeMatchPair newMatchPair = new ControlDependenceTreeNodeMatchPair(treeParent, searchParent);
+					findBottomUpMatches(newMatchPair, matches);
+				}
 			}
 		}
 	}

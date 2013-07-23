@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import java.util.List;
+
 public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDependenceTreeNodeMatchPair> {
 	private ControlDependenceTreeNode node1;
 	private ControlDependenceTreeNode node2;
@@ -16,6 +18,23 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 
 	public ControlDependenceTreeNode getNode2() {
 		return node2;
+	}
+
+	public boolean ifStatementInsideElseIfChain() {
+		return node1.ifStatementInsideElseIfChain() && node2.ifStatementInsideElseIfChain();
+	}
+
+	public boolean isElseIfChainSibling(ControlDependenceTreeNodeMatchPair otherPair) {
+		List<ControlDependenceTreeNode> ifParents1 = node1.getIfParents();
+		List<ControlDependenceTreeNode> ifParents2 = node2.getIfParents();
+		List<ControlDependenceTreeNode> elseIfChildren1 = node1.getElseIfChildren();
+		List<ControlDependenceTreeNode> elseIfChildren2 = node2.getElseIfChildren();
+		return (ifParents1.contains(otherPair.node1) || elseIfChildren1.contains(otherPair.node1)) &&
+				(ifParents2.contains(otherPair.node2) || elseIfChildren2.contains(otherPair.node2));
+	}
+
+	public int getLengthOfElseIfChain() {
+		return node1.getLengthOfElseIfChain();
 	}
 
 	public int hashCode() {

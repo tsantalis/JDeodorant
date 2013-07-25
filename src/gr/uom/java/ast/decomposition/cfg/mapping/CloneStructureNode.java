@@ -7,6 +7,8 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.jdt.core.dom.IfStatement;
+
 public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	private CloneStructureNode parent;
 	private NodeMapping mapping;
@@ -17,9 +19,48 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		this.children = new TreeSet<CloneStructureNode>();
 	}
 
-	private void setParent(CloneStructureNode parent) {
+	public void setParent(CloneStructureNode parent) {
 		this.parent = parent;
 		parent.children.add(this);
+	}
+
+	public boolean isElseIf() {
+		if(this.getMapping() instanceof PDGNodeMapping) {
+			PDGNodeMapping thisMapping = (PDGNodeMapping)this.getMapping();
+			PDGNodeMapping symmetrical = thisMapping.getSymmetricalIfNodePair();
+			if(symmetrical != null && symmetrical.equals(parent.getMapping()))
+				return true;
+			PDGNode childNodeG1 = thisMapping.getNodeG1();
+			PDGNode childNodeG2 = thisMapping.getNodeG2();
+			if(thisMapping.isFalseControlDependent() &&
+					(childNodeG1.getASTStatement() instanceof IfStatement && childNodeG1.getASTStatement().getParent() instanceof IfStatement) &&
+					(childNodeG2.getASTStatement() instanceof IfStatement && childNodeG2.getASTStatement().getParent() instanceof IfStatement))
+				return true;
+		}
+		else if(this.getMapping() instanceof PDGNodeGap) {
+			PDGNodeGap nodeGap = (PDGNodeGap)this.getMapping();
+			PDGNode nodeG1 = nodeGap.getNodeG1();
+			PDGNode nodeG2 = nodeGap.getNodeG2();
+			if(nodeGap.isFalseControlDependent() &&
+					((nodeG1 != null && nodeG1.getASTStatement() instanceof IfStatement && nodeG1.getASTStatement().getParent() instanceof IfStatement) ||
+					(nodeG2 != null && nodeG2.getASTStatement() instanceof IfStatement && nodeG2.getASTStatement().getParent() instanceof IfStatement)))
+				return true;
+		}
+		return false;
+	}
+
+	public CloneStructureNode findNode(PDGNode node) {
+		if(mapping != null && (node.equals(mapping.getNodeG1()) || node.equals(mapping.getNodeG2()))) {
+			return this;
+		}
+		else {
+			for(CloneStructureNode child : children) {
+				CloneStructureNode cloneStructureNode = child.findNode(node);
+				if(cloneStructureNode != null)
+					return cloneStructureNode;
+			}
+		}
+		return null;
 	}
 
 	public void addGapChild(CloneStructureNode gapNode) {

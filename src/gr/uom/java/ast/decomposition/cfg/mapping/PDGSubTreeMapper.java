@@ -95,12 +95,30 @@ public class PDGSubTreeMapper {
 		for(PDGNode nodeG1 : nonMappedNodesG1) {
 			PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null);
 			CloneStructureNode node = new CloneStructureNode(nodeGap);
-			cloneStructureRoot.addGapChild(node);
+			PDGTryNode tryNode = pdg1.isDirectlyNestedWithinTryNode(nodeG1);
+			if(tryNode != null) {
+				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNode(tryNode);
+				if(cloneStructureTry != null) {
+					node.setParent(cloneStructureTry);
+				}
+			}
+			else {
+				cloneStructureRoot.addGapChild(node);
+			}
 		}
 		for(PDGNode nodeG2 : nonMappedNodesG2) {
 			PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2);
 			CloneStructureNode node = new CloneStructureNode(nodeGap);
-			cloneStructureRoot.addGapChild(node);
+			PDGTryNode tryNode = pdg2.isDirectlyNestedWithinTryNode(nodeG2);
+			if(tryNode != null) {
+				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNode(tryNode);
+				if(cloneStructureTry != null) {
+					node.setParent(cloneStructureTry);
+				}
+			}
+			else {
+				cloneStructureRoot.addGapChild(node);
+			}
 		}
 		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);

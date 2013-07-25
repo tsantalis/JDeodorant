@@ -103,6 +103,11 @@ public class StyledStringVisitor extends ASTVisitor {
 		ordinaryStyle = initializeOrdinaryStyle();
 		differenceStyle = initializeDifferenceStyle();
 		namedConstantStyle = initializeNamedConstantStyle();
+
+		if(node.isElseIf()) {
+			styledString.append("else", new StyledStringStyler(keywordStyle));
+			appendSpace();
+		}
 		//Use the List of ASTNodeDifferences to recover actual ASTNodes and place them into a new list
 		astNodesThatAreDifferences = new ArrayList<ASTNode>();
 		generateDifferenceASTNodes(differences, position);

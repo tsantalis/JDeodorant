@@ -150,6 +150,20 @@ public class ControlDependenceTreeGenerator {
 						}
 					}
 				}
+				else {
+					//dstNode is not nested under a try node, but is nested under an else node
+					if(dstNode.getIncomingControlDependence().isFalseControlDependence()) {
+						PDGNode nodeControlParent = dstNode.getControlDependenceParent();
+						ControlDependenceTreeNode fakeElse = searchForElseNode(nodeControlParent);
+						if(fakeElse == null) {
+							fakeElse = new ControlDependenceTreeNode(cdtNode.getParent(), null);
+							fakeElse.setElseNode(true);
+							ControlDependenceTreeNode ifParent = searchForNode(nodeControlParent);
+							ifParent.setElseIfChild(fakeElse);
+							fakeElse.setIfParent(ifParent);
+						}
+					}
+				}
 			}
 		}
 	}

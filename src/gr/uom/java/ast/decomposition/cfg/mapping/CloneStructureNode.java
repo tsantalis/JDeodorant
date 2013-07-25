@@ -1,17 +1,11 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
-import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
-
-import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.IfStatement;
-import org.eclipse.jdt.core.dom.Statement;
 
 public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	private CloneStructureNode parent;
@@ -23,75 +17,9 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		this.children = new TreeSet<CloneStructureNode>();
 	}
 
-	public CloneStructureNode(CloneStructureNode parent, NodeMapping mapping) {
-		this.parent = parent;
-		this.mapping = mapping;
-		this.children = new TreeSet<CloneStructureNode>();
-	}
-
 	private void setParent(CloneStructureNode parent) {
 		this.parent = parent;
 		parent.children.add(this);
-	}
-
-	public boolean isNestedUnderElse() {
-		if(this.getMapping() instanceof PDGNodeMapping) {
-			PDGNodeMapping thisMapping = (PDGNodeMapping)this.getMapping();
-			PDGNodeMapping symmetrical = thisMapping.getSymmetricalIfNodePair();
-			if(symmetrical != null && symmetrical.equals(parent.getMapping()))
-				return true;
-			PDGNode childNodeG1 = thisMapping.getNodeG1();
-			PDGNode childNodeG2 = thisMapping.getNodeG2();
-			if(childNodeG1 instanceof PDGTryNode && childNodeG2 instanceof PDGTryNode) {
-				return isNestedUnderElse((PDGTryNode)childNodeG1) && isNestedUnderElse((PDGTryNode)childNodeG2);
-			}
-			else {
-				PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-				PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-				return controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence();
-			}
-		}
-		else {
-			PDGNode childNodeG1 = this.getMapping().getNodeG1();
-			PDGNode childNodeG2 = this.getMapping().getNodeG2();
-			if(childNodeG1 != null) {
-				if(childNodeG1 instanceof PDGTryNode) {
-					return isNestedUnderElse((PDGTryNode)childNodeG1);
-				}
-				else {
-					PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-					return controlDependence1.isFalseControlDependence();
-				}
-			}
-			if(childNodeG2 != null) {
-				if(childNodeG2 instanceof PDGTryNode) {
-					return isNestedUnderElse((PDGTryNode)childNodeG2);
-				}
-				else {
-					PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-					return controlDependence2.isFalseControlDependence();
-				}
-			}
-			return false;
-		}
-	}
-
-	private boolean isNestedUnderElse(PDGTryNode tryNode) {
-		Statement statement = tryNode.getASTStatement();
-		if(statement.getParent() instanceof Block) {
-			Block block = (Block)statement.getParent();
-			if(block.getParent() instanceof IfStatement) {
-				IfStatement ifStatement = (IfStatement)block.getParent();
-				if(ifStatement.getElseStatement() != null && ifStatement.getElseStatement().equals(block))
-					return true;
-			}
-		}
-		else if(statement.getParent() instanceof IfStatement) {
-			IfStatement ifStatement = (IfStatement)statement.getParent();
-			if(ifStatement.getElseStatement() != null && ifStatement.getElseStatement().equals(statement))
-				return true;
-		}
-		return false;
 	}
 
 	public void addGapChild(CloneStructureNode gapNode) {
@@ -111,7 +39,18 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			}
 		}
 		if(controlParent != null) {
-			gapNode.setParent(controlParent);
+			if(gap.isFalseControlDependent()) {
+				//find the else node
+				for(CloneStructureNode child : controlParent.children) {
+					if(child.getMapping() instanceof PDGElseMapping) {
+						gapNode.setParent(child);
+						break;
+					}
+				}
+			}
+			else {
+				gapNode.setParent(controlParent);
+			}
 		}
 		else {
 			gapNode.setParent(this);

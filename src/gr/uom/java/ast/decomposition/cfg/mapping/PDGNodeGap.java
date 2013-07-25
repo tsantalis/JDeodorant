@@ -3,18 +3,71 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.Statement;
+
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 
 public class PDGNodeGap extends NodeMapping {
+	private PDGNode nodeG1;
+	private PDGNode nodeG2;
 	private volatile int hashCode = 0;
 	
 	public PDGNodeGap(PDGNode nodeG1, PDGNode nodeG2) {
-		super(nodeG1, nodeG2);
+		this.nodeG1 = nodeG1;
+		this.nodeG2 = nodeG2;
+	}
+	
+	public PDGNode getNodeG1() {
+		return nodeG1;
+	}
+
+	public PDGNode getNodeG2() {
+		return nodeG2;
 	}
 
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return new ArrayList<ASTNodeDifference>();
+	}
+
+	public boolean isFalseControlDependent() {
+		if(nodeG1 != null) {
+			PDGControlDependence controlDependence1 = nodeG1.getIncomingControlDependence();
+			if(controlDependence1 != null)
+				return controlDependence1.isFalseControlDependence();
+			if(nodeG1 instanceof PDGTryNode)
+				return isNestedUnderElse((PDGTryNode)nodeG1);
+		}
+		if(nodeG2 != null) {
+			PDGControlDependence controlDependence2 = nodeG2.getIncomingControlDependence();
+			if(controlDependence2 != null)
+				return controlDependence2.isFalseControlDependence();
+			if(nodeG2 instanceof PDGTryNode)
+				return isNestedUnderElse((PDGTryNode)nodeG2);
+		}
+		return false;
+	}
+
+	private boolean isNestedUnderElse(PDGTryNode tryNode) {
+		Statement statement = tryNode.getASTStatement();
+		if(statement.getParent() instanceof Block) {
+			Block block = (Block)statement.getParent();
+			if(block.getParent() instanceof IfStatement) {
+				IfStatement ifStatement = (IfStatement)block.getParent();
+				if(ifStatement.getElseStatement() != null && ifStatement.getElseStatement().equals(block))
+					return true;
+			}
+		}
+		else if(statement.getParent() instanceof IfStatement) {
+			IfStatement ifStatement = (IfStatement)statement.getParent();
+			if(ifStatement.getElseStatement() != null && ifStatement.getElseStatement().equals(statement))
+				return true;
+		}
+		return false;
 	}
 
 	public boolean equals(Object o) {

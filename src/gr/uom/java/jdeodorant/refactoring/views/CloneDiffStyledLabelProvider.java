@@ -1,13 +1,20 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jface.viewers.StyledCellLabelProvider;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.jface.viewers.ViewerCell;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.RGB;
+import org.eclipse.swt.graphics.TextStyle;
 
 public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 	
@@ -36,6 +43,9 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 					astStatement.accept(leafVisitor);
 					styledString = leafVisitor.getStyledString();
 				}
+				else if(theNode.getMapping() instanceof PDGElseMapping) {
+					styledString.append("else", new StyledStringStyler(StyledStringVisitor.initializeKeywordStyle()));
+				}
 			}
 			else if (position == CloneDiffSide.RIGHT) {
 				if(theNode.getMapping().getNodeG2() != null) {
@@ -43,6 +53,9 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 					astStatement = theNode.getMapping().getNodeG2().getASTStatement();
 					astStatement.accept(leafVisitor);
 					styledString = leafVisitor.getStyledString();
+				}
+				else if(theNode.getMapping() instanceof PDGElseMapping) {
+					styledString.append("else", new StyledStringStyler(StyledStringVisitor.initializeKeywordStyle()));
 				}
 			}
 		}

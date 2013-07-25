@@ -1,30 +1,26 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PDGElseMapping extends NodeMapping {
-	private double id1;
-	private double id2;
+public class PDGElseMapping extends IdBasedMapping {
 	private volatile int hashCode = 0;
 	
 	public PDGElseMapping(double id1, double id2) {
-		super(null, null);
-		this.id1 = id1;
-		this.id2 = id2;
+		super(id1, id2);
+	}
+	
+	public PDGNode getNodeG1() {
+		return null;
 	}
 
-	public double getId1() {
-		return id1;
+	public PDGNode getNodeG2() {
+		return null;
 	}
 
-	public double getId2() {
-		return id2;
-	}
-
-	@Override
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return new ArrayList<ASTNodeDifference>();
 	}
@@ -57,9 +53,5 @@ public class PDGElseMapping extends NodeMapping {
 		sb.append(id1 + "\telse\n");
 		sb.append(id2 + "\telse\n");
 		return sb.toString();
-	}
-
-	public int compareTo(PDGElseMapping other) {
-		return Double.compare(this.id1, other.id1);
 	}
 }

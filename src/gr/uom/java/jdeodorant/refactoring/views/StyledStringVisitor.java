@@ -103,11 +103,6 @@ public class StyledStringVisitor extends ASTVisitor {
 		ordinaryStyle = initializeOrdinaryStyle();
 		differenceStyle = initializeDifferenceStyle();
 		namedConstantStyle = initializeNamedConstantStyle();
-
-		if(node.isNestedUnderElse()) {
-			styledString.append("else", new StyledStringStyler(keywordStyle));
-			appendSpace();
-		}
 		//Use the List of ASTNodeDifferences to recover actual ASTNodes and place them into a new list
 		astNodesThatAreDifferences = new ArrayList<ASTNode>();
 		generateDifferenceASTNodes(differences, position);
@@ -1126,45 +1121,45 @@ public class StyledStringVisitor extends ASTVisitor {
 	/*
 	//TextStyle Experiment
 	 */
-	private TextStyle initializeKeywordStyle() {
+	public static TextStyle initializeKeywordStyle() {
 		TextStyle keywordStyle = new TextStyle();
 		keywordStyle.font = initializeBoldFont();
 		keywordStyle.foreground = new Color(null, new RGB(127, 0, 85));
 		return keywordStyle;
 	}
-	private TextStyle initializeNamedConstantStyle() {
+	private static TextStyle initializeNamedConstantStyle() {
 		TextStyle namedConstantStyle = new TextStyle();
 		namedConstantStyle.font = initializeItalicFont();
 		namedConstantStyle.foreground = new Color(null, new RGB(0, 0, 192));
 		return namedConstantStyle;
 	}
-	private TextStyle initializeStringStyle() {
+	private static TextStyle initializeStringStyle() {
 		TextStyle stringStyle = new TextStyle();
 		stringStyle.font = initializeFont();
 		stringStyle.foreground = new Color(null, new RGB(112, 0, 255));
 		return stringStyle;
 	}
-	private TextStyle initializeOrdinaryStyle() {
+	private static TextStyle initializeOrdinaryStyle() {
 		TextStyle ordinaryStyle = new TextStyle();
 		ordinaryStyle.font = initializeFont();
 		//ordinaryStyle.foreground = new Color(null, new RGB(0, 0, 0));
 		return ordinaryStyle;
 	}
-	private TextStyle initializeDifferenceStyle() {
+	private static TextStyle initializeDifferenceStyle() {
 		TextStyle differenceStyle = new TextStyle();
 		differenceStyle.font = null; //Difference style is appended to styles with an already existing font. A null font prevents the old font from being overwritten.
 		differenceStyle.background = new Color(null, new RGB(255, 255, 200));
 		return differenceStyle;
 	}
-	private Font initializeFont(){
+	private static Font initializeFont(){
 		//TODO Choose the font based on the user's Eclipse preferences
 		return new Font(null, new FontData("consolas", 10, SWT.NORMAL));
 	}
-	private Font initializeBoldFont(){
+	private static Font initializeBoldFont(){
 		//TODO Choose the font based on the user's Eclipse preferences
 		return new Font(null, new FontData("consolas", 10, SWT.BOLD));
 	}
-	private Font initializeItalicFont(){
+	private static Font initializeItalicFont(){
 		//TODO Choose the font based on the user's Eclipse preferences
 		return new Font(null, new FontData("consolas", 10, SWT.ITALIC));
 	}

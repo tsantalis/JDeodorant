@@ -12,6 +12,10 @@ import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.jface.viewers.ViewerCell;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.events.ControlAdapter;
+import org.eclipse.swt.events.ControlEvent;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
@@ -23,6 +27,8 @@ import org.eclipse.swt.widgets.TableItem;
 
 public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 
+	private Table table;
+	
 	public CloneDiffTooltip(ColumnViewer viewer, int style,
 			boolean manualActivation) {
 		super(viewer, style, manualActivation);
@@ -64,7 +70,7 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		styledText1.setLayoutData(gridData);
 		styledText2.setLayoutData(gridData);
 		
-		Table table = new Table (comp, SWT.MULTI | SWT.BORDER | SWT.FULL_SELECTION);
+		table = new Table (comp, SWT.MULTI | SWT.BORDER | SWT.FULL_SELECTION);
 		table.setLinesVisible (true);
 		table.setHeaderVisible (true);
 		GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
@@ -77,6 +83,12 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 			column.setText (titles [i]);
 			column.pack();
 		}	
+		//Eliminates extra column at the end
+		table.addControlListener(new ControlAdapter() {
+			public void controlResized(ControlEvent e){
+				packAndFillLastColumn();
+			}
+		});
 		
 		for (ASTNodeDifference nodeDifference : differences) {
 			for (Difference diff : nodeDifference.getDifferences()) {
@@ -92,6 +104,33 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		}	
 		
 		return comp;
+	}
+	
+	// Resize last column in Table viewer so that it fills the client area completely if extra space.
+	protected void packAndFillLastColumn() {
+	    int columnsWidth = 0;
+	    for (int i = 0; i < table.getColumnCount() - 1; i++) {
+	        columnsWidth += table.getColumn(i).getWidth();
+	    }
+	    TableColumn lastColumn = table.getColumn(table.getColumnCount() - 1);
+	    lastColumn.pack();
+
+	    Rectangle area = table.getClientArea();
+
+	    Point preferredSize = table.computeSize(SWT.DEFAULT, SWT.DEFAULT);
+	    int width = area.width - 2*table.getBorderWidth();
+
+	    if (preferredSize.y > area.height + table.getHeaderHeight()) {
+	        // Subtract the scrollbar width from the total column width
+	        // if a vertical scrollbar will be required
+	        Point vBarSize = table.getVerticalBar().getSize();
+	        width -= vBarSize.x;
+	    }
+
+	    // last column is packed, so that is the minimum. If more space is available, add it.
+	    if(lastColumn.getWidth() < width - columnsWidth) {
+	        lastColumn.setWidth(width - columnsWidth + 4);
+	    }
 	}
 
 	public boolean isHideOnMouseDown() {

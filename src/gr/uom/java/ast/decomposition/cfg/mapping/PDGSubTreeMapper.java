@@ -10,8 +10,10 @@ import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
+import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
@@ -90,8 +92,8 @@ public class PDGSubTreeMapper {
 		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
 		this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
 		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
-		findNonMappedNodes(allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
-		findNonMappedNodes(allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
+		findNonMappedNodes(pdg1, allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
+		findNonMappedNodes(pdg2, allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
 		for(PDGNode nodeG1 : nonMappedNodesG1) {
 			PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null);
 			CloneStructureNode node = new CloneStructureNode(nodeGap);
@@ -127,10 +129,16 @@ public class PDGSubTreeMapper {
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
 	}
 
-	private void findNonMappedNodes(Set<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
-		for(PDGNode pdgNode : allNodes) {
-			if(!mappedNodes.contains(pdgNode)) {
-				nonMappedNodes.add(pdgNode);
+	private void findNonMappedNodes(PDG pdg, TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
+		PDGNode first = allNodes.first();
+		PDGNode last = allNodes.last();
+		Iterator<GraphNode> iterator = pdg.getNodeIterator();
+		while(iterator.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator.next();
+			if(pdgNode.getId() >= first.getId() && pdgNode.getId() <= last.getId()) {
+				if(!mappedNodes.contains(pdgNode)) {
+					nonMappedNodes.add(pdgNode);
+				}
 			}
 		}
 	}
@@ -308,8 +316,10 @@ public class PDGSubTreeMapper {
 		if(controlPredicate instanceof PDGTryNode) {
 			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinTryNode((PDGTryNode)controlPredicate);
 			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
-				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode))
-					nodesInRegion.add(nestedNode);
+				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode)) {
+					if(!(nestedNode instanceof PDGControlPredicateNode))
+						nodesInRegion.add(nestedNode);
+				}
 			}
 		}
 		else {
@@ -319,8 +329,10 @@ public class PDGSubTreeMapper {
 				if(dependence instanceof PDGControlDependence) {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
 					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(pdgNode);
-					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null)
-						nodesInRegion.add(pdgNode);
+					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
+						if(!(pdgNode instanceof PDGControlPredicateNode))
+							nodesInRegion.add(pdgNode);
+					}
 				}
 			}
 		}
@@ -421,7 +433,10 @@ public class PDGSubTreeMapper {
 							parent = new CloneStructureNode(mapping);
 						}
 						else {
-							if(mapping.isFalseControlDependent()) {
+							PDGTryNode nestedUnderTry1 = pdg1.isDirectlyNestedWithinTryNode(mapping.getNodeG1());
+							PDGTryNode nestedUnderTry2 = pdg2.isDirectlyNestedWithinTryNode(mapping.getNodeG2());
+							boolean nestedUnderTry = nestedUnderTry1 != null && nestedUnderTry2 != null;
+							if(mapping.isFalseControlDependent() && !nestedUnderTry) {
 								if(newElseParent == null) {
 									ControlDependenceTreeNode elseNodeG1 = controlDependenceTreePDG1.getElseNode(parent.getMapping().getNodeG1());
 									ControlDependenceTreeNode elseNodeG2 = controlDependenceTreePDG2.getElseNode(parent.getMapping().getNodeG2());
@@ -449,7 +464,6 @@ public class PDGSubTreeMapper {
 						PDGNodeMapping parentNodeMapping = (PDGNodeMapping) parent.getMapping();
 						double parentId1 = parentNodeMapping.getId1();
 						double parentId2 = parentNodeMapping.getId2();
-						CloneStructureNode newElseParent2 = null;
 						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
 							CloneStructureNode previousParent = parentIterator.next();
 							PDGNodeMapping previousParentNodeMapping = (PDGNodeMapping) previousParent.getMapping();
@@ -461,31 +475,38 @@ public class PDGSubTreeMapper {
 								parentIterator.remove();
 							}
 							else if(previousParentNodeMapping.isFalseControlDependent()) {
-								if(newElseParent2 == null) {
+								if(newElseParent == null) {
 									ControlDependenceTreeNode elseNodeG1 = controlDependenceTreePDG1.getElseNode(parentNodeMapping.getNodeG1());
 									ControlDependenceTreeNode elseNodeG2 = controlDependenceTreePDG2.getElseNode(parentNodeMapping.getNodeG2());
 									if(elseNodeG1 != null && elseNodeG2 != null) {
 										if(controlDependenceTreePDG1.parentChildRelationship(elseNodeG1.getId(), previousParentId1) &&
 												controlDependenceTreePDG2.parentChildRelationship(elseNodeG2.getId(), previousParentId2)) {
 											PDGElseMapping elseMapping = new PDGElseMapping(elseNodeG1.getId(), elseNodeG2.getId());
-											newElseParent2 = new CloneStructureNode(elseMapping);
-											parent.addChild(newElseParent2);
-											newElseParent2.addChild(previousParent);
+											newElseParent = new CloneStructureNode(elseMapping);
+											parent.addChild(newElseParent);
+											newElseParent.addChild(previousParent);
 											parentIterator.remove();
 										}
 									}
 								}
 								else {
-									PDGElseMapping elseMapping = (PDGElseMapping) newElseParent2.getMapping();
+									PDGElseMapping elseMapping = (PDGElseMapping) newElseParent.getMapping();
 									if(controlDependenceTreePDG1.parentChildRelationship(elseMapping.getId1(), previousParentId1) &&
 											controlDependenceTreePDG2.parentChildRelationship(elseMapping.getId2(), previousParentId2)) {
-										newElseParent2.addChild(previousParent);
+										newElseParent.addChild(previousParent);
 										parentIterator.remove();
 									}
 								}
 							}
 						}
-						parents.add(parent);
+						//parents.add(parent);
+						if(!parent.getChildren().isEmpty()) {
+							parents.add(parent);
+						}
+						else {
+							//remove parent mapping from the current state, if no children have been mapped
+							finalState.getNodeMappings().remove(parent.getMapping());
+						}
 					}
 					else {
 						//create the root node of the clone structure

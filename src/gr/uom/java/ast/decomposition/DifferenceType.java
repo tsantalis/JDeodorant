@@ -12,7 +12,8 @@ public enum DifferenceType {
 	TYPE_COMPATIBLE_REPLACEMENT,
 	MISSING_METHOD_INVOCATION_EXPRESSION,
 	OPERATOR_MISMATCH,
-	INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH;
+	INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH,
+	FIELD_ASSIGNMENT_REPLACED_WITH_SETTER;
 
 	public String toString(){
 		if (name().equals(AST_TYPE_MISMATCH.name())){
@@ -50,6 +51,9 @@ public enum DifferenceType {
 		}
 		else if (name().equals(INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH.name())){
 			return "The infix expressions have a different number of operands";
+		}
+		else if (name().equals(FIELD_ASSIGNMENT_REPLACED_WITH_SETTER.name())){
+			return "Field assignment has been replaced with a setter call";
 		}
 		return "";
 	}

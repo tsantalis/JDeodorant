@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.CastExpression;
@@ -77,11 +78,31 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean isParameterizable() {
-		for(ASTNodeDifference diff : differences) {
-			if(!diff.isParameterizable())
-				return false;
+		if(onlyVariableTypeMismatchDifferences())
+			return true;
+		else {
+			for(ASTNodeDifference diff : differences) {
+				if(!diff.isParameterizable())
+					return false;
+			}
+			return true;
 		}
-		return true;
+	}
+	
+	private boolean onlyVariableTypeMismatchDifferences() {
+		int diffCount = 0;
+		int variableTypeMismatchCount = 0;
+		for(ASTNodeDifference difference : differences) {
+			for(Difference diff : difference.getDifferences()) {
+				diffCount++;
+				if(diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
+					variableTypeMismatchCount++;
+				}
+			}
+		}
+		if(diffCount > 0 && diffCount == variableTypeMismatchCount)
+			return true;
+		return false;
 	}
 
 	private boolean isTypeHolder(Object o) {
@@ -319,6 +340,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 		astNodeDifference.addDifference(diff);
 		differences.add(astNodeDifference);
 		return false;
+	}
+
+	public boolean match(Assignment node, Object other) {
+		if(other instanceof MethodInvocation) {
+			return fieldAssignmentReplacedWithSetter(node, (MethodInvocation)other);
+		}
+		else {
+			return super.match(node, other);
+		}
 	}
 
 	public boolean match(Block node, Object other) {
@@ -1170,5 +1200,83 @@ public class ASTNodeMatcher extends ASTMatcher{
 		WhileStatement o = (WhileStatement) other;
 		return (
 				safeSubtreeMatch(node.getExpression(), o.getExpression()));
+	}
+	
+	private boolean setterReplacedWithFieldAssignment(MethodInvocation setter, Assignment assignment) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(setter);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression(assignment);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		
+		Expression leftHandSide = assignment.getLeftHandSide();
+		Expression rightHandSide = assignment.getRightHandSide();
+		String methodName = setter.getName().getIdentifier();
+		List arguments = setter.arguments();
+		if(methodName.startsWith("set") && arguments.size() == 1) {
+			String attributeName = methodName.substring(3);
+			if(leftHandSide instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
+				String fieldAccessName = fieldAccess.getName().getIdentifier();
+				boolean argumentRightHandSideMatch = safeSubtreeMatch(arguments.get(0), rightHandSide);
+				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+					return true;
+				}
+			}
+			else if(leftHandSide instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)leftHandSide;
+				String fieldAccessName = simpleName.getIdentifier();
+				boolean argumentRightHandSideMatch = safeSubtreeMatch(arguments.get(0), rightHandSide);
+				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	private boolean fieldAssignmentReplacedWithSetter(Assignment assignment, MethodInvocation setter) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(assignment);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression(setter);
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		
+		Expression leftHandSide = assignment.getLeftHandSide();
+		Expression rightHandSide = assignment.getRightHandSide();
+		String methodName = setter.getName().getIdentifier();
+		List arguments = setter.arguments();
+		if(methodName.startsWith("set") && arguments.size() == 1) {
+			String attributeName = methodName.substring(3);
+			if(leftHandSide instanceof FieldAccess) {
+				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
+				String fieldAccessName = fieldAccess.getName().getIdentifier();
+				boolean argumentRightHandSideMatch = safeSubtreeMatch(rightHandSide, arguments.get(0));
+				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+					return true;
+				}
+			}
+			else if(leftHandSide instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)leftHandSide;
+				String fieldAccessName = simpleName.getIdentifier();
+				boolean argumentRightHandSideMatch = safeSubtreeMatch(rightHandSide, arguments.get(0));
+				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
+					astNodeDifference.addDifference(diff);
+					differences.add(astNodeDifference);
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }

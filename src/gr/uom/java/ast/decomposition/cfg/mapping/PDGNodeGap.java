@@ -93,6 +93,19 @@ public class PDGNodeGap extends NodeMapping {
 		return hashCode;
 	}
 
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		if(nodeG1 != null)
+			sb.append(nodeG1);
+		else
+			sb.append("\n");
+		if(nodeG2 != null)
+			sb.append(nodeG2);
+		else
+			sb.append("\n");
+		return sb.toString();
+	}
+
 	public int compareTo(PDGNodeGap other) {
 		if(this.nodeG1 != null && other.nodeG1 != null)
 			return Integer.compare(this.nodeG1.getId(), other.nodeG1.getId());
@@ -108,8 +121,8 @@ public class PDGNodeGap extends NodeMapping {
 				return Integer.compare(id1, id2);
 		}
 		if(other.nodeG1 != null && this.nodeG2 != null) {
-			int id1 = other.nodeG1.getId();
-			int id2 = this.nodeG2.getId();
+			int id2 = other.nodeG1.getId();
+			int id1 = this.nodeG2.getId();
 			if(id1 == id2)
 				return -1;
 			else

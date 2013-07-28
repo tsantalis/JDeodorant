@@ -221,6 +221,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		 * assert Expression [ : Expression ] ;
 		 */
 		styledString.append("assert", new StyledStringStyler(keywordStyle));
+		appendSpace();
 		handleExpression((Expression) stmnt.getExpression());
 		if (stmnt.getMessage() != null) {
 			appendSpace();
@@ -381,6 +382,7 @@ public class StyledStringVisitor extends ASTVisitor {
                         Statement
 		 */
 		styledString.append("for", new StyledStringStyler(keywordStyle));
+		appendSpace();
 		appendOpenParenthesis();
 		// Handle Initializers
 		for (int i = 0; i < stmnt.initializers().size(); i++) {
@@ -413,9 +415,10 @@ public class StyledStringVisitor extends ASTVisitor {
 		 * if ( Expression ) Statement [ else Statement]
 		 */
 		styledString.append("if", new StyledStringStyler(keywordStyle));
-		styledString.append(" (", new StyledStringStyler(ordinaryStyle));
+		appendSpace();
+		appendOpenParenthesis();
 		handleExpression((Expression) stmnt.getExpression());
-		styledString.append(")", new StyledStringStyler(ordinaryStyle));
+		appendClosedParenthesis();
 		// append ")"
 		return false;
 	}
@@ -705,6 +708,7 @@ public class StyledStringVisitor extends ASTVisitor {
                         { { SwitchCase | Statement } } }
 		 */
 		styledString.append("switch", new StyledStringStyler(keywordStyle));
+		appendSpace();
 		appendOpenParenthesis();
 		handleExpression((Expression) stmnt.getExpression());
 		appendClosedParenthesis();
@@ -715,6 +719,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		 * synchronized ( Expression ) Block
 		 */
 		styledString.append("synchronized", new StyledStringStyler(keywordStyle));
+		appendSpace();
 		appendOpenParenthesis();
 		handleExpression((Expression) stmnt.getExpression());
 		appendClosedParenthesis();
@@ -848,6 +853,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		 * while ( Expression ) Statement
 		 */
 		styledString.append("while", new StyledStringStyler(keywordStyle));
+		appendSpace();
 		appendOpenParenthesis();
 		handleExpression((Expression) stmnt.getExpression());
 		appendClosedParenthesis();

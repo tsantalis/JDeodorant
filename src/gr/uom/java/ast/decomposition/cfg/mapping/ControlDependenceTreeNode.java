@@ -120,6 +120,8 @@ public class ControlDependenceTreeNode {
 		Set<PDGNode> predicateNodes = new LinkedHashSet<PDGNode>();
 		for(ControlDependenceTreeNode levelNode : levelNodes) {
 			PDGNode pdgNode = levelNode.node;
+			if(levelNode.isElseNode)
+				pdgNode = levelNode.ifParent.node;
 			if(pdgNode != null)
 				predicateNodes.add(pdgNode);
 		}

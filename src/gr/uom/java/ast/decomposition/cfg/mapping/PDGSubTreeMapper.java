@@ -382,6 +382,12 @@ public class PDGSubTreeMapper {
 						if(nodeG1.getId() > maxId) {
 							nodesG1ToBeRemoved.add(nodeG1);
 						}
+						if(controlDependenceTreePDG1.isElseNode()) {
+							double elseNodeId = controlDependenceTreePDG1.getId();
+							if(nodeG1.getId() < elseNodeId) {
+								nodesG1ToBeRemoved.add(nodeG1);
+							}
+						}
 					}
 					nodesG1.removeAll(nodesG1ToBeRemoved);
 				}
@@ -395,6 +401,12 @@ public class PDGSubTreeMapper {
 						for(PDGNode nodeG2 : nodesG2) {
 							if(nodeG2.getId() > maxId) {
 								nodesG2ToBeRemoved.add(nodeG2);
+							}
+							if(controlDependenceTreePDG2.isElseNode()) {
+								double elseNodeId = controlDependenceTreePDG2.getId();
+								if(nodeG2.getId() < elseNodeId) {
+									nodesG2ToBeRemoved.add(nodeG2);
+								}
 							}
 						}
 						nodesG2.removeAll(nodesG2ToBeRemoved);

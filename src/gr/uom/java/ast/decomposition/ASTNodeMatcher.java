@@ -344,11 +344,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 
 	public boolean match(Assignment node, Object other) {
 		if(other instanceof MethodInvocation) {
-			return fieldAssignmentReplacedWithSetter(node, (MethodInvocation)other);
+			if(fieldAssignmentReplacedWithSetter(node, (MethodInvocation)other))
+				return true;
 		}
-		else {
-			return super.match(node, other);
-		}
+		return super.match(node, other);
 	}
 
 	public boolean match(Block node, Object other) {
@@ -693,6 +692,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
 		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
 			return super.match(node, other);
+		}
+		if(other instanceof Assignment) {
+			if(setterReplacedWithFieldAssignment(node, (Assignment)other)) {
+				return true;
+			}
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {

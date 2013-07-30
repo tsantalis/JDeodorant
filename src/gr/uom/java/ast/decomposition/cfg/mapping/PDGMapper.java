@@ -7,6 +7,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
+import gr.uom.java.ast.decomposition.NodePairComparisonCache;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 
 public class PDGMapper {
@@ -40,6 +41,7 @@ public class PDGMapper {
 				subTreeMappers.add(mapper);
 			}
 		}
+		NodePairComparisonCache.getInstance().clearCache();
 	}
 
 	private ControlDependenceTreeNode generateControlDependenceSubTree(ControlDependenceTreeNode completeTreeRoot, List<ControlDependenceTreeNode> subTreeNodes) {

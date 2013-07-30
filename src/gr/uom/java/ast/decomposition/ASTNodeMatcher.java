@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -55,6 +56,21 @@ public class ASTNodeMatcher extends ASTMatcher{
 	public ASTNodeMatcher(ITypeRoot root1, ITypeRoot root2) {
 		this.typeRoot1 = root1;
 		this.typeRoot2 = root2;
+	}
+
+	public boolean match(PDGNode nodeG1, PDGNode nodeG2) {
+		NodePair pair = new NodePair(nodeG1.getId(), nodeG2.getId());
+		NodePairComparisonCache cache = NodePairComparisonCache.getInstance();
+		if(cache.containsNodePair(pair)) {
+			this.differences.addAll(cache.getDifferencesForNodePair(pair));
+			return cache.getMatchForNodePair(pair);
+		}
+		else {
+			boolean match = nodeG1.getASTStatement().subtreeMatch(this, nodeG2.getASTStatement());
+			cache.addDifferencesForNodePair(pair, this.differences);
+			cache.addMatchForNodePair(pair, match);
+			return match;
+		}
 	}
 
 	public List<ASTNodeDifference> getDifferences() {

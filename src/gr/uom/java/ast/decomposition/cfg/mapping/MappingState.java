@@ -249,7 +249,7 @@ public class MappingState {
 							if(dstNodeG1 instanceof PDGMethodEntryNode || dstNodeG2 instanceof PDGMethodEntryNode)
 								match = false;
 							else 
-								match = dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
+								match = astNodeMatcher.match(dstNodeG1, dstNodeG2);
 							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) || symmetricalIfNodes)) {
 								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 								if(symmetricalIfNodes) {

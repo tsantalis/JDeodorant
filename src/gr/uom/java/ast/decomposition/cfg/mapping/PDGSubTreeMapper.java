@@ -634,7 +634,7 @@ public class PDGSubTreeMapper {
 			List<MappingState> currentStates = new ArrayList<MappingState>();
 			for(PDGNode node2 : nodesG2) {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-				boolean match = node1.getASTStatement().subtreeMatch(astNodeMatcher, node2.getASTStatement());
+				boolean match = astNodeMatcher.match(node1, node2);
 				if(match && astNodeMatcher.isParameterizable()) {
 					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 					PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
@@ -684,7 +684,7 @@ public class PDGSubTreeMapper {
 			if((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
 					(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-				dstNodeG1.getASTStatement().subtreeMatch(astNodeMatcher, dstNodeG2.getASTStatement());
+				astNodeMatcher.match(dstNodeG1, dstNodeG2);
 				return new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 			}
 		}

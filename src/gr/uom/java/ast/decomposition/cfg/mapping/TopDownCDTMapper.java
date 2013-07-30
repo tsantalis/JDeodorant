@@ -31,9 +31,9 @@ public class TopDownCDTMapper {
 			if((root1.isElseNode() && !root2.isElseNode()) || (!root1.isElseNode() && root2.isElseNode()))
 				match = false;
 			else if(root1.isElseNode() && root2.isElseNode())
-				match = root1.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, root2.getIfParent().getNode().getASTStatement());
+				match = astNodeMatcher.match(root1.getIfParent().getNode(), root2.getIfParent().getNode());
 			else
-				match = root1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, root2.getNode().getASTStatement());
+				match = astNodeMatcher.match(root1.getNode(), root2.getNode());
 			if(match && astNodeMatcher.isParameterizable()) {
 				ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(root1, root2);
 				tmpSolution.addStartPoint(pair);
@@ -58,9 +58,9 @@ public class TopDownCDTMapper {
 					if((node1.isElseNode() && !node2.isElseNode()) || (!node1.isElseNode() && node2.isElseNode()))
 						match = false;
 					else if(node1.isElseNode() && node2.isElseNode())
-						match = node1.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getIfParent().getNode().getASTStatement());
+						match = astNodeMatcher.match(node1.getIfParent().getNode(), node2.getIfParent().getNode());
 					else
-						match = node1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, node2.getNode().getASTStatement());
+						match = astNodeMatcher.match(node1.getNode(), node2.getNode());
 					if(match && astNodeMatcher.isParameterizable()) {
 						ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(node1, node2);
 						startPoints.add(pair);
@@ -132,9 +132,9 @@ public class TopDownCDTMapper {
 				if((treeChild.isElseNode() && !searchChild.isElseNode()) || (!treeChild.isElseNode() && searchChild.isElseNode()))
 					match = false;
 				else if(treeChild.isElseNode() && searchChild.isElseNode())
-					match = treeChild.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchChild.getIfParent().getNode().getASTStatement());
+					match = astNodeMatcher.match(treeChild.getIfParent().getNode(), searchChild.getIfParent().getNode());
 				else
-					match = treeChild.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchChild.getNode().getASTStatement());
+					match = astNodeMatcher.match(treeChild.getNode(), searchChild.getNode());
 				if(match && astNodeMatcher.isParameterizable()) {
 					ControlDependenceTreeNode treeNode2 = treeNode.shallowCopy();
 					treeNode2.getChildren().remove(treeChild);

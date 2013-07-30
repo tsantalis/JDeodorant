@@ -45,9 +45,9 @@ public class BottomUpCDTMapper {
 				if((leaf1.isElseNode() && !leaf2.isElseNode()) || (!leaf1.isElseNode() && leaf2.isElseNode()))
 					match = false;
 				else if(leaf1.isElseNode() && leaf2.isElseNode())
-					match = leaf1.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, leaf2.getIfParent().getNode().getASTStatement());
+					match = astNodeMatcher.match(leaf1.getIfParent().getNode(), leaf2.getIfParent().getNode());
 				else
-					match = leaf1.getNode().getASTStatement().subtreeMatch(astNodeMatcher, leaf2.getNode().getASTStatement());
+					match = astNodeMatcher.match(leaf1.getNode(), leaf2.getNode());
 				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(leaf1, leaf2)) {
 					ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(leaf1, leaf2);
 					matchLeafPairs.add(pair);
@@ -152,9 +152,9 @@ public class BottomUpCDTMapper {
 					if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
 						match = false;
 					else if(treeSibling.isElseNode() && searchSibling.isElseNode())
-						match = treeSibling.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getIfParent().getNode().getASTStatement());
+						match = astNodeMatcher.match(treeSibling.getIfParent().getNode(), searchSibling.getIfParent().getNode());
 					else
-						match = treeSibling.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getNode().getASTStatement());
+						match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
 					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
 							!alreadyMapped(matches, treeSibling, searchSibling) && !alreadyMapped(elseIfChainTopDownMatches, treeSibling, searchSibling)) {
 						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
@@ -193,9 +193,9 @@ public class BottomUpCDTMapper {
 					if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
 						match = false;
 					else if(treeSibling.isElseNode() && searchSibling.isElseNode())
-						match = treeSibling.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getIfParent().getNode().getASTStatement());
+						match = astNodeMatcher.match(treeSibling.getIfParent().getNode(), searchSibling.getIfParent().getNode());
 					else
-						match = treeSibling.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchSibling.getNode().getASTStatement());
+						match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
 					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
 							!alreadyMapped(matches, treeSibling, searchSibling)) {
 						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
@@ -222,9 +222,9 @@ public class BottomUpCDTMapper {
 				else if((treeParent.isElseNode() && !searchParent.isElseNode()) || (!treeParent.isElseNode() && searchParent.isElseNode()))
 					match = false;
 				else if(treeParent.isElseNode() && searchParent.isElseNode())
-					match = treeParent.getIfParent().getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getIfParent().getNode().getASTStatement());
+					match = astNodeMatcher.match(treeParent.getIfParent().getNode(), searchParent.getIfParent().getNode());
 				else
-					match = treeParent.getNode().getASTStatement().subtreeMatch(astNodeMatcher, searchParent.getNode().getASTStatement());
+					match = astNodeMatcher.match(treeParent.getNode(), searchParent.getNode());
 				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeParent, searchParent)) {
 					ControlDependenceTreeNodeMatchPair newMatchPair = new ControlDependenceTreeNodeMatchPair(treeParent, searchParent);
 					findBottomUpMatches(newMatchPair, matches);

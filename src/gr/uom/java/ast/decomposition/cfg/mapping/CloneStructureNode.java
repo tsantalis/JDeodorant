@@ -83,9 +83,34 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			if(gap.isFalseControlDependent()) {
 				//find the else node
 				for(CloneStructureNode child : controlParent.children) {
-					if(child.getMapping() instanceof PDGElseMapping) {
+					if(child.getMapping() instanceof PDGElseMapping || child.getMapping() instanceof PDGElseGap) {
 						gapNode.setParent(child);
 						break;
+					}
+				}
+				//else node is not found
+				if(gapNode.parent == null) {
+					//check whether gapNode is an if statement
+					if((gap.getNodeG1() != null && gap.getNodeG1().getASTStatement() instanceof IfStatement) ||
+							(gap.getNodeG2() != null && gap.getNodeG2().getASTStatement() instanceof IfStatement)) {
+						gapNode.setParent(controlParent);
+					}
+					else {
+						//create a new else gap and add gapNode under it
+						PDGElseGap elseGap = null;
+						if(gap.getNodeG1() != null) {
+							double elseGapId1 = gap.getId1() - 0.5;
+							elseGap = new PDGElseGap(elseGapId1, 0);
+						}
+						if(gap.getNodeG2() != null) {
+							double elseGapId2 = gap.getId2() - 0.5;
+							elseGap = new PDGElseGap(0, elseGapId2);
+						}
+						if(elseGap != null) {
+							CloneStructureNode elseNode = new CloneStructureNode(elseGap);
+							elseNode.setParent(controlParent);
+							gapNode.setParent(elseNode);
+						}
 					}
 				}
 			}

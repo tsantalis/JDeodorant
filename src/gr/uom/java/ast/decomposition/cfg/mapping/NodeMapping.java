@@ -29,6 +29,11 @@ public abstract class NodeMapping implements Comparable<NodeMapping> {
 			PDGNodeGap otherMapping = (PDGNodeGap)o;
 			return thisMapping.equals(otherMapping);
 		}
+		if(this instanceof PDGElseGap && o instanceof PDGElseGap) {
+			PDGElseGap thisMapping = (PDGElseGap)this;
+			PDGElseGap otherMapping = (PDGElseGap)o;
+			return thisMapping.equals(otherMapping);
+		}
 		return false;
 	}
 
@@ -38,17 +43,17 @@ public abstract class NodeMapping implements Comparable<NodeMapping> {
 			IdBasedMapping otherMapping = (IdBasedMapping)other;
 			return thisMapping.compareTo(otherMapping);
 		}
-		if(this instanceof PDGNodeGap && other instanceof PDGNodeGap) {
-			PDGNodeGap thisGap = (PDGNodeGap)this;
-			PDGNodeGap otherGap = (PDGNodeGap)other;
+		if(this instanceof IdBasedGap && other instanceof IdBasedGap) {
+			IdBasedGap thisGap = (IdBasedGap)this;
+			IdBasedGap otherGap = (IdBasedGap)other;
 			return thisGap.compareTo(otherGap);
 		}
 		if(this instanceof IdBasedMapping && !(other instanceof IdBasedMapping)) {
 			IdBasedMapping thisMapping = (IdBasedMapping)this;
-			if(other instanceof PDGNodeGap) {
-				PDGNodeGap otherGap = (PDGNodeGap)other;
-				double id1 = otherGap.getNodeG1() != null ? thisMapping.getId1() : thisMapping.getId2();
-				double id2 = otherGap.getNodeG1() != null ? otherGap.getNodeG1().getId() : otherGap.getNodeG2().getId();
+			if(other instanceof IdBasedGap) {
+				IdBasedGap otherGap = (IdBasedGap)other;
+				double id1 = otherGap.getId1() != 0 ? thisMapping.getId1() : thisMapping.getId2();
+				double id2 = otherGap.getId1() != 0 ? otherGap.getId1() : otherGap.getId2();
 				if(id1 == id2)
 					return -1;
 				else
@@ -57,10 +62,10 @@ public abstract class NodeMapping implements Comparable<NodeMapping> {
 		}
 		if(other instanceof IdBasedMapping && !(this instanceof IdBasedMapping)) {
 			IdBasedMapping otherMapping = (IdBasedMapping)other;
-			if(this instanceof PDGNodeGap) {
-				PDGNodeGap thisGap = (PDGNodeGap)this;
-				double id1 = thisGap.getNodeG1() != null ? thisGap.getNodeG1().getId() : thisGap.getNodeG2().getId();
-				double id2 = thisGap.getNodeG1() != null ? otherMapping.getId1() : otherMapping.getId2();
+			if(this instanceof IdBasedGap) {
+				IdBasedGap thisGap = (IdBasedGap)this;
+				double id1 = thisGap.getId1() != 0 ? thisGap.getId1() : thisGap.getId2();
+				double id2 = thisGap.getId1() != 0 ? otherMapping.getId1() : otherMapping.getId2();
 				if(id1 == id2)
 					return -1;
 				else

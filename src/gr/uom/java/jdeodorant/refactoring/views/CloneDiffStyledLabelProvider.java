@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
@@ -38,6 +39,10 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		}
 		else if(theNode.getMapping() instanceof PDGNodeGap) {
 			styledString = generateStyledStringForGap(theNode, position);
+			cell.setBackground(new Color(null, 255, 156, 156));
+		}
+		else if(theNode.getMapping() instanceof PDGElseGap) {
+			styledString = generateStyledStringForElseGap((PDGElseGap)theNode.getMapping(), position);
 			cell.setBackground(new Color(null, 255, 156, 156));
 		}
 		else {
@@ -102,6 +107,40 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		return styledString;
 	}
 	
+	private StyledString generateStyledStringForElseGap(PDGElseGap elseGap, CloneDiffSide diffSide) {
+		StyledString styledString = null;
+		if (diffSide == CloneDiffSide.LEFT) {
+			if(elseGap.getId1() != 0) {
+				styledString = new StyledString();
+				styledString.append("else", new StyledStringStyler(StyledStringVisitor.initializeKeywordStyle()));
+			}
+			//This creates a blank Label containing only spaces, to match the length of the corresponding Gap statement. 
+			else{
+				String correspondingStatement = "else";
+				StringBuilder str = new StringBuilder();
+				for (int i = 0; i < correspondingStatement.length(); i++){
+					str.append("  ");
+				}
+				styledString = new StyledString(str.toString());
+			}
+		}
+		else if (diffSide == CloneDiffSide.RIGHT) {
+			if(elseGap.getId2() != 0) {
+				styledString = new StyledString();
+				styledString.append("else", new StyledStringStyler(StyledStringVisitor.initializeKeywordStyle()));
+			}
+			//This creates a blank Label containing only spaces, to match the length of the corresponding Gap statement. 
+			else{
+				String correspondingStatement = "else";
+				StringBuilder str = new StringBuilder();
+				for (int i = 0; i < correspondingStatement.length(); i++){
+					str.append("  ");
+				}
+				styledString = new StyledString(str.toString());
+			}
+		}
+		return styledString;
+	}
 	//Tooltip
 	public String getToolTipText(Object element) {
 		return "yellow"; //element.toString();

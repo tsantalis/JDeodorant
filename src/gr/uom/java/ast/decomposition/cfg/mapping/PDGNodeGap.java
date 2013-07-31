@@ -12,12 +12,13 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 
-public class PDGNodeGap extends NodeMapping {
+public class PDGNodeGap extends IdBasedGap {
 	private PDGNode nodeG1;
 	private PDGNode nodeG2;
 	private volatile int hashCode = 0;
 	
 	public PDGNodeGap(PDGNode nodeG1, PDGNode nodeG2) {
+		super(nodeG1 != null ? nodeG1.getId() : 0, nodeG2 != null ? nodeG2.getId() : 0);
 		this.nodeG1 = nodeG1;
 		this.nodeG2 = nodeG2;
 	}
@@ -106,7 +107,7 @@ public class PDGNodeGap extends NodeMapping {
 		return sb.toString();
 	}
 
-	public int compareTo(PDGNodeGap other) {
+	/*public int compareTo(PDGNodeGap other) {
 		if(this.nodeG1 != null && other.nodeG1 != null)
 			return Integer.compare(this.nodeG1.getId(), other.nodeG1.getId());
 		if(this.nodeG2 != null && other.nodeG2 != null)
@@ -129,5 +130,5 @@ public class PDGNodeGap extends NodeMapping {
 				return Integer.compare(id1, id2);
 		}
 		return 0;
-	}
+	}*/
 }

@@ -6,6 +6,8 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
@@ -20,6 +22,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -33,7 +36,14 @@ import java.util.TreeSet;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSubTreeMapper {
@@ -127,6 +137,7 @@ public class PDGSubTreeMapper {
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
+		checkPreconditions();
 	}
 
 	private void findNonMappedNodes(PDG pdg, TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
@@ -913,5 +924,97 @@ public class PDGSubTreeMapper {
 
 	public Set<BindingSignaturePair> getRenamedVariables() {
 		return maximumStateWithMinimumDifferences.getRenamedVariables();
+	}
+	
+	private void checkPreconditions() {
+		List<ASTNodeDifference> differences = maximumStateWithMinimumDifferences.getNodeDifferences();
+		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
+		TreeSet<PDGNode> removableNodesG1 = getRemovableNodesG1();
+		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
+		for(ASTNodeDifference difference : differences) {
+			if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
+				Expression expression1 = difference.getExpression1().getExpression();
+				if(!isParameterizableExpression(removableNodesG1, expression1)) {
+					PreconditionViolation violation = new PreconditionViolation(difference.getExpression1(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+					difference.addPreconditionViolation(violation);
+					IMethodBinding methodBinding = getMethodBinding(expression1);
+					if(methodBinding != null) {
+						int methodModifiers = methodBinding.getModifiers();
+						if((methodModifiers & Modifier.PRIVATE) != 0) {
+							String message = "Suggestion: Inline private method " + methodBinding.getName();
+						}
+					}
+				}
+				Expression expression2 = difference.getExpression2().getExpression();
+				if(!isParameterizableExpression(removableNodesG2, expression2)) {
+					PreconditionViolation violation = new PreconditionViolation(difference.getExpression2(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+					difference.addPreconditionViolation(violation);
+					IMethodBinding methodBinding = getMethodBinding(expression2);
+					if(methodBinding != null) {
+						int methodModifiers = methodBinding.getModifiers();
+						if((methodModifiers & Modifier.PRIVATE) != 0) {
+							String message = "Suggestion: Inline private method " + methodBinding.getName();
+						}
+					}
+				}
+			}
+		}
+	}
+	//precondition: differences in expressions should be parameterizable
+	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, Expression initialExpression) {
+		Expression expr = isMethodName(initialExpression) ? (Expression)initialExpression.getParent() : initialExpression;
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expr);
+		for(Expression expression : simpleNames) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				for(PDGNode mappedNode : mappedNodes) {
+					Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator();
+					while(declaredVariableIterator.hasNext()) {
+						AbstractVariable declaredVariable = declaredVariableIterator.next();
+						if(declaredVariable instanceof PlainVariable) {
+							PlainVariable plainVariable = (PlainVariable)declaredVariable;
+							if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
+								return false;
+							}
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	private boolean isMethodName(Expression expression) {
+		if(expression instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.METHOD) {
+				if(expression.getParent() instanceof Expression) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	private IMethodBinding getMethodBinding(Expression expression) {
+		if(expression instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.METHOD) {
+				return (IMethodBinding)binding;
+			}
+		}
+		else if(expression instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)expression;
+			return methodInvocation.resolveMethodBinding();
+		}
+		else if(expression instanceof SuperMethodInvocation) {
+			SuperMethodInvocation methodInvocation = (SuperMethodInvocation)expression;
+			return methodInvocation.resolveMethodBinding();
+		}
+		return null;
 	}
 }

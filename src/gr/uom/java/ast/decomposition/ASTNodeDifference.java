@@ -15,12 +15,14 @@ public class ASTNodeDifference {
 	private AbstractExpression expression2;
 	private List<Difference> differences;
 	private BindingSignaturePair bindingSignaturePair;
+	private List<PreconditionViolation> preconditionViolations;
 	
 	public ASTNodeDifference(AbstractExpression e1, AbstractExpression e2) {
 		this.expression1=e1;
 		this.expression2=e2;
 		this.bindingSignaturePair = new BindingSignaturePair(e1, e2);
 		this.differences = new ArrayList<Difference>();
+		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 	}
 	
 	public List<Difference> getDifferences() {
@@ -42,6 +44,11 @@ public class ASTNodeDifference {
 	public void addDifference(Difference diff)
 	{
 		differences.add(diff);
+	}
+
+	public void addPreconditionViolation(PreconditionViolation violation)
+	{
+		preconditionViolations.add(violation);
 	}
 	
 	public boolean containsDifferenceType(DifferenceType type) {

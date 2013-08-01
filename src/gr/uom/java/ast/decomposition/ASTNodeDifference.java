@@ -24,11 +24,15 @@ public class ASTNodeDifference {
 		this.differences = new ArrayList<Difference>();
 		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 	}
-	
+
 	public List<Difference> getDifferences() {
 		return differences;
 	}
-	
+
+	public List<PreconditionViolation> getPreconditionViolations() {
+		return preconditionViolations;
+	}
+
 	public AbstractExpression getExpression1() {
 		return expression1;
 	}

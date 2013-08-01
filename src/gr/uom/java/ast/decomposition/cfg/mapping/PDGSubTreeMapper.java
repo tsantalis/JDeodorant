@@ -6,6 +6,9 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.DifferenceType;
+import gr.uom.java.ast.decomposition.DualExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.StatementObject;
@@ -932,30 +935,43 @@ public class PDGSubTreeMapper {
 		TreeSet<PDGNode> removableNodesG1 = getRemovableNodesG1();
 		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
 		for(ASTNodeDifference difference : differences) {
+			Expression expression1 = difference.getExpression1().getExpression();
+			Expression expression2 = difference.getExpression2().getExpression();
 			if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
-				Expression expression1 = difference.getExpression1().getExpression();
 				if(!isParameterizableExpression(removableNodesG1, expression1)) {
-					PreconditionViolation violation = new PreconditionViolation(difference.getExpression1(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					difference.addPreconditionViolation(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression1);
 					if(methodBinding != null) {
 						int methodModifiers = methodBinding.getModifiers();
 						if((methodModifiers & Modifier.PRIVATE) != 0) {
-							String message = "Suggestion: Inline private method " + methodBinding.getName();
+							String message = "Inline private method " + methodBinding.getName();
+							violation.setSuggestion(message);
 						}
 					}
 				}
-				Expression expression2 = difference.getExpression2().getExpression();
 				if(!isParameterizableExpression(removableNodesG2, expression2)) {
-					PreconditionViolation violation = new PreconditionViolation(difference.getExpression2(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					difference.addPreconditionViolation(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression2);
 					if(methodBinding != null) {
 						int methodModifiers = methodBinding.getModifiers();
 						if((methodModifiers & Modifier.PRIVATE) != 0) {
-							String message = "Suggestion: Inline private method " + methodBinding.getName();
+							String message = "Inline private method " + methodBinding.getName();
+							violation.setSuggestion(message);
 						}
 					}
+				}
+			}
+			if(difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
+				PreconditionViolation violation = new DualExpressionPreconditionViolation(difference.getExpression1(), difference.getExpression2(),
+						PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH);
+				difference.addPreconditionViolation(violation);
+				ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
+				ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
+				if(!typeBinding1.isPrimitive() && !typeBinding2.isPrimitive()) {
+					String message = "Make classes " + typeBinding1.getQualifiedName() + " and " + typeBinding2.getQualifiedName() + " extend a common superclass";
+					violation.setSuggestion(message);
 				}
 			}
 		}

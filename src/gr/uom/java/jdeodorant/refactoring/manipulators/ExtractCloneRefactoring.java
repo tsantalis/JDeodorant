@@ -7,6 +7,9 @@ import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
+import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
+import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
+import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -14,12 +17,13 @@ import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.ast.util.ExpressionExtractor;
-import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
@@ -165,12 +169,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				doLoopNodes.add(cfgDoLoopNode);
 			}
 		}
-		StatementExtractor statementExtractor = new StatementExtractor();
+		/*StatementExtractor statementExtractor = new StatementExtractor();
 		//examining the body of the first method declaration for try blocks
 		List<Statement> tryStatements = statementExtractor.getTryStatements(methodDeclaration1.getBody());
 		for(Statement tryStatement : tryStatements) {
 			processTryStatement((TryStatement)tryStatement);
-		}
+		}*/
 		for(CompilationUnit sourceCompilationUnit : sourceCompilationUnits) {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
 			MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
@@ -670,11 +674,59 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						PDGNode childNodeG2 = child.getMapping().getNodeG2();
 						PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
 						PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-						if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
-							trueControlDependentChildren.add(child);
+						if(controlDependence1 != null && controlDependence2 != null) {
+							if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
+								trueControlDependentChildren.add(child);
+							}
+							else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
+								falseControlDependentChildren.add(child);
+							}
 						}
-						else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
-							falseControlDependentChildren.add(child);
+						else {
+							if(isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) {
+								falseControlDependentChildren.add(child);
+							}
+							else if(!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) {
+								trueControlDependentChildren.add(child);
+							}
+						}
+					}
+				}
+				else if(child.getMapping() instanceof PDGElseMapping) {
+					for(CloneStructureNode child2 : child.getChildren()) {
+						if(child2.getMapping() instanceof PDGNodeMapping) {
+							PDGNodeMapping childMapping = (PDGNodeMapping) child2.getMapping();
+							PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
+							if(symmetrical != null) {
+								if(symmetrical.equals(nodeMapping)) {
+									falseControlDependentChildren.add(child2);
+								}
+								else {
+									trueControlDependentChildren.add(child2);
+								}
+							}
+							else {
+								PDGNode childNodeG1 = child2.getMapping().getNodeG1();
+								PDGNode childNodeG2 = child2.getMapping().getNodeG2();
+								PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+								PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+								if(controlDependence1 != null && controlDependence2 != null) {
+									if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
+										trueControlDependentChildren.add(child2);
+									}
+									else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
+										falseControlDependentChildren.add(child2);
+									}
+								}
+								else {
+									if(isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) {
+										falseControlDependentChildren.add(child2);
+									}
+									else if(!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) {
+										trueControlDependentChildren.add(child2);
+									}
+								}
+							}
 						}
 					}
 				}
@@ -839,6 +891,24 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNonOverlappingNodeDifferences());
 		}
 		return newStatement;
+	}
+
+	private boolean isNestedUnderElse(PDGNode pdgNode) {
+		Statement statement = pdgNode.getASTStatement();
+		if(statement.getParent() instanceof Block) {
+			Block block = (Block)statement.getParent();
+			if(block.getParent() instanceof IfStatement) {
+				IfStatement ifStatement = (IfStatement)block.getParent();
+				if(ifStatement.getElseStatement() != null && ifStatement.getElseStatement().equals(block))
+					return true;
+			}
+		}
+		else if(statement.getParent() instanceof IfStatement) {
+			IfStatement ifStatement = (IfStatement)statement.getParent();
+			if(ifStatement.getElseStatement() != null && ifStatement.getElseStatement().equals(statement))
+				return true;
+		}
+		return false;
 	}
 
 	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite rewriter) {
@@ -1191,7 +1261,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void processTryStatement(TryStatement tryStatement) {
+	/*private void processTryStatement(TryStatement tryStatement) {
 		List<Statement> nestedStatements = getStatements(tryStatement);
 		List<Statement> cloneStatements = new ArrayList<Statement>();
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
@@ -1216,7 +1286,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else if(sliceStatementThrowsException)
 				tryStatementsToBeCopied.add(tryStatement);
 		}
-	}
+	}*/
 
 	@Override
 	public RefactoringStatus checkFinalConditions(IProgressMonitor pm)
@@ -1240,11 +1310,29 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(int i=0; i<sourceCompilationUnits.size(); i++) {
 				TreeSet<PDGNode> removableNodes = removableStatements.get(i);
 				TreeSet<PDGNode> remainingNodes = remainingStatements.get(i);
+				String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() : mapper.getPDG2().getMethod().getName();
 				for(PDGNode node : remainingNodes) {
 					if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
-						String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() :
-							mapper.getPDG2().getMethod().getName();
-						String message = "Non-matched statement in method " + methodName + " cannot be moved before the extracted code";
+						String message = "Unmatched statement in method " + methodName + " cannot be moved before the extracted code";
+						RefactoringStatusContext context = JavaStatusContext.create(
+								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
+						status.merge(RefactoringStatus.createErrorStatus(message, context));
+					}
+					CFGNode cfgNode = node.getCFGNode();
+					if(cfgNode instanceof CFGBreakNode) {
+						String message = "Unmatched break statement in method " + methodName;
+						RefactoringStatusContext context = JavaStatusContext.create(
+								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
+						status.merge(RefactoringStatus.createErrorStatus(message, context));
+					}
+					else if(cfgNode instanceof CFGContinueNode) {
+						String message = "Unmatched continue statement in method " + methodName;
+						RefactoringStatusContext context = JavaStatusContext.create(
+								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
+						status.merge(RefactoringStatus.createErrorStatus(message, context));
+					}
+					else if(cfgNode instanceof CFGExitNode) {
+						String message = "Unmatched return statement in method " + methodName;
 						RefactoringStatusContext context = JavaStatusContext.create(
 								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
 						status.merge(RefactoringStatus.createErrorStatus(message, context));
@@ -1257,16 +1345,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
 					for(int i=0; i<sourceCompilationUnits.size(); i++) {
 						TreeSet<PDGNode> removableNodes = removableStatements.get(i);
-						Expression expression = (i==0) ? difference.getExpression1().getExpression() :
-							difference.getExpression2().getExpression();
+						Expression expression = (i==0) ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
+						String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() : mapper.getPDG2().getMethod().getName();
 						if(!isParameterizableExpression(removableNodes, expression)) {
-							String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() :
-								mapper.getPDG2().getMethod().getName();
 							Expression expr = isMethodName(expression) ? (Expression)expression.getParent() : expression;
 							String message = "Expression " + expression.toString() + " in method " + methodName + " cannot be parameterized";
 							RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), expr);
 							status.merge(RefactoringStatus.createErrorStatus(message, context));
 						}
+					}
+				}
+				if(difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
+					for(int i=0; i<sourceCompilationUnits.size(); i++) {
+						Expression thisExpression = (i==0) ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
+						Expression otherExpression = (i==1) ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
+						//String thisMethodName = (i==0) ? mapper.getPDG1().getMethod().getName() : mapper.getPDG2().getMethod().getName();
+						String message = "The type " + thisExpression.resolveTypeBinding().getQualifiedName() + " of variable " + thisExpression.toString() + " does not match with " +
+						"the type " + otherExpression.resolveTypeBinding().getQualifiedName() + " of variable " + otherExpression.toString();
+						RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), thisExpression);
+						status.merge(RefactoringStatus.createErrorStatus(message, context));
 					}
 				}
 			}

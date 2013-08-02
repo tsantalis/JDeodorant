@@ -928,6 +928,10 @@ public class PDGSubTreeMapper {
 		return commonPassedParameters;
 	}
 
+	public List<ASTNodeDifference> getNodeDifferences() {
+		return maximumStateWithMinimumDifferences.getNodeDifferences();
+	}
+
 	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
 		return maximumStateWithMinimumDifferences.getNonOverlappingNodeDifferences();
 	}
@@ -935,7 +939,11 @@ public class PDGSubTreeMapper {
 	public Set<BindingSignaturePair> getRenamedVariables() {
 		return maximumStateWithMinimumDifferences.getRenamedVariables();
 	}
-	
+
+	public List<PreconditionViolation> getPreconditionViolations() {
+		return preconditionViolations;
+	}
+
 	private void checkPreconditions() {
 		List<ASTNodeDifference> differences = maximumStateWithMinimumDifferences.getNodeDifferences();
 		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();

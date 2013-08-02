@@ -26,6 +26,7 @@ public class DualExpressionPreconditionViolation extends PreconditionViolation {
 			sb.append(expression2.resolveTypeBinding().getQualifiedName());
 			sb.append(" of variable ");
 			sb.append(expression2.toString());
+			return sb.toString();
 		}
 		return "";
 	}

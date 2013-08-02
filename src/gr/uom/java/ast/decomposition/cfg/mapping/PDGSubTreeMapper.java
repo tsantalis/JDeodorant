@@ -12,8 +12,13 @@ import gr.uom.java.ast.decomposition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.decomposition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
+import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
+import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
+import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
+import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
@@ -75,6 +80,7 @@ public class PDGSubTreeMapper {
 	//if true full tree match is performed, otherwise subtree match is performed
 	private boolean fullTreeMatch;
 	private IProgressMonitor monitor;
+	private List<PreconditionViolation> preconditionViolations;
 	
 	public PDGSubTreeMapper(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -140,6 +146,7 @@ public class PDGSubTreeMapper {
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
+		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 		checkPreconditions();
 	}
 
@@ -941,6 +948,7 @@ public class PDGSubTreeMapper {
 				if(!isParameterizableExpression(removableNodesG1, expression1)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					difference.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression1);
 					if(methodBinding != null) {
 						int methodModifiers = methodBinding.getModifiers();
@@ -953,6 +961,7 @@ public class PDGSubTreeMapper {
 				if(!isParameterizableExpression(removableNodesG2, expression2)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					difference.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression2);
 					if(methodBinding != null) {
 						int methodModifiers = methodBinding.getModifiers();
@@ -967,6 +976,7 @@ public class PDGSubTreeMapper {
 				PreconditionViolation violation = new DualExpressionPreconditionViolation(difference.getExpression1(), difference.getExpression2(),
 						PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH);
 				difference.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
 				ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
 				ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
 				if(!typeBinding1.isPrimitive() && !typeBinding2.isPrimitive()) {
@@ -975,7 +985,74 @@ public class PDGSubTreeMapper {
 				}
 			}
 		}
+		TreeSet<PDGNode> remainingNodesG1 = getRemainingNodesG1();
+		TreeSet<PDGNode> remainingNodesG2 = getRemainingNodesG2();
+		for(PDGNode node : remainingNodesG1) {
+			if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodesG1, node)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
+				preconditionViolations.add(violation);
+			}
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_BREAK_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+			else if(cfgNode instanceof CFGExitNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+		}
+		for(PDGNode node : remainingNodesG2) {
+			if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodesG2, node)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
+				preconditionViolations.add(violation);
+			}
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_BREAK_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+			else if(cfgNode instanceof CFGExitNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+		}
 	}
+
+	//precondition: non-mapped statement can be moved before the first mapped statement
+	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		int nodeId = nonMappedNode.getId();
+		if(nodeId >= mappedNodes.first().getId() && nodeId <= mappedNodes.last().getId()) {
+			Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
+			while(incomingDependenceIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+				if(dependence instanceof PDGDataDependence) {
+					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+					PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
+					if(mappedNodes.contains(srcPDGNode))
+						return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	//precondition: differences in expressions should be parameterizable
 	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, Expression initialExpression) {
 		Expression expr = isMethodName(initialExpression) ? (Expression)initialExpression.getParent() : initialExpression;

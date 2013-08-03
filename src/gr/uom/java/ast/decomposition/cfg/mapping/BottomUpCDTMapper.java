@@ -64,44 +64,13 @@ public class BottomUpCDTMapper {
 		for(ControlDependenceTreeNodeMatchPair matchPair : filteredMatchLeafPairs) {
 			TreeSet<ControlDependenceTreeNodeMatchPair> bottomUpMatch = new TreeSet<ControlDependenceTreeNodeMatchPair>();
 			findBottomUpMatches(matchPair, bottomUpMatch);
-			//check if there exist incomplete 'if/else if/else' chains in the solution
-			Set<ControlDependenceTreeNodeMatchPair> pairsToBeRemoved = new TreeSet<ControlDependenceTreeNodeMatchPair>();
-			for(ControlDependenceTreeNodeMatchPair pair : bottomUpMatch) {
-				if(!isElseIfChainComplete(pair, bottomUpMatch)) {
-					pairsToBeRemoved.add(pair);
+			if(bottomUpMatch.size() > 0) {
+				CompleteSubTreeMatch subTree = new CompleteSubTreeMatch(bottomUpMatch);
+				if(!isSubsumedByCurrentSolutions(solutions, subTree)) {
+					solutions.add(subTree);
 				}
 			}
-			bottomUpMatch.removeAll(pairsToBeRemoved);
-			CompleteSubTreeMatch subTree = new CompleteSubTreeMatch(bottomUpMatch);
-			if(!isSubsumedByCurrentSolutions(solutions, subTree)) {
-				solutions.add(subTree);
-			}
 		}
-	}
-
-	private boolean isElseIfChainComplete(ControlDependenceTreeNodeMatchPair matchPair, Set<ControlDependenceTreeNodeMatchPair> allMatchPairs) {
-		ControlDependenceTreeNode node1 = matchPair.getNode1();
-		ControlDependenceTreeNode node2 = matchPair.getNode2();
-		if(node1.ifStatementInsideElseIfChain() && node2.ifStatementInsideElseIfChain()) {
-			List<ControlDependenceTreeNode> ifParents1 = node1.getIfParents();
-			List<ControlDependenceTreeNode> elseIfChildren1 = node1.getElseIfChildren();
-			List<ControlDependenceTreeNode> chain1 = new ArrayList<ControlDependenceTreeNode>();
-			chain1.addAll(ifParents1);
-			chain1.addAll(elseIfChildren1);
-
-			List<ControlDependenceTreeNode> ifParents2 = node2.getIfParents();
-			List<ControlDependenceTreeNode> elseIfChildren2 = node2.getElseIfChildren();
-			List<ControlDependenceTreeNode> chain2 = new ArrayList<ControlDependenceTreeNode>();
-			chain2.addAll(ifParents2);
-			chain2.addAll(elseIfChildren2);
-
-			for(int i=0; i<chain1.size(); i++) {
-				ControlDependenceTreeNodeMatchPair newPair = new ControlDependenceTreeNodeMatchPair(chain1.get(i), chain2.get(i));
-				if(!allMatchPairs.contains(newPair))
-					return false;
-			}
-		}
-		return true;
 	}
 
 	private boolean containsSiblingMatch(List<ControlDependenceTreeNodeMatchPair> matchLeafPairs,
@@ -143,38 +112,44 @@ public class BottomUpCDTMapper {
 			searchChain.addAll(searchIfParents);
 			searchChain.addAll(searchElseIfChildren);
 			
-			Set<ControlDependenceTreeNodeMatchPair> elseIfChainMatchedSiblings = new LinkedHashSet<ControlDependenceTreeNodeMatchPair>();
-			Set<ControlDependenceTreeNodeMatchPair> elseIfChainTopDownMatches = new TreeSet<ControlDependenceTreeNodeMatchPair>();
-			for(ControlDependenceTreeNode treeSibling : treeChain) {
-				for(ControlDependenceTreeNode searchSibling : searchChain) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match;
-					if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
-						match = false;
-					else if(treeSibling.isElseNode() && searchSibling.isElseNode())
-						match = astNodeMatcher.match(treeSibling.getIfParent().getNode(), searchSibling.getIfParent().getNode());
-					else
-						match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
-					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
-							!alreadyMapped(matches, treeSibling, searchSibling) && !alreadyMapped(elseIfChainTopDownMatches, treeSibling, searchSibling)) {
-						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
-						TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
-						List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
-						if(completeSubTrees.size() == 1) {
-							CompleteSubTreeMatch subTree = completeSubTrees.get(0);
-							if(subTree.getMatchPairs().contains(siblingMatchPair)) {
-								elseIfChainMatchedSiblings.add(siblingMatchPair);
-								elseIfChainTopDownMatches.addAll(subTree.getMatchPairs());
+			if(treeChain.size() == searchChain.size()) {
+				Set<ControlDependenceTreeNodeMatchPair> elseIfChainMatchedSiblings = new LinkedHashSet<ControlDependenceTreeNodeMatchPair>();
+				Set<ControlDependenceTreeNodeMatchPair> elseIfChainTopDownMatches = new TreeSet<ControlDependenceTreeNodeMatchPair>();
+				for(ControlDependenceTreeNode treeSibling : treeChain) {
+					for(ControlDependenceTreeNode searchSibling : searchChain) {
+						ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+						boolean match;
+						if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
+							match = false;
+						else if(treeSibling.isElseNode() && searchSibling.isElseNode())
+							match = astNodeMatcher.match(treeSibling.getIfParent().getNode(), searchSibling.getIfParent().getNode());
+						else
+							match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
+						if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
+								!alreadyMapped(matches, treeSibling, searchSibling) && !alreadyMapped(elseIfChainTopDownMatches, treeSibling, searchSibling)) {
+							ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
+							TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
+							List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
+							if(completeSubTrees.size() == 1) {
+								CompleteSubTreeMatch subTree = completeSubTrees.get(0);
+								if(subTree.getMatchPairs().contains(siblingMatchPair)) {
+									elseIfChainMatchedSiblings.add(siblingMatchPair);
+									elseIfChainTopDownMatches.addAll(subTree.getMatchPairs());
+								}
 							}
+							//apply first-match approach
+							break;
 						}
-						//apply first-match approach
-						break;
 					}
 				}
-			}
-			if(matchPair.getLengthOfElseIfChain() == elseIfChainMatchedSiblings.size()) {
-				matches.add(matchPair);
-				matches.addAll(elseIfChainTopDownMatches);
+				if(matchPair.getNode1().getLengthOfElseIfChain() == elseIfChainMatchedSiblings.size() &&
+						matchPair.getNode2().getLengthOfElseIfChain() == elseIfChainMatchedSiblings.size()) {
+					matches.add(matchPair);
+					matches.addAll(elseIfChainTopDownMatches);
+				}
+				else {
+					proceed = false;
+				}
 			}
 			else {
 				proceed = false;

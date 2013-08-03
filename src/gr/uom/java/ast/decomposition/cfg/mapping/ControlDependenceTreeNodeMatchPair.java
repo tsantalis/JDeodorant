@@ -21,7 +21,7 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 	}
 
 	public boolean ifStatementInsideElseIfChain() {
-		return node1.ifStatementInsideElseIfChain() && node2.ifStatementInsideElseIfChain();
+		return node1.ifStatementInsideElseIfChain() || node2.ifStatementInsideElseIfChain();
 	}
 
 	public boolean isElseIfChainSibling(ControlDependenceTreeNodeMatchPair otherPair) {
@@ -31,10 +31,6 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 		List<ControlDependenceTreeNode> elseIfChildren2 = node2.getElseIfChildren();
 		return (ifParents1.contains(otherPair.node1) || elseIfChildren1.contains(otherPair.node1)) &&
 				(ifParents2.contains(otherPair.node2) || elseIfChildren2.contains(otherPair.node2));
-	}
-
-	public int getLengthOfElseIfChain() {
-		return node1.getLengthOfElseIfChain();
 	}
 
 	public int hashCode() {

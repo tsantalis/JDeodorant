@@ -41,6 +41,13 @@ public class PDGMapper {
 				subTreeMappers.add(mapper);
 			}
 		}
+		if(bottomUpSubTreeMatches.isEmpty()) {
+			//create subtrees containing only the method entry node
+			ControlDependenceTreeNode controlDependenceSubTreePDG1 = new ControlDependenceTreeNode(null, controlDependenceTreePDG1.getNode());
+			ControlDependenceTreeNode controlDependenceSubTreePDG2 = new ControlDependenceTreeNode(null, controlDependenceTreePDG2.getNode());
+			PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, true, monitor);
+			subTreeMappers.add(mapper);
+		}
 		NodePairComparisonCache.getInstance().clearCache();
 	}
 

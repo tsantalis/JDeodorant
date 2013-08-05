@@ -11,6 +11,7 @@ import gr.uom.java.ast.decomposition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.PreconditionViolationType;
+import gr.uom.java.ast.decomposition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -944,6 +945,65 @@ public class PDGSubTreeMapper {
 		return preconditionViolations;
 	}
 
+	private Set<PlainVariable> variablesToBeReturned(PDG pdg, Set<PDGNode> mappedNodes) {
+		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
+		Iterator<GraphNode> iterator = pdg.getNodeIterator();
+		while(iterator.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator.next();
+			if(!mappedNodes.contains(pdgNode)) {
+				remainingNodes.add(pdgNode);
+			}
+		}
+		Set<PlainVariable> variablesToBeReturned = new LinkedHashSet<PlainVariable>();
+		for(PDGNode remainingNode : remainingNodes) {
+			Iterator<GraphEdge> incomingDependenceIt = remainingNode.getIncomingDependenceIterator();
+			while(incomingDependenceIt.hasNext()) {
+				PDGDependence dependence = (PDGDependence)incomingDependenceIt.next();
+				if(dependence instanceof PDGDataDependence) {
+					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+					PDGNode srcNode = (PDGNode)dataDependence.getSrc();
+					if(mappedNodes.contains(srcNode) && dataDependence.getData() instanceof PlainVariable) {
+						variablesToBeReturned.add((PlainVariable)dataDependence.getData());
+					}
+				}
+			}
+		}
+		return variablesToBeReturned;
+	}
+
+	private void determineVariablesToBeReturned() {
+		TreeSet<PDGNode> removableNodesG1 = getRemovableNodesG1();
+		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
+		Set<PlainVariable> variablesToBeReturnedG1 = variablesToBeReturned(pdg1, removableNodesG1);
+		Set<PlainVariable> variablesToBeReturnedG2 = variablesToBeReturned(pdg2, removableNodesG2);
+		//if the returned variables are more than one, the precondition is violated
+		if(variablesToBeReturnedG1.size() > 1 || variablesToBeReturnedG2.size() > 1) {
+			PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
+					PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES);
+			preconditionViolations.add(violation);
+		}
+		else if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
+			PlainVariable returnedVariable1 = variablesToBeReturnedG1.iterator().next();
+			PlainVariable returnedVariable2 = variablesToBeReturnedG2.iterator().next();
+			if(!returnedVariable1.getVariableName().equals(returnedVariable2.getVariableName())) {
+				Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
+				boolean isRenamed = false;
+				for(BindingSignaturePair signaturePair : renamedVariables) {
+					if(signaturePair.getSignature1().containsBinding(returnedVariable1.getVariableBindingKey()) &&
+							signaturePair.getSignature2().containsBinding(returnedVariable2.getVariableBindingKey())) {
+						isRenamed = true;
+						break;
+					}
+				}
+				if(!isRenamed) {
+					PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
+							PreconditionViolationType.DIFFERENT_RETURNED_VARIABLE);
+					preconditionViolations.add(violation);
+				}
+			}
+		}
+	}
+
 	private void checkPreconditions() {
 		List<ASTNodeDifference> differences = maximumStateWithMinimumDifferences.getNodeDifferences();
 		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
@@ -954,7 +1014,8 @@ public class PDGSubTreeMapper {
 			Expression expression2 = difference.getExpression2().getExpression();
 			if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
 				if(!isParameterizableExpression(removableNodesG1, expression1)) {
-					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
+							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					difference.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression1);
@@ -967,7 +1028,8 @@ public class PDGSubTreeMapper {
 					}
 				}
 				if(!isParameterizableExpression(removableNodesG2, expression2)) {
-					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(), PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
+							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					difference.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression2);
@@ -1041,6 +1103,7 @@ public class PDGSubTreeMapper {
 				preconditionViolations.add(violation);
 			}
 		}
+		determineVariablesToBeReturned();
 	}
 
 	//precondition: non-mapped statement can be moved before the first mapped statement

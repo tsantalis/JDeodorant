@@ -39,11 +39,23 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		}
 		else if(theNode.getMapping() instanceof PDGNodeGap) {
 			styledString = generateStyledStringForGap(theNode, position);
-			cell.setBackground(new Color(null, 255, 156, 156));
+			if ((position == CloneDiffSide.LEFT && theNode.getMapping().getNodeG1() != null) ||
+					(position == CloneDiffSide.RIGHT && theNode.getMapping().getNodeG2() != null)) {
+				cell.setBackground(new Color(null, 255, 156, 156));
+			}
+			else {
+				cell.setBackground(new Color(null, 255, 224, 224));
+			}
 		}
 		else if(theNode.getMapping() instanceof PDGElseGap) {
 			styledString = generateStyledStringForElseGap((PDGElseGap)theNode.getMapping(), position);
-			cell.setBackground(new Color(null, 255, 156, 156));
+			if ((position == CloneDiffSide.LEFT && ((PDGElseGap)theNode.getMapping()).getId1() != 0) ||
+					(position == CloneDiffSide.RIGHT && ((PDGElseGap)theNode.getMapping()).getId2() != 0)) {
+				cell.setBackground(new Color(null, 255, 156, 156));
+			}
+			else {
+				cell.setBackground(new Color(null, 255, 224, 224));
+			}
 		}
 		else {
 			styledString = new StyledString();

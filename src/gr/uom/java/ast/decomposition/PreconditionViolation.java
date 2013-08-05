@@ -17,5 +17,8 @@ public abstract class PreconditionViolation {
 	public void setSuggestion(String suggestion) {
 		this.suggestion = suggestion;
 	}
-	
+
+	public String toString() {
+		return getViolation() + "\n";
+	}
 }

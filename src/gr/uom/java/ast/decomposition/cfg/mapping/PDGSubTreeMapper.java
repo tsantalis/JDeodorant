@@ -119,7 +119,7 @@ public class PDGSubTreeMapper {
 			CloneStructureNode node = new CloneStructureNode(nodeGap);
 			PDGTryNode tryNode = pdg1.isDirectlyNestedWithinTryNode(nodeG1);
 			if(tryNode != null) {
-				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNode(tryNode);
+				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG1(tryNode);
 				if(cloneStructureTry != null) {
 					node.setParent(cloneStructureTry);
 				}
@@ -133,7 +133,7 @@ public class PDGSubTreeMapper {
 			CloneStructureNode node = new CloneStructureNode(nodeGap);
 			PDGTryNode tryNode = pdg2.isDirectlyNestedWithinTryNode(nodeG2);
 			if(tryNode != null) {
-				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNode(tryNode);
+				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG2(tryNode);
 				if(cloneStructureTry != null) {
 					node.setParent(cloneStructureTry);
 				}
@@ -534,7 +534,8 @@ public class PDGSubTreeMapper {
 							}
 						}
 						//parents.add(parent);
-						if(!parent.getChildren().isEmpty()) {
+						boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGTryNode) && (parentNodeMapping.getNodeG2() instanceof PDGTryNode);
+						if(!parent.getChildren().isEmpty() || isTryBlock) {
 							parents.add(parent);
 						}
 						else {

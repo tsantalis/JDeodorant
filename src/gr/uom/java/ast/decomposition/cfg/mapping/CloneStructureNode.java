@@ -49,13 +49,27 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return false;
 	}
 
-	public CloneStructureNode findNode(PDGNode node) {
-		if(mapping != null && (node.equals(mapping.getNodeG1()) || node.equals(mapping.getNodeG2()))) {
+	public CloneStructureNode findNodeG1(PDGNode nodeG1) {
+		if(mapping != null && nodeG1.equals(mapping.getNodeG1())) {
 			return this;
 		}
 		else {
 			for(CloneStructureNode child : children) {
-				CloneStructureNode cloneStructureNode = child.findNode(node);
+				CloneStructureNode cloneStructureNode = child.findNodeG1(nodeG1);
+				if(cloneStructureNode != null)
+					return cloneStructureNode;
+			}
+		}
+		return null;
+	}
+
+	public CloneStructureNode findNodeG2(PDGNode nodeG2) {
+		if(mapping != null && nodeG2.equals(mapping.getNodeG2())) {
+			return this;
+		}
+		else {
+			for(CloneStructureNode child : children) {
+				CloneStructureNode cloneStructureNode = child.findNodeG2(nodeG2);
 				if(cloneStructureNode != null)
 					return cloneStructureNode;
 			}

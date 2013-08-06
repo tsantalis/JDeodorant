@@ -153,6 +153,8 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 			preconditionViolationTreeViewer.setLabelProvider(new PreconditionViolationsTreeLabelProvider());
 			preconditionViolationTreeViewer.setInput(nodeHoveredOver);
 			preconditionViolationTreeViewer.expandAll();
+			GridData preconditionViolationGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
+			preconditionViolationTreeViewer.getTree().setLayoutData(preconditionViolationGridData);
 		}
 		return comp;
 	}

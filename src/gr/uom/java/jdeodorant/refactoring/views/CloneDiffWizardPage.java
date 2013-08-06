@@ -13,12 +13,15 @@ import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.window.ToolTip;
 import org.eclipse.ltk.ui.refactoring.UserInputWizardPage;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CLabel;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.ScrollBar;
@@ -39,7 +42,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	public void createControl(Composite parent){
 		Composite result= new Composite(parent, SWT.NONE);
 		setControl(result);
-		GridLayout gridLayout = new GridLayout(2, true);
+		GridLayout gridLayout = new GridLayout(6, true);
 		//gridLayout.numColumns = 6;
 		//gridLayout.horizontalSpacing = 15;
 		//gridLayout.marginLeft = 15;
@@ -50,14 +53,14 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		methodLeftName.setText(mapper.getPDG1().getMethod().toString());
 		methodLeftName.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.NORMAL)));
 		GridData methodLeftNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		//methodLeftNameGridData.horizontalSpan = 3;
+		methodLeftNameGridData.horizontalSpan = 3;
 		methodLeftName.setLayoutData(methodLeftNameGridData);
 		
 		Label methodRightName = new Label(result, SWT.WRAP);
 		methodRightName.setText(mapper.getPDG2().getMethod().toString());
 		methodRightName.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.NORMAL)));
 		GridData methodRightNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		//methodRightNameGridData.horizontalSpan = 3;
+		methodRightNameGridData.horizontalSpan = 3;
 		methodRightName.setLayoutData(methodRightNameGridData);
 		
 		
@@ -71,7 +74,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		GridData treeLeftGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		treeLeftGridData.horizontalAlignment = SWT.FILL;
 		treeLeftGridData.verticalAlignment = SWT.FILL;
-		//treeLeftGridData.horizontalSpan = 3;
+		treeLeftGridData.horizontalSpan = 3;
 		//treeLeftGridData.verticalSpan = 2;
 		treeViewerLeft.getTree().setLayoutData(treeLeftGridData);
 		
@@ -85,69 +88,76 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		GridData treeRightGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		treeRightGridData.horizontalAlignment = SWT.FILL;
 		treeRightGridData.verticalAlignment = SWT.FILL;
-		//treeRightGridData.horizontalSpan = 3;
+		treeRightGridData.horizontalSpan = 3;
 		//treeRightGridData.verticalSpan = 2;
 		treeViewerRight.getTree().setLayoutData(treeRightGridData);
 	
-		/*
 		//Information Footer
-		//List of Differences discovered on the line
-		final List listOfDifferences = new List (shell, SWT.MULTI | SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
-		listOfDifferences.setItems (new String [] {""});
-		GridData listOfDifferencesGridData = new GridData(SWT.FILL, SWT.FILL, true, false);
-		listOfDifferencesGridData.horizontalSpan = 1;
-		listOfDifferencesGridData.verticalSpan = 5;
-		listOfDifferences.setLayoutData(listOfDifferencesGridData);
-		//Re-populate List when new line is selected:
-		treeViewerLeft.addPostSelectionChangedListener(new ISelectionChangedListener() { 
-			public void selectionChanged(SelectionChangedEvent event) {
-				ArrayList<String> items = new ArrayList<String>(10); 
-				TreeSelection treeSelection = (TreeSelection) event.getSelection();
-				CloneStructureNode node = (CloneStructureNode) treeSelection.getFirstElement();
-				if (node.getMapping() != null){
-					for (int i = 0; i < node.getMapping().getNodeDifferences().size(); i++){
-						ASTNodeDifference differences = node.getMapping().getNodeDifferences().get(i);
-						for (int j = 0; j < differences.getDifferences().size(); j++){
-							items.add(differences.getDifferences().get(j).getType().toString());
-						}
-					}
-					if (items.size() != 0)
-						listOfDifferences.setItems(Arrays.copyOf(items.toArray(), items.toArray().length, String[].class));
-					else
-						listOfDifferences.setItems (new String [] {"(No differences in these statements)"});
-				}
-			}
-		});
-		//Box with more detailed information
-		final Text informationBox = new Text(shell, SWT.BORDER);
-		informationBox.setText("The two variable names used are from the same class, but have different names.");
-		//Make the box non-editable
-		informationBox.addListener(SWT.Verify, new Listener()
-		{
-			public void handleEvent(Event e){
-				e.doit = false;
-			}
-		});
-		//Update Information Box when a List item is selected
-		listOfDifferences.addListener(SWT.MouseDown, new Listener() {
-			public void handleEvent(Event event) {
-				System.out.println("List Listener");
-				informationBox.setText("Something has been clicked");
-			}
-		});
+		//Legend
+		final Group legend = new Group(result, SWT.SHADOW_NONE);
+		legend.setText("Legend");
+		GridData legendGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
+		legendGridData.horizontalSpan = 2;
+		legendGridData.verticalSpan = 5;
+		legend.setLayoutData(legendGridData);
+		GridLayout legendLayout = new GridLayout();
+		legendLayout.numColumns = 2;
+		legend.setLayout(legendLayout);
+		//Unmapped Statements Label
+		CLabel unmappedStatementsLegendColor = new CLabel(legend, SWT.NONE);
+		unmappedStatementsLegendColor.setText("           ");
+		unmappedStatementsLegendColor.setBackground(new Color(null, 255, 156, 156));
+		CLabel unmappedStatementsLegendLabel = new CLabel(legend, SWT.NONE);
+		unmappedStatementsLegendLabel.setText("Unmapped Statement");
+		
+		CLabel differencesLegendColor = new CLabel(legend, SWT.NONE);
+		differencesLegendColor.setText("           ");
+		differencesLegendColor.setBackground(new Color(null, 255, 255, 200));
+		CLabel differencesLegendLabel = new CLabel(legend, SWT.NONE);
+		differencesLegendLabel.setText("Difference");
+		
+		
+		/*//LegendItem
+		StyledText unmappedLabel = new StyledText(legend, SWT.SINGLE | SWT.READ_ONLY);
+		unmappedLabel.setText("                        Unmapped Statements  ");
+		StyleRange unmappedStyleRange = new StyleRange();
+		unmappedStyleRange.start = 0;
+		unmappedStyleRange.length = 20;
+		Color unmappedColor = new Color(null, 255, 156, 156);
+		unmappedStyleRange.background = unmappedColor;
+		unmappedLabel.setStyleRange(unmappedStyleRange);
+		
+		StyledText differencesLabel = new StyledText(legend, SWT.MULTI | SWT.READ_ONLY);
+		differencesLabel.setText("                        Differences within Mapped Statements  ");
+		StyleRange differenceStyleRange = new StyleRange();
+		differenceStyleRange.start = 0;
+		differenceStyleRange.length = 20;
+		Color differencesColor = new Color(null, 255, 255, 200);
+		differenceStyleRange.background= differencesColor;
+		differencesLabel.setStyleRange(differenceStyleRange);
+		
+		GridData differencesLabelGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
+		differencesLabelGridData.horizontalSpan = 2;
+		differencesLabelGridData.verticalSpan = 5;
+		differencesLabel.setLayoutData(new GridData(GridData.CENTER, GridData.CENTER, true, false));*/
 	
 		
-		GridData informationBoxGridData = new GridData(SWT.FILL, SWT.FILL, true, false);
-		informationBoxGridData.horizontalSpan = 5;
-		informationBoxGridData.verticalSpan = 5;
-		informationBox.setLayoutData(informationBoxGridData);
-		*/
-		
+		/*Label differencesLabel = new Label(legend, SWT.DEFAULT);
+		differencesLabel.setText("Hello");
+		GridData differencesLabelGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
+		differencesLabelGridData.horizontalSpan = 2;
+		differencesLabelGridData.verticalSpan = 5;
+		differencesLabel.setLayoutData(new GridData(GridData.CENTER, GridData.CENTER, true, false));*/
+	
+	
 		//Tooltips
 		//ColumnViewerToolTipSupport.enableFor(treeViewerLeft);
 		//ColumnViewerToolTipSupport.enableFor(treeViewerRight);
 		
+		
+		@SuppressWarnings("unused")
 		CloneDiffTooltip tooltipLeft = new CloneDiffTooltip(treeViewerLeft, ToolTip.NO_RECREATE, false);
+		@SuppressWarnings("unused")
 		CloneDiffTooltip tooltipRight = new CloneDiffTooltip(treeViewerRight, ToolTip.NO_RECREATE, false);
 		
 		//Selection Listeners - Synchronize Selections

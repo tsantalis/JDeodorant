@@ -1048,7 +1048,7 @@ public class PDGSubTreeMapper {
 						int methodModifiers = methodBinding.getModifiers();
 						if((methodModifiers & Modifier.PRIVATE) != 0) {
 							String message = "Inline private method " + methodBinding.getName();
-							violation.setSuggestion(message);
+							violation.addSuggestion(message);
 						}
 					}
 				}
@@ -1062,7 +1062,7 @@ public class PDGSubTreeMapper {
 						int methodModifiers = methodBinding.getModifiers();
 						if((methodModifiers & Modifier.PRIVATE) != 0) {
 							String message = "Inline private method " + methodBinding.getName();
-							violation.setSuggestion(message);
+							violation.addSuggestion(message);
 						}
 					}
 				}
@@ -1076,7 +1076,7 @@ public class PDGSubTreeMapper {
 				ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
 				if(!typeBinding1.isPrimitive() && !typeBinding2.isPrimitive()) {
 					String message = "Make classes " + typeBinding1.getQualifiedName() + " and " + typeBinding2.getQualifiedName() + " extend a common superclass";
-					violation.setSuggestion(message);
+					violation.addSuggestion(message);
 				}
 			}
 		}

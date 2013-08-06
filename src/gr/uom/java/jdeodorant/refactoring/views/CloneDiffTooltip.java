@@ -2,18 +2,26 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.Difference;
+import gr.uom.java.ast.decomposition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.Suggestion;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
-
+import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jface.viewers.ColumnViewer;
 import org.eclipse.jface.viewers.ColumnViewerToolTipSupport;
+import org.eclipse.jface.viewers.ITreeContentProvider;
+import org.eclipse.jface.viewers.StyledCellLabelProvider;
 import org.eclipse.jface.viewers.StyledString;
+import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerCell;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CLabel;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
@@ -23,11 +31,16 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
+import org.eclipse.ui.ISharedImages;
+import org.eclipse.ui.PlatformUI;
 
 
 public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 
-	private Table table;
+	private Table differencesTable;
+	private TreeViewer preconditionViolationTreeViewer;
+	
+	List<PreconditionViolation> preconditionViolations;
 	
 	public CloneDiffTooltip(ColumnViewer viewer, int style,
 			boolean manualActivation) {
@@ -36,15 +49,33 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 	
 	@Override
 	protected Composite createViewerToolTipContentArea(Event event, ViewerCell cell, Composite parent) {
-		CloneStructureNode nodeHoveredOver = (CloneStructureNode) cell.getElement();
-		//Table table = new Table(comp, SWT.DEFAULT);
-
 		//Prepare Formatted Header Text
+		CloneStructureNode nodeHoveredOver = (CloneStructureNode) cell.getElement();
 		ASTNode astStatement;
 		List<ASTNodeDifference> differences = nodeHoveredOver.getMapping().getNodeDifferences();
-		if (differences.size() == 0)
+		if (differences.size() == 0){
+			parent.setVisible(false);
 			return null;
+		}
+		//Construct list of Precondition Violation
+		preconditionViolations = new ArrayList<PreconditionViolation>();
+		for (ASTNodeDifference nodeDifference : differences){
+			List<PreconditionViolation> violationsForThisDifference = nodeDifference.getPreconditionViolations();
+			for (PreconditionViolation thisViolation : violationsForThisDifference){
+				preconditionViolations.add(thisViolation);
+			}
+		}
+			
+		
 		Composite comp = new Composite(parent,SWT.NONE);
+		GridLayout gridLayout = new GridLayout(1, false);
+		comp.setLayout(gridLayout);
+		
+		Composite headerComp = new Composite(comp, SWT.NONE);
+		GridLayout headerCompGridLayout = new GridLayout(2, false);
+		headerComp.setLayout(headerCompGridLayout);
+		GridData headerCompGridData = new GridData(SWT.FILL, SWT.FILL, true, false);
+		headerComp.setLayoutData(headerCompGridData);
 		//First Statement
 		StyledStringVisitor leafVisitor1 = new StyledStringVisitor(nodeHoveredOver, CloneDiffSide.LEFT);
 		astStatement = nodeHoveredOver.getMapping().getNodeG1().getASTStatement();
@@ -55,44 +86,43 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		astStatement = nodeHoveredOver.getMapping().getNodeG2().getASTStatement();
 		astStatement.accept(leafVisitor2);
 		StyledString styledString2 = leafVisitor2.getStyledString();
-		GridLayout gridLayout = new GridLayout(2, false);
-		comp.setLayout(gridLayout);
-		StyledText label1 = new StyledText(comp, SWT.BORDER); label1.setText(" " + nodeHoveredOver.getMapping().getNodeG1().getCFGNode().getId() + " ");
-		StyledText styledText1 = new StyledText(comp, SWT.BORDER);
-		StyledText label2 = new StyledText(comp, SWT.BORDER); label2.setText(" " + nodeHoveredOver.getMapping().getNodeG2().getCFGNode().getId() + " ");
-		StyledText styledText2 = new StyledText(comp, SWT.BORDER);
+		//Include Statement IDs and put StyledStrings into StyledText labels
+		StyledText label1 = new StyledText(headerComp, SWT.BORDER); label1.setText(" " + nodeHoveredOver.getMapping().getNodeG1().getCFGNode().getId() + " ");
+		StyledText styledText1 = new StyledText(headerComp, SWT.BORDER);
+		StyledText label2 = new StyledText(headerComp, SWT.BORDER); label2.setText(" " + nodeHoveredOver.getMapping().getNodeG2().getCFGNode().getId() + " ");
+		StyledText styledText2 = new StyledText(headerComp, SWT.BORDER);
 		styledText1.setText(styledString1.toString());
 		styledText1.setStyleRanges(styledString1.getStyleRanges());
 		styledText2.setText(styledString2.toString());
 		styledText2.setStyleRanges(styledString2.getStyleRanges());
 		GridData gridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
 		gridData.horizontalAlignment = SWT.FILL;
-		styledText1.setLayoutData(gridData);
 		styledText2.setLayoutData(gridData);
+		styledText1.setLayoutData(gridData);
 		
-		table = new Table (comp, SWT.MULTI | SWT.BORDER | SWT.FULL_SELECTION);
-		table.setLinesVisible (true);
-		table.setHeaderVisible (true);
-		GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
+		//Differences Label and Table
+		CLabel differencesLabel = new CLabel(comp, SWT.NONE);
+		differencesLabel.setText("Differences");
+		differencesLabel.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
+		differencesLabel.setBackground(new Color(null, 150, 150, 0));
+		GridData differencesLabelGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
+		differencesLabel.setLayoutData(differencesLabelGridData);
+		
+		differencesTable = new Table (comp, SWT.MULTI | SWT.BORDER | SWT.FULL_SELECTION);
+		differencesTable.setLinesVisible (true);
+		differencesTable.setHeaderVisible (true);
+		GridData differencesTableData = new GridData(SWT.FILL, SWT.FILL, true, true);
 		//tableData.heightHint = 50;
-		tableData.horizontalSpan = 2;
-		table.setLayoutData(tableData);
+		differencesTable.setLayoutData(differencesTableData);
 		String[] titles = {"Expression 1", "Expression 2", "Difference Type", "Description"};
 		for (int i=0; i<titles.length; i++) {
-			TableColumn column = new TableColumn (table, SWT.NONE);
+			TableColumn column = new TableColumn (differencesTable, SWT.NONE);
 			column.setText (titles [i]);
 			column.pack();
 		}	
-		//Eliminates extra column at the end
-		table.addControlListener(new ControlAdapter() {
-			public void controlResized(ControlEvent e){
-				packAndFillLastColumn();
-			}
-		});
-		
 		for (ASTNodeDifference nodeDifference : differences) {
 			for (Difference diff : nodeDifference.getDifferences()) {
-				TableItem item = new TableItem (table, SWT.NONE);
+				TableItem item = new TableItem (differencesTable, SWT.NONE);
 				item.setText (0, nodeDifference.getExpression1().toString());
 				item.setText (1, nodeDifference.getExpression2().toString());
 				item.setText (2, diff.getType().name());
@@ -100,14 +130,38 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 			}
 		}
 		for (int i=0; i<titles.length; i++) {
-			table.getColumn(i).pack();
-		}	
-		
+			differencesTable.getColumn(i).pack();
+		}
+		//Eliminates extra column at the end
+		differencesTable.addControlListener(new ControlAdapter() {
+			public void controlResized(ControlEvent e){
+				packAndFillLastColumn(differencesTable);
+			}
+		});
+
+		//Precondition Violations
+		if (preconditionViolations.size() > 0){
+			CLabel preconditionsLabel = new CLabel(comp, SWT.NONE);
+			preconditionsLabel.setBackground(new Color(null, 150, 150, 0));
+			preconditionsLabel.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
+			preconditionsLabel.setText("Precondition Violations");
+			GridData preconditionsLabelGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
+			preconditionsLabel.setLayoutData(preconditionsLabelGridData);
+
+			preconditionViolationTreeViewer = new TreeViewer(comp, SWT.NONE);
+			preconditionViolationTreeViewer.setContentProvider(new PreconditionsViolationsTreeContentProvider());
+			preconditionViolationTreeViewer.setLabelProvider(new PreconditionViolationsTreeLabelProvider());
+			preconditionViolationTreeViewer.setInput(nodeHoveredOver);
+			preconditionViolationTreeViewer.expandAll();
+		}
 		return comp;
 	}
 	
+	
+	
+	
 	// Resize last column in Table viewer so that it fills the client area completely if extra space.
-	protected void packAndFillLastColumn() {
+	protected void packAndFillLastColumn(Table table) {
 	    int columnsWidth = 0;
 	    for (int i = 0; i < table.getColumnCount() - 1; i++) {
 	        columnsWidth += table.getColumn(i).getWidth();
@@ -135,5 +189,58 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 
 	public boolean isHideOnMouseDown() {
 		return true;
+	}
+	
+	private class PreconditionsViolationsTreeContentProvider implements ITreeContentProvider {
+
+		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
+		}
+		public void dispose() {
+		}
+		public Object[] getElements(Object parent) {
+			if(preconditionViolations != null) {
+				return preconditionViolations.toArray();
+			}
+			else {
+				return new PreconditionViolation[] {};
+			}
+		}
+		public Object[] getChildren(Object arg) {
+			if (arg instanceof PreconditionViolation) {
+				return ((PreconditionViolation)arg).getSuggestions().toArray();
+			}
+			else {
+				return new Suggestion[]{};
+			}
+		}
+		public Object getParent(Object arg0) {
+			if(arg0 instanceof Suggestion) {
+				Suggestion suggestion = (Suggestion)arg0;
+				return suggestion.getPreconditionViolation();
+			}
+			return null;
+		}
+		public boolean hasChildren(Object arg0) {
+			return getChildren(arg0).length > 0;
+		}
+		
+	}
+	private class PreconditionViolationsTreeLabelProvider extends StyledCellLabelProvider{
+		public void update(ViewerCell cell) { 
+			Object element = cell.getElement();
+			if (element instanceof CloneStructureNode){
+				cell.setText("CloneStructureNode");
+			}
+			if (element instanceof PreconditionViolation){
+				PreconditionViolation preconditionViolation = (PreconditionViolation) element;
+				cell.setText(preconditionViolation.getViolation());
+				cell.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJS_ERROR_TSK));
+			}
+			if (element instanceof Suggestion){
+				Suggestion suggestion = (Suggestion) element;
+				cell.setText(suggestion.getSuggestion());
+				cell.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
+			}
+		}
 	}
 }

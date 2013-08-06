@@ -1,21 +1,25 @@
 package gr.uom.java.ast.decomposition;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public abstract class PreconditionViolation {
 	protected PreconditionViolationType type;
-	protected String suggestion;
+	protected List<Suggestion> suggestions;
 	
 	public PreconditionViolation(PreconditionViolationType type) {
 		this.type = type;
+		suggestions = new ArrayList<Suggestion>();
 	}
 	
 	public abstract String getViolation();
 
-	public String getSuggestion() {
-		return suggestion;
+	public List<Suggestion> getSuggestions() {
+		return suggestions;
 	}
 
-	public void setSuggestion(String suggestion) {
-		this.suggestion = suggestion;
+	public void addSuggestion(String suggestionString) {
+		this.suggestions.add(new Suggestion(suggestionString, this));
 	}
 
 	public String toString() {

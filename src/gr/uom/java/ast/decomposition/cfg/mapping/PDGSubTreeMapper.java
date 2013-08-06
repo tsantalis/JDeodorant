@@ -1091,7 +1091,7 @@ public class PDGSubTreeMapper {
 
 	private void processNonMappedNodes(TreeSet<PDGNode> remainingNodes, TreeSet<PDGNode> removableNodes) {
 		for(PDGNode node : remainingNodes) {
-			if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
+			if(!removableNodes.isEmpty() && !movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
 				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
 				preconditionViolations.add(violation);

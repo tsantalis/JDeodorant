@@ -1004,6 +1004,30 @@ public class PDGSubTreeMapper {
 		}
 	}
 
+	private void branchStatementWithInnermostLoop(Set<PDGNode> mappedNodes) {
+		for(PDGNode node : mappedNodes) {
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				CFGBreakNode breakNode = (CFGBreakNode)cfgNode;
+				CFGNode innerMostLoopNode = breakNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !mappedNodes.contains(innerMostLoopNode.getPDGNode())) {
+					PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+							PreconditionViolationType.BREAK_STATEMENT_WITHOUT_LOOP);
+					preconditionViolations.add(violation);
+				}
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				CFGContinueNode continueNode = (CFGContinueNode)cfgNode;
+				CFGNode innerMostLoopNode = continueNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !mappedNodes.contains(innerMostLoopNode.getPDGNode())) {
+					PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+							PreconditionViolationType.CONTINUE_STATEMENT_WITHOUT_LOOP);
+					preconditionViolations.add(violation);
+				}
+			}
+		}
+	}
+
 	private void checkPreconditions() {
 		List<ASTNodeDifference> differences = maximumStateWithMinimumDifferences.getNodeDifferences();
 		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
@@ -1057,55 +1081,38 @@ public class PDGSubTreeMapper {
 		}
 		TreeSet<PDGNode> remainingNodesG1 = getRemainingNodesG1();
 		TreeSet<PDGNode> remainingNodesG2 = getRemainingNodesG2();
-		for(PDGNode node : remainingNodesG1) {
-			if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodesG1, node)) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
-				preconditionViolations.add(violation);
-			}
-			CFGNode cfgNode = node.getCFGNode();
-			if(cfgNode instanceof CFGBreakNode) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_BREAK_STATEMENT);
-				preconditionViolations.add(violation);
-			}
-			else if(cfgNode instanceof CFGContinueNode) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT);
-				preconditionViolations.add(violation);
-			}
-			else if(cfgNode instanceof CFGExitNode) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
-				preconditionViolations.add(violation);
-			}
-		}
-		for(PDGNode node : remainingNodesG2) {
-			if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodesG2, node)) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
-				preconditionViolations.add(violation);
-			}
-			CFGNode cfgNode = node.getCFGNode();
-			if(cfgNode instanceof CFGBreakNode) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_BREAK_STATEMENT);
-				preconditionViolations.add(violation);
-			}
-			else if(cfgNode instanceof CFGContinueNode) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT);
-				preconditionViolations.add(violation);
-			}
-			else if(cfgNode instanceof CFGExitNode) {
-				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
-				preconditionViolations.add(violation);
-			}
-		}
+		processNonMappedNodes(remainingNodesG1, removableNodesG1);
+		processNonMappedNodes(remainingNodesG2, removableNodesG2);
 		determineVariablesToBeReturned();
+		branchStatementWithInnermostLoop(removableNodesG1);
+		branchStatementWithInnermostLoop(removableNodesG2);
 	}
 
+	private void processNonMappedNodes(TreeSet<PDGNode> remainingNodes, TreeSet<PDGNode> removableNodes) {
+		for(PDGNode node : remainingNodes) {
+			if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
+				preconditionViolations.add(violation);
+			}
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_BREAK_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+			else if(cfgNode instanceof CFGExitNode) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
+				preconditionViolations.add(violation);
+			}
+		}
+	}
 	//precondition: non-mapped statement can be moved before the first mapped statement
 	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
 		int nodeId = nonMappedNode.getId();

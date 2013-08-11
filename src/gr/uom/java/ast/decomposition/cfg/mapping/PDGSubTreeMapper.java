@@ -964,7 +964,9 @@ public class PDGSubTreeMapper {
 					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
 					PDGNode srcNode = (PDGNode)dataDependence.getSrc();
 					if(mappedNodes.contains(srcNode) && dataDependence.getData() instanceof PlainVariable) {
-						variablesToBeReturned.add((PlainVariable)dataDependence.getData());
+						PlainVariable variable = (PlainVariable)dataDependence.getData();
+						if(!variable.isField())
+							variablesToBeReturned.add(variable);
 					}
 				}
 			}

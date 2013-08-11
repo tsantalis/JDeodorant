@@ -618,12 +618,26 @@ public class MethodObject {
 
     public boolean equals(MethodInvocationObject mio) {
     	return this.getClassName().equals(mio.getOriginClassName()) && this.getName().equals(mio.getMethodName()) &&
-    		this.returnType.equals(mio.getReturnType()) && this.constructorObject.getParameterTypeList().equals(mio.getParameterTypeList());
+    		this.returnType.equalsClassType(mio.getReturnType()) && equalParameterTypes(this.constructorObject.getParameterTypeList(), mio.getParameterTypeList());
+    		/*this.constructorObject.getParameterTypeList().equals(mio.getParameterTypeList());*/
     }
 
     public boolean equals(SuperMethodInvocationObject smio) {
     	return this.getClassName().equals(smio.getOriginClassName()) && this.getName().equals(smio.getMethodName()) &&
-    		this.returnType.equals(smio.getReturnType()) && this.constructorObject.getParameterTypeList().equals(smio.getParameterTypeList());
+    		this.returnType.equalsClassType(smio.getReturnType()) && equalParameterTypes(this.constructorObject.getParameterTypeList(), smio.getParameterTypeList());
+    		/*this.constructorObject.getParameterTypeList().equals(smio.getParameterTypeList());*/
+    }
+
+    private boolean equalParameterTypes(List<TypeObject> list1, List<TypeObject> list2) {
+    	if(list1.size() != list2.size())
+    		return false;
+    	for(int i=0; i<list1.size(); i++) {
+    		TypeObject type1 = list1.get(i);
+    		TypeObject type2 = list2.get(i);
+    		if(!type1.equalsClassType(type2))
+    			return false;
+    	}
+    	return true;
     }
 
     public boolean equals(Object o) {

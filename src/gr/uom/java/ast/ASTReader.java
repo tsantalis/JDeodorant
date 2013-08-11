@@ -251,6 +251,9 @@ public class ASTReader {
 		        			String qualifiedName = binding.getQualifiedName();
 		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
 		        			typeObject.setArrayDimension(typeObject.getArrayDimension() + parameter.getExtraDimensions());
+		        			if(parameter.isVarargs()) {
+		        				typeObject.setArrayDimension(1);
+		        			}
 		        			ParameterObject parameterObject = new ParameterObject(typeObject, parameter.getName().getIdentifier());
 		        			parameterObject.setSingleVariableDeclaration(parameter);
 		        			constructorObject.addParameter(parameterObject);

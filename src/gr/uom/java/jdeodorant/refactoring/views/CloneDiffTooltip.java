@@ -5,8 +5,11 @@ import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.Suggestion;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
-import java.util.ArrayList;
+import gr.uom.java.ast.decomposition.cfg.mapping.NodeMapping;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
+
 import java.util.List;
+
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jface.viewers.ColumnViewer;
 import org.eclipse.jface.viewers.ColumnViewerToolTipSupport;
@@ -52,25 +55,18 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		//Prepare Formatted Header Text
 		CloneStructureNode nodeHoveredOver = (CloneStructureNode) cell.getElement();
 		ASTNode astStatement;
-		List<ASTNodeDifference> differences = nodeHoveredOver.getMapping().getNodeDifferences();
-		if (differences.size() == 0){
-			parent.setVisible(false);
+		NodeMapping nodeMapping = nodeHoveredOver.getMapping();
+		if (nodeMapping.getNodeDifferences().size() == 0 && nodeMapping.getPreconditionViolations().size() == 0){
 			return null;
 		}
 		//Construct list of Precondition Violation
-		preconditionViolations = new ArrayList<PreconditionViolation>();
-		for (ASTNodeDifference nodeDifference : differences){
-			List<PreconditionViolation> violationsForThisDifference = nodeDifference.getPreconditionViolations();
-			for (PreconditionViolation thisViolation : violationsForThisDifference){
-				preconditionViolations.add(thisViolation);
-			}
-		}
-			
+		preconditionViolations = nodeMapping.getPreconditionViolations();
 		
 		Composite comp = new Composite(parent,SWT.NONE);
 		GridLayout gridLayout = new GridLayout(1, false);
 		comp.setLayout(gridLayout);
 		
+		if(nodeMapping instanceof PDGNodeMapping) {
 		Composite headerComp = new Composite(comp, SWT.NONE);
 		GridLayout headerCompGridLayout = new GridLayout(2, false);
 		headerComp.setLayout(headerCompGridLayout);
@@ -120,7 +116,7 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 			column.setText (titles [i]);
 			column.pack();
 		}	
-		for (ASTNodeDifference nodeDifference : differences) {
+		for (ASTNodeDifference nodeDifference : nodeMapping.getNodeDifferences()) {
 			for (Difference diff : nodeDifference.getDifferences()) {
 				TableItem item = new TableItem (differencesTable, SWT.NONE);
 				item.setText (0, nodeDifference.getExpression1().toString());
@@ -138,7 +134,7 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 				packAndFillLastColumn(differencesTable);
 			}
 		});
-
+		}
 		//Precondition Violations
 		if (preconditionViolations.size() > 0){
 			CLabel preconditionsLabel = new CLabel(comp, SWT.NONE);

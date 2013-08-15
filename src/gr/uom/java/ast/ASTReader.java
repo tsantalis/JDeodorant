@@ -114,7 +114,7 @@ public class ASTReader {
 			monitor.done();
 	}
 
-	private int getNumberOfCompilationUnits(IJavaProject iJavaProject) {
+	public static int getNumberOfCompilationUnits(IJavaProject iJavaProject) {
 		int numberOfCompilationUnits = 0;
 		try {
 			IPackageFragmentRoot[] iPackageFragmentRoots = iJavaProject.getPackageFragmentRoots();

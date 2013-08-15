@@ -48,10 +48,15 @@ public class ClassFigure extends Figure {
 		methodFigure.setBorder(new CompartmentFigureBorder());
 		add(methodFigure);
 	}
-
+	
 	public void addFieldCompartment(){
 		fieldFigure.setBorder(new CompartmentFigureBorder());
 		add(fieldFigure);
+	}
+	
+	public void addMethodCompartment(){
+		methodFigure.setBorder(new CompartmentFigureBorder());
+		add(methodFigure);
 	}
 
 	public void addMethodSectionCompartment(int columns){

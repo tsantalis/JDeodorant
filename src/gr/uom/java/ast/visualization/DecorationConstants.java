@@ -14,6 +14,7 @@ public class DecorationConstants {
 	public static final Color entityColor = new Color(null,255,255,240);
 	public static final Image FIELD = JavaUI.getSharedImages().getImage(ISharedImages.IMG_FIELD_PRIVATE);
 	public static final Image METHOD = JavaUI.getSharedImages().getImage(ISharedImages.IMG_OBJS_PUBLIC);
+	public static final Image PACKAGE = JavaUI.getSharedImages().getImage(ISharedImages.IMG_OBJS_PACKAGE);
 	public static final Color methodToMethodColor = new Color(null,60,179,113);
 	public static final int NO_OCCURENCES = -1;
 	public static final Color classColor = new Color(null,255,255,206);

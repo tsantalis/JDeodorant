@@ -9,12 +9,9 @@ import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
-import gr.uom.java.history.FeatureEnvyEvolution;
-import gr.uom.java.history.ProjectEvolution;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
-
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -29,7 +26,6 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
@@ -62,7 +58,6 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.jface.action.*;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
 import org.eclipse.ui.texteditor.ITextEditor;
@@ -103,14 +98,15 @@ public class FeatureEnvy extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action saveResultsAction;
-	private Action evolutionAnalysisAction;
+	private Action packageExplorerAction;
+	//private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private CandidateRefactoring[] candidateRefactoringTable;
-	private FeatureEnvyEvolution featureEnvyEvolution;
+	//private FeatureEnvyEvolution featureEnvyEvolution;
 
 	/*
 	 * The content provider class is responsible for
@@ -121,8 +117,9 @@ public class FeatureEnvy extends ViewPart {
 	 * it and always show the same content 
 	 * (like Task List, for example).
 	 */
-	 
+
 	class ViewContentProvider implements IStructuredContentProvider {
+
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
 		}
 		public void dispose() {
@@ -161,7 +158,7 @@ public class FeatureEnvy extends ViewPart {
 			default:
 				return "";
 			}
-			
+
 		}
 		public Image getColumnImage(Object obj, int index) {
 			CandidateRefactoring entry = (CandidateRefactoring)obj;
@@ -178,7 +175,7 @@ public class FeatureEnvy extends ViewPart {
 					image = Activator.getImageDescriptor("/icons/" + String.valueOf(rate) + ".jpg").createImage();
 				}
 			default:
-	            break;
+				break;
 			}
 			return image;
 		}
@@ -254,7 +251,8 @@ public class FeatureEnvy extends ViewPart {
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
-					evolutionAnalysisAction.setEnabled(false);
+					//evolutionAnalysisAction.setEnabled(false);
+					packageExplorerAction.setEnabled(false);
 				}
 			}
 		}
@@ -295,18 +293,18 @@ public class FeatureEnvy extends ViewPart {
 		column3.setText("Entity Placement");
 		column3.setResizable(true);
 		column3.pack();
-		
+
 		TableColumn column4 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
 		column4.setText("Rate it!");
 		column4.setResizable(true);
 		column4.pack();
-		
+
 		tableViewer.setColumnProperties(new String[] {"type", "source", "target", "ep", "rate"});
 		tableViewer.setCellEditors(new CellEditor[] {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
 				new MyComboBoxCellEditor(tableViewer.getTable(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
-		
+
 		tableViewer.setCellModifier(new ICellModifier() {
 			public boolean canModify(Object element, String property) {
 				return property.equals("rate");
@@ -378,7 +376,7 @@ public class FeatureEnvy extends ViewPart {
 				}
 			}
 		});
-		
+
 		makeActions();
 		hookDoubleClickAction();
 		contributeToActionBars();
@@ -391,11 +389,12 @@ public class FeatureEnvy extends ViewPart {
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
 					applyRefactoringAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
-					evolutionAnalysisAction.setEnabled(false);
+					//evolutionAnalysisAction.setEnabled(false);
+					packageExplorerAction.setEnabled(false);
 				}
 			}
 		});
-		
+
 		JFaceResources.getFontRegistry().put(MyToolTip.HEADER_FONT, JFaceResources.getFontRegistry().getBold(JFaceResources.getDefaultFont().getFontData()[0].getName()).getFontData());
 		MyToolTip toolTip = new MyToolTip(tableViewer.getControl());
 		toolTip.setShift(new Point(-5, -5));
@@ -407,12 +406,13 @@ public class FeatureEnvy extends ViewPart {
 		IActionBars bars = getViewSite().getActionBars();
 		fillLocalToolBar(bars.getToolBarManager());
 	}
-	
+
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(saveResultsAction);
-		manager.add(evolutionAnalysisAction);
+		//manager.add(evolutionAnalysisAction);
+		manager.add(packageExplorerAction);
 	}
 
 	private void makeActions() {
@@ -423,14 +423,21 @@ public class FeatureEnvy extends ViewPart {
 				tableViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
-				evolutionAnalysisAction.setEnabled(true);
+				//evolutionAnalysisAction.setEnabled(true);
+				packageExplorerAction.setEnabled(true);
+				final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+
+				if(viewPart != null)
+					openPackageExplorerViewPart();
+
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
 		identifyBadSmellsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
+				getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
 		identifyBadSmellsAction.setEnabled(false);
-		
+
 		saveResultsAction = new Action() {
 			public void run() {
 				saveResults();
@@ -438,10 +445,24 @@ public class FeatureEnvy extends ViewPart {
 		};
 		saveResultsAction.setToolTipText("Save Results");
 		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
+				getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
-		
-		evolutionAnalysisAction = new Action() {
+
+
+		packageExplorerAction = new Action(){
+			public void run(){
+
+				openPackageExplorerViewPart();
+
+			}
+		};
+
+		packageExplorerAction.setToolTipText("Code Smell Package Explorer");
+		packageExplorerAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		packageExplorerAction.setEnabled(false);
+
+		/*evolutionAnalysisAction = new Action() {
 			public void run() {
 				featureEnvyEvolution = null;
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
@@ -476,9 +497,9 @@ public class FeatureEnvy extends ViewPart {
 		};
 		evolutionAnalysisAction.setToolTipText("Evolution Analysis");
 		evolutionAnalysisAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-			getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
-		evolutionAnalysisAction.setEnabled(false);
-		
+				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		evolutionAnalysisAction.setEnabled(false);*/
+
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
@@ -566,7 +587,7 @@ public class FeatureEnvy extends ViewPart {
 		applyRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 				getImageDescriptor(ISharedImages.IMG_DEF_VIEW));
 		applyRefactoringAction.setEnabled(false);
-		
+
 		doubleClickAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
@@ -597,7 +618,7 @@ public class FeatureEnvy extends ViewPart {
 						int offset = firstPosition.getOffset();
 						int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 						sourceEditor.setHighlightRange(offset, length, true);
-						
+
 						CodeSmellVisualizationDataSingleton.setData(
 								((MoveMethodCandidateRefactoring)candidate).getFeatureEnvyVisualizationData());
 						IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
@@ -605,6 +626,29 @@ public class FeatureEnvy extends ViewPart {
 						if(viewPart != null)
 							page.hideView(viewPart);
 						page.showView(CodeSmellVisualization.ID);
+
+
+						/*Display.getDefault().asyncExec(new Runnable() {
+				               public void run()  {
+
+				            Display display = Display.getDefault();
+							Shell shell = new Shell(display);
+				            shell.setSize(1000, 500);
+							shell.setText("Package Map");
+							shell.setLayout(new GridLayout());
+							PackageMapDiagram map = new PackageMapDiagram(shell, candidateRefactoringTable);
+							FigureCanvas canvas = map.createDiagram();
+							canvas.setLayoutData(new GridData(GridData.FILL_BOTH));
+							shell.open();
+							while (!shell.isDisposed()) {
+								while (!display.readAndDispatch()) {
+									display.sleep();
+								}
+							}
+						}
+						});*/
+
+
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
@@ -652,7 +696,7 @@ public class FeatureEnvy extends ViewPart {
 		else
 			return extractMethodPrerequisiteRefactorings;
 	}
-	
+
 	private CandidateRefactoring[] getTable() {
 		CandidateRefactoring[] table = null;
 		try {
@@ -689,7 +733,7 @@ public class FeatureEnvy extends ViewPart {
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 			}
-			
+
 			final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
 			for(ClassObject classObject : classObjectsToBeExamined) {
 				classNamesToBeExamined.add(classObject.getName());
@@ -702,13 +746,13 @@ public class FeatureEnvy extends ViewPart {
 				}
 			});
 			final List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
-			
+
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 					moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, monitor));
 				}
 			});
-			
+
 			table = new CandidateRefactoring[moveMethodCandidateList.size() + 1];
 			table[0] = new CurrentSystem(distanceMatrix);
 			int counter = 1;
@@ -721,18 +765,20 @@ public class FeatureEnvy extends ViewPart {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		return table;		
+
+		return table;	
+
 	}
-	
+
 	protected class MyToolTip extends ToolTip {
 		//public static final String HEADER_BG_COLOR = Policy.JFACE + ".TOOLTIP_HEAD_BG_COLOR";
 		//public static final String HEADER_FG_COLOR = Policy.JFACE + ".TOOLTIP_HEAD_FG_COLOR";
 		public static final String HEADER_FONT = Policy.JFACE + ".TOOLTIP_HEAD_FONT";
-		
+
 		public MyToolTip(Control control) {
 			super(control);
 		}
-		
+
 		protected Composite createToolTipContentArea(Event event, Composite parent) {
 			Composite comp = new Composite(parent,SWT.NONE);
 			GridLayout gl = new GridLayout(1,false);
@@ -744,13 +790,13 @@ public class FeatureEnvy extends ViewPart {
 			gl.marginRight=0;
 			gl.verticalSpacing=1;
 			comp.setLayout(gl);
-			
+
 			Composite topArea = new Composite(comp,SWT.NONE);
 			GridData data = new GridData(SWT.FILL,SWT.FILL,true,false);
 			data.widthHint=200;
 			topArea.setLayoutData(data);
 			topArea.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_WHITE));
-			
+
 			gl = new GridLayout(1,false);
 			gl.marginBottom=2;
 			gl.marginTop=2;
@@ -758,16 +804,16 @@ public class FeatureEnvy extends ViewPart {
 			gl.marginWidth=0;
 			gl.marginLeft=5;
 			gl.marginRight=2;
-			
+
 			topArea.setLayout(gl);
-			
+
 			Label label = new Label(topArea,SWT.NONE);
 			label.setText("APPLY FIRST");
 			label.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_WHITE));
 			label.setFont(JFaceResources.getFontRegistry().get(HEADER_FONT));
 			//label.setForeground(JFaceResources.getColorRegistry().get(HEADER_FG_COLOR));
 			label.setLayoutData(new GridData(GridData.FILL_BOTH));
-			
+
 			Table table = tableViewer.getTable();
 			Point coords = new Point(event.x, event.y);
 			TableItem item = table.getItem(coords);
@@ -785,15 +831,7 @@ public class FeatureEnvy extends ViewPart {
 					link.setBackground(parent.getDisplay().getSystemColor(SWT.COLOR_INFO_BACKGROUND));
 					link.addSelectionListener(new SelectionAdapter() {
 						public void widgetSelected(SelectionEvent e) {
-							Table table = tableViewer.getTable();
-							for(int i=0; i<table.getItemCount(); i++) {
-								Object tableElement = tableViewer.getElementAt(i);
-								CandidateRefactoring candidate = (CandidateRefactoring)tableElement;
-								if(candidate.equals(firstPrerequisite)) {
-									table.setSelection(i);
-									break;
-								}
-							}
+							setSelectedLine(firstPrerequisite);
 						}
 					});
 					comp2.setLayoutData(new GridData(GridData.FILL_BOTH));
@@ -801,7 +839,7 @@ public class FeatureEnvy extends ViewPart {
 			}
 			return comp;
 		}
-		
+
 		protected boolean shouldCreateToolTip(Event event) {
 			Table table = tableViewer.getTable();
 			Point coords = new Point(event.x, event.y);
@@ -818,35 +856,66 @@ public class FeatureEnvy extends ViewPart {
 	private void saveResults() {
 		FileDialog fd = new FileDialog(getSite().getWorkbenchWindow().getShell(), SWT.SAVE);
 		fd.setText("Save Results");
-        String[] filterExt = { "*.txt" };
-        fd.setFilterExtensions(filterExt);
-        String selected = fd.open();
-        if(selected != null) {
-        	try {
-        		BufferedWriter out = new BufferedWriter(new FileWriter(selected));
-        		Table table = tableViewer.getTable();
-        		TableColumn[] columns = table.getColumns();
-        		for(int i=0; i<columns.length; i++) {
-        			if(i == columns.length-1)
-        				out.write(columns[i].getText());
-        			else
-        				out.write(columns[i].getText() + "\t");
-        		}
-        		out.newLine();
-        		for(int i=0; i<table.getItemCount(); i++) {
-        			TableItem tableItem = table.getItem(i);
-        			for(int j=0; j<table.getColumnCount(); j++) {
-        				if(j == table.getColumnCount()-1)
-        					out.write(tableItem.getText(j));
-        				else
-        					out.write(tableItem.getText(j) + "\t");
-        			}
-        			out.newLine();
-        		}
-        		out.close();
-        	} catch (IOException e) {
-        		e.printStackTrace();
-        	}
-        }
+		String[] filterExt = { "*.txt" };
+		fd.setFilterExtensions(filterExt);
+		String selected = fd.open();
+		if(selected != null) {
+			try {
+				BufferedWriter out = new BufferedWriter(new FileWriter(selected));
+				Table table = tableViewer.getTable();
+				TableColumn[] columns = table.getColumns();
+				for(int i=0; i<columns.length; i++) {
+					if(i == columns.length-1)
+						out.write(columns[i].getText());
+					else
+						out.write(columns[i].getText() + "\t");
+				}
+				out.newLine();
+				for(int i=0; i<table.getItemCount(); i++) {
+					TableItem tableItem = table.getItem(i);
+					for(int j=0; j<table.getColumnCount(); j++) {
+						if(j == table.getColumnCount()-1)
+							out.write(tableItem.getText(j));
+						else
+							out.write(tableItem.getText(j) + "\t");
+					}
+					out.newLine();
+				}
+				out.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+
+	public void setSelectedLine(final CandidateRefactoring candidateRefactoring) {
+		Table table = tableViewer.getTable();
+		for(int i=0; i<table.getItemCount(); i++) {
+			Object tableElement = tableViewer.getElementAt(i);
+			CandidateRefactoring candidate = (CandidateRefactoring)tableElement;
+			if(candidate.equals(candidateRefactoring)) {
+				table.setSelection(i);
+				break;
+			}
+		}
+	}
+
+	private void openPackageExplorerViewPart() {
+		try {
+			CodeSmellVisualizationDataSingleton.setCandidates(candidateRefactoringTable);
+			final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+			IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+
+			if(viewPart != null)
+				page.hideView(viewPart);
+
+			page.showView(CodeSmellPackageExplorer.ID);
+
+		} catch (PartInitException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }

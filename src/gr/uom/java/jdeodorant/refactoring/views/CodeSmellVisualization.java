@@ -4,7 +4,7 @@ import gr.uom.java.ast.visualization.FeatureEnvyDiagram;
 import gr.uom.java.ast.visualization.FeatureEnvyVisualizationData;
 import gr.uom.java.ast.visualization.GodClassDiagram2;
 import gr.uom.java.ast.visualization.GodClassVisualizationData;
-import gr.uom.java.ast.visualization.InputAction;
+import gr.uom.java.ast.visualization.ZoomInputAction;
 import gr.uom.java.ast.visualization.VisualizationData;
 import gr.uom.java.ast.visualization.ZoomAction;
 import gr.uom.java.jdeodorant.refactoring.Activator;
@@ -152,7 +152,7 @@ public class CodeSmellVisualization extends ViewPart {
 			addActionToMenu(menu, newZoomAction(2));
 			addActionToMenu(menu, newZoomAction(0));
 
-			InputAction inputZoomAction = new InputAction(root);
+			ZoomInputAction inputZoomAction = new ZoomInputAction(root);
 			inputZoomAction.setText("Other...");
 
 			addActionToMenu(menu, inputZoomAction);

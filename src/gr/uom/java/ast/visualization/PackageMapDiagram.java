@@ -50,7 +50,7 @@ public class PackageMapDiagram {
 
 
 	public PackageMapDiagram(CandidateRefactoring[] candidateRefactoring, IProgressMonitor monitor){
-
+		allClassFigures = new ArrayList<PMClassFigure>();
 		root = new ScalableLayeredPane();
 		root.setLayoutManager(new ToolbarLayout());
 

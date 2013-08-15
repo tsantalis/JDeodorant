@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition;
 
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jface.viewers.StyledString;
 
 public class DualExpressionPreconditionViolation extends PreconditionViolation {
 	private AbstractExpression expression1;
@@ -29,5 +30,24 @@ public class DualExpressionPreconditionViolation extends PreconditionViolation {
 			return sb.toString();
 		}
 		return "";
+	}
+
+	public StyledString getStyledViolation() {
+		StyledString styledString = new StyledString();
+		BoldStyler styler = new BoldStyler();
+		if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH)) {
+			Expression expression1 = this.expression1.getExpression();
+			Expression expression2 = this.expression2.getExpression();
+			styledString.append("Type ");
+			styledString.append(expression1.resolveTypeBinding().getQualifiedName(), styler);
+			styledString.append(" of variable ");
+			styledString.append(expression1.toString(), styler);
+			styledString.append(" does not match with ");
+			styledString.append("type ");
+			styledString.append(expression2.resolveTypeBinding().getQualifiedName(), styler);
+			styledString.append(" of variable ");
+			styledString.append(expression2.toString(), styler);
+		}
+		return styledString;
 	}
 }

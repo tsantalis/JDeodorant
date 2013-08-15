@@ -3,6 +3,8 @@ package gr.uom.java.ast.decomposition;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jface.viewers.StyledString;
+
 public abstract class PreconditionViolation {
 	protected PreconditionViolationType type;
 	protected List<Suggestion> suggestions;
@@ -13,6 +15,7 @@ public abstract class PreconditionViolation {
 	}
 	
 	public abstract String getViolation();
+	public abstract StyledString getStyledViolation();
 
 	public List<Suggestion> getSuggestions() {
 		return suggestions;

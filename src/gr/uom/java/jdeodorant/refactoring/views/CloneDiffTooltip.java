@@ -11,6 +11,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.internal.ui.JavaPluginImages;
 import org.eclipse.jface.viewers.ColumnViewer;
 import org.eclipse.jface.viewers.ColumnViewerToolTipSupport;
 import org.eclipse.jface.viewers.ITreeContentProvider;
@@ -231,13 +232,15 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 			}
 			if (element instanceof PreconditionViolation){
 				PreconditionViolation preconditionViolation = (PreconditionViolation) element;
-				cell.setText(preconditionViolation.getViolation());
+				StyledString styledString = preconditionViolation.getStyledViolation();
+				cell.setText(styledString.getString());
+				cell.setStyleRanges(styledString.getStyleRanges());
 				cell.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJS_ERROR_TSK));
 			}
 			if (element instanceof Suggestion){
 				Suggestion suggestion = (Suggestion) element;
 				cell.setText(suggestion.getSuggestion());
-				cell.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
+				cell.setImage(JavaPluginImages.get(JavaPluginImages.IMG_OBJS_QUICK_ASSIST));
 			}
 		}
 	}

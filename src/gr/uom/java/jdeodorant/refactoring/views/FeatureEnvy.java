@@ -626,29 +626,6 @@ public class FeatureEnvy extends ViewPart {
 						if(viewPart != null)
 							page.hideView(viewPart);
 						page.showView(CodeSmellVisualization.ID);
-
-
-						/*Display.getDefault().asyncExec(new Runnable() {
-				               public void run()  {
-
-				            Display display = Display.getDefault();
-							Shell shell = new Shell(display);
-				            shell.setSize(1000, 500);
-							shell.setText("Package Map");
-							shell.setLayout(new GridLayout());
-							PackageMapDiagram map = new PackageMapDiagram(shell, candidateRefactoringTable);
-							FigureCanvas canvas = map.createDiagram();
-							canvas.setLayoutData(new GridData(GridData.FILL_BOTH));
-							shell.open();
-							while (!shell.isDisposed()) {
-								while (!display.readAndDispatch()) {
-									display.sleep();
-								}
-							}
-						}
-						});*/
-
-
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {

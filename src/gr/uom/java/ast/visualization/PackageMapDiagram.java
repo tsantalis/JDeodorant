@@ -3,6 +3,7 @@ package gr.uom.java.ast.visualization;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.draw2d.CompoundBorder;
 import org.eclipse.draw2d.FlowLayout;
@@ -27,7 +28,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.widgets.Display;
+
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.distance.CandidateRefactoring;
@@ -36,10 +37,9 @@ import gr.uom.java.distance.CandidateRefactoring;
 
 public class PackageMapDiagram {
 
-
 	private ScalableLayeredPane root;
 	private Layer primary;
-	public static String projectName;
+	private String projectName;
 	private HashMap<String, List<CandidateRefactoring>> keyMap = new HashMap<String, List<CandidateRefactoring>>();
 	public static List<PMClassFigure> allClassFigures= new ArrayList<PMClassFigure>();
 	private List<PackageFigure> hasSubPackages = new ArrayList<PackageFigure>();
@@ -74,12 +74,10 @@ public class PackageMapDiagram {
 						figure.setSelected(false);
 					figure.setToOriginalState();
 				}
-
 			}
 
 		});
-		root.setFont(Display.getDefault().getSystemFont());
-
+		//root.setFont(Display.getDefault().getSystemFont());
 
 		//get all Candidates for Refactoring
 		for(CandidateRefactoring candidate : candidateRefactoring){
@@ -111,7 +109,6 @@ public class PackageMapDiagram {
 
 		}
 
-
 		IJavaProject javaProject = ASTReader.getExaminedProject();
 		projectName = javaProject.getElementName();
 
@@ -119,9 +116,8 @@ public class PackageMapDiagram {
 		label.setLabelAlignment(Label.LEFT);
 		root.add(label);
 		root.add(primary,"Primary");
-
 		if(monitor != null)
-			monitor.beginTask("Parsing selected Java Project", ASTReader.getNumberOfCompilationUnits(javaProject));
+			monitor.beginTask("Creating Package Explorer Map", ASTReader.getNumberOfCompilationUnits(javaProject));
 
 		//parses JavaProject
 		try {
@@ -228,10 +224,7 @@ public class PackageMapDiagram {
 						if(monitor != null)
 							monitor.worked(1);
 					}
-
 					packageFigures.add(packageFigure);
-
-
 				}
 			}
 
@@ -260,13 +253,11 @@ public class PackageMapDiagram {
 						parentPackage = p;
 
 					}
-
 				}
 				if(parentPackage !=null){
 					parentPackage.addToSet(currentPackage);
 					packageFigures.set(i, null);
 				}
-
 			}
 
 			//adds the remaining packages to the system
@@ -275,7 +266,6 @@ public class PackageMapDiagram {
 					systemFigure.addToSet(p);
 			}
 
-
 			PMClassFigure.setMAX_NUM(max);
 			PMClassFigure.setMIN_NUM(min);
 
@@ -283,18 +273,10 @@ public class PackageMapDiagram {
 			primary.add(systemFigure);
 			if(monitor != null)
 				monitor.done();
-
-
 		} catch (JavaModelException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
-
-
-
 	}
-
 
 	public ScalableLayeredPane getRoot() {
 		return root;
@@ -338,8 +320,6 @@ public class PackageMapDiagram {
 
 			}
 		}
-
-
 		color = new Color(null, degree,degree,degree);
 
 		return color;
@@ -354,29 +334,26 @@ public class PackageMapDiagram {
 		return depth;
 
 	}
+
 	public List<PMClassFigure> getAllClassFigures() {
 		return allClassFigures;
 	}
-
-
 
 	public PMClassFigure getSelectedClass() {
 		return selectedClass;
 	}
 
-
-
 	public void setSelectedClass(PMClassFigure selectedClass) {
 		this.selectedClass = selectedClass;
 	}
 
+	public String getProjectName() {
+		return projectName;
+	}
 
 	public PMClassFigure createClassFigure(TypeDeclaration topLevelTypeDeclaration){
 		int numOfAttributes = topLevelTypeDeclaration.getFields().length;
 		int numOfMethods= topLevelTypeDeclaration.getMethods().length;
-
-
-
 		if(Math.max(numOfAttributes, numOfMethods)>max){
 			max = Math.max(numOfAttributes, numOfMethods);
 		}
@@ -420,9 +397,6 @@ public class PackageMapDiagram {
 				// TODO Auto-generated method stub
 
 			}
-
-
-
 		});
 
 		return classFigure;
@@ -447,12 +421,4 @@ public class PackageMapDiagram {
 
 		return classFigure;
 	}
-
-
-
-
-
-
-
-
 }

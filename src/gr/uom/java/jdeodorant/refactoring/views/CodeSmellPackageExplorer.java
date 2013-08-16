@@ -1,8 +1,10 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
+import gr.uom.java.ast.visualization.DecorationConstants;
 import gr.uom.java.ast.visualization.ICustomInformationControlCreator;
 import gr.uom.java.ast.visualization.IInformationProvider;
 import gr.uom.java.ast.visualization.FeatureEnviedMethodInformationControlCreator;
@@ -14,6 +16,7 @@ import gr.uom.java.ast.visualization.PackageMapDiagram;
 import gr.uom.java.ast.visualization.ZoomAction;
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.jdeodorant.refactoring.Activator;
+
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.FigureCanvas;
@@ -27,6 +30,7 @@ import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IMenuCreator;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.swt.SWT;
@@ -38,55 +42,63 @@ import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseTrackAdapter;
 import org.eclipse.swt.events.MouseWheelListener;
 import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.ui.IActionBars;
+import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
+import org.eclipse.ui.progress.IProgressService;
 
 public class CodeSmellPackageExplorer extends ViewPart {
 	public static final String ID = "gr.uom.java.jdeodorant.views.CodeSmellPackageExplorer";
 	private FigureCanvas figureCanvas; 
 	private ScalableLayeredPane root = null;
 	private boolean ctrlPressed= false;
-	public static IProgressMonitor monitor;
 	public static double SCALE_FACTOR=1;
+	private PackageMapDiagram diagram;
 
 	@Override
 	public void createPartControl(Composite parent) {
-
 		parent.setLayout(new FillLayout());
-
 		figureCanvas = new FigureCanvas(parent, SWT.DOUBLE_BUFFERED);
 		figureCanvas.setBackground(ColorConstants.white);
-
-		CandidateRefactoring[] candidates = CodeSmellVisualizationDataSingleton.getCandidates();
-		PackageMapDiagram diagram = null;
-		
-		if(candidates != null){
-			diagram = new PackageMapDiagram(candidates, monitor);
-			
-			root = diagram.getRoot();
-
+		//preinitializing DecorationConstants
+		Image im = DecorationConstants.PACKAGE;
+		try {
+			IWorkbench wb = PlatformUI.getWorkbench();
+			IProgressService ps = wb.getProgressService();
+			ps.busyCursorWhile(new IRunnableWithProgress() {
+				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+					CandidateRefactoring[] candidates = CodeSmellVisualizationDataSingleton.getCandidates();
+					if(candidates != null){
+						diagram = new PackageMapDiagram(candidates, monitor);
+						root = diagram.getRoot();
+					}
+				}
+			});
+		} catch (InvocationTargetException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-
-
 
 		//figureCanvas.setViewport(new FreeformViewport());
 		figureCanvas.addKeyListener( new KeyListener() {
-
 			public void keyPressed(KeyEvent e) {
 				if(e.keyCode == SWT.CTRL){
 					ctrlPressed = true;
 				}
 			}
-
 			public void keyReleased(KeyEvent e) {
 				if(e.keyCode== SWT.CTRL)
 					ctrlPressed = false;
-
 			}
 		});
 		MouseWheelListener listener = new MouseWheelListener() {
@@ -111,13 +123,12 @@ public class CodeSmellPackageExplorer extends ViewPart {
 					viewport.setHorizontalLocation((int) (point.x*(scale -1)+ scale*viewport.getLocation().x));
 					viewport.setVerticalLocation((int) (point.y*(scale-1)+scale*viewport.getLocation().y));
 				}
-				
+
 				SCALE_FACTOR=scale;
 				root.setScale(scale);
 			}
 
 			public void mouseScrolled(MouseEvent e) {
-
 				if(ctrlPressed == true){
 					scale = root.getScale();
 					Point point = new Point(e.x,e.y);
@@ -125,7 +136,6 @@ public class CodeSmellPackageExplorer extends ViewPart {
 					zoom(count, point);
 
 				}
-
 			}
 		};
 
@@ -134,41 +144,28 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		if(diagram != null)
 			hookTooltips(diagram);
 
-
-		
-		
-		
 		ImageDescriptor imageDescriptor = Activator.getImageDescriptor("/icons/" + "magnifier.png");
 		IActionBars bars = getViewSite().getActionBars();
 		IToolBarManager manager = bars.getToolBarManager();
-		
-		if(PackageMapDiagram.projectName != null){
-			
-				
-		LabelControlContribution infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
-		LabelControlContribution projectNameLabel = new LabelControlContribution("Label", PackageMapDiagram.projectName+"  ", new Font(null, "Consolas", 10, SWT.BOLD));
-		
-		manager.add(infoLabel);
-		manager.add(projectNameLabel);
-		
-		manager.add(new Separator());
+
+		if(diagram != null && diagram.getProjectName() != null){	
+			LabelControlContribution infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
+			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ", new Font(null, "Consolas", 10, SWT.BOLD));
+			manager.add(infoLabel);
+			manager.add(projectNameLabel);
+			manager.add(new Separator());
 		}
-		
 		Action act=new Action("Zoom",SWT.DROP_DOWN){};
 		act.setImageDescriptor(imageDescriptor);
 		act.setMenuCreator(new MyMenuCreator());
 		manager.add(act);
-		
-		
+
 		SearchInputAction searchAction = new SearchInputAction();
 		searchAction.setText("Search");
 		manager.add(searchAction);
-		
-		
-		
-		
 
 	}
+	
 	class MyMenuCreator implements IMenuCreator{
 
 		private IAction action;
@@ -247,22 +244,13 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	    @Override  
 	    protected Control createControl(Composite parent)  
 	    {  
-	        //Label b = new Label(parent, SWT.LEFT);  
-	       // b.setText("project name");  
-	       // return b;  
 	    	Label label= new Label(parent, SWT.CENTER);
-	    	    	
-	    	
-	    	//label.setText("Feature Envy Analysis of system: \b" + PackageMapDiagram.projectName+"  ");
 	    	label.setText(name);
 	    	if(font != null)
-	    	label.setFont(font);
+	    		label.setFont(font);
 	    	return label;
-	    }  
-	    
-	     
+	    }
 	}
-
 
 	private void hookTooltips(PackageMapDiagram diagram) {
 		// Create an information provider for our table viewer
@@ -301,10 +289,4 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		// Install tooltips
 		//Tooltips.install(diagram.getControl(), informationProvider, informationControlCreators, false);
 	}
-	public static void setMonitor(IProgressMonitor monitor) {
-		CodeSmellPackageExplorer.monitor = monitor;
-	}
-	
-	
-
 }

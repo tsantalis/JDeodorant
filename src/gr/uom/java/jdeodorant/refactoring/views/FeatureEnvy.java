@@ -12,6 +12,7 @@ import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
+
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -26,6 +27,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
@@ -427,10 +429,8 @@ public class FeatureEnvy extends ViewPart {
 				packageExplorerAction.setEnabled(true);
 				final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
-
 				if(viewPart != null)
-					openPackageExplorerViewPart();
-
+					page.hideView(viewPart);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -451,9 +451,7 @@ public class FeatureEnvy extends ViewPart {
 
 		packageExplorerAction = new Action(){
 			public void run(){
-
 				openPackageExplorerViewPart();
-
 			}
 		};
 
@@ -882,12 +880,10 @@ public class FeatureEnvy extends ViewPart {
 	private void openPackageExplorerViewPart() {
 		try {
 			CodeSmellVisualizationDataSingleton.setCandidates(candidateRefactoringTable);
-			final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 			IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
-
 			if(viewPart != null)
 				page.hideView(viewPart);
-
 			page.showView(CodeSmellPackageExplorer.ID);
 
 		} catch (PartInitException e) {

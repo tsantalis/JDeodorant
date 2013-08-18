@@ -5,8 +5,6 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
-import gr.uom.java.history.ProjectEvolution;
-import gr.uom.java.history.TypeCheckingEvolution;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceConditionalWithPolymorphism;
@@ -64,7 +62,6 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.*;
@@ -96,14 +93,14 @@ public class TypeChecking extends ViewPart {
 	private Action doubleClickAction;
 	private Action renameMethodAction;
 	private Action saveResultsAction;
-	private Action evolutionAnalysisAction;
+	//private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
 	private IType selectedType;
 	private TypeCheckEliminationGroup[] typeCheckEliminationGroupTable;
-	private TypeCheckingEvolution typeCheckingEvolution;
+	//private TypeCheckingEvolution typeCheckingEvolution;
 
 	/*
 	 * The content provider class is responsible for
@@ -283,7 +280,7 @@ public class TypeChecking extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
-					evolutionAnalysisAction.setEnabled(false);
+					//evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -442,7 +439,7 @@ public class TypeChecking extends ViewPart {
 					applyRefactoringAction.setEnabled(false);
 					renameMethodAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
-					evolutionAnalysisAction.setEnabled(false);
+					//evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		});
@@ -458,7 +455,7 @@ public class TypeChecking extends ViewPart {
 		manager.add(applyRefactoringAction);
 		manager.add(renameMethodAction);
 		manager.add(saveResultsAction);
-		manager.add(evolutionAnalysisAction);
+		//manager.add(evolutionAnalysisAction);
 	}
 
 	private void makeActions() {
@@ -470,7 +467,7 @@ public class TypeChecking extends ViewPart {
 				applyRefactoringAction.setEnabled(true);
 				renameMethodAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
-				evolutionAnalysisAction.setEnabled(true);
+				//evolutionAnalysisAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -488,7 +485,7 @@ public class TypeChecking extends ViewPart {
 			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
 		
-		evolutionAnalysisAction = new Action() {
+		/*evolutionAnalysisAction = new Action() {
 			public void run() {
 				typeCheckingEvolution = null;
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
@@ -523,7 +520,7 @@ public class TypeChecking extends ViewPart {
 		evolutionAnalysisAction.setToolTipText("Evolution Analysis");
 		evolutionAnalysisAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
-		evolutionAnalysisAction.setEnabled(false);
+		evolutionAnalysisAction.setEnabled(false);*/
 		
 		applyRefactoringAction = new Action() {
 			public void run() {

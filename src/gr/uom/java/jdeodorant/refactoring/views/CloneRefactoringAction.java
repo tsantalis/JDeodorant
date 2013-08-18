@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -32,7 +33,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.progress.IProgressService;
 
 public class CloneRefactoringAction implements IObjectActionDelegate {
-
+	private IWorkbenchPart part;
 	private ISelection selection;
 	private PDGMapper mapper;
 	
@@ -41,32 +42,33 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 			CompilationUnitCache.getInstance().clearCache();
 			if(selection instanceof IStructuredSelection) {
 				IStructuredSelection structuredSelection = (IStructuredSelection)selection;
-				Object element = structuredSelection.getFirstElement();
 				final List list = structuredSelection.toList();
-				if(element instanceof IMethod) {
-					final IMethod method1 = (IMethod)element;
-					final IJavaProject selectedProject = method1.getJavaProject();
-					IWorkbench wb = PlatformUI.getWorkbench();
-					IProgressService ps = wb.getProgressService();
-					if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
+				if(list.size() == 2) {
+					final IMethod method1 = (IMethod)list.get(0);
+					final IMethod method2 = (IMethod)list.get(1);
+					final IJavaProject project1 = method1.getJavaProject();
+					final IJavaProject project2 = method2.getJavaProject();
+					if(project1.equals(project2)) {
+						final IJavaProject selectedProject = method1.getJavaProject();
+						IWorkbench wb = PlatformUI.getWorkbench();
+						IProgressService ps = wb.getProgressService();
+						if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
+							ps.busyCursorWhile(new IRunnableWithProgress() {
+								public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+									new ASTReader(selectedProject, ASTReader.getSystemObject(), monitor);
+								}
+							});
+						}
+						else {
+							ps.busyCursorWhile(new IRunnableWithProgress() {
+								public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+									new ASTReader(selectedProject, monitor);
+								}
+							});
+						}
 						ps.busyCursorWhile(new IRunnableWithProgress() {
 							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-								new ASTReader(selectedProject, ASTReader.getSystemObject(), monitor);
-							}
-						});
-					}
-					else {
-						ps.busyCursorWhile(new IRunnableWithProgress() {
-							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-								new ASTReader(selectedProject, monitor);
-							}
-						});
-					}
-					ps.busyCursorWhile(new IRunnableWithProgress() {
-						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-							SystemObject systemObject = ASTReader.getSystemObject();
-							if(list.size() == 2) {
-								IMethod method2 = (IMethod)list.get(1);
+								SystemObject systemObject = ASTReader.getSystemObject();
 								MethodObject methodObject1 = systemObject.getMethodObject(method1);
 								MethodObject methodObject2 = systemObject.getMethodObject(method2);
 								if(methodObject1 != null && methodObject2 != null && methodObject1.getMethodBody() != null && methodObject2.getMethodBody() != null) {
@@ -84,21 +86,27 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 									CompilationUnitCache.getInstance().releaseLock();
 								}
 							}
-						}
-					});
-					List<PDGSubTreeMapper> subTreeMappers = mapper.getSubTreeMappers();
-					for(PDGSubTreeMapper subTreeMapper : subTreeMappers) {
-						Refactoring refactoring = new ExtractCloneRefactoring(subTreeMapper);
-						MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-						RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-						try { 
-							String titleForFailedChecks = ""; //$NON-NLS-1$ 
-							op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-						} catch(InterruptedException e) {
-							e.printStackTrace();
+						});
+						List<PDGSubTreeMapper> subTreeMappers = mapper.getSubTreeMappers();
+						for(PDGSubTreeMapper subTreeMapper : subTreeMappers) {
+							Refactoring refactoring = new ExtractCloneRefactoring(subTreeMapper);
+							MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+							RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+							try { 
+								String titleForFailedChecks = ""; //$NON-NLS-1$ 
+								op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+							} catch(InterruptedException e) {
+								e.printStackTrace();
+							}
 						}
 					}
+					else
+						MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
+								"You must select two (2) methods from the same project.");
 				}
+				else
+					MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
+							"You must select two (2) methods from the same project.");
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
@@ -112,7 +120,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 	}
 
 	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
+		this.part = targetPart;
 		JavaCore.addElementChangedListener(new ElementChangedListener());
 	}
-
 }

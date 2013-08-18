@@ -420,6 +420,14 @@ public class FeatureEnvy extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				//close the Code Smell Package Explorer, if it is already open
+				boolean wasAlreadyOpen = false;
+				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+				if(viewPart != null) {
+					page.hideView(viewPart);
+					wasAlreadyOpen = true;
+				}
 				CompilationUnitCache.getInstance().clearCache();
 				candidateRefactoringTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
@@ -427,10 +435,8 @@ public class FeatureEnvy extends ViewPart {
 				saveResultsAction.setEnabled(true);
 				//evolutionAnalysisAction.setEnabled(true);
 				packageExplorerAction.setEnabled(true);
-				final IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
-				if(viewPart != null)
-					page.hideView(viewPart);
+				if(wasAlreadyOpen)
+					openPackageExplorerViewPart();
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -450,11 +456,14 @@ public class FeatureEnvy extends ViewPart {
 
 
 		packageExplorerAction = new Action(){
-			public void run(){
-				openPackageExplorerViewPart();
+			public void run() {
+				//open the Code Smell Package Explorer only if it is closed
+				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+				if(viewPart == null)
+					openPackageExplorerViewPart();
 			}
 		};
-
 		packageExplorerAction.setToolTipText("Code Smell Package Explorer");
 		packageExplorerAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
@@ -887,7 +896,6 @@ public class FeatureEnvy extends ViewPart {
 			page.showView(CodeSmellPackageExplorer.ID);
 
 		} catch (PartInitException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

@@ -30,8 +30,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGSliceUnion;
 import gr.uom.java.ast.decomposition.cfg.PDGSliceUnionCollection;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.StatementExtractor;
-import gr.uom.java.history.MethodEvolution;
-import gr.uom.java.history.ProjectEvolution;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ASTSlice;
@@ -59,7 +57,6 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
@@ -107,7 +104,7 @@ public class LongMethod extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action saveResultsAction;
-	private Action evolutionAnalysisAction;
+	//private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
@@ -115,7 +112,7 @@ public class LongMethod extends ViewPart {
 	private IType selectedType;
 	private IMethod selectedMethod;
 	private ASTSliceGroup[] sliceGroupTable;
-	private MethodEvolution methodEvolution;
+	//private MethodEvolution methodEvolution;
 	
 	class ViewContentProvider implements ITreeContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
@@ -301,7 +298,7 @@ public class LongMethod extends ViewPart {
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
-					evolutionAnalysisAction.setEnabled(false);
+					//evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -451,7 +448,7 @@ public class LongMethod extends ViewPart {
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
 					applyRefactoringAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
-					evolutionAnalysisAction.setEnabled(false);
+					//evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		});
@@ -466,7 +463,7 @@ public class LongMethod extends ViewPart {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(saveResultsAction);
-		manager.add(evolutionAnalysisAction);
+		//manager.add(evolutionAnalysisAction);
 	}
 
 	private void makeActions() {
@@ -477,7 +474,7 @@ public class LongMethod extends ViewPart {
 				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
-				evolutionAnalysisAction.setEnabled(true);
+				//evolutionAnalysisAction.setEnabled(true);
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -495,7 +492,7 @@ public class LongMethod extends ViewPart {
 			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
 		
-		evolutionAnalysisAction = new Action() {
+		/*evolutionAnalysisAction = new Action() {
 			public void run() {
 				methodEvolution = null;
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
@@ -530,7 +527,7 @@ public class LongMethod extends ViewPart {
 		evolutionAnalysisAction.setToolTipText("Evolution Analysis");
 		evolutionAnalysisAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
-		evolutionAnalysisAction.setEnabled(false);
+		evolutionAnalysisAction.setEnabled(false);*/
 		
 		applyRefactoringAction = new Action() {
 			public void run() {

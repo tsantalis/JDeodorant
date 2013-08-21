@@ -97,6 +97,7 @@ public class GodClass extends ViewPart {
 	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private Action saveResultsAction;
+	private Action packageExplorerAction;
 	private ExtractClassCandidateGroup[] candidateRefactoringTable;
 	private IJavaProject selectedProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
@@ -300,6 +301,7 @@ public class GodClass extends ViewPart {
 					identifyBadSmellsAction.setEnabled(true);
 					applyRefactoringAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					packageExplorerAction.setEnabled(false);
 				}
 			}
 		}
@@ -346,7 +348,7 @@ public class GodClass extends ViewPart {
 				new TextCellEditor(), new TextCellEditor(), new TextCellEditor(), new TextCellEditor(),
 				new MyComboBoxCellEditor(treeViewer.getTree(), new String[] {"0", "1", "2", "3", "4", "5"}, SWT.READ_ONLY)
 		});
-		
+
 		treeViewer.setCellModifier(new ICellModifier() {
 			public boolean canModify(Object element, String property) {
 				return property.equals("rate");
@@ -433,7 +435,7 @@ public class GodClass extends ViewPart {
 				}
 			}
 		});
-		
+
 		treeViewer.getTree().setLinesVisible(true);
 		treeViewer.getTree().setHeaderVisible(true);
 		makeActions();
@@ -448,6 +450,7 @@ public class GodClass extends ViewPart {
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
 					applyRefactoringAction.setEnabled(false);
 					saveResultsAction.setEnabled(false);
+					packageExplorerAction.setEnabled(false);
 				}
 			}
 		});
@@ -463,16 +466,27 @@ public class GodClass extends ViewPart {
 		manager.add(identifyBadSmellsAction);
 		manager.add(applyRefactoringAction);
 		manager.add(saveResultsAction);
+		manager.add(packageExplorerAction);
 	}
 
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				boolean wasAlreadyOpen = false;
+				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+				if(viewPart != null) {
+					page.hideView(viewPart);
+					wasAlreadyOpen = true;
+				}
 				CompilationUnitCache.getInstance().clearCache();
 				candidateRefactoringTable = getTable();
 				treeViewer.setContentProvider(new ViewContentProvider());
 				applyRefactoringAction.setEnabled(true);
 				saveResultsAction.setEnabled(true);
+				packageExplorerAction.setEnabled(true);
+				if(wasAlreadyOpen)
+					openPackageExplorerViewPart();
 			}
 		};
 		identifyBadSmellsAction.setToolTipText("Identify Bad Smells");
@@ -487,8 +501,25 @@ public class GodClass extends ViewPart {
 		};
 		saveResultsAction.setToolTipText("Save Results");
 		saveResultsAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-			getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
+				getImageDescriptor(ISharedImages.IMG_ETOOL_SAVE_EDIT));
 		saveResultsAction.setEnabled(false);
+
+		packageExplorerAction = new Action(){
+			public void run() {
+				//open the Code Smell Package Explorer only if it is closed
+				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+				if(viewPart == null)
+					openPackageExplorerViewPart();
+			}
+		};
+		packageExplorerAction.setToolTipText("Code Smell Package Explorer");
+		packageExplorerAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		packageExplorerAction.setEnabled(false);
+
+
+
 
 		applyRefactoringAction = new Action() {
 			public void run() {
@@ -632,7 +663,7 @@ public class GodClass extends ViewPart {
 							int offset = firstPosition.getOffset();
 							int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 							sourceEditor.setHighlightRange(offset, length, true);
-							
+
 							CodeSmellVisualizationDataSingleton.setData(
 									((ExtractClassCandidateRefactoring)candidate).getGodClassVisualizationData());
 							IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
@@ -769,7 +800,7 @@ public class GodClass extends ViewPart {
 		}
 		return null;
 	}
-	
+
 	private ExtractedConcept getParentConcept(ExtractClassCandidateRefactoring candidate) {
 		for(int i=0; i<candidateRefactoringTable.length; i++) {
 			for(ExtractedConcept concept : candidateRefactoringTable[i].getExtractedConcepts()) {
@@ -814,5 +845,49 @@ public class GodClass extends ViewPart {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	private void openPackageExplorerViewPart() {
+		try {
+
+
+			ArrayList<CandidateRefactoring> candidates= new ArrayList<CandidateRefactoring>();
+			for(ExtractClassCandidateGroup group: candidateRefactoringTable){
+				ArrayList<ExtractClassCandidateRefactoring> extractCandidates = group.getCandidates();
+				candidates.addAll(extractCandidates);
+			}
+
+			CodeSmellVisualizationDataSingleton.setCandidates((CandidateRefactoring[]) candidates.toArray(new CandidateRefactoring[candidates.size()]));
+			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+			IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+			if(viewPart != null)
+				page.hideView(viewPart);
+			page.showView(CodeSmellPackageExplorer.ID);
+
+		} catch (PartInitException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void setSelectedLine(CandidateRefactoring candidateRefactoring) {
+
+		Tree tree = treeViewer.getTree();
+		boolean foundItem = false;
+		for(int i=0; i< tree.getItemCount(); i++){
+			TreeItem treeItem = tree.getItem(i);
+			for(int j = 0; j< treeItem.getItemCount(); j++){
+				TreeItem item = treeItem.getItem(j);
+				CandidateRefactoring data = (CandidateRefactoring) item.getData();
+				if(data.equals(candidateRefactoring)){
+					tree.select(item);
+					foundItem = true;
+					break;
+				}
+			}
+			if(foundItem)
+				break;
+
+		}
+
 	}
 }

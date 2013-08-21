@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import gr.uom.java.ast.visualization.DecorationConstants;
+import gr.uom.java.ast.visualization.GodClassInformationControlCreator;
 import gr.uom.java.ast.visualization.ICustomInformationControlCreator;
 import gr.uom.java.ast.visualization.IInformationProvider;
 import gr.uom.java.ast.visualization.FeatureEnviedMethodInformationControlCreator;
@@ -15,6 +16,8 @@ import gr.uom.java.ast.visualization.PackageMapDiagramInformationProvider;
 import gr.uom.java.ast.visualization.PackageMapDiagram;
 import gr.uom.java.ast.visualization.ZoomAction;
 import gr.uom.java.distance.CandidateRefactoring;
+import gr.uom.java.distance.ExtractClassCandidateRefactoring;
+import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -61,6 +64,7 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	private boolean ctrlPressed= false;
 	public static double SCALE_FACTOR=1;
 	private PackageMapDiagram diagram;
+	private CodeSmellType codeSmellType;
 
 	@Override
 	public void createPartControl(Composite parent) {
@@ -75,7 +79,15 @@ public class CodeSmellPackageExplorer extends ViewPart {
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 					CandidateRefactoring[] candidates = CodeSmellVisualizationDataSingleton.getCandidates();
+
 					if(candidates != null){
+						if(candidates.length>0){
+							if(candidates[0] instanceof MoveMethodCandidateRefactoring){
+								codeSmellType = CodeSmellType.FEATURE_ENVY;
+							}else if (candidates[0] instanceof ExtractClassCandidateRefactoring){
+								codeSmellType = CodeSmellType.GOD_CLASS;
+							}
+						}
 						diagram = new PackageMapDiagram(candidates, monitor);
 						root = diagram.getRoot();
 					}
@@ -148,13 +160,20 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		IActionBars bars = getViewSite().getActionBars();
 		IToolBarManager manager = bars.getToolBarManager();
 
-		if(diagram != null && diagram.getProjectName() != null){	
-			LabelControlContribution infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
+		if(diagram != null && diagram.getProjectName() != null){
+			LabelControlContribution infoLabel= null;
+			if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
+				infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
+			else if (codeSmellType.equals(CodeSmellType.GOD_CLASS))
+				infoLabel = new LabelControlContribution("Label", "God Class Analysis of system: ", null);
+
 			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ", new Font(null, "Consolas", 10, SWT.BOLD));
+
 			manager.add(infoLabel);
 			manager.add(projectNameLabel);
 			manager.add(new Separator());
 		}
+
 		Action act=new Action("Zoom",SWT.DROP_DOWN){};
 		act.setImageDescriptor(imageDescriptor);
 		act.setMenuCreator(new MyMenuCreator());
@@ -165,7 +184,7 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		manager.add(searchAction);
 
 	}
-	
+
 	class MyMenuCreator implements IMenuCreator{
 
 		private IAction action;
@@ -228,38 +247,40 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		// TODO Auto-generated method stub
 
 	}
-	
+
 	public class LabelControlContribution extends ControlContribution  
 	{  
 		private String name;
 		private Font font;
-	  
-	    protected LabelControlContribution(String id, String name, Font font)  
-	    { 
-	        super(id);  
-	        this.name= name;
-	        this.font= font;
-	    }  
-	  
-	    @Override  
-	    protected Control createControl(Composite parent)  
-	    {  
-	    	Label label= new Label(parent, SWT.CENTER);
-	    	label.setText(name);
-	    	if(font != null)
-	    		label.setFont(font);
-	    	return label;
-	    }
+
+		protected LabelControlContribution(String id, String name, Font font)  
+		{ 
+			super(id);  
+			this.name= name;
+			this.font= font;
+		}  
+
+		@Override  
+		protected Control createControl(Composite parent)  
+		{  
+			Label label= new Label(parent, SWT.CENTER);
+			label.setText(name);
+			if(font != null)
+				label.setFont(font);
+			return label;
+		}
 	}
 
 	private void hookTooltips(PackageMapDiagram diagram) {
 		// Create an information provider for our table viewer
 		IInformationProvider informationProvider = new PackageMapDiagramInformationProvider(diagram);
 
-		// Our table viewer contains elements of type String, Person and URL.
-		// Strings are handled by default. For Person and URL we need custom control creators.
+
 		List<ICustomInformationControlCreator> informationControlCreators = new ArrayList<ICustomInformationControlCreator>();
-		informationControlCreators.add(new FeatureEnviedMethodInformationControlCreator());
+		if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
+			informationControlCreators.add(new FeatureEnviedMethodInformationControlCreator());
+		else if(codeSmellType.equals(CodeSmellType.GOD_CLASS))
+			informationControlCreators.add(new GodClassInformationControlCreator());
 
 		Control control =figureCanvas;
 
@@ -288,5 +309,9 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		control.addDisposeListener(listener);
 		// Install tooltips
 		//Tooltips.install(diagram.getControl(), informationProvider, informationControlCreators, false);
+	}
+
+	private enum CodeSmellType{
+		FEATURE_ENVY, GOD_CLASS;
 	}
 }

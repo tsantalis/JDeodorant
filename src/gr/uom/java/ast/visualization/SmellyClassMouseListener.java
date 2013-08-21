@@ -9,13 +9,13 @@ import org.eclipse.draw2d.MouseEvent;
 import org.eclipse.draw2d.MouseListener;
 
 
-public class FeatureEnvyClassMouseListener implements MouseListener {
+public class SmellyClassMouseListener implements MouseListener {
 
 	private PackageMapDiagram diagram;
 	private PMClassFigure classFigure;
 
 
-	public FeatureEnvyClassMouseListener(PackageMapDiagram diagram, PMClassFigure classFigure){
+	public SmellyClassMouseListener(PackageMapDiagram diagram, PMClassFigure classFigure){
 
 		this.diagram = diagram;
 		this.classFigure=classFigure;
@@ -42,8 +42,9 @@ public class FeatureEnvyClassMouseListener implements MouseListener {
 		List<PMClassFigure> classFigures = diagram.getAllClassFigures();
 		List<CandidateRefactoring> candidates = classFigure.getCandidates();
 
+
 		for(PMClassFigure figure: classFigures){
-			
+
 			//clearing previous decoration
 			if(!figure.equals(classFigure)){
 				if(figure.isSelected())
@@ -53,26 +54,31 @@ public class FeatureEnvyClassMouseListener implements MouseListener {
 				figure.setToOriginalState();
 			}
 
-			//finding and decorating target classes
-			for(CandidateRefactoring candidate: candidates){
-				MoveMethodCandidateRefactoring moveCandidate = (MoveMethodCandidateRefactoring) candidate;
-				String name = moveCandidate.getTarget();
+			if(!candidates.isEmpty() && candidates.get(0) instanceof MoveMethodCandidateRefactoring){
 
-				if(figure.getName().equals(name)){
-					if (classFigure.isSelected()){
-						figure.setBackgroundColor(ColorConstants.black);
 
-						if(!figure.isInnerClass()){
-							LineBorder border = new LineBorder();
-							border.setColor(ColorConstants.black);
-							figure.setBorder(border);
+				//finding and decorating target classes
+				for(CandidateRefactoring candidate: candidates){
+					MoveMethodCandidateRefactoring moveCandidate = (MoveMethodCandidateRefactoring) candidate;
+					String name = moveCandidate.getTarget();
+
+					if(figure.getName().equals(name)){
+						if (classFigure.isSelected()){
+							figure.setBackgroundColor(ColorConstants.black);
+
+							if(!figure.isInnerClass()){
+								LineBorder border = new LineBorder();
+								border.setColor(ColorConstants.black);
+								figure.setBorder(border);
+							}
+
 						}
 
 					}
 
-				}
+				} 
+			}
 
-			} 
 		}
 	}
 

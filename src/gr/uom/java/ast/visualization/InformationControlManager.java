@@ -198,13 +198,15 @@ public class InformationControlManager extends AbstractInformationControlManager
 
 		// Convert to String for default TextLabelInformationControl
 		// (Fallback, if no custom control creator has been found)
-		if (info != null && customControlCreator == null) {
-			info = info.toString();
-		}
+		//if (info != null && customControlCreator == null) {
+		//	info = info.toString();
+		//}
 
 		// Trigger the presentation of the computed information
+		if(customControlCreator != null){
 		Rectangle area = informationProvider.getArea(mouseLocation);
 		setInformation(info, area);
+		}
 	}
 
 	@Override

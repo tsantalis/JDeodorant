@@ -7,7 +7,6 @@ import java.util.List;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.draw2d.CompoundBorder;
 import org.eclipse.draw2d.FlowLayout;
-import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.Layer;
 import org.eclipse.draw2d.LineBorder;
 import org.eclipse.draw2d.MarginBorder;
@@ -81,6 +80,7 @@ public class PackageMapDiagram {
 
 		//get all Candidates for Refactoring
 		for(CandidateRefactoring candidate : candidateRefactoring){
+
 			TypeDeclaration typeDeclaration = candidate.getSourceClassTypeDeclaration();
 			ITypeBinding binding= null;
 			if(typeDeclaration != null){
@@ -112,9 +112,7 @@ public class PackageMapDiagram {
 		IJavaProject javaProject = ASTReader.getExaminedProject();
 		projectName = javaProject.getElementName();
 
-		Label label = new Label(projectName);
-		label.setLabelAlignment(Label.LEFT);
-		root.add(label);
+
 		root.add(primary,"Primary");
 		if(monitor != null)
 			monitor.beginTask("Creating Package Explorer Map", ASTReader.getNumberOfCompilationUnits(javaProject));
@@ -196,7 +194,8 @@ public class PackageMapDiagram {
 
 								//For classes that contain Feature Envy methods
 								if(keyMap.containsKey(key)){
-									createFeatureEnvyClass(classFigure, key);
+
+									createSmellyClass(classFigure, key);
 								}
 
 								allClassFigures.add(classFigure);
@@ -214,7 +213,7 @@ public class PackageMapDiagram {
 									String innerClassKey = type.resolveBinding().getKey();
 
 									if(keyMap.containsKey(innerClassKey))
-										createFeatureEnvyClass(innerClassFigure,innerClassKey);
+										createSmellyClass(innerClassFigure,innerClassKey);
 
 									allClassFigures.add(innerClassFigure);
 									packageFigure.addToSet(innerClassFigure);
@@ -402,22 +401,23 @@ public class PackageMapDiagram {
 		return classFigure;
 	}
 
-	public PMClassFigure createFeatureEnvyClass(PMClassFigure classFigure, String key){
+	public PMClassFigure createSmellyClass(PMClassFigure classFigure, String key){
 		List<CandidateRefactoring> candidates = keyMap.get(key);
 
 		classFigure.setCandidates(candidates);
 
 
-		int numOfAffectedMethods = candidates.size();
+		int severity = candidates.size();
 
-		Color color = calculateSeverityColor(numOfAffectedMethods);
+		Color color = calculateSeverityColor(severity);
 
 		LineBorder border= (LineBorder)classFigure.getBorder();
 		//classFigure.setToolTip(null);
 		classFigure.setOriginalBackgroundColor(color);
 		border.setColor(classFigure.getBackgroundColor());
 		classFigure.setOriginalBorder(border);
-		new FeatureEnvyClassMouseListener(this, classFigure);
+
+		new SmellyClassMouseListener(this, classFigure);
 
 		return classFigure;
 	}

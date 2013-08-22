@@ -80,7 +80,6 @@ public class PackageMapDiagram {
 
 		//get all Candidates for Refactoring
 		for(CandidateRefactoring candidate : candidateRefactoring){
-
 			TypeDeclaration typeDeclaration = candidate.getSourceClassTypeDeclaration();
 			ITypeBinding binding= null;
 			if(typeDeclaration != null){
@@ -403,12 +402,8 @@ public class PackageMapDiagram {
 
 	public PMClassFigure createSmellyClass(PMClassFigure classFigure, String key){
 		List<CandidateRefactoring> candidates = keyMap.get(key);
-
 		classFigure.setCandidates(candidates);
-
-
 		int severity = candidates.size();
-
 		Color color = calculateSeverityColor(severity);
 
 		LineBorder border= (LineBorder)classFigure.getBorder();
@@ -416,9 +411,7 @@ public class PackageMapDiagram {
 		classFigure.setOriginalBackgroundColor(color);
 		border.setColor(classFigure.getBackgroundColor());
 		classFigure.setOriginalBorder(border);
-
 		new SmellyClassMouseListener(this, classFigure);
-
 		return classFigure;
 	}
 }

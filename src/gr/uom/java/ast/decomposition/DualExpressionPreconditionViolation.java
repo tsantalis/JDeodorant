@@ -13,6 +13,14 @@ public class DualExpressionPreconditionViolation extends PreconditionViolation {
 		this.expression2 = expression2;
 	}
 
+	public AbstractExpression getExpression1() {
+		return expression1;
+	}
+
+	public AbstractExpression getExpression2() {
+		return expression2;
+	}
+
 	public String getViolation() {
 		if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH)) {
 			Expression expression1 = this.expression1.getExpression();

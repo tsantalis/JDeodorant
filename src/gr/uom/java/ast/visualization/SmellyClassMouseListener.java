@@ -16,16 +16,12 @@ public class SmellyClassMouseListener implements MouseListener {
 
 
 	public SmellyClassMouseListener(PackageMapDiagram diagram, PMClassFigure classFigure){
-
 		this.diagram = diagram;
 		this.classFigure=classFigure;
 		classFigure.addMouseListener(this);
-
 	}
 
 	public void mousePressed(MouseEvent me) {
-
-
 		if(classFigure.isSelected()){
 			classFigure.setSelected(false);
 
@@ -82,19 +78,11 @@ public class SmellyClassMouseListener implements MouseListener {
 		}
 	}
 
-
-
-
 	public void mouseReleased(MouseEvent me) {
-
 
 	}
 
 	public void mouseDoubleClicked(MouseEvent me) {
 
-
 	}
-
-
-
 }

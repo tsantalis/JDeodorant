@@ -79,12 +79,12 @@ public class CodeSmellPackageExplorer extends ViewPart {
 			ps.busyCursorWhile(new IRunnableWithProgress() {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 					CandidateRefactoring[] candidates = CodeSmellVisualizationDataSingleton.getCandidates();
-
 					if(candidates != null){
 						if(candidates.length>0){
 							if(candidates[0] instanceof MoveMethodCandidateRefactoring){
 								codeSmellType = CodeSmellType.FEATURE_ENVY;
-							}else if (candidates[0] instanceof ExtractClassCandidateRefactoring){
+							}
+							else if (candidates[0] instanceof ExtractClassCandidateRefactoring){
 								codeSmellType = CodeSmellType.GOD_CLASS;
 							}
 						}
@@ -162,14 +162,17 @@ public class CodeSmellPackageExplorer extends ViewPart {
 
 		if(diagram != null && diagram.getProjectName() != null){
 			LabelControlContribution infoLabel= null;
-			if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
-				infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
-			else if (codeSmellType.equals(CodeSmellType.GOD_CLASS))
-				infoLabel = new LabelControlContribution("Label", "God Class Analysis of system: ", null);
+			if(codeSmellType != null) {
+				if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
+					infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
+				else if (codeSmellType.equals(CodeSmellType.GOD_CLASS))
+					infoLabel = new LabelControlContribution("Label", "God Class Analysis of system: ", null);
+			}
 
 			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ", new Font(null, "Consolas", 10, SWT.BOLD));
 
-			manager.add(infoLabel);
+			if(infoLabel != null)
+				manager.add(infoLabel);
 			manager.add(projectNameLabel);
 			manager.add(new Separator());
 		}
@@ -277,11 +280,12 @@ public class CodeSmellPackageExplorer extends ViewPart {
 
 
 		List<ICustomInformationControlCreator> informationControlCreators = new ArrayList<ICustomInformationControlCreator>();
-		if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
-			informationControlCreators.add(new FeatureEnviedMethodInformationControlCreator());
-		else if(codeSmellType.equals(CodeSmellType.GOD_CLASS))
-			informationControlCreators.add(new GodClassInformationControlCreator());
-
+		if(codeSmellType != null) {
+			if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
+				informationControlCreators.add(new FeatureEnviedMethodInformationControlCreator());
+			else if(codeSmellType.equals(CodeSmellType.GOD_CLASS))
+				informationControlCreators.add(new GodClassInformationControlCreator());
+		}
 		Control control =figureCanvas;
 
 

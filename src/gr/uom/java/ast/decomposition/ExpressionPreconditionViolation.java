@@ -12,7 +12,11 @@ public class ExpressionPreconditionViolation extends PreconditionViolation {
 		super(type);
 		this.expression = expression;
 	}
-	
+
+	public AbstractExpression getExpression() {
+		return expression;
+	}
+
 	public String getViolation() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Expression ");

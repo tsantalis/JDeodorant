@@ -2,12 +2,9 @@ package gr.uom.java.ast.visualization;
 
 import gr.uom.java.distance.CandidateRefactoring;
 import gr.uom.java.distance.ExtractClassCandidateRefactoring;
-import gr.uom.java.distance.MoveMethodCandidateRefactoring;
-import gr.uom.java.jdeodorant.refactoring.views.FeatureEnvy;
 import gr.uom.java.jdeodorant.refactoring.views.GodClass;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.FigureCanvas;
@@ -15,13 +12,11 @@ import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.Layer;
 import org.eclipse.draw2d.MouseEvent;
 import org.eclipse.draw2d.MouseListener;
-import org.eclipse.draw2d.MouseMotionListener;
 import org.eclipse.draw2d.ToolbarLayout;
 import org.eclipse.jface.action.ToolBarManager;
 import org.eclipse.jface.text.AbstractInformationControl;
 import org.eclipse.jface.text.IInformationControlExtension2;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
@@ -76,28 +71,20 @@ implements IInformationControlExtension2 {
 			methodFigure.addMouseListener(new MouseListener(){
 
 				public void mousePressed(MouseEvent me) {
-					// TODO Auto-generated method stub
-					
-					
 					IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-					IViewPart viewPart = page.findView("gr.uom.java.jdeodorant.refactoring.views.GodClass");
+					IViewPart viewPart = page.findView("gr.uom.java.jdeodorant.views.GodClass");
 					if(viewPart != null){
 						GodClass godClass = (GodClass) viewPart;
 						godClass.setSelectedLine(candidateRefactoring);
 					}
-					
-					
-
 				}
 
 				public void mouseReleased(MouseEvent me) {
 					// TODO Auto-generated method stub
-
 				}
 
 				public void mouseDoubleClicked(MouseEvent me) {
 					// TODO Auto-generated method stub
-
 				}
 
 			});

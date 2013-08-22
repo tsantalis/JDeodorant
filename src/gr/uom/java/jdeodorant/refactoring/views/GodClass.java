@@ -518,9 +518,6 @@ public class GodClass extends ViewPart {
 				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
 		packageExplorerAction.setEnabled(false);
 
-
-
-
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
@@ -849,14 +846,11 @@ public class GodClass extends ViewPart {
 
 	private void openPackageExplorerViewPart() {
 		try {
-
-
 			ArrayList<CandidateRefactoring> candidates= new ArrayList<CandidateRefactoring>();
 			for(ExtractClassCandidateGroup group: candidateRefactoringTable){
 				ArrayList<ExtractClassCandidateRefactoring> extractCandidates = group.getCandidates();
 				candidates.addAll(extractCandidates);
 			}
-
 			CodeSmellVisualizationDataSingleton.setCandidates((CandidateRefactoring[]) candidates.toArray(new CandidateRefactoring[candidates.size()]));
 			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 			IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
@@ -870,24 +864,37 @@ public class GodClass extends ViewPart {
 	}
 
 	public void setSelectedLine(CandidateRefactoring candidateRefactoring) {
-
 		Tree tree = treeViewer.getTree();
-		boolean foundItem = false;
 		for(int i=0; i< tree.getItemCount(); i++){
 			TreeItem treeItem = tree.getItem(i);
-			for(int j = 0; j< treeItem.getItemCount(); j++){
-				TreeItem item = treeItem.getItem(j);
-				CandidateRefactoring data = (CandidateRefactoring) item.getData();
-				if(data.equals(candidateRefactoring)){
-					tree.select(item);
-					foundItem = true;
-					break;
-				}
-			}
-			if(foundItem)
+			ExtractClassCandidateGroup group = (ExtractClassCandidateGroup)treeItem.getData();
+			if(group.getCandidates().contains(candidateRefactoring)) {
+				treeItem.setExpanded(true);
+				treeViewer.refresh();
+				setSelectedLineWithinCandidateGroup(tree, treeItem, candidateRefactoring);
 				break;
-
+			}
 		}
-
+	}
+	
+	private void setSelectedLineWithinCandidateGroup(Tree tree, TreeItem candidateGroupTreeItem, CandidateRefactoring candidateRefactoring) {
+		for(int i=0; i<candidateGroupTreeItem.getItemCount(); i++){
+			TreeItem conceptTreeItem = candidateGroupTreeItem.getItem(i);
+			ExtractedConcept concept = (ExtractedConcept)conceptTreeItem.getData();
+			if(concept.getConceptClusters().contains(candidateRefactoring)) {
+				conceptTreeItem.setExpanded(true);
+				treeViewer.refresh();
+				for(int j=0; j<conceptTreeItem.getItemCount(); j++) {
+					TreeItem candidateTreeItem = conceptTreeItem.getItem(j);
+					CandidateRefactoring candidate = (CandidateRefactoring)candidateTreeItem.getData();
+					if(candidate.equals(candidateRefactoring)) {
+						tree.setSelection(candidateTreeItem);
+						treeViewer.refresh();
+						break;
+					}
+				}
+				break;
+			}
+		}
 	}
 }

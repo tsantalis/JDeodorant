@@ -10,6 +10,10 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 		this.statement = statement;
 	}
 
+	public AbstractStatement getStatement() {
+		return statement;
+	}
+
 	public String getViolation() {
 		if(type.equals(PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE)) {
 			StringBuilder sb = new StringBuilder();

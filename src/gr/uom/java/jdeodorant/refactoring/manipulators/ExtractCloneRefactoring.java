@@ -5,16 +5,14 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.DifferenceType;
-import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.DualExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.ReturnedVariablePreconditionViolation;
+import gr.uom.java.ast.decomposition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
-import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
-import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
-import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
-import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
-import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
-import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -28,7 +26,6 @@ import gr.uom.java.ast.util.TypeVisitor;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1306,114 +1303,41 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		RefactoringStatus status= new RefactoringStatus();
 		try {
 			pm.beginTask("Checking preconditions...", 1);
-			for(int i=0; i<sourceCompilationUnits.size(); i++) {
-				TreeSet<PDGNode> removableNodes = removableStatements.get(i);
-				TreeSet<PDGNode> remainingNodes = remainingStatements.get(i);
-				String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() : mapper.getPDG2().getMethod().getName();
-				for(PDGNode node : remainingNodes) {
-					if(!movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
-						String message = "Unmatched statement in method " + methodName + " cannot be moved before the extracted code";
-						RefactoringStatusContext context = JavaStatusContext.create(
-								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
-						status.merge(RefactoringStatus.createErrorStatus(message, context));
-					}
-					CFGNode cfgNode = node.getCFGNode();
-					if(cfgNode instanceof CFGBreakNode) {
-						String message = "Unmatched break statement in method " + methodName;
-						RefactoringStatusContext context = JavaStatusContext.create(
-								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
-						status.merge(RefactoringStatus.createErrorStatus(message, context));
-					}
-					else if(cfgNode instanceof CFGContinueNode) {
-						String message = "Unmatched continue statement in method " + methodName;
-						RefactoringStatusContext context = JavaStatusContext.create(
-								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
-						status.merge(RefactoringStatus.createErrorStatus(message, context));
-					}
-					else if(cfgNode instanceof CFGExitNode) {
-						String message = "Unmatched return statement in method " + methodName;
-						RefactoringStatusContext context = JavaStatusContext.create(
-								sourceCompilationUnits.get(i).getTypeRoot(), node.getASTStatement());
-						status.merge(RefactoringStatus.createErrorStatus(message, context));
-					}
+			for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
+				if(violation instanceof StatementPreconditionViolation) {
+					StatementPreconditionViolation statementViolation = (StatementPreconditionViolation)violation;
+					Statement statement = statementViolation.getStatement().getStatement();
+					CompilationUnit cu = (CompilationUnit)statement.getRoot();
+					RefactoringStatusContext context = JavaStatusContext.create(cu.getTypeRoot(), statement);
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context));
 				}
-			}
-			List<ASTNodeDifference> differences = mapper.getNonOverlappingNodeDifferences();
-			Set<BindingSignaturePair> renamedVariables = mapper.getRenamedVariables();
-			for(ASTNodeDifference difference : differences) {
-				if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
-					for(int i=0; i<sourceCompilationUnits.size(); i++) {
-						TreeSet<PDGNode> removableNodes = removableStatements.get(i);
-						Expression expression = (i==0) ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
-						String methodName = (i==0) ? mapper.getPDG1().getMethod().getName() : mapper.getPDG2().getMethod().getName();
-						if(!isParameterizableExpression(removableNodes, expression)) {
-							Expression expr = isMethodName(expression) ? (Expression)expression.getParent() : expression;
-							String message = "Expression " + expression.toString() + " in method " + methodName + " cannot be parameterized";
-							RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), expr);
-							status.merge(RefactoringStatus.createErrorStatus(message, context));
-						}
-					}
+				else if(violation instanceof ExpressionPreconditionViolation) {
+					ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
+					Expression expression = expressionViolation.getExpression().getExpression();
+					CompilationUnit cu = (CompilationUnit)expression.getRoot();
+					RefactoringStatusContext context = JavaStatusContext.create(cu.getTypeRoot(), expression);
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context));
 				}
-				if(difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
-					for(int i=0; i<sourceCompilationUnits.size(); i++) {
-						Expression thisExpression = (i==0) ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
-						Expression otherExpression = (i==1) ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
-						//String thisMethodName = (i==0) ? mapper.getPDG1().getMethod().getName() : mapper.getPDG2().getMethod().getName();
-						String message = "The type " + thisExpression.resolveTypeBinding().getQualifiedName() + " of variable " + thisExpression.toString() + " does not match with " +
-						"the type " + otherExpression.resolveTypeBinding().getQualifiedName() + " of variable " + otherExpression.toString();
-						RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(i).getTypeRoot(), thisExpression);
-						status.merge(RefactoringStatus.createErrorStatus(message, context));
-					}
+				else if(violation instanceof DualExpressionPreconditionViolation) {
+					DualExpressionPreconditionViolation dualExpressionViolation = (DualExpressionPreconditionViolation)violation;
+					Expression expression1 = dualExpressionViolation.getExpression1().getExpression();
+					CompilationUnit cu1 = (CompilationUnit)expression1.getRoot();
+					RefactoringStatusContext context1 = JavaStatusContext.create(cu1.getTypeRoot(), expression1);
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context1));
+					
+					Expression expression2 = dualExpressionViolation.getExpression2().getExpression();
+					CompilationUnit cu2 = (CompilationUnit)expression2.getRoot();
+					RefactoringStatusContext context2 = JavaStatusContext.create(cu2.getTypeRoot(), expression2);
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context2));
+				}
+				else if(violation instanceof ReturnedVariablePreconditionViolation) {
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 			}
 		} finally {
 			pm.done();
 		}
 		return status;
-	}
-
-	//precondition: non-mapped statement can be moved before the first mapped statement
-	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
-		int nodeId = nonMappedNode.getId();
-		if(nodeId >= mappedNodes.first().getId() && nodeId <= mappedNodes.last().getId()) {
-			Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
-			while(incomingDependenceIterator.hasNext()) {
-				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
-				if(dependence instanceof PDGDataDependence) {
-					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-					PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
-					if(mappedNodes.contains(srcPDGNode))
-						return false;
-				}
-			}
-		}
-		return true;
-	}
-
-	//precondition: differences in expressions should be parameterizable
-	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, Expression initialExpression) {
-		Expression expr = isMethodName(initialExpression) ? (Expression)initialExpression.getParent() : initialExpression;
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expr);
-		for(Expression expression : simpleNames) {
-			SimpleName simpleName = (SimpleName)expression;
-			IBinding binding = simpleName.resolveBinding();
-			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
-				for(PDGNode mappedNode : mappedNodes) {
-					Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator();
-					while(declaredVariableIterator.hasNext()) {
-						AbstractVariable declaredVariable = declaredVariableIterator.next();
-						if(declaredVariable instanceof PlainVariable) {
-							PlainVariable plainVariable = (PlainVariable)declaredVariable;
-							if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
-								return false;
-							}
-						}
-					}
-				}
-			}
-		}
-		return true;
 	}
 
 	private boolean isMethodName(Expression expression) {

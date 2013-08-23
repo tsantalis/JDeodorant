@@ -1,6 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
@@ -16,7 +16,7 @@ import org.eclipse.jface.preference.IPreferenceStore;
 
 public class PDGObjectSliceUnion {
 	private PDG pdg;
-	private MethodObject method;
+	private AbstractMethodDeclaration method;
 	private BasicBlock boundaryBlock;
 	private Set<PDGNode> allNodeCriteria;
 	private AbstractVariable objectReference;
@@ -213,7 +213,7 @@ public class PDGObjectSliceUnion {
 		return pdg.getVariableDeclarationsAndAccessedFieldsInMethod();
 	}
 
-	public MethodObject getMethod() {
+	public AbstractMethodDeclaration getMethod() {
 		return method;
 	}
 

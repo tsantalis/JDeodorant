@@ -1,8 +1,8 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
-import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
@@ -83,7 +83,7 @@ public class PDG extends Graph {
 		return entryNode;
 	}
 
-	public MethodObject getMethod() {
+	public AbstractMethodDeclaration getMethod() {
 		return cfg.getMethod();
 	}
 

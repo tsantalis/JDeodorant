@@ -32,7 +32,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
-public class MethodObject {
+public class MethodObject implements AbstractMethodDeclaration {
 
     private TypeObject returnType;
     private boolean _abstract;
@@ -92,10 +92,6 @@ public class MethodObject {
     	this._native = n;
     }
 
-    public void setName(String name) {
-        this.constructorObject.name = name;
-    }
-
     public String getName() {
         return constructorObject.getName();
     }
@@ -118,10 +114,6 @@ public class MethodObject {
 
     public MethodBodyObject getMethodBody() {
     	return constructorObject.getMethodBody();
-    }
-
-    public void setMethodBody(MethodBodyObject methodBody) {
-    	constructorObject.setMethodBody(methodBody);
     }
 
     public MethodInvocationObject generateMethodInvocation() {
@@ -426,10 +418,6 @@ public class MethodObject {
     	}
     	else
     		return false;
-    }
-
-    public void setClassName(String className) {
-    	constructorObject.setClassName(className);
     }
 
     public String getClassName() {

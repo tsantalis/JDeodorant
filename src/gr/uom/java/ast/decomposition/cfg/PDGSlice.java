@@ -1,6 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -13,7 +13,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSlice extends Graph {
 	private PDG pdg;
-	private MethodObject method;
+	private AbstractMethodDeclaration method;
 	private BasicBlock boundaryBlock;
 	private PDGNode nodeCriterion;
 	private AbstractVariable localVariableCriterion;
@@ -147,7 +147,7 @@ public class PDGSlice extends Graph {
 		return pdg.getVariableDeclarationsAndAccessedFieldsInMethod();
 	}
 
-	public MethodObject getMethod() {
+	public AbstractMethodDeclaration getMethod() {
 		return method;
 	}
 

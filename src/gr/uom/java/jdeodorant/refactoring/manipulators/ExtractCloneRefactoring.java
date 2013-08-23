@@ -1,7 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.DifferenceType;
@@ -124,8 +124,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	public ExtractCloneRefactoring(PDGSubTreeMapper mapper) {
 		super();
 		this.mapper = mapper;
-		MethodObject methodObject1 = mapper.getPDG1().getMethod();
-		MethodObject methodObject2 = mapper.getPDG2().getMethod();
+		AbstractMethodDeclaration methodObject1 = mapper.getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = mapper.getPDG2().getMethod();
 		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
 		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
 		

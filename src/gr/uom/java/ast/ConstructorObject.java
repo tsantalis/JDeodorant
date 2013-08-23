@@ -14,7 +14,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 
-public class ConstructorObject {
+public class ConstructorObject implements AbstractMethodDeclaration {
 
     protected String name;
 	protected List<ParameterObject> parameterList;

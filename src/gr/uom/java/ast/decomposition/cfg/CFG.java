@@ -21,7 +21,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
-import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
@@ -33,13 +33,13 @@ public class CFG extends Graph {
 	private static final int JOIN_TOP_LIST = 1;
 	private static final int PLACE_NEW_LIST_SECOND_FROM_TOP = 2;
 	private static final int JOIN_SECOND_FROM_TOP_LIST = 3;
-	private MethodObject method;
+	private AbstractMethodDeclaration method;
 	private Stack<List<CFGBranchConditionalNode>> unjoinedConditionalNodes;
 	private Map<CFGBranchSwitchNode, List<CFGNode>> switchBreakMap;
 	private Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks;
 	private BasicBlockCFG basicBlockCFG;
 	
-	public CFG(MethodObject method) {
+	public CFG(AbstractMethodDeclaration method) {
 		this.method = method;
 		this.unjoinedConditionalNodes = new Stack<List<CFGBranchConditionalNode>>();
 		this.switchBreakMap = new LinkedHashMap<CFGBranchSwitchNode, List<CFGNode>>();
@@ -53,7 +53,7 @@ public class CFG extends Graph {
 		}
 	}
 
-	public MethodObject getMethod() {
+	public AbstractMethodDeclaration getMethod() {
 		return method;
 	}
 

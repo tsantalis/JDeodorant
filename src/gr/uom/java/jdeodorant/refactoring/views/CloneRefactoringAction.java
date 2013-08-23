@@ -1,9 +1,9 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
-import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
@@ -69,8 +69,8 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 						ps.busyCursorWhile(new IRunnableWithProgress() {
 							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 								SystemObject systemObject = ASTReader.getSystemObject();
-								MethodObject methodObject1 = systemObject.getMethodObject(method1);
-								MethodObject methodObject2 = systemObject.getMethodObject(method2);
+								AbstractMethodDeclaration methodObject1 = systemObject.getMethodObject(method1);
+								AbstractMethodDeclaration methodObject2 = systemObject.getMethodObject(method2);
 								if(methodObject1 != null && methodObject2 != null && methodObject1.getMethodBody() != null && methodObject2.getMethodBody() != null) {
 									ClassObject classObject1 = systemObject.getClassObject(methodObject1.getClassName());
 									ClassObject classObject2 = systemObject.getClassObject(methodObject2.getClassName());

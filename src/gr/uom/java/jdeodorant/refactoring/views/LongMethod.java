@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodObject;
@@ -702,7 +703,7 @@ public class LongMethod extends ViewPart {
 			}
 			final SystemObject systemObject = ASTReader.getSystemObject();
 			final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-			final Set<MethodObject> methodObjectsToBeExamined = new LinkedHashSet<MethodObject>();
+			final Set<AbstractMethodDeclaration> methodObjectsToBeExamined = new LinkedHashSet<AbstractMethodDeclaration>();
 			if(selectedPackageFragmentRoot != null) {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
 			}
@@ -716,7 +717,7 @@ public class LongMethod extends ViewPart {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
 			}
 			else if(selectedMethod != null) {
-				MethodObject methodObject = systemObject.getMethodObject(selectedMethod);
+				AbstractMethodDeclaration methodObject = systemObject.getMethodObject(selectedMethod);
 				if(methodObject != null)
 					methodObjectsToBeExamined.add(methodObject);
 			}
@@ -747,7 +748,7 @@ public class LongMethod extends ViewPart {
 					else if(!methodObjectsToBeExamined.isEmpty()) {
 						int workSize = methodObjectsToBeExamined.size();
 						monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
-						for(MethodObject methodObject : methodObjectsToBeExamined) {
+						for(AbstractMethodDeclaration methodObject : methodObjectsToBeExamined) {
 							if(monitor.isCanceled())
 								throw new OperationCanceledException();
 							ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
@@ -771,7 +772,7 @@ public class LongMethod extends ViewPart {
 		return table;
 	}
 
-	private void processMethod(final List<ASTSliceGroup> extractedSliceGroups, ClassObject classObject, MethodObject methodObject) {
+	private void processMethod(final List<ASTSliceGroup> extractedSliceGroups, ClassObject classObject, AbstractMethodDeclaration methodObject) {
 		if(methodObject.getMethodBody() != null) {
 			IPreferenceStore store = Activator.getDefault().getPreferenceStore();
 			int minimumMethodSize = store.getInt(PreferenceConstants.P_MINIMUM_METHOD_SIZE);

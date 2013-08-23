@@ -284,7 +284,7 @@ public class ClassObject {
 		return fieldList.listIterator();
 	}
 
-	public Set<FieldObject> getFieldsAccessedInsideMethod(MethodObject method) {
+	public Set<FieldObject> getFieldsAccessedInsideMethod(AbstractMethodDeclaration method) {
 		Set<FieldObject> fields = new LinkedHashSet<FieldObject>();
 		for(FieldInstructionObject fieldInstruction : method.getFieldInstructions()) {
 			for(FieldObject field : fieldList) {

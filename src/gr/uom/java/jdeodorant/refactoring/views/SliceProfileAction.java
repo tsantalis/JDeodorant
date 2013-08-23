@@ -1,9 +1,9 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
-import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
@@ -69,7 +69,7 @@ public class SliceProfileAction implements IObjectActionDelegate {
 					ps.busyCursorWhile(new IRunnableWithProgress() {
 						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 							SystemObject systemObject = ASTReader.getSystemObject();
-							MethodObject methodObject = systemObject.getMethodObject(method);
+							AbstractMethodDeclaration methodObject = systemObject.getMethodObject(method);
 							if(methodObject != null) {
 								if(methodObject.getMethodBody() != null) {
 									ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());

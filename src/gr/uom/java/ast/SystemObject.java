@@ -271,7 +271,7 @@ public class SystemObject {
     	return classObjectSet;
     }
 
-    public MethodObject getMethodObject(IMethod method) {
+    public AbstractMethodDeclaration getMethodObject(IMethod method) {
     	IType declaringType = method.getDeclaringType();
     	ClassObject classObject = getClassObject(declaringType.getFullyQualifiedName('.'));
     	if(classObject != null) {
@@ -281,6 +281,13 @@ public class SystemObject {
                 IMethod resolvedMethod = (IMethod)mo.getMethodDeclaration().resolveBinding().getJavaElement();
                 if(method.isSimilar(resolvedMethod))
                 	return mo;
+    		}
+    		ListIterator<ConstructorObject> ci = classObject.getConstructorIterator();
+    		while(ci.hasNext()) {
+    			ConstructorObject co = ci.next();
+                IMethod resolvedMethod = (IMethod)co.getMethodDeclaration().resolveBinding().getJavaElement();
+                if(method.isSimilar(resolvedMethod))
+                	return co;
     		}
     	}
     	return null;

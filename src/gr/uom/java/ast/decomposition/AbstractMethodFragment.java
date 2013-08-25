@@ -86,10 +86,6 @@ public abstract class AbstractMethodFragment {
 	private Set<PlainVariable> usedLocalVariables;
 	private Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations;
 	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
-
-	protected AbstractMethodFragment() {
-		
-	}
 	
 	protected AbstractMethodFragment(AbstractMethodFragment parent) {
 		this.parent = parent;

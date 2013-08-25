@@ -1,8 +1,10 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -23,15 +25,18 @@ import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.PDGAbstractDataDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGAntiDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
-import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -45,6 +50,7 @@ import java.util.TreeSet;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -52,6 +58,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
@@ -1046,10 +1053,12 @@ public class PDGSubTreeMapper {
 		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
 		NodeMapping nodeMapping = node.getMapping();
 		for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
-			Expression expression1 = difference.getExpression1().getExpression();
-			Expression expression2 = difference.getExpression2().getExpression();
+			AbstractExpression abstractExpression1 = difference.getExpression1();
+			Expression expression1 = abstractExpression1.getExpression();
+			AbstractExpression abstractExpression2 = difference.getExpression2();
+			Expression expression2 = abstractExpression2.getExpression();
 			if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
-				if(!isParameterizableExpression(removableNodesG1, expression1)) {
+				if(!isParameterizableExpression(removableNodesG1, abstractExpression1, pdg1.getVariableDeclarationsInMethod(), iCompilationUnit1)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					nodeMapping.addPreconditionViolation(violation);
@@ -1063,7 +1072,7 @@ public class PDGSubTreeMapper {
 						}
 					}
 				}
-				if(!isParameterizableExpression(removableNodesG2, expression2)) {
+				if(!isParameterizableExpression(removableNodesG2, abstractExpression2, pdg2.getVariableDeclarationsInMethod(), iCompilationUnit2)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
 					nodeMapping.addPreconditionViolation(violation);
@@ -1139,8 +1148,8 @@ public class PDGSubTreeMapper {
 			Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
 			while(incomingDependenceIterator.hasNext()) {
 				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
-				if(dependence instanceof PDGDataDependence) {
-					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				if(dependence instanceof PDGAbstractDataDependence) {
+					PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
 					PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
 					if(mappedNodes.contains(srcPDGNode))
 						return false;
@@ -1151,29 +1160,85 @@ public class PDGSubTreeMapper {
 	}
 
 	//precondition: differences in expressions should be parameterizable
-	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, Expression initialExpression) {
-		Expression expr = isMethodName(initialExpression) ? (Expression)initialExpression.getParent() : initialExpression;
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expr);
-		for(Expression expression : simpleNames) {
-			SimpleName simpleName = (SimpleName)expression;
-			IBinding binding = simpleName.resolveBinding();
-			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
-				for(PDGNode mappedNode : mappedNodes) {
-					Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator();
-					while(declaredVariableIterator.hasNext()) {
-						AbstractVariable declaredVariable = declaredVariableIterator.next();
-						if(declaredVariable instanceof PlainVariable) {
-							PlainVariable plainVariable = (PlainVariable)declaredVariable;
-							if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
-								return false;
-							}
-						}
+	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression,
+			Set<VariableDeclaration> variableDeclarationsInMethod, ICompilationUnit iCompilationUnit) {
+		Expression initialExpression = initialAbstractExpression.getExpression();
+		Expression expr;
+		PDGExpression pdgExpression;
+		if(isMethodName(initialExpression)) {
+			expr = (Expression)initialExpression.getParent();
+			ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
+			AbstractExpression tempExpression = new AbstractExpression(expr);
+			pdgExpression = new PDGExpression(tempExpression, variableDeclarationsInMethod);
+		}
+		else {
+			expr = initialExpression;
+			pdgExpression = new PDGExpression(initialAbstractExpression, variableDeclarationsInMethod);
+		}
+		//find mapped node containing the expression
+		PDGNode nodeContainingExpression = null;
+		for(PDGNode node : mappedNodes) {
+			if(isExpressionUnderStatement(expr, node.getASTStatement())) {
+				nodeContainingExpression = node;
+				break;
+			}
+		}
+		if(nodeContainingExpression != null) {
+			TreeSet<PDGNode> nodes = new TreeSet<PDGNode>(mappedNodes);
+			nodes.remove(nodeContainingExpression);
+			Iterator<GraphEdge> incomingDependenceIterator = nodeContainingExpression.getIncomingDependenceIterator();
+			while(incomingDependenceIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+				if(dependence instanceof PDGAbstractDataDependence && nodes.contains(dependence.getSrc())) {
+					if(dependence instanceof PDGDataDependence) {
+						PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+						//check if pdgExpression is using dataDependence.data
+						if(pdgExpression.usesLocalVariable(dataDependence.getData()))
+							return false;
+					}
+					else if(dependence instanceof PDGAntiDependence) {
+						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
+						//check if pdgExpression is defining dataDependence.data
+						if(pdgExpression.definesLocalVariable(antiDependence.getData()))
+							return false;
+					}
+					else if(dependence instanceof PDGOutputDependence) {
+						PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+						//check if pdgExpression is defining dataDependence.data
+						if(pdgExpression.definesLocalVariable(outputDependence.getData()))
+							return false;
 					}
 				}
 			}
 		}
+		else {
+			//the expression is within the catch/finally blocks of a try statement
+			for(PDGNode mappedNode : mappedNodes) {
+				Iterator<AbstractVariable> definedVariableIterator = mappedNode.getDefinedVariableIterator();
+				while(definedVariableIterator.hasNext()) {
+					AbstractVariable definedVariable = definedVariableIterator.next();
+					if(pdgExpression.usesLocalVariable(definedVariable) || pdgExpression.definesLocalVariable(definedVariable))
+						return false;
+				}
+				Iterator<AbstractVariable> usedVariableIterator = mappedNode.getUsedVariableIterator();
+				while(usedVariableIterator.hasNext()) {
+					AbstractVariable usedVariable = usedVariableIterator.next();
+					if(pdgExpression.definesLocalVariable(usedVariable))
+						return false;
+				}
+			}
+		}
 		return true;
+	}
+
+	private boolean isExpressionUnderStatement(ASTNode expression, Statement statement) {
+		ASTNode parent = expression.getParent();
+		if(parent.equals(statement))
+			return true;
+		if(!(parent instanceof Statement))
+			return isExpressionUnderStatement(parent, statement);
+		else
+			return false;
 	}
 
 	private boolean isMethodName(Expression expression) {

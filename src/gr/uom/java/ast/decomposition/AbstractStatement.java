@@ -11,11 +11,6 @@ public abstract class AbstractStatement extends AbstractMethodFragment {
 
 	private ASTInformation statement;
 	private StatementType type;
-    
-	public AbstractStatement(Statement statement) {
-		super();
-		this.statement = ASTInformationGenerator.generateASTInformation(statement);
-	}
 	
     public AbstractStatement(Statement statement, StatementType type, AbstractMethodFragment parent) {
     	super(parent);

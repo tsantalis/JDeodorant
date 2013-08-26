@@ -11,6 +11,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.util.math.LevenshteinDistance;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -97,6 +98,22 @@ public class MappingState {
 		int sum = 0;
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			sum += Math.abs(nodeMapping.getNodeG1().getId() - nodeMapping.getNodeG2().getId());
+		}
+		return sum;
+	}
+
+	public int getEditDistanceOfDifferences() {
+		int sum = 0;
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
+				for(Difference diff : difference.getDifferences()) {
+					if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH) ||
+							diff.getType().equals(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||
+							diff.getType().equals(DifferenceType.LITERAL_VALUE_MISMATCH)) {
+						sum += LevenshteinDistance.computeLevenshteinDistance(diff.getFirstValue(), diff.getSecondValue());
+					}
+				}
+			}
 		}
 		return sum;
 	}

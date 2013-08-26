@@ -320,16 +320,36 @@ public class PDGSubTreeMapper {
 			}
 		}
 		//TODO: Introduce comparison of difference "weights" in the case of multiple maximum states with minimum differences
+		List<MappingState> maximumStatesWithMinimumDifferencesAndMinimumIdDiff = new ArrayList<MappingState>();
 		if(maximumStatesWithMinimumDifferences.size() == 1) {
-			return maximumStatesWithMinimumDifferences.get(0);
+			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumDifferences.get(0));
 		}
 		else {
 			int minimum = maximumStatesWithMinimumDifferences.get(0).getNodeMappingIdDiff();
-			MappingState maximumStateWithMinimumDifferences = maximumStatesWithMinimumDifferences.get(0);
+			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumDifferences.get(0));
 			for(int i=1; i<maximumStatesWithMinimumDifferences.size(); i++) {
 				MappingState currentState = maximumStatesWithMinimumDifferences.get(i);
 				if(currentState.getNodeMappingIdDiff() < minimum) {
 					minimum = currentState.getNodeMappingIdDiff();
+					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.clear();
+					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
+				}
+				else if(currentState.getNodeMappingIdDiff() == minimum) {
+					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
+				}
+			}
+		}
+		
+		if(maximumStatesWithMinimumDifferencesAndMinimumIdDiff.size() == 1) {
+			return maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(0);
+		}
+		else {
+			int minimum = maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(0).getEditDistanceOfDifferences();
+			MappingState maximumStateWithMinimumDifferences = maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(0);
+			for(int i=1; i<maximumStatesWithMinimumDifferencesAndMinimumIdDiff.size(); i++) {
+				MappingState currentState = maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(i);
+				if(currentState.getEditDistanceOfDifferences() < minimum) {
+					minimum = currentState.getEditDistanceOfDifferences();
 					maximumStateWithMinimumDifferences = currentState;
 				}
 			}
@@ -447,6 +467,19 @@ public class PDGSubTreeMapper {
 						maxStates = matchBasedOnCodeFragments(finalState, nodesG1, nodesG2);
 					}
 					else {
+						ControlDependenceTreeNode cdtNode1 = controlDependenceTreePDG1.getNode(predicate1);
+						ControlDependenceTreeNode cdtNode2 = controlDependenceTreePDG2.getNode(predicate2);
+						ControlDependenceTreeNode cdtNode1Parent = null;
+						if(cdtNode1 != null)
+							cdtNode1Parent = cdtNode1.getParent();
+						ControlDependenceTreeNode cdtNode2Parent = null;
+						if(cdtNode2 != null)
+							cdtNode2Parent = cdtNode2.getParent();
+						if(cdtNode1Parent != null && cdtNode2Parent != null) {
+							if((cdtNode1Parent.getNode() != null && cdtNode1Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode2Parent.isElseNode()) ||
+									(cdtNode2Parent.getNode() != null && cdtNode2Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode1Parent.isElseNode()))
+								continue;
+						}
 						maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
 					}
 					for(MappingState temp : maxStates) {

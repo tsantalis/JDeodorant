@@ -127,7 +127,8 @@ public class MethodCallAnalyzer {
 						if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), superMethodDeclarationBinding)) {
 							ParameterObject parameterObject = subMethod.getParameter(initialArgumentPosition);
 							VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
-							processArgumentOfInternalMethodInvocation(subMethod, argumentDeclaration, initialArgumentPosition, parameterDeclaration2, processedMethods);
+							if(!processedMethods.contains(subMethod.getMethodDeclaration().resolveBinding().getKey()))
+								processArgumentOfInternalMethodInvocation(subMethod, argumentDeclaration, initialArgumentPosition, parameterDeclaration2, processedMethods);
 							break;
 						}
 					}

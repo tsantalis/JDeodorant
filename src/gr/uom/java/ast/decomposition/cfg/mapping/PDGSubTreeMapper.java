@@ -60,6 +60,7 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSubTreeMapper {
@@ -475,12 +476,31 @@ public class PDGSubTreeMapper {
 						ControlDependenceTreeNode cdtNode2Parent = null;
 						if(cdtNode2 != null)
 							cdtNode2Parent = cdtNode2.getParent();
-						if(cdtNode1Parent != null && cdtNode2Parent != null) {
+						if(cdtNode1Parent != null && cdtNode2Parent != null &&
+								!cdtNode1Parent.equals(controlDependenceTreePDG1) && !cdtNode2Parent.equals(controlDependenceTreePDG2)) {
 							if((cdtNode1Parent.getNode() != null && cdtNode1Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode2Parent.isElseNode()) ||
 									(cdtNode2Parent.getNode() != null && cdtNode2Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode1Parent.isElseNode()))
 								continue;
 						}
-						maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+						if(predicate1.getASTStatement() instanceof SwitchStatement && predicate2.getASTStatement() instanceof SwitchStatement) {
+							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+							boolean match = astNodeMatcher.match(predicate1, predicate2);
+							if(match && astNodeMatcher.isParameterizable()) {
+								PDGNodeMapping mapping = new PDGNodeMapping(predicate1, predicate2, astNodeMatcher);
+								MappingState state = new MappingState(finalState, mapping);
+								if(finalState != null)
+									finalState.addChild(state);
+								//remove switch nodes from the nodes to be processed
+								Set<PDGNode> switchBodyNodes1 = new LinkedHashSet<PDGNode>(nodesG1);
+								switchBodyNodes1.remove(predicate1);
+								Set<PDGNode> switchBodyNodes2 = new LinkedHashSet<PDGNode>(nodesG2);
+								switchBodyNodes1.remove(predicate2);
+								maxStates = matchBasedOnSwitchCases(state, switchBodyNodes1, switchBodyNodes2);
+							}
+						}
+						else {
+							maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+						}
 					}
 					for(MappingState temp : maxStates) {
 						if(!currentStates.contains(temp)) {
@@ -663,6 +683,79 @@ public class PDGSubTreeMapper {
 						}
 					}
 					map2.remove(variableToRemove);
+					finalState = best;
+				}
+			}
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(nodesG1);
+			Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(nodesG2);
+			for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+				if(tempNodesG1.contains(mapping.getNodeG1()))
+					tempNodesG1.remove(mapping.getNodeG1());
+				if(tempNodesG2.contains(mapping.getNodeG2()))
+					tempNodesG2.remove(mapping.getNodeG2());
+			}
+			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
+				currentStates.add(finalState);
+			}
+			else {
+				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+				for(MappingState temp : maxStates) {
+					if(!currentStates.contains(temp)) {
+						currentStates.add(temp);
+					}
+				}
+			}
+			return currentStates;
+		}
+	}
+
+	private List<MappingState> matchBasedOnSwitchCases(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		SwitchBodyDecomposer sbd1 = new SwitchBodyDecomposer(nodesG1);
+		SwitchBodyDecomposer sbd2 = new SwitchBodyDecomposer(nodesG2);
+		Map<PDGNode, Set<PDGNode>> map1 = sbd1.getSwitchCaseNodeMap();
+		Map<PDGNode, Set<PDGNode>> map2 = sbd2.getSwitchCaseNodeMap();
+		if(map1.isEmpty() || map2.isEmpty()) {
+			return processPDGNodes(parent, nodesG1, nodesG2);
+		}
+		else {
+			MappingState finalState = parent;
+			for(PDGNode switchCase1 : map1.keySet()) {
+				Set<PDGNode> switchCaseNodesG1 = map1.get(switchCase1);
+				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>();
+				tempNodesG1.add(switchCase1);
+				tempNodesG1.addAll(switchCaseNodesG1);
+				Map<PDGNode, List<MappingState>> currentStateMap = new LinkedHashMap<PDGNode, List<MappingState>>();
+				for(PDGNode switchCase2 : map2.keySet()) {
+					Set<PDGNode> switchCaseNodesG2 = map2.get(switchCase2);
+					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>();
+					tempNodesG2.add(switchCase2);
+					tempNodesG2.addAll(switchCaseNodesG2);
+					if(finalState != null) {
+						for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+							if(tempNodesG1.contains(mapping.getNodeG1()))
+								tempNodesG1.remove(mapping.getNodeG1());
+							if(tempNodesG2.contains(mapping.getNodeG2()))
+								tempNodesG2.remove(mapping.getNodeG2());
+						}
+					}
+					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+					currentStateMap.put(switchCase2, maxStates);
+				}
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PDGNode switchCase2 : currentStateMap.keySet()) {
+					currentStates.addAll(currentStateMap.get(switchCase2));
+				}
+				if(!currentStates.isEmpty()) {
+					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
+					PDGNode switchCaseToRemove = null;
+					for(PDGNode switchCase2 : currentStateMap.keySet()) {
+						if(currentStateMap.get(switchCase2).contains(best)) {
+							switchCaseToRemove = switchCase2;
+							break;
+						}
+					}
+					map2.remove(switchCaseToRemove);
 					finalState = best;
 				}
 			}

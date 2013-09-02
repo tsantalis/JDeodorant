@@ -33,6 +33,7 @@ import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
+import gr.uom.java.jdeodorant.refactoring.views.CodeSmellPackageExplorer.CodeSmellType;
 
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.FileDialog;
@@ -509,13 +510,12 @@ public class GodClass extends ViewPart {
 				//open the Code Smell Package Explorer only if it is closed
 				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
-				if(viewPart == null)
+				if(viewPart == null/* || !CodeSmellPackageExplorer.CODE_SMELL_TYPE.equals(CodeSmellType.GOD_CLASS)*/)
 					openPackageExplorerViewPart();
 			}
 		};
 		packageExplorerAction.setToolTipText("Code Smell Package Explorer");
-		packageExplorerAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		packageExplorerAction.setImageDescriptor(Activator.getImageDescriptor("/icons/" + "compass.png"));
 		packageExplorerAction.setEnabled(false);
 
 		applyRefactoringAction = new Action() {
@@ -854,6 +854,7 @@ public class GodClass extends ViewPart {
 			CodeSmellVisualizationDataSingleton.setCandidates((CandidateRefactoring[]) candidates.toArray(new CandidateRefactoring[candidates.size()]));
 			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 			IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+			CodeSmellPackageExplorer.CODE_SMELL_TYPE = CodeSmellType.GOD_CLASS;
 			if(viewPart != null)
 				page.hideView(viewPart);
 			page.showView(CodeSmellPackageExplorer.ID);

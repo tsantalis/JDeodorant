@@ -12,6 +12,7 @@ import gr.uom.java.distance.MySystem;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.MoveMethodRefactoring;
+import gr.uom.java.jdeodorant.refactoring.views.CodeSmellPackageExplorer.CodeSmellType;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
@@ -45,6 +46,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
@@ -460,13 +462,12 @@ public class FeatureEnvy extends ViewPart {
 				//open the Code Smell Package Explorer only if it is closed
 				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 				IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
-				if(viewPart == null)
+				if(viewPart == null/* || !CodeSmellPackageExplorer.CODE_SMELL_TYPE.equals(CodeSmellType.FEATURE_ENVY)*/)
 					openPackageExplorerViewPart();
 			}
 		};
 		packageExplorerAction.setToolTipText("Code Smell Package Explorer");
-		packageExplorerAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-				getImageDescriptor(ISharedImages.IMG_OBJ_ELEMENT));
+		packageExplorerAction.setImageDescriptor(Activator.getImageDescriptor("/icons/" + "compass.png"));
 		packageExplorerAction.setEnabled(false);
 
 		/*evolutionAnalysisAction = new Action() {
@@ -891,6 +892,7 @@ public class FeatureEnvy extends ViewPart {
 			CodeSmellVisualizationDataSingleton.setCandidates(candidateRefactoringTable);
 			IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
 			IViewPart viewPart = page.findView(CodeSmellPackageExplorer.ID);
+			CodeSmellPackageExplorer.CODE_SMELL_TYPE = CodeSmellType.FEATURE_ENVY;
 			if(viewPart != null)
 				page.hideView(viewPart);
 			page.showView(CodeSmellPackageExplorer.ID);

@@ -16,8 +16,6 @@ import gr.uom.java.ast.visualization.PackageMapDiagramInformationProvider;
 import gr.uom.java.ast.visualization.PackageMapDiagram;
 import gr.uom.java.ast.visualization.ZoomAction;
 import gr.uom.java.distance.CandidateRefactoring;
-import gr.uom.java.distance.ExtractClassCandidateRefactoring;
-import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -64,7 +62,7 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	private boolean ctrlPressed= false;
 	public static double SCALE_FACTOR=1;
 	private PackageMapDiagram diagram;
-	private CodeSmellType codeSmellType;
+	protected static CodeSmellType CODE_SMELL_TYPE;
 
 	@Override
 	public void createPartControl(Composite parent) {
@@ -80,24 +78,14 @@ public class CodeSmellPackageExplorer extends ViewPart {
 				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 					CandidateRefactoring[] candidates = CodeSmellVisualizationDataSingleton.getCandidates();
 					if(candidates != null){
-						if(candidates.length>0){
-							if(candidates[0] instanceof MoveMethodCandidateRefactoring){
-								codeSmellType = CodeSmellType.FEATURE_ENVY;
-							}
-							else if (candidates[0] instanceof ExtractClassCandidateRefactoring){
-								codeSmellType = CodeSmellType.GOD_CLASS;
-							}
-						}
 						diagram = new PackageMapDiagram(candidates, monitor);
 						root = diagram.getRoot();
 					}
 				}
 			});
 		} catch (InvocationTargetException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -162,10 +150,10 @@ public class CodeSmellPackageExplorer extends ViewPart {
 
 		if(diagram != null && diagram.getProjectName() != null){
 			LabelControlContribution infoLabel= null;
-			if(codeSmellType != null) {
-				if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
+			if(CODE_SMELL_TYPE != null) {
+				if(CODE_SMELL_TYPE.equals(CodeSmellType.FEATURE_ENVY))
 					infoLabel = new LabelControlContribution("Label", "Feature Envy Analysis of system: ", null);
-				else if (codeSmellType.equals(CodeSmellType.GOD_CLASS))
+				else if (CODE_SMELL_TYPE.equals(CodeSmellType.GOD_CLASS))
 					infoLabel = new LabelControlContribution("Label", "God Class Analysis of system: ", null);
 			}
 
@@ -189,7 +177,6 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	}
 
 	class MyMenuCreator implements IMenuCreator{
-
 		private IAction action;
 		private Menu menu;
 
@@ -214,7 +201,6 @@ public class CodeSmellPackageExplorer extends ViewPart {
 
 			addActionToMenu(menu, inputZoomAction);
 			return menu;
-
 		}
 
 		public void dispose() {
@@ -247,8 +233,7 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	}
 	@Override
 	public void setFocus() {
-		// TODO Auto-generated method stub
-
+		
 	}
 
 	public class LabelControlContribution extends ControlContribution  
@@ -277,18 +262,14 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	private void hookTooltips(PackageMapDiagram diagram) {
 		// Create an information provider for our table viewer
 		IInformationProvider informationProvider = new PackageMapDiagramInformationProvider(diagram);
-
-
 		List<ICustomInformationControlCreator> informationControlCreators = new ArrayList<ICustomInformationControlCreator>();
-		if(codeSmellType != null) {
-			if(codeSmellType.equals(CodeSmellType.FEATURE_ENVY))
+		if(CODE_SMELL_TYPE != null) {
+			if(CODE_SMELL_TYPE.equals(CodeSmellType.FEATURE_ENVY))
 				informationControlCreators.add(new FeatureEnviedMethodInformationControlCreator());
-			else if(codeSmellType.equals(CodeSmellType.GOD_CLASS))
+			else if(CODE_SMELL_TYPE.equals(CodeSmellType.GOD_CLASS))
 				informationControlCreators.add(new GodClassInformationControlCreator());
 		}
 		Control control =figureCanvas;
-
-
 		final InformationControlManager informationControlManager = new InformationControlManager(informationProvider, informationControlCreators, false);
 		informationControlManager.install(control);
 
@@ -303,19 +284,16 @@ public class CodeSmellPackageExplorer extends ViewPart {
 		// DisposeListener to uninstall the information control manager
 
 		DisposeListener listener = new DisposeListener(){
-
 			public void widgetDisposed(DisposeEvent e) {
 				informationControlManager.dispose();
-
 			}
-
 		};
 		control.addDisposeListener(listener);
 		// Install tooltips
 		//Tooltips.install(diagram.getControl(), informationProvider, informationControlCreators, false);
 	}
 
-	private enum CodeSmellType{
+	protected enum CodeSmellType{
 		FEATURE_ENVY, GOD_CLASS;
 	}
 }

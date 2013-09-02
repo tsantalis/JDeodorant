@@ -53,6 +53,35 @@ public class CompositeVariable extends AbstractVariable {
 		return rightPart.containsPlainVariable(variable);
 	}
 
+	public boolean startsWithVariable(AbstractVariable variable) {
+		if(variable instanceof PlainVariable) {
+			return this.getInitialVariable().equals((PlainVariable)variable);
+		}
+		else {
+			CompositeVariable composite = (CompositeVariable)variable;
+			if(this.getInitialVariable().equals(composite.getInitialVariable())) {
+				return this.getRightPart().startsWithVariable(composite.getRightPart());
+			}
+			return false;
+		}
+	}
+
+	public AbstractVariable getRightPartAfterPrefix(AbstractVariable variable) {
+		if(variable instanceof PlainVariable) {
+			if(this.getInitialVariable().equals((PlainVariable)variable))
+				return this.getRightPart();
+		}
+		else {
+			CompositeVariable composite = (CompositeVariable)variable;
+			if(this.getInitialVariable().equals(composite.getInitialVariable())) {
+				if(this.getRightPart() instanceof CompositeVariable) {
+					return ((CompositeVariable)this.getRightPart()).getRightPartAfterPrefix(composite.getRightPart());
+				}
+			}
+		}
+		return null;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o) {
 			return true;

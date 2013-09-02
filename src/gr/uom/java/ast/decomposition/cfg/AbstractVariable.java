@@ -49,6 +49,6 @@ public abstract class AbstractVariable {
 	}
 
 	public abstract boolean containsPlainVariable(PlainVariable variable);
-	
+	public abstract boolean startsWithVariable(AbstractVariable variable);
 	public abstract PlainVariable getInitialVariable();
 }

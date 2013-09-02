@@ -66,6 +66,7 @@ import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.ParameterizedType;
@@ -451,12 +452,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclarationG1.getName().getIdentifier()), null);
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclarationG1.getReturnType2(), null);	
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-								modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+								List<IExtendedModifier> originalModifiers = methodDeclarationG1.modifiers();
+								for(IExtendedModifier extendedModifier : originalModifiers) {
+									if(extendedModifier.isModifier()) {
+										Modifier modifier = (Modifier)extendedModifier;
+										if(modifier.isProtected()) {
+											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+										}
+										else if(modifier.isPublic()) {
+											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+										}
+									}
+								}
 								modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 								ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 								List<SingleVariableDeclaration> parameters = methodDeclarationG1.parameters();
 								for(SingleVariableDeclaration parameter : parameters) {
 									parametersRewrite.insertLast(parameter, null);
+								}
+								ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+								List<Name> thrownExceptions = methodDeclarationG1.thrownExceptions();
+								for(Name thrownException : thrownExceptions) {
+									thrownExceptionsRewrite.insertLast(thrownException, null);
 								}
 								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 								break;

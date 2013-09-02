@@ -1,6 +1,8 @@
 package gr.uom.java.ast;
 
+import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
 
 import java.util.LinkedHashSet;
@@ -287,15 +289,34 @@ public class ClassObject {
 	public Set<FieldObject> getFieldsAccessedInsideMethod(AbstractMethodDeclaration method) {
 		Set<FieldObject> fields = new LinkedHashSet<FieldObject>();
 		for(FieldInstructionObject fieldInstruction : method.getFieldInstructions()) {
-			for(FieldObject field : fieldList) {
-				if(field.equals(fieldInstruction)) {
-					if(!fields.contains(field))
-						fields.add(field);
-					break;
+			accessedFieldFromThisClass(fields, fieldInstruction);
+		}
+		if(method.getMethodBody() != null) {
+			List<TryStatementObject> tryStatements = method.getMethodBody().getTryStatements();
+			for(TryStatementObject tryStatement : tryStatements) {
+				for(CatchClauseObject catchClause : tryStatement.getCatchClauses()) {
+					for(FieldInstructionObject fieldInstruction : catchClause.getBody().getFieldInstructions()) {
+						accessedFieldFromThisClass(fields, fieldInstruction);
+					}
+				}
+				if(tryStatement.getFinallyClause() != null) {
+					for(FieldInstructionObject fieldInstruction : tryStatement.getFinallyClause().getFieldInstructions()) {
+						accessedFieldFromThisClass(fields, fieldInstruction);
+					}
 				}
 			}
 		}
 		return fields;
+	}
+
+	private void accessedFieldFromThisClass(Set<FieldObject> fields, FieldInstructionObject fieldInstruction) {
+		for(FieldObject field : fieldList) {
+			if(field.equals(fieldInstruction)) {
+				if(!fields.contains(field))
+					fields.add(field);
+				break;
+			}
+		}
 	}
 
 	public String getName() {

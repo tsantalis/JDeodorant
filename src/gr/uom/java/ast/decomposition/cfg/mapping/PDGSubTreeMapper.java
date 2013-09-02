@@ -7,6 +7,7 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
+import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.DualExpressionPreconditionViolation;
@@ -16,6 +17,7 @@ import gr.uom.java.ast.decomposition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.StatementPreconditionViolation;
+import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
@@ -267,6 +269,18 @@ public class PDGSubTreeMapper {
 				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
 				usedLocalFields.addAll(composite.getUsedFieldsThroughThisReferenceInExpressions());
 				accessedLocalMethods.addAll(composite.getInvokedMethodsThroughThisReferenceInExpressions());
+				if(composite instanceof TryStatementObject) {
+					TryStatementObject tryStatement = (TryStatementObject)composite;
+					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+					for(CatchClauseObject catchClause : catchClauses) {
+						usedLocalFields.addAll(catchClause.getBody().getUsedFieldsThroughThisReference());
+						accessedLocalMethods.addAll(catchClause.getBody().getInvokedMethodsThroughThisReference());
+					}
+					if(tryStatement.getFinallyClause() != null) {
+						usedLocalFields.addAll(tryStatement.getFinallyClause().getUsedFieldsThroughThisReference());
+						accessedLocalMethods.addAll(tryStatement.getFinallyClause().getInvokedMethodsThroughThisReference());
+					}
+				}
 			}
 		}
 		ITypeBinding declaringClassTypeBinding = pdg.getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass();

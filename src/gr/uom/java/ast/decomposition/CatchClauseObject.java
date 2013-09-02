@@ -5,13 +5,12 @@ import java.util.List;
 
 public class CatchClauseObject {
 	
-	private List<AbstractStatement> statementList;
+	private CompositeStatementObject body;
 	private List<AbstractExpression> expressionList;
 	private List<String> exceptionTypes;
 	private TryStatementObject parent;
 	
 	public CatchClauseObject() {
-		this.statementList = new ArrayList<AbstractStatement>();
 		this.expressionList = new ArrayList<AbstractExpression>();
 		this.exceptionTypes = new ArrayList<String>();
 		this.parent = null;
@@ -25,12 +24,12 @@ public class CatchClauseObject {
 		return parent;
 	}
 
-	public void addStatement(AbstractStatement statement) {
-		statementList.add(statement);
+	public void setBody(CompositeStatementObject body) {
+		this.body = body;
 	}
 
-	public List<AbstractStatement> getStatements() {
-		return statementList;
+	public CompositeStatementObject getBody() {
+		return body;
 	}
 
 	public void addExpression(AbstractExpression expression) {
@@ -52,32 +51,26 @@ public class CatchClauseObject {
 	public List<String> stringRepresentation() {
 		List<String> stringRepresentation = new ArrayList<String>();
 		stringRepresentation.add(this.toString());
-		for(AbstractStatement statement : statementList) {
-			stringRepresentation.addAll(statement.stringRepresentation());
-		}
+		stringRepresentation.addAll(body.stringRepresentation());
 		return stringRepresentation;
 	}
 
 	public List<CompositeStatementObject> getIfStatements() {
 		List<CompositeStatementObject> ifStatements = new ArrayList<CompositeStatementObject>();
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject composite = (CompositeStatementObject)statement;
-				ifStatements.addAll(composite.getIfStatements());
-			}
-		}
+		ifStatements.addAll(body.getIfStatements());
 		return ifStatements;
 	}
 
 	public List<CompositeStatementObject> getSwitchStatements() {
 		List<CompositeStatementObject> switchStatements = new ArrayList<CompositeStatementObject>();
-		for(AbstractStatement statement : statementList) {
-			if(statement instanceof CompositeStatementObject) {
-				CompositeStatementObject composite = (CompositeStatementObject)statement;
-				switchStatements.addAll(composite.getSwitchStatements());
-			}
-		}
+		switchStatements.addAll(body.getSwitchStatements());
 		return switchStatements;
+	}
+
+	public List<TryStatementObject> getTryStatements() {
+		List<TryStatementObject> tryStatements = new ArrayList<TryStatementObject>();
+		tryStatements.addAll(body.getTryStatements());
+		return tryStatements;
 	}
 
 	public String toString() {

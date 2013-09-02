@@ -51,12 +51,7 @@ public class TryStatementObject extends CompositeStatementObject {
 		List<CompositeStatementObject> ifStatements = new ArrayList<CompositeStatementObject>();
 		ifStatements.addAll(super.getIfStatements());
 		for(CatchClauseObject catchClause : catchClauses) {
-			for(AbstractStatement statement : catchClause.getStatements()) {
-				if(statement instanceof CompositeStatementObject) {
-					CompositeStatementObject composite = (CompositeStatementObject)statement;
-					ifStatements.addAll(composite.getIfStatements());
-				}
-			}
+			ifStatements.addAll(catchClause.getIfStatements());
 		}
 		if(finallyClause != null) {
 			ifStatements.addAll(finallyClause.getIfStatements());
@@ -68,16 +63,23 @@ public class TryStatementObject extends CompositeStatementObject {
 		List<CompositeStatementObject> switchStatements = new ArrayList<CompositeStatementObject>();
 		switchStatements.addAll(super.getSwitchStatements());
 		for(CatchClauseObject catchClause : catchClauses) {
-			for(AbstractStatement statement : catchClause.getStatements()) {
-				if(statement instanceof CompositeStatementObject) {
-					CompositeStatementObject composite = (CompositeStatementObject)statement;
-					switchStatements.addAll(composite.getSwitchStatements());
-				}
-			}
+			switchStatements.addAll(catchClause.getSwitchStatements());
 		}
 		if(finallyClause != null) {
 			switchStatements.addAll(finallyClause.getSwitchStatements());
 		}
 		return switchStatements;
+	}
+
+	public List<TryStatementObject> getTryStatements() {
+		List<TryStatementObject> tryStatements = new ArrayList<TryStatementObject>();
+		tryStatements.addAll(super.getTryStatements());
+		for(CatchClauseObject catchClause : catchClauses) {
+			tryStatements.addAll(catchClause.getTryStatements());
+		}
+		if(finallyClause != null) {
+			tryStatements.addAll(finallyClause.getTryStatements());
+		}
+		return tryStatements;
 	}
 }

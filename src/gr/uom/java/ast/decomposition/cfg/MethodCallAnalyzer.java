@@ -70,7 +70,71 @@ public class MethodCallAnalyzer {
 		if(classObject != null) {
 			MethodObject methodObject = classObject.getMethod(methodInvocationObject);
 			if(methodObject != null) {
-				processInternalMethodInvocation(classObject, methodObject, variable, new LinkedHashSet<String>());
+				CompilationUnitCache cache = CompilationUnitCache.getInstance();
+				if(cache.containsMethodExpression(methodObject)) {
+					for(AbstractVariable usedField : cache.getUsedFieldsForMethodExpression(methodObject)) {
+						AbstractVariable field = null;
+						if(variable != null)
+							field = composeVariable(variable, usedField);
+						else
+							field = usedField;
+						usedVariables.add(field);
+					}
+					for(AbstractVariable definedField : cache.getDefinedFieldsForMethodExpression(methodObject)) {
+						AbstractVariable field = null;
+						if(variable != null)
+							field = composeVariable(variable, definedField);
+						else
+							field = definedField;
+						definedVariables.add(field);
+					}
+				}
+				else {
+					Set<AbstractVariable> usedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.usedVariables);
+					Set<AbstractVariable> definedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.definedVariables);
+					processInternalMethodInvocation(classObject, methodObject, variable, new LinkedHashSet<String>());
+					//save in cache
+					Set<AbstractVariable> usedVariablesAfter = new LinkedHashSet<AbstractVariable>(this.usedVariables);
+					usedVariablesAfter.removeAll(usedVariablesBefore);
+					int usedFieldCount = 0;
+					for(AbstractVariable usedField : usedVariablesAfter) {
+						if(variable == null) {
+							cache.addUsedFieldForMethodExpression(usedField, methodObject);
+							usedFieldCount++;
+						}
+						else if(usedField instanceof CompositeVariable) {
+							CompositeVariable composite = (CompositeVariable)usedField;
+							if(composite.startsWithVariable(variable)) {
+								//getRightPart() is not correct if variable is a CompositeVariable
+								cache.addUsedFieldForMethodExpression(composite.getRightPartAfterPrefix(variable), methodObject);
+								usedFieldCount++;
+							}
+						}
+					}
+					if(usedFieldCount == 0) {
+						cache.setEmptyUsedFieldsForMethodExpression(methodObject);
+					}
+					Set<AbstractVariable> definedVariablesAfter = new LinkedHashSet<AbstractVariable>(this.definedVariables);
+					definedVariablesAfter.removeAll(definedVariablesBefore);
+					int definedFieldCount = 0;
+					for(AbstractVariable definedField : definedVariablesAfter) {
+						if(variable == null) {
+							cache.addDefinedFieldForMethodExpression(definedField, methodObject);
+							definedFieldCount++;
+						}
+						else if(definedField instanceof CompositeVariable) {
+							CompositeVariable composite = (CompositeVariable)definedField;
+							if(composite.startsWithVariable(variable)) {
+								//getRightPart() is not correct if variable is a CompositeVariable
+								cache.addDefinedFieldForMethodExpression(composite.getRightPartAfterPrefix(variable), methodObject);
+								definedFieldCount++;
+							}
+						}
+					}
+					if(definedFieldCount == 0) {
+						cache.setEmptyDefinedFieldsForMethodExpression(methodObject);
+					}
+				}
 				List<Expression> arguments = methodInvocation.arguments();
 				int argumentPosition = 0;
 				for(Expression argument : arguments) {
@@ -84,10 +148,51 @@ public class MethodCallAnalyzer {
 							}
 						}
 						if(argumentDeclaration != null) {
-							ParameterObject parameter = methodObject.getParameter(argumentPosition);
-							VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
-							PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
-							processArgumentOfInternalMethodInvocation(methodObject, argumentVariable, argumentPosition, parameterDeclaration, new LinkedHashSet<String>());
+							if(cache.containsMethodArgument(methodObject, argumentPosition)) {
+								for(AbstractVariable usedField : cache.getUsedFieldsForMethodArgument(methodObject, argumentPosition)) {
+									PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
+									AbstractVariable composedVariable = composeVariable(argumentVariable, usedField);
+									usedVariables.add(composedVariable);
+								}
+								for(AbstractVariable definedField : cache.getDefinedFieldsForMethodArgument(methodObject, argumentPosition)) {
+									PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
+									AbstractVariable composedVariable = composeVariable(argumentVariable, definedField);
+									definedVariables.add(composedVariable);
+								}
+							}
+							else {
+								ParameterObject parameter = methodObject.getParameter(argumentPosition);
+								VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
+								PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
+								processArgumentOfInternalMethodInvocation(methodObject, argumentVariable, argumentPosition, parameterDeclaration, new LinkedHashSet<String>());
+								//save in cache
+								int usedFieldCount = 0;
+								for(AbstractVariable usedVariable : usedVariables) {
+									if(usedVariable instanceof CompositeVariable) {
+										CompositeVariable composite = (CompositeVariable)usedVariable;
+										if(composite.getInitialVariable().equals(argumentVariable)) {
+											cache.addUsedFieldForMethodArgument(composite.getRightPart(), methodObject, argumentPosition);
+											usedFieldCount++;
+										}
+									}
+								}
+								if(usedFieldCount == 0) {
+									cache.setEmptyUsedFieldsForMethodArgument(methodObject, argumentPosition);
+								}
+								int definedFieldCount = 0;
+								for(AbstractVariable definedVariable : definedVariables) {
+									if(definedVariable instanceof CompositeVariable) {
+										CompositeVariable composite = (CompositeVariable)definedVariable;
+										if(composite.getInitialVariable().equals(argumentVariable)) {
+											cache.addDefinedFieldForMethodArgument(composite.getRightPart(), methodObject, argumentPosition);
+											definedFieldCount++;
+										}
+									}
+								}
+								if(definedFieldCount == 0) {
+									cache.setEmptyDefinedFieldsForMethodArgument(methodObject, argumentPosition);
+								}
+							}
 						}
 					}
 					argumentPosition++;

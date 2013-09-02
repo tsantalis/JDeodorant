@@ -554,7 +554,7 @@ public class MethodBodyObject {
 				for(Statement blockStatement : blockStatements) {
 					processStatement(catchClauseStatementObject, blockStatement);
 				}
-				catchClauseObject.addStatement(catchClauseStatementObject);
+				catchClauseObject.setBody(catchClauseStatementObject);
 				child.addCatchClause(catchClauseObject);
 			}
 			Block finallyBlock = tryStatement.getFinally();
@@ -804,6 +804,11 @@ public class MethodBodyObject {
 		}
 	}
 */
+
+	public List<TryStatementObject> getTryStatements() {
+		return compositeStatement.getTryStatements();
+	}
+
 	public List<String> stringRepresentation() {
 		return compositeStatement.stringRepresentation();
 	}

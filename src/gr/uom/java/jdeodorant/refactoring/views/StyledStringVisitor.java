@@ -252,7 +252,8 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 
 	public boolean visit(BooleanLiteral expr) {
-		styledString.append(String.valueOf(expr.booleanValue()), new StyledStringStyler(keywordStyle));
+		StyledStringStyler styler = determineDiffStyle(expr, new StyledStringStyler(keywordStyle));
+		styledString.append(String.valueOf(expr.booleanValue()), styler);
 		return false;
 	}
 

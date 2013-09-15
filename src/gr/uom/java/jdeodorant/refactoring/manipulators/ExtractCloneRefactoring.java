@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.AbstractMethodDeclaration;
+import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
@@ -42,6 +43,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
@@ -273,9 +275,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
 			ITypeBinding commonSuperType = commonSuperType(typeBinding1, typeBinding2);
 			if(commonSuperType != null) {
-				if(mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
+				CompilationUnitCache cache = CompilationUnitCache.getInstance();
+				Set<IType> subTypes = cache.getSubTypes((IType)commonSuperType.getJavaElement());
+				boolean superclassInheritedOnlyByRefactoringSubclasses = false;
+				if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
+						subTypes.contains((IType)typeBinding2.getJavaElement()))
+					superclassInheritedOnlyByRefactoringSubclasses = true;
+				if((mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
 						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty() &&
-						 !commonSuperType.getQualifiedName().equals("java.lang.Object")) {
+						 !commonSuperType.getQualifiedName().equals("java.lang.Object")) ||
+						 superclassInheritedOnlyByRefactoringSubclasses) {
 					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
 					IJavaElement javaElement = commonSuperType.getJavaElement();
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();

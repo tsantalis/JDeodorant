@@ -1,5 +1,8 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.util.Set;
+
+import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
@@ -116,6 +119,28 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		CLabel differencesLegendLabel = new CLabel(legend, SWT.NONE);
 		differencesLegendLabel.setText("Difference");
 		
+		Set<BindingSignaturePair> renamedVariableBindingSignaturePairs = mapper.getRenamedVariables();
+		if(renamedVariableBindingSignaturePairs.size() > 0) {
+			final Group renamedVariables = new Group(result, SWT.SHADOW_NONE);
+			renamedVariables.setText("Renamed Variables");
+			GridData renamedVariablesGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
+			renamedVariablesGridData.horizontalSpan = 3;
+			renamedVariablesGridData.verticalSpan = 5;
+			renamedVariables.setLayoutData(renamedVariablesGridData);
+			GridLayout renamedVariablesLayout = new GridLayout();
+			renamedVariablesLayout.numColumns = 3;
+			renamedVariables.setLayout(renamedVariablesLayout);
+
+			for(BindingSignaturePair bindingSignaturePair : renamedVariableBindingSignaturePairs) {
+				CLabel renamedVariableLabel = new CLabel(renamedVariables, SWT.NONE);
+				String signature1 = bindingSignaturePair.getSignature1().toString();
+				String variable1 = signature1.substring(signature1.lastIndexOf("#")+1, signature1.length()-1);
+				String signature2 = bindingSignaturePair.getSignature2().toString();
+				String variable2 = signature2.substring(signature2.lastIndexOf("#")+1, signature2.length()-1);
+				renamedVariableLabel.setText(variable1 + " -> " + variable2);
+				renamedVariableLabel.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.BOLD)));
+			}
+		}
 		
 		/*//LegendItem
 		StyledText unmappedLabel = new StyledText(legend, SWT.SINGLE | SWT.READ_ONLY);

@@ -508,7 +508,7 @@ public class PDGSubTreeMapper {
 								Set<PDGNode> switchBodyNodes1 = new LinkedHashSet<PDGNode>(nodesG1);
 								switchBodyNodes1.remove(predicate1);
 								Set<PDGNode> switchBodyNodes2 = new LinkedHashSet<PDGNode>(nodesG2);
-								switchBodyNodes1.remove(predicate2);
+								switchBodyNodes2.remove(predicate2);
 								maxStates = matchBasedOnSwitchCases(state, switchBodyNodes1, switchBodyNodes2);
 							}
 						}

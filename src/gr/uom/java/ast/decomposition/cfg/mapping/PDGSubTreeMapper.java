@@ -152,8 +152,8 @@ public class PDGSubTreeMapper {
 				cloneStructureRoot.addGapChild(node);
 			}
 		}
-		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
-		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
+		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
+		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 		findPassedParameters();
 		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
@@ -176,14 +176,17 @@ public class PDGSubTreeMapper {
 		}
 	}
 
-	private void findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes, Set<AbstractVariable> variables) {
+	private void findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> variables) {
 		for(PDGNode mappedNode : mappedNodes) {
 			for(Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
 				AbstractVariable declaredVariable = declaredVariableIterator.next();
-				for(PDGNode node : nonMappedNodes) {
-					if(node.usesLocalVariable(declaredVariable) || node.definesLocalVariable(declaredVariable)) {
-						variables.add(declaredVariable);
-						break;
+				for(GraphNode node : pdg.getNodes()) {
+					PDGNode pdgNode = (PDGNode)node;
+					if(!mappedNodes.contains(pdgNode)) {
+						if(pdgNode.usesLocalVariable(declaredVariable) || pdgNode.definesLocalVariable(declaredVariable)) {
+							variables.add(declaredVariable);
+							break;
+						}
 					}
 				}
 			}

@@ -571,6 +571,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodBodyRewrite.insertLast(statement, null);
 			}
 		}
+		if(returnedVariables.size() == 1 && findReturnTypeBinding() == null) {
+			ReturnStatement returnStatement = ast.newReturnStatement();
+			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariables.get(0).getName(), null);
+			methodBodyRewrite.insertLast(returnStatement, null);
+		}
 		
 		//add parameters for the differences between the clones
 		int i = 0;

@@ -555,13 +555,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Statement statement1 = pdgNode1.getASTStatement();
 			TypeVisitor typeVisitor1 = new TypeVisitor();
 			statement1.accept(typeVisitor1);
-			requiredImportTypeBindings.addAll(typeVisitor1.getTypeBindings());
+			getSimpleTypeBindings(typeVisitor1.getTypeBindings(), requiredImportTypeBindings);
 			
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
 			Statement statement2 = pdgNode2.getASTStatement();
 			TypeVisitor typeVisitor2 = new TypeVisitor();
 			statement2.accept(typeVisitor2);
-			requiredImportTypeBindings.addAll(typeVisitor2.getTypeBindings());
+			getSimpleTypeBindings(typeVisitor2.getTypeBindings(), requiredImportTypeBindings);
 		}
 		
 		CloneStructureNode root = mapper.getCloneStructureRoot();
@@ -1244,11 +1244,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			else {
 				if(typeBinding.isNested()) {
-					finalTypeBindings.add(typeBinding.getDeclaringClass());
+					if(!containsTypeBinding(typeBinding.getDeclaringClass(), finalTypeBindings))
+						finalTypeBindings.add(typeBinding.getDeclaringClass());
 				}
-				finalTypeBindings.add(typeBinding);
+				if(!containsTypeBinding(typeBinding, finalTypeBindings))
+					finalTypeBindings.add(typeBinding);
 			}
 		}
+	}
+
+	private boolean containsTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> typeBindings) {
+		for(ITypeBinding typeBinding2 : typeBindings) {
+			if(typeBinding2.getKey().equals(typeBinding.getKey()))
+				return true;
+		}
+		return false;
 	}
 
 	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {

@@ -2272,11 +2272,21 @@ public class ExtractClassRefactoring extends Refactoring {
 			}
 			else {
 				if(typeBinding.isNested()) {
-					finalTypeBindings.add(typeBinding.getDeclaringClass());
+					if(!containsTypeBinding(typeBinding.getDeclaringClass(), finalTypeBindings))
+						finalTypeBindings.add(typeBinding.getDeclaringClass());
 				}
-				finalTypeBindings.add(typeBinding);
+				if(!containsTypeBinding(typeBinding, finalTypeBindings))
+					finalTypeBindings.add(typeBinding);
 			}
 		}
+	}
+
+	private boolean containsTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> typeBindings) {
+		for(ITypeBinding typeBinding2 : typeBindings) {
+			if(typeBinding2.getKey().equals(typeBinding.getKey()))
+				return true;
+		}
+		return false;
 	}
 
 	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {

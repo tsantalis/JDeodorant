@@ -2,7 +2,6 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.ASTNodeMatcher;
-import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
@@ -116,84 +115,6 @@ public class MappingState {
 			}
 		}
 		return sum;
-	}
-
-	public Set<BindingSignaturePair> getRenamedVariables() {
-		List<BindingSignaturePair> variableNameMismatches = new ArrayList<BindingSignaturePair>();
-		List<Difference> variableNameMismatchDifferences = new ArrayList<Difference>();
-		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
-			List<Difference> diffs = nodeDifference.getDifferences();
-			for(Difference diff : diffs) {
-				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
-					variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
-					variableNameMismatchDifferences.add(diff);
-				}
-			}
-		}
-		Set<BindingSignaturePair> renamedVariables = new LinkedHashSet<BindingSignaturePair>();
-		Set<BindingSignaturePair> swappedVariables = new LinkedHashSet<BindingSignaturePair>();
-		for(int i=0; i<variableNameMismatches.size(); i++) {
-			BindingSignaturePair signaturePairI = variableNameMismatches.get(i);
-			if(!renamedVariables.contains(signaturePairI)) {
-				boolean isRenamed = true;
-				boolean isSwapped = true;
-				int renameCount = 0;
-				int swapCount = 0;
-				for(int j=0; j<variableNameMismatches.size(); j++) {
-					BindingSignaturePair signaturePairJ = variableNameMismatches.get(j);
-					if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
-						if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
-							renameCount++;
-						}
-						else {
-							isRenamed = false;
-							break;
-						}
-					}
-					else if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
-						if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
-							renameCount++;
-						}
-						else {
-							isRenamed = false;
-							break;
-						}
-					}
-					else {
-						Difference diffI = variableNameMismatchDifferences.get(i);
-						Difference diffJ = variableNameMismatchDifferences.get(j);
-						if(diffI.getFirstValue().equals(diffJ.getSecondValue())) {
-							if(diffI.getSecondValue().equals(diffJ.getFirstValue())) {
-								swapCount++;
-							}
-							else {
-								isSwapped = false;
-								break;
-							}
-						}
-						else if(diffI.getSecondValue().equals(diffJ.getFirstValue())) {
-							if(diffI.getFirstValue().equals(diffJ.getSecondValue())) {
-								swapCount++;
-							}
-							else {
-								isSwapped = false;
-								break;
-							}
-						}
-					}
-				}
-				if(isRenamed && renameCount > 1) {
-					renamedVariables.add(signaturePairI);
-				}
-				if(isSwapped && swapCount > 0) {
-					swappedVariables.add(signaturePairI);
-				}
-			}
-		}
-		Set<BindingSignaturePair> variables = new LinkedHashSet<BindingSignaturePair>();
-		variables.addAll(renamedVariables);
-		variables.addAll(swappedVariables);
-		return variables;
 	}
 
 	public List<MappingState> getMaximumCommonSubGraphs() {

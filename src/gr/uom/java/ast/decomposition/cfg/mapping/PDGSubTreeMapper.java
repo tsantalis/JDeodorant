@@ -9,6 +9,7 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.ExpressionPreconditionViolation;
@@ -57,6 +58,7 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -1090,7 +1092,100 @@ public class PDGSubTreeMapper {
 	}
 
 	public Set<BindingSignaturePair> getRenamedVariables() {
-		return maximumStateWithMinimumDifferences.getRenamedVariables();
+		List<BindingSignaturePair> variableNameMismatches = new ArrayList<BindingSignaturePair>();
+		List<Difference> variableNameMismatchDifferences = new ArrayList<Difference>();
+		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
+			List<Difference> diffs = nodeDifference.getDifferences();
+			for(Difference diff : diffs) {
+				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
+					Expression expression1 = nodeDifference.getExpression1().getExpression();
+					Expression expression2 = nodeDifference.getExpression2().getExpression();
+					if(expression1 instanceof SimpleName && expression2 instanceof SimpleName) {
+						SimpleName simpleName1 = (SimpleName)expression1;
+						SimpleName simpleName2 = (SimpleName)expression2;
+						IBinding binding1 = simpleName1.resolveBinding();
+						IBinding binding2 = simpleName2.resolveBinding();
+						if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding1 = (IVariableBinding)binding1;
+							IVariableBinding variableBinding2 = (IVariableBinding)binding2;
+							IMethodBinding declaringMethod1 = variableBinding1.getDeclaringMethod();
+							IMethodBinding declaringMethod2 = variableBinding2.getDeclaringMethod();
+							IMethodBinding  method1 = pdg1.getMethod().getMethodDeclaration().resolveBinding();
+							IMethodBinding  method2 = pdg2.getMethod().getMethodDeclaration().resolveBinding();
+							if(declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
+									declaringMethod2 != null && declaringMethod2.isEqualTo(method2)) {
+								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
+								variableNameMismatchDifferences.add(diff);
+							}
+						}
+					}
+				}
+			}
+		}
+		Set<BindingSignaturePair> renamedVariables = new LinkedHashSet<BindingSignaturePair>();
+		Set<BindingSignaturePair> swappedVariables = new LinkedHashSet<BindingSignaturePair>();
+		for(int i=0; i<variableNameMismatches.size(); i++) {
+			BindingSignaturePair signaturePairI = variableNameMismatches.get(i);
+			if(!renamedVariables.contains(signaturePairI)) {
+				boolean isRenamed = true;
+				boolean isSwapped = true;
+				int renameCount = 0;
+				int swapCount = 0;
+				for(int j=0; j<variableNameMismatches.size(); j++) {
+					BindingSignaturePair signaturePairJ = variableNameMismatches.get(j);
+					if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
+						if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
+							renameCount++;
+						}
+						else {
+							isRenamed = false;
+							break;
+						}
+					}
+					else if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
+						if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
+							renameCount++;
+						}
+						else {
+							isRenamed = false;
+							break;
+						}
+					}
+					else {
+						Difference diffI = variableNameMismatchDifferences.get(i);
+						Difference diffJ = variableNameMismatchDifferences.get(j);
+						if(diffI.getFirstValue().equals(diffJ.getSecondValue())) {
+							if(diffI.getSecondValue().equals(diffJ.getFirstValue())) {
+								swapCount++;
+							}
+							else {
+								isSwapped = false;
+								break;
+							}
+						}
+						else if(diffI.getSecondValue().equals(diffJ.getFirstValue())) {
+							if(diffI.getFirstValue().equals(diffJ.getSecondValue())) {
+								swapCount++;
+							}
+							else {
+								isSwapped = false;
+								break;
+							}
+						}
+					}
+				}
+				if(isRenamed && renameCount > 1) {
+					renamedVariables.add(signaturePairI);
+				}
+				if(isSwapped && swapCount > 0) {
+					swappedVariables.add(signaturePairI);
+				}
+			}
+		}
+		Set<BindingSignaturePair> variables = new LinkedHashSet<BindingSignaturePair>();
+		variables.addAll(renamedVariables);
+		variables.addAll(swappedVariables);
+		return variables;
 	}
 
 	public List<PreconditionViolation> getPreconditionViolations() {

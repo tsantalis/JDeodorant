@@ -302,9 +302,12 @@ public class MethodCallAnalyzer {
 								MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
 								int argumentPosition = getArgumentPosition(methodInvocation2.arguments(), parameter);
 								ParameterObject parameterObject = methodObject2.getParameter(argumentPosition);
-								VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
-								if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
-									processArgumentOfInternalMethodInvocation(methodObject2, argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethods);
+								//fix for method calls with varargs
+								if(parameterObject != null) {
+									VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
+									if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+										processArgumentOfInternalMethodInvocation(methodObject2, argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethods);
+								}
 							}
 						}
 					}

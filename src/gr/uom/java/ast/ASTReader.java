@@ -134,6 +134,16 @@ public class ASTReader {
 		return numberOfCompilationUnits;
 	}
 
+	private List<TypeDeclaration> getRecursivelyInnerTypes(TypeDeclaration typeDeclaration) {
+		List<TypeDeclaration> innerTypeDeclarations = new ArrayList<TypeDeclaration>();
+		TypeDeclaration[] types = typeDeclaration.getTypes();
+		for(TypeDeclaration type : types) {
+			innerTypeDeclarations.add(type);
+			innerTypeDeclarations.addAll(getRecursivelyInnerTypes(type));
+		}
+		return innerTypeDeclarations;
+	}
+
 	private List<ClassObject> parseAST(ICompilationUnit iCompilationUnit) {
 		ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 		IFile iFile = (IFile)iCompilationUnit.getResource();
@@ -150,10 +160,7 @@ public class ASTReader {
         		TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
         		List<TypeDeclaration> typeDeclarations = new ArrayList<TypeDeclaration>();
         		typeDeclarations.add(topLevelTypeDeclaration);
-        		TypeDeclaration[] types = topLevelTypeDeclaration.getTypes();
-        		for(TypeDeclaration type : types) {
-        			typeDeclarations.add(type);
-        		}
+        		typeDeclarations.addAll(getRecursivelyInnerTypes(topLevelTypeDeclaration));
         		for(TypeDeclaration typeDeclaration : typeDeclarations) {
 	        		final ClassObject classObject = new ClassObject();
 		        	classObject.setIFile(iFile);

@@ -122,46 +122,48 @@ public class PDGSubTreeMapper {
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
 		//creates CloneStructureRoot
 		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
-		this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
-		this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
-		findNonMappedNodes(pdg1, allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
-		findNonMappedNodes(pdg2, allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
-		for(PDGNode nodeG1 : nonMappedNodesG1) {
-			PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null);
-			CloneStructureNode node = new CloneStructureNode(nodeGap);
-			PDGTryNode tryNode = pdg1.isDirectlyNestedWithinTryNode(nodeG1);
-			if(tryNode != null) {
-				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG1(tryNode);
-				if(cloneStructureTry != null) {
-					node.setParent(cloneStructureTry);
+		if(maximumStateWithMinimumDifferences != null) {
+			this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
+			this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
+			findNonMappedNodes(pdg1, allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
+			findNonMappedNodes(pdg2, allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
+			for(PDGNode nodeG1 : nonMappedNodesG1) {
+				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null);
+				CloneStructureNode node = new CloneStructureNode(nodeGap);
+				PDGTryNode tryNode = pdg1.isDirectlyNestedWithinTryNode(nodeG1);
+				if(tryNode != null) {
+					CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG1(tryNode);
+					if(cloneStructureTry != null) {
+						node.setParent(cloneStructureTry);
+					}
+				}
+				else {
+					cloneStructureRoot.addGapChild(node);
 				}
 			}
-			else {
-				cloneStructureRoot.addGapChild(node);
-			}
-		}
-		for(PDGNode nodeG2 : nonMappedNodesG2) {
-			PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2);
-			CloneStructureNode node = new CloneStructureNode(nodeGap);
-			PDGTryNode tryNode = pdg2.isDirectlyNestedWithinTryNode(nodeG2);
-			if(tryNode != null) {
-				CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG2(tryNode);
-				if(cloneStructureTry != null) {
-					node.setParent(cloneStructureTry);
+			for(PDGNode nodeG2 : nonMappedNodesG2) {
+				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2);
+				CloneStructureNode node = new CloneStructureNode(nodeGap);
+				PDGTryNode tryNode = pdg2.isDirectlyNestedWithinTryNode(nodeG2);
+				if(tryNode != null) {
+					CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG2(tryNode);
+					if(cloneStructureTry != null) {
+						node.setParent(cloneStructureTry);
+					}
+				}
+				else {
+					cloneStructureRoot.addGapChild(node);
 				}
 			}
-			else {
-				cloneStructureRoot.addGapChild(node);
-			}
+			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
+			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
+			findPassedParameters();
+			findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
+			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
+			this.preconditionViolations = new ArrayList<PreconditionViolation>();
+			checkCloneStructureNodeForPreconditions(cloneStructureRoot);
+			determineVariablesToBeReturned();
 		}
-		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
-		findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
-		findPassedParameters();
-		findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
-		findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
-		this.preconditionViolations = new ArrayList<PreconditionViolation>();
-		checkCloneStructureNodeForPreconditions(cloneStructureRoot);
-		determineVariablesToBeReturned();
 	}
 
 	private void findNonMappedNodes(PDG pdg, TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {

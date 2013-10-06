@@ -89,14 +89,16 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 						});
 						List<PDGSubTreeMapper> subTreeMappers = mapper.getSubTreeMappers();
 						for(PDGSubTreeMapper subTreeMapper : subTreeMappers) {
-							Refactoring refactoring = new ExtractCloneRefactoring(subTreeMapper);
-							MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-							RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-							try { 
-								String titleForFailedChecks = ""; //$NON-NLS-1$ 
-								op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-							} catch(InterruptedException e) {
-								e.printStackTrace();
+							if(!subTreeMapper.getCloneStructureRoot().getChildren().isEmpty()) {
+								Refactoring refactoring = new ExtractCloneRefactoring(subTreeMapper);
+								MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+								RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+								try { 
+									String titleForFailedChecks = ""; //$NON-NLS-1$ 
+									op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+								} catch(InterruptedException e) {
+									e.printStackTrace();
+								}
 							}
 						}
 					}

@@ -313,9 +313,9 @@ public class CFG extends Graph {
 					action = PLACE_NEW_LIST_SECOND_FROM_TOP;
 				else {
 					action = PUSH_NEW_LIST;
-					if(parent != null && parent.getStatement() instanceof DoStatement &&
+					/*if(parent != null && parent.getStatement() instanceof DoStatement &&
 							statements.get(0).getStatement() instanceof IfStatement)
-						action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+						action = PLACE_NEW_LIST_SECOND_FROM_TOP;*/
 				}
 			}
 		}

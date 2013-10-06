@@ -438,7 +438,8 @@ public class MethodCallAnalyzer {
 						if(classObject2 != null) {
 							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
 							if(methodObject2 != null) {
-								processInternalMethodInvocation(classObject2, methodObject2, field, new LinkedHashSet<String>());
+								if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+									processInternalMethodInvocation(classObject2, methodObject2, field, new LinkedHashSet<String>());
 							}
 						}
 						else {

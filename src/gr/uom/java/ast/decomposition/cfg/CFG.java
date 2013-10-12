@@ -256,10 +256,10 @@ public class CFG extends Graph {
 		if(statements.size() == 1) {
 			action = JOIN_TOP_LIST;
 			if(parent != null) {
-				if(isLoop(parent))
+				if(isLoop(parent) || parent.getStatement() instanceof DoStatement)
 					action = PUSH_NEW_LIST;
-				else if(parent.getStatement() instanceof DoStatement)
-					action = PLACE_NEW_LIST_SECOND_FROM_TOP;
+				/*else if(parent.getStatement() instanceof DoStatement)
+					action = PLACE_NEW_LIST_SECOND_FROM_TOP;*/
 			}
 		}
 		else if(statements.size() > 1) {

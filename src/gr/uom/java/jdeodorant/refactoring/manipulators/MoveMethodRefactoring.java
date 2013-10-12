@@ -150,15 +150,17 @@ public class MoveMethodRefactoring extends Refactoring {
 
 	public void apply() {
 		createMovedMethod();
+		addAdditionalMethodsToTargetClass();
 		if(!sourceCompilationUnit.equals(targetCompilationUnit))
 			addRequiredTargetImportDeclarations();
 		
-		moveAdditionalMethods();
 		modifyMovedMethodInvocationInSourceClass();
 		if(leaveDelegate) {
 			addDelegationInSourceMethod();
+			removeAdditionalMethodsFromSourceClass();
 		}
 		else {
+			//removes also additional methods used only by the moved method
 			removeSourceMethod();
 		}
 	}
@@ -377,10 +379,15 @@ public class MoveMethodRefactoring extends Refactoring {
 		}
 	}
 
-	private void moveAdditionalMethods() {
+	private void addAdditionalMethodsToTargetClass() {
 		AST ast = targetTypeDeclaration.getAST();
 		Set<MethodDeclaration> methodsToBeMoved = new LinkedHashSet<MethodDeclaration>(additionalMethodsToBeMoved.values());
 		for(MethodDeclaration methodDeclaration : methodsToBeMoved) {
+			TypeVisitor typeVisitor = new TypeVisitor();
+			methodDeclaration.accept(typeVisitor);
+			for(ITypeBinding typeBinding : typeVisitor.getTypeBindings()) {
+				this.additionalTypeBindingsToBeImportedInTargetClass.add(typeBinding);
+			}
 			MethodDeclaration newMethodDeclaration = (MethodDeclaration)ASTNode.copySubtree(ast, methodDeclaration);
 			ASTRewrite targetRewriter = ASTRewrite.create(targetCompilationUnit.getAST());
 			ListRewrite targetClassBodyRewrite = targetRewriter.getListRewrite(targetTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
@@ -393,6 +400,12 @@ public class MoveMethodRefactoring extends Refactoring {
 			catch(JavaModelException javaModelException) {
 				javaModelException.printStackTrace();
 			}
+		}
+	}
+
+	private void removeAdditionalMethodsFromSourceClass() {
+		Set<MethodDeclaration> methodsToBeMoved = new LinkedHashSet<MethodDeclaration>(additionalMethodsToBeMoved.values());
+		for(MethodDeclaration methodDeclaration : methodsToBeMoved) {
 			ASTRewrite sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
 			ListRewrite sourceClassBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 			sourceClassBodyRewrite.remove(methodDeclaration, null);
@@ -411,6 +424,10 @@ public class MoveMethodRefactoring extends Refactoring {
 		ASTRewrite sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
 		ListRewrite classBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		classBodyRewrite.remove(sourceMethod, null);
+		Set<MethodDeclaration> methodsToBeMoved = new LinkedHashSet<MethodDeclaration>(additionalMethodsToBeMoved.values());
+		for(MethodDeclaration methodDeclaration : methodsToBeMoved) {
+			classBodyRewrite.remove(methodDeclaration, null);
+		}
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
 			sourceMultiTextEdit.addChild(sourceEdit);
@@ -655,7 +672,10 @@ public class MoveMethodRefactoring extends Refactoring {
 								targetTypeDeclaration.resolveBinding().isEqualTo(qualifiedName.getQualifier().resolveTypeBinding().getSuperclass()) ) &&
 								qualifiedName.getQualifier().getFullyQualifiedName().equals(targetClassVariableName)) {
 							SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
-							targetRewriter.replace(newSimpleName.getParent(), simpleName, null);
+							FieldAccess fieldAccess = newMethodDeclaration.getAST().newFieldAccess();
+							targetRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, simpleName, null);
+							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, newMethodDeclaration.getAST().newThisExpression(), null);
+							targetRewriter.replace(newSimpleName.getParent(), fieldAccess, null);
 						}
 					}
 					else if(simpleName.getParent() instanceof FieldAccess && fragmentName.getIdentifier().equals(simpleName.getIdentifier())) {
@@ -687,7 +707,10 @@ public class MoveMethodRefactoring extends Refactoring {
 						if(qualifiedName.getQualifier().resolveTypeBinding().isEqualTo(targetTypeDeclaration.resolveBinding().getSuperclass()) &&
 								qualifiedName.getQualifier().getFullyQualifiedName().equals(targetClassVariableName)) {
 							SimpleName newSimpleName = (SimpleName)newFieldInstructions.get(i);
-							targetRewriter.replace(newSimpleName.getParent(), simpleName, null);
+							FieldAccess fieldAccess = newMethodDeclaration.getAST().newFieldAccess();
+							targetRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, simpleName, null);
+							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, newMethodDeclaration.getAST().newThisExpression(), null);
+							targetRewriter.replace(newSimpleName.getParent(), fieldAccess, null);
 						}
 					}
 					else if(simpleName.getParent() instanceof FieldAccess && superclassField.isEqualTo(simpleName.resolveBinding())) {

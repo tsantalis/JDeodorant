@@ -73,6 +73,7 @@ public class CFG extends Graph {
 		if(composite instanceof TryStatementObject) {
 			CFGTryNode tryNode = new CFGTryNode(composite);
 			directlyNestedNodeInTryBlock(tryNode);
+			findTryNodeControlParent(tryNode);
 			directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
 			AbstractStatement firstStatement = composite.getStatements().get(0);
 			composite = (CompositeStatementObject)firstStatement;
@@ -95,6 +96,7 @@ public class CFG extends Graph {
 						CFGTryNode tryNode = new CFGTryNode(compositeStatement);
 						//nodes.add(tryNode);
 						directlyNestedNodeInTryBlock(tryNode);
+						findTryNodeControlParent(tryNode);
 						directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
 						AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
 						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
@@ -103,6 +105,7 @@ public class CFG extends Graph {
 						//if a try node has resources, it is treated as a non-composite node
 						CFGTryNode tryNode = new CFGTryNode(compositeStatement);
 						directlyNestedNodeInTryBlock(tryNode);
+						findTryNodeControlParent(tryNode);
 						nodes.add(tryNode);
 						directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
 						createTopDownFlow(previousNodes, tryNode);
@@ -131,6 +134,26 @@ public class CFG extends Graph {
 			i++;
 		}
 		return previousNodes;
+	}
+
+	private void findTryNodeControlParent(CFGTryNode tryNode) {
+		for(GraphNode node : nodes) {
+			CFGNode cfgNode = (CFGNode)node;
+			if(cfgNode.getStatement() instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)cfgNode.getStatement();
+				if(directlyNestedNode(tryNode, composite)) {
+					tryNode.setControlParent(cfgNode);
+					break;
+				}
+			}
+		}
+		for(CFGTryNode tryNode2 : directlyNestedNodesInTryBlocks.keySet()) {
+			List<CFGNode> nestedNodes = directlyNestedNodesInTryBlocks.get(tryNode2);
+			if(nestedNodes.contains(tryNode)) {
+				tryNode.setControlParent(tryNode2);
+				break;
+			}
+		}
 	}
 
 	private List<CFGNode> processDoStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement) {

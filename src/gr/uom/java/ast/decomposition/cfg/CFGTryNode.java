@@ -10,6 +10,7 @@ import gr.uom.java.ast.decomposition.TryStatementObject;
 public class CFGTryNode extends CFGNode {
 	private List<String> handledExceptions;
 	private boolean hasResources;
+	private CFGNode controlParent;
 
 	public CFGTryNode(AbstractStatement statement) {
 		super(statement);
@@ -27,5 +28,13 @@ public class CFGTryNode extends CFGNode {
 
 	public List<String> getHandledExceptions() {
 		return handledExceptions;
+	}
+
+	public CFGNode getControlParent() {
+		return controlParent;
+	}
+
+	public void setControlParent(CFGNode controlParent) {
+		this.controlParent = controlParent;
 	}
 }

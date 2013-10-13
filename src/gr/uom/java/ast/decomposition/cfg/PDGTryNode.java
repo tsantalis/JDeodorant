@@ -14,11 +14,21 @@ import java.util.Set;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGTryNode extends PDGNode {
+	private CFGNode controlParent;
 	
 	public PDGTryNode(CFGTryNode cfgTryNode, Set<VariableDeclaration> variableDeclarationsInMethod,
 			Set<VariableDeclaration> fieldsAccessedInMethod) {
 		super(cfgTryNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+		this.controlParent = cfgTryNode.getControlParent();
 		determineDefinedAndUsedVariables();
+	}
+
+	public PDGNode getControlDependenceParent() {
+		if(controlParent != null) {
+			if(controlParent.getPDGNode() != null)
+				return controlParent.getPDGNode();
+		}
+		return super.getControlDependenceParent();
 	}
 
 	private void determineDefinedAndUsedVariables() {

@@ -205,7 +205,7 @@ public class PDGSubTreeMapper {
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
 			Iterator<AbstractVariable> declaredVariableIteratorG1 = nodeG1.getDeclaredVariableIterator();
 			Iterator<AbstractVariable> declaredVariableIteratorG2 = nodeG2.getDeclaredVariableIterator();
-			while(declaredVariableIteratorG1.hasNext()) {
+			while(declaredVariableIteratorG1.hasNext() && declaredVariableIteratorG2.hasNext()) {
 				AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
 				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
 				ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();

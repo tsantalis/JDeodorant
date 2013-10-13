@@ -4,6 +4,7 @@ import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -68,6 +69,18 @@ public class BottomUpCDTMapper {
 				CompleteSubTreeMatch subTree = new CompleteSubTreeMatch(bottomUpMatch);
 				if(!isSubsumedByCurrentSolutions(solutions, subTree)) {
 					solutions.add(subTree);
+				}
+			}
+		}
+		//post-processing
+		List<CompleteSubTreeMatch> sortedSolutions = new ArrayList<CompleteSubTreeMatch>(solutions);
+		Collections.sort(sortedSolutions, new SubTreeMatchComparator());
+		for(int i=0; i<sortedSolutions.size(); i++) {
+			CompleteSubTreeMatch solutionI = sortedSolutions.get(i);
+			for(int j=i+1; j<sortedSolutions.size(); j++) {
+				CompleteSubTreeMatch solutionJ = sortedSolutions.get(j);
+				if(solutionI.subsumes(solutionJ)) {
+					solutions.remove(solutionJ);
 				}
 			}
 		}

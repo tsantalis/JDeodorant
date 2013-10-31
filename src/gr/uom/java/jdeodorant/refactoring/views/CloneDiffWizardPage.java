@@ -1,15 +1,22 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
+import org.eclipse.jface.viewers.ArrayContentProvider;
+import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
+import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.ITreeViewerListener;
+import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.jface.viewers.TreeExpansionEvent;
 import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.TreeViewer;
@@ -17,28 +24,39 @@ import org.eclipse.jface.window.ToolTip;
 import org.eclipse.ltk.ui.refactoring.UserInputWizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CLabel;
+import org.eclipse.swt.events.ModifyEvent;
+import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.ScrollBar;
+import org.eclipse.swt.widgets.Text;
 
 public class CloneDiffWizardPage extends UserInputWizardPage {
 
+	private ExtractCloneRefactoring refactoring;
+	private List<PDGSubTreeMapper> mappers;
 	private PDGSubTreeMapper mapper;
 	private CloneStructureNode cloneStructureRoot;
+	private TreeViewer treeViewerLeft;
+	private TreeViewer treeViewerRight;
+	private Text extractedMethodNameField;
 	//Special Boolean for selection synchronization listeners
 	private boolean correspondingTreeAlreadyChanged = false;
 	
 	public CloneDiffWizardPage(ExtractCloneRefactoring refactoring) {
 		super("Diff Clones");
-		this.mapper = refactoring.getMapper();
+		this.refactoring = refactoring;
+		this.mappers = refactoring.getMappers();
+		this.mapper = mappers.get(0);
 		this.cloneStructureRoot = mapper.getCloneStructureRoot();
 	}
 	
@@ -66,8 +84,38 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		methodRightNameGridData.horizontalSpan = 3;
 		methodRightName.setLayoutData(methodRightNameGridData);
 		
+		Combo combo = new Combo(result, SWT.READ_ONLY);
+		GridData comboData = new GridData();
+		comboData.horizontalSpan = 3;
+		combo.setLayoutData(comboData);
+		final ComboViewer comboViewer = new ComboViewer(combo);
+		comboViewer.setContentProvider(ArrayContentProvider.getInstance());
+		comboViewer.setLabelProvider(new LabelProvider() {
+			@Override
+			public String getText(Object element) {
+				if(element instanceof PDGSubTreeMapper) {
+					PDGSubTreeMapper mapper = (PDGSubTreeMapper)element;
+					int index = mappers.indexOf(mapper);
+					return "Subtree " + (index+1);
+				}
+				return super.getText(element);
+			}
+		});
+		comboViewer.setInput(mappers.toArray());
+		comboViewer.setSelection(new StructuredSelection(mappers.get(0)));
 		
-		final TreeViewer treeViewerLeft = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL | SWT.H_SCROLL);
+		extractedMethodNameField = new Text(result, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+		GridData nameFieldGridData = new GridData(GridData.FILL_HORIZONTAL);
+		nameFieldGridData.horizontalSpan = 3;
+		extractedMethodNameField.setLayoutData(nameFieldGridData);
+		extractedMethodNameField.setText(mapper.getMethodName1());
+		extractedMethodNameField.addModifyListener(new ModifyListener() {
+			public void modifyText(ModifyEvent e) {
+				handleInputChanged();
+			}
+		});
+		
+		treeViewerLeft = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL | SWT.H_SCROLL);
 		treeViewerLeft.setLabelProvider(new CloneDiffStyledLabelProvider(CloneDiffSide.LEFT));
 		treeViewerLeft.setContentProvider(new CloneDiffContentProvider());
 		treeViewerLeft.setInput(new CloneStructureNode[]{cloneStructureRoot});
@@ -81,7 +129,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		//treeLeftGridData.verticalSpan = 2;
 		treeViewerLeft.getTree().setLayoutData(treeLeftGridData);
 		
-		final TreeViewer treeViewerRight = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL | SWT.H_SCROLL);
+		treeViewerRight = new TreeViewer(result, SWT.PUSH | SWT.V_SCROLL | SWT.H_SCROLL);
 		treeViewerRight.setLabelProvider(new CloneDiffStyledLabelProvider(CloneDiffSide.RIGHT));
 		treeViewerRight.setContentProvider(new CloneDiffContentProvider());
 		treeViewerRight.setInput(new CloneStructureNode[]{cloneStructureRoot});
@@ -95,12 +143,26 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		//treeRightGridData.verticalSpan = 2;
 		treeViewerRight.getTree().setLayoutData(treeRightGridData);
 	
+		comboViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+			public void selectionChanged(SelectionChangedEvent event) {
+				IStructuredSelection selection = (IStructuredSelection)event.getSelection();
+				mapper = (PDGSubTreeMapper)selection.getFirstElement();
+				cloneStructureRoot = mapper.getCloneStructureRoot();
+				refactoring.setMapper(mapper);
+				treeViewerLeft.setInput(new CloneStructureNode[]{cloneStructureRoot});
+				treeViewerLeft.refresh();
+				treeViewerRight.setInput(new CloneStructureNode[]{cloneStructureRoot});
+				treeViewerRight.refresh();
+				treeViewerLeft.expandAll();
+				treeViewerRight.expandAll();
+			}
+		});
 		//Information Footer
 		//Legend
 		final Group legend = new Group(result, SWT.SHADOW_NONE);
 		legend.setText("Legend");
 		GridData legendGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		legendGridData.horizontalSpan = 2;
+		legendGridData.horizontalSpan = 3;
 		legendGridData.verticalSpan = 5;
 		legend.setLayoutData(legendGridData);
 		GridLayout legendLayout = new GridLayout();
@@ -179,7 +241,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		//ColumnViewerToolTipSupport.enableFor(treeViewerLeft);
 		//ColumnViewerToolTipSupport.enableFor(treeViewerRight);
 		
-		
+		handleInputChanged();
 		@SuppressWarnings("unused")
 		CloneDiffTooltip tooltipLeft = new CloneDiffTooltip(treeViewerLeft, ToolTip.NO_RECREATE, false);
 		@SuppressWarnings("unused")
@@ -279,5 +341,21 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 						rightHorizontal.getPageIncrement());
 			}
 		});
+	}
+
+
+	private void handleInputChanged() {
+		String methodNamePattern = "[a-zA-Z\\$_][a-zA-Z0-9\\$_]*";
+		if(!Pattern.matches(methodNamePattern, extractedMethodNameField.getText())) {
+			setPageComplete(false);
+			String message = "Method name \"" + extractedMethodNameField.getText() + "\" is not valid";
+			setMessage(message, ERROR);
+			return;
+		}
+		else {
+			refactoring.setExtractedMethodName(extractedMethodNameField.getText());
+		}
+		setPageComplete(true);
+		setMessage("", NONE);
 	}
 }

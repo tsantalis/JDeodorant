@@ -12,6 +12,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -87,18 +88,15 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 								}
 							}
 						});
-						List<PDGSubTreeMapper> subTreeMappers = mapper.getSubTreeMappers();
-						for(PDGSubTreeMapper subTreeMapper : subTreeMappers) {
-							if(!subTreeMapper.getCloneStructureRoot().getChildren().isEmpty()) {
-								Refactoring refactoring = new ExtractCloneRefactoring(subTreeMapper);
-								MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-								RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-								try { 
-									String titleForFailedChecks = ""; //$NON-NLS-1$ 
-									op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-								} catch(InterruptedException e) {
-									e.printStackTrace();
-								}
+						if(!mapper.getSubTreeMappers().isEmpty()) {
+							Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
+							MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+							RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+							try { 
+								String titleForFailedChecks = ""; //$NON-NLS-1$ 
+								op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+							} catch(InterruptedException e) {
+								e.printStackTrace();
 							}
 						}
 					}

@@ -108,6 +108,7 @@ import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
+	private List<PDGSubTreeMapper> mappers;
 	private PDGSubTreeMapper mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
@@ -124,11 +125,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private String intermediateClassName;
 	private String extractedMethodName;
 	
-	public ExtractCloneRefactoring(PDGSubTreeMapper mapper) {
+	public ExtractCloneRefactoring(List<PDGSubTreeMapper> mappers) {
 		super();
-		this.mapper = mapper;
-		AbstractMethodDeclaration methodObject1 = mapper.getPDG1().getMethod();
-		AbstractMethodDeclaration methodObject2 = mapper.getPDG2().getMethod();
+		this.mappers = mappers;
+		this.mapper = mappers.get(0);
+	}
+
+	public List<PDGSubTreeMapper> getMappers() {
+		return mappers;
+	}
+
+	private void initialize() {
+		AbstractMethodDeclaration methodObject1 = this.mapper.getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = this.mapper.getPDG2().getMethod();
 		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
 		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
 		
@@ -136,14 +145,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
 		this.sourceMethodDeclarations = new ArrayList<MethodDeclaration>();
 		this.removableStatements = new ArrayList<TreeSet<PDGNode>>();
-		removableStatements.add(mapper.getRemovableNodesG1());
-		removableStatements.add(mapper.getRemovableNodesG2());
+		removableStatements.add(this.mapper.getRemovableNodesG1());
+		removableStatements.add(this.mapper.getRemovableNodesG2());
 		this.remainingStatements = new ArrayList<TreeSet<PDGNode>>();
-		remainingStatements.add(mapper.getRemainingNodesG1());
-		remainingStatements.add(mapper.getRemainingNodesG2());
+		remainingStatements.add(this.mapper.getRemainingNodesG1());
+		remainingStatements.add(this.mapper.getRemainingNodesG2());
 		this.returnedVariables = new ArrayList<ArrayList<VariableDeclaration>>();
-		returnedVariables.add(new ArrayList<VariableDeclaration>(mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1()));
-		returnedVariables.add(new ArrayList<VariableDeclaration>(mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2()));
+		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1()));
+		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2()));
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
 		for(int i=0; i<2; i++) {
 			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
@@ -159,7 +168,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration2.getRoot());
 		this.originalPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
 		this.parameterizedDifferenceMap = new LinkedHashMap<BindingSignaturePair, ASTNodeDifference>();
-		this.sortedNodeMappings = new TreeSet<PDGNodeMapping>(mapper.getMaximumStateWithMinimumDifferences().getNodeMappings());
+		this.sortedNodeMappings = new TreeSet<PDGNodeMapping>(this.mapper.getMaximumStateWithMinimumDifferences().getNodeMappings());
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
 			CFGNode cfgNode = pdgNode.getCFGNode();
@@ -181,10 +190,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		}
+		this.intermediateClassName = null;
+		//this.extractedMethodName = null;
 	}
 
 	public PDGSubTreeMapper getMapper() {
 		return mapper;
+	}
+
+	public void setMapper(PDGSubTreeMapper mapper) {
+		this.mapper = mapper;
+	}
+
+	public void setExtractedMethodName(String extractedMethodName) {
+		this.extractedMethodName = extractedMethodName;
 	}
 
 	private ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
@@ -217,6 +236,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	public void apply() {
+		initialize();
 		extractClone();
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
 			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i));
@@ -495,7 +515,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
-		extractedMethodName = sourceMethodDeclaration.getName().getIdentifier();
+		//extractedMethodName = sourceMethodDeclaration.getName().getIdentifier();
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(extractedMethodName), null);
 		List<VariableDeclaration> returnedVariables = this.returnedVariables.get(0);
 		ITypeBinding returnTypeBinding = null;
@@ -1409,8 +1429,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					String project = sourceICompilationUnit.getJavaProject().getElementName();
 					String description = MessageFormat.format("Extract Clone in class ''{0}''", new Object[] { sourceICompilationUnit.getElementName() });
 					String comment = null;
-					return new RefactoringChangeDescriptor(new ExtractCloneRefactoringDescriptor(project, description, comment,
-							mapper));
+					return new RefactoringChangeDescriptor(new ExtractCloneRefactoringDescriptor(project, description, comment, mappers));
 				}
 			};
 			return change;

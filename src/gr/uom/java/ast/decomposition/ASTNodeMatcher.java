@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -20,9 +21,11 @@ import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -572,6 +575,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return paramMatch && expMatch;
 	}
 
+	public boolean match(ExpressionStatement node, Object other) {
+		if(other instanceof IfStatement) {
+			if(ternaryOperatorReplacedWithIfStatement(node, (IfStatement)other))
+				return true;
+		}
+		return super.match(node, other);
+	}
+
 	public boolean match(FieldAccess node, Object other) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
@@ -628,9 +639,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 	
 	public boolean match(IfStatement node, Object other) {
 		if (!(other instanceof IfStatement)) {
+			if(other instanceof ExpressionStatement) {
+				if(ifStatementReplacedWithTernaryOperator(node, (ExpressionStatement)other))
+					return true;
+			}
 			return false;
 		}
 		IfStatement o = (IfStatement) other;
+		//safeSubtreeMatch(node.getThenStatement(), o.getThenStatement());
+		//safeSubtreeMatch(node.getElseStatement(), o.getElseStatement());
 		return (
 			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
@@ -1296,6 +1313,30 @@ public class ASTNodeMatcher extends ASTMatcher{
 					return true;
 				}
 			}
+		}
+		return false;
+	}
+	
+	private boolean ifStatementReplacedWithTernaryOperator(IfStatement ifStatement, ExpressionStatement expressionStatement) {
+		Expression ifExpression = ifStatement.getExpression();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(expressionStatement);
+		if(conditionalExpressions.size() == 1) {
+			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
+			boolean match = safeSubtreeMatch(ifExpression, conditionalExpression.getExpression());
+			return match;
+		}
+		return false;
+	}
+
+	private boolean ternaryOperatorReplacedWithIfStatement(ExpressionStatement expressionStatement, IfStatement ifStatement) {
+		Expression ifExpression = ifStatement.getExpression();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(expressionStatement);
+		if(conditionalExpressions.size() == 1) {
+			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
+			boolean match = safeSubtreeMatch(conditionalExpression.getExpression(), ifExpression);
+			return match;
 		}
 		return false;
 	}

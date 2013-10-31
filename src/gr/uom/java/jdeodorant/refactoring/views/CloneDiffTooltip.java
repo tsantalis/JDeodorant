@@ -39,6 +39,7 @@ import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.PlatformUI;
 
 
+@SuppressWarnings("restriction")
 public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 
 	private Table differencesTable;
@@ -57,6 +58,8 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		CloneStructureNode nodeHoveredOver = (CloneStructureNode) cell.getElement();
 		ASTNode astStatement;
 		NodeMapping nodeMapping = nodeHoveredOver.getMapping();
+		if(nodeMapping == null)
+			return null;
 		if (nodeMapping.getNodeDifferences().size() == 0 && nodeMapping.getPreconditionViolations().size() == 0){
 			return null;
 		}

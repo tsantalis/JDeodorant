@@ -293,7 +293,7 @@ public class MappingState {
 		if(!this.containsNodeG1InMappings(nodeG1ControlParent) && !this.containsNodeG2InMappings(nodeG2ControlParent))
 			return true;
 		//special case
-		if(dstNodeG1.getCFGNode() instanceof CFGBranchIfNode && dstNodeG2.getCFGNode() instanceof CFGBranchIfNode) {
+		//if(dstNodeG1.getCFGNode() instanceof CFGBranchIfNode && dstNodeG2.getCFGNode() instanceof CFGBranchIfNode) {
 			if(nodeG1ControlParent.getCFGNode() instanceof CFGBranchIfNode && nodeG1IncomingControlDependence.isFalseControlDependence()) {
 				PDGNode nodeG1ControlGrandParent = nodeG1ControlParent.getControlDependenceParent();
 				PDGControlDependence nodeG1ParentIncomingControlDependence = nodeG1ControlParent.getIncomingControlDependence();
@@ -308,7 +308,7 @@ public class MappingState {
 						&& nodeG1IncomingControlDependence.sameLabel(nodeG2ParentIncomingControlDependence))
 					return true;
 			}
-		}
+		//}
 		return false;
 	}
 

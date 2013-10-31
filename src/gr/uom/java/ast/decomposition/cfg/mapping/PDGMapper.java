@@ -32,13 +32,15 @@ public class PDGMapper {
 			int subTreeSize = subTreeMatch.getMatchPairs().size();
 			if(subTreeSize == size1 && subTreeSize == size2) {
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2, true, monitor);
-				subTreeMappers.add(mapper);
+				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
+					subTreeMappers.add(mapper);
 			}
 			else {
 				ControlDependenceTreeNode controlDependenceSubTreePDG1 = generateControlDependenceSubTree(controlDependenceTreePDG1, subTreeMatch.getControlDependenceTreeNodes1());
 				ControlDependenceTreeNode controlDependenceSubTreePDG2 = generateControlDependenceSubTree(controlDependenceTreePDG2, subTreeMatch.getControlDependenceTreeNodes2());
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, false, monitor);
-				subTreeMappers.add(mapper);
+				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
+					subTreeMappers.add(mapper);
 			}
 		}
 		if(bottomUpSubTreeMatches.isEmpty()) {
@@ -46,7 +48,8 @@ public class PDGMapper {
 			ControlDependenceTreeNode controlDependenceSubTreePDG1 = new ControlDependenceTreeNode(null, controlDependenceTreePDG1.getNode());
 			ControlDependenceTreeNode controlDependenceSubTreePDG2 = new ControlDependenceTreeNode(null, controlDependenceTreePDG2.getNode());
 			PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, true, monitor);
-			subTreeMappers.add(mapper);
+			if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
+				subTreeMappers.add(mapper);
 		}
 		NodePairComparisonCache.getInstance().clearCache();
 	}

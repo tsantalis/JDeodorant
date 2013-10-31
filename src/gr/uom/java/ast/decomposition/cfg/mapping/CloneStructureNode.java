@@ -102,6 +102,28 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 						break;
 					}
 				}
+				if(controlParent.getMapping() instanceof PDGNodeMapping) {
+					PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)controlParent.getMapping();
+					PDGNodeMapping symmetricalPDGNodeMapping = pdgNodeMapping.getSymmetricalIfNodePair();
+					if(symmetricalPDGNodeMapping != null && gapNode.parent == null) {
+						//find the child of controlParent corresponding to the symmetricalPDGNodeMapping
+						CloneStructureNode symmetricalIfChild = null;
+						for(CloneStructureNode child : controlParent.children) {
+							if(child.getMapping().equals(symmetricalPDGNodeMapping)) {
+								symmetricalIfChild = child;
+								break;
+							}
+						}
+						if(symmetricalIfChild != null) {
+							for(CloneStructureNode child : symmetricalIfChild.children) {
+								if(child.getMapping() instanceof PDGElseMapping || child.getMapping() instanceof PDGElseGap) {
+									gapNode.setParent(child);
+									break;
+								}
+							}
+						}
+					}
+				}
 				//else node is not found
 				if(gapNode.parent == null) {
 					//check whether gapNode is an if statement

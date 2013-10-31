@@ -410,6 +410,27 @@ public class PDGSubTreeMapper {
 		}
 		return nodesInRegion;
 	}
+	
+	private Set<PDGNode> getElseNodesOfSymmetricalIfStatement(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
+			Set<PDGNode> controlPredicateNodesInNextLevel) {
+		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
+		Iterator<GraphEdge> edgeIterator = controlPredicate.getOutgoingDependenceIterator();
+		while(edgeIterator.hasNext()) {
+			PDGDependence dependence = (PDGDependence)edgeIterator.next();
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence pdgControlDependence = (PDGControlDependence)dependence;
+				if(pdgControlDependence.isFalseControlDependence()) {
+					PDGNode pdgNode = (PDGNode)dependence.getDst();
+					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(pdgNode);
+					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
+						if(!(pdgNode instanceof PDGControlPredicateNode))
+							nodesInRegion.add(pdgNode);
+					}
+				}
+			}
+		}
+		return nodesInRegion;
+	}
 
 	private void matchBasedOnControlDependenceTreeStructure(ControlDependenceTreeNode controlDependenceTreePDG1, ControlDependenceTreeNode controlDependenceTreePDG2) {
 		int maxLevel1 = controlDependenceTreePDG1.getMaxLevel();
@@ -467,6 +488,19 @@ public class PDGSubTreeMapper {
 				List<MappingState> currentStates = new ArrayList<MappingState>();
 				for(PDGNode predicate2 : controlPredicateNodesG2) {
 					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2, controlDependenceTreePDG2);
+					//special handling to add the nodes inside the final else of a symmetrical if/else if
+					for(CloneStructureNode parentCloneStructure : parents) {
+						if(parentCloneStructure.getMapping() instanceof PDGNodeMapping) {
+							PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)parentCloneStructure.getMapping();
+							PDGNodeMapping symmetricalPDGNodeMapping = pdgNodeMapping.getSymmetricalIfNodePair();
+							if(symmetricalPDGNodeMapping != null) {
+								if(symmetricalPDGNodeMapping.getNodeG1().equals(predicate1) && symmetricalPDGNodeMapping.getNodeG2().equals(predicate2)) {
+									Set<PDGNode> elseNodes = getElseNodesOfSymmetricalIfStatement(pdg2, pdgNodeMapping.getNodeG2(), controlPredicateNodesG2, controlPredicateNodesInNextLevelG2);
+									nodesG2.addAll(elseNodes);
+								}
+							}
+						}
+					}
 					if(level2 == 0 && !fullTreeMatch) {
 						int maxId = allNodesInSubTreePDG2.last().getId();
 						Set<PDGNode> nodesG2ToBeRemoved = new LinkedHashSet<PDGNode>();
@@ -556,6 +590,27 @@ public class PDGSubTreeMapper {
 								if(newElseParent == null) {
 									ControlDependenceTreeNode elseNodeG1 = controlDependenceTreePDG1.getElseNode(parent.getMapping().getNodeG1());
 									ControlDependenceTreeNode elseNodeG2 = controlDependenceTreePDG2.getElseNode(parent.getMapping().getNodeG2());
+									if(parent.getMapping() instanceof PDGNodeMapping) {
+										PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)parent.getMapping();
+										PDGNodeMapping symmetricalIfNodeMapping = pdgNodeMapping.getSymmetricalIfNodePair();
+										if(symmetricalIfNodeMapping != null) {
+											boolean symmetricalIfFoundInParents = false;
+											for(CloneStructureNode parentCloneStructureNode : parents) {
+												if(parentCloneStructureNode.getMapping().equals(symmetricalIfNodeMapping)) {
+													symmetricalIfFoundInParents = true;
+													break;
+												}
+											}
+											if(symmetricalIfFoundInParents) {
+												if(elseNodeG1 == null) {
+													elseNodeG1 = controlDependenceTreePDG1.getElseNode(symmetricalIfNodeMapping.getNodeG1());
+												}
+												if(elseNodeG2 == null) {
+													elseNodeG2 = controlDependenceTreePDG2.getElseNode(symmetricalIfNodeMapping.getNodeG2());
+												}
+											}
+										}
+									}
 									if(elseNodeG1 != null && elseNodeG2 != null) {
 										PDGElseMapping elseMapping = new PDGElseMapping(elseNodeG1.getId(), elseNodeG2.getId());
 										newElseParent = new CloneStructureNode(elseMapping);
@@ -594,6 +649,24 @@ public class PDGSubTreeMapper {
 								if(newElseParent == null) {
 									ControlDependenceTreeNode elseNodeG1 = controlDependenceTreePDG1.getElseNode(parentNodeMapping.getNodeG1());
 									ControlDependenceTreeNode elseNodeG2 = controlDependenceTreePDG2.getElseNode(parentNodeMapping.getNodeG2());
+									PDGNodeMapping symmetricalIfNodeMapping = parentNodeMapping.getSymmetricalIfNodePair();
+									if(symmetricalIfNodeMapping != null) {
+										boolean symmetricalIfFoundInParents = false;
+										for(CloneStructureNode parentCloneStructureNode : parents) {
+											if(parentCloneStructureNode.getMapping().equals(symmetricalIfNodeMapping)) {
+												symmetricalIfFoundInParents = true;
+												break;
+											}
+										}
+										if(symmetricalIfFoundInParents) {
+											if(elseNodeG1 == null) {
+												elseNodeG1 = controlDependenceTreePDG1.getElseNode(symmetricalIfNodeMapping.getNodeG1());
+											}
+											if(elseNodeG2 == null) {
+												elseNodeG2 = controlDependenceTreePDG2.getElseNode(symmetricalIfNodeMapping.getNodeG2());
+											}
+										}
+									}
 									if(elseNodeG1 != null && elseNodeG2 != null) {
 										if(controlDependenceTreePDG1.parentChildRelationship(elseNodeG1.getId(), previousParentId1) &&
 												controlDependenceTreePDG2.parentChildRelationship(elseNodeG2.getId(), previousParentId2)) {
@@ -943,6 +1016,14 @@ public class PDGSubTreeMapper {
 
 	public PDG getPDG2() {
 		return pdg2;
+	}
+
+	public String getMethodName1() {
+		return pdg1.getMethod().getName();
+	}
+
+	public String getMethodName2() {
+		return pdg2.getMethod().getName();
 	}
 
 	public MappingState getMaximumStateWithMinimumDifferences() {

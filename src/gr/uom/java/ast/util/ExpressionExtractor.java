@@ -260,6 +260,18 @@ public class ExpressionExtractor {
 		return getExpressions(expression);
 	}
 	
+	// returns a List of ConditionalExpression objects
+	public List<Expression> getConditionalExpressions(Statement statement) {
+		instanceChecker = new InstanceOfConditionalExpression();
+		return getExpressions(statement);
+	}
+	
+	// returns a List of VariableDeclarationExpression objects
+	public List<Expression> getConditionalExpressions(Expression expression) {
+		instanceChecker = new InstanceOfConditionalExpression();
+		return getExpressions(expression);
+	}
+
 	public List<Expression> getAllExpressions(ASTNode node) {
 		instanceChecker = new InstanceOfExpression();
 		if(node instanceof Expression)

@@ -17,6 +17,7 @@ public class ControlDependenceTreeNode {
 	private ControlDependenceTreeNode ifParent;
 	private ControlDependenceTreeNode elseIfChild;
 	private boolean isElseNode = false;
+	private boolean isTernary = false;
 
 	private ControlDependenceTreeNode(ControlDependenceTreeNode treeNode) {
 		this.parent = treeNode.parent;
@@ -222,6 +223,14 @@ public class ControlDependenceTreeNode {
 
 	public void setElseNode(boolean isElseNode) {
 		this.isElseNode = isElseNode;
+	}
+
+	public boolean isTernary() {
+		return isTernary;
+	}
+
+	public void setTernary(boolean isTernary) {
+		this.isTernary = isTernary;
 	}
 
 	public List<ControlDependenceTreeNode> getSiblings() {

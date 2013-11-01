@@ -164,6 +164,10 @@ public class BottomUpCDTMapper {
 					proceed = false;
 				}
 			}
+			//one node is an if statement with a single else, and the other is a ternary operator
+			else if(ifStatementWithSingleElseAgainstTernaryOperator(treeNode, searchNode)) {
+				matches.add(matchPair);
+			}
 			else {
 				proceed = false;
 			}
@@ -226,6 +230,14 @@ public class BottomUpCDTMapper {
 			return treeNode.getLengthOfElseIfChain() == searchNode.getLengthOfElseIfChain();
 		}
 		return true;
+	}
+
+	private boolean ifStatementWithSingleElseAgainstTernaryOperator(ControlDependenceTreeNode treeNode, ControlDependenceTreeNode searchNode) {
+		if(treeNode.getIfParent() == null && treeNode.getElseIfChild() != null && treeNode.getElseIfChild().isElseNode() && searchNode.isTernary())
+			return true;
+		if(searchNode.getIfParent() == null && searchNode.getElseIfChild() != null && searchNode.getElseIfChild().isElseNode() && treeNode.isTernary())
+			return true;
+		return false;
 	}
 
 	private boolean alreadyMapped(Set<ControlDependenceTreeNodeMatchPair> matches,

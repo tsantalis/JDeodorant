@@ -646,8 +646,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		IfStatement o = (IfStatement) other;
-		//safeSubtreeMatch(node.getThenStatement(), o.getThenStatement());
-		//safeSubtreeMatch(node.getElseStatement(), o.getElseStatement());
 		return (
 			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}

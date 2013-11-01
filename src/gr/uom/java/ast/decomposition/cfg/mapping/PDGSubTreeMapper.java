@@ -40,6 +40,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -55,6 +56,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -690,7 +692,9 @@ public class PDGSubTreeMapper {
 						}
 						//parents.add(parent);
 						boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGTryNode) && (parentNodeMapping.getNodeG2() instanceof PDGTryNode);
-						if(!parent.getChildren().isEmpty() || isTryBlock) {
+						boolean isTernaryOperator = isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG1()) ||
+								isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG2());
+						if(!parent.getChildren().isEmpty() || isTryBlock || isTernaryOperator) {
 							parents.add(parent);
 						}
 						else {
@@ -973,6 +977,17 @@ public class PDGSubTreeMapper {
 		if(count == 1 && dstNode.getCFGNode() instanceof CFGBranchIfNode)
 			return dstNode;
 		return null;
+	}
+
+	private boolean isExpressionStatementWithConditionalExpression(PDGNode node) {
+		Statement statement = node.getASTStatement();
+		if(statement instanceof ExpressionStatement) {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(statement);
+			if(conditionalExpressions.size() == 1)
+				return true;
+		}
+		return false;
 	}
 
 	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {

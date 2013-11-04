@@ -98,7 +98,16 @@ public class TopDownCDTMapper {
 		int subTreeSize1 = parent1.getNodeCount() - 1;
 		int subTreeSize2 = parent2.getNodeCount() - 1;
 		for(TreeSet<ControlDependenceTreeNodeMatchPair> match : matches) {
-			if(match.size() == subTreeSize1 && match.size() == subTreeSize2) {
+			int ternaryOperatorCount1 = 0;
+			int ternaryOperatorCount2 = 0;
+			for(ControlDependenceTreeNodeMatchPair pair : match) {
+				if(pair.getNode1().isTernary() && !pair.getNode2().isTernary())
+					ternaryOperatorCount1++;
+				if(pair.getNode2().isTernary() && !pair.getNode1().isTernary())
+					ternaryOperatorCount2++;
+			}
+			if(match.size() == (subTreeSize1 - ternaryOperatorCount2) &&
+					match.size() == (subTreeSize2 - ternaryOperatorCount1)) {
 				if(match.size() > maximumSize) {
 					maximumSize = match.size();
 					solutions.clear();

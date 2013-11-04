@@ -1351,19 +1351,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		final RefactoringStatus status= new RefactoringStatus();
 		try {
 			pm.beginTask("Checking preconditions...", 2);
-			apply();
-		} finally {
-			pm.done();
-		}
-		return status;
-	}
-
-	@Override
-	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
-			throws CoreException, OperationCanceledException {
-		RefactoringStatus status= new RefactoringStatus();
-		try {
-			pm.beginTask("Checking preconditions...", 1);
 			for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
 				if(violation instanceof StatementPreconditionViolation) {
 					StatementPreconditionViolation statementViolation = (StatementPreconditionViolation)violation;
@@ -1395,6 +1382,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 			}
+			apply();
+		} finally {
+			pm.done();
+		}
+		return status;
+	}
+
+	@Override
+	public RefactoringStatus checkInitialConditions(IProgressMonitor pm)
+			throws CoreException, OperationCanceledException {
+		RefactoringStatus status= new RefactoringStatus();
+		try {
+			pm.beginTask("Checking preconditions...", 1);
 		} finally {
 			pm.done();
 		}

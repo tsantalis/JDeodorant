@@ -40,6 +40,7 @@ import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -1322,9 +1323,41 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(conditionalExpressions.size() == 1) {
 			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
 			boolean match = safeSubtreeMatch(ifExpression, conditionalExpression.getExpression());
-			return match;
+			if(match) {
+				//the ifStatement should have an else part, which is not an 'else if' statement
+				if(ifStatement.getElseStatement() != null && !(ifStatement.getElseStatement() instanceof IfStatement)) {
+					Statement thenStatement = ifStatement.getThenStatement();
+					Statement elseStatement = ifStatement.getElseStatement();
+					ExpressionStatement thenExpressionStatement = isExpressionStatement(thenStatement);
+					ExpressionStatement elseExpressionStatement = isExpressionStatement(elseStatement);
+					if(thenExpressionStatement != null && elseExpressionStatement != null) {
+						//check whether thenExpression, elseExpression, and conditionalExpression have the same ASTNode type
+						int thenExpressionType = thenExpressionStatement.getExpression().getNodeType();
+						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
+						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
+						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
+							return true;
+						}
+					}
+				}
+			}
 		}
 		return false;
+	}
+
+	private ExpressionStatement isExpressionStatement(Statement statement) {
+		ExpressionStatement expressionStatement = null;
+		if(statement instanceof ExpressionStatement) {
+			expressionStatement = (ExpressionStatement)statement;
+		}
+		else if(statement instanceof Block) {
+			Block block = (Block)statement;
+			List<Statement> blockStatements = block.statements();
+			if(blockStatements.size() == 1 && blockStatements.get(0) instanceof ExpressionStatement) {
+				expressionStatement = (ExpressionStatement)blockStatements.get(0);
+			}
+		}
+		return expressionStatement;
 	}
 
 	private boolean ternaryOperatorReplacedWithIfStatement(ExpressionStatement expressionStatement, IfStatement ifStatement) {
@@ -1334,7 +1367,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(conditionalExpressions.size() == 1) {
 			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
 			boolean match = safeSubtreeMatch(conditionalExpression.getExpression(), ifExpression);
-			return match;
+			if(match) {
+				//the ifStatement should have an else part, which is not an 'else if' statement
+				if(ifStatement.getElseStatement() != null && !(ifStatement.getElseStatement() instanceof IfStatement)) {
+					Statement thenStatement = ifStatement.getThenStatement();
+					Statement elseStatement = ifStatement.getElseStatement();
+					ExpressionStatement thenExpressionStatement = isExpressionStatement(thenStatement);
+					ExpressionStatement elseExpressionStatement = isExpressionStatement(elseStatement);
+					if(thenExpressionStatement != null && elseExpressionStatement != null) {
+						//check whether thenExpression, elseExpression, and conditionalExpression have the same ASTNode type
+						int thenExpressionType = thenExpressionStatement.getExpression().getNodeType();
+						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
+						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
+						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
+							return true;
+						}
+					}
+				}
+			}
 		}
 		return false;
 	}

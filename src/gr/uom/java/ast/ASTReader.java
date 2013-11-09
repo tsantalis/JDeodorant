@@ -1,8 +1,10 @@
 package gr.uom.java.ast;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
@@ -36,6 +38,10 @@ public class ASTReader {
 
 	private static SystemObject systemObject;
 	private static IJavaProject examinedProject;
+
+	public ASTReader() {
+		systemObject = new SystemObject();
+	}
 
 	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) {
 		if(monitor != null)
@@ -134,6 +140,26 @@ public class ASTReader {
 		return numberOfCompilationUnits;
 	}
 
+	public void addCompilationUnit(CompilationUnit compilationUnit) {
+		IJavaElement javaElement = compilationUnit.getJavaElement();
+		IResource resource = javaElement.getResource();
+		IFile file = null;
+		if(resource != null && resource instanceof IFile) {
+			file = (IFile)resource;
+		}
+		if(javaElement != null) {
+			if(javaElement instanceof ICompilationUnit) {
+				ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement;
+				ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
+			}
+			else if(javaElement instanceof IClassFile) {
+				IClassFile iClassFile = (IClassFile)javaElement;
+				ASTInformationGenerator.setCurrentITypeRoot(iClassFile);
+			}
+		}
+		systemObject.addClasses(parseAST(compilationUnit, file));
+	}
+
 	private List<TypeDeclaration> getRecursivelyInnerTypes(TypeDeclaration typeDeclaration) {
 		List<TypeDeclaration> innerTypeDeclarations = new ArrayList<TypeDeclaration>();
 		TypeDeclaration[] types = typeDeclaration.getTypes();
@@ -153,7 +179,11 @@ public class ASTReader {
         parser.setResolveBindings(true); // we need bindings later on
         CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
         
-        List<ClassObject> classObjects = new ArrayList<ClassObject>();
+        return parseAST(compilationUnit, iFile);
+	}
+
+	private List<ClassObject> parseAST(CompilationUnit compilationUnit, IFile iFile) {
+		List<ClassObject> classObjects = new ArrayList<ClassObject>();
         List<AbstractTypeDeclaration> topLevelTypeDeclarations = compilationUnit.types();
         for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
         	if(abstractTypeDeclaration instanceof TypeDeclaration) {

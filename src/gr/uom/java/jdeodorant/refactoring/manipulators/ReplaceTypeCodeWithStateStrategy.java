@@ -131,8 +131,21 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 	}
 
 	private void modifyContext() {
-		createStateField();
-		removePrimitiveStateField();
+		boolean typeFieldInSingleFragment = false;
+		VariableDeclarationFragment fragment = typeCheckElimination.getTypeField();
+		if(fragment != null) {
+			FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+			if(fieldDeclaration.fragments().size() == 1) {
+				typeFieldInSingleFragment = true;
+			}
+		}
+		if(typeFieldInSingleFragment) {
+			replacePrimitiveStateField();
+		}
+		else {
+			createStateField();
+			removePrimitiveStateField();
+		}
 		generateSetterMethodForStateField();
 		generateGetterMethodForStateField();
 		replaceConditionalStructureWithPolymorphicMethodInvocation();
@@ -149,6 +162,27 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST contextAST = sourceTypeDeclaration.getAST();
 		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		VariableDeclarationFragment typeFragment = createStateFieldVariableDeclarationFragment(sourceRewriter, contextAST);
+		
+		FieldDeclaration typeFieldDeclaration = contextAST.newFieldDeclaration(typeFragment);
+		sourceRewriter.set(typeFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(abstractClassName), null);
+		ListRewrite typeFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(typeFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+		typeFieldDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+		contextBodyRewrite.insertBefore(typeFieldDeclaration, typeCheckElimination.getTypeField().getParent(), null);
+		
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Create field holding the current state", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private VariableDeclarationFragment createStateFieldVariableDeclarationFragment(
+			ASTRewrite sourceRewriter, AST contextAST) {
 		VariableDeclarationFragment typeFragment = contextAST.newVariableDeclarationFragment();
 		sourceRewriter.set(typeFragment, VariableDeclarationFragment.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
 		Expression typeFieldInitializer = typeCheckElimination.getTypeField().getInitializer();
@@ -210,19 +244,34 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 			}
 		}
-		
-		FieldDeclaration typeFieldDeclaration = contextAST.newFieldDeclaration(typeFragment);
-		sourceRewriter.set(typeFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(abstractClassName), null);
-		ListRewrite typeFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(typeFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
-		typeFieldDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
-		contextBodyRewrite.insertBefore(typeFieldDeclaration, typeCheckElimination.getTypeField().getParent(), null);
-		
+		return typeFragment;
+	}
+
+	private void replacePrimitiveStateField() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
+		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				if(fragment.equals(typeCheckElimination.getTypeField())) {
+					if(fragments.size() == 1) {
+						ListRewrite fragmentsRewriter = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
+						fragmentsRewriter.remove(fragment, null);
+						VariableDeclarationFragment typeFragment = createStateFieldVariableDeclarationFragment(sourceRewriter, contextAST);
+						fragmentsRewriter.insertLast(typeFragment, null);
+						sourceRewriter.set(fieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(abstractClassName), null);
+					}
+				}
+			}
+		}
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			change.getEdit().addChild(sourceEdit);
-			change.addTextEditGroup(new TextEditGroup("Create field holding the current state", new TextEdit[] {sourceEdit}));
+			change.addTextEditGroup(new TextEditGroup("Replace primitive type with State type", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}

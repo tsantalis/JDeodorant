@@ -33,6 +33,8 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
@@ -49,6 +51,8 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	private TreeViewer treeViewerLeft;
 	private TreeViewer treeViewerRight;
 	private Text extractedMethodNameField;
+	private Group renamedVariables;
+	private Display fontDisplay;
 	//Special Boolean for selection synchronization listeners
 	private boolean correspondingTreeAlreadyChanged = false;
 	
@@ -60,7 +64,8 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		this.cloneStructureRoot = mapper.getCloneStructureRoot();
 	}
 	
-	public void createControl(Composite parent){
+	public void createControl(Composite parent) {
+		fontDisplay = parent.getDisplay();
 		Composite result= new Composite(parent, SWT.NONE);
 		setControl(result);
 		GridLayout gridLayout = new GridLayout(6, true);
@@ -72,14 +77,14 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	
 		Label methodLeftName = new Label(result, SWT.WRAP);
 		methodLeftName.setText(mapper.getPDG1().getMethod().toString());
-		methodLeftName.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.NORMAL)));
+		methodLeftName.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.NORMAL)));
 		GridData methodLeftNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
 		methodLeftNameGridData.horizontalSpan = 3;
 		methodLeftName.setLayoutData(methodLeftNameGridData);
 		
 		Label methodRightName = new Label(result, SWT.WRAP);
 		methodRightName.setText(mapper.getPDG2().getMethod().toString());
-		methodRightName.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.NORMAL)));
+		methodRightName.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.NORMAL)));
 		GridData methodRightNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
 		methodRightNameGridData.horizontalSpan = 3;
 		methodRightName.setLayoutData(methodRightNameGridData);
@@ -155,6 +160,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 				treeViewerRight.refresh();
 				treeViewerLeft.expandAll();
 				treeViewerRight.expandAll();
+				updateRenamedVariables();
 			}
 		});
 		//Information Footer
@@ -181,28 +187,17 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		CLabel differencesLegendLabel = new CLabel(legend, SWT.NONE);
 		differencesLegendLabel.setText("Difference");
 		
-		Set<BindingSignaturePair> renamedVariableBindingSignaturePairs = mapper.getRenamedVariables();
-		if(renamedVariableBindingSignaturePairs.size() > 0) {
-			final Group renamedVariables = new Group(result, SWT.SHADOW_NONE);
-			renamedVariables.setText("Renamed Variables");
-			GridData renamedVariablesGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-			renamedVariablesGridData.horizontalSpan = 3;
-			renamedVariablesGridData.verticalSpan = 5;
-			renamedVariables.setLayoutData(renamedVariablesGridData);
-			GridLayout renamedVariablesLayout = new GridLayout();
-			renamedVariablesLayout.numColumns = 3;
-			renamedVariables.setLayout(renamedVariablesLayout);
-
-			for(BindingSignaturePair bindingSignaturePair : renamedVariableBindingSignaturePairs) {
-				CLabel renamedVariableLabel = new CLabel(renamedVariables, SWT.NONE);
-				String signature1 = bindingSignaturePair.getSignature1().toString();
-				String variable1 = signature1.substring(signature1.lastIndexOf("#")+1, signature1.length()-1);
-				String signature2 = bindingSignaturePair.getSignature2().toString();
-				String variable2 = signature2.substring(signature2.lastIndexOf("#")+1, signature2.length()-1);
-				renamedVariableLabel.setText(variable1 + " -> " + variable2);
-				renamedVariableLabel.setFont(new Font(parent.getDisplay(), new FontData("consolas", 9, SWT.BOLD)));
-			}
-		}
+		renamedVariables = new Group(result, SWT.SHADOW_NONE);
+		renamedVariables.setText("Renamed Variables");
+		GridData renamedVariablesGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
+		renamedVariablesGridData.horizontalSpan = 3;
+		renamedVariablesGridData.verticalSpan = 5;
+		renamedVariables.setLayoutData(renamedVariablesGridData);
+		GridLayout renamedVariablesLayout = new GridLayout();
+		renamedVariablesLayout.numColumns = 3;
+		renamedVariables.setLayout(renamedVariablesLayout);
+		
+		updateRenamedVariables();
 		
 		/*//LegendItem
 		StyledText unmappedLabel = new StyledText(legend, SWT.SINGLE | SWT.READ_ONLY);
@@ -343,6 +338,26 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		});
 	}
 
+	private void updateRenamedVariables() {
+		Control[] children = renamedVariables.getChildren();
+		for(Control child : children) {
+			child.dispose();
+		}
+		Set<BindingSignaturePair> renamedVariableBindingSignaturePairs = mapper.getRenamedVariables();
+		if(renamedVariableBindingSignaturePairs.size() > 0) {
+			for(BindingSignaturePair bindingSignaturePair : renamedVariableBindingSignaturePairs) {
+				CLabel renamedVariableLabel = new CLabel(renamedVariables, SWT.NONE);
+				String signature1 = bindingSignaturePair.getSignature1().toString();
+				String variable1 = signature1.substring(signature1.lastIndexOf("#")+1, signature1.length()-1);
+				String signature2 = bindingSignaturePair.getSignature2().toString();
+				String variable2 = signature2.substring(signature2.lastIndexOf("#")+1, signature2.length()-1);
+				renamedVariableLabel.setText(variable1 + " -> " + variable2);
+				renamedVariableLabel.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.BOLD)));
+			}
+		}
+		renamedVariables.layout();
+		renamedVariables.pack();
+	}
 
 	private void handleInputChanged() {
 		String methodNamePattern = "[a-zA-Z\\$_][a-zA-Z0-9\\$_]*";

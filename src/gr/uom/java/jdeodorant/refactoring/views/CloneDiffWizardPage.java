@@ -89,9 +89,16 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		methodRightNameGridData.horizontalSpan = 3;
 		methodRightName.setLayoutData(methodRightNameGridData);
 		
+		Label selectRefactoringOpportunityLabel = new Label(result, SWT.WRAP);
+		selectRefactoringOpportunityLabel.setText("Select Refactoring Opportunity:");
+		selectRefactoringOpportunityLabel.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.BOLD)));
+		GridData selectRefactoringOpportunityLabelData = new GridData();
+		selectRefactoringOpportunityLabelData.horizontalSpan = 1;
+		selectRefactoringOpportunityLabel.setLayoutData(selectRefactoringOpportunityLabelData);
+		
 		Combo combo = new Combo(result, SWT.READ_ONLY);
 		GridData comboData = new GridData();
-		comboData.horizontalSpan = 3;
+		comboData.horizontalSpan = 2;
 		combo.setLayoutData(comboData);
 		final ComboViewer comboViewer = new ComboViewer(combo);
 		comboViewer.setContentProvider(ArrayContentProvider.getInstance());
@@ -109,9 +116,16 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		comboViewer.setInput(mappers.toArray());
 		comboViewer.setSelection(new StructuredSelection(mappers.get(0)));
 		
+		Label selectMethodNameLabel = new Label(result, SWT.WRAP);
+		selectMethodNameLabel.setText("Specify Extracted Method Name:");
+		selectMethodNameLabel.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.BOLD)));
+		GridData selectMethodNameLabelData = new GridData();
+		selectMethodNameLabelData.horizontalSpan = 1;
+		selectMethodNameLabel.setLayoutData(selectMethodNameLabelData);
+		
 		extractedMethodNameField = new Text(result, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
 		GridData nameFieldGridData = new GridData(GridData.FILL_HORIZONTAL);
-		nameFieldGridData.horizontalSpan = 3;
+		nameFieldGridData.horizontalSpan = 2;
 		extractedMethodNameField.setLayoutData(nameFieldGridData);
 		extractedMethodNameField.setText(mapper.getMethodName1());
 		extractedMethodNameField.addModifyListener(new ModifyListener() {

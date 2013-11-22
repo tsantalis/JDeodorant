@@ -737,7 +737,7 @@ public class MethodCallAnalyzer {
 		return anonymousClassDeclarations;
 	}
 
-	private boolean equalType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+	private static boolean equalType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
 		if(typeBinding1.isPrimitive() && typeBinding2.isPrimitive())
 			return typeBinding1.isEqualTo(typeBinding2);
 		else if(typeBinding1.isArray() && typeBinding2.isArray()) {
@@ -755,6 +755,8 @@ public class MethodCallAnalyzer {
 			ITypeBinding bound2 = typeBinding2.getBound();
 			if(bound1 != null && bound2 != null)
 				return equalType(bound1, bound2);
+			else if(bound1 == null && bound2 == null)
+				return true;
 			else return false;
 		}
 		else if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType()) {
@@ -799,7 +801,7 @@ public class MethodCallAnalyzer {
 		return false;
 	}
 
-	private boolean equalSignature(IMethodBinding methodBinding1, IMethodBinding methodBinding2) {
+	public static boolean equalSignature(IMethodBinding methodBinding1, IMethodBinding methodBinding2) {
 		if(!methodBinding1.getName().equals(methodBinding2.getName()))
 			return false;
 		ITypeBinding returnType1 = methodBinding1.getReturnType();

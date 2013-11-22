@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
@@ -88,6 +89,8 @@ public class StyledStringVisitor extends ASTVisitor {
 	private TextStyle ordinaryStyle;
 	private TextStyle differenceStyle;
 	private TextStyle namedConstantStyle;
+	private TextStyle nonStaticFieldStyle;
+	private TextStyle staticMethodCallStyle;
 
 	private List<ASTNode> astNodesThatAreDifferences;
 	
@@ -103,6 +106,8 @@ public class StyledStringVisitor extends ASTVisitor {
 		ordinaryStyle = initializeOrdinaryStyle();
 		differenceStyle = initializeDifferenceStyle();
 		namedConstantStyle = initializeNamedConstantStyle();
+		nonStaticFieldStyle = initializeNonStaticFieldStyle();
+		staticMethodCallStyle = initializeStaticMethodCallStyle();
 
 		if(node.isElseIf()) {
 			styledString.append("else", new StyledStringStyler(keywordStyle));
@@ -601,6 +606,12 @@ public class StyledStringVisitor extends ASTVisitor {
 		if (isNamedConstant(name)){
 			styler.appendTextStyle(namedConstantStyle);
 		}
+		else if(isNonStaticField(name)){
+			styler.appendTextStyle(nonStaticFieldStyle);
+		}
+		else if(isStaticMethodCall(name)) {
+			styler.appendTextStyle(staticMethodCallStyle);
+		}
 		styledString.append(name.toString(), styler);
 		return false;
 	}
@@ -974,7 +985,31 @@ public class StyledStringVisitor extends ASTVisitor {
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if((variableBinding.getModifiers() & Modifier.FINAL) != 0 && (variableBinding.getModifiers() & Modifier.STATIC) != 0) 
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) 
+					return true;
+			}
+		}
+		return false;
+	}
+	private boolean isNonStaticField(ASTNode node){
+		if (node instanceof SimpleName){
+			SimpleName simpleName = (SimpleName) node;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) 
+					return true;
+			}
+		}
+		return false;
+	}
+	private boolean isStaticMethodCall(ASTNode node) {
+		if (node instanceof SimpleName){
+			SimpleName simpleName = (SimpleName) node;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding.getKind() == IBinding.METHOD) {
+				IMethodBinding methodBinding = (IMethodBinding)binding;
+				if((methodBinding.getModifiers() & Modifier.STATIC) != 0) 
 					return true;
 			}
 		}
@@ -1145,11 +1180,22 @@ public class StyledStringVisitor extends ASTVisitor {
 		namedConstantStyle.foreground = new Color(null, new RGB(0, 0, 192));
 		return namedConstantStyle;
 	}
+	private static TextStyle initializeNonStaticFieldStyle() {
+		TextStyle fieldStyle = new TextStyle();
+		fieldStyle.font = initializeFont();
+		fieldStyle.foreground = new Color(null, new RGB(0, 0, 192));
+		return fieldStyle;
+	}
 	private static TextStyle initializeStringStyle() {
 		TextStyle stringStyle = new TextStyle();
 		stringStyle.font = initializeFont();
 		stringStyle.foreground = new Color(null, new RGB(112, 0, 255));
 		return stringStyle;
+	}
+	private static TextStyle initializeStaticMethodCallStyle() {
+		TextStyle staticMethodCallStyle = new TextStyle();
+		staticMethodCallStyle.font = initializeItalicFont();
+		return staticMethodCallStyle;
 	}
 	private static TextStyle initializeOrdinaryStyle() {
 		TextStyle ordinaryStyle = new TextStyle();

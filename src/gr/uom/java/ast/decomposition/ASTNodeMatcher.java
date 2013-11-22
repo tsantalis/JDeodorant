@@ -30,6 +30,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
@@ -1005,6 +1006,20 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(!typeMatch) {
 					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
+				}
+				else {
+					IBinding nodeBinding = node.resolveBinding();
+					IBinding otherBinding = o.resolveBinding();
+					if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.VARIABLE && otherBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding nodeVariableBinding = (IVariableBinding)nodeBinding;
+						IVariableBinding otherVariableBinding = (IVariableBinding)otherBinding;
+						ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
+						ITypeBinding otherTypeBinding = otherVariableBinding.getType();
+						if(nodeTypeBinding != null && otherTypeBinding != null && !nodeTypeBinding.isEqualTo(otherTypeBinding)) {
+							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+					}
 				}
 			}
 			else {

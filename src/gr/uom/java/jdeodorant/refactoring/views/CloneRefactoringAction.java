@@ -76,7 +76,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 									ClassObject classObject1 = systemObject.getClassObject(methodObject1.getClassName());
 									ClassObject classObject2 = systemObject.getClassObject(methodObject2.getClassName());
 									ITypeRoot typeRoot1 = classObject1.getITypeRoot();
-									ITypeRoot typeRoot2 = classObject1.getITypeRoot();
+									ITypeRoot typeRoot2 = classObject2.getITypeRoot();
 									CompilationUnitCache.getInstance().lock(typeRoot1);
 									CompilationUnitCache.getInstance().lock(typeRoot2);
 									CFG cfg1 = new CFG(methodObject1);

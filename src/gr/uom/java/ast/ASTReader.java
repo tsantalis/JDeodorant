@@ -1,10 +1,9 @@
 package gr.uom.java.ast;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.jdt.core.IClassFile;
+import org.eclipse.jdt.core.BindingKey;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
@@ -18,6 +17,8 @@ import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.FileASTRequestor;
+import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -29,18 +30,60 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
 
 public class ASTReader {
 
 	private static SystemObject systemObject;
 	private static IJavaProject examinedProject;
+	private static EnvironmentInformation environmentInformation;
 
-	public ASTReader() {
+	public ASTReader(EnvironmentInformation environment) {
 		systemObject = new SystemObject();
+		environmentInformation = environment;
+		/*for(String javaFilePath : environment.getJavaFilePaths()) {
+			File javaFile = new File(javaFilePath);
+			if(javaFile.exists()) {
+				systemObject.addClasses(parseAST(javaFile));
+			}
+		}*/
+		ASTParser parser = ASTParser.newParser(AST.JLS4);
+		parser.setEnvironment(environment.getClasspathEntries(),
+				environment.getSourcepathEntries(), null, true);
+		parser.setResolveBindings(true);
+        parser.setStatementsRecovery(true);
+        parser.setBindingsRecovery(true);
+        String[] bindingKeys = new String[environment.getJavaFilePaths().length];
+        int i=0;
+        for(String javaFilePath : environment.getJavaFilePaths()){
+            bindingKeys[i] = createBindingKeyFromClassFile(javaFilePath);
+            i++;
+        }
+        ASTRequestor requestor = new ASTRequestor();
+        parser.createASTs(environment.getJavaFilePaths(), null, bindingKeys, requestor, null);
+	}
+
+	public static String createBindingKeyFromClassFile(String filePath) {
+		String classString = null;
+		try {
+			classString = new Scanner(new File(filePath)).useDelimiter("\\Z").next();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		int packageDeclarationStart = classString.indexOf("package");
+		int packageDeclarationEnd = classString.indexOf(";", packageDeclarationStart);
+		String packageDeclarationLine = classString.substring(packageDeclarationStart,packageDeclarationEnd);
+		String packageName = packageDeclarationLine.substring(packageDeclarationLine.lastIndexOf("package")+7, packageDeclarationLine.length());
+		packageName = packageName.replaceAll("\\s", "");
+		String className = filePath.substring(filePath.lastIndexOf(File.separator)+1, filePath.indexOf(".java"));
+		String fullyQualifiedClassName = packageName+"."+className;
+		return BindingKey.createTypeBindingKey(fullyQualifiedClassName);
 	}
 
 	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) {
@@ -140,26 +183,6 @@ public class ASTReader {
 		return numberOfCompilationUnits;
 	}
 
-	public void addCompilationUnit(CompilationUnit compilationUnit) {
-		IJavaElement javaElement = compilationUnit.getJavaElement();
-		IResource resource = javaElement.getResource();
-		IFile file = null;
-		if(resource != null && resource instanceof IFile) {
-			file = (IFile)resource;
-		}
-		if(javaElement != null) {
-			if(javaElement instanceof ICompilationUnit) {
-				ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement;
-				ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
-			}
-			else if(javaElement instanceof IClassFile) {
-				IClassFile iClassFile = (IClassFile)javaElement;
-				ASTInformationGenerator.setCurrentITypeRoot(iClassFile);
-			}
-		}
-		systemObject.addClasses(parseAST(compilationUnit, file));
-	}
-
 	private List<TypeDeclaration> getRecursivelyInnerTypes(TypeDeclaration typeDeclaration) {
 		List<TypeDeclaration> innerTypeDeclarations = new ArrayList<TypeDeclaration>();
 		TypeDeclaration[] types = typeDeclaration.getTypes();
@@ -180,6 +203,27 @@ public class ASTReader {
         CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
         
         return parseAST(compilationUnit, iFile);
+	}
+
+	private List<ClassObject> parseAST(File javaFile) {
+		ASTInformationGenerator.setCurrentFile(javaFile);
+		String content = null;
+		try {
+			content = new Scanner(javaFile).useDelimiter("\\Z").next();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+        ASTParser parser = ASTParser.newParser(AST.JLS4);
+        parser.setEnvironment(getEnvironmentInformation().getClasspathEntries(),
+        		getEnvironmentInformation().getSourcepathEntries(), null, true);
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setSource(content.toCharArray());
+        parser.setResolveBindings(true); // we need bindings later on
+        parser.setStatementsRecovery(true);
+		parser.setBindingsRecovery(true);
+        CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
+        
+        return parseAST(compilationUnit, null);
 	}
 
 	private List<ClassObject> parseAST(CompilationUnit compilationUnit, IFile iFile) {
@@ -360,5 +404,22 @@ public class ASTReader {
 
 	public static IJavaProject getExaminedProject() {
 		return examinedProject;
+	}
+
+	public static EnvironmentInformation getEnvironmentInformation() {
+		return environmentInformation;
+	}
+
+	private class ASTRequestor extends FileASTRequestor {
+		private final IBinding[] bindings = new IBinding[1];
+
+	    public void acceptBinding(String bindingKey, IBinding binding) {
+	        bindings[0] = binding;
+	    }
+		public void acceptAST(String sourceFilePath, CompilationUnit ast) {
+			File javaFile = new File(sourceFilePath);
+        	ASTInformationGenerator.setCurrentFile(javaFile);
+        	systemObject.addClasses(parseAST(ast, null));
+		}
 	}
 }

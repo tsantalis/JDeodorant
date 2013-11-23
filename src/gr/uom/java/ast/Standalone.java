@@ -63,6 +63,34 @@ public class Standalone {
 		return moveMethodCandidateList;
 	}
 
+	public static List<MoveMethodCandidateRefactoring> getMoveMethodRefactoringOpportunities(EnvironmentInformation environment) {
+		CompilationUnitCache.getInstance().clearCache();
+		if(ASTReader.getSystemObject() != null && environment.equals(ASTReader.getEnvironmentInformation())) {
+			//new ASTReader(project, ASTReader.getSystemObject(), null);
+		}
+		else {
+			new ASTReader(environment);
+		}
+		SystemObject systemObject = ASTReader.getSystemObject();
+		
+		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+		
+		Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
+		for(ClassObject classObject : classObjectsToBeExamined) {
+			classNamesToBeExamined.add(classObject.getName());
+		}
+		MySystem system = new MySystem(systemObject, false);
+		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+		distanceMatrix.generateDistances(null);
+		
+		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
+		moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, null));
+		Collections.sort(moveMethodCandidateList);
+		
+		return moveMethodCandidateList;
+	}
+
 	public static Set<ExtractClassCandidateGroup> getExtractClassRefactoringOpportunities(IJavaProject project) {
 		CompilationUnitCache.getInstance().clearCache();
 		if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
@@ -70,6 +98,48 @@ public class Standalone {
 		}
 		else {
 			new ASTReader(project, null);
+		}
+		SystemObject systemObject = ASTReader.getSystemObject();
+		
+		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+		
+		Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
+		for(ClassObject classObject : classObjectsToBeExamined) {
+			classNamesToBeExamined.add(classObject.getName());
+		}
+		MySystem system = new MySystem(systemObject, true);
+		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+		distanceMatrix.generateDistances(null);
+		
+		List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
+		extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, null));
+		
+		HashMap<String, ExtractClassCandidateGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidateGroup>();
+		for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
+			if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
+				groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
+			}
+			else {
+				ExtractClassCandidateGroup group = new ExtractClassCandidateGroup(candidate.getSourceEntity());
+				group.addCandidate(candidate);
+				groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
+			}
+		}
+		for(String sourceClass : groupedBySourceClassMap.keySet()) {
+			groupedBySourceClassMap.get(sourceClass).groupConcepts();
+		}
+		
+		return new TreeSet<ExtractClassCandidateGroup>(groupedBySourceClassMap.values());
+	}
+
+	public static Set<ExtractClassCandidateGroup> getExtractClassRefactoringOpportunities(EnvironmentInformation environment) {
+		CompilationUnitCache.getInstance().clearCache();
+		if(ASTReader.getSystemObject() != null && environment.equals(ASTReader.getEnvironmentInformation())) {
+			//new ASTReader(project, ASTReader.getSystemObject(), null);
+		}
+		else {
+			new ASTReader(environment);
 		}
 		SystemObject systemObject = ASTReader.getSystemObject();
 		
@@ -123,7 +193,26 @@ public class Standalone {
 		
 		return typeCheckEliminationGroups;
 	}
-	
+
+	public static Set<TypeCheckEliminationGroup> getTypeCheckEliminationRefactoringOpportunities(EnvironmentInformation environment) {
+		CompilationUnitCache.getInstance().clearCache();
+		if(ASTReader.getSystemObject() != null && environment.equals(ASTReader.getEnvironmentInformation())) {
+			//new ASTReader(project, ASTReader.getSystemObject(), null);
+		}
+		else {
+			new ASTReader(environment);
+		}
+		SystemObject systemObject = ASTReader.getSystemObject();
+		
+		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+		
+		Set<TypeCheckEliminationGroup> typeCheckEliminationGroups = new TreeSet<TypeCheckEliminationGroup>();
+		typeCheckEliminationGroups.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, null));
+		
+		return typeCheckEliminationGroups;
+	}
+
 	public static Set<ASTSliceGroup> getExtractMethodRefactoringOpportunities(IJavaProject project) {
 		CompilationUnitCache.getInstance().clearCache();
 		if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {

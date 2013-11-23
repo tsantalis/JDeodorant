@@ -44,6 +44,7 @@ import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
@@ -421,7 +422,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		}
 		else {
 			MethodDeclaration setterMethodDeclaration = contextAST.newMethodDeclaration();
-			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("set" + abstractClassName), null);
+			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName()), null);
 			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 			ListRewrite setterMethodModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 			setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
@@ -449,6 +450,15 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	private String setterMethodName() {
+		String defaultName = "set" + abstractClassName;
+		for(MethodDeclaration method : sourceTypeDeclaration.getMethods()) {
+			if(method.getName().getIdentifier().equals(defaultName))
+				return defaultName + "2";
+		}
+		return defaultName;
 	}
 
 	private void generateGetterMethodForStateField() {
@@ -1331,11 +1341,30 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					String staticFieldNameDeclaringClass = null;
 					if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
-						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+						ITypeBinding staticFieldDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
+						String staticFieldDeclaringClassQualifiedName = staticFieldDeclaringClass.getQualifiedName();
+						IPackageBinding packageBinding = staticFieldDeclaringClass.getPackage();
+						if(packageBinding != null) {
+							String packageBindingQualifiedName = packageBinding.getName();
+							staticFieldNameDeclaringClass = staticFieldDeclaringClassQualifiedName.substring(
+									packageBindingQualifiedName.length() + 1, staticFieldDeclaringClassQualifiedName.length());
+						}
+						else {
+							staticFieldNameDeclaringClass = staticFieldDeclaringClassQualifiedName;
+						}
 					}
 					FieldAccess fieldAccess = subclassAST.newFieldAccess();
 					subclassRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFields.get(i), null);
-					subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, subclassAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					if(!staticFieldNameDeclaringClass.contains(".")) {
+						subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, subclassAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					}
+					else {
+						QualifiedName qualifiedName = subclassAST.newQualifiedName(
+								subclassAST.newName(staticFieldNameDeclaringClass.substring(0, staticFieldNameDeclaringClass.lastIndexOf("."))),
+								subclassAST.newSimpleName(staticFieldNameDeclaringClass.substring(staticFieldNameDeclaringClass.lastIndexOf(".") + 1,
+								staticFieldNameDeclaringClass.length())));
+						subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifiedName, null);
+					}
 					subclassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
 					concreteGetterMethodBodyRewrite.insertLast(returnStatement, null);
 					subclassRewriter.set(concreteGetterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, concreteGetterMethodBody, null);
@@ -2113,7 +2142,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldSetterMethod().getName(), null);
 											}
 											else {
-												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + abstractClassName), null);
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName()), null);
 											}
 											ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 											setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);

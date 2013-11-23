@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
+import gr.uom.java.ast.util.TypeVisitor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ReplaceTypeCodeWithStateStrategy;
 
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.ltk.ui.refactoring.UserInputWizardPage;
 import org.eclipse.swt.SWT;
@@ -49,6 +52,14 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 			}
 		} catch (JavaModelException e) {
 			e.printStackTrace();
+		}
+		TypeVisitor typeVisitor = new TypeVisitor();
+		refactoring.getSourceCompilationUnit().accept(typeVisitor);
+		Set<ITypeBinding> typeBindings = typeVisitor.getTypeBindings();
+		for(ITypeBinding typeBinding : typeBindings) {
+			if(!parentPackageClassNames.contains(typeBinding.getName()) && !typeBinding.isNested()) {
+				parentPackageClassNames.add(typeBinding.getName());
+			}
 		}
 		this.javaLangClassNames = new ArrayList<String>();
 		this.javaLangClassNames.add("Boolean");
@@ -172,7 +183,7 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 			}
 			else if(parentPackageClassNames.contains(text.getText())) {
 				setPageComplete(false);
-				String message = "A Type named \"" + text.getText() + "\" already exists in package " + parentPackage.getElementName();
+				String message = "A Type named \"" + text.getText() + "\" already exists in the project";
 				setMessage(message, ERROR);
 				return;
 			}

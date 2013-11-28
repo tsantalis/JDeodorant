@@ -755,6 +755,13 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 								break;
 							}
 						}
+						else if(resource instanceof IFile) {
+							IFile file = (IFile)resource;
+							if(file.getName().equals(subPackages[i] + ".java")) {
+								classFile = file;
+								break;
+							}
+						}
 					}
 				}
 			} catch (CoreException e) {

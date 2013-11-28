@@ -422,25 +422,12 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		compilationUnitChanges.put(abstractICompilationUnit, abstractCompilationUnitChange);
 		
 		Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature = getRequiredImportDeclarationsBasedOnSignature();
-		ImportRewrite abstractImportRewrite = ImportRewrite.create(abstractCompilationUnit, true);
-		for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-			if(!typeBinding.isNested())
-				abstractImportRewrite.addImport(typeBinding);
-		}
 		
 		try {
-			TextEdit abstractImportEdit = abstractImportRewrite.rewriteImports(null);
-			if(abstractImportRewrite.getCreatedImports().length > 0) {
-				abstractMultiTextEdit.addChild(abstractImportEdit);
-				abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {abstractImportEdit}));
-			}
-
 			TextEdit abstractEdit = abstractRewriter.rewriteAST();
 			abstractMultiTextEdit.addChild(abstractEdit);
 			abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add abstract method", new TextEdit[] {abstractEdit}));
 		} catch(JavaModelException e) {
-			e.printStackTrace();
-		} catch (CoreException e) {
 			e.printStackTrace();
 		}
 		
@@ -466,27 +453,44 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				statements = typeCheckElimination.getDefaultCaseStatements();
 			}
 			IFile subclassFile = getFile(rootContainer, subclassNames.get(i));
-			IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
-			javaElementsToOpenInEditor.add(subclassJavaElement);
-			ICompilationUnit subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
-	        ASTParser subclassParser = ASTParser.newParser(AST.JLS4);
-	        subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
-	        subclassParser.setSource(subclassICompilationUnit);
-	        subclassParser.setResolveBindings(true); // we need bindings later on
-	        CompilationUnit subclassCompilationUnit = (CompilationUnit)subclassParser.createAST(null);
-	        
-	        AST subclassAST = subclassCompilationUnit.getAST();
-	        ASTRewrite subclassRewriter = ASTRewrite.create(subclassAST);
+			ICompilationUnit subclassICompilationUnit = null;
+			CompilationUnit subclassCompilationUnit = null;
+			AST subclassAST = null;
+			ASTRewrite subclassRewriter = null;
+			if(subclassFile.equals(abstractClassFile)) {
+				subclassICompilationUnit = abstractICompilationUnit;
+				subclassCompilationUnit = abstractCompilationUnit;
+				subclassAST = abstractAST;
+				subclassRewriter = ASTRewrite.create(subclassAST);
+			}
+			else {
+				IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
+				javaElementsToOpenInEditor.add(subclassJavaElement);
+				subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
+				ASTParser subclassParser = ASTParser.newParser(AST.JLS4);
+				subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
+				subclassParser.setSource(subclassICompilationUnit);
+				subclassParser.setResolveBindings(true); // we need bindings later on
+				subclassCompilationUnit = (CompilationUnit)subclassParser.createAST(null);
+
+				subclassAST = subclassCompilationUnit.getAST();
+				subclassRewriter = ASTRewrite.create(subclassAST);
+			}
 			
 			TypeDeclaration subclassTypeDeclaration = null;
 			List<AbstractTypeDeclaration> subclassAbstractTypeDeclarations = subclassCompilationUnit.types();
 			for(AbstractTypeDeclaration abstractTypeDeclaration : subclassAbstractTypeDeclarations) {
 				if(abstractTypeDeclaration instanceof TypeDeclaration) {
-					TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
-					if(typeDeclaration.resolveBinding().getQualifiedName().equals(subclassNames.get(i))) {
-						subclassTypeDeclaration = typeDeclaration;
-						break;
-					}
+					TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					List<TypeDeclaration> typeDeclarations = new ArrayList<TypeDeclaration>();
+	        		typeDeclarations.add(topLevelTypeDeclaration);
+	        		typeDeclarations.addAll(getRecursivelyInnerTypes(topLevelTypeDeclaration));
+	        		for(TypeDeclaration typeDeclaration : typeDeclarations) {
+	        			if(typeDeclaration.resolveBinding().getQualifiedName().equals(subclassNames.get(i))) {
+	        				subclassTypeDeclaration = typeDeclaration;
+	        				break;
+	        			}
+	        		}
 				}
 			}
 			
@@ -716,27 +720,41 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			
 			subclassBodyRewrite.insertLast(concreteMethodDeclaration, null);
 			
-			MultiTextEdit subclassMultiTextEdit = new MultiTextEdit();
-			CompilationUnitChange subclassCompilationUnitChange = new CompilationUnitChange("", subclassICompilationUnit);
-			subclassCompilationUnitChange.setEdit(subclassMultiTextEdit);
-			compilationUnitChanges.put(subclassICompilationUnit, subclassCompilationUnitChange);
-			
-			ImportRewrite subclassImportRewrite = ImportRewrite.create(subclassCompilationUnit, true);
-			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
-				if(!typeBinding.isNested())
-					subclassImportRewrite.addImport(typeBinding);
+			//special handling if the inner classes are nested within the superclass
+			MultiTextEdit subclassMultiTextEdit = null;
+			CompilationUnitChange subclassCompilationUnitChange = null;
+			if(subclassICompilationUnit.equals(abstractICompilationUnit)) {
+				subclassCompilationUnitChange = compilationUnitChanges.get(subclassICompilationUnit);
+				subclassMultiTextEdit = (MultiTextEdit)subclassCompilationUnitChange.getEdit();
 			}
-			Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
-			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
-				if(!typeBinding.isNested())
-					subclassImportRewrite.addImport(typeBinding);
+			else {
+				subclassMultiTextEdit = new MultiTextEdit();
+				subclassCompilationUnitChange = new CompilationUnitChange("", subclassICompilationUnit);
+				subclassCompilationUnitChange.setEdit(subclassMultiTextEdit);
+				compilationUnitChanges.put(subclassICompilationUnit, subclassCompilationUnitChange);
 			}
 			
 			try {
-				TextEdit subclassImportEdit = subclassImportRewrite.rewriteImports(null);
-				if(subclassImportRewrite.getCreatedImports().length > 0) {
-					subclassMultiTextEdit.addChild(subclassImportEdit);
-					subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {subclassImportEdit}));
+				if(!subclassICompilationUnit.equals(abstractICompilationUnit)) {
+					ImportRewrite subclassImportRewrite = ImportRewrite.create(subclassCompilationUnit, true);
+					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+						if(!typeBinding.isNested())
+							subclassImportRewrite.addImport(typeBinding);
+					}
+					Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
+					for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnBranch) {
+						if(!typeBinding.isNested())
+							subclassImportRewrite.addImport(typeBinding);
+					}
+					TextEdit subclassImportEdit = subclassImportRewrite.rewriteImports(null);
+					if(subclassImportRewrite.getCreatedImports().length > 0) {
+						subclassMultiTextEdit.addChild(subclassImportEdit);
+						subclassCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {subclassImportEdit}));
+					}
+				}
+				else {
+					Set<ITypeBinding> requiredImportDeclarationsBasedOnBranch = getRequiredImportDeclarationsBasedOnBranch(statements);
+					requiredImportDeclarationsBasedOnSignature.addAll(requiredImportDeclarationsBasedOnBranch);
 				}
 
 				TextEdit subclassEdit = subclassRewriter.rewriteAST();
@@ -747,6 +765,22 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			} catch (CoreException e) {
 				e.printStackTrace();
 			}
+		}
+		try {
+			ImportRewrite abstractImportRewrite = ImportRewrite.create(abstractCompilationUnit, true);
+			for(ITypeBinding typeBinding : requiredImportDeclarationsBasedOnSignature) {
+				if(!typeBinding.isNested())
+					abstractImportRewrite.addImport(typeBinding);
+			}
+			TextEdit abstractImportEdit = abstractImportRewrite.rewriteImports(null);
+			if(abstractImportRewrite.getCreatedImports().length > 0) {
+				abstractMultiTextEdit.addChild(abstractImportEdit);
+				abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {abstractImportEdit}));
+			}
+		} catch(JavaModelException e) {
+			e.printStackTrace();
+		} catch (CoreException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -770,6 +804,16 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			}
 			j++;
 		}
+	}
+
+	private List<TypeDeclaration> getRecursivelyInnerTypes(TypeDeclaration typeDeclaration) {
+		List<TypeDeclaration> innerTypeDeclarations = new ArrayList<TypeDeclaration>();
+		TypeDeclaration[] types = typeDeclaration.getTypes();
+		for(TypeDeclaration type : types) {
+			innerTypeDeclarations.add(type);
+			innerTypeDeclarations.addAll(getRecursivelyInnerTypes(type));
+		}
+		return innerTypeDeclarations;
 	}
 
 	private void modifySubclassMethodInvocations(List<Expression> oldMethodInvocations, List<Expression> newMethodInvocations, AST subclassAST,

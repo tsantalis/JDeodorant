@@ -539,9 +539,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
 			}
-			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0  || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(abstractMethodInvocation);
@@ -572,9 +570,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
 			}
-			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			if(returnedVariable != null) {
@@ -797,9 +793,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					abstractMethodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
 			}
-			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				abstractMethodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			ExpressionStatement expressionStatement = contextAST.newExpressionStatement(abstractMethodInvocation);
@@ -837,9 +831,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
 			}
-			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				methodInvocationArgumentsRewrite.insertLast(contextAST.newThisExpression(), null);
 			}
 			if(returnedVariable != null) {
@@ -1114,9 +1106,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				}
 			}
 		}
-		if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-				typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+		if(sourceTypeRequiredForExtraction()) {
 			SingleVariableDeclaration parameter = stateStrategyAST.newSingleVariableDeclaration();
 			SimpleName parameterType = stateStrategyAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 			stateStrategyRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, stateStrategyAST.newSimpleType(parameterType), null);
@@ -1498,8 +1488,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
 			Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
 			Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
-			if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0 ||
-					superAccessedFields.size() > 0 || superAssignedFields.size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 				SimpleName parameterType = subclassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 				subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, subclassAST.newSimpleType(parameterType), null);
@@ -1798,8 +1787,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
 		Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
 		Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
-		if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0 ||
-				superAccessedFields.size() > 0 || superAssignedFields.size() > 0) {
+		if(sourceTypeRequiredForExtraction()) {
 			SingleVariableDeclaration parameter = intermediateClassAST.newSingleVariableDeclaration();
 			SimpleName parameterType = intermediateClassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 			intermediateClassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, intermediateClassAST.newSimpleType(parameterType), null);
@@ -2613,7 +2601,8 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		}
 		
 		if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+				typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 			if(!typeBindings.contains(sourceTypeDeclaration.resolveBinding()))
 				typeBindings.add(sourceTypeDeclaration.resolveBinding());
 		}

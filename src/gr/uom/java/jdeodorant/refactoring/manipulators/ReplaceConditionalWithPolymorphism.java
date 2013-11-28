@@ -118,9 +118,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
 			}
-			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				methodInvocationArgumentsRewrite.insertLast(clientAST.newThisExpression(), null);
 				setPublicModifierToSourceTypeDeclaration();
 			}
@@ -155,9 +153,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					methodInvocationArgumentsRewrite.insertLast(fragment.getName(), null);
 				}
 			}
-			if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-					typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
-					typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				methodInvocationArgumentsRewrite.insertLast(clientAST.newThisExpression(), null);
 				setPublicModifierToSourceTypeDeclaration();
 			}
@@ -398,8 +394,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
 		Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
 		Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
-		if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0 ||
-				superAccessedFields.size() > 0 || superAssignedFields.size() > 0) {
+		if(sourceTypeRequiredForExtraction()) {
 			SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
 			SimpleName parameterType = abstractAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 			abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, abstractAST.newSimpleType(parameterType), null);
@@ -591,8 +586,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					}
 				}
 			}
-			if(accessedFields.size() > 0 || assignedFields.size() > 0 || accessedMethods.size() > 0 || superAccessedMethods.size() > 0 ||
-					superAccessedFields.size() > 0 || superAssignedFields.size() > 0) {
+			if(sourceTypeRequiredForExtraction()) {
 				SingleVariableDeclaration parameter = subclassAST.newSingleVariableDeclaration();
 				SimpleName parameterType = subclassAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 				subclassRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, subclassAST.newSimpleType(parameterType), null);
@@ -946,7 +940,8 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		}
 		
 		if(typeCheckElimination.getAccessedFields().size() > 0 || typeCheckElimination.getAssignedFields().size() > 0 ||
-				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0) {
+				typeCheckElimination.getAccessedMethods().size() > 0 || typeCheckElimination.getSuperAccessedMethods().size() > 0 ||
+				typeCheckElimination.getSuperAccessedFieldBindings().size() > 0 || typeCheckElimination.getSuperAssignedFieldBindings().size() > 0) {
 			if(!typeBindings.contains(sourceTypeDeclaration.resolveBinding()))
 				typeBindings.add(sourceTypeDeclaration.resolveBinding());
 		}

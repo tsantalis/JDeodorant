@@ -91,7 +91,8 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 				for(MethodDeclaration methodDeclaration : accessedMethods) {
 					if(oldMethodInvocation.resolveMethodBinding().isEqualTo(methodDeclaration.resolveBinding())) {
 						String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-						invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+						if((methodDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) == 0)
+							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 						subclassRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 						break;
 					}
@@ -101,7 +102,8 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 						if(oldMethodInvocation.getExpression() == null ||
 								(oldMethodInvocation.getExpression() != null && oldMethodInvocation.getExpression() instanceof ThisExpression)) {
 							String invokerName = sourceTypeDeclaration.getName().getIdentifier();
-							invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
+							if((superMethodBinding.getModifiers() & Modifier.STATIC) == 0)
+								invokerName = invokerName.substring(0,1).toLowerCase() + invokerName.substring(1,invokerName.length());
 							subclassRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 							break;
 						}
@@ -947,5 +949,43 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 			return expression;
 		}
 		return null;
+	}
+
+	protected boolean sourceTypeRequiredForExtraction() {
+		int nonStaticAccessedMembers = 0;
+		for(VariableDeclarationFragment fragment : typeCheckElimination.getAccessedFields()) {
+			IVariableBinding fieldBinding = fragment.resolveBinding();
+			if((fieldBinding.getModifiers() & Modifier.STATIC) == 0) {
+				nonStaticAccessedMembers++;
+			}
+		}
+		for(VariableDeclarationFragment fragment : typeCheckElimination.getAssignedFields()) {
+			IVariableBinding fieldBinding = fragment.resolveBinding();
+			if((fieldBinding.getModifiers() & Modifier.STATIC) == 0) {
+				nonStaticAccessedMembers++;
+			}
+		}
+		for(MethodDeclaration method : typeCheckElimination.getAccessedMethods()) {
+			IMethodBinding methodBinding = method.resolveBinding();
+			if((methodBinding.getModifiers() & Modifier.STATIC) == 0) {
+				nonStaticAccessedMembers++;
+			}
+		}
+		for(IMethodBinding methodBinding : typeCheckElimination.getSuperAccessedMethods()) {
+			if((methodBinding.getModifiers() & Modifier.STATIC) == 0) {
+				nonStaticAccessedMembers++;
+			}
+		}
+		for(IVariableBinding fieldBinding : typeCheckElimination.getSuperAccessedFieldBindings()) {
+			if((fieldBinding.getModifiers() & Modifier.STATIC) == 0) {
+				nonStaticAccessedMembers++;
+			}
+		}
+		for(IVariableBinding fieldBinding : typeCheckElimination.getSuperAssignedFieldBindings()) {
+			if((fieldBinding.getModifiers() & Modifier.STATIC) == 0) {
+				nonStaticAccessedMembers++;
+			}
+		}
+		return nonStaticAccessedMembers > 0;
 	}
 }

@@ -26,6 +26,10 @@ public class BindingSignature {
 		return bindingKeys.contains(key);
 	}
 
+	public boolean containsOnlyBinding(String key) {
+		return bindingKeys.size() == 1 && bindingKeys.contains(key);
+	}
+
 	private boolean isMethodName(Expression expression) {
 		if(expression instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expression;

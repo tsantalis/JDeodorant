@@ -1179,17 +1179,27 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 					}
 					else {
-						SimpleName argument;
-						Set<VariableDeclaration> fields = fieldDeclarationsToBePulledUp.get(0);
+						Set<VariableDeclaration> fields1 = fieldDeclarationsToBePulledUp.get(0);
 						BindingSignature bindingSignature1 = difference.getBindingSignaturePair().getSignature1();
-						boolean variableIsFieldToBePulledUp = false;
-						for(VariableDeclaration field : fields) {
-							if(bindingSignature1.containsBinding(field.resolveBinding().getKey())) {
-								variableIsFieldToBePulledUp = true;
+						boolean expression1IsFieldToBePulledUp = false;
+						for(VariableDeclaration field : fields1) {
+							if(bindingSignature1.containsOnlyBinding(field.resolveBinding().getKey())) {
+								expression1IsFieldToBePulledUp = true;
 								break;
 							}
 						}
-						if(!variableIsFieldToBePulledUp) {
+						Set<VariableDeclaration> fields2 = fieldDeclarationsToBePulledUp.get(1);
+						BindingSignature bindingSignature2 = difference.getBindingSignaturePair().getSignature2();
+						boolean expression2IsFieldToBePulledUp = false;
+						for(VariableDeclaration field : fields2) {
+							if(bindingSignature2.containsOnlyBinding(field.resolveBinding().getKey())) {
+								expression2IsFieldToBePulledUp = true;
+								break;
+							}
+						}
+						boolean expressionIsFieldToBePulledUp = expression1IsFieldToBePulledUp && expression2IsFieldToBePulledUp;
+						if(!expressionIsFieldToBePulledUp) {
+							SimpleName argument;
 							if(parameterizedDifferenceMap.containsKey(difference.getBindingSignaturePair())) {
 								List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
 								int index = list.indexOf(difference.getBindingSignaturePair());

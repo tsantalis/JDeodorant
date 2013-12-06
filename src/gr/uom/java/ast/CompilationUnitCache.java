@@ -375,11 +375,13 @@ public class CompilationUnitCache extends Indexer {
 	}
 
 	public void lock(ITypeRoot iTypeRoot) {
-		lockedTypeRoots.add(iTypeRoot);
+		if(!lockedTypeRoots.contains(iTypeRoot))
+			lockedTypeRoots.add(iTypeRoot);
 	}
 
 	public void lock(File file) {
-		lockedFiles.add(file);
+		if(!lockedFiles.contains(file))
+			lockedFiles.add(file);
 	}
 
 	public void releaseLock() {

@@ -40,6 +40,7 @@ public class BottomUpCDTMapper {
 		}
 		List<ControlDependenceTreeNodeMatchPair> matchLeafPairs = new ArrayList<ControlDependenceTreeNodeMatchPair>();
 		for(ControlDependenceTreeNode leaf1 : leavesWithLeafSiblings1) {
+			List<ControlDependenceTreeNodeMatchPair> currentMatchLeafPairs = new ArrayList<ControlDependenceTreeNodeMatchPair>();
 			for(ControlDependenceTreeNode leaf2 : leavesWithLeafSiblings2) {
 				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 				boolean match;
@@ -50,9 +51,14 @@ public class BottomUpCDTMapper {
 				else
 					match = astNodeMatcher.match(leaf1.getNode(), leaf2.getNode());
 				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(leaf1, leaf2)) {
-					ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(leaf1, leaf2);
-					matchLeafPairs.add(pair);
+					ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(leaf1, leaf2, astNodeMatcher);
+					currentMatchLeafPairs.add(pair);
 				}
+			}
+			if(!currentMatchLeafPairs.isEmpty()) {
+				Collections.sort(currentMatchLeafPairs, new ControlDependenceTreeNodeMatchPairComparator());
+				//best match with minimum differences
+				matchLeafPairs.add(currentMatchLeafPairs.get(0));
 			}
 		}
 		//filter leaf pairs for which a sibling leaf pair is already added in the list
@@ -140,7 +146,7 @@ public class BottomUpCDTMapper {
 							match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
 						if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
 								!alreadyMapped(matches, treeSibling, searchSibling) && !alreadyMapped(elseIfChainTopDownMatches, treeSibling, searchSibling)) {
-							ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
+							ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling, astNodeMatcher);
 							TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
 							List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
 							if(completeSubTrees.size() == 1) {
@@ -190,7 +196,7 @@ public class BottomUpCDTMapper {
 						match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
 					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&
 							!alreadyMapped(matches, treeSibling, searchSibling)) {
-						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling);
+						ControlDependenceTreeNodeMatchPair siblingMatchPair = new ControlDependenceTreeNodeMatchPair(treeSibling, searchSibling, astNodeMatcher);
 						TopDownCDTMapper topDownMapper = new TopDownCDTMapper(iCompilationUnit1, iCompilationUnit2, treeSibling, searchSibling);
 						List<CompleteSubTreeMatch> completeSubTrees = topDownMapper.getSolutions();
 						if(completeSubTrees.size() == 1) {
@@ -218,7 +224,7 @@ public class BottomUpCDTMapper {
 				else
 					match = astNodeMatcher.match(treeParent.getNode(), searchParent.getNode());
 				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeParent, searchParent)) {
-					ControlDependenceTreeNodeMatchPair newMatchPair = new ControlDependenceTreeNodeMatchPair(treeParent, searchParent);
+					ControlDependenceTreeNodeMatchPair newMatchPair = new ControlDependenceTreeNodeMatchPair(treeParent, searchParent, astNodeMatcher);
 					findBottomUpMatches(newMatchPair, matches);
 				}
 			}

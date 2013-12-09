@@ -14,13 +14,14 @@ import gr.uom.java.ast.decomposition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
-import gr.uom.java.ast.decomposition.cfg.MethodCallAnalyzer;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -70,7 +71,6 @@ import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
-import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
@@ -1050,6 +1050,240 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return newStatement;
 	}
 
+	private Statement processCloneStructureGapNode(CloneStructureNode node, AST ast, ASTRewrite sourceRewriter, int index) {
+		PDGNodeGap nodeMapping = (PDGNodeGap) node.getMapping();
+		PDGNode pdgNode = null;
+		if(index == 0)
+			pdgNode = nodeMapping.getNodeG1();
+		else
+			pdgNode = nodeMapping.getNodeG2();
+		Statement oldStatement = pdgNode.getASTStatement();
+		Statement newStatement = null;
+		if(oldStatement instanceof IfStatement) {
+			IfStatement oldIfStatement = (IfStatement)oldStatement;
+			IfStatement newIfStatement = ast.newIfStatement();
+			Expression newIfExpression = oldIfStatement.getExpression();
+			sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, newIfExpression, null);
+			List<CloneStructureNode> trueControlDependentChildren = new ArrayList<CloneStructureNode>();
+			List<CloneStructureNode> falseControlDependentChildren = new ArrayList<CloneStructureNode>();
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					PDGNodeGap childMapping = (PDGNodeGap) child.getMapping();
+					PDGNode childNode = null;
+					if(index == 0)
+						childNode = childMapping.getNodeG1();
+					else
+						childNode = childMapping.getNodeG2();
+					PDGControlDependence controlDependence = childNode.getIncomingControlDependence();
+					if(controlDependence != null) {
+						if(controlDependence.isTrueControlDependence()) {
+							trueControlDependentChildren.add(child);
+						}
+						else if(controlDependence.isFalseControlDependence()) {
+							falseControlDependentChildren.add(child);
+						}
+					}
+					else {
+						if(isNestedUnderElse(childNode)) {
+							falseControlDependentChildren.add(child);
+						}
+						else if(!isNestedUnderElse(childNode)) {
+							trueControlDependentChildren.add(child);
+						}
+					}
+				}
+				else if(child.getMapping() instanceof PDGElseGap) {
+					for(CloneStructureNode child2 : child.getChildren()) {
+						if(child2.getMapping() instanceof PDGNodeGap) {
+							PDGNodeGap childMapping = (PDGNodeGap) child2.getMapping();
+							PDGNode childNode = null;
+							if(index == 0)
+								childNode = childMapping.getNodeG1();
+							else
+								childNode = childMapping.getNodeG2();
+							PDGControlDependence controlDependence = childNode.getIncomingControlDependence();
+							if(controlDependence != null) {
+								if(controlDependence.isTrueControlDependence()) {
+									trueControlDependentChildren.add(child2);
+								}
+								else if(controlDependence.isFalseControlDependence()) {
+									falseControlDependentChildren.add(child2);
+								}
+							}
+							else {
+								if(isNestedUnderElse(childNode)) {
+									falseControlDependentChildren.add(child2);
+								}
+								else if(!isNestedUnderElse(childNode)) {
+									trueControlDependentChildren.add(child2);
+								}
+							}
+						}
+					}
+				}
+			}
+			if(oldIfStatement.getThenStatement() instanceof Block || trueControlDependentChildren.size() > 1) {
+				Block thenBlock = ast.newBlock();
+				ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : trueControlDependentChildren) {
+					thenBodyRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
+			}
+			else if(trueControlDependentChildren.size() == 1) {
+				CloneStructureNode child = trueControlDependentChildren.get(0);
+				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+			}
+			if(oldIfStatement.getElseStatement() instanceof Block || falseControlDependentChildren.size() > 1) {
+				Block elseBlock = ast.newBlock();
+				ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : falseControlDependentChildren) {
+					elseBodyRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+			}
+			else if(falseControlDependentChildren.size() == 1) {
+				CloneStructureNode child = falseControlDependentChildren.get(0);
+				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+			}
+			newStatement = newIfStatement;
+		}
+		else if(oldStatement instanceof TryStatement) {
+			TryStatement oldTryStatement = (TryStatement)oldStatement;
+			TryStatement newTryStatement = ast.newTryStatement();
+			ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+			List<VariableDeclarationExpression> resources = oldTryStatement.resources();
+			for(VariableDeclarationExpression expression : resources) {
+				Expression newResourceExpression = expression;
+				resourceRewrite.insertLast(newResourceExpression, null);
+			}
+			Block newBlock = ast.newBlock();
+			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					blockRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, newBlock, null);
+			ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+			List<CatchClause> catchClauses = oldTryStatement.catchClauses();
+			for(CatchClause catchClause : catchClauses) {
+				CatchClause newCatchClause = ast.newCatchClause();
+				sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
+				Block newCatchBody = ast.newBlock();
+				ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
+				List<Statement> oldCatchStatements = catchClause.getBody().statements();
+				for(Statement oldCatchStatement : oldCatchStatements) {
+					Statement newStatement2 = oldCatchStatement;
+					newCatchBodyRewrite.insertLast(newStatement2, null);
+				}
+				sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
+				catchClauseRewrite.insertLast(newCatchClause, null);
+			}
+			if(oldTryStatement.getFinally() != null) {
+				Block newFinallyBody = ast.newBlock();
+				ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
+				List<Statement> oldFinallyStatements = oldTryStatement.getFinally().statements();
+				for(Statement oldFinallyStatement : oldFinallyStatements) {
+					Statement newStatement2 = oldFinallyStatement;
+					newFinallyBodyRewrite.insertLast(newStatement2, null);
+				}
+				sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
+			}
+			newStatement = newTryStatement;
+		}
+		else if(oldStatement instanceof SwitchStatement) {
+			SwitchStatement oldSwitchStatement = (SwitchStatement)oldStatement;
+			SwitchStatement newSwitchStatement = ast.newSwitchStatement();
+			Expression newSwitchExpression = oldSwitchStatement.getExpression();
+			sourceRewriter.set(newSwitchStatement, SwitchStatement.EXPRESSION_PROPERTY, newSwitchExpression, null);
+			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					switchStatementsRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			newStatement = newSwitchStatement;
+		}
+		else if(oldStatement instanceof WhileStatement) {
+			WhileStatement oldWhileStatement = (WhileStatement)oldStatement;
+			WhileStatement newWhileStatement = ast.newWhileStatement();
+			Expression newWhileExpression = oldWhileStatement.getExpression();
+			sourceRewriter.set(newWhileStatement, WhileStatement.EXPRESSION_PROPERTY, newWhileExpression, null);
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					loopBlockRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			sourceRewriter.set(newWhileStatement, WhileStatement.BODY_PROPERTY, loopBlock, null);
+			newStatement = newWhileStatement;
+		}
+		else if(oldStatement instanceof ForStatement) {
+			ForStatement oldForStatement = (ForStatement)oldStatement;
+			ForStatement newForStatement = ast.newForStatement();
+			Expression newForExpression = oldForStatement.getExpression();
+			sourceRewriter.set(newForStatement, ForStatement.EXPRESSION_PROPERTY, newForExpression, null);
+			ListRewrite initializerRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.INITIALIZERS_PROPERTY);
+			List<Expression> initializers = oldForStatement.initializers();
+			for(Expression expression : initializers) {
+				Expression newInitializerExpression = expression;
+				initializerRewrite.insertLast(newInitializerExpression, null);
+			}
+			ListRewrite updaterRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.UPDATERS_PROPERTY);
+			List<Expression> updaters = oldForStatement.updaters();
+			for(Expression expression : updaters) {
+				Expression newUpdaterExpression = expression;
+				updaterRewrite.insertLast(newUpdaterExpression, null);
+			}
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					loopBlockRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			sourceRewriter.set(newForStatement, ForStatement.BODY_PROPERTY, loopBlock, null);
+			newStatement = newForStatement;
+		}
+		else if(oldStatement instanceof EnhancedForStatement) {
+			EnhancedForStatement oldEnhancedForStatement = (EnhancedForStatement)oldStatement;
+			EnhancedForStatement newEnhancedForStatement = ast.newEnhancedForStatement();
+			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.PARAMETER_PROPERTY, oldEnhancedForStatement.getParameter(), null);
+			Expression newEnhancedForExpression = oldEnhancedForStatement.getExpression();
+			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.EXPRESSION_PROPERTY, newEnhancedForExpression, null);
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					loopBlockRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.BODY_PROPERTY, loopBlock, null);
+			newStatement = newEnhancedForStatement;
+		}
+		else if(oldStatement instanceof DoStatement) {
+			DoStatement oldDoStatement = (DoStatement)oldStatement;
+			DoStatement newDoStatement = ast.newDoStatement();
+			Expression newDoExpression = oldDoStatement.getExpression();
+			sourceRewriter.set(newDoStatement, DoStatement.EXPRESSION_PROPERTY, newDoExpression, null);
+			Block loopBlock = ast.newBlock();
+			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					loopBlockRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			sourceRewriter.set(newDoStatement, DoStatement.BODY_PROPERTY, loopBlock, null);
+			newStatement = newDoStatement;
+		}
+		else {
+			newStatement = oldStatement;
+		}
+		return newStatement;
+	}
+
 	private boolean isNestedUnderElse(PDGNode pdgNode) {
 		Statement statement = pdgNode.getASTStatement();
 		if(statement.getParent() instanceof Block) {
@@ -1324,9 +1558,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Statement firstStatement = removableNodes.first().getASTStatement();
 		Block parentBlock = (Block)firstStatement.getParent();
 		ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentBlock, Block.STATEMENTS_PROPERTY);
+		CloneStructureNode root = mapper.getCloneStructureRoot();
+		List<CloneStructureNode> processedCloneStructureGapNodes = new ArrayList<CloneStructureNode>();
 		for(PDGNode remainingNode : remainingNodes) {
 			if(remainingNode.getId() >= removableNodes.first().getId() && remainingNode.getId() <= removableNodes.last().getId()) {
-				blockRewrite.insertBefore(remainingNode.getASTStatement(), firstStatement, null);
+				CloneStructureNode remainingCloneStructureNode = null;
+				if(index == 0)
+					remainingCloneStructureNode = root.findNodeG1(remainingNode);
+				else
+					remainingCloneStructureNode = root.findNodeG2(remainingNode);
+				if(!processedCloneStructureGapNodes.contains(remainingCloneStructureNode.getParent())) {
+					Statement statement = processCloneStructureGapNode(remainingCloneStructureNode, ast, methodBodyRewriter, index);
+					blockRewrite.insertBefore(statement, firstStatement, null);
+					methodBodyRewriter.remove(remainingNode.getASTStatement(), null);
+				}
+				processedCloneStructureGapNodes.add(remainingCloneStructureNode);
+				for(CloneStructureNode child : remainingCloneStructureNode.getChildren()) {
+					if(child.getMapping() instanceof PDGElseGap)
+						processedCloneStructureGapNodes.add(child);
+				}
 			}
 		}
 		if(returnedVariables.size() == 1) {

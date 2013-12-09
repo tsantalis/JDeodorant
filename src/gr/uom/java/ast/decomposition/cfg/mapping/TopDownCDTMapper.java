@@ -35,7 +35,7 @@ public class TopDownCDTMapper {
 			else
 				match = astNodeMatcher.match(root1.getNode(), root2.getNode());
 			if(match && astNodeMatcher.isParameterizable()) {
-				ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(root1, root2);
+				ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(root1, root2, astNodeMatcher);
 				tmpSolution.addStartPoint(pair);
 				if(!isSubsumedByCurrentSolutions(solutions, tmpSolution))
 					solutions.add(tmpSolution);
@@ -62,7 +62,7 @@ public class TopDownCDTMapper {
 					else
 						match = astNodeMatcher.match(node1.getNode(), node2.getNode());
 					if(match && astNodeMatcher.isParameterizable()) {
-						ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(node1, node2);
+						ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(node1, node2, astNodeMatcher);
 						startPoints.add(pair);
 					}
 				}
@@ -152,7 +152,7 @@ public class TopDownCDTMapper {
 					
 					for(TreeSet<ControlDependenceTreeNodeMatchPair> nodeMatchPairs : nodeMatches) {
 						for(TreeSet<ControlDependenceTreeNodeMatchPair> childMatchPairs : childMatches) {
-							ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(treeChild, searchChild);
+							ControlDependenceTreeNodeMatchPair pair = new ControlDependenceTreeNodeMatchPair(treeChild, searchChild, astNodeMatcher);
 							TreeSet<ControlDependenceTreeNodeMatchPair> fullMatchPairs = new TreeSet<ControlDependenceTreeNodeMatchPair>();
 							fullMatchPairs.add(pair);
 							fullMatchPairs.addAll(childMatchPairs);

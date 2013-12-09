@@ -1,15 +1,21 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.ASTNodeMatcher;
+
 import java.util.List;
 
 public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDependenceTreeNodeMatchPair> {
 	private ControlDependenceTreeNode node1;
 	private ControlDependenceTreeNode node2;
+	private List<ASTNodeDifference> nodeDifferences;
 	private volatile int hashCode = 0;
 
-	public ControlDependenceTreeNodeMatchPair(ControlDependenceTreeNode node1, ControlDependenceTreeNode node2) {
+	public ControlDependenceTreeNodeMatchPair(ControlDependenceTreeNode node1, ControlDependenceTreeNode node2,
+			ASTNodeMatcher matcher) {
 		this.node1 = node1;
 		this.node2 = node2;
+		this.nodeDifferences = matcher.getDifferences();
 	}
 
 	public ControlDependenceTreeNode getNode1() {
@@ -18,6 +24,10 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 
 	public ControlDependenceTreeNode getNode2() {
 		return node2;
+	}
+
+	public List<ASTNodeDifference> getNodeDifferences() {
+		return nodeDifferences;
 	}
 
 	public boolean ifStatementInsideElseIfChain() {

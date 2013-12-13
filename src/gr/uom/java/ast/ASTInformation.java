@@ -1,7 +1,5 @@
 package gr.uom.java.ast;
 
-import java.io.File;
-
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -10,7 +8,6 @@ import org.eclipse.jdt.core.dom.NodeFinder;
 public class ASTInformation {
 
 	private ITypeRoot iTypeRoot;
-	private File file;
 	private int startPosition;
 	private int length;
 	private int nodeType;
@@ -22,22 +19,9 @@ public class ASTInformation {
 		this.length = astNode.getLength();
 		this.nodeType = astNode.getNodeType();
 	}
-	
-	public ASTInformation(File file, ASTNode astNode) {
-		this.file = file;
-		this.startPosition = astNode.getStartPosition();
-		this.length = astNode.getLength();
-		this.nodeType = astNode.getNodeType();
-	}
 
 	public ASTNode recoverASTNode() {
-        CompilationUnit compilationUnit = null;
-        if(iTypeRoot != null) {
-        	compilationUnit = CompilationUnitCache.getInstance().getCompilationUnit(iTypeRoot);
-        }
-        else {
-        	compilationUnit = CompilationUnitCache.getInstance().getCompilationUnit(file);
-        }
+        CompilationUnit compilationUnit = CompilationUnitCache.getInstance().getCompilationUnit(iTypeRoot);
         ASTNode astNode = NodeFinder.perform(compilationUnit, startPosition, length);
 		return astNode;
 	}
@@ -53,18 +37,10 @@ public class ASTInformation {
 		
 		if(o instanceof ASTInformation) {
 			ASTInformation astInformation = (ASTInformation)o;
-			if(this.iTypeRoot != null && astInformation.iTypeRoot != null) {
-				return this.iTypeRoot.equals(astInformation.iTypeRoot) &&
-						this.startPosition == astInformation.startPosition &&
-						this.length == astInformation.length &&
-						this.nodeType == astInformation.nodeType;
-			}
-			if(this.file != null && astInformation.file != null) {
-				return this.file.equals(astInformation.file) &&
-						this.startPosition == astInformation.startPosition &&
-						this.length == astInformation.length &&
-						this.nodeType == astInformation.nodeType;
-			}
+			return this.iTypeRoot.equals(astInformation.iTypeRoot) &&
+					this.startPosition == astInformation.startPosition &&
+					this.length == astInformation.length &&
+					this.nodeType == astInformation.nodeType;
 		}
 		return false;
 	}
@@ -72,8 +48,7 @@ public class ASTInformation {
 	public int hashCode() {
 		if(hashCode == 0) {
 			int result = 17;
-			result = 37*result + ((iTypeRoot == null) ? 0 : iTypeRoot.hashCode());
-			result = 37*result + ((file == null) ? 0 : file.hashCode());
+			result = 37*result + iTypeRoot.hashCode();
 			result = 37*result + startPosition;
 			result = 37*result + length;
 			result = 37*result + nodeType;

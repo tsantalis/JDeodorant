@@ -4,15 +4,12 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 
 import org.eclipse.jdt.core.IClassFile;
@@ -29,8 +26,6 @@ public class CompilationUnitCache extends Indexer {
 	private LinkedList<ITypeRoot> iTypeRootList;
 	private LinkedList<CompilationUnit> compilationUnitList;
 	private List<ITypeRoot> lockedTypeRoots;
-	private LinkedList<File> fileList;
-	private List<File> lockedFiles;
 	private Set<ICompilationUnit> changedCompilationUnits;
 	private Set<ICompilationUnit> addedCompilationUnits;
 	private Set<ICompilationUnit> removedCompilationUnits;
@@ -213,8 +208,6 @@ public class CompilationUnitCache extends Indexer {
 		super();
 		this.iTypeRootList = new LinkedList<ITypeRoot>();
 		this.lockedTypeRoots = new ArrayList<ITypeRoot>();
-		this.fileList = new LinkedList<File>();
-		this.lockedFiles = new ArrayList<File>();
 		this.compilationUnitList = new LinkedList<CompilationUnit>();
 		this.changedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
 		this.addedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
@@ -280,75 +273,6 @@ public class CompilationUnitCache extends Indexer {
 		}
 	}
 
-	private static String getExtension(File f) {
-		String fileName = f.getName();
-		String extension = "";
-		int i = fileName.lastIndexOf('.');
-		if (i > 0) {
-		    extension = fileName.substring(i+1);
-		}
-		return extension;
-	}
-
-	public CompilationUnit getCompilationUnit(File file) {
-		if(getExtension(file).equalsIgnoreCase("class")) {
-			//IClassFile classFile = (IClassFile)iTypeRoot;
-			//return LibraryClassStorage.getInstance().getCompilationUnit(classFile);
-			System.out.println("class file requested");
-			return null;
-		}
-		else {
-			if(fileList.contains(file)) {
-				int position = fileList.indexOf(file);
-				return compilationUnitList.get(position);
-			}
-			else {
-				String content = null;
-				try {
-					content = new Scanner(file).useDelimiter("\\Z").next();
-				} catch (FileNotFoundException e) {
-					e.printStackTrace();
-				}
-		        ASTParser parser = ASTParser.newParser(AST.JLS4);
-		        parser.setEnvironment(ASTReader.getEnvironmentInformation().getClasspathEntries(),
-		        		ASTReader.getEnvironmentInformation().getSourcepathEntries(), null, true);
-		        parser.setKind(ASTParser.K_COMPILATION_UNIT);
-		        parser.setSource(content.toCharArray());
-		        parser.setResolveBindings(true); // we need bindings later on
-				parser.setStatementsRecovery(true);
-				parser.setBindingsRecovery(true);
-		        CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
-				
-				int maximumCacheSize = 20;
-				if(fileList.size() < maximumCacheSize) {
-					fileList.add(file);
-					compilationUnitList.add(compilationUnit);
-				}
-				else {
-					if(!lockedFiles.isEmpty()) {
-						int indexToBeRemoved = 0;
-						int counter = 0;
-						for(File lockedFile : lockedFiles) {
-							if(fileList.get(counter).equals(lockedFile)) {
-								indexToBeRemoved++;
-							}
-							counter++;
-						}
-						fileList.remove(indexToBeRemoved);
-						compilationUnitList.remove(indexToBeRemoved);
-					}
-					else {
-						fileList.removeFirst();
-						compilationUnitList.removeFirst();
-					}
-					fileList.add(file);
-					compilationUnitList.add(compilationUnit);
-				}
-				return compilationUnit;
-			}
-		}
-	}
-
 	public void compilationUnitChanged(ICompilationUnit compilationUnit) {
 		changedCompilationUnits.add(compilationUnit);
 	}
@@ -379,14 +303,8 @@ public class CompilationUnitCache extends Indexer {
 			lockedTypeRoots.add(iTypeRoot);
 	}
 
-	public void lock(File file) {
-		if(!lockedFiles.contains(file))
-			lockedFiles.add(file);
-	}
-
 	public void releaseLock() {
 		lockedTypeRoots.clear();
-		lockedFiles.clear();
 		usedFieldsForMethodArgumentsMap.clear();
 		definedFieldsForMethodArgumentsMap.clear();
 		usedFieldsForMethodExpressionMap.clear();
@@ -402,8 +320,6 @@ public class CompilationUnitCache extends Indexer {
 	public void clearCache() {
 		lockedTypeRoots.clear();
 		iTypeRootList.clear();
-		lockedFiles.clear();
-		fileList.clear();
 		compilationUnitList.clear();
 	}
 }

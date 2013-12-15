@@ -1,12 +1,17 @@
 package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
@@ -29,11 +34,13 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
@@ -1300,15 +1307,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 		
 		Expression leftHandSide = assignment.getLeftHandSide();
 		Expression rightHandSide = assignment.getRightHandSide();
-		String methodName = setter.getName().getIdentifier();
 		List arguments = setter.arguments();
-		if(methodName.startsWith("set") && arguments.size() == 1) {
-			String attributeName = methodName.substring(3);
+		if(arguments.size() == 1) {
 			if(leftHandSide instanceof FieldAccess) {
 				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-				String fieldAccessName = fieldAccess.getName().getIdentifier();
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(arguments.get(0), rightHandSide);
-				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+				if(setterMethodForField(setter, fieldAccess.getName()) && argumentRightHandSideMatch) {
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1317,9 +1321,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else if(leftHandSide instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)leftHandSide;
-				String fieldAccessName = simpleName.getIdentifier();
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(arguments.get(0), rightHandSide);
-				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+				if(setterMethodForField(setter, simpleName) && argumentRightHandSideMatch) {
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1339,15 +1342,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 		
 		Expression leftHandSide = assignment.getLeftHandSide();
 		Expression rightHandSide = assignment.getRightHandSide();
-		String methodName = setter.getName().getIdentifier();
 		List arguments = setter.arguments();
-		if(methodName.startsWith("set") && arguments.size() == 1) {
-			String attributeName = methodName.substring(3);
+		if(arguments.size() == 1) {
 			if(leftHandSide instanceof FieldAccess) {
 				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-				String fieldAccessName = fieldAccess.getName().getIdentifier();
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(rightHandSide, arguments.get(0));
-				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+				if(setterMethodForField(setter, fieldAccess.getName()) && argumentRightHandSideMatch) {
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1356,9 +1356,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else if(leftHandSide instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)leftHandSide;
-				String fieldAccessName = simpleName.getIdentifier();
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(rightHandSide, arguments.get(0));
-				if(attributeName.equalsIgnoreCase(fieldAccessName) && argumentRightHandSideMatch) {
+				if(setterMethodForField(setter, simpleName) && argumentRightHandSideMatch) {
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1368,7 +1367,36 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		return false;
 	}
-	
+
+	private boolean setterMethodForField(MethodInvocation methodInvocation, SimpleName fieldName) {
+		IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+		ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
+		ClassObject declaringClass = ASTReader.getSystemObject().getClassObject(declaringClassTypeBinding.getQualifiedName());
+		if(declaringClass != null) {
+			ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
+			while(methodIterator.hasNext()) {
+				MethodObject method = methodIterator.next();
+				MethodDeclaration methodDeclaration = method.getMethodDeclaration();
+				if(methodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+					SimpleName setField = MethodDeclarationUtility.isSetter(methodDeclaration);
+					if(setField != null) {
+						if(setField.resolveBinding().getKind() == IBinding.VARIABLE &&
+								fieldName.resolveBinding().getKind() == IBinding.VARIABLE) {
+							IVariableBinding setFieldBinding = (IVariableBinding)setField.resolveBinding();
+							IVariableBinding fieldNameBinding = (IVariableBinding)fieldName.resolveBinding();
+							if(setFieldBinding.isEqualTo(fieldNameBinding) ||
+									(setField.getIdentifier().equals(fieldName.getIdentifier()) &&
+									setFieldBinding.getType().isEqualTo(fieldNameBinding.getType()))) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	private boolean ifStatementReplacedWithTernaryOperator(IfStatement ifStatement, ExpressionStatement expressionStatement) {
 		Expression ifExpression = ifStatement.getExpression();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();

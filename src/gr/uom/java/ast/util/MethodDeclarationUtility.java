@@ -135,7 +135,7 @@ public class MethodDeclarationUtility {
 	    				Expression rightHandSide = assignment.getRightHandSide();
 	    				if(rightHandSide instanceof SimpleName) {
 	    					SimpleName rightHandSideSimpleName = (SimpleName)rightHandSide;
-	    					if(rightHandSideSimpleName.getIdentifier().equals(parameters.get(0).getName().getIdentifier())) {
+	    					if(rightHandSideSimpleName.resolveBinding().isEqualTo(parameters.get(0).resolveBinding())) {
 	    						Expression leftHandSide = assignment.getLeftHandSide();
 	    						if(leftHandSide instanceof SimpleName) {
 	    		    				return (SimpleName)leftHandSide;

@@ -15,7 +15,8 @@ public enum DifferenceType {
 	INFIX_EXTENDED_OPERAND_NUMBER_MISMATCH,
 	INFIX_LEFT_OPERAND_MISMATCH,
 	INFIX_RIGHT_OPERAND_MISMATCH,
-	FIELD_ASSIGNMENT_REPLACED_WITH_SETTER;
+	FIELD_ASSIGNMENT_REPLACED_WITH_SETTER,
+	SIMPLIFICATION_MATCH;
 
 	public String toString(){
 		if (name().equals(AST_TYPE_MISMATCH.name())){
@@ -62,6 +63,9 @@ public enum DifferenceType {
 		}
 		else if (name().equals(FIELD_ASSIGNMENT_REPLACED_WITH_SETTER.name())){
 			return "Field assignment has been replaced with a setter call";
+		}
+		else if (name().equals(SIMPLIFICATION_MATCH.name())){
+			return "The expressions can be simplified to the same expression";
 		}
 		return "";
 	}

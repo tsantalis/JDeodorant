@@ -23,3 +23,5 @@ Export-Package: gr.uom.java.ast,
  gr.uom.java.ast.decomposition.cfg.mapping,
  gr.uom.java.distance,
  gr.uom.java.jdeodorant.refactoring.manipulators
+Bundle-ClassPath: jscl.jar,
+ .

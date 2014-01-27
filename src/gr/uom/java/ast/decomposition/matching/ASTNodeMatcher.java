@@ -1,9 +1,10 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.matching;
 
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;

@@ -1,7 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 
 import java.util.ArrayList;
 import java.util.Collections;

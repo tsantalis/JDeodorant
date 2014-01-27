@@ -8,14 +8,14 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
-import gr.uom.java.ast.decomposition.ASTNodeMatcher;
-import gr.uom.java.ast.decomposition.Difference;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.Difference;
 
 public class PDGNodeMapping extends IdBasedMapping {
 	private PDGNode nodeG1;

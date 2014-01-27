@@ -1,15 +1,15 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
-import gr.uom.java.ast.decomposition.ASTNodeMatcher;
-import gr.uom.java.ast.decomposition.Difference;
-import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.Difference;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.util.math.LevenshteinDistance;
 
 import java.util.ArrayList;

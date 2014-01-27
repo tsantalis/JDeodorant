@@ -1,11 +1,11 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchNode;
 import gr.uom.java.ast.decomposition.cfg.PDGAbstractDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 
 public class PDGEdgeMapping {
 	private PDGDependence edgeG1;

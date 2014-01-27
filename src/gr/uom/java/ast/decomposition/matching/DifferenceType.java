@@ -1,4 +1,4 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.matching;
 
 public enum DifferenceType {
 	AST_TYPE_MISMATCH,

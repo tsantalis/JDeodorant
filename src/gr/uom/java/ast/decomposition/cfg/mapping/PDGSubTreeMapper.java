@@ -2,15 +2,10 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
-import gr.uom.java.ast.decomposition.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
-import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
-import gr.uom.java.ast.decomposition.Difference;
-import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -40,6 +35,11 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolat
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
+import gr.uom.java.ast.decomposition.matching.Difference;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;

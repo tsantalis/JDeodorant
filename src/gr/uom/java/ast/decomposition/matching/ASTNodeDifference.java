@@ -1,4 +1,6 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.matching;
+
+import gr.uom.java.ast.decomposition.AbstractExpression;
 
 import java.util.ArrayList;
 import java.util.List;

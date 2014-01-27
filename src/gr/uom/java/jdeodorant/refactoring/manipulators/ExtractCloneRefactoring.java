@@ -3,10 +3,6 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
-import gr.uom.java.ast.decomposition.BindingSignature;
-import gr.uom.java.ast.decomposition.BindingSignaturePair;
-import gr.uom.java.ast.decomposition.DifferenceType;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -24,6 +20,10 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPrecondi
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.BindingSignature;
+import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
 

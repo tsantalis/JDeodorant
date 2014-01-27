@@ -1,4 +1,4 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.matching;
 
 import jscl.math.Generic;
 import jscl.text.ParseException;

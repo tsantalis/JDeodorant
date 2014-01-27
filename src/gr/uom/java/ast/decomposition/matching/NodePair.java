@@ -1,4 +1,4 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.matching;
 
 public class NodePair {
 	private int id1;

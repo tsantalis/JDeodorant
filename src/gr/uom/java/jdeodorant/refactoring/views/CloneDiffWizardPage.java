@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import gr.uom.java.ast.decomposition.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
+import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import org.eclipse.jface.viewers.ArrayContentProvider;

@@ -7,10 +7,10 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 
 public class PDGNodeGap extends IdBasedGap {
 	private PDGNode nodeG1;

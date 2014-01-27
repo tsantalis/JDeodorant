@@ -3,9 +3,9 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import java.util.ArrayList;
 import java.util.List;
 
-import gr.uom.java.ast.decomposition.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 
 public abstract class NodeMapping implements Comparable<NodeMapping> {
 	private List<PreconditionViolation> preconditionViolations = new ArrayList<PreconditionViolation>();

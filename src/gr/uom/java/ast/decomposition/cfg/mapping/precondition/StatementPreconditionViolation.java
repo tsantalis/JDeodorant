@@ -1,4 +1,6 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.cfg.mapping.precondition;
+
+import gr.uom.java.ast.decomposition.AbstractStatement;
 
 import org.eclipse.jface.viewers.StyledString;
 

@@ -1,4 +1,4 @@
-package gr.uom.java.ast.decomposition;
+package gr.uom.java.ast.decomposition.cfg.mapping.precondition;
 
 public enum PreconditionViolationType {
 	EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED,

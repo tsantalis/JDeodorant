@@ -620,8 +620,9 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * This kind of node is used to convert a name (Name) into a type (Type) by wrapping it. 
 		 */
-		StyledStringStyler styler = determineDiffStyle(type, new StyledStringStyler(ordinaryStyle));
-		styledString.append(type.toString(), styler);
+		//StyledStringStyler styler = determineDiffStyle(type, new StyledStringStyler(ordinaryStyle));
+		//styledString.append(type.toString(), styler);
+		handleExpression(type.getName());
 		return false;
 	}
 

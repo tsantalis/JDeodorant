@@ -718,7 +718,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			{
 				InfixExpression o = (InfixExpression) other;
 				SimplificationMatcher matcher = new SimplificationMatcher(node, o);
-				if(matcher.isSimplifiedToTheSameExpression()) {
+				if(matcher.isSimplifiedToTheSameExpression() && !super.match(node, o)) {
 					Difference diff = new Difference(node.toString(),o.toString(),DifferenceType.SIMPLIFICATION_MATCH);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);

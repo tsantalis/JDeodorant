@@ -11,6 +11,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.Type;
 
 public class ASTNodeDifference {
 	private AbstractExpression expression1;
@@ -128,11 +129,14 @@ public class ASTNodeDifference {
 		return false;
 	}
 	
-	private boolean isParent(Expression parent, Expression child) {
+	private boolean isParent(Expression parent, ASTNode child) {
 		if(child.getParent().equals(parent))
 			return true;
 		else if(child.getParent() instanceof Expression) {
 			return isParent(parent, (Expression)child.getParent());
+		}
+		else if(child.getParent() instanceof Type) {
+			return isParent(parent, (Type)child.getParent());
 		}
 		else {
 			return false;

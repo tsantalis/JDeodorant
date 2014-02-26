@@ -210,10 +210,17 @@ public class PDGSubTreeMapper {
 			while(declaredVariableIteratorG1.hasNext() && declaredVariableIteratorG2.hasNext()) {
 				AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
 				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
-				ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
-				declaredVariables.add(declaredVariableG1);
-				declaredVariables.add(declaredVariableG2);
-				declaredLocalVariablesInMappedNodes.put(declaredVariableG1.getVariableBindingKey(), declaredVariables);
+				String key1 = declaredVariableG1.getVariableBindingKey();
+				String declaringType1 = key1.substring(0, key1.indexOf(";"));
+				String key2 = declaredVariableG2.getVariableBindingKey();
+				String declaringType2 = key2.substring(0, key2.indexOf(";"));
+				//exclude the variables declared in anonymous class declarations
+				if(!declaringType1.contains("$") && !declaringType2.contains("$")) {
+					ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
+					declaredVariables.add(declaredVariableG1);
+					declaredVariables.add(declaredVariableG2);
+					declaredLocalVariablesInMappedNodes.put(declaredVariableG1.getVariableBindingKey(), declaredVariables);
+				}
 			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();

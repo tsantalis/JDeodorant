@@ -162,35 +162,38 @@ public class MethodCallAnalyzer {
 							}
 							else {
 								ParameterObject parameter = methodObject.getParameter(argumentPosition);
-								VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
-								PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
-								processArgumentOfInternalMethodInvocation(methodObject, argumentVariable, argumentPosition, parameterDeclaration, new LinkedHashSet<String>());
-								//save in cache
-								int usedFieldCount = 0;
-								for(AbstractVariable usedVariable : usedVariables) {
-									if(usedVariable instanceof CompositeVariable) {
-										CompositeVariable composite = (CompositeVariable)usedVariable;
-										if(composite.getInitialVariable().equals(argumentVariable)) {
-											cache.addUsedFieldForMethodArgument(composite.getRightPart(), methodObject, argumentPosition);
-											usedFieldCount++;
+								//analyze only if the argument does not correspond to a varargs parameter
+								if(argumentPosition < methodObject.getParameterList().size()) {
+									VariableDeclaration parameterDeclaration = parameter.getSingleVariableDeclaration();
+									PlainVariable argumentVariable = new PlainVariable(argumentDeclaration);
+									processArgumentOfInternalMethodInvocation(methodObject, argumentVariable, argumentPosition, parameterDeclaration, new LinkedHashSet<String>());
+									//save in cache
+									int usedFieldCount = 0;
+									for(AbstractVariable usedVariable : usedVariables) {
+										if(usedVariable instanceof CompositeVariable) {
+											CompositeVariable composite = (CompositeVariable)usedVariable;
+											if(composite.getInitialVariable().equals(argumentVariable)) {
+												cache.addUsedFieldForMethodArgument(composite.getRightPart(), methodObject, argumentPosition);
+												usedFieldCount++;
+											}
 										}
 									}
-								}
-								if(usedFieldCount == 0) {
-									cache.setEmptyUsedFieldsForMethodArgument(methodObject, argumentPosition);
-								}
-								int definedFieldCount = 0;
-								for(AbstractVariable definedVariable : definedVariables) {
-									if(definedVariable instanceof CompositeVariable) {
-										CompositeVariable composite = (CompositeVariable)definedVariable;
-										if(composite.getInitialVariable().equals(argumentVariable)) {
-											cache.addDefinedFieldForMethodArgument(composite.getRightPart(), methodObject, argumentPosition);
-											definedFieldCount++;
+									if(usedFieldCount == 0) {
+										cache.setEmptyUsedFieldsForMethodArgument(methodObject, argumentPosition);
+									}
+									int definedFieldCount = 0;
+									for(AbstractVariable definedVariable : definedVariables) {
+										if(definedVariable instanceof CompositeVariable) {
+											CompositeVariable composite = (CompositeVariable)definedVariable;
+											if(composite.getInitialVariable().equals(argumentVariable)) {
+												cache.addDefinedFieldForMethodArgument(composite.getRightPart(), methodObject, argumentPosition);
+												definedFieldCount++;
+											}
 										}
 									}
-								}
-								if(definedFieldCount == 0) {
-									cache.setEmptyDefinedFieldsForMethodArgument(methodObject, argumentPosition);
+									if(definedFieldCount == 0) {
+										cache.setEmptyDefinedFieldsForMethodArgument(methodObject, argumentPosition);
+									}
 								}
 							}
 						}

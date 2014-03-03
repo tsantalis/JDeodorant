@@ -205,22 +205,34 @@ public class PDGSubTreeMapper {
 		for(PDGNodeMapping nodeMapping : maximumStateWithMinimumDifferences.getNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
+			List<AbstractVariable> nonAnonymousDeclaredVariablesG1 = new ArrayList<AbstractVariable>();
 			Iterator<AbstractVariable> declaredVariableIteratorG1 = nodeG1.getDeclaredVariableIterator();
-			Iterator<AbstractVariable> declaredVariableIteratorG2 = nodeG2.getDeclaredVariableIterator();
-			while(declaredVariableIteratorG1.hasNext() && declaredVariableIteratorG2.hasNext()) {
+			while(declaredVariableIteratorG1.hasNext()) {
 				AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
-				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
 				String key1 = declaredVariableG1.getVariableBindingKey();
 				String declaringType1 = key1.substring(0, key1.indexOf(";"));
+				if(!declaringType1.contains("$")) {
+					nonAnonymousDeclaredVariablesG1.add(declaredVariableG1);
+				}
+			}
+			List<AbstractVariable> nonAnonymousDeclaredVariablesG2 = new ArrayList<AbstractVariable>();
+			Iterator<AbstractVariable> declaredVariableIteratorG2 = nodeG2.getDeclaredVariableIterator();
+			while(declaredVariableIteratorG2.hasNext()) {
+				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
 				String key2 = declaredVariableG2.getVariableBindingKey();
 				String declaringType2 = key2.substring(0, key2.indexOf(";"));
-				//exclude the variables declared in anonymous class declarations
-				if(!declaringType1.contains("$") && !declaringType2.contains("$")) {
-					ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
-					declaredVariables.add(declaredVariableG1);
-					declaredVariables.add(declaredVariableG2);
-					declaredLocalVariablesInMappedNodes.put(declaredVariableG1.getVariableBindingKey(), declaredVariables);
+				if(!declaringType2.contains("$")) {
+					nonAnonymousDeclaredVariablesG2.add(declaredVariableG2);
 				}
+			}
+			int min = Math.min(nonAnonymousDeclaredVariablesG1.size(), nonAnonymousDeclaredVariablesG2.size());
+			for(int i=0; i<min; i++) {
+				AbstractVariable declaredVariableG1 = nonAnonymousDeclaredVariablesG1.get(i);
+				AbstractVariable declaredVariableG2 = nonAnonymousDeclaredVariablesG2.get(i);
+				ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
+				declaredVariables.add(declaredVariableG1);
+				declaredVariables.add(declaredVariableG2);
+				declaredLocalVariablesInMappedNodes.put(declaredVariableG1.getVariableBindingKey(), declaredVariables);
 			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();

@@ -83,6 +83,13 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     public ParameterObject getParameter(int position) {
     	if(position >= 0 && position < parameterList.size())
     		return parameterList.get(position);
+    	else if(position >= parameterList.size()) {
+    		ParameterObject param = parameterList.get(parameterList.size()-1);
+    		if(param.isVarargs())
+    			return param;
+    		else
+    			return null;
+    	}
     	else
     		return null;
     }

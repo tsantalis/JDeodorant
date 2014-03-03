@@ -6,13 +6,15 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 public class ParameterObject implements VariableDeclarationObject {
 	private TypeObject type;
 	private String name;
+	private boolean varargs;
 	//private SingleVariableDeclaration singleVariableDeclaration;
 	private ASTInformation singleVariableDeclaration;
 	private volatile int hashCode = 0;
 
-	public ParameterObject(TypeObject type, String name) {
+	public ParameterObject(TypeObject type, String name, boolean varargs) {
 		this.type = type;
 		this.name = name;
+		this.varargs = varargs;
 	}
 
 	public TypeObject getType() {
@@ -21,6 +23,10 @@ public class ParameterObject implements VariableDeclarationObject {
 
 	public String getName() {
 		return name;
+	}
+
+	public boolean isVarargs() {
+		return varargs;
 	}
 
 	public void setSingleVariableDeclaration(SingleVariableDeclaration singleVariableDeclaration) {
@@ -40,7 +46,8 @@ public class ParameterObject implements VariableDeclarationObject {
 
         if (o instanceof ParameterObject) {
             ParameterObject parameterObject = (ParameterObject)o;
-            return this.type.equals(parameterObject.type) && this.name.equals(parameterObject.name);
+            return this.type.equals(parameterObject.type) && this.name.equals(parameterObject.name) &&
+            		this.varargs == parameterObject.varargs;
         }
         
         return false;
@@ -51,6 +58,7 @@ public class ParameterObject implements VariableDeclarationObject {
 			int result = 17;
 			result = 37*result + name.hashCode();
 			result = 37*result + type.hashCode();
+			result = 37*result + (varargs ? 1 : 0);
 			hashCode = result;
 		}
 		return hashCode;

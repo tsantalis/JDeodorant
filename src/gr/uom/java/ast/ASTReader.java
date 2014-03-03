@@ -265,7 +265,7 @@ public class ASTReader {
 		        			if(parameter.isVarargs()) {
 		        				typeObject.setArrayDimension(1);
 		        			}
-		        			ParameterObject parameterObject = new ParameterObject(typeObject, parameter.getName().getIdentifier());
+		        			ParameterObject parameterObject = new ParameterObject(typeObject, parameter.getName().getIdentifier(), parameter.isVarargs());
 		        			parameterObject.setSingleVariableDeclaration(parameter);
 		        			constructorObject.addParameter(parameterObject);
 		        		}

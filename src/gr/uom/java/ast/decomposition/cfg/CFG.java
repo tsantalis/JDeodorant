@@ -320,7 +320,7 @@ public class CFG extends Graph {
 			}
 			if(statements.get(statements.size()-1).equals(childComposite)) {
 				//current if statement is the last statement of the composite statement
-				if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement) {
+				if(previousStatement != null && (previousStatement.getStatement() instanceof IfStatement || previousStatement.getStatement() instanceof SwitchStatement)) {
 					action = JOIN_SECOND_FROM_TOP_LIST;
 					if(parent != null && (isLoop(parent) || parent.getStatement() instanceof DoStatement))
 						action = PLACE_NEW_LIST_SECOND_FROM_TOP;
@@ -332,7 +332,7 @@ public class CFG extends Graph {
 				}
 			}
 			else {
-				if(previousStatement != null && previousStatement.getStatement() instanceof IfStatement)
+				if(previousStatement != null && (previousStatement.getStatement() instanceof IfStatement || previousStatement.getStatement() instanceof SwitchStatement))
 					action = PLACE_NEW_LIST_SECOND_FROM_TOP;
 				else {
 					action = PUSH_NEW_LIST;

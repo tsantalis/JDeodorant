@@ -15,8 +15,11 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -198,7 +201,7 @@ public class MethodObject implements AbstractMethodDeclaration {
     public MethodInvocationObject isDelegate() {
     	if(getMethodBody() != null) {
     		MethodDeclaration methodDeclaration = getMethodDeclaration();
-    		TypeDeclaration parentClass = (TypeDeclaration)methodDeclaration.getParent();
+    		AbstractTypeDeclaration parentClass = (AbstractTypeDeclaration)methodDeclaration.getParent();
 	    	List<AbstractStatement> abstractStatements = getMethodBody().getCompositeStatement().getStatements();
 	    	if(abstractStatements.size() == 1 && abstractStatements.get(0) instanceof StatementObject) {
 	    		StatementObject statementObject = (StatementObject)abstractStatements.get(0);
@@ -221,7 +224,22 @@ public class MethodObject implements AbstractMethodDeclaration {
 	    			List<MethodInvocationObject> methodInvocations = statementObject.getMethodInvocations();
 	    			if(methodInvocationExpression instanceof MethodInvocation) {
 	    				MethodInvocation previousChainedMethodInvocation = (MethodInvocation)methodInvocationExpression;
-	    				MethodDeclaration[] parentClassMethods = parentClass.getMethods();
+	    				List<MethodDeclaration> parentClassMethods = new ArrayList<MethodDeclaration>();
+	    				if(parentClass instanceof TypeDeclaration) {
+	    					MethodDeclaration[] parentClassMethodArray = ((TypeDeclaration)parentClass).getMethods();
+	    					for(MethodDeclaration method : parentClassMethodArray) {
+	    						parentClassMethods.add(method);
+	    					}
+	    				}
+	    				else if(parentClass instanceof EnumDeclaration) {
+	    					EnumDeclaration enumDeclaration = (EnumDeclaration)parentClass;
+	    					List<BodyDeclaration> bodyDeclarations = enumDeclaration.bodyDeclarations();
+	    					for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+	    						if(bodyDeclaration instanceof MethodDeclaration) {
+	    							parentClassMethods.add((MethodDeclaration)bodyDeclaration);
+	    						}
+	    					}
+	    				}
 	    				boolean isDelegationChain = false;
 		    			boolean foundInParentClass = false;
 	    				for(MethodDeclaration parentClassMethod : parentClassMethods) {

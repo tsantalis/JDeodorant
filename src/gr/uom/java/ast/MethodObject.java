@@ -288,7 +288,7 @@ public class MethodObject implements AbstractMethodDeclaration {
     }
 
     public boolean validTargetObject(ClassObject sourceClass, ClassObject targetClass) {
-    	ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+    	ITypeBinding targetClassBinding = targetClass.getAbstractTypeDeclaration().resolveBinding();
     	List<LocalVariableInstructionObject> localVariableInstructions = getLocalVariableInstructions();
     	for(LocalVariableInstructionObject localVariableInstruction : localVariableInstructions) {
     		if(localVariableInstruction.getType().getClassType().equals(targetClass.getName())) {

@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -654,27 +655,30 @@ public class SystemObject {
 			for(SimpleName staticField : staticFields) {
 				for(String subclassName : inheritanceHierarchySubclassNames) {
 					ClassObject classObject = getClassObject(subclassName);
-					TypeDeclaration typeDeclaration = classObject.getTypeDeclaration();
-					Javadoc javadoc = typeDeclaration.getJavadoc();
-					if(javadoc != null) {
-						List<TagElement> tagElements = javadoc.tags();
-						for(TagElement tagElement : tagElements) {
-							if(tagElement.getTagName() != null && tagElement.getTagName().equals(TagElement.TAG_SEE)) {
-								List<ASTNode> fragments = tagElement.fragments();
-								for(ASTNode fragment : fragments) {
-									if(fragment instanceof MemberRef) {
-										MemberRef memberRef = (MemberRef)fragment;
-										IBinding staticFieldNameBinding = staticField.resolveBinding();
-										ITypeBinding staticFieldNameDeclaringClass = null;
-										if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
-											IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
-											staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
-										}
-										if(staticFieldNameBinding.getName().equals(memberRef.getName().getIdentifier()) &&
-												staticFieldNameDeclaringClass.getQualifiedName().equals(memberRef.getQualifier().getFullyQualifiedName())) {
-											typeCheckElimination.putStaticFieldSubclassTypeMapping(staticField, subclassName);
-											matchCounter++;
-											break;
+					AbstractTypeDeclaration abstractTypeDeclaration = classObject.getAbstractTypeDeclaration();
+					if(abstractTypeDeclaration instanceof TypeDeclaration) {
+						TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+						Javadoc javadoc = typeDeclaration.getJavadoc();
+						if(javadoc != null) {
+							List<TagElement> tagElements = javadoc.tags();
+							for(TagElement tagElement : tagElements) {
+								if(tagElement.getTagName() != null && tagElement.getTagName().equals(TagElement.TAG_SEE)) {
+									List<ASTNode> fragments = tagElement.fragments();
+									for(ASTNode fragment : fragments) {
+										if(fragment instanceof MemberRef) {
+											MemberRef memberRef = (MemberRef)fragment;
+											IBinding staticFieldNameBinding = staticField.resolveBinding();
+											ITypeBinding staticFieldNameDeclaringClass = null;
+											if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+												IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+												staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
+											}
+											if(staticFieldNameBinding.getName().equals(memberRef.getName().getIdentifier()) &&
+													staticFieldNameDeclaringClass.getQualifiedName().equals(memberRef.getQualifier().getFullyQualifiedName())) {
+												typeCheckElimination.putStaticFieldSubclassTypeMapping(staticField, subclassName);
+												matchCounter++;
+												break;
+											}
 										}
 									}
 								}

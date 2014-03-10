@@ -46,7 +46,6 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
-import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
@@ -721,7 +720,8 @@ public class FeatureEnvy extends ViewPart {
 
 			final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
 			for(ClassObject classObject : classObjectsToBeExamined) {
-				classNamesToBeExamined.add(classObject.getName());
+				if(!classObject.isEnum())
+					classNamesToBeExamined.add(classObject.getName());
 			}
 			MySystem system = new MySystem(systemObject, false);
 			final DistanceMatrix distanceMatrix = new DistanceMatrix(system);

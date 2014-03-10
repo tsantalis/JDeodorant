@@ -626,7 +626,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 
 	@Override
 	public TypeDeclaration getSourceClassTypeDeclaration() {
-		return sourceClass.getClassObject().getTypeDeclaration();
+		return (TypeDeclaration)sourceClass.getClassObject().getAbstractTypeDeclaration();
 	}
 
 	@Override

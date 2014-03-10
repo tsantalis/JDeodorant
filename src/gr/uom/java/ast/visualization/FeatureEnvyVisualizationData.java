@@ -176,7 +176,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 				if(localVariableInstruction != null)
 					variableTypeBinding = localVariableInstruction.getSimpleName().resolveTypeBinding();
 			}
-			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+			ITypeBinding targetClassBinding = targetClass.getAbstractTypeDeclaration().resolveBinding();
 			if(variable.getVariableType().equals(targetClass.getName()) ||
 					(variableTypeBinding != null && targetClassBinding.isEqualTo(variableTypeBinding.getSuperclass()))) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(compositeVariable.getFinalVariable(), fieldInstructions);
@@ -213,7 +213,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 				if(localVariableInstruction != null)
 					variableTypeBinding = localVariableInstruction.getSimpleName().resolveTypeBinding();
 			}
-			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+			ITypeBinding targetClassBinding = targetClass.getAbstractTypeDeclaration().resolveBinding();
 			if(variable.getVariableType().equals(targetClass.getName()) ||
 					(variableTypeBinding != null && targetClassBinding.isEqualTo(variableTypeBinding.getSuperclass()))) {
 				FieldInstructionObject fieldInstruction = findFieldInstruction(compositeVariable.getFinalVariable(), fieldInstructions);
@@ -264,7 +264,7 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 				if(localVariableInstruction != null)
 					variableTypeBinding = localVariableInstruction.getSimpleName().resolveTypeBinding();
 			}
-			ITypeBinding targetClassBinding = targetClass.getTypeDeclaration().resolveBinding();
+			ITypeBinding targetClassBinding = targetClass.getAbstractTypeDeclaration().resolveBinding();
 			if(variable.getVariableType().equals(targetClass.getName()) ||
 					(variableTypeBinding != null && targetClassBinding.isEqualTo(variableTypeBinding.getSuperclass()))) {
 				List<MethodInvocationObject> externalMethodInvocations = externalMethodInvocationMap.get(abstractVariable);

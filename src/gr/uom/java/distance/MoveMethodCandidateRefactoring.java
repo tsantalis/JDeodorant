@@ -330,11 +330,11 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     }
 
     public TypeDeclaration getSourceClassTypeDeclaration() {
-        return sourceClass.getClassObject().getTypeDeclaration();
+        return (TypeDeclaration)sourceClass.getClassObject().getAbstractTypeDeclaration();
     }
 
     public TypeDeclaration getTargetClassTypeDeclaration() {
-        return targetClass.getClassObject().getTypeDeclaration();
+        return (TypeDeclaration)targetClass.getClassObject().getAbstractTypeDeclaration();
     }
 
 	public IFile getSourceIFile() {

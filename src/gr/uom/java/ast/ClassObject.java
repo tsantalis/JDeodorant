@@ -13,6 +13,8 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 
 public class ClassObject {
@@ -21,11 +23,13 @@ public class ClassObject {
 	private List<ConstructorObject> constructorList;
 	private List<MethodObject> methodList;
 	private List<FieldObject> fieldList;
+	private List<EnumConstantDeclarationObject> enumConstantDeclarationList;
 	private TypeObject superclass;
 	private List<TypeObject> interfaceList;
 	private boolean _abstract;
     private boolean _interface;
     private boolean _static;
+    private boolean _enum;
     private Access access;
     //private TypeDeclaration typeDeclaration;
     private ASTInformation typeDeclaration;
@@ -36,9 +40,11 @@ public class ClassObject {
 		this.methodList = new ArrayList<MethodObject>();
 		this.interfaceList = new ArrayList<TypeObject>();
 		this.fieldList = new ArrayList<FieldObject>();
+		this.enumConstantDeclarationList = new ArrayList<EnumConstantDeclarationObject>();
 		this._abstract = false;
         this._interface = false;
         this._static = false;
+        this._enum = false;
         this.access = Access.NONE;
     }
 
@@ -58,14 +64,17 @@ public class ClassObject {
     	return null;
     }*/
 
-    public void setTypeDeclaration(TypeDeclaration typeDeclaration) {
+    public void setAbstractTypeDeclaration(AbstractTypeDeclaration typeDeclaration) {
     	//this.typeDeclaration = typeDeclaration;
     	this.typeDeclaration = ASTInformationGenerator.generateASTInformation(typeDeclaration);
     }
 
-    public TypeDeclaration getTypeDeclaration() {
+    public AbstractTypeDeclaration getAbstractTypeDeclaration() {
     	//return this.typeDeclaration;
-    	return (TypeDeclaration)this.typeDeclaration.recoverASTNode();
+    	if(_enum)
+    		return (EnumDeclaration)this.typeDeclaration.recoverASTNode();
+    	else
+    		return (TypeDeclaration)this.typeDeclaration.recoverASTNode();
     }
 
     public ITypeRoot getITypeRoot() {
@@ -213,17 +222,20 @@ public class ClassObject {
 
     public List<TypeCheckElimination> generateTypeCheckEliminations() {
     	List<TypeCheckElimination> typeCheckEliminations = new ArrayList<TypeCheckElimination>();
-    	for(MethodObject methodObject : methodList) {
-    		MethodBodyObject methodBodyObject = methodObject.getMethodBody();
-    		if(methodBodyObject != null) {
-    			List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
-    			for(TypeCheckElimination typeCheckElimination : list) {
-    				if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
-    					//TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration());
-    					TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, getTypeDeclaration(), methodObject.getMethodDeclaration(), iFile);
-    					if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null || typeCheckElimination.getTypeMethodInvocation() != null) &&
-    							typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
-    						typeCheckEliminations.add(typeCheckElimination);
+    	if(!_enum) {
+    		for(MethodObject methodObject : methodList) {
+    			MethodBodyObject methodBodyObject = methodObject.getMethodBody();
+    			if(methodBodyObject != null) {
+    				List<TypeCheckElimination> list = methodBodyObject.generateTypeCheckEliminations();
+    				for(TypeCheckElimination typeCheckElimination : list) {
+    					if(!typeCheckElimination.allTypeCheckBranchesAreEmpty()) {
+    						//TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, typeDeclaration, methodObject.getMethodDeclaration());
+    						TypeCheckCodeFragmentAnalyzer analyzer = new TypeCheckCodeFragmentAnalyzer(typeCheckElimination, (TypeDeclaration)getAbstractTypeDeclaration(),
+    								methodObject.getMethodDeclaration(), iFile);
+    						if((typeCheckElimination.getTypeField() != null || typeCheckElimination.getTypeLocalVariable() != null || typeCheckElimination.getTypeMethodInvocation() != null) &&
+    								typeCheckElimination.allTypeCheckingsContainStaticFieldOrSubclassType() && typeCheckElimination.isApplicable()) {
+    							typeCheckEliminations.add(typeCheckElimination);
+    						}
     					}
     				}
     			}
@@ -264,6 +276,10 @@ public class ClassObject {
 		return fieldList.add(f);
 	}
 	
+	public boolean addEnumConstantDeclaration(EnumConstantDeclarationObject f) {
+		return enumConstantDeclarationList.add(f);
+	}
+	
 	public ListIterator<ConstructorObject> getConstructorIterator() {
 		return constructorList.listIterator();
 	}
@@ -284,6 +300,10 @@ public class ClassObject {
 
 	public ListIterator<FieldObject> getFieldIterator() {
 		return fieldList.listIterator();
+	}
+
+	public ListIterator<EnumConstantDeclarationObject> getEnumConstantDeclarationIterator() {
+		return enumConstantDeclarationList.listIterator();
 	}
 
 	public Set<FieldObject> getFieldsAccessedInsideMethod(AbstractMethodDeclaration method) {
@@ -351,7 +371,15 @@ public class ClassObject {
         _static = s;
     }
 
-    public int getNumberOfMethods() {
+    public boolean isEnum() {
+		return _enum;
+	}
+
+	public void setEnum(boolean _enum) {
+		this._enum = _enum;
+	}
+
+	public int getNumberOfMethods() {
     	return methodList.size();
     }
 

@@ -355,7 +355,7 @@ public class MethodCallAnalyzer {
 	private void processInternalMethodInvocation(ClassObject classObject, MethodObject methodObject, AbstractVariable variableDeclaration, Set<String> processedMethods) {
 		SystemObject systemObject = ASTReader.getSystemObject();
 		if(methodObject.isAbstract() || classObject.isInterface()) {
-			TypeDeclaration typeDeclaration = classObject.getTypeDeclaration();
+			AbstractTypeDeclaration typeDeclaration = classObject.getAbstractTypeDeclaration();
 			IMethodBinding superMethodDeclarationBinding = methodObject.getMethodDeclaration().resolveBinding();
 			IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
 			processedMethods.add(superMethodDeclarationBinding.getKey());

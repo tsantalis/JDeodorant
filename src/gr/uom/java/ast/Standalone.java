@@ -50,7 +50,8 @@ public class Standalone {
 		
 		Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
 		for(ClassObject classObject : classObjectsToBeExamined) {
-			classNamesToBeExamined.add(classObject.getName());
+			if(!classObject.isEnum())
+				classNamesToBeExamined.add(classObject.getName());
 		}
 		MySystem system = new MySystem(systemObject, false);
 		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
@@ -78,7 +79,8 @@ public class Standalone {
 		
 		Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
 		for(ClassObject classObject : classObjectsToBeExamined) {
-			classNamesToBeExamined.add(classObject.getName());
+			if(!classObject.isEnum())
+				classNamesToBeExamined.add(classObject.getName());
 		}
 		MySystem system = new MySystem(systemObject, true);
 		DistanceMatrix distanceMatrix = new DistanceMatrix(system);

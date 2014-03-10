@@ -14,7 +14,11 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -25,6 +29,7 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.ArrayList;
@@ -169,7 +174,7 @@ public class ASTReader {
 	        		final ClassObject classObject = new ClassObject();
 		        	classObject.setIFile(iFile);
 		        	classObject.setName(typeDeclaration.resolveBinding().getQualifiedName());
-		        	classObject.setTypeDeclaration(typeDeclaration);
+		        	classObject.setAbstractTypeDeclaration(typeDeclaration);
 		        	
 		        	if(typeDeclaration.isInterface()) {
 		        		classObject.setInterface(true);
@@ -239,93 +244,150 @@ public class ASTReader {
 		        	
 		        	MethodDeclaration[] methodDeclarations = typeDeclaration.getMethods();
 		        	for(MethodDeclaration methodDeclaration : methodDeclarations) {
-		        		String methodName = methodDeclaration.getName().getIdentifier();
-		        		final ConstructorObject constructorObject = new ConstructorObject();
-		        		constructorObject.setMethodDeclaration(methodDeclaration);
-		        		constructorObject.setName(methodName);
-		        		constructorObject.setClassName(classObject.getName());
-		        		
-		        		int methodModifiers = methodDeclaration.getModifiers();
-		        		if((methodModifiers & Modifier.PUBLIC) != 0)
-		        			constructorObject.setAccess(Access.PUBLIC);
-		            	else if((methodModifiers & Modifier.PROTECTED) != 0)
-		            		constructorObject.setAccess(Access.PROTECTED);
-		            	else if((methodModifiers & Modifier.PRIVATE) != 0)
-		            		constructorObject.setAccess(Access.PRIVATE);
-		            	else
-		            		constructorObject.setAccess(Access.NONE);
-		        		
-		        		List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
-		        		for(SingleVariableDeclaration parameter : parameters) {
-		        			Type parameterType = parameter.getType();
-		        			ITypeBinding binding = parameterType.resolveBinding();
-		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
-		        			typeObject.setArrayDimension(typeObject.getArrayDimension() + parameter.getExtraDimensions());
-		        			if(parameter.isVarargs()) {
-		        				typeObject.setArrayDimension(1);
-		        			}
-		        			ParameterObject parameterObject = new ParameterObject(typeObject, parameter.getName().getIdentifier(), parameter.isVarargs());
-		        			parameterObject.setSingleVariableDeclaration(parameter);
-		        			constructorObject.addParameter(parameterObject);
-		        		}
-		        		
-		        		Block methodBody = methodDeclaration.getBody();
-		        		if(methodBody != null) {
-		        			MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
-		        			constructorObject.setMethodBody(methodBodyObject);
-		        		}
-		        		
-		        		if(methodDeclaration.isConstructor()) {
-		        			classObject.addConstructor(constructorObject);
-		        		}
-		        		else {
-		        			MethodObject methodObject = new MethodObject(constructorObject);
-		        			List<IExtendedModifier> extendedModifiers = methodDeclaration.modifiers();
-			        		for(IExtendedModifier extendedModifier : extendedModifiers) {
-			        			if(extendedModifier.isAnnotation()) {
-			        				Annotation annotation = (Annotation)extendedModifier;
-			        				if(annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
-			        					methodObject.setTestAnnotation(true);
-			        					break;
-			        				}
-			        			}
-			        		}
-		        			Type returnType = methodDeclaration.getReturnType2();
-		        			ITypeBinding binding = returnType.resolveBinding();
-		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
-		        			methodObject.setReturnType(typeObject);
-		        			
-		        			if((methodModifiers & Modifier.ABSTRACT) != 0)
-		        				methodObject.setAbstract(true);
-		        			if((methodModifiers & Modifier.STATIC) != 0)
-		        				methodObject.setStatic(true);
-		        			if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
-		        				methodObject.setSynchronized(true);
-		        			if((methodModifiers & Modifier.NATIVE) != 0)
-		        				methodObject.setNative(true);
-		        			
-		        			classObject.addMethod(methodObject);
-		        			FieldInstructionObject fieldInstruction = methodObject.isGetter();
-		        			if(fieldInstruction != null)
-		        				systemObject.addGetter(methodObject.generateMethodInvocation(), fieldInstruction);
-		        			fieldInstruction = methodObject.isSetter();
-		        			if(fieldInstruction != null)
-		        				systemObject.addSetter(methodObject.generateMethodInvocation(), fieldInstruction);
-		        			fieldInstruction = methodObject.isCollectionAdder();
-		        			if(fieldInstruction != null)
-		        				systemObject.addCollectionAdder(methodObject.generateMethodInvocation(), fieldInstruction);
-		        			MethodInvocationObject methodInvocation = methodObject.isDelegate();
-		        			if(methodInvocation != null)
-		        				systemObject.addDelegate(methodObject.generateMethodInvocation(), methodInvocation);
-		        		}
+		        		processMethodDeclaration(classObject, methodDeclaration);
 		        	}
 		        	classObjects.add(classObject);
         		}
         	}
+        	else if(abstractTypeDeclaration instanceof EnumDeclaration) {
+        		EnumDeclaration enumDeclaration = (EnumDeclaration)abstractTypeDeclaration;
+        		final ClassObject classObject = new ClassObject();
+        		classObject.setEnum(true);
+	        	classObject.setIFile(iFile);
+	        	classObject.setName(enumDeclaration.resolveBinding().getQualifiedName());
+	        	classObject.setAbstractTypeDeclaration(enumDeclaration);
+	        	
+	        	int modifiers = enumDeclaration.getModifiers();
+	        	if((modifiers & Modifier.ABSTRACT) != 0)
+	        		classObject.setAbstract(true);
+	        	
+	        	if((modifiers & Modifier.PUBLIC) != 0)
+	        		classObject.setAccess(Access.PUBLIC);
+	        	else if((modifiers & Modifier.PROTECTED) != 0)
+	        		classObject.setAccess(Access.PROTECTED);
+	        	else if((modifiers & Modifier.PRIVATE) != 0)
+	        		classObject.setAccess(Access.PRIVATE);
+	        	else
+	        		classObject.setAccess(Access.NONE);
+	        	
+	        	if((modifiers & Modifier.STATIC) != 0)
+	        		classObject.setStatic(true);
+	        	
+	        	List<Type> superInterfaceTypes = enumDeclaration.superInterfaceTypes();
+	        	for(Type interfaceType : superInterfaceTypes) {
+	        		ITypeBinding binding = interfaceType.resolveBinding();
+	        		String qualifiedName = binding.getQualifiedName();
+        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+	        		classObject.addInterface(typeObject);
+	        	}
+	        	
+	        	List<EnumConstantDeclaration> enumConstantDeclarations = enumDeclaration.enumConstants();
+	        	for(EnumConstantDeclaration enumConstantDeclaration : enumConstantDeclarations) {
+	        		EnumConstantDeclarationObject enumConstantDeclarationObject = new EnumConstantDeclarationObject(enumConstantDeclaration.getName().getIdentifier());
+        			enumConstantDeclarationObject.setEnumName(classObject.getName());
+        			enumConstantDeclarationObject.setEnumConstantDeclaration(enumConstantDeclaration);
+        			List<Expression> arguments = enumConstantDeclaration.arguments();
+        			for(Expression argument : arguments) {
+        				AbstractExpression abstractExpression = new AbstractExpression(argument);
+        				enumConstantDeclarationObject.addArgument(abstractExpression);
+        			}
+        			classObject.addEnumConstantDeclaration(enumConstantDeclarationObject);
+	        	}
+	        	
+	        	List<BodyDeclaration> bodyDeclarations = enumDeclaration.bodyDeclarations();
+	        	for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+	        		if(bodyDeclaration instanceof MethodDeclaration) {
+	        			processMethodDeclaration(classObject, (MethodDeclaration)bodyDeclaration);
+	        		}
+	        	}
+	        	classObjects.add(classObject);
+        	}
         }
         return classObjects;
+	}
+
+	private void processMethodDeclaration(final ClassObject classObject, MethodDeclaration methodDeclaration) {
+		String methodName = methodDeclaration.getName().getIdentifier();
+		final ConstructorObject constructorObject = new ConstructorObject();
+		constructorObject.setMethodDeclaration(methodDeclaration);
+		constructorObject.setName(methodName);
+		constructorObject.setClassName(classObject.getName());
+		
+		int methodModifiers = methodDeclaration.getModifiers();
+		if((methodModifiers & Modifier.PUBLIC) != 0)
+			constructorObject.setAccess(Access.PUBLIC);
+		else if((methodModifiers & Modifier.PROTECTED) != 0)
+			constructorObject.setAccess(Access.PROTECTED);
+		else if((methodModifiers & Modifier.PRIVATE) != 0)
+			constructorObject.setAccess(Access.PRIVATE);
+		else
+			constructorObject.setAccess(Access.NONE);
+		
+		List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
+		for(SingleVariableDeclaration parameter : parameters) {
+			Type parameterType = parameter.getType();
+			ITypeBinding binding = parameterType.resolveBinding();
+			String qualifiedName = binding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+			typeObject.setArrayDimension(typeObject.getArrayDimension() + parameter.getExtraDimensions());
+			if(parameter.isVarargs()) {
+				typeObject.setArrayDimension(1);
+			}
+			ParameterObject parameterObject = new ParameterObject(typeObject, parameter.getName().getIdentifier(), parameter.isVarargs());
+			parameterObject.setSingleVariableDeclaration(parameter);
+			constructorObject.addParameter(parameterObject);
+		}
+		
+		Block methodBody = methodDeclaration.getBody();
+		if(methodBody != null) {
+			MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
+			constructorObject.setMethodBody(methodBodyObject);
+		}
+		
+		if(methodDeclaration.isConstructor()) {
+			classObject.addConstructor(constructorObject);
+		}
+		else {
+			MethodObject methodObject = new MethodObject(constructorObject);
+			List<IExtendedModifier> extendedModifiers = methodDeclaration.modifiers();
+			for(IExtendedModifier extendedModifier : extendedModifiers) {
+				if(extendedModifier.isAnnotation()) {
+					Annotation annotation = (Annotation)extendedModifier;
+					if(annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
+						methodObject.setTestAnnotation(true);
+						break;
+					}
+				}
+			}
+			Type returnType = methodDeclaration.getReturnType2();
+			ITypeBinding binding = returnType.resolveBinding();
+			String qualifiedName = binding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+			methodObject.setReturnType(typeObject);
+			
+			if((methodModifiers & Modifier.ABSTRACT) != 0)
+				methodObject.setAbstract(true);
+			if((methodModifiers & Modifier.STATIC) != 0)
+				methodObject.setStatic(true);
+			if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
+				methodObject.setSynchronized(true);
+			if((methodModifiers & Modifier.NATIVE) != 0)
+				methodObject.setNative(true);
+			
+			classObject.addMethod(methodObject);
+			FieldInstructionObject fieldInstruction = methodObject.isGetter();
+			if(fieldInstruction != null)
+				systemObject.addGetter(methodObject.generateMethodInvocation(), fieldInstruction);
+			fieldInstruction = methodObject.isSetter();
+			if(fieldInstruction != null)
+				systemObject.addSetter(methodObject.generateMethodInvocation(), fieldInstruction);
+			fieldInstruction = methodObject.isCollectionAdder();
+			if(fieldInstruction != null)
+				systemObject.addCollectionAdder(methodObject.generateMethodInvocation(), fieldInstruction);
+			MethodInvocationObject methodInvocation = methodObject.isDelegate();
+			if(methodInvocation != null)
+				systemObject.addDelegate(methodObject.generateMethodInvocation(), methodInvocation);
+		}
 	}
 
     public static SystemObject getSystemObject() {

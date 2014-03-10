@@ -737,7 +737,8 @@ public class GodClass extends ViewPart {
 			}
 			final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
 			for(ClassObject classObject : classObjectsToBeExamined) {
-				classNamesToBeExamined.add(classObject.getName());
+				if(!classObject.isEnum())
+					classNamesToBeExamined.add(classObject.getName());
 			}
 			MySystem system = new MySystem(systemObject, true);
 			final DistanceMatrix distanceMatrix = new DistanceMatrix(system);

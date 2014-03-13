@@ -95,36 +95,36 @@ public class CFG extends Graph {
 					List<AbstractStatement> nestedStatements = compositeStatement.getStatements();
 					if(!nestedStatements.isEmpty()) {
 						AbstractStatement firstStatement = nestedStatements.get(0);
-						if(firstStatement instanceof CompositeStatementObject)
-							previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+						if(firstStatement instanceof CompositeStatementObject) {
+							CompositeStatementObject compositeStatement2 = (CompositeStatementObject)firstStatement;
+							if(compositeStatement2.getStatement() instanceof Block) {
+								previousNodes = process(previousNodes, compositeStatement2);
+							}
+							else if(compositeStatement2 instanceof TryStatementObject) {
+								previousNodes = processTryStatement(previousNodes, compositeStatement2);
+							}
+							else if(isLoop(compositeStatement2)) {
+								previousNodes = processLoopStatement(previousNodes, compositeStatement2);
+							}
+							else if(compositeStatement2.getStatement() instanceof DoStatement) {
+								previousNodes = processDoStatement(previousNodes, compositeStatement2);
+							}
+							else if(compositeStatement2.getStatement() instanceof SwitchStatement) {
+								int action = getAction(composite, i, compositeStatement2);
+								previousNodes = processSwitchStatement(previousNodes, compositeStatement2, action);
+							}
+							else if(compositeStatement2.getStatement() instanceof IfStatement) {
+								int action = getAction(composite, i, compositeStatement2);
+								previousNodes = processIfStatement(previousNodes, compositeStatement2, action);
+							}
+						}
+						else if(firstStatement instanceof StatementObject) {
+							previousNodes = processNonCompositeStatement(previousNodes, (StatementObject)firstStatement, composite);
+						}
 					}
 				}
 				else if(compositeStatement instanceof TryStatementObject) {
-					TryStatementObject tryStatement = (TryStatementObject)compositeStatement;
-					if(!tryStatement.hasResources()) {
-						//if a try node does not have resources, it is treated as a block and is omitted
-						CFGTryNode tryNode = new CFGTryNode(compositeStatement);
-						//nodes.add(tryNode);
-						directlyNestedNodeInTryBlock(tryNode);
-						findTryNodeControlParent(tryNode);
-						directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
-						AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
-						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
-					}
-					else {
-						//if a try node has resources, it is treated as a non-composite node
-						CFGTryNode tryNode = new CFGTryNode(compositeStatement);
-						directlyNestedNodeInTryBlock(tryNode);
-						findTryNodeControlParent(tryNode);
-						nodes.add(tryNode);
-						directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
-						createTopDownFlow(previousNodes, tryNode);
-						ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
-						currentNodes.add(tryNode);
-						previousNodes = currentNodes;
-						AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
-						previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
-					}
+					previousNodes = processTryStatement(previousNodes, compositeStatement);
 				}
 				else if(isLoop(compositeStatement)) {
 					previousNodes = processLoopStatement(previousNodes, compositeStatement);
@@ -142,6 +142,35 @@ public class CFG extends Graph {
 				}
 			}
 			i++;
+		}
+		return previousNodes;
+	}
+
+	private List<CFGNode> processTryStatement(List<CFGNode> previousNodes, CompositeStatementObject compositeStatement) {
+		TryStatementObject tryStatement = (TryStatementObject)compositeStatement;
+		if(!tryStatement.hasResources()) {
+			//if a try node does not have resources, it is treated as a block and is omitted
+			CFGTryNode tryNode = new CFGTryNode(compositeStatement);
+			//nodes.add(tryNode);
+			directlyNestedNodeInTryBlock(tryNode);
+			findTryNodeControlParent(tryNode);
+			directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
+			AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
+			previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+		}
+		else {
+			//if a try node has resources, it is treated as a non-composite node
+			CFGTryNode tryNode = new CFGTryNode(compositeStatement);
+			directlyNestedNodeInTryBlock(tryNode);
+			findTryNodeControlParent(tryNode);
+			nodes.add(tryNode);
+			directlyNestedNodesInTryBlocks.put(tryNode, new ArrayList<CFGNode>());
+			createTopDownFlow(previousNodes, tryNode);
+			ArrayList<CFGNode> currentNodes = new ArrayList<CFGNode>();
+			currentNodes.add(tryNode);
+			previousNodes = currentNodes;
+			AbstractStatement firstStatement = compositeStatement.getStatements().get(0);
+			previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
 		}
 		return previousNodes;
 	}

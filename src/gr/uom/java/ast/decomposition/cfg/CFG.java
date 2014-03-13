@@ -14,10 +14,12 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -88,6 +90,14 @@ public class CFG extends Graph {
 				CompositeStatementObject compositeStatement = (CompositeStatementObject)abstractStatement;
 				if(compositeStatement.getStatement() instanceof Block) {
 					previousNodes = process(previousNodes, compositeStatement);
+				}
+				else if(compositeStatement.getStatement() instanceof LabeledStatement || compositeStatement.getStatement() instanceof SynchronizedStatement) {
+					List<AbstractStatement> nestedStatements = compositeStatement.getStatements();
+					if(!nestedStatements.isEmpty()) {
+						AbstractStatement firstStatement = nestedStatements.get(0);
+						if(firstStatement instanceof CompositeStatementObject)
+							previousNodes = process(previousNodes, (CompositeStatementObject)firstStatement);
+					}
 				}
 				else if(compositeStatement instanceof TryStatementObject) {
 					TryStatementObject tryStatement = (TryStatementObject)compositeStatement;

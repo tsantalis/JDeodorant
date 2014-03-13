@@ -240,6 +240,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
+		//if bindings are both null then they were recovered from SimpleName expressions representing labels
+		if(binding1 == null && binding2 == null)
+			return true;
 		if(binding1.isEqualTo(binding2))
 			return true;
 		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {

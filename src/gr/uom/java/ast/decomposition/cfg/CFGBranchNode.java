@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.SynchronizedStatement;
+
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.TryStatementObject;
@@ -64,9 +67,17 @@ public abstract class CFGBranchNode extends CFGNode {
 							CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
 							processTryStatement(nestedStatements, tryStatement);
 						}
+						else if(statementInsideBlock.getStatement() instanceof LabeledStatement || statementInsideBlock.getStatement() instanceof SynchronizedStatement) {
+							CompositeStatementObject labeledStatement = (CompositeStatementObject)statementInsideBlock;
+							processLabeledStatement(nestedStatements, labeledStatement);
+						}
 						else
 							nestedStatements.add(statementInsideBlock);
 					}
+				}
+				else if(statement.getStatement() instanceof LabeledStatement || statement.getStatement() instanceof SynchronizedStatement) {
+					CompositeStatementObject labeledStatement = (CompositeStatementObject)statement;
+					processLabeledStatement(nestedStatements, labeledStatement);
 				}
 				else if(statement instanceof TryStatementObject) {
 					CompositeStatementObject tryStatement = (CompositeStatementObject)statement;
@@ -92,7 +103,31 @@ public abstract class CFGBranchNode extends CFGNode {
 		return nestedNodes;
 	}
 
-	private void processTryStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject tryStatement) {
+	protected void processLabeledStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject labeledStatement) {
+		List<AbstractStatement> nestedStatements2 = labeledStatement.getStatements();
+		if(!nestedStatements2.isEmpty()) {
+			AbstractStatement firstStatement = nestedStatements2.get(0);
+			if(firstStatement.getStatement() instanceof Block) {
+				CompositeStatementObject blockStatement = (CompositeStatementObject)firstStatement;
+				for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
+					if(statementInsideBlock instanceof TryStatementObject) {
+						CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
+						processTryStatement(nestedStatements, tryStatement);
+					}
+					else
+						nestedStatements.add(statementInsideBlock);
+				}
+			}
+			else if(firstStatement instanceof TryStatementObject) {
+				CompositeStatementObject tryStatement = (CompositeStatementObject)firstStatement;
+				processTryStatement(nestedStatements, tryStatement);
+			}
+			else
+				nestedStatements.add(firstStatement);
+		}
+	}
+
+	protected void processTryStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject tryStatement) {
 		CompositeStatementObject tryBlock = (CompositeStatementObject)tryStatement.getStatements().get(0);
 		/*if(((TryStatementObject)tryStatement).hasResources())
 			nestedStatements.add(tryStatement);*/

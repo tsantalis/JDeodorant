@@ -268,6 +268,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		 */
 		styledString.append("break", new StyledStringStyler(keywordStyle));
 		if (stmnt.getLabel() != null) {
+			appendSpace();
 			handleExpression(stmnt.getLabel());
 		}
 		appendSemicolon();
@@ -353,6 +354,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		 */
 		styledString.append("continue", new StyledStringStyler(keywordStyle));
 		if (stmnt.getLabel() != null){
+			appendSpace();
 			handleExpression(stmnt.getLabel());
 		}
 		appendSemicolon();
@@ -984,7 +986,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		if (node instanceof SimpleName){
 			SimpleName simpleName = (SimpleName) node;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) 
 					return true;
@@ -996,7 +998,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		if (node instanceof SimpleName){
 			SimpleName simpleName = (SimpleName) node;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) 
 					return true;
@@ -1008,7 +1010,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		if (node instanceof SimpleName){
 			SimpleName simpleName = (SimpleName) node;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.METHOD) {
+			if(binding != null && binding.getKind() == IBinding.METHOD) {
 				IMethodBinding methodBinding = (IMethodBinding)binding;
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0) 
 					return true;

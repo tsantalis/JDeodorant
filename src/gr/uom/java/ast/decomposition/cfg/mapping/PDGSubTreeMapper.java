@@ -19,6 +19,7 @@ import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGAbstractDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGAntiDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
@@ -27,7 +28,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
-import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
@@ -132,7 +132,7 @@ public class PDGSubTreeMapper {
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
 				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
-				PDGTryNode tryNode = pdg1.isDirectlyNestedWithinTryNode(nodeG1);
+				PDGBlockNode tryNode = pdg1.isDirectlyNestedWithinBlockNode(nodeG1);
 				if(tryNode != null) {
 					CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG1(tryNode);
 					if(cloneStructureTry != null) {
@@ -146,7 +146,7 @@ public class PDGSubTreeMapper {
 			for(PDGNode nodeG2 : nonMappedNodesG2) {
 				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
-				PDGTryNode tryNode = pdg2.isDirectlyNestedWithinTryNode(nodeG2);
+				PDGBlockNode tryNode = pdg2.isDirectlyNestedWithinBlockNode(nodeG2);
 				if(tryNode != null) {
 					CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG2(tryNode);
 					if(cloneStructureTry != null) {
@@ -406,8 +406,8 @@ public class PDGSubTreeMapper {
 		if(!(controlPredicate instanceof PDGMethodEntryNode) &&
 				!controlPredicate.equals(controlDependenceTreeRoot.getNode()))
 			nodesInRegion.add(controlPredicate);
-		if(controlPredicate instanceof PDGTryNode) {
-			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinTryNode((PDGTryNode)controlPredicate);
+		if(controlPredicate instanceof PDGBlockNode) {
+			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinBlockNode((PDGBlockNode)controlPredicate);
 			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
 				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode)) {
 					if(!(nestedNode instanceof PDGControlPredicateNode))
@@ -421,7 +421,7 @@ public class PDGSubTreeMapper {
 				PDGDependence dependence = (PDGDependence)edgeIterator.next();
 				if(dependence instanceof PDGControlDependence) {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
-					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(pdgNode);
+					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
 					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
 						if(!(pdgNode instanceof PDGControlPredicateNode))
 							nodesInRegion.add(pdgNode);
@@ -442,7 +442,7 @@ public class PDGSubTreeMapper {
 				PDGControlDependence pdgControlDependence = (PDGControlDependence)dependence;
 				if(pdgControlDependence.isFalseControlDependence()) {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
-					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(pdgNode);
+					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
 					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
 						if(!(pdgNode instanceof PDGControlPredicateNode))
 							nodesInRegion.add(pdgNode);
@@ -472,8 +472,8 @@ public class PDGSubTreeMapper {
 				Set<PDGNode> nodesInNextLevel = controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1+1);
 				controlPredicateNodesInNextLevelG1.addAll(nodesInNextLevel);
 				for(PDGNode node : nodesInNextLevel) {
-					if(node instanceof PDGTryNode) {
-						controlPredicateNodesInNextLevelG1.addAll(pdg1.getNestedNodesWithinTryNode((PDGTryNode)node));
+					if(node instanceof PDGBlockNode) {
+						controlPredicateNodesInNextLevelG1.addAll(pdg1.getNestedNodesWithinBlockNode((PDGBlockNode)node));
 					}
 				}
 			}
@@ -481,8 +481,8 @@ public class PDGSubTreeMapper {
 				Set<PDGNode> nodesInNextLevel = controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2+1);
 				controlPredicateNodesInNextLevelG2.addAll(nodesInNextLevel);
 				for(PDGNode node : nodesInNextLevel) {
-					if(node instanceof PDGTryNode) {
-						controlPredicateNodesInNextLevelG2.addAll(pdg2.getNestedNodesWithinTryNode((PDGTryNode)node));
+					if(node instanceof PDGBlockNode) {
+						controlPredicateNodesInNextLevelG2.addAll(pdg2.getNestedNodesWithinBlockNode((PDGBlockNode)node));
 					}
 				}
 			}
@@ -604,8 +604,8 @@ public class PDGSubTreeMapper {
 							parent = new CloneStructureNode(mapping);
 						}
 						else {
-							PDGTryNode nestedUnderTry1 = pdg1.isDirectlyNestedWithinTryNode(mapping.getNodeG1());
-							PDGTryNode nestedUnderTry2 = pdg2.isDirectlyNestedWithinTryNode(mapping.getNodeG2());
+							PDGBlockNode nestedUnderTry1 = pdg1.isDirectlyNestedWithinBlockNode(mapping.getNodeG1());
+							PDGBlockNode nestedUnderTry2 = pdg2.isDirectlyNestedWithinBlockNode(mapping.getNodeG2());
 							boolean nestedUnderTry = nestedUnderTry1 != null && nestedUnderTry2 != null;
 							if(mapping.isFalseControlDependent() && !nestedUnderTry) {
 								if(newElseParent == null) {
@@ -710,7 +710,7 @@ public class PDGSubTreeMapper {
 							}
 						}
 						//parents.add(parent);
-						boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGTryNode) && (parentNodeMapping.getNodeG2() instanceof PDGTryNode);
+						boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGBlockNode) && (parentNodeMapping.getNodeG2() instanceof PDGBlockNode);
 						boolean isTernaryOperator = isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG1()) ||
 								isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG2());
 						if(!parent.getChildren().isEmpty() || isTryBlock || isTernaryOperator) {

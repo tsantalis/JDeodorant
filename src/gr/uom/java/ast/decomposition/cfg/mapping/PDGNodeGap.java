@@ -7,9 +7,9 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
+import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 
 public class PDGNodeGap extends IdBasedGap {
@@ -40,21 +40,21 @@ public class PDGNodeGap extends IdBasedGap {
 			PDGControlDependence controlDependence1 = nodeG1.getIncomingControlDependence();
 			if(controlDependence1 != null)
 				return controlDependence1.isFalseControlDependence();
-			if(nodeG1 instanceof PDGTryNode)
-				return isNestedUnderElse((PDGTryNode)nodeG1);
+			if(nodeG1 instanceof PDGBlockNode)
+				return isNestedUnderElse((PDGBlockNode)nodeG1);
 		}
 		if(nodeG2 != null) {
 			PDGControlDependence controlDependence2 = nodeG2.getIncomingControlDependence();
 			if(controlDependence2 != null)
 				return controlDependence2.isFalseControlDependence();
-			if(nodeG2 instanceof PDGTryNode)
-				return isNestedUnderElse((PDGTryNode)nodeG2);
+			if(nodeG2 instanceof PDGBlockNode)
+				return isNestedUnderElse((PDGBlockNode)nodeG2);
 		}
 		return false;
 	}
 
-	private boolean isNestedUnderElse(PDGTryNode tryNode) {
-		Statement statement = tryNode.getASTStatement();
+	private boolean isNestedUnderElse(PDGBlockNode blockNode) {
+		Statement statement = blockNode.getASTStatement();
 		if(statement.getParent() instanceof Block) {
 			Block block = (Block)statement.getParent();
 			if(block.getParent() instanceof IfStatement) {

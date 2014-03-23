@@ -16,10 +16,13 @@ public class BasicBlockCFG {
 		this.basicBlocks = new ArrayList<BasicBlock>();
 		this.forwardReachableBlocks = new LinkedHashMap<BasicBlock, Set<BasicBlock>>();
 		TreeSet<GraphNode> allNodes = new TreeSet<GraphNode>(cfg.nodes);
-		Map<CFGTryNode, List<CFGNode>> directlyNestedNodesInTryBlocks = cfg.getDirectlyNestedNodesInTryBlocks();
-		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
-			if(!tryNode.hasResources())
-				allNodes.add(tryNode);
+		Map<CFGBlockNode, List<CFGNode>> directlyNestedNodesInBlocks = cfg.getDirectlyNestedNodesInBlocks();
+		for(CFGBlockNode blockNode : directlyNestedNodesInBlocks.keySet()) {
+			if(blockNode instanceof CFGTryNode) {
+				CFGTryNode tryNode = (CFGTryNode)blockNode;
+				if(!tryNode.hasResources())
+					allNodes.add(tryNode);
+			}
 		}
 		for(GraphNode node : allNodes) {
 			CFGNode cfgNode = (CFGNode)node;
@@ -45,10 +48,13 @@ public class BasicBlockCFG {
 			}
 		}
 		//special handling for the try statement that is first node
-		for(CFGTryNode tryNode : directlyNestedNodesInTryBlocks.keySet()) {
-			if(tryNode.id == 1 && !basicBlocks.isEmpty() && !tryNode.hasResources()) {
-				BasicBlock basicBlock = basicBlocks.get(0);
-				basicBlock.addTryNode(tryNode);
+		for(CFGBlockNode blockNode : directlyNestedNodesInBlocks.keySet()) {
+			if(blockNode instanceof CFGTryNode) {
+				CFGTryNode tryNode = (CFGTryNode)blockNode;
+				if(tryNode.id == 1 && !basicBlocks.isEmpty() && !tryNode.hasResources()) {
+					BasicBlock basicBlock = basicBlocks.get(0);
+					basicBlock.addTryNode(tryNode);
+				}
 			}
 		}
 		BasicBlock.resetBlockNum();

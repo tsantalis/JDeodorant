@@ -12,11 +12,11 @@ import org.eclipse.jdt.core.dom.Statement;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDG;
+import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
-import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 public class ControlDependenceTreeGenerator {
@@ -36,8 +36,8 @@ public class ControlDependenceTreeGenerator {
 
 	private void processControlDependences(ControlDependenceTreeNode cdtNode) {
 		Set<PDGNode> controlDependentNodes;
-		if(cdtNode.getNode() instanceof PDGTryNode) {
-			controlDependentNodes = pdg.getNestedNodesWithinTryNode((PDGTryNode)cdtNode.getNode());
+		if(cdtNode.getNode() instanceof PDGBlockNode) {
+			controlDependentNodes = pdg.getNestedNodesWithinBlockNode((PDGBlockNode)cdtNode.getNode());
 		}
 		else {
 			controlDependentNodes = cdtNode.getNode().getControlDependentNodes();
@@ -52,7 +52,7 @@ public class ControlDependenceTreeGenerator {
 						dstNode.getASTStatement().getParent() instanceof IfStatement &&
 						dstNode.getASTStatement() instanceof IfStatement) {
 					//a case of "if/else if" -> add as a sibling, not as a child
-					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(cdtNode.getNode());
+					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(cdtNode.getNode());
 					if(tryNode != null) {
 						ControlDependenceTreeNode treeNode = searchForNode(tryNode);
 						if(treeNode == null) {
@@ -73,7 +73,7 @@ public class ControlDependenceTreeGenerator {
 					}
 				}
 				else {
-					PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
+					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(dstNode);
 					if(tryNode != null) {
 						ControlDependenceTreeNode treeNode = searchForNode(tryNode);
 						if(treeNode == null) {
@@ -111,7 +111,7 @@ public class ControlDependenceTreeGenerator {
 					dstNodeIsTernaryOperator = true;
 				}
 				//first check if the dstNode is nested under a try block
-				PDGTryNode tryNode = pdg.isDirectlyNestedWithinTryNode(dstNode);
+				PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(dstNode);
 				if(tryNode != null) {
 					ControlDependenceTreeNode treeNode = searchForNode(tryNode);
 					if(treeNode == null) {
@@ -150,15 +150,18 @@ public class ControlDependenceTreeGenerator {
 		}
 	}
 
-	private ControlDependenceTreeNode checkIfTryNodeIsNestedUnderOtherTryNodeOrElse(ControlDependenceTreeNode cdtNode, PDGNode dstNode, PDGTryNode tryNode) {
+	private ControlDependenceTreeNode checkIfTryNodeIsNestedUnderOtherTryNodeOrElse(ControlDependenceTreeNode cdtNode, PDGNode dstNode, PDGBlockNode tryNode) {
 		//check if tryNode is nested inside another tryNode
-		PDGTryNode otherTryNode = pdg.isDirectlyNestedWithinTryNode(tryNode);
+		PDGBlockNode otherTryNode = pdg.isDirectlyNestedWithinBlockNode(tryNode);
 		if(otherTryNode != null) {
 			ControlDependenceTreeNode otherTreeNode = searchForNode(otherTryNode);
 			if(otherTreeNode != null)
 				return new ControlDependenceTreeNode(otherTreeNode, tryNode);
-			else
-				return new ControlDependenceTreeNode(cdtNode, tryNode);
+			else {
+				//return new ControlDependenceTreeNode(cdtNode, tryNode);
+				return new ControlDependenceTreeNode(
+						checkIfTryNodeIsNestedUnderOtherTryNodeOrElse(cdtNode, dstNode, otherTryNode), tryNode);
+			}
 		}
 		//check if tryNode is nested under an else clause
 		else if(dstNode.getIncomingControlDependence().isFalseControlDependence()) {

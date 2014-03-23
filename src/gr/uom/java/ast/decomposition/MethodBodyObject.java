@@ -503,9 +503,7 @@ public class MethodBodyObject {
 		}
 		else if(statement instanceof SynchronizedStatement) {
 			SynchronizedStatement synchronizedStatement = (SynchronizedStatement)statement;
-			CompositeStatementObject child = new CompositeStatementObject(synchronizedStatement, StatementType.SYNCHRONIZED, parent);
-			AbstractExpression abstractExpression = new AbstractExpression(synchronizedStatement.getExpression(), child);
-			child.addExpression(abstractExpression);
+			SynchronizedStatementObject child = new SynchronizedStatementObject(synchronizedStatement, parent);
 			//processExpression(child, synchronizedStatement.getExpression());
 			parent.addStatement(child);
 			processStatement(child, synchronizedStatement.getBody());

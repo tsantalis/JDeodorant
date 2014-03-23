@@ -7,11 +7,9 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.TryStatementObject;
 
-public class CFGTryNode extends CFGNode {
+public class CFGTryNode extends CFGBlockNode {
 	private List<String> handledExceptions;
 	private boolean hasResources;
-	private CFGNode controlParent;
-
 	public CFGTryNode(AbstractStatement statement) {
 		super(statement);
 		this.handledExceptions = new ArrayList<String>();
@@ -28,13 +26,5 @@ public class CFGTryNode extends CFGNode {
 
 	public List<String> getHandledExceptions() {
 		return handledExceptions;
-	}
-
-	public CFGNode getControlParent() {
-		return controlParent;
-	}
-
-	public void setControlParent(CFGNode controlParent) {
-		this.controlParent = controlParent;
 	}
 }

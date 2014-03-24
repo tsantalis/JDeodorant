@@ -97,7 +97,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     public boolean isApplicable() {
     	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
     			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable() &&
-    			!containsMethodCallWithThisExpressionAsArgument())
+    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum())
     		return true;
     	else
     		return false;
@@ -111,6 +111,16 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     private boolean isTargetClassAnInterface() {
     	if(targetClass.getClassObject().isInterface()) {
     		//System.out.println(this.toString() + "\tTarget class is an interface");
+    		return true;
+    	}
+    	else {
+    		return false;
+    	}
+    }
+
+    private boolean isTargetClassAnEnum() {
+    	if(targetClass.getClassObject().isEnum()) {
+    		//System.out.println(this.toString() + "\tTarget class is an enum");
     		return true;
     	}
     	else {

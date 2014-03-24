@@ -142,10 +142,12 @@ public class Standalone {
 		Set<ASTSliceGroup> extractedSliceGroups = new TreeSet<ASTSliceGroup>();
 		
 		for(ClassObject classObject : classObjectsToBeExamined) {
-			ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-			while(methodIterator.hasNext()) {
-				MethodObject methodObject = methodIterator.next();
-				processMethod(extractedSliceGroups,classObject, methodObject);
+			if(!classObject.isEnum() && !classObject.isInterface()) {
+				ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+				while(methodIterator.hasNext()) {
+					MethodObject methodObject = methodIterator.next();
+					processMethod(extractedSliceGroups,classObject, methodObject);
+				}
 			}
 		}
 		return extractedSliceGroups;

@@ -718,8 +718,11 @@ public class LongMethod extends ViewPart {
 			}
 			else if(selectedMethod != null) {
 				AbstractMethodDeclaration methodObject = systemObject.getMethodObject(selectedMethod);
-				if(methodObject != null)
-					methodObjectsToBeExamined.add(methodObject);
+				if(methodObject != null) {
+					ClassObject declaringClass = systemObject.getClassObject(methodObject.getClassName());
+					if(!declaringClass.isEnum() && !declaringClass.isInterface() && methodObject.getMethodBody() != null)
+						methodObjectsToBeExamined.add(methodObject);
+				}
 			}
 			else {
 				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
@@ -735,13 +738,15 @@ public class LongMethod extends ViewPart {
 						}
 						monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
 						for(ClassObject classObject : classObjectsToBeExamined) {
-							ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-							while(methodIterator.hasNext()) {
-								if(monitor.isCanceled())
-									throw new OperationCanceledException();
-								MethodObject methodObject = methodIterator.next();
-								processMethod(extractedSliceGroups,classObject, methodObject);
-								monitor.worked(1);
+							if(!classObject.isEnum() && !classObject.isInterface()) {
+								ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+								while(methodIterator.hasNext()) {
+									if(monitor.isCanceled())
+										throw new OperationCanceledException();
+									MethodObject methodObject = methodIterator.next();
+									processMethod(extractedSliceGroups,classObject, methodObject);
+									monitor.worked(1);
+								}
 							}
 						}
 					}

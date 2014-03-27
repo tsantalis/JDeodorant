@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
+import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
@@ -358,6 +359,21 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(node.dimensions().size() != o.dimensions().size())
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARRAY_DIMENSION_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				ArrayInitializer initializer1 = node.getInitializer();
+				ArrayInitializer initializer2 = o.getInitializer();
+				if(initializer1 != null && initializer2 != null) {
+					List<Expression> expressions1 = initializer1.expressions();
+					List<Expression> expressions2 = initializer2.expressions();
+					if(expressions1.size() != expressions2.size()) {
+						Difference diff = new Difference(initializer1.toString(),initializer2.toString(),
+								DifferenceType.ARRAY_INITIALIZER_EXPRESSION_NUMBER_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+				}
+				if((initializer1 == null && initializer2 != null) || (initializer1 != null && initializer2 == null)) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.MISSING_ARRAY_INITIALIZER);
 					astNodeDifference.addDifference(diff);
 				}
 				safeSubtreeMatch(node.getType(), o.getType());

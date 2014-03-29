@@ -264,41 +264,80 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 			IfStatement newIfStatement = ast.newIfStatement();
 			newPredicateStatement = newIfStatement;
 			sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, oldIfStatement.getExpression(), null);
-			Block thenBlock = ast.newBlock();
-			ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
-			Block elseBlock = ast.newBlock();
-			ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
 			Iterator<GraphEdge> outgoingDependenceIterator = predicateNode.getOutgoingDependenceIterator();
-			int numberOfFalseControlDependencies = 0;
+			List<PDGNode> trueControlDependentChildren = new ArrayList<PDGNode>();
+			List<PDGNode> falseControlDependentChildren = new ArrayList<PDGNode>();
 			while(outgoingDependenceIterator.hasNext()) {
 				PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
 				if(dependence instanceof PDGControlDependence) {
 					PDGControlDependence controlDependence = (PDGControlDependence)dependence;
 					PDGNode dstPDGNode = (PDGNode)controlDependence.getDst();
 					if(sliceNodes.contains(dstPDGNode)) {
-						ListRewrite listRewrite = null;
 						if(controlDependence.isTrueControlDependence()) {
-							listRewrite = thenBodyRewrite;
+							trueControlDependentChildren.add(dstPDGNode);
 						}
-						else {
-							listRewrite = elseBodyRewrite;
-							numberOfFalseControlDependencies++;
-						}
-						listRewrite = createTryStatementIfNeeded(sourceRewriter, ast, listRewrite, dstPDGNode);
-						if(dstPDGNode instanceof PDGControlPredicateNode) {
-							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
-							listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
-						}
-						else {
-							processStatementNode(listRewrite, dstPDGNode, ast, sourceRewriter);
-							sliceNodes.remove(dstPDGNode);
+						else if(controlDependence.isFalseControlDependence()) {
+							falseControlDependentChildren.add(dstPDGNode);
 						}
 					}
 				}
 			}
-			sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
-			if(numberOfFalseControlDependencies > 0)
+			if(oldIfStatement.getThenStatement() instanceof Block || trueControlDependentChildren.size() > 1) {
+				Block thenBlock = ast.newBlock();
+				ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
+				for(PDGNode dstPDGNode : trueControlDependentChildren) {
+					ListRewrite listRewrite = thenBodyRewrite;
+					listRewrite = createTryStatementIfNeeded(sourceRewriter, ast, listRewrite, dstPDGNode);
+					if(dstPDGNode instanceof PDGControlPredicateNode) {
+						PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
+						listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+					}
+					else {
+						processStatementNode(listRewrite, dstPDGNode, ast, sourceRewriter);
+						sliceNodes.remove(dstPDGNode);
+					}
+				}
+				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
+			}
+			else if(trueControlDependentChildren.size() == 1) {
+				PDGNode dstPDGNode = trueControlDependentChildren.get(0);
+				if(dstPDGNode instanceof PDGControlPredicateNode) {
+					PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
+					sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+				}
+				else {
+					sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, dstPDGNode.getASTStatement(), null);
+					sliceNodes.remove(dstPDGNode);
+				}
+			}
+			if(oldIfStatement.getElseStatement() instanceof Block || falseControlDependentChildren.size() > 1) {
+				Block elseBlock = ast.newBlock();
+				ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
+				for(PDGNode dstPDGNode : falseControlDependentChildren) {
+					ListRewrite listRewrite = elseBodyRewrite;
+					listRewrite = createTryStatementIfNeeded(sourceRewriter, ast, listRewrite, dstPDGNode);
+					if(dstPDGNode instanceof PDGControlPredicateNode) {
+						PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
+						listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+					}
+					else {
+						processStatementNode(listRewrite, dstPDGNode, ast, sourceRewriter);
+						sliceNodes.remove(dstPDGNode);
+					}
+				}
 				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+			}
+			else if(falseControlDependentChildren.size() == 1) {
+				PDGNode dstPDGNode = falseControlDependentChildren.get(0);
+				if(dstPDGNode instanceof PDGControlPredicateNode) {
+					PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
+					sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
+				}
+				else {
+					sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, dstPDGNode.getASTStatement(), null);
+					sliceNodes.remove(dstPDGNode);
+				}
+			}	
 		}
 		else if(oldPredicateStatement instanceof SwitchStatement) {
 			SwitchStatement oldSwitchStatement = (SwitchStatement)oldPredicateStatement;

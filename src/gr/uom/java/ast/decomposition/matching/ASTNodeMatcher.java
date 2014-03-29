@@ -722,8 +722,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			if(simplificationMatch(node, (ASTNode)other, astNodeDifference))
-				return true;
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof InfixExpression)) {
 				if(typeMatch) {
@@ -826,8 +824,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			if(simplificationMatch(node, (ASTNode)other, astNodeDifference))
-				return true;
 			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
 			if (!(other instanceof MethodInvocation)) {
 				if(typeMatch) {
@@ -906,8 +902,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			if(simplificationMatch(node, (ASTNode)other, astNodeDifference))
-				return true;
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof NumberLiteral)) {
 				if(typeMatch) {
@@ -949,8 +943,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			if(simplificationMatch(node, (ASTNode)other, astNodeDifference))
-				return true;
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ParenthesizedExpression)) {
 				if(typeMatch) {
@@ -1083,8 +1075,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
 		if(isTypeHolder(other)) {
-			if(simplificationMatch(node, (ASTNode)other, astNodeDifference))
-				return true;
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof SimpleName) {
 				SimpleName o = (SimpleName) other;
@@ -1529,17 +1519,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 				}
 			}
-		}
-		return false;
-	}
-
-	private boolean simplificationMatch(ASTNode node, ASTNode other, ASTNodeDifference astNodeDifference) {
-		SimplificationMatcher matcher = new SimplificationMatcher(node, other);
-		if(matcher.isSimplifiedToTheSameExpression()) {
-			Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.SIMPLIFICATION_MATCH);
-			astNodeDifference.addDifference(diff);
-			differences.add(astNodeDifference);
-			return true;
 		}
 		return false;
 	}

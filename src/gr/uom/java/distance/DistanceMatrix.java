@@ -323,9 +323,9 @@ public class DistanceMatrix {
     											candidate.apply();
     											double entityPlacement1 = candidate.getEntityPlacement();
     					    					double d = entityPlacement1 - entityPlacement0;
-    					    					if (d < 0) {
+    					    					//if (d < 0) {
     					    						candidateRefactoringList.add(candidate);
-    					    					}
+    					    					//}
     											candidateFound = true;
     										}
     									}
@@ -444,9 +444,9 @@ public class DistanceMatrix {
 		                            	candidate.apply();
 		                            	double entityPlacement1 = candidate.getEntityPlacement();
 		            					double d = entityPlacement1 - entityPlacement0;
-		            					if (d < 0) {
+		            					//if (d < 0) {
 		            						candidateRefactoringList.add(candidate);
-		            					}
+		            					//}
 		                            	candidateFound = true;
 		                            }
 		                        }

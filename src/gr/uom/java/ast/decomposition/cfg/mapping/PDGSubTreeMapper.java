@@ -904,45 +904,89 @@ public class PDGSubTreeMapper {
 		MappingState.setRestrictedNodesG1(nodesG1);
 		MappingState.setRestrictedNodesG2(nodesG2);
 		List<MappingState> finalStates = new ArrayList<MappingState>();
-		for(PDGNode node1 : nodesG1) {
-			List<MappingState> currentStates = new ArrayList<MappingState>();
-			for(PDGNode node2 : nodesG2) {
-				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-				boolean match = astNodeMatcher.match(node1, node2);
-				if(match && astNodeMatcher.isParameterizable()) {
-					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-					PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
-					if(symmetricalIfNodes != null)
-						mapping.setSymmetricalIfNodePair(symmetricalIfNodes);
-					if(finalStates.isEmpty()) {
-						MappingState state = new MappingState(parent, mapping);
-						state.traverse(mapping);
-						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-						for(MappingState temp : maxStates) {
-							if(!currentStates.contains(temp)) {
-								currentStates.add(temp);
+		if(nodesG1.size() <= nodesG2.size()) {
+			for(PDGNode node1 : nodesG1) {
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PDGNode node2 : nodesG2) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match = astNodeMatcher.match(node1, node2);
+					if(match && astNodeMatcher.isParameterizable()) {
+						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+						PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
+						if(symmetricalIfNodes != null)
+							mapping.setSymmetricalIfNodePair(symmetricalIfNodes);
+						if(finalStates.isEmpty()) {
+							MappingState state = new MappingState(parent, mapping);
+							state.traverse(mapping);
+							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+							for(MappingState temp : maxStates) {
+								if(!currentStates.contains(temp)) {
+									currentStates.add(temp);
+								}
 							}
 						}
-					}
-					else {
-						for(MappingState previousState : finalStates) {
-							if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
-								MappingState state = new MappingState(previousState, mapping);
-								previousState.addChild(state);
-								state.traverse(mapping);
-								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-								for(MappingState temp : maxStates) {
-									if(!currentStates.contains(temp)) {
-										currentStates.add(temp);
+						else {
+							for(MappingState previousState : finalStates) {
+								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
+									MappingState state = new MappingState(previousState, mapping);
+									previousState.addChild(state);
+									state.traverse(mapping);
+									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+									for(MappingState temp : maxStates) {
+										if(!currentStates.contains(temp)) {
+											currentStates.add(temp);
+										}
 									}
 								}
 							}
 						}
 					}
 				}
+				if(!currentStates.isEmpty())
+					finalStates = getMaximumStates(currentStates);
 			}
-			if(!currentStates.isEmpty())
-				finalStates = getMaximumStates(currentStates);
+		}
+		else {
+			for(PDGNode node2 : nodesG2) {
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PDGNode node1 : nodesG1) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match = astNodeMatcher.match(node1, node2);
+					if(match && astNodeMatcher.isParameterizable()) {
+						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+						PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
+						if(symmetricalIfNodes != null)
+							mapping.setSymmetricalIfNodePair(symmetricalIfNodes);
+						if(finalStates.isEmpty()) {
+							MappingState state = new MappingState(parent, mapping);
+							state.traverse(mapping);
+							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+							for(MappingState temp : maxStates) {
+								if(!currentStates.contains(temp)) {
+									currentStates.add(temp);
+								}
+							}
+						}
+						else {
+							for(MappingState previousState : finalStates) {
+								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
+									MappingState state = new MappingState(previousState, mapping);
+									previousState.addChild(state);
+									state.traverse(mapping);
+									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+									for(MappingState temp : maxStates) {
+										if(!currentStates.contains(temp)) {
+											currentStates.add(temp);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				if(!currentStates.isEmpty())
+					finalStates = getMaximumStates(currentStates);
+			}
 		}
 		return finalStates;
 	}

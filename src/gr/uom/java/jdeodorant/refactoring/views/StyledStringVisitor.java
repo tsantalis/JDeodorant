@@ -26,6 +26,7 @@ import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EmptyStatement;
+import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -51,6 +52,7 @@ import org.eclipse.jdt.core.dom.QualifiedType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
@@ -374,6 +376,25 @@ public class StyledStringVisitor extends ASTVisitor {
 	}
 	public boolean visit(EmptyStatement stmnt){
 		appendSemicolon();
+		return false;
+	}
+	public boolean visit(EnhancedForStatement stmnt) {
+		/*
+		 *  for ( FormalParameter : Expression )
+                        Statement
+		 */
+		styledString.append("for", new StyledStringStyler(keywordStyle));
+		appendSpace();
+		appendOpenParenthesis();
+		SingleVariableDeclaration variableDeclaration = stmnt.getParameter();
+		handleType(variableDeclaration.getType());
+		appendSpace();
+		handleExpression(variableDeclaration.getName());
+		appendSpace();
+		appendColon();
+		appendSpace();
+		handleExpression(stmnt.getExpression());
+		appendClosedParenthesis();
 		return false;
 	}
 	public boolean visit(ExpressionStatement expr) {

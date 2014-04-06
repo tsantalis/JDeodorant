@@ -292,21 +292,25 @@ public class PDGSubTreeMapper {
 				StatementObject statement = (StatementObject)abstractStatement;
 				usedLocalFields.addAll(statement.getUsedFieldsThroughThisReference());
 				accessedLocalMethods.addAll(statement.getInvokedMethodsThroughThisReference());
+				accessedLocalMethods.addAll(statement.getInvokedStaticMethods());
 			}
 			else if(abstractStatement instanceof CompositeStatementObject) {
 				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
 				usedLocalFields.addAll(composite.getUsedFieldsThroughThisReferenceInExpressions());
 				accessedLocalMethods.addAll(composite.getInvokedMethodsThroughThisReferenceInExpressions());
+				accessedLocalMethods.addAll(composite.getInvokedStaticMethodsInExpressions());
 				if(composite instanceof TryStatementObject) {
 					TryStatementObject tryStatement = (TryStatementObject)composite;
 					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
 					for(CatchClauseObject catchClause : catchClauses) {
 						usedLocalFields.addAll(catchClause.getBody().getUsedFieldsThroughThisReference());
 						accessedLocalMethods.addAll(catchClause.getBody().getInvokedMethodsThroughThisReference());
+						accessedLocalMethods.addAll(catchClause.getBody().getInvokedStaticMethods());
 					}
 					if(tryStatement.getFinallyClause() != null) {
 						usedLocalFields.addAll(tryStatement.getFinallyClause().getUsedFieldsThroughThisReference());
 						accessedLocalMethods.addAll(tryStatement.getFinallyClause().getInvokedMethodsThroughThisReference());
+						accessedLocalMethods.addAll(tryStatement.getFinallyClause().getInvokedStaticMethods());
 					}
 				}
 			}

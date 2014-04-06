@@ -70,6 +70,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -84,6 +85,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -119,6 +121,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
 	private List<Set<VariableDeclaration>> fieldDeclarationsToBePulledUp;
+	private List<Set<MethodDeclaration>> methodDeclarationsToBePulledUp;
+	private List<Set<LabeledStatement>> labeledStatementsToBeRemoved;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<PDGNodeMapping> sortedNodeMappings;
@@ -159,8 +163,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1()));
 		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2()));
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
+		this.methodDeclarationsToBePulledUp = new ArrayList<Set<MethodDeclaration>>();
+		this.labeledStatementsToBeRemoved = new ArrayList<Set<LabeledStatement>>();
 		for(int i=0; i<2; i++) {
 			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
+			methodDeclarationsToBePulledUp.add(new LinkedHashSet<MethodDeclaration>());
+			labeledStatementsToBeRemoved.add(new LinkedHashSet<LabeledStatement>());
 		}
 		this.compilationUnitChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
 		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
@@ -244,7 +252,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		initialize();
 		extractClone();
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i));
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i), remainingStatements.get(i), returnedVariables.get(i), i);
 		}
 	}
@@ -313,12 +321,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
 			commonSuperTypeOfSourceTypeDeclarations = commonSuperType(typeBinding1, typeBinding2);
 			if(commonSuperTypeOfSourceTypeDeclarations != null) {
-				CompilationUnitCache cache = CompilationUnitCache.getInstance();
-				Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
 				boolean superclassInheritedOnlyByRefactoringSubclasses = false;
-				if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
-						subTypes.contains((IType)typeBinding2.getJavaElement()))
-					superclassInheritedOnlyByRefactoringSubclasses = true;
+				if(!commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
+					CompilationUnitCache cache = CompilationUnitCache.getInstance();
+					Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
+					if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
+							subTypes.contains((IType)typeBinding2.getJavaElement()))
+						superclassInheritedOnlyByRefactoringSubclasses = true;
+				}
 				if(((mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
 						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty())
 						|| superclassInheritedOnlyByRefactoringSubclasses) &&
@@ -599,38 +609,57 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList())) {
 						MethodDeclaration[] methodDeclarationsG1 = sourceTypeDeclarations.get(0).getMethods();
 						IMethodBinding localMethodBindingG1 = localMethodG1.getMethodInvocation().resolveMethodBinding();
+						MethodDeclaration methodDeclaration1 = null;
 						for(MethodDeclaration methodDeclarationG1 : methodDeclarationsG1) {
 							if(methodDeclarationG1.resolveBinding().isEqualTo(localMethodBindingG1)) {
-								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
-								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclarationG1.getName().getIdentifier()), null);
-								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclarationG1.getReturnType2(), null);	
-								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-								List<IExtendedModifier> originalModifiers = methodDeclarationG1.modifiers();
-								for(IExtendedModifier extendedModifier : originalModifiers) {
-									if(extendedModifier.isModifier()) {
-										Modifier modifier = (Modifier)extendedModifier;
-										if(modifier.isProtected()) {
-											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-										}
-										else if(modifier.isPublic()) {
-											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-										}
-									}
-								}
-								modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-								ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-								List<SingleVariableDeclaration> parameters = methodDeclarationG1.parameters();
-								for(SingleVariableDeclaration parameter : parameters) {
-									parametersRewrite.insertLast(parameter, null);
-								}
-								ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
-								List<Name> thrownExceptions = methodDeclarationG1.thrownExceptions();
-								for(Name thrownException : thrownExceptions) {
-									thrownExceptionsRewrite.insertLast(thrownException, null);
-								}
-								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
+								methodDeclaration1 = methodDeclarationG1;
 								break;
 							}
+						}
+						MethodDeclaration[] methodDeclarationsG2 = sourceTypeDeclarations.get(1).getMethods();
+						IMethodBinding localMethodBindingG2 = localMethodG2.getMethodInvocation().resolveMethodBinding();
+						MethodDeclaration methodDeclaration2 = null;
+						for(MethodDeclaration methodDeclarationG2 : methodDeclarationsG2) {
+							if(methodDeclarationG2.resolveBinding().isEqualTo(localMethodBindingG2)) {
+								methodDeclaration2 = methodDeclarationG2;
+								break;
+							}
+						}
+						boolean exactClones = methodDeclaration1.subtreeMatch(new ASTMatcher(), methodDeclaration2);
+						if(exactClones) {
+							bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
+							methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
+							methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
+						}
+						else {
+							MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
+							sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
+							sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclaration1.getReturnType2(), null);	
+							ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+							List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
+							for(IExtendedModifier extendedModifier : originalModifiers) {
+								if(extendedModifier.isModifier()) {
+									Modifier modifier = (Modifier)extendedModifier;
+									if(modifier.isProtected()) {
+										modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+									}
+									else if(modifier.isPublic()) {
+										modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+									}
+								}
+							}
+							modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+							ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+							List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
+							for(SingleVariableDeclaration parameter : parameters) {
+								parametersRewrite.insertLast(parameter, null);
+							}
+							ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+							List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
+							for(Name thrownException : thrownExceptions) {
+								thrownExceptionsRewrite.insertLast(thrownException, null);
+							}
+							bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 						}
 						break;
 					}
@@ -954,6 +983,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			newStatement = newIfStatement;
 		}
+		else if(oldStatement instanceof SynchronizedStatement) {
+			SynchronizedStatement oldSynchronizedStatement = (SynchronizedStatement)oldStatement;
+			SynchronizedStatement newSynchronizedStatement = ast.newSynchronizedStatement();
+			Expression newExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSynchronizedStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+			sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.EXPRESSION_PROPERTY, newExpression, null);
+			Block newBlock = ast.newBlock();
+			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeMapping) {
+					blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
+			}
+			sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.BODY_PROPERTY, newBlock, null);
+			newStatement = newSynchronizedStatement;
+		}
 		else if(oldStatement instanceof TryStatement) {
 			TryStatement oldTryStatement = (TryStatement)oldStatement;
 			TryStatement newTryStatement = ast.newTryStatement();
@@ -1087,6 +1131,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNonOverlappingNodeDifferences());
 		}
+		LabeledStatement labeled1 = belongsToLabeledStatement(nodeG1);
+		LabeledStatement labeled2 = belongsToLabeledStatement(nodeMapping.getNodeG2());
+		if(labeled1 != null && labeled2 != null) {
+			labeledStatementsToBeRemoved.get(0).add(labeled1);
+			labeledStatementsToBeRemoved.get(1).add(labeled2);
+			LabeledStatement newLabeledStatement = ast.newLabeledStatement();
+			sourceRewriter.set(newLabeledStatement, LabeledStatement.LABEL_PROPERTY, labeled1.getLabel(), null);
+			sourceRewriter.set(newLabeledStatement, LabeledStatement.BODY_PROPERTY, newStatement, null);
+			newStatement = newLabeledStatement;
+		}
 		return newStatement;
 	}
 
@@ -1187,6 +1241,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
 			}
 			newStatement = newIfStatement;
+		}
+		else if(oldStatement instanceof SynchronizedStatement) {
+			SynchronizedStatement oldSynchronizedStatement = (SynchronizedStatement)oldStatement;
+			SynchronizedStatement newSynchronizedStatement = ast.newSynchronizedStatement();
+			Expression newExpression = oldSynchronizedStatement.getExpression();
+			sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.EXPRESSION_PROPERTY, newExpression, null);
+			Block newBlock = ast.newBlock();
+			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+			for(CloneStructureNode child : node.getChildren()) {
+				if(child.getMapping() instanceof PDGNodeGap) {
+					blockRewrite.insertLast(processCloneStructureGapNode(child, ast, sourceRewriter, index), null);
+				}
+			}
+			sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.BODY_PROPERTY, newBlock, null);
+			newStatement = newSynchronizedStatement;
 		}
 		else if(oldStatement instanceof TryStatement) {
 			TryStatement oldTryStatement = (TryStatement)oldStatement;
@@ -1321,6 +1390,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			newStatement = oldStatement;
 		}
+		LabeledStatement labeled = belongsToLabeledStatement(pdgNode);
+		if(labeled != null) {
+			LabeledStatement newLabeledStatement = ast.newLabeledStatement();
+			sourceRewriter.set(newLabeledStatement, LabeledStatement.LABEL_PROPERTY, labeled.getLabel(), null);
+			sourceRewriter.set(newLabeledStatement, LabeledStatement.BODY_PROPERTY, newStatement, null);
+			newStatement = newLabeledStatement;
+		}
 		return newStatement;
 	}
 
@@ -1340,6 +1416,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				return true;
 		}
 		return false;
+	}
+
+	private LabeledStatement belongsToLabeledStatement(PDGNode pdgNode) {
+		Statement statement = pdgNode.getASTStatement();
+		if(statement.getParent() instanceof LabeledStatement) {
+			return (LabeledStatement) statement.getParent();
+		}
+		return null;
 	}
 
 	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite rewriter) {
@@ -1509,10 +1593,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldDeclarationsToBePulledUp) {
+	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
+			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
 		AST ast = typeDeclaration.getAST();
 		if(intermediateClassName != null) {
 			modifySuperclassType(compilationUnit, typeDeclaration, intermediateClassName);
+		}
+		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
+			ASTRewrite rewriter = ASTRewrite.create(ast);
+			ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			bodyRewrite.remove(methodDeclaration, null);
+			try {
+				TextEdit sourceEdit = rewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Pull up method to superclass", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
 		}
 		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
 		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
@@ -1664,6 +1763,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(PDGNode pdgNode : removableNodes) {
 			Statement statement = pdgNode.getASTStatement();
 			methodBodyRewriter.remove(statement, null);
+		}
+		Set<LabeledStatement> labeledStatements = labeledStatementsToBeRemoved.get(index);
+		for(LabeledStatement labeled : labeledStatements) {
+			methodBodyRewriter.remove(labeled, null);
 		}
 		try {
 			TextEdit sourceEdit = methodBodyRewriter.rewriteAST();

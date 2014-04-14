@@ -165,16 +165,20 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		comboViewer.addSelectionChangedListener(new ISelectionChangedListener() {
 			public void selectionChanged(SelectionChangedEvent event) {
 				IStructuredSelection selection = (IStructuredSelection)event.getSelection();
-				mapper = (PDGSubTreeMapper)selection.getFirstElement();
-				cloneStructureRoot = mapper.getCloneStructureRoot();
-				refactoring.setMapper(mapper);
-				treeViewerLeft.setInput(new CloneStructureNode[]{cloneStructureRoot});
-				treeViewerLeft.refresh();
-				treeViewerRight.setInput(new CloneStructureNode[]{cloneStructureRoot});
-				treeViewerRight.refresh();
-				treeViewerLeft.expandAll();
-				treeViewerRight.expandAll();
-				updateRenamedVariables();
+				PDGSubTreeMapper selectedMapper = (PDGSubTreeMapper)selection.getFirstElement();
+				CloneStructureNode selectedCloneStructureRoot = selectedMapper.getCloneStructureRoot();
+				if(cloneStructureRoot != selectedCloneStructureRoot) {
+					mapper = selectedMapper;
+					cloneStructureRoot = selectedCloneStructureRoot;
+					refactoring.setMapper(mapper);
+					treeViewerLeft.setInput(new CloneStructureNode[]{cloneStructureRoot});
+					treeViewerLeft.refresh();
+					treeViewerRight.setInput(new CloneStructureNode[]{cloneStructureRoot});
+					treeViewerRight.refresh();
+					treeViewerLeft.expandAll();
+					treeViewerRight.expandAll();
+					updateRenamedVariables();
+				}
 			}
 		});
 		//Information Footer
@@ -386,5 +390,11 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		}
 		setPageComplete(true);
 		setMessage("", NONE);
+	}
+	
+	public void dispose() {
+		super.dispose();
+		treeViewerLeft.getTree().dispose();
+		treeViewerRight.getTree().dispose();
 	}
 }

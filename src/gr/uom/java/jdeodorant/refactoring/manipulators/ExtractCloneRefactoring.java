@@ -125,6 +125,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<Set<LabeledStatement>> labeledStatementsToBeRemoved;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
+	private Set<IJavaElement> javaElementsToOpenInEditor;
 	private Set<PDGNodeMapping> sortedNodeMappings;
 	private List<TreeSet<PDGNode>> removableStatements;
 	private List<TreeSet<PDGNode>> remainingStatements;
@@ -172,6 +173,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		this.compilationUnitChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
 		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
+		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
 		
 		this.sourceMethodDeclarations.add(methodDeclaration1);
 		this.sourceMethodDeclarations.add(methodDeclaration2);
@@ -205,6 +207,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		this.intermediateClassName = null;
 		//this.extractedMethodName = null;
+	}
+
+	public Set<IJavaElement> getJavaElementsToOpenInEditor() {
+		return javaElementsToOpenInEditor;
 	}
 
 	public PDGSubTreeMapper getMapper() {
@@ -335,6 +341,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null) {
 					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
 					IJavaElement javaElement = commonSuperTypeOfSourceTypeDeclarations.getJavaElement();
+					javaElementsToOpenInEditor.add(javaElement);
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
 					ASTParser parser = ASTParser.newParser(AST.JLS4);
 					parser.setKind(ASTParser.K_COMPILATION_UNIT);
@@ -376,6 +383,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 					boolean intermediateAlreadyExists = false;
 					ICompilationUnit intermediateICompilationUnit = JavaCore.createCompilationUnitFrom(file);
+					javaElementsToOpenInEditor.add(intermediateICompilationUnit);
 					ASTParser intermediateParser = ASTParser.newParser(AST.JLS4);
 					intermediateParser.setKind(ASTParser.K_COMPILATION_UNIT);
 					if(file.exists()) {

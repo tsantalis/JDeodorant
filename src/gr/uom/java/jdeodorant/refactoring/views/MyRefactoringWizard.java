@@ -64,6 +64,9 @@ public class MyRefactoringWizard extends RefactoringWizard {
 		else if(refactoring instanceof ExtractClassRefactoring) {
 			javaElementsToOpenInEditor.addAll(((ExtractClassRefactoring)refactoring).getJavaElementsToOpenInEditor());
 		}
+		else if(refactoring instanceof ExtractCloneRefactoring) {
+			javaElementsToOpenInEditor.addAll(((ExtractCloneRefactoring)refactoring).getJavaElementsToOpenInEditor());
+		}
 		for(IJavaElement javaElement : javaElementsToOpenInEditor) {
 			try {
 				JavaUI.openInEditor(javaElement);

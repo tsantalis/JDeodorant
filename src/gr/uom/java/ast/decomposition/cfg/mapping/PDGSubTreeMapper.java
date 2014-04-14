@@ -1,7 +1,12 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
@@ -328,7 +333,45 @@ public class PDGSubTreeMapper {
 		}
 		for(MethodInvocationObject invocation : accessedLocalMethods) {
 			if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
-				accessedMethods.add(invocation);
+				//exclude recursive method calls
+				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
+					accessedMethods.add(invocation);
+					getAdditionalLocallyAccessedFieldsAndMethods(invocation, accessedFields, accessedMethods);
+				}
+			}
+		}
+	}
+	
+	private void getAdditionalLocallyAccessedFieldsAndMethods(MethodInvocationObject methodCall,
+			Set<AbstractVariable> accessedFields, Set<MethodInvocationObject> accessedMethods) {
+		SystemObject system = ASTReader.getSystemObject();
+		MethodObject calledMethod = system.getMethod(methodCall);
+		if(calledMethod != null) {
+			ClassObject calledClass = system.getClassObject(calledMethod.getClassName());
+			Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
+			Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
+			usedLocalFields.addAll(calledMethod.getUsedFieldsThroughThisReference());
+			accessedLocalMethods.addAll(calledMethod.getInvokedMethodsThroughThisReference());
+			accessedLocalMethods.addAll(calledMethod.getInvokedStaticMethods());
+			ITypeBinding declaringClassTypeBinding = calledMethod.getMethodDeclaration().resolveBinding().getDeclaringClass();
+			Set<FieldObject> fieldsAccessedInMethod = calledClass.getFieldsAccessedInsideMethod(calledMethod);
+			for(PlainVariable variable : usedLocalFields) {
+				for(FieldObject fieldDeclaration : fieldsAccessedInMethod) {
+					IVariableBinding fieldBinding = fieldDeclaration.getVariableDeclaration().resolveBinding();
+					if(variable.getVariableBindingKey().equals(fieldBinding.getKey()) &&
+							fieldBinding.getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
+						accessedFields.add(variable);
+						break;
+					}
+				}
+			}
+			for(MethodInvocationObject invocation : accessedLocalMethods) {
+				if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
+					if(!accessedMethods.contains(invocation)) {
+						accessedMethods.add(invocation);
+						getAdditionalLocallyAccessedFieldsAndMethods(invocation, accessedFields, accessedMethods);
+					}
+				}
 			}
 		}
 	}
@@ -1285,6 +1328,36 @@ public class PDGSubTreeMapper {
 						}
 					}
 				}
+				if(diff.getType().equals(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT)) {
+					Expression expression1 = nodeDifference.getExpression1().getExpression();
+					Expression expression2 = nodeDifference.getExpression2().getExpression();
+					if(expression1 instanceof SimpleName && !(expression2 instanceof SimpleName)) {
+						SimpleName simpleName1 = (SimpleName)expression1;
+						IBinding binding1 = simpleName1.resolveBinding();
+						if(binding1.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding1 = (IVariableBinding)binding1;
+							IMethodBinding declaringMethod1 = variableBinding1.getDeclaringMethod();
+							IMethodBinding  method1 = pdg1.getMethod().getMethodDeclaration().resolveBinding();
+							if(declaringMethod1 != null && declaringMethod1.isEqualTo(method1)) {
+								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
+								variableNameMismatchDifferences.add(diff);
+							}
+						}
+					}
+					else if(!(expression1 instanceof SimpleName) && expression2 instanceof SimpleName) {
+						SimpleName simpleName2 = (SimpleName)expression2;
+						IBinding binding2 = simpleName2.resolveBinding();
+						if(binding2.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding2 = (IVariableBinding)binding2;
+							IMethodBinding declaringMethod2 = variableBinding2.getDeclaringMethod();
+							IMethodBinding  method2 = pdg2.getMethod().getMethodDeclaration().resolveBinding();
+							if(declaringMethod2 != null && declaringMethod2.isEqualTo(method2)) {
+								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
+								variableNameMismatchDifferences.add(diff);
+							}
+						}
+					}
+				}
 			}
 		}
 		Set<BindingSignaturePair> renamedVariables = new LinkedHashSet<BindingSignaturePair>();
@@ -1342,7 +1415,7 @@ public class PDGSubTreeMapper {
 				if(isRenamed && renameCount > 1) {
 					renamedVariables.add(signaturePairI);
 				}
-				if(isSwapped && swapCount > 0) {
+				if(isSwapped && isRenamed && swapCount > 0) {
 					swappedVariables.add(signaturePairI);
 				}
 			}

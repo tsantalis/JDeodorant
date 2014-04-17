@@ -5,20 +5,22 @@ import org.eclipse.jdt.core.dom.ContinueStatement;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGContinueNode extends CFGNode {
-	private boolean isLabeled;
+	private String label;
 	private CFGNode innerMostLoopNode;
 	
 	public CFGContinueNode(AbstractStatement statement) {
 		super(statement);
 		ContinueStatement continueStatement = (ContinueStatement)statement.getStatement();
 		if(continueStatement.getLabel() != null)
-			isLabeled = true;
-		else
-			isLabeled = false;
+			label = continueStatement.getLabel().getIdentifier();
+	}
+
+	public String getLabel() {
+		return label;
 	}
 
 	public boolean isLabeled() {
-		return isLabeled;
+		return label != null;
 	}
 
 	public CFGNode getInnerMostLoopNode() {

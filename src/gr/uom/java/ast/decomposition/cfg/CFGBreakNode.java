@@ -5,20 +5,22 @@ import org.eclipse.jdt.core.dom.BreakStatement;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 
 public class CFGBreakNode extends CFGNode {
-	private boolean isLabeled;
+	private String label;
 	private CFGNode innerMostLoopNode;
 	
 	public CFGBreakNode(AbstractStatement statement) {
 		super(statement);
 		BreakStatement breakStatement = (BreakStatement)statement.getStatement();
 		if(breakStatement.getLabel() != null)
-			isLabeled = true;
-		else
-			isLabeled = false;
+			label = breakStatement.getLabel().getIdentifier();
+	}
+
+	public String getLabel() {
+		return label;
 	}
 
 	public boolean isLabeled() {
-		return isLabeled;
+		return label != null;
 	}
 
 	public CFGNode getInnerMostLoopNode() {

@@ -20,6 +20,8 @@ import java.util.Stack;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -346,6 +348,7 @@ public class PDG extends Graph {
 		for(GraphNode node : this.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			CFGNode cfgNode = pdgNode.getCFGNode();
+			String label = null;
 			boolean unlabeledJump = false;
 			boolean isBreak = false;
 			if(cfgNode instanceof CFGBreakNode) {
@@ -353,18 +356,46 @@ public class PDG extends Graph {
 				isBreak = true;
 				if(!breakNode.isLabeled())
 					unlabeledJump = true;
+				else
+					label = breakNode.getLabel();
 			}
 			else if(cfgNode instanceof CFGContinueNode) {
 				CFGContinueNode continueNode = (CFGContinueNode)cfgNode;
 				isBreak = false;
 				if(!continueNode.isLabeled())
 					unlabeledJump = true;
+				else
+					label = continueNode.getLabel();
 			}
 			if(unlabeledJump) {
 				map.put(pdgNode, getInnerMostLoopNode(pdgNode, isBreak));
 			}
+			else if(label != null) {
+				map.put(pdgNode, getLoopNodeUnderLabel(pdgNode, label));
+			}
 		}
 		return map;
+	}
+
+	private PDGNode getLoopNodeUnderLabel(PDGNode node, String label) {
+		for(GraphEdge edge : node.incomingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)controlDependence.src;
+				CFGNode srcCFGNode = srcPDGNode.getCFGNode();
+				if(srcCFGNode instanceof CFGBranchLoopNode || srcCFGNode instanceof CFGBranchDoLoopNode || srcCFGNode instanceof CFGBranchSwitchNode) {
+					Statement predicate = srcCFGNode.getASTStatement();
+					if(predicate.getParent() instanceof LabeledStatement) {
+						LabeledStatement labeled = (LabeledStatement)predicate.getParent();
+						if(labeled.getLabel().getIdentifier().equals(label))
+							return srcPDGNode;
+					}
+				}
+				return getLoopNodeUnderLabel(srcPDGNode, label);
+			}
+		}
+		return null;
 	}
 
 	private PDGNode getInnerMostLoopNode(PDGNode node, boolean isBreak) {

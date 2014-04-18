@@ -1619,16 +1619,20 @@ public class PDGSubTreeMapper {
 	}
 	//precondition: non-mapped statement can be moved before the first mapped statement
 	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
-		int nodeId = nonMappedNode.getId();
-		if(nodeId >= mappedNodes.first().getId() && nodeId <= mappedNodes.last().getId()) {
-			Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
-			while(incomingDependenceIterator.hasNext()) {
-				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
-				if(dependence instanceof PDGAbstractDataDependence) {
-					PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
-					PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
-					if(mappedNodes.contains(srcPDGNode))
+		Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
+		while(incomingDependenceIterator.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+			if(dependence instanceof PDGAbstractDataDependence) {
+				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
+				if(mappedNodes.contains(srcPDGNode)) {
+					return false;
+				}
+				//examine if it is a self-loop edge due to a loop-carried dependence
+				if(srcPDGNode.equals(nonMappedNode)) {
+					if(dataDependence.isLoopCarried() && mappedNodes.contains(dataDependence.getLoop().getPDGNode())) {
 						return false;
+					}
 				}
 			}
 		}
@@ -1665,24 +1669,37 @@ public class PDGSubTreeMapper {
 			Iterator<GraphEdge> incomingDependenceIterator = nodeContainingExpression.getIncomingDependenceIterator();
 			while(incomingDependenceIterator.hasNext()) {
 				PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
-				if(dependence instanceof PDGAbstractDataDependence && nodes.contains(dependence.getSrc())) {
-					if(dependence instanceof PDGDataDependence) {
-						PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-						//check if pdgExpression is using dataDependence.data
-						if(pdgExpression.usesLocalVariable(dataDependence.getData()))
-							return false;
+				if(dependence instanceof PDGAbstractDataDependence) {
+					PDGAbstractDataDependence abstractDependence = (PDGAbstractDataDependence)dependence;
+					PDGNode srcPDGNode = (PDGNode)abstractDependence.getSrc();
+					if(nodes.contains(srcPDGNode)) {
+						if(dependence instanceof PDGDataDependence) {
+							PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+							//check if pdgExpression is using dataDependence.data
+							if(pdgExpression.usesLocalVariable(dataDependence.getData()))
+								return false;
+						}
+						else if(dependence instanceof PDGAntiDependence) {
+							PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
+							//check if pdgExpression is defining dataDependence.data
+							if(pdgExpression.definesLocalVariable(antiDependence.getData()))
+								return false;
+						}
+						else if(dependence instanceof PDGOutputDependence) {
+							PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+							//check if pdgExpression is defining dataDependence.data
+							if(pdgExpression.definesLocalVariable(outputDependence.getData()))
+								return false;
+						}
 					}
-					else if(dependence instanceof PDGAntiDependence) {
-						PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
-						//check if pdgExpression is defining dataDependence.data
-						if(pdgExpression.definesLocalVariable(antiDependence.getData()))
-							return false;
-					}
-					else if(dependence instanceof PDGOutputDependence) {
-						PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
-						//check if pdgExpression is defining dataDependence.data
-						if(pdgExpression.definesLocalVariable(outputDependence.getData()))
-							return false;
+					//examine if it is a self-loop edge due to a loop-carried dependence
+					if(srcPDGNode.equals(nodeContainingExpression)) {
+						if(abstractDependence.isLoopCarried() && nodes.contains(abstractDependence.getLoop().getPDGNode())) {
+							if(pdgExpression.definesLocalVariable(abstractDependence.getData()) ||
+									pdgExpression.usesLocalVariable(abstractDependence.getData())) {
+								return false;
+							}
+						}
 					}
 				}
 			}

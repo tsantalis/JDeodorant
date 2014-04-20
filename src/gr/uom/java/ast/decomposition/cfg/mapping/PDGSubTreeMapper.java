@@ -14,6 +14,7 @@ import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
 import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
@@ -33,6 +34,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
@@ -634,6 +636,35 @@ public class PDGSubTreeMapper {
 				if(!currentStates.isEmpty()) {
 					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
 					List<PDGNodeMapping> nodeMappings = new ArrayList<PDGNodeMapping>(best.getNodeMappings());
+					//if predicate is a do-loop place it before the nodes nested inside it
+					if(predicate1.getCFGNode() instanceof CFGBranchDoLoopNode) {
+						Set<PDGNode> controlDependentNodes1 = new LinkedHashSet<PDGNode>();
+						for(PDGNode pdgNode : predicate1.getControlDependentNodes()) {
+							if(pdg1.isDirectlyNestedWithinBlockNode(pdgNode) == null) {
+								controlDependentNodes1.add(pdgNode);
+							}
+						}
+						PDGNodeMapping firstNonPredicateNestedInDoLoop = null;
+						for(PDGNodeMapping mapping : nodeMappings) {
+							if(mapping.getNodeG1() instanceof PDGStatementNode && controlDependentNodes1.contains(mapping.getNodeG1())) {
+								firstNonPredicateNestedInDoLoop = mapping;
+								break;
+							}
+						}
+						PDGNodeMapping doLoop = null;
+						for(PDGNodeMapping mapping : nodeMappings) {
+							if(mapping.getNodeG1().equals(predicate1)) {
+								doLoop = mapping;
+								break;
+							}
+						}
+						if(firstNonPredicateNestedInDoLoop != null && doLoop != null) {
+							int firstNonPredicateNestedInDoLoopPosition = nodeMappings.indexOf(firstNonPredicateNestedInDoLoop);
+							int doLoopPosition = nodeMappings.indexOf(doLoop);
+							nodeMappings.remove(doLoopPosition);
+							nodeMappings.add(firstNonPredicateNestedInDoLoopPosition, doLoop);
+						}
+					}
 					int index = 0;
 					for(PDGNodeMapping mapping : nodeMappings) {
 						if(mapping.getNodeG1().equals(predicate1)) {

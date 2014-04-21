@@ -561,10 +561,20 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
-				safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
+				boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
 				safeSubtreeMatch(node.getType(), o.getType());
 				safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getExpression(), o.getExpression());
+				if(node.getExpression()==null && o.getExpression()!=null) {
+					Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+				}
+				else if(node.getExpression()!=null && o.getExpression()==null) {
+					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+				}
+				if(!anonymousClassDeclarationMatch)
+					return false;
 			}
 			if(!astNodeDifference.isEmpty())
 				differences.add(astNodeDifference);

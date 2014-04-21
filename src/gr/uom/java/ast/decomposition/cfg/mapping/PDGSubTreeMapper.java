@@ -1503,21 +1503,10 @@ public class PDGSubTreeMapper {
 		else if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
 			PlainVariable returnedVariable1 = variablesToBeReturnedG1.iterator().next();
 			PlainVariable returnedVariable2 = variablesToBeReturnedG2.iterator().next();
-			if(!returnedVariable1.getVariableName().equals(returnedVariable2.getVariableName())) {
-				Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
-				boolean isRenamed = false;
-				for(BindingSignaturePair signaturePair : renamedVariables) {
-					if(signaturePair.getSignature1().containsBinding(returnedVariable1.getVariableBindingKey()) &&
-							signaturePair.getSignature2().containsBinding(returnedVariable2.getVariableBindingKey())) {
-						isRenamed = true;
-						break;
-					}
-				}
-				if(!isRenamed) {
-					PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
-							PreconditionViolationType.DIFFERENT_RETURNED_VARIABLE);
-					preconditionViolations.add(violation);
-				}
+			if(!returnedVariable1.getVariableType().equals(returnedVariable2.getVariableType())) {
+				PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
+						PreconditionViolationType.SINGLE_RETURNED_VARIABLE_WITH_DIFFERENT_TYPES);
+				preconditionViolations.add(violation);
 			}
 		}
 	}

@@ -27,12 +27,18 @@ public class ReturnedVariablePreconditionViolation extends PreconditionViolation
 			sb.append(returnedVariablesG2);
 			return sb.toString();
 		}
-		if(type.equals(PreconditionViolationType.DIFFERENT_RETURNED_VARIABLE)) {
+		if(type.equals(PreconditionViolationType.SINGLE_RETURNED_VARIABLE_WITH_DIFFERENT_TYPES)) {
 			StringBuilder sb = new StringBuilder();
 			sb.append("Clone fragment #1 returns variable ");
-			sb.append(returnedVariablesG1.iterator().next());
+			PlainVariable v1 = returnedVariablesG1.iterator().next();
+			sb.append(v1.getVariableName());
+			sb.append(" with type ");
+			sb.append(v1.getVariableType());
 			sb.append(" , while Clone fragment #2 returns variable ");
-			sb.append(returnedVariablesG2.iterator().next());
+			PlainVariable v2 = returnedVariablesG2.iterator().next();
+			sb.append(v2.getVariableName());
+			sb.append(" with type ");
+			sb.append(v2.getVariableType());
 			return sb.toString();
 		}
 		return null;
@@ -60,11 +66,17 @@ public class ReturnedVariablePreconditionViolation extends PreconditionViolation
 				counter++;
 			}
 		}
-		if(type.equals(PreconditionViolationType.DIFFERENT_RETURNED_VARIABLE)) {
+		if(type.equals(PreconditionViolationType.SINGLE_RETURNED_VARIABLE_WITH_DIFFERENT_TYPES)) {
 			styledString.append("Clone fragment #1 returns variable ");
-			styledString.append(returnedVariablesG1.iterator().next().toString(), styler);
+			PlainVariable v1 = returnedVariablesG1.iterator().next();
+			styledString.append(v1.getVariableName(), styler);
+			styledString.append(" with type ");
+			styledString.append(v1.getVariableType(), styler);
 			styledString.append(" , while Clone fragment #2 returns variable ");
-			styledString.append(returnedVariablesG2.iterator().next().toString(), styler);
+			PlainVariable v2 = returnedVariablesG2.iterator().next();
+			styledString.append(v2.getVariableName(), styler);
+			styledString.append(" with type ");
+			styledString.append(v2.getVariableType(), styler);
 		}
 		return styledString;
 	}

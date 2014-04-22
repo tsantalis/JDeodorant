@@ -1509,6 +1509,12 @@ public class PDGSubTreeMapper {
 				preconditionViolations.add(violation);
 			}
 		}
+		else if((variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 0) ||
+				(variablesToBeReturnedG1.size() == 0 && variablesToBeReturnedG2.size() == 1)) {
+			PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
+					PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES);
+			preconditionViolations.add(violation);
+		}
 	}
 
 	private void branchStatementWithInnermostLoop(NodeMapping nodeMapping, PDGNode node, Set<PDGNode> mappedNodes) {

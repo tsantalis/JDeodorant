@@ -18,6 +18,7 @@ import java.util.Set;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.ArrayInitializer;
@@ -402,6 +403,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if (!(other instanceof Block)) {
 			return false;
 		}
+		Block o = (Block)other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return true;
 	}
 
@@ -573,8 +578,25 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
 					astNodeDifference.addDifference(diff);
 				}
-				if(!anonymousClassDeclarationMatch)
-					return false;
+				if(!anonymousClassDeclarationMatch) {
+					AnonymousClassDeclaration anounymousClassDeclaration1 = node.getAnonymousClassDeclaration();
+					AnonymousClassDeclaration anounymousClassDeclaration2 = o.getAnonymousClassDeclaration();
+					if(anounymousClassDeclaration1 == null && anounymousClassDeclaration2 != null) {
+						Difference diff = new Difference("",anounymousClassDeclaration2.toString(),
+								DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+					else if(anounymousClassDeclaration1 != null && anounymousClassDeclaration2 == null) {
+						Difference diff = new Difference(anounymousClassDeclaration1.toString(),"",
+								DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+					else if(anounymousClassDeclaration1 != null && anounymousClassDeclaration2 != null) {
+						Difference diff = new Difference(anounymousClassDeclaration1.toString(),anounymousClassDeclaration2.toString(),
+								DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+				}
 			}
 			if(!astNodeDifference.isEmpty())
 				differences.add(astNodeDifference);
@@ -633,6 +655,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		DoStatement o = (DoStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return (
 				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
@@ -642,6 +667,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		EnhancedForStatement o = (EnhancedForStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		boolean paramMatch = safeSubtreeMatch(node.getParameter(), o.getParameter());
 		boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
 		return paramMatch && expMatch;
@@ -703,6 +731,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		ForStatement o = (ForStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		boolean initializerMatch = safeSubtreeListMatch(node.initializers(), o.initializers());
 		boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
 		boolean updaterMatch = safeSubtreeListMatch(node.updaters(), o.updaters());
@@ -718,6 +749,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		IfStatement o = (IfStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return (
 			safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
@@ -815,6 +849,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		LabeledStatement o = (LabeledStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return (
 				safeSubtreeMatch(node.getLabel(), o.getLabel()));
 	}
@@ -1280,6 +1317,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		SwitchStatement o = (SwitchStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return (
 				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
@@ -1289,6 +1329,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		SynchronizedStatement o = (SynchronizedStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return (
 				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
@@ -1333,6 +1376,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		TryStatement o = (TryStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		boolean resourceMatch = safeSubtreeListMatch(node.resources(), o.resources());
 		boolean catchClauseMatch = safeSubtreeListMatch(node.catchClauses(), o.catchClauses());
 		boolean finallyMatch;
@@ -1357,6 +1403,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		}
 		WhileStatement o = (WhileStatement) other;
+		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+			return super.match(node, o);
+		}
 		return (
 				safeSubtreeMatch(node.getExpression(), o.getExpression()));
 	}
@@ -1528,6 +1577,30 @@ public class ASTNodeMatcher extends ASTMatcher{
 						}
 					}
 				}
+			}
+		}
+		return false;
+	}
+	
+	private boolean isNestedUnderAnonymousClassDeclaration(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof AnonymousClassDeclaration || parent instanceof CatchClause ||
+					isFinallyBlockOfTryStatement(parent)) {
+				return true;
+			}
+			parent = parent.getParent();
+		}
+		return false;
+	}
+	
+	private boolean isFinallyBlockOfTryStatement(ASTNode node) {
+		ASTNode parent = node.getParent();
+		if(parent != null && parent instanceof TryStatement) {
+			TryStatement tryStatement = (TryStatement)parent;
+			Block finallyBlock = tryStatement.getFinally();
+			if(node instanceof Block && finallyBlock != null) {
+				return finallyBlock.equals((Block)node);
 			}
 		}
 		return false;

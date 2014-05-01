@@ -676,6 +676,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		}
 		styledString.append("super", new StyledStringStyler(keywordStyle));
 		handleParameters(stmnt.arguments());
+		appendSemicolon();
 		return false;
 	}
 	public boolean visit(SuperFieldAccess expr) {

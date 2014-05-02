@@ -282,7 +282,7 @@ public class CFG extends Graph {
 		if(parent.getStatement() instanceof Block)
 			parent = (CompositeStatementObject) parent.getParent();
 		int position = i;
-		while(parent != null && parent instanceof TryStatementObject) {
+		while(parent != null && (parent instanceof TryStatementObject || parent instanceof SynchronizedStatementObject)) {
 			CompositeStatementObject tryStatement = parent;
 			CompositeStatementObject tryStatementParent = (CompositeStatementObject) tryStatement.getParent();
 			List<AbstractStatement> tryParentStatements = new ArrayList<AbstractStatement>(tryStatementParent.getStatements());
@@ -297,19 +297,31 @@ public class CFG extends Graph {
 				}
 				j++;
 			}
-			if(((TryStatementObject)tryStatement).hasResources()) {
-				tryParentStatements.addAll(positionOfTryStatementInParent + 1, statements);
+			if(tryStatement instanceof TryStatementObject) {
+				TryStatementObject tempTry = (TryStatementObject)tryStatement;
+				if(tempTry.hasResources()) {
+					tryParentStatements.addAll(positionOfTryStatementInParent + 1, statements);
+				}
+				else {
+					tryParentStatements.remove(tryStatement);
+					tryParentStatements.addAll(positionOfTryStatementInParent, statements);
+				}
 			}
 			else {
-				tryParentStatements.remove(tryStatement);
-				tryParentStatements.addAll(positionOfTryStatementInParent, statements);
+				tryParentStatements.addAll(positionOfTryStatementInParent + 1, statements);
 			}
 			statements = tryParentStatements;
 			parent = tryStatementParent;
-			if(((TryStatementObject)tryStatement).hasResources())
+			if(tryStatement instanceof TryStatementObject) {
+				TryStatementObject tempTry = (TryStatementObject)tryStatement;
+				if(tempTry.hasResources())
+					position = positionOfTryStatementInParent + position + 1;
+				else
+					position = positionOfTryStatementInParent + position;
+			}
+			else {
 				position = positionOfTryStatementInParent + position + 1;
-			else
-				position = positionOfTryStatementInParent + position;
+			}
 		}
 		if(parent != null && parent.getStatement() instanceof SwitchStatement &&
 				parentComposite.getStatement() instanceof Block) {

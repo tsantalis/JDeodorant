@@ -71,8 +71,8 @@ public class SliceProfileAction implements IObjectActionDelegate {
 							SystemObject systemObject = ASTReader.getSystemObject();
 							AbstractMethodDeclaration methodObject = systemObject.getMethodObject(method);
 							if(methodObject != null) {
-								if(methodObject.getMethodBody() != null) {
-									ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
+								ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
+								if(methodObject.getMethodBody() != null && classObject != null) {
 									ITypeRoot typeRoot = classObject.getITypeRoot();
 									CompilationUnitCache.getInstance().lock(typeRoot);
 									CFG cfg = new CFG(methodObject);
@@ -88,7 +88,8 @@ public class SliceProfileAction implements IObjectActionDelegate {
 					if(method.isConstructor())
 						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to a constructor.");
 					if(selectedMethodHasNoBody)
-						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to an abstract method.");
+						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics",
+								"The selected method corresponds to an abstract method or a method of an anonymous class declaration.");
 					if(pdg != null) {
 						if(pdg.getVariableDeclarationsInMethod().size() == 0)
 							MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method does not declare any local variables.");

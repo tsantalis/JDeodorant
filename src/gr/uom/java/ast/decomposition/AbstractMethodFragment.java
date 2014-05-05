@@ -553,7 +553,7 @@ public abstract class AbstractMethodFragment {
 						anonymousClassObject.addMethod(methodObject);
 					}
 				}
-				anonymousClassDeclarationList.add(anonymousClassObject);
+				addAnomymousClassDeclaration(anonymousClassObject);
 			}
 			addCreation(creationObject);
 		}
@@ -590,6 +590,13 @@ public abstract class AbstractMethodFragment {
 		literalList.add(literalObject);
 		if(parent != null) {
 			parent.addLiteral(literalObject);
+		}
+	}
+
+	private void addAnomymousClassDeclaration(AnonymousClassDeclarationObject anonymousClassObject) {
+		anonymousClassDeclarationList.add(anonymousClassObject);
+		if(parent != null) {
+			parent.addAnomymousClassDeclaration(anonymousClassObject);
 		}
 	}
 

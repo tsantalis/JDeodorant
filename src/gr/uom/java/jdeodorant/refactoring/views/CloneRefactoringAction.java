@@ -71,7 +71,8 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 						if(methodObject1 != null && methodObject2 != null && methodObject1.getMethodBody() != null && methodObject2.getMethodBody() != null) {
 							final ClassObject classObject1 = systemObject.getClassObject(methodObject1.getClassName());
 							final ClassObject classObject2 = systemObject.getClassObject(methodObject2.getClassName());
-							if(!classObject1.isEnum() && !classObject1.isInterface() && !classObject2.isEnum() && !classObject2.isInterface()) {
+							if(classObject1 != null && !classObject1.isEnum() && !classObject1.isInterface() &&
+									classObject2 != null && !classObject2.isEnum() && !classObject2.isInterface()) {
 								ps.busyCursorWhile(new IRunnableWithProgress() {
 									public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 										ITypeRoot typeRoot1 = classObject1.getITypeRoot();

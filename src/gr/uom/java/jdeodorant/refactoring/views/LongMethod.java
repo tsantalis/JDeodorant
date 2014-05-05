@@ -720,7 +720,7 @@ public class LongMethod extends ViewPart {
 				AbstractMethodDeclaration methodObject = systemObject.getMethodObject(selectedMethod);
 				if(methodObject != null) {
 					ClassObject declaringClass = systemObject.getClassObject(methodObject.getClassName());
-					if(!declaringClass.isEnum() && !declaringClass.isInterface() && methodObject.getMethodBody() != null)
+					if(declaringClass != null && !declaringClass.isEnum() && !declaringClass.isInterface() && methodObject.getMethodBody() != null)
 						methodObjectsToBeExamined.add(methodObject);
 				}
 			}

@@ -1,5 +1,6 @@
 package gr.uom.java.ast;
 
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 
 public class AnonymousClassDeclarationObject extends ClassDeclarationObject {
@@ -12,7 +13,11 @@ public class AnonymousClassDeclarationObject extends ClassDeclarationObject {
 	public AnonymousClassDeclaration getAnonymousClassDeclaration() {
 		return (AnonymousClassDeclaration)anonymousClassDeclaration.recoverASTNode();
 	}
-	
+
+	public ITypeRoot getITypeRoot() {
+		return anonymousClassDeclaration.getITypeRoot();
+	}
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(name);

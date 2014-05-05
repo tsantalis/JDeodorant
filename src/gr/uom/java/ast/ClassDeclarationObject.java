@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import org.eclipse.jdt.core.ITypeRoot;
+
 public abstract class ClassDeclarationObject {
 	protected String name;
 	protected List<MethodObject> methodList;
@@ -18,6 +20,8 @@ public abstract class ClassDeclarationObject {
 		this.methodList = new ArrayList<MethodObject>();
 		this.fieldList = new ArrayList<FieldObject>();
 	}
+
+	public abstract ITypeRoot getITypeRoot();
 
 	public boolean addMethod(MethodObject method) {
 		return methodList.add(method);

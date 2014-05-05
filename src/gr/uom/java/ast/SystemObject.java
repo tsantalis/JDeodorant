@@ -291,6 +291,45 @@ public class SystemObject {
                 	return co;
     		}
     	}
+    	try {
+    		//check if declaringType is an anonymous class declaration
+			if(declaringType.isAnonymous()) {
+				IType declaringTypeOfAnonymousClass = declaringType.getDeclaringType();
+				ClassObject classObjectOfAnonymousClass = getClassObject(declaringTypeOfAnonymousClass.getFullyQualifiedName('.'));
+				if(classObjectOfAnonymousClass != null) {
+		    		ListIterator<MethodObject> mi = classObjectOfAnonymousClass.getMethodIterator();
+		    		while(mi.hasNext()) {
+		                MethodObject mo = mi.next();
+		                List<AnonymousClassDeclarationObject> anonymousClassDeclarations = mo.getAnonymousClassDeclarations();
+		                for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
+		                	ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
+		                	while(mi2.hasNext()) {
+		                		MethodObject mo2 = mi2.next();
+		                		IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
+		                		if(method.isSimilar(resolvedMethod))
+		                			return mo2;
+		                	}
+		                }
+		    		}
+		    		ListIterator<ConstructorObject> ci = classObjectOfAnonymousClass.getConstructorIterator();
+		    		while(ci.hasNext()) {
+		    			ConstructorObject co = ci.next();
+		                List<AnonymousClassDeclarationObject> anonymousClassDeclarations = co.getAnonymousClassDeclarations();
+		                for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
+		                	ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
+		                	while(mi2.hasNext()) {
+		                		MethodObject mo2 = mi2.next();
+		                		IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
+		                		if(method.isSimilar(resolvedMethod))
+		                			return mo2;
+		                	}
+		                }
+		    		}
+				}
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
     	return null;
     }
 

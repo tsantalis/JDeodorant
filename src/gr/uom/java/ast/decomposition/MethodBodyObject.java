@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.AnonymousClassDeclarationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LiteralObject;
@@ -228,6 +229,10 @@ public class MethodBodyObject {
 
 	public List<LiteralObject> getLiterals() {
 		return compositeStatement.getLiterals();
+	}
+
+	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarations() {
+		return compositeStatement.getAnonymousClassDeclarations();
 	}
 
 	public Set<String> getExceptionsInThrowStatements() {

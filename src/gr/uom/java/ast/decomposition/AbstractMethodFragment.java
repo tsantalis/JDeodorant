@@ -1,13 +1,19 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.Access;
+import gr.uom.java.ast.AnonymousClassDeclarationObject;
 import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
+import gr.uom.java.ast.ConstructorObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
+import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LiteralObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SuperFieldInstructionObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.TypeObject;
@@ -22,25 +28,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.Annotation;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayCreation;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public abstract class AbstractMethodFragment {
 	private AbstractMethodFragment parent;
@@ -53,6 +68,7 @@ public abstract class AbstractMethodFragment {
 	private List<LocalVariableInstructionObject> localVariableInstructionList;
 	private List<CreationObject> creationList;
 	private List<LiteralObject> literalList;
+	private List<AnonymousClassDeclarationObject> anonymousClassDeclarationList;
 	private Set<String> exceptionsInThrowStatements;
 	//private Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields;
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughFields;
@@ -97,6 +113,7 @@ public abstract class AbstractMethodFragment {
 		this.localVariableInstructionList = new ArrayList<LocalVariableInstructionObject>();
 		this.creationList = new ArrayList<CreationObject>();
 		this.literalList = new ArrayList<LiteralObject>();
+		this.anonymousClassDeclarationList = new ArrayList<AnonymousClassDeclarationObject>();
 		this.exceptionsInThrowStatements = new LinkedHashSet<String>();
 		//this.invokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.nonDistinctInvokedMethodsThroughFields = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
@@ -430,6 +447,113 @@ public abstract class AbstractMethodFragment {
 				String qualifiedParameterName = parameterType.getQualifiedName();
 				TypeObject parameterTypeObject = TypeObject.extractTypeObject(qualifiedParameterName);
 				creationObject.addParameter(parameterTypeObject);
+			}
+			AnonymousClassDeclaration anonymous = classInstanceCreation.getAnonymousClassDeclaration();
+			if(anonymous != null) {
+				final AnonymousClassDeclarationObject anonymousClassObject = new AnonymousClassDeclarationObject();
+				ITypeBinding anonymousTypeBinding = anonymous.resolveBinding();
+				anonymousClassObject.setName(anonymousTypeBinding.getBinaryName());
+				anonymousClassObject.setAnonymousClassDeclaration(anonymous);
+				List<BodyDeclaration> bodyDeclarations = anonymous.bodyDeclarations();
+				for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+					if(bodyDeclaration instanceof FieldDeclaration) {
+						FieldDeclaration fieldDeclaration = (FieldDeclaration)bodyDeclaration;
+						Type fieldType = fieldDeclaration.getType();
+		        		ITypeBinding binding = fieldType.resolveBinding();
+		        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+		        		for(VariableDeclarationFragment fragment : fragments) {
+		        			String qualifiedName = binding.getQualifiedName();
+		        			TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
+		        			typeObject2.setArrayDimension(typeObject2.getArrayDimension() + fragment.getExtraDimensions());
+		        			FieldObject fieldObject = new FieldObject(typeObject2, fragment.getName().getIdentifier());
+		        			fieldObject.setClassName(anonymousClassObject.getName());
+		        			fieldObject.setVariableDeclarationFragment(fragment);
+		        			
+		        			int fieldModifiers = fieldDeclaration.getModifiers();
+		        			if((fieldModifiers & Modifier.PUBLIC) != 0)
+		                		fieldObject.setAccess(Access.PUBLIC);
+		                	else if((fieldModifiers & Modifier.PROTECTED) != 0)
+		                		fieldObject.setAccess(Access.PROTECTED);
+		                	else if((fieldModifiers & Modifier.PRIVATE) != 0)
+		                		fieldObject.setAccess(Access.PRIVATE);
+		                	else
+		                		fieldObject.setAccess(Access.NONE);
+		                	
+		                	if((fieldModifiers & Modifier.STATIC) != 0)
+		                		fieldObject.setStatic(true);
+		                	
+		        			anonymousClassObject.addField(fieldObject);
+		        		}
+					}
+					else if(bodyDeclaration instanceof MethodDeclaration) {
+						MethodDeclaration methodDeclaration = (MethodDeclaration)bodyDeclaration;
+						String methodName = methodDeclaration.getName().getIdentifier();
+						final ConstructorObject constructorObject = new ConstructorObject();
+						constructorObject.setMethodDeclaration(methodDeclaration);
+						constructorObject.setName(methodName);
+						constructorObject.setClassName(anonymousClassObject.getName());
+						
+						int methodModifiers = methodDeclaration.getModifiers();
+						if((methodModifiers & Modifier.PUBLIC) != 0)
+							constructorObject.setAccess(Access.PUBLIC);
+						else if((methodModifiers & Modifier.PROTECTED) != 0)
+							constructorObject.setAccess(Access.PROTECTED);
+						else if((methodModifiers & Modifier.PRIVATE) != 0)
+							constructorObject.setAccess(Access.PRIVATE);
+						else
+							constructorObject.setAccess(Access.NONE);
+						
+						List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
+						for(SingleVariableDeclaration parameter : parameters) {
+							Type parameterType = parameter.getType();
+							ITypeBinding binding = parameterType.resolveBinding();
+							String qualifiedName = binding.getQualifiedName();
+							TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
+							typeObject2.setArrayDimension(typeObject2.getArrayDimension() + parameter.getExtraDimensions());
+							if(parameter.isVarargs()) {
+								typeObject2.setArrayDimension(1);
+							}
+							ParameterObject parameterObject = new ParameterObject(typeObject2, parameter.getName().getIdentifier(), parameter.isVarargs());
+							parameterObject.setSingleVariableDeclaration(parameter);
+							constructorObject.addParameter(parameterObject);
+						}
+						
+						Block methodBody = methodDeclaration.getBody();
+						if(methodBody != null) {
+							MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
+							constructorObject.setMethodBody(methodBodyObject);
+						}
+						
+						MethodObject methodObject = new MethodObject(constructorObject);
+						List<IExtendedModifier> extendedModifiers = methodDeclaration.modifiers();
+						for(IExtendedModifier extendedModifier : extendedModifiers) {
+							if(extendedModifier.isAnnotation()) {
+								Annotation annotation = (Annotation)extendedModifier;
+								if(annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
+									methodObject.setTestAnnotation(true);
+									break;
+								}
+							}
+						}
+						Type returnType = methodDeclaration.getReturnType2();
+						ITypeBinding binding = returnType.resolveBinding();
+						String qualifiedName = binding.getQualifiedName();
+						TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
+						methodObject.setReturnType(typeObject2);
+						
+						if((methodModifiers & Modifier.ABSTRACT) != 0)
+							methodObject.setAbstract(true);
+						if((methodModifiers & Modifier.STATIC) != 0)
+							methodObject.setStatic(true);
+						if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
+							methodObject.setSynchronized(true);
+						if((methodModifiers & Modifier.NATIVE) != 0)
+							methodObject.setNative(true);
+						
+						anonymousClassObject.addMethod(methodObject);
+					}
+				}
+				anonymousClassDeclarationList.add(anonymousClassObject);
 			}
 			addCreation(creationObject);
 		}
@@ -772,6 +896,10 @@ public abstract class AbstractMethodFragment {
 
 	public List<LiteralObject> getLiterals() {
 		return literalList;
+	}
+
+	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarations() {
+		return anonymousClassDeclarationList;
 	}
 
 	public Set<String> getExceptionsInThrowStatements() {

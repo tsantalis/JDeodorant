@@ -482,6 +482,10 @@ public class MethodObject implements AbstractMethodDeclaration {
 		return constructorObject.getLiterals();
 	}
 
+	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarations() {
+		return constructorObject.getAnonymousClassDeclarations();
+	}
+
 	public Set<String> getExceptionsInThrowStatements() {
 		return constructorObject.getExceptionsInThrowStatements();
 	}

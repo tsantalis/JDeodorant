@@ -44,6 +44,8 @@ public interface AbstractMethodDeclaration {
 	public List<CreationObject> getCreations();
 
 	public List<LiteralObject> getLiterals();
+	
+	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarations();
 
 	public Set<String> getExceptionsInThrowStatements();
 

@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.AnonymousClassDeclarationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LiteralObject;
@@ -122,6 +123,14 @@ public class CompositeStatementObject extends AbstractStatement {
 			literals.addAll(expression.getLiterals());
 		}
 		return literals;
+	}
+
+	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarationsInExpressions() {
+		List<AnonymousClassDeclarationObject> anonymousClassDeclarations = new ArrayList<AnonymousClassDeclarationObject>();
+		for(AbstractExpression expression : expressionList) {
+			anonymousClassDeclarations.addAll(expression.getAnonymousClassDeclarations());
+		}
+		return anonymousClassDeclarations;
 	}
 
 	public Set<MethodInvocationObject> getInvokedStaticMethodsInExpressions() {

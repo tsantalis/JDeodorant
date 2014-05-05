@@ -150,6 +150,13 @@ public class ConstructorObject implements AbstractMethodDeclaration {
 			return new ArrayList<LiteralObject>();
 	}
 
+	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarations() {
+		if(methodBody != null)
+			return methodBody.getAnonymousClassDeclarations();
+		else
+			return new ArrayList<AnonymousClassDeclarationObject>();
+	}
+
     public Set<String> getExceptionsInThrowStatements() {
     	if(methodBody != null)
 			return methodBody.getExceptionsInThrowStatements();

@@ -272,9 +272,47 @@ public class SystemObject {
     	return classObjectSet;
     }
 
+    public AnonymousClassDeclarationObject getAnonymousClassDeclaration(IType declaringType) {
+    	try {
+			if(declaringType.isAnonymous()) {
+				String fullyQualifiedName = declaringType.getFullyQualifiedName('.');
+				IType declaringTypeOfAnonymousClass = declaringType.getDeclaringType();
+				ClassObject classObjectOfAnonymousClass = getClassObject(declaringTypeOfAnonymousClass.getFullyQualifiedName('.'));
+				if(classObjectOfAnonymousClass != null) {
+					ListIterator<MethodObject> mi = classObjectOfAnonymousClass.getMethodIterator();
+		    		while(mi.hasNext()) {
+		                MethodObject mo = mi.next();
+		                List<AnonymousClassDeclarationObject> anonymousClassDeclarations = mo.getAnonymousClassDeclarations();
+		                for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
+		                	String anonymousName = anonymous.getName().replaceAll("\\$", ".");
+		                	if(anonymousName.equals(fullyQualifiedName)) {
+		                		return anonymous;
+		                	}
+		                }
+		    		}
+		    		ListIterator<ConstructorObject> ci = classObjectOfAnonymousClass.getConstructorIterator();
+		    		while(ci.hasNext()) {
+		    			ConstructorObject co = ci.next();
+		                List<AnonymousClassDeclarationObject> anonymousClassDeclarations = co.getAnonymousClassDeclarations();
+		                for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
+		                	String anonymousName = anonymous.getName().replaceAll("\\$", ".");
+		                	if(anonymousName.equals(fullyQualifiedName)) {
+		                		return anonymous;
+		                	}
+		                }
+		    		}
+				}
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+    	return null;
+    }
+
     public AbstractMethodDeclaration getMethodObject(IMethod method) {
     	IType declaringType = method.getDeclaringType();
-    	ClassObject classObject = getClassObject(declaringType.getFullyQualifiedName('.'));
+    	String fullyQualifiedName = declaringType.getFullyQualifiedName('.');
+		ClassObject classObject = getClassObject(fullyQualifiedName);
     	if(classObject != null) {
     		ListIterator<MethodObject> mi = classObject.getMethodIterator();
     		while(mi.hasNext()) {
@@ -302,12 +340,15 @@ public class SystemObject {
 		                MethodObject mo = mi.next();
 		                List<AnonymousClassDeclarationObject> anonymousClassDeclarations = mo.getAnonymousClassDeclarations();
 		                for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
-		                	ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
-		                	while(mi2.hasNext()) {
-		                		MethodObject mo2 = mi2.next();
-		                		IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
-		                		if(method.isSimilar(resolvedMethod))
-		                			return mo2;
+		                	String anonymousName = anonymous.getName().replaceAll("\\$", ".");
+		                	if(anonymousName.equals(fullyQualifiedName)) {
+		                		ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
+		                		while(mi2.hasNext()) {
+		                			MethodObject mo2 = mi2.next();
+		                			IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
+		                			if(method.isSimilar(resolvedMethod))
+		                				return mo2;
+		                		}
 		                	}
 		                }
 		    		}
@@ -316,12 +357,15 @@ public class SystemObject {
 		    			ConstructorObject co = ci.next();
 		                List<AnonymousClassDeclarationObject> anonymousClassDeclarations = co.getAnonymousClassDeclarations();
 		                for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
-		                	ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
-		                	while(mi2.hasNext()) {
-		                		MethodObject mo2 = mi2.next();
-		                		IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
-		                		if(method.isSimilar(resolvedMethod))
-		                			return mo2;
+		                	String anonymousName = anonymous.getName().replaceAll("\\$", ".");
+		                	if(anonymousName.equals(fullyQualifiedName)) {
+		                		ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
+		                		while(mi2.hasNext()) {
+		                			MethodObject mo2 = mi2.next();
+		                			IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
+		                			if(method.isSimilar(resolvedMethod))
+		                				return mo2;
+		                		}
 		                	}
 		                }
 		    		}

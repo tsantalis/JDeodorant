@@ -90,12 +90,12 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 							}
 							else
 								MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
-										"At least one of the selected methods belongs to an interface or enum.");
+										"At least one of the selected methods belongs to an interface, enum, or anonymous class.");
 						}
 						else
 							MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
 									"At least one of the selected methods is abstract.");
-						if(!mapper.getSubTreeMappers().isEmpty()) {
+						if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
 							Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
 							MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
 							RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);

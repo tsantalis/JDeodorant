@@ -68,6 +68,10 @@ public class ClassObject extends ClassDeclarationObject {
     		return (TypeDeclaration)this.typeDeclaration.recoverASTNode();
     }
 
+    public ClassObject getClassObject() {
+    	return this;
+    }
+
     public ITypeRoot getITypeRoot() {
     	return typeDeclaration.getITypeRoot();
     }

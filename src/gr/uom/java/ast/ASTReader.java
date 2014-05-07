@@ -344,6 +344,10 @@ public class ASTReader {
 			constructorObject.setMethodBody(methodBodyObject);
 		}
 		
+		for(AnonymousClassDeclarationObject anonymous : constructorObject.getAnonymousClassDeclarations()) {
+			anonymous.setClassObject(classObject);
+		}
+		
 		if(methodDeclaration.isConstructor()) {
 			classObject.addConstructor(constructorObject);
 		}

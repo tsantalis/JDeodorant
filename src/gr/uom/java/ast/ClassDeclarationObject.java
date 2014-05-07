@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.ITypeRoot;
 
 public abstract class ClassDeclarationObject {
@@ -22,6 +23,8 @@ public abstract class ClassDeclarationObject {
 	}
 
 	public abstract ITypeRoot getITypeRoot();
+	public abstract ClassObject getClassObject();
+	public abstract IFile getIFile();
 
 	public boolean addMethod(MethodObject method) {
 		return methodList.add(method);
@@ -144,7 +147,7 @@ public abstract class ClassDeclarationObject {
 		return fields;
 	}
 
-	private void accessedFieldFromThisClass(Set<FieldObject> fields, FieldInstructionObject fieldInstruction) {
+	protected void accessedFieldFromThisClass(Set<FieldObject> fields, FieldInstructionObject fieldInstruction) {
 		for(FieldObject field : fieldList) {
 			if(field.equals(fieldInstruction)) {
 				if(!fields.contains(field))

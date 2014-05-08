@@ -245,6 +245,25 @@ public class ASTNodeMatcher extends ASTMatcher{
 		//if bindings are both null then they were recovered from SimpleName expressions representing labels
 		if(binding1 == null && binding2 == null)
 			return true;
+		if(binding1 != null && binding1.isAnonymous() && binding2 != null && binding2.isAnonymous()) {
+			ITypeBinding[] interfaces1 = binding1.getInterfaces();
+			ITypeBinding[] interfaces2 = binding2.getInterfaces();
+			if(interfaces1.length == interfaces2.length) {
+				for(int i=0; i<interfaces1.length; i++) {
+					ITypeBinding interface1 = interfaces1[i];
+					ITypeBinding interface2 = interfaces2[i];
+					if(!interface1.isEqualTo(interface2)) {
+						return false;
+					}
+				}
+				//all interface bindings are equal
+				return true;
+			}
+			else {
+				//different number of implemented interfaces
+				return false;
+			}
+		}
 		if(binding1.isEqualTo(binding2))
 			return true;
 		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {

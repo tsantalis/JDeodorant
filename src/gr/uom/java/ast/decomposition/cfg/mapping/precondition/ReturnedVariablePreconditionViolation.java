@@ -19,7 +19,7 @@ public class ReturnedVariablePreconditionViolation extends PreconditionViolation
 
 	@Override
 	public String getViolation() {
-		if(type.equals(PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES)) {
+		if(type.equals(PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES) || type.equals(PreconditionViolationType.UNEQUAL_NUMBER_OF_RETURNED_VARIABLES)) {
 			StringBuilder sb = new StringBuilder();
 			sb.append("Clone fragment #1 returns variables ");
 			sb.append(returnedVariablesG1);
@@ -48,7 +48,7 @@ public class ReturnedVariablePreconditionViolation extends PreconditionViolation
 	public StyledString getStyledViolation() {
 		StyledString styledString = new StyledString();
 		BoldStyler styler = new BoldStyler();
-		if(type.equals(PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES)) {
+		if(type.equals(PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES) || type.equals(PreconditionViolationType.UNEQUAL_NUMBER_OF_RETURNED_VARIABLES)) {
 			styledString.append("Clone fragment #1 returns variables ");
 			int counter = 0;
 			for(PlainVariable variable : returnedVariablesG1) {

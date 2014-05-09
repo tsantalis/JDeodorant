@@ -101,43 +101,45 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		styledText1.setLayoutData(gridData);
 		
 		//Differences Label and Table
-		CLabel differencesLabel = new CLabel(comp, SWT.NONE);
-		differencesLabel.setText("Differences");
-		differencesLabel.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
-		differencesLabel.setBackground(new Color(null, 150, 150, 0));
-		GridData differencesLabelGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
-		differencesLabel.setLayoutData(differencesLabelGridData);
-		
-		differencesTable = new Table (comp, SWT.MULTI | SWT.BORDER | SWT.FULL_SELECTION);
-		differencesTable.setLinesVisible (true);
-		differencesTable.setHeaderVisible (true);
-		GridData differencesTableData = new GridData(SWT.FILL, SWT.FILL, true, true);
-		//tableData.heightHint = 50;
-		differencesTable.setLayoutData(differencesTableData);
-		String[] titles = {"Expression 1", "Expression 2", "Difference Type", "Description"};
-		for (int i=0; i<titles.length; i++) {
-			TableColumn column = new TableColumn (differencesTable, SWT.NONE);
-			column.setText (titles [i]);
-			column.pack();
-		}	
-		for (ASTNodeDifference nodeDifference : nodeMapping.getNodeDifferences()) {
-			for (Difference diff : nodeDifference.getDifferences()) {
-				TableItem item = new TableItem (differencesTable, SWT.NONE);
-				item.setText (0, nodeDifference.getExpression1().toString());
-				item.setText (1, nodeDifference.getExpression2().toString());
-				item.setText (2, diff.getType().name());
-				item.setText (3, diff.getType().toString());
+		if(nodeMapping.getNodeDifferences().size() > 0) {
+			CLabel differencesLabel = new CLabel(comp, SWT.NONE);
+			differencesLabel.setText("Differences");
+			differencesLabel.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
+			differencesLabel.setBackground(new Color(null, 150, 150, 0));
+			GridData differencesLabelGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
+			differencesLabel.setLayoutData(differencesLabelGridData);
+
+			differencesTable = new Table (comp, SWT.MULTI | SWT.BORDER | SWT.FULL_SELECTION);
+			differencesTable.setLinesVisible (true);
+			differencesTable.setHeaderVisible (true);
+			GridData differencesTableData = new GridData(SWT.FILL, SWT.FILL, true, true);
+			//tableData.heightHint = 50;
+			differencesTable.setLayoutData(differencesTableData);
+			String[] titles = {"Expression 1", "Expression 2", "Difference Type", "Description"};
+			for (int i=0; i<titles.length; i++) {
+				TableColumn column = new TableColumn (differencesTable, SWT.NONE);
+				column.setText (titles [i]);
+				column.pack();
+			}	
+			for (ASTNodeDifference nodeDifference : nodeMapping.getNodeDifferences()) {
+				for (Difference diff : nodeDifference.getDifferences()) {
+					TableItem item = new TableItem (differencesTable, SWT.NONE);
+					item.setText (0, nodeDifference.getExpression1().toString());
+					item.setText (1, nodeDifference.getExpression2().toString());
+					item.setText (2, diff.getType().name());
+					item.setText (3, diff.getType().toString());
+				}
 			}
-		}
-		for (int i=0; i<titles.length; i++) {
-			differencesTable.getColumn(i).pack();
-		}
-		//Eliminates extra column at the end
-		differencesTable.addControlListener(new ControlAdapter() {
-			public void controlResized(ControlEvent e){
-				packAndFillLastColumn(differencesTable);
+			for (int i=0; i<titles.length; i++) {
+				differencesTable.getColumn(i).pack();
 			}
-		});
+			//Eliminates extra column at the end
+			differencesTable.addControlListener(new ControlAdapter() {
+				public void controlResized(ControlEvent e){
+					packAndFillLastColumn(differencesTable);
+				}
+			});
+		}
 		}
 		//Precondition Violations
 		if (preconditionViolations.size() > 0){

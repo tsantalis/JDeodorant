@@ -20,6 +20,7 @@ import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
 import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
 import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
+import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
@@ -70,6 +71,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -103,6 +105,12 @@ public class PDGSubTreeMapper {
 	private boolean fullTreeMatch;
 	private IProgressMonitor monitor;
 	private List<PreconditionViolation> preconditionViolations;
+	private Set<PlainVariable> variablesToBeReturnedG1;
+	private Set<PlainVariable> variablesToBeReturnedG2;
+	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableBefore;
+	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableAfter;
+	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableBefore;
+	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableAfter;
 	
 	public PDGSubTreeMapper(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -129,6 +137,10 @@ public class PDGSubTreeMapper {
 		this.monitor = monitor;
 		this.allNodesInSubTreePDG1 = new TreeSet<PDGNode>();
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
+		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
+		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
+		this.nonMappedPDGNodesG2MovableBefore = new TreeSet<PDGNode>();
+		this.nonMappedPDGNodesG2MovableAfter = new TreeSet<PDGNode>();
 		//creates CloneStructureRoot
 		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
 		if(maximumStateWithMinimumDifferences != null) {
@@ -170,8 +182,10 @@ public class PDGSubTreeMapper {
 			findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
 			this.preconditionViolations = new ArrayList<PreconditionViolation>();
+			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
+			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
 			checkCloneStructureNodeForPreconditions(cloneStructureRoot);
-			determineVariablesToBeReturned();
+			checkPreconditionsAboutReturnedVariables();
 		}
 	}
 
@@ -1461,6 +1475,14 @@ public class PDGSubTreeMapper {
 		return preconditionViolations;
 	}
 
+	public Set<PlainVariable> getVariablesToBeReturnedG1() {
+		return variablesToBeReturnedG1;
+	}
+
+	public Set<PlainVariable> getVariablesToBeReturnedG2() {
+		return variablesToBeReturnedG2;
+	}
+
 	private Set<PlainVariable> variablesToBeReturned(PDG pdg, Set<PDGNode> mappedNodes) {
 		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
 		Iterator<GraphNode> iterator = pdg.getNodeIterator();
@@ -1489,11 +1511,7 @@ public class PDGSubTreeMapper {
 		return variablesToBeReturned;
 	}
 
-	private void determineVariablesToBeReturned() {
-		TreeSet<PDGNode> removableNodesG1 = getRemovableNodesG1();
-		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
-		Set<PlainVariable> variablesToBeReturnedG1 = variablesToBeReturned(pdg1, removableNodesG1);
-		Set<PlainVariable> variablesToBeReturnedG2 = variablesToBeReturned(pdg2, removableNodesG2);
+	private void checkPreconditionsAboutReturnedVariables() {
 		//if the returned variables are more than one, the precondition is violated
 		if(variablesToBeReturnedG1.size() > 1 || variablesToBeReturnedG2.size() > 1) {
 			PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
@@ -1512,8 +1530,21 @@ public class PDGSubTreeMapper {
 		else if((variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 0) ||
 				(variablesToBeReturnedG1.size() == 0 && variablesToBeReturnedG2.size() == 1)) {
 			PreconditionViolation violation = new ReturnedVariablePreconditionViolation(variablesToBeReturnedG1, variablesToBeReturnedG2,
-					PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES);
+					PreconditionViolationType.UNEQUAL_NUMBER_OF_RETURNED_VARIABLES);
 			preconditionViolations.add(violation);
+		}
+	}
+
+	private void conditionalReturnStatement(NodeMapping nodeMapping, PDGNode node) {
+		CFGNode cfgNode = node.getCFGNode();
+		if(cfgNode instanceof CFGExitNode) {
+			ReturnStatement returnStatement = (ReturnStatement)cfgNode.getASTStatement();
+			if(returnStatement.getExpression() == null) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
 		}
 	}
 
@@ -1604,24 +1635,35 @@ public class PDGSubTreeMapper {
 		}
 		if(nodeMapping instanceof PDGNodeGap) {
 			if(nodeMapping.getNodeG1() != null) {
-				processNonMappedNode(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
+				processNonMappedNode(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter, variablesToBeReturnedG1);
 			}
 			if(nodeMapping.getNodeG2() != null) {
-				processNonMappedNode(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
+				processNonMappedNode(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter, variablesToBeReturnedG2);
 			}
 		}
 		if(nodeMapping instanceof PDGNodeMapping) {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
+			conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
+			conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
 		}
 	}
 
-	private void processNonMappedNode(NodeMapping nodeMapping, PDGNode node, TreeSet<PDGNode> removableNodes) {
-		if(!removableNodes.isEmpty() && !movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node)) {
+	private void processNonMappedNode(NodeMapping nodeMapping, PDGNode node, TreeSet<PDGNode> removableNodes,
+			TreeSet<PDGNode> movableBefore, TreeSet<PDGNode> movableAfter, Set<PlainVariable> returnedVariables) {
+		boolean movableNonMappedNodeBeforeFirstMappedNode = movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node);
+		boolean movableNonMappedNodeAfterLastMappedNode = movableNonMappedNodeAfterLastMappedNode(removableNodes, node, returnedVariables);
+		if(!movableNonMappedNodeBeforeFirstMappedNode && !movableNonMappedNodeAfterLastMappedNode) {
 			PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-					PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE);
+					PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE);
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
+		}
+		else if(movableNonMappedNodeBeforeFirstMappedNode) {
+			movableBefore.add(node);
+		}
+		else if(movableNonMappedNodeAfterLastMappedNode) {
+			movableAfter.add(node);
 		}
 		CFGNode cfgNode = node.getCFGNode();
 		if(cfgNode instanceof CFGBreakNode) {
@@ -1664,7 +1706,51 @@ public class PDGSubTreeMapper {
 		}
 		return true;
 	}
-
+	//precondition: non-mapped statement can be moved after the last mapped statement
+	private boolean movableNonMappedNodeAfterLastMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode, Set<PlainVariable> returnedVariables) {
+		Iterator<GraphEdge> outgoingDependenceIterator = nonMappedNode.getOutgoingDependenceIterator();
+		while(outgoingDependenceIterator.hasNext()) {
+			PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
+			if(dependence instanceof PDGAbstractDataDependence) {
+				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
+				PDGNode dstPDGNode = (PDGNode)dataDependence.getDst();
+				if(mappedNodes.contains(dstPDGNode)) {
+					return false;
+				}
+				//examine if it is a self-loop edge due to a loop-carried dependence
+				if(dstPDGNode.equals(nonMappedNode)) {
+					if(dataDependence.isLoopCarried() && mappedNodes.contains(dataDependence.getLoop().getPDGNode())) {
+						return false;
+					}
+				}
+			}
+		}
+		Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
+		while(incomingDependenceIterator.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+			if(dependence instanceof PDGAbstractDataDependence) {
+				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
+				if(mappedNodes.contains(srcPDGNode)) {
+					AbstractVariable data = dataDependence.getData();
+					if(data instanceof PlainVariable) {
+						PlainVariable plainVariable = (PlainVariable)data;
+						if(!plainVariable.isField() && !returnedVariables.contains(plainVariable)) {
+							return false;
+						}
+					}
+					else if(data instanceof CompositeVariable) {
+						CompositeVariable composite = (CompositeVariable)data;
+						PlainVariable initial = composite.getInitialVariable();
+						if(!initial.isField() && !returnedVariables.contains(initial)) {
+							return false;
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
 	//precondition: differences in expressions should be parameterizable
 	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression,
 			Set<VariableDeclaration> variableDeclarationsInMethod, ICompilationUnit iCompilationUnit) {

@@ -8,6 +8,8 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
+import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
@@ -22,6 +24,8 @@ public class PDGNodeMapping extends IdBasedMapping {
 	private PDGNode nodeG2;
 	private ASTNodeMatcher matcher;
 	private List<ASTNodeDifference> nodeDifferences;
+	private List<AbstractMethodFragment> additionallyMatchedFragments1;
+	private List<AbstractMethodFragment> additionallyMatchedFragments2;
 	private PDGNodeMapping symmetricalIfNodePair;
 	private volatile int hashCode = 0;
 	
@@ -31,6 +35,8 @@ public class PDGNodeMapping extends IdBasedMapping {
 		this.nodeG2 = nodeG2;
 		this.matcher = matcher;
 		this.nodeDifferences = matcher.getDifferences();
+		this.additionallyMatchedFragments1 = matcher.getAdditionallyMatchedFragments1();
+		this.additionallyMatchedFragments2 = matcher.getAdditionallyMatchedFragments2();
 	}
 	
 	public PDGNode getNodeG1() {
@@ -43,6 +49,42 @@ public class PDGNodeMapping extends IdBasedMapping {
 
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return nodeDifferences;
+	}
+
+	public boolean isAdvancedMatch() {
+		return additionallyMatchedFragments1.size() > 0 || additionallyMatchedFragments2.size() > 0;
+	}
+
+	public List<AbstractMethodFragment> getAdditionallyMatchedFragments1() {
+		return additionallyMatchedFragments1;
+	}
+
+	public List<AbstractMethodFragment> getAdditionallyMatchedFragments2() {
+		return additionallyMatchedFragments2;
+	}
+
+	public boolean containsAdditionallyMatchedFragment1(PDGNode node) {
+		for(AbstractMethodFragment fragment : additionallyMatchedFragments1) {
+			if(fragment instanceof AbstractStatement) {
+				AbstractStatement statement = (AbstractStatement)fragment;
+				if(statement.getStatement().equals(node.getASTStatement())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	public boolean containsAdditionallyMatchedFragment2(PDGNode node) {
+		for(AbstractMethodFragment fragment : additionallyMatchedFragments2) {
+			if(fragment instanceof AbstractStatement) {
+				AbstractStatement statement = (AbstractStatement)fragment;
+				if(statement.getStatement().equals(node.getASTStatement())) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {

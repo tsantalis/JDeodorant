@@ -148,8 +148,13 @@ public class PDGSubTreeMapper {
 			this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
 			findNonMappedNodes(pdg1, allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
 			findNonMappedNodes(pdg2, allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
+			Set<PDGNode> additionallyMatchedNodesG1 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
-				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null);
+				boolean advancedMatch = cloneStructureRoot.isGapNodeG1InAdditionalMatches(nodeG1);
+				if(advancedMatch) {
+					additionallyMatchedNodesG1.add(nodeG1);
+				}
+				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null, advancedMatch);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
 				PDGBlockNode tryNode = pdg1.isDirectlyNestedWithinBlockNode(nodeG1);
 				if(tryNode != null) {
@@ -162,8 +167,14 @@ public class PDGSubTreeMapper {
 					cloneStructureRoot.addGapChild(node);
 				}
 			}
+			nonMappedNodesG1.removeAll(additionallyMatchedNodesG1);
+			Set<PDGNode> additionallyMatchedNodesG2 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG2 : nonMappedNodesG2) {
-				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2);
+				boolean advancedMatch = cloneStructureRoot.isGapNodeG2InAdditionalMatches(nodeG2);
+				if(advancedMatch) {
+					additionallyMatchedNodesG2.add(nodeG2);
+				}
+				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2, advancedMatch);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
 				PDGBlockNode tryNode = pdg2.isDirectlyNestedWithinBlockNode(nodeG2);
 				if(tryNode != null) {
@@ -176,6 +187,7 @@ public class PDGSubTreeMapper {
 					cloneStructureRoot.addGapChild(node);
 				}
 			}
+			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 			findPassedParameters();

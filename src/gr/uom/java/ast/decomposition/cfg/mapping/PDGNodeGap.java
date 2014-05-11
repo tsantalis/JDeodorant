@@ -17,8 +17,9 @@ public class PDGNodeGap extends IdBasedGap {
 	private PDGNode nodeG2;
 	private volatile int hashCode = 0;
 	
-	public PDGNodeGap(PDGNode nodeG1, PDGNode nodeG2) {
-		super(nodeG1 != null ? nodeG1.getId() : 0, nodeG2 != null ? nodeG2.getId() : 0);
+	public PDGNodeGap(PDGNode nodeG1, PDGNode nodeG2, boolean advancedMatch) {
+		super(nodeG1 != null ? nodeG1.getId() : 0, nodeG2 != null ? nodeG2.getId() : 0,
+				advancedMatch);
 		this.nodeG1 = nodeG1;
 		this.nodeG2 = nodeG2;
 	}

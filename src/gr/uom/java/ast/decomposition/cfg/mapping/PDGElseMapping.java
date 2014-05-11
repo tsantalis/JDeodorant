@@ -25,6 +25,10 @@ public class PDGElseMapping extends IdBasedMapping {
 		return new ArrayList<ASTNodeDifference>();
 	}
 
+	public boolean isAdvancedMatch() {
+		return false;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

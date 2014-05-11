@@ -30,7 +30,15 @@ public class PDGMapper {
 			int size1 = controlDependenceTreePDG1.getNodeCount() - 1;
 			int size2 = controlDependenceTreePDG2.getNodeCount() - 1;
 			int subTreeSize = subTreeMatch.getMatchPairs().size();
-			if(subTreeSize == size1 && subTreeSize == size2) {
+			int ternaryOperatorCount1 = 0;
+			int ternaryOperatorCount2 = 0;
+			for(ControlDependenceTreeNodeMatchPair pair : subTreeMatch.getMatchPairs()) {
+				if(pair.getNode1().isTernary() && !pair.getNode2().isTernary())
+					ternaryOperatorCount1++;
+				if(pair.getNode2().isTernary() && !pair.getNode1().isTernary())
+					ternaryOperatorCount2++;
+			}
+			if(subTreeSize == (size1 - ternaryOperatorCount2) && subTreeSize == (size2 - ternaryOperatorCount1)) {
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2, true, monitor);
 				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
 					subTreeMappers.add(mapper);

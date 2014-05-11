@@ -21,6 +21,7 @@ public abstract class NodeMapping implements Comparable<NodeMapping> {
 	public abstract PDGNode getNodeG1();
 	public abstract PDGNode getNodeG2();
 	public abstract List<ASTNodeDifference> getNodeDifferences();
+	public abstract boolean isAdvancedMatch();
 
 	public boolean equals(Object o) {
 		if(this == o)

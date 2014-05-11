@@ -9,8 +9,8 @@ import java.util.List;
 public class PDGElseGap extends IdBasedGap {
 	private volatile int hashCode = 0;
 	
-	public PDGElseGap(double id1, double id2) {
-		super(id1, id2);
+	public PDGElseGap(double id1, double id2, boolean advancedMatch) {
+		super(id1, id2, advancedMatch);
 	}
 
 	public PDGNode getNodeG1() {

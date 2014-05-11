@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
+import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -157,7 +159,22 @@ public class MappingState {
 	}
 
 	public int getNodeMappingSize() {
-		return getNodeMappings().size();
+		int size = 0;
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			size++;
+			//TODO fix the case where the a statement is matched in both clones, count only once
+			for(AbstractMethodFragment fragment : nodeMapping.getAdditionallyMatchedFragments1()) {
+				if(fragment instanceof StatementObject) {
+					size++;
+				}
+			}
+			for(AbstractMethodFragment fragment : nodeMapping.getAdditionallyMatchedFragments2()) {
+				if(fragment instanceof StatementObject) {
+					size++;
+				}
+			}
+		}
+		return size;
 	}
 
 	public int getSize() {

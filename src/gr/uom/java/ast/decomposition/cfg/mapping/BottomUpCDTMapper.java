@@ -4,6 +4,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -46,8 +47,12 @@ public class BottomUpCDTMapper {
 				boolean match;
 				if((leaf1.isElseNode() && !leaf2.isElseNode()) || (!leaf1.isElseNode() && leaf2.isElseNode()))
 					match = false;
-				else if(leaf1.isElseNode() && leaf2.isElseNode())
-					match = astNodeMatcher.match(leaf1.getIfParent().getNode(), leaf2.getIfParent().getNode());
+				else if(leaf1.isElseNode() && leaf2.isElseNode()) {
+					if(containsMatch(matchLeafPairs, leaf1.getIfParent(), leaf2.getIfParent()))
+						match = astNodeMatcher.match(leaf1.getIfParent().getNode(), leaf2.getIfParent().getNode());
+					else
+						match = false;
+				}
 				else
 					match = astNodeMatcher.match(leaf1.getNode(), leaf2.getNode());
 				if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(leaf1, leaf2)) {
@@ -97,6 +102,15 @@ public class BottomUpCDTMapper {
 		for(ControlDependenceTreeNodeMatchPair matchPair : matchLeafPairs) {
 			if(matchPair.getNode1().getParent().equals(matchLeafPair.getNode1().getParent()) &&
 					matchPair.getNode2().getParent().equals(matchLeafPair.getNode2().getParent()))
+				return true;
+		}
+		return false;
+	}
+	
+	private boolean containsMatch(Collection<ControlDependenceTreeNodeMatchPair> matches,
+			ControlDependenceTreeNode treeSibling, ControlDependenceTreeNode searchSibling) {
+		for(ControlDependenceTreeNodeMatchPair match : matches) {
+			if(match.getNode1().equals(treeSibling) && match.getNode2().equals(searchSibling))
 				return true;
 		}
 		return false;
@@ -190,8 +204,12 @@ public class BottomUpCDTMapper {
 					boolean match;
 					if((treeSibling.isElseNode() && !searchSibling.isElseNode()) || (!treeSibling.isElseNode() && searchSibling.isElseNode()))
 						match = false;
-					else if(treeSibling.isElseNode() && searchSibling.isElseNode())
-						match = astNodeMatcher.match(treeSibling.getIfParent().getNode(), searchSibling.getIfParent().getNode());
+					else if(treeSibling.isElseNode() && searchSibling.isElseNode()) {
+						if(containsMatch(matches, treeSibling.getIfParent(), searchSibling.getIfParent()))
+							match = astNodeMatcher.match(treeSibling.getIfParent().getNode(), searchSibling.getIfParent().getNode());
+						else
+							match = false;
+					}
 					else
 						match = astNodeMatcher.match(treeSibling.getNode(), searchSibling.getNode());
 					if(match && astNodeMatcher.isParameterizable() && ifStatementsWithEqualElseIfChains(treeSibling, searchSibling) &&

@@ -77,6 +77,34 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return null;
 	}
 
+	public boolean isGapNodeG1InAdditionalMatches(PDGNode nodeG1) {
+		if(mapping != null && mapping instanceof PDGNodeMapping && ((PDGNodeMapping)mapping).containsAdditionallyMatchedFragment1(nodeG1)) {
+			return true;
+		}
+		else {
+			for(CloneStructureNode child : children) {
+				boolean gapNodeInAdditionalMatches = child.isGapNodeG1InAdditionalMatches(nodeG1);
+				if(gapNodeInAdditionalMatches)
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean isGapNodeG2InAdditionalMatches(PDGNode nodeG2) {
+		if(mapping != null && mapping instanceof PDGNodeMapping && ((PDGNodeMapping)mapping).containsAdditionallyMatchedFragment2(nodeG2)) {
+			return true;
+		}
+		else {
+			for(CloneStructureNode child : children) {
+				boolean gapNodeInAdditionalMatches = child.isGapNodeG2InAdditionalMatches(nodeG2);
+				if(gapNodeInAdditionalMatches)
+					return true;
+			}
+		}
+		return false;
+	}
+
 	public void addGapChild(CloneStructureNode gapNode) {
 		PDGNodeGap gap = (PDGNodeGap)gapNode.getMapping();
 		PDGNode nodeG1ControlParent = gap.getNodeG1() != null ? gap.getNodeG1().getControlDependenceParent() : null;
@@ -136,11 +164,11 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 						PDGElseGap elseGap = null;
 						if(gap.getNodeG1() != null) {
 							double elseGapId1 = gap.getId1() - 0.5;
-							elseGap = new PDGElseGap(elseGapId1, 0);
+							elseGap = new PDGElseGap(elseGapId1, 0, gap.isAdvancedMatch());
 						}
 						if(gap.getNodeG2() != null) {
 							double elseGapId2 = gap.getId2() - 0.5;
-							elseGap = new PDGElseGap(0, elseGapId2);
+							elseGap = new PDGElseGap(0, elseGapId2, gap.isAdvancedMatch());
 						}
 						if(elseGap != null) {
 							CloneStructureNode elseNode = new CloneStructureNode(elseGap);

@@ -190,20 +190,28 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		legendGridData.verticalSpan = 5;
 		legend.setLayoutData(legendGridData);
 		GridLayout legendLayout = new GridLayout();
-		legendLayout.numColumns = 2;
+		legendLayout.numColumns = 6;
 		legend.setLayout(legendLayout);
+		
+		CLabel differencesLegendColor = new CLabel(legend, SWT.BORDER);
+		differencesLegendColor.setText("           ");
+		differencesLegendColor.setBackground(new Color(null, 255, 255, 200));
+		CLabel differencesLegendLabel = new CLabel(legend, SWT.NONE);
+		differencesLegendLabel.setText("Difference");
+		
 		//Unmapped Statements Label
-		CLabel unmappedStatementsLegendColor = new CLabel(legend, SWT.NONE);
+		CLabel unmappedStatementsLegendColor = new CLabel(legend, SWT.BORDER);
 		unmappedStatementsLegendColor.setText("           ");
 		unmappedStatementsLegendColor.setBackground(new Color(null, 255, 156, 156));
 		CLabel unmappedStatementsLegendLabel = new CLabel(legend, SWT.NONE);
 		unmappedStatementsLegendLabel.setText("Unmapped Statement");
 		
-		CLabel differencesLegendColor = new CLabel(legend, SWT.NONE);
-		differencesLegendColor.setText("           ");
-		differencesLegendColor.setBackground(new Color(null, 255, 255, 200));
-		CLabel differencesLegendLabel = new CLabel(legend, SWT.NONE);
-		differencesLegendLabel.setText("Difference");
+		//Unmapped Statements Label
+		CLabel advancedMatchLegendColor = new CLabel(legend, SWT.BORDER);
+		advancedMatchLegendColor.setText("           ");
+		advancedMatchLegendColor.setBackground(new Color(null, 156, 255, 156));
+		CLabel advancedMatchLegendLabel = new CLabel(legend, SWT.NONE);
+		advancedMatchLegendLabel.setText("Advanced Match");
 		
 		renamedVariables = new Group(result, SWT.SHADOW_NONE);
 		renamedVariables.setText("Renamed Variables");

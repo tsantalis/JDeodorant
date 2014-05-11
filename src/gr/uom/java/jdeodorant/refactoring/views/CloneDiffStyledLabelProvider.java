@@ -32,6 +32,9 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		
 		if(theNode.getMapping() instanceof PDGNodeMapping) {
 			styledString = generateStyledString(theNode, position);
+			if(theNode.getMapping().isAdvancedMatch()) {
+				cell.setBackground(new Color(null, 156, 255, 156));
+			}
 		}
 		else if(theNode.getMapping() instanceof PDGElseMapping) {
 			styledString = new StyledString();
@@ -41,20 +44,20 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 			styledString = generateStyledStringForGap(theNode, position);
 			if ((position == CloneDiffSide.LEFT && theNode.getMapping().getNodeG1() != null) ||
 					(position == CloneDiffSide.RIGHT && theNode.getMapping().getNodeG2() != null)) {
-				cell.setBackground(new Color(null, 255, 156, 156));
+				setCellBackgroundWithCode(cell, theNode);
 			}
 			else {
-				cell.setBackground(new Color(null, 255, 224, 224));
+				setCellBackgroundWithoutCode(cell, theNode);
 			}
 		}
 		else if(theNode.getMapping() instanceof PDGElseGap) {
 			styledString = generateStyledStringForElseGap((PDGElseGap)theNode.getMapping(), position);
 			if ((position == CloneDiffSide.LEFT && ((PDGElseGap)theNode.getMapping()).getId1() != 0) ||
 					(position == CloneDiffSide.RIGHT && ((PDGElseGap)theNode.getMapping()).getId2() != 0)) {
-				cell.setBackground(new Color(null, 255, 156, 156));
+				setCellBackgroundWithCode(cell, theNode);
 			}
 			else {
-				cell.setBackground(new Color(null, 255, 224, 224));
+				setCellBackgroundWithoutCode(cell, theNode);
 			}
 		}
 		else {
@@ -69,6 +72,24 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		cell.setText(styledString.toString());
 		cell.setStyleRanges(styledString.getStyleRanges()); 
 		super.update(cell);
+	}
+
+	private void setCellBackgroundWithoutCode(ViewerCell cell, CloneStructureNode theNode) {
+		if(theNode.getMapping().isAdvancedMatch()) {
+			cell.setBackground(new Color(null, 224, 255, 224));
+		}
+		else {
+			cell.setBackground(new Color(null, 255, 224, 224));
+		}
+	}
+
+	private void setCellBackgroundWithCode(ViewerCell cell, CloneStructureNode theNode) {
+		if(theNode.getMapping().isAdvancedMatch()) {
+			cell.setBackground(new Color(null, 156, 255, 156));
+		}
+		else {
+			cell.setBackground(new Color(null, 255, 156, 156));
+		}
 	}
 	
 	private StyledString generateStyledString(CloneStructureNode theNode, CloneDiffSide diffSide) {

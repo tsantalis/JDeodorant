@@ -5,6 +5,9 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
+import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
@@ -64,13 +67,18 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 
 public class ASTNodeMatcher extends ASTMatcher{
 
-	private List<ASTNodeDifference> differences = new ArrayList<ASTNodeDifference>();
+	private List<ASTNodeDifference> differences;
 	private ITypeRoot typeRoot1;
 	private ITypeRoot typeRoot2;
+	private List<AbstractMethodFragment> additionallyMatchedFragments1;
+	private List<AbstractMethodFragment> additionallyMatchedFragments2;
 	
 	public ASTNodeMatcher(ITypeRoot root1, ITypeRoot root2) {
+		this.differences = new ArrayList<ASTNodeDifference>();
 		this.typeRoot1 = root1;
 		this.typeRoot2 = root2;
+		this.additionallyMatchedFragments1 = new ArrayList<AbstractMethodFragment>();
+		this.additionallyMatchedFragments2 = new ArrayList<AbstractMethodFragment>();
 	}
 
 	public boolean match(PDGNode nodeG1, PDGNode nodeG2) {
@@ -78,12 +86,16 @@ public class ASTNodeMatcher extends ASTMatcher{
 		NodePairComparisonCache cache = NodePairComparisonCache.getInstance();
 		if(cache.containsNodePair(pair)) {
 			this.differences.addAll(cache.getDifferencesForNodePair(pair));
+			this.additionallyMatchedFragments1.addAll(cache.getAdditionallyMatchedFragments1(pair));
+			this.additionallyMatchedFragments2.addAll(cache.getAdditionallyMatchedFragments2(pair));
 			return cache.getMatchForNodePair(pair);
 		}
 		else {
 			boolean match = nodeG1.getASTStatement().subtreeMatch(this, nodeG2.getASTStatement());
 			cache.addDifferencesForNodePair(pair, this.differences);
 			cache.addMatchForNodePair(pair, match);
+			cache.setAdditionallyMatchedFragments1(pair, this.additionallyMatchedFragments1);
+			cache.setAdditionallyMatchedFragments2(pair, this.additionallyMatchedFragments2);
 			return match;
 		}
 	}
@@ -98,6 +110,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 
 	public ITypeRoot getTypeRoot2() {
 		return typeRoot2;
+	}
+
+	public List<AbstractMethodFragment> getAdditionallyMatchedFragments1() {
+		return additionallyMatchedFragments1;
+	}
+
+	public List<AbstractMethodFragment> getAdditionallyMatchedFragments2() {
+		return additionallyMatchedFragments2;
 	}
 
 	public String toString() {
@@ -1548,6 +1568,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
 						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
 						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
+							ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+							StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
+							StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
+							this.additionallyMatchedFragments1.add(thenStatementObject);
+							this.additionallyMatchedFragments1.add(elseStatementObject);
 							return true;
 						}
 					}
@@ -1592,6 +1617,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
 						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
 						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
+							ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+							StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
+							StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
+							this.additionallyMatchedFragments2.add(thenStatementObject);
+							this.additionallyMatchedFragments2.add(elseStatementObject);
 							return true;
 						}
 					}

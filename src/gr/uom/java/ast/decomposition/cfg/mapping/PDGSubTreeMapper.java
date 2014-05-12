@@ -1646,10 +1646,10 @@ public class PDGSubTreeMapper {
 			}
 		}
 		if(nodeMapping instanceof PDGNodeGap) {
-			if(nodeMapping.getNodeG1() != null) {
+			if(nodeMapping.getNodeG1() != null && !nodeMapping.isAdvancedMatch()) {
 				processNonMappedNode(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter, variablesToBeReturnedG1);
 			}
-			if(nodeMapping.getNodeG2() != null) {
+			if(nodeMapping.getNodeG2() != null && !nodeMapping.isAdvancedMatch()) {
 				processNonMappedNode(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter, variablesToBeReturnedG2);
 			}
 		}

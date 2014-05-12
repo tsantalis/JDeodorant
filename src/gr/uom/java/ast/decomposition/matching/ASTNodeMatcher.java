@@ -1554,8 +1554,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 		List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(expressionStatement);
 		if(conditionalExpressions.size() == 1) {
 			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
-			boolean match = safeSubtreeMatch(ifExpression, conditionalExpression.getExpression());
-			if(match) {
+			boolean conditionalExpressionMatch = safeSubtreeMatch(ifExpression, conditionalExpression.getExpression());
+			if(conditionalExpressionMatch) {
 				//the ifStatement should have an else part, which is not an 'else if' statement
 				if(ifStatement.getElseStatement() != null && !(ifStatement.getElseStatement() instanceof IfStatement)) {
 					Statement thenStatement = ifStatement.getThenStatement();
@@ -1568,12 +1568,39 @@ public class ASTNodeMatcher extends ASTMatcher{
 						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
 						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
 						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
-							ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
-							StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
-							StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
-							this.additionallyMatchedFragments1.add(thenStatementObject);
-							this.additionallyMatchedFragments1.add(elseStatementObject);
-							return true;
+							if(thenExpressionStatement.getExpression() instanceof Assignment) {
+								Assignment thenAssignment = (Assignment)thenExpressionStatement.getExpression();
+								Assignment elseAssignment = (Assignment)elseExpressionStatement.getExpression();
+								Assignment conditionalAssignment = (Assignment)expressionStatement.getExpression();
+								Expression thenRightHandSide = thenAssignment.getRightHandSide();
+								Expression elseRightHandSide = elseAssignment.getRightHandSide();
+								Expression conditionalThen = conditionalExpression.getThenExpression();
+								Expression conditionalElse = conditionalExpression.getElseExpression();
+								Expression thenLeftHandSide = thenAssignment.getLeftHandSide();
+								Expression elseLeftHandSide = elseAssignment.getLeftHandSide();
+								if(thenLeftHandSide instanceof SimpleName && elseLeftHandSide instanceof SimpleName) {
+									SimpleName thenLeftHandSideSimpleName = (SimpleName)thenLeftHandSide;
+									SimpleName elseLeftHandSideSimpleName = (SimpleName)elseLeftHandSide;
+									IBinding thenLeftHandSideBinding = thenLeftHandSideSimpleName.resolveBinding();
+									IBinding elseLeftHandSideBinding = elseLeftHandSideSimpleName.resolveBinding();
+									if(thenLeftHandSideBinding.getKind() == IBinding.VARIABLE &&
+											elseLeftHandSideBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding thenLeftHandSideVariableBinding = (IVariableBinding)thenLeftHandSideBinding;
+										IVariableBinding elseLeftHandSideVariableBinding = (IVariableBinding)elseLeftHandSideBinding;
+										//both assignment statements in then and else clauses assign to the same variable
+										if(thenLeftHandSideVariableBinding.isEqualTo(elseLeftHandSideVariableBinding)) {
+											//compare the right hand sides of the assignments in then and else clauses with the conditional then/else expressions
+											//TODO
+											ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+											StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
+											StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
+											this.additionallyMatchedFragments1.add(thenStatementObject);
+											this.additionallyMatchedFragments1.add(elseStatementObject);
+											return true;
+										}
+									}
+								}
+							}
 						}
 					}
 				}
@@ -1603,8 +1630,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 		List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(expressionStatement);
 		if(conditionalExpressions.size() == 1) {
 			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
-			boolean match = safeSubtreeMatch(conditionalExpression.getExpression(), ifExpression);
-			if(match) {
+			boolean conditionalExpressionMatch = safeSubtreeMatch(conditionalExpression.getExpression(), ifExpression);
+			if(conditionalExpressionMatch) {
 				//the ifStatement should have an else part, which is not an 'else if' statement
 				if(ifStatement.getElseStatement() != null && !(ifStatement.getElseStatement() instanceof IfStatement)) {
 					Statement thenStatement = ifStatement.getThenStatement();
@@ -1617,12 +1644,39 @@ public class ASTNodeMatcher extends ASTMatcher{
 						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
 						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
 						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
-							ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
-							StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
-							StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
-							this.additionallyMatchedFragments2.add(thenStatementObject);
-							this.additionallyMatchedFragments2.add(elseStatementObject);
-							return true;
+							if(thenExpressionStatement.getExpression() instanceof Assignment) {
+								Assignment thenAssignment = (Assignment)thenExpressionStatement.getExpression();
+								Assignment elseAssignment = (Assignment)elseExpressionStatement.getExpression();
+								Assignment conditionalAssignment = (Assignment)expressionStatement.getExpression();
+								Expression thenRightHandSide = thenAssignment.getRightHandSide();
+								Expression elseRightHandSide = elseAssignment.getRightHandSide();
+								Expression conditionalThen = conditionalExpression.getThenExpression();
+								Expression conditionalElse = conditionalExpression.getElseExpression();
+								Expression thenLeftHandSide = thenAssignment.getLeftHandSide();
+								Expression elseLeftHandSide = elseAssignment.getLeftHandSide();
+								if(thenLeftHandSide instanceof SimpleName && elseLeftHandSide instanceof SimpleName) {
+									SimpleName thenLeftHandSideSimpleName = (SimpleName)thenLeftHandSide;
+									SimpleName elseLeftHandSideSimpleName = (SimpleName)elseLeftHandSide;
+									IBinding thenLeftHandSideBinding = thenLeftHandSideSimpleName.resolveBinding();
+									IBinding elseLeftHandSideBinding = elseLeftHandSideSimpleName.resolveBinding();
+									if(thenLeftHandSideBinding.getKind() == IBinding.VARIABLE &&
+											elseLeftHandSideBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding thenLeftHandSideVariableBinding = (IVariableBinding)thenLeftHandSideBinding;
+										IVariableBinding elseLeftHandSideVariableBinding = (IVariableBinding)elseLeftHandSideBinding;
+										//both assignment statements in then and else clauses assign to the same variable
+										if(thenLeftHandSideVariableBinding.isEqualTo(elseLeftHandSideVariableBinding)) {
+											//compare the right hand sides of the assignments in then and else clauses with the conditional then/else expressions
+											//TODO
+											ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+											StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
+											StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
+											this.additionallyMatchedFragments2.add(thenStatementObject);
+											this.additionallyMatchedFragments2.add(elseStatementObject);
+											return true;
+										}
+									}
+								}
+							}
 						}
 					}
 				}

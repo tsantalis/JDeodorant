@@ -298,7 +298,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	private ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+	public static ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
 		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
 		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
 		boolean found = false;
@@ -317,7 +317,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return commonSuperType;
 	}
 
-	private Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
+	private static Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
 		Set<ITypeBinding> superTypes = new LinkedHashSet<ITypeBinding>();
 		ITypeBinding superTypeBinding = typeBinding.getSuperclass();
 		if(superTypeBinding != null) {

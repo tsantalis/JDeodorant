@@ -22,6 +22,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolat
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignature;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
@@ -225,35 +226,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.extractedMethodName = extractedMethodName;
 	}
 
-	private ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
-		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
-		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
-		boolean found = false;
-		ITypeBinding commonSuperType = null;
-		for(ITypeBinding superType1 : superTypes1) {
-			for(ITypeBinding superType2 : superTypes2) {
-				if(superType1.isEqualTo(superType2)) {
-					commonSuperType = superType1;
-					found = true;
-					break;
-				}
-			}
-			if(found)
-				break;
-		}
-		return commonSuperType;
-	}
-
-	private Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
-		Set<ITypeBinding> superTypes = new LinkedHashSet<ITypeBinding>();
-		ITypeBinding superTypeBinding = typeBinding.getSuperclass();
-		if(superTypeBinding != null) {
-			superTypes.add(superTypeBinding);
-			superTypes.addAll(getAllSuperTypes(superTypeBinding));
-		}
-		return superTypes;
-	}
-
 	public void apply() {
 		initialize();
 		extractClone();
@@ -278,7 +250,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(typeBinding1.isEqualTo(typeBinding2))
 				return typeBinding1;
 			else
-				return commonSuperType(typeBinding1, typeBinding2);
+				return ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 		}
 		return null;
 	}
@@ -325,7 +297,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			//check is they have a common superclass
 			ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
 			ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
-			commonSuperTypeOfSourceTypeDeclarations = commonSuperType(typeBinding1, typeBinding2);
+			commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 			if(commonSuperTypeOfSourceTypeDeclarations != null) {
 				boolean superclassInheritedOnlyByRefactoringSubclasses = false;
 				if(!commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
@@ -687,7 +659,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(returnType1.resolveBinding().isEqualTo(returnType2.resolveBinding()))
 				returnTypeBinding = returnType1.resolveBinding();
 			else
-				returnTypeBinding = commonSuperType(returnType1.resolveBinding(), returnType2.resolveBinding());
+				returnTypeBinding = ASTNodeMatcher.commonSuperType(returnType1.resolveBinding(), returnType2.resolveBinding());
 		}
 		else {
 			returnTypeBinding = findReturnTypeBinding();
@@ -720,10 +692,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
 			VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 			if(parameterIsUsedByNodesWithoutDifferences(variableDeclaration1, variableDeclaration2)) {
-				if(!variableDeclaration1.resolveBinding().isField()) {
-					Type variableType = extractType(variableDeclaration1);
+				if(!variableDeclaration1.resolveBinding().isField() && !variableDeclaration2.resolveBinding().isField()) {
+					ITypeBinding typeBinding1 = extractType(variableDeclaration1).resolveBinding();
+					ITypeBinding typeBinding2 = extractType(variableDeclaration2).resolveBinding();
+					ITypeBinding typeBinding = null;
+					if(!typeBinding1.isEqualTo(typeBinding2)) {
+						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+						if(commonSuperTypeBinding != null) {
+							typeBinding = commonSuperTypeBinding;
+						}
+					}
+					else {
+						typeBinding = typeBinding1;
+					}
+					Type variableType = generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-					typeBindings.add(variableType.resolveBinding());
+					typeBindings.add(typeBinding);
 					getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 					SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 					sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration1.getName(), null);
@@ -775,7 +759,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
 					ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
 					ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
-					ITypeBinding commonSuperTypeBinding = commonSuperType(typeBinding1, typeBinding2);
+					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 					if(commonSuperTypeBinding != null) {
 						typeBinding = commonSuperTypeBinding;
 					}
@@ -1436,7 +1420,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite rewriter) {
 		Type type = null;
-		if(typeBinding.isClass() || typeBinding.isInterface()) {
+		if(typeBinding.isParameterizedType()) {
+			type = createParameterizedType(ast, typeBinding, rewriter);
+		}
+		else if(typeBinding.isClass() || typeBinding.isInterface()) {
 			type = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
 		}
 		else if(typeBinding.isPrimitive()) {
@@ -1463,9 +1450,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, rewriter);
 			type = ast.newArrayType(elementType, typeBinding.getDimensions());
 		}
-		else if(typeBinding.isParameterizedType()) {
-			type = createParameterizedType(ast, typeBinding, rewriter);
-		}
 		return type;
 	}
 
@@ -1475,10 +1459,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(ast.newSimpleName(erasure.getName())));
 		ListRewrite typeArgumentsRewrite = rewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
 		for(ITypeBinding typeArgument : typeArguments) {
-			if(typeArgument.isClass() || typeArgument.isInterface())
-				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
-			else if(typeArgument.isParameterizedType()) {
+			if(typeArgument.isParameterizedType()) {
 				typeArgumentsRewrite.insertLast(createParameterizedType(ast, typeArgument, rewriter), null);
+			}
+			else if(typeArgument.isClass() || typeArgument.isInterface()) {
+				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
 			}
 		}
 		return parameterizedType;
@@ -1523,7 +1508,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
 							ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
 							ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
-							ITypeBinding commonSuperTypeBinding = commonSuperType(typeBinding1, typeBinding2);
+							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 							if(commonSuperTypeBinding != null) {
 								Type arg = generateTypeFromTypeBinding(commonSuperTypeBinding, ast, sourceRewriter);
 								TypeVisitor oldTypeVisitor = new TypeVisitor();

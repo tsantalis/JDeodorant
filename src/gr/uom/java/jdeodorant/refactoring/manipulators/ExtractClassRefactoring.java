@@ -1974,7 +1974,10 @@ public class ExtractClassRefactoring extends Refactoring {
 
 	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite targetRewriter) {
 		Type fieldType = null;
-		if(typeBinding.isClass() || typeBinding.isInterface()) {
+		if(typeBinding.isParameterizedType()) {
+			fieldType = createParameterizedType(ast, typeBinding, targetRewriter);
+		}
+		else if(typeBinding.isClass() || typeBinding.isInterface()) {
 			fieldType = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
 		}
 		else if(typeBinding.isPrimitive()) {
@@ -2001,9 +2004,6 @@ public class ExtractClassRefactoring extends Refactoring {
 			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, targetRewriter);
 			fieldType = ast.newArrayType(elementType, typeBinding.getDimensions());
 		}
-		else if(typeBinding.isParameterizedType()) {
-			fieldType = createParameterizedType(ast, typeBinding, targetRewriter);
-		}
 		return fieldType;
 	}
 
@@ -2013,10 +2013,11 @@ public class ExtractClassRefactoring extends Refactoring {
 		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(ast.newSimpleName(erasure.getName())));
 		ListRewrite typeArgumentsRewrite = targetRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
 		for(ITypeBinding typeArgument : typeArguments) {
-			if(typeArgument.isClass() || typeArgument.isInterface())
-				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
-			else if(typeArgument.isParameterizedType()) {
+			if(typeArgument.isParameterizedType()) {
 				typeArgumentsRewrite.insertLast(createParameterizedType(ast, typeArgument, targetRewriter), null);
+			}
+			else if(typeArgument.isClass() || typeArgument.isInterface()) {
+				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
 			}
 		}
 		return parameterizedType;

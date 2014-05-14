@@ -1725,8 +1725,13 @@ public class PDGSubTreeMapper {
 		if(nodeMapping instanceof PDGNodeMapping) {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
-			conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
-			conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
+			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
+			if(allNodesInSubTreePDG1.size() != pdg1.getNodes().size()) {
+				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
+			}
+			if(allNodesInSubTreePDG2.size() != pdg2.getNodes().size()) {
+				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
+			}
 		}
 	}
 

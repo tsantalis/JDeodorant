@@ -117,10 +117,8 @@ public class ASTNodeDifference {
 		Expression thisExpression1 = expression1.getExpression();
 		Expression thisExpression2 = expression2.getExpression();
 		
-		if(isMethodName(thisExpression1))
-			thisExpression1 = (Expression)thisExpression1.getParent();
-		if(isMethodName(thisExpression2))
-			thisExpression2 = (Expression)thisExpression2.getParent();
+		thisExpression1 = getParentExpressionOfMethodNameOrTypeName(thisExpression1);
+		thisExpression2 = getParentExpressionOfMethodNameOrTypeName(thisExpression2);
 		
 		Expression otherExpression1 = nodeDifference.expression1.getExpression();
 		Expression otherExpression2 = nodeDifference.expression2.getExpression();
@@ -144,17 +142,27 @@ public class ASTNodeDifference {
 		}
 	}
 
-	private boolean isMethodName(Expression expression) {
+	public static Expression getParentExpressionOfMethodNameOrTypeName(Expression expression) {
 		if(expression instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding != null && binding.getKind() == IBinding.METHOD) {
-				if(expression.getParent() instanceof Expression) {
-					return true;
+			if(binding != null) {
+				if(binding.getKind() == IBinding.METHOD) {
+					if(expression.getParent() instanceof Expression) {
+						return (Expression)expression.getParent();
+					}
+				}
+				if(binding.getKind() == IBinding.TYPE) {
+					if(expression.getParent() instanceof Type) {
+						Type type = (Type)expression.getParent();
+						if(type.getParent() instanceof Expression) {
+							return (Expression)type.getParent();
+						}
+					}
 				}
 			}
 		}
-		return false;
+		return expression;
 	}
 
 	public String toString()

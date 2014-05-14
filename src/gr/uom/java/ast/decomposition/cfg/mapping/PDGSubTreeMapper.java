@@ -1605,7 +1605,7 @@ public class PDGSubTreeMapper {
 			Expression expression1 = abstractExpression1.getExpression();
 			AbstractExpression abstractExpression2 = difference.getExpression2();
 			Expression expression2 = abstractExpression2.getExpression();
-			if(!renamedVariables.contains(difference.getBindingSignaturePair())) {
+			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !isVariableWithTypeMismatchDifference(expression1, expression2, difference)) {
 				if(!isParameterizableExpression(removableNodesG1, abstractExpression1, pdg1.getVariableDeclarationsInMethod(), iCompilationUnit1)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
@@ -1728,6 +1728,26 @@ public class PDGSubTreeMapper {
 			conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
 			conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
 		}
+	}
+
+	private boolean isVariableWithTypeMismatchDifference(Expression expression1, Expression expression2, ASTNodeDifference difference) {
+		if(expression1 instanceof SimpleName && expression2 instanceof SimpleName) {
+			SimpleName simpleName1 = (SimpleName)expression1;
+			SimpleName simpleName2 = (SimpleName)expression2;
+			IBinding binding1 = simpleName1.resolveBinding();
+			IBinding binding2 = simpleName2.resolveBinding();
+			//check if both simpleNames refer to variables
+			if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+				List<Difference> differences = difference.getDifferences();
+				if(differences.size() == 1) {
+					Difference diff = differences.get(0);
+					if(diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH) || diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private void findMethodsAndFieldsAccessedFromType(ITypeBinding typeBinding, PDGNode pdgNode, Set<IMethodBinding> methods, Set<IVariableBinding> fields) {
@@ -1879,16 +1899,14 @@ public class PDGSubTreeMapper {
 	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression,
 			Set<VariableDeclaration> variableDeclarationsInMethod, ICompilationUnit iCompilationUnit) {
 		Expression initialExpression = initialAbstractExpression.getExpression();
-		Expression expr;
+		Expression expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(initialExpression);
 		PDGExpression pdgExpression;
-		if(isMethodName(initialExpression)) {
-			expr = (Expression)initialExpression.getParent();
+		if(!expr.equals(initialExpression)) {
 			ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 			AbstractExpression tempExpression = new AbstractExpression(expr);
 			pdgExpression = new PDGExpression(tempExpression, variableDeclarationsInMethod);
 		}
 		else {
-			expr = initialExpression;
 			pdgExpression = new PDGExpression(initialAbstractExpression, variableDeclarationsInMethod);
 		}
 		//find mapped node containing the expression
@@ -1968,19 +1986,6 @@ public class PDGSubTreeMapper {
 			return isExpressionUnderStatement(parent, statement);
 		else
 			return false;
-	}
-
-	private boolean isMethodName(Expression expression) {
-		if(expression instanceof SimpleName) {
-			SimpleName simpleName = (SimpleName)expression;
-			IBinding binding = simpleName.resolveBinding();
-			if(binding != null && binding.getKind() == IBinding.METHOD) {
-				if(expression.getParent() instanceof Expression) {
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 	
 	private IMethodBinding getMethodBinding(Expression expression) {

@@ -685,6 +685,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifierRewrite.insertLast(accessModifier, null);
 		}
 		
+		if((sourceMethodDeclarations.get(0).getModifiers() & Modifier.STATIC) != 0 &&
+				(sourceMethodDeclarations.get(1).getModifiers() & Modifier.STATIC) != 0) {
+			Modifier staticModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD);
+			modifierRewrite.insertLast(staticModifier, null);
+		}
+		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
 		for(String parameterName : commonPassedParameters.keySet()) {
@@ -759,9 +765,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
 					ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
 					ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
-					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-					if(commonSuperTypeBinding != null) {
-						typeBinding = commonSuperTypeBinding;
+					if(!typeBinding1.isEqualTo(typeBinding2)) {
+						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+						if(commonSuperTypeBinding != null) {
+							typeBinding = commonSuperTypeBinding;
+						}
+					}
+					else {
+						typeBinding = typeBinding1;
 					}
 				}
 				else {
@@ -1480,16 +1491,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
+				oldExpression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(oldExpression);
 				boolean isCommonParameter = false;
-				if(isMethodName(oldExpression)) {
-					SimpleName oldSimpleName = (SimpleName)oldExpression;
-					IBinding binding = oldSimpleName.resolveBinding();
-					//get method invocation from method name
-					oldExpression = (Expression)oldExpression.getParent();
-					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
-						isCommonParameter = true;
-				}
-				else if(oldExpression instanceof SimpleName) {
+				if(oldExpression instanceof SimpleName) {
 					SimpleName oldSimpleName = (SimpleName)oldExpression;
 					IBinding binding = oldSimpleName.resolveBinding();
 					if(parameterBindingKeys.contains(binding.getKey()) || declaredLocalVariableBindingKeys.contains(binding.getKey()))
@@ -1678,9 +1682,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			List<Expression> expressions = new ArrayList<Expression>();
 			Expression expression1 = difference.getExpression1().getExpression();
-			expressions.add(isMethodName(expression1) ? (Expression)expression1.getParent() : expression1);
+			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
+			expressions.add(expression1);
 			Expression expression2 = difference.getExpression2().getExpression();
-			expressions.add(isMethodName(expression2) ? (Expression)expression2.getParent() : expression2);
+			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
+			expressions.add(expression2);
 			Expression expression = expressions.get(index);
 			boolean isReturnedVariable = isReturnedVariable(expression, returnedVariables);
 			if(!isReturnedVariable)
@@ -1910,6 +1916,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				else if(violation instanceof ExpressionPreconditionViolation) {
 					ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
 					Expression expression = expressionViolation.getExpression().getExpression();
+					expression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression);
 					CompilationUnit cu = (CompilationUnit)expression.getRoot();
 					RefactoringStatusContext context = JavaStatusContext.create(cu.getTypeRoot(), expression);
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context));
@@ -1917,11 +1924,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				else if(violation instanceof DualExpressionPreconditionViolation) {
 					DualExpressionPreconditionViolation dualExpressionViolation = (DualExpressionPreconditionViolation)violation;
 					Expression expression1 = dualExpressionViolation.getExpression1().getExpression();
+					expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
 					CompilationUnit cu1 = (CompilationUnit)expression1.getRoot();
 					RefactoringStatusContext context1 = JavaStatusContext.create(cu1.getTypeRoot(), expression1);
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context1));
 					
 					Expression expression2 = dualExpressionViolation.getExpression2().getExpression();
+					expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
 					CompilationUnit cu2 = (CompilationUnit)expression2.getRoot();
 					RefactoringStatusContext context2 = JavaStatusContext.create(cu2.getTypeRoot(), expression2);
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context2));
@@ -1947,19 +1956,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			pm.done();
 		}
 		return status;
-	}
-
-	private boolean isMethodName(Expression expression) {
-		if(expression instanceof SimpleName) {
-			SimpleName simpleName = (SimpleName)expression;
-			IBinding binding = simpleName.resolveBinding();
-			if(binding != null && binding.getKind() == IBinding.METHOD) {
-				if(expression.getParent() instanceof Expression) {
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 
 	@Override

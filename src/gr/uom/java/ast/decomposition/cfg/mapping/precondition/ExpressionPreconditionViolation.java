@@ -1,10 +1,9 @@
 package gr.uom.java.ast.decomposition.cfg.mapping.precondition;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 
 import org.eclipse.jdt.core.dom.Expression;
-import org.eclipse.jdt.core.dom.IBinding;
-import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jface.viewers.StyledString;
 
 public class ExpressionPreconditionViolation extends PreconditionViolation {
@@ -23,8 +22,8 @@ public class ExpressionPreconditionViolation extends PreconditionViolation {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Expression ");
 		Expression expression = this.expression.getExpression();
-		String expressionToString = isMethodName(expression) ? expression.getParent().toString() : expression.toString();
-		sb.append(expressionToString);
+		expression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression);
+		sb.append(expression.toString());
 		sb.append(" ");
 		sb.append(type.toString());
 		return sb.toString();
@@ -34,24 +33,11 @@ public class ExpressionPreconditionViolation extends PreconditionViolation {
 		StyledString styledString = new StyledString();
 		styledString.append("Expression ");
 		Expression expression = this.expression.getExpression();
-		String expressionToString = isMethodName(expression) ? expression.getParent().toString() : expression.toString();
+		expression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression);
 		BoldStyler styler = new BoldStyler();
-		styledString.append(expressionToString, styler);
+		styledString.append(expression.toString(), styler);
 		styledString.append(" ");
 		styledString.append(type.toString());
 		return styledString;
-	}
-
-	private boolean isMethodName(Expression expression) {
-		if(expression instanceof SimpleName) {
-			SimpleName simpleName = (SimpleName)expression;
-			IBinding binding = simpleName.resolveBinding();
-			if(binding != null && binding.getKind() == IBinding.METHOD) {
-				if(expression.getParent() instanceof Expression) {
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 }

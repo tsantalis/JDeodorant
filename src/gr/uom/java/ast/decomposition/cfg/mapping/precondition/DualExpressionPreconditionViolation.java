@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping.precondition;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jface.viewers.StyledString;
@@ -26,7 +27,9 @@ public class DualExpressionPreconditionViolation extends PreconditionViolation {
 	public String getViolation() {
 		if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH)) {
 			Expression expression1 = this.expression1.getExpression();
+			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
 			Expression expression2 = this.expression2.getExpression();
+			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
 			StringBuilder sb = new StringBuilder();
 			sb.append("Type ");
 			sb.append(expression1.resolveTypeBinding().getQualifiedName());
@@ -47,7 +50,9 @@ public class DualExpressionPreconditionViolation extends PreconditionViolation {
 		BoldStyler styler = new BoldStyler();
 		if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH)) {
 			Expression expression1 = this.expression1.getExpression();
+			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
 			Expression expression2 = this.expression2.getExpression();
+			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
 			styledString.append("Type ");
 			styledString.append(expression1.resolveTypeBinding().getQualifiedName(), styler);
 			styledString.append(" of variable ");

@@ -1639,14 +1639,12 @@ public class PDGSubTreeMapper {
 				if(nodeMapping instanceof PDGNodeMapping) {
 					PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)nodeMapping;
 					Set<IMethodBinding> methods1 = new LinkedHashSet<IMethodBinding>();
-					Set<IVariableBinding> fields1 = new LinkedHashSet<IVariableBinding>();
 					ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
-					findMethodsAndFieldsAccessedFromType(typeBinding1, pdgNodeMapping.getNodeG1(), methods1, fields1);
+					findMethodsCalledFromType(typeBinding1, pdgNodeMapping.getNodeG1(), methods1);
 					
 					Set<IMethodBinding> methods2 = new LinkedHashSet<IMethodBinding>();
-					Set<IVariableBinding> fields2 = new LinkedHashSet<IVariableBinding>();
 					ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
-					findMethodsAndFieldsAccessedFromType(typeBinding2, pdgNodeMapping.getNodeG2(), methods2, fields2);
+					findMethodsCalledFromType(typeBinding2, pdgNodeMapping.getNodeG2(), methods2);
 					
 					if(!typeBinding1.isEqualTo(typeBinding2)) {
 						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
@@ -1665,26 +1663,6 @@ public class PDGSubTreeMapper {
 										}
 										if(!commonSuperTypeMethodFound) {
 											commonSuperTypeMembers.add(methodBinding1.toString());
-										}
-										break;
-									}
-								}
-							}
-							for(IVariableBinding variableBinding1 : fields1) {
-								for(IVariableBinding variableBinding2 : fields2) {
-									if(variableBinding1.getName().equals(variableBinding2.getName()) &&
-											variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
-										IVariableBinding[] declaredFields = commonSuperType.getDeclaredFields();
-										boolean commonSuperTypeFieldFound = false;
-										for(IVariableBinding commonSuperTypeField : declaredFields) {
-											if(variableBinding1.getName().equals(commonSuperTypeField.getName()) &&
-													variableBinding1.getType().isEqualTo(commonSuperTypeField.getType())) {
-												commonSuperTypeFieldFound = true;
-												break;
-											}
-										}
-										if(!commonSuperTypeFieldFound) {
-											commonSuperTypeMembers.add(variableBinding1.toString());
 										}
 										break;
 									}
@@ -1755,28 +1733,23 @@ public class PDGSubTreeMapper {
 		return false;
 	}
 
-	private void findMethodsAndFieldsAccessedFromType(ITypeBinding typeBinding, PDGNode pdgNode, Set<IMethodBinding> methods, Set<IVariableBinding> fields) {
-		Set<FieldInstructionObject> usedFields = new LinkedHashSet<FieldInstructionObject>();
+	private void findMethodsCalledFromType(ITypeBinding typeBinding, PDGNode pdgNode, Set<IMethodBinding> methods) {
 		Set<MethodInvocationObject> accessedMethods = new LinkedHashSet<MethodInvocationObject>();
 		AbstractStatement abstractStatement = pdgNode.getStatement();
 		if(abstractStatement instanceof StatementObject) {
 			StatementObject statement = (StatementObject)abstractStatement;
-			usedFields.addAll(statement.getFieldInstructions());
 			accessedMethods.addAll(statement.getMethodInvocations());
 		}
 		else if(abstractStatement instanceof CompositeStatementObject) {
 			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
-			usedFields.addAll(composite.getFieldInstructionsInExpressions());
 			accessedMethods.addAll(composite.getMethodInvocationsInExpressions());
 			if(composite instanceof TryStatementObject) {
 				TryStatementObject tryStatement = (TryStatementObject)composite;
 				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
 				for(CatchClauseObject catchClause : catchClauses) {
-					usedFields.addAll(catchClause.getBody().getFieldInstructions());
 					accessedMethods.addAll(catchClause.getBody().getMethodInvocations());
 				}
 				if(tryStatement.getFinallyClause() != null) {
-					usedFields.addAll(tryStatement.getFinallyClause().getFieldInstructions());
 					accessedMethods.addAll(tryStatement.getFinallyClause().getMethodInvocations());
 				}
 			}
@@ -1785,15 +1758,6 @@ public class PDGSubTreeMapper {
 			IMethodBinding methodBinding = invocation.getMethodInvocation().resolveMethodBinding();
 			if(methodBinding.getDeclaringClass().isEqualTo(typeBinding)) {
 				methods.add(methodBinding);
-			}
-		}
-		for(FieldInstructionObject fieldInstruction : usedFields) {
-			IBinding binding = fieldInstruction.getSimpleName().resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
-				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.getDeclaringClass().isEqualTo(typeBinding)) {
-					fields.add(variableBinding);
-				}
 			}
 		}
 	}

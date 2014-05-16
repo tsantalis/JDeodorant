@@ -36,6 +36,12 @@ import gr.uom.java.distance.CandidateRefactoring;
 
 public class PackageMapDiagram {
 
+	private static final Color VERY_LOW_SEVERITY_COLOR = new Color(null,255,153,153);
+	private static final Color LOW_SEVERITY_COLOR = new Color(null, 255, 102, 102);
+	private static final Color MODERATE_SEVERITY_COLOR = new Color(null, 255, 0, 0);
+	private static final Color HIGH_SEVERITY_COLOR = new Color(null, 204, 0, 0);
+	private static final Color HIGHEST_SEVERITY_COLOR = new Color(null, 185, 0, 0);
+	private static final Color DEFAULT_COLOR = new Color(null,233,233,233);
 	private ScalableLayeredPane root;
 	private Layer primary;
 	private String projectName;
@@ -206,7 +212,7 @@ public class PackageMapDiagram {
 								for(TypeDeclaration type:types){
 									PMClassFigure innerClassFigure = createClassFigure(type);
 
-									innerClassFigure.setOriginalBackgroundColor(new Color(null,233,233,233));
+									innerClassFigure.setOriginalBackgroundColor(DEFAULT_COLOR);
 									innerClassFigure.getOriginalBorder().setWidth(4);
 									innerClassFigure.setInnerClass(true);
 									String innerClassKey = type.resolveBinding().getKey();
@@ -284,23 +290,23 @@ public class PackageMapDiagram {
 		switch (numOfMethods)
 		{ 	case 0:
 		case 1: 
-			color = new Color(null,255,153,153);
+			color = VERY_LOW_SEVERITY_COLOR;
 			break;
 		case 2:
-			color = new Color(null, 255, 102, 102);
+			color = LOW_SEVERITY_COLOR;
 			break;
 		case 3: 
 		case 4:
-			color = new Color(null, 255, 0, 0);
+			color = MODERATE_SEVERITY_COLOR;
 			break;
 		case 5: 
 
 		case 6:
-			color = new Color(null, 204, 0, 0);
+			color = HIGH_SEVERITY_COLOR;
 			break;
 
 		default:
-			color = new Color(null, 185, 0, 0);
+			color = HIGHEST_SEVERITY_COLOR;
 			break;
 
 		}

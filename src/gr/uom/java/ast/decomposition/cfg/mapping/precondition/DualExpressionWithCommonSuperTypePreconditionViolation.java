@@ -42,25 +42,26 @@ public class DualExpressionWithCommonSuperTypePreconditionViolation extends Dual
 
 	public StyledString getStyledViolation() {
 		StyledString styledString = new StyledString();
-		BoldStyler styler = new BoldStyler();
+		BoldStyler boldStyler = new BoldStyler();
+		NormalStyler normalStyler = new NormalStyler();
 		if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_MISSING_MEMBERS_IN_THE_COMMON_SUPERCLASS)) {
 			Expression expression1 = this.getExpression1().getExpression();
 			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
 			Expression expression2 = this.getExpression2().getExpression();
 			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
-			styledString.append("Expression ");
-			styledString.append(expression1.toString(), styler);
-			styledString.append(" cannot be unified with ");
-			styledString.append("expression ");
-			styledString.append(expression2.toString(), styler);
-			styledString.append(" , because common superclass ");
-			styledString.append(commonSuperType, styler);
-			styledString.append(" does not declare member(s) ");
+			styledString.append("Expression ", normalStyler);
+			styledString.append(expression1.toString(), boldStyler);
+			styledString.append(" cannot be unified with ", normalStyler);
+			styledString.append("expression ", normalStyler);
+			styledString.append(expression2.toString(), boldStyler);
+			styledString.append(" , because common superclass ", normalStyler);
+			styledString.append(commonSuperType, boldStyler);
+			styledString.append(" does not declare member(s) ", normalStyler);
 			int counter = 1;
 			for(String commonSuperTypeMember : commonSuperTypeMembers) {
-				styledString.append(commonSuperTypeMember, styler);
+				styledString.append(commonSuperTypeMember, boldStyler);
 				if(counter < commonSuperTypeMembers.size())
-					styledString.append(", ");
+					styledString.append(", ", normalStyler);
 				counter++;
 			}
 		}

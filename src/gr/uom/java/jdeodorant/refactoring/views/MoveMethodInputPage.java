@@ -12,8 +12,6 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -41,12 +39,9 @@ public class MoveMethodInputPage extends UserInputWizardPage {
 		layout.numColumns= 2;
 		result.setLayout(layout);
 		
-		FontData labelFontData = new FontData("Segoe UI", 9, SWT.NORMAL);
-		Font font = new Font(parent.getDisplay(), labelFontData);
-		
 		Label movedMethodNameLabel = new Label(result, SWT.NONE);
 		movedMethodNameLabel.setText("Moved Method Name");
-		movedMethodNameLabel.setFont(font);
+		movedMethodNameLabel.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
 		
 		Text movedMethodNameField = new Text(result, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
 		movedMethodNameField.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));

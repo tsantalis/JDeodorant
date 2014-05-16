@@ -47,21 +47,22 @@ public class DualExpressionPreconditionViolation extends PreconditionViolation {
 
 	public StyledString getStyledViolation() {
 		StyledString styledString = new StyledString();
-		BoldStyler styler = new BoldStyler();
+		BoldStyler boldStyler = new BoldStyler();
+		NormalStyler normalStyler = new NormalStyler();
 		if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH)) {
 			Expression expression1 = this.expression1.getExpression();
 			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
 			Expression expression2 = this.expression2.getExpression();
 			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
-			styledString.append("Type ");
-			styledString.append(expression1.resolveTypeBinding().getQualifiedName(), styler);
-			styledString.append(" of variable ");
-			styledString.append(expression1.toString(), styler);
-			styledString.append(" does not match with ");
-			styledString.append("type ");
-			styledString.append(expression2.resolveTypeBinding().getQualifiedName(), styler);
-			styledString.append(" of variable ");
-			styledString.append(expression2.toString(), styler);
+			styledString.append("Type ", normalStyler);
+			styledString.append(expression1.resolveTypeBinding().getQualifiedName(), boldStyler);
+			styledString.append(" of variable ", normalStyler);
+			styledString.append(expression1.toString(), boldStyler);
+			styledString.append(" does not match with ", normalStyler);
+			styledString.append("type ", normalStyler);
+			styledString.append(expression2.resolveTypeBinding().getQualifiedName(), boldStyler);
+			styledString.append(" of variable ", normalStyler);
+			styledString.append(expression2.toString(), boldStyler);
 		}
 		return styledString;
 	}

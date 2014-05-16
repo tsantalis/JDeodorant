@@ -11,7 +11,6 @@ import org.eclipse.jface.viewers.StyledCellLabelProvider;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.jface.viewers.ViewerCell;
 import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 
 public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
@@ -33,7 +32,7 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 		if(theNode.getMapping() instanceof PDGNodeMapping) {
 			styledString = generateStyledString(theNode, position);
 			if(theNode.getMapping().isAdvancedMatch()) {
-				cell.setBackground(new Color(null, 156, 255, 156));
+				cell.setBackground(StyledStringVisitor.ADVANCED_MATCH_COLOR);
 			}
 		}
 		else if(theNode.getMapping() instanceof PDGElseMapping) {
@@ -76,19 +75,19 @@ public class CloneDiffStyledLabelProvider extends StyledCellLabelProvider {
 
 	private void setCellBackgroundWithoutCode(ViewerCell cell, CloneStructureNode theNode) {
 		if(theNode.getMapping().isAdvancedMatch()) {
-			cell.setBackground(new Color(null, 224, 255, 224));
+			cell.setBackground(StyledStringVisitor.ADVANCED_MATCH_LIGHT_COLOR);
 		}
 		else {
-			cell.setBackground(new Color(null, 255, 224, 224));
+			cell.setBackground(StyledStringVisitor.UNMAPPED_LIGHT_COLOR);
 		}
 	}
 
 	private void setCellBackgroundWithCode(ViewerCell cell, CloneStructureNode theNode) {
 		if(theNode.getMapping().isAdvancedMatch()) {
-			cell.setBackground(new Color(null, 156, 255, 156));
+			cell.setBackground(StyledStringVisitor.ADVANCED_MATCH_COLOR);
 		}
 		else {
-			cell.setBackground(new Color(null, 255, 156, 156));
+			cell.setBackground(StyledStringVisitor.UNMAPPED_COLOR);
 		}
 	}
 	

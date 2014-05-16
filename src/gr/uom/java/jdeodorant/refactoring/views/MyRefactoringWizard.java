@@ -16,10 +16,14 @@ import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizard;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.ui.PartInitException;
 
 public class MyRefactoringWizard extends RefactoringWizard {
 	
+	public static final Font INPUT_PAGE_FONT = new Font(null, new FontData("Segoe UI", 9, SWT.NORMAL));
 	private Refactoring refactoring;
 	private Action action;
 	

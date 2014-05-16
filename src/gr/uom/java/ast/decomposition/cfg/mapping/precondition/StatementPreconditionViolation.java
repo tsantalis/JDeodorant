@@ -50,32 +50,33 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 	@Override
 	public StyledString getStyledViolation() {
 		StyledString styledString = new StyledString();
-		BoldStyler styler = new BoldStyler();
+		BoldStyler boldStyler = new BoldStyler();
+		NormalStyler normalStyler = new NormalStyler();
 		if(type.equals(PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE)) {
-			styledString.append("Unmatched statement ");
+			styledString.append("Unmatched statement ", normalStyler);
 			String str = statement.toString();
-			styledString.append(str.substring(0, str.lastIndexOf("\n")), styler);
-			styledString.append(" ");
-			styledString.append(type.toString());
+			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
+			styledString.append(" ", normalStyler);
+			styledString.append(type.toString(), normalStyler);
 		}
 		else if(type.equals(PreconditionViolationType.UNMATCHED_BREAK_STATEMENT) ||
 				type.equals(PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT) ||
 				type.equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT)) {
-			styledString.append("Unmatched ");
+			styledString.append("Unmatched ", normalStyler);
 			String str = statement.toString();
-			styledString.append(str.substring(0, str.lastIndexOf("\n")), styler);
+			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
 		}
 		else if(type.equals(PreconditionViolationType.BREAK_STATEMENT_WITHOUT_LOOP) ||
 				type.equals(PreconditionViolationType.CONTINUE_STATEMENT_WITHOUT_LOOP)) {
-			styledString.append("Statement ");
+			styledString.append("Statement ", normalStyler);
 			String str = statement.toString();
-			styledString.append(str.substring(0, str.lastIndexOf("\n")), styler);
-			styledString.append(" without innermost loop");
+			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
+			styledString.append(" without innermost loop", normalStyler);
 		}
 		else if(type.equals(PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT)) {
-			styledString.append("Conditional ");
+			styledString.append("Conditional ", normalStyler);
 			String str = statement.toString();
-			styledString.append(str.substring(0, str.lastIndexOf("\n")), styler);
+			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
 		}
 		return styledString;
 	}

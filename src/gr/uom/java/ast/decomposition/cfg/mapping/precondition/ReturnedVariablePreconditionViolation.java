@@ -47,36 +47,37 @@ public class ReturnedVariablePreconditionViolation extends PreconditionViolation
 	@Override
 	public StyledString getStyledViolation() {
 		StyledString styledString = new StyledString();
-		BoldStyler styler = new BoldStyler();
+		NormalStyler normalStyler = new NormalStyler();
+		BoldStyler boldStyler = new BoldStyler();
 		if(type.equals(PreconditionViolationType.MULTIPLE_RETURNED_VARIABLES) || type.equals(PreconditionViolationType.UNEQUAL_NUMBER_OF_RETURNED_VARIABLES)) {
-			styledString.append("Clone fragment #1 returns variables ");
+			styledString.append("Clone fragment #1 returns variables ", normalStyler);
 			int counter = 0;
 			for(PlainVariable variable : returnedVariablesG1) {
-				styledString.append(variable.toString(), styler);
+				styledString.append(variable.toString(), boldStyler);
 				if(counter < returnedVariablesG1.size()-1)
-					styledString.append(", ");
+					styledString.append(", ", normalStyler);
 				counter++;
 			}
-			styledString.append(" , while Clone fragment #2 returns variables ");
+			styledString.append(" , while Clone fragment #2 returns variables ", normalStyler);
 			counter = 0;
 			for(PlainVariable variable : returnedVariablesG2) {
-				styledString.append(variable.toString(), styler);
+				styledString.append(variable.toString(), boldStyler);
 				if(counter < returnedVariablesG2.size()-1)
-					styledString.append(", ");
+					styledString.append(", ", normalStyler);
 				counter++;
 			}
 		}
 		if(type.equals(PreconditionViolationType.SINGLE_RETURNED_VARIABLE_WITH_DIFFERENT_TYPES)) {
-			styledString.append("Clone fragment #1 returns variable ");
+			styledString.append("Clone fragment #1 returns variable ", normalStyler);
 			PlainVariable v1 = returnedVariablesG1.iterator().next();
-			styledString.append(v1.getVariableName(), styler);
-			styledString.append(" with type ");
-			styledString.append(v1.getVariableType(), styler);
-			styledString.append(" , while Clone fragment #2 returns variable ");
+			styledString.append(v1.getVariableName(), boldStyler);
+			styledString.append(" with type ", normalStyler);
+			styledString.append(v1.getVariableType(), boldStyler);
+			styledString.append(" , while Clone fragment #2 returns variable ", normalStyler);
 			PlainVariable v2 = returnedVariablesG2.iterator().next();
-			styledString.append(v2.getVariableName(), styler);
-			styledString.append(" with type ");
-			styledString.append(v2.getVariableType(), styler);
+			styledString.append(v2.getVariableName(), boldStyler);
+			styledString.append(" with type ", normalStyler);
+			styledString.append(v2.getVariableType(), boldStyler);
 		}
 		return styledString;
 	}

@@ -30,14 +30,15 @@ public class ExpressionPreconditionViolation extends PreconditionViolation {
 	}
 
 	public StyledString getStyledViolation() {
+		BoldStyler boldStyler = new BoldStyler();
+		NormalStyler normalStyler = new NormalStyler();
 		StyledString styledString = new StyledString();
-		styledString.append("Expression ");
+		styledString.append("Expression ", normalStyler);
 		Expression expression = this.expression.getExpression();
 		expression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression);
-		BoldStyler styler = new BoldStyler();
-		styledString.append(expression.toString(), styler);
-		styledString.append(" ");
-		styledString.append(type.toString());
+		styledString.append(expression.toString(), boldStyler);
+		styledString.append(" ", normalStyler);
+		styledString.append(type.toString(), normalStyler);
 		return styledString;
 	}
 }

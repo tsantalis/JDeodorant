@@ -28,4 +28,8 @@ public abstract class PreconditionViolation {
 	public String toString() {
 		return getViolation() + "\n";
 	}
+	
+	public PreconditionViolationType getType() {
+		return this.type;
+	}
 }

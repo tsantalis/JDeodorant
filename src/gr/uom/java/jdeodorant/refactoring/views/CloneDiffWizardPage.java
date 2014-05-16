@@ -26,7 +26,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CLabel;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
@@ -34,7 +33,6 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
@@ -44,6 +42,8 @@ import org.eclipse.swt.widgets.Text;
 
 public class CloneDiffWizardPage extends UserInputWizardPage {
 
+	private static final Font CONSOLAS_NORMAL_FONT = new Font(null, new FontData("consolas", 9, SWT.NORMAL));
+	private static final Font CONSOLAS_BOLD_FONT = new Font(null, new FontData("consolas", 9, SWT.BOLD));
 	private ExtractCloneRefactoring refactoring;
 	private List<PDGSubTreeMapper> mappers;
 	private PDGSubTreeMapper mapper;
@@ -52,7 +52,6 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	private TreeViewer treeViewerRight;
 	private Text extractedMethodNameField;
 	private Group renamedVariables;
-	private Display fontDisplay;
 	//Special Boolean for selection synchronization listeners
 	private boolean correspondingTreeAlreadyChanged = false;
 	
@@ -65,7 +64,6 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	}
 	
 	public void createControl(Composite parent) {
-		fontDisplay = parent.getDisplay();
 		Composite result= new Composite(parent, SWT.NONE);
 		setControl(result);
 		GridLayout gridLayout = new GridLayout(6, true);
@@ -77,21 +75,21 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	
 		Label methodLeftName = new Label(result, SWT.WRAP);
 		methodLeftName.setText(mapper.getPDG1().getMethod().toString());
-		methodLeftName.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.NORMAL)));
+		methodLeftName.setFont(CONSOLAS_NORMAL_FONT);
 		GridData methodLeftNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
 		methodLeftNameGridData.horizontalSpan = 3;
 		methodLeftName.setLayoutData(methodLeftNameGridData);
 		
 		Label methodRightName = new Label(result, SWT.WRAP);
 		methodRightName.setText(mapper.getPDG2().getMethod().toString());
-		methodRightName.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.NORMAL)));
+		methodRightName.setFont(CONSOLAS_NORMAL_FONT);
 		GridData methodRightNameGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
 		methodRightNameGridData.horizontalSpan = 3;
 		methodRightName.setLayoutData(methodRightNameGridData);
 		
 		Label selectRefactoringOpportunityLabel = new Label(result, SWT.WRAP);
 		selectRefactoringOpportunityLabel.setText("Select Refactoring Opportunity:");
-		selectRefactoringOpportunityLabel.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.BOLD)));
+		selectRefactoringOpportunityLabel.setFont(CONSOLAS_BOLD_FONT);
 		GridData selectRefactoringOpportunityLabelData = new GridData();
 		selectRefactoringOpportunityLabelData.horizontalSpan = 1;
 		selectRefactoringOpportunityLabel.setLayoutData(selectRefactoringOpportunityLabelData);
@@ -118,7 +116,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		
 		Label selectMethodNameLabel = new Label(result, SWT.WRAP);
 		selectMethodNameLabel.setText("Specify Extracted Method Name:");
-		selectMethodNameLabel.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.BOLD)));
+		selectMethodNameLabel.setFont(CONSOLAS_BOLD_FONT);
 		GridData selectMethodNameLabelData = new GridData();
 		selectMethodNameLabelData.horizontalSpan = 1;
 		selectMethodNameLabel.setLayoutData(selectMethodNameLabelData);
@@ -195,21 +193,21 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		
 		CLabel differencesLegendColor = new CLabel(legend, SWT.BORDER);
 		differencesLegendColor.setText("           ");
-		differencesLegendColor.setBackground(new Color(null, 255, 255, 200));
+		differencesLegendColor.setBackground(StyledStringVisitor.DIFFERENCE_COLOR);
 		CLabel differencesLegendLabel = new CLabel(legend, SWT.NONE);
 		differencesLegendLabel.setText("Difference");
 		
 		//Unmapped Statements Label
 		CLabel unmappedStatementsLegendColor = new CLabel(legend, SWT.BORDER);
 		unmappedStatementsLegendColor.setText("           ");
-		unmappedStatementsLegendColor.setBackground(new Color(null, 255, 156, 156));
+		unmappedStatementsLegendColor.setBackground(StyledStringVisitor.UNMAPPED_COLOR);
 		CLabel unmappedStatementsLegendLabel = new CLabel(legend, SWT.NONE);
 		unmappedStatementsLegendLabel.setText("Unmapped Statement");
 		
 		//Unmapped Statements Label
 		CLabel advancedMatchLegendColor = new CLabel(legend, SWT.BORDER);
 		advancedMatchLegendColor.setText("           ");
-		advancedMatchLegendColor.setBackground(new Color(null, 156, 255, 156));
+		advancedMatchLegendColor.setBackground(StyledStringVisitor.ADVANCED_MATCH_COLOR);
 		CLabel advancedMatchLegendLabel = new CLabel(legend, SWT.NONE);
 		advancedMatchLegendLabel.setText("Advanced Match");
 		
@@ -224,43 +222,6 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		renamedVariables.setLayout(renamedVariablesLayout);
 		
 		updateRenamedVariables();
-		
-		/*//LegendItem
-		StyledText unmappedLabel = new StyledText(legend, SWT.SINGLE | SWT.READ_ONLY);
-		unmappedLabel.setText("                        Unmapped Statements  ");
-		StyleRange unmappedStyleRange = new StyleRange();
-		unmappedStyleRange.start = 0;
-		unmappedStyleRange.length = 20;
-		Color unmappedColor = new Color(null, 255, 156, 156);
-		unmappedStyleRange.background = unmappedColor;
-		unmappedLabel.setStyleRange(unmappedStyleRange);
-		
-		StyledText differencesLabel = new StyledText(legend, SWT.MULTI | SWT.READ_ONLY);
-		differencesLabel.setText("                        Differences within Mapped Statements  ");
-		StyleRange differenceStyleRange = new StyleRange();
-		differenceStyleRange.start = 0;
-		differenceStyleRange.length = 20;
-		Color differencesColor = new Color(null, 255, 255, 200);
-		differenceStyleRange.background= differencesColor;
-		differencesLabel.setStyleRange(differenceStyleRange);
-		
-		GridData differencesLabelGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		differencesLabelGridData.horizontalSpan = 2;
-		differencesLabelGridData.verticalSpan = 5;
-		differencesLabel.setLayoutData(new GridData(GridData.CENTER, GridData.CENTER, true, false));*/
-	
-		
-		/*Label differencesLabel = new Label(legend, SWT.DEFAULT);
-		differencesLabel.setText("Hello");
-		GridData differencesLabelGridData = new GridData(SWT.LEFT, SWT.FILL, true, false);
-		differencesLabelGridData.horizontalSpan = 2;
-		differencesLabelGridData.verticalSpan = 5;
-		differencesLabel.setLayoutData(new GridData(GridData.CENTER, GridData.CENTER, true, false));*/
-	
-	
-		//Tooltips
-		//ColumnViewerToolTipSupport.enableFor(treeViewerLeft);
-		//ColumnViewerToolTipSupport.enableFor(treeViewerRight);
 		
 		handleInputChanged();
 		@SuppressWarnings("unused")
@@ -378,7 +339,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 				String signature2 = bindingSignaturePair.getSignature2().toString();
 				String variable2 = signature2.substring(signature2.lastIndexOf("#")+1, signature2.length()-1);
 				renamedVariableLabel.setText(variable1 + " -> " + variable2);
-				renamedVariableLabel.setFont(new Font(fontDisplay, new FontData("consolas", 9, SWT.BOLD)));
+				renamedVariableLabel.setFont(CONSOLAS_BOLD_FONT);
 			}
 		}
 		renamedVariables.layout();

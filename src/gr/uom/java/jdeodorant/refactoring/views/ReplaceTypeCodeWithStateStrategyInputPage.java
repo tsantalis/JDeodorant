@@ -21,8 +21,6 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -97,16 +95,13 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 		layout.numColumns= 2;
 		result.setLayout(layout);
 		
-		FontData labelFontData = new FontData("Segoe UI", 9, SWT.BOLD);
-		Font font = new Font(parent.getDisplay(), labelFontData);
-		
 		Label stateVariableTitle = new Label(result, SWT.NONE);
 		stateVariableTitle.setText("State Variable:");
-		stateVariableTitle.setFont(font);
+		stateVariableTitle.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
 		
 		Label abstractTypeNameTitle = new Label(result, SWT.NONE);
 		abstractTypeNameTitle.setText("Abstract State/Strategy Type Name:");
-		abstractTypeNameTitle.setFont(font);
+		abstractTypeNameTitle.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
 		
 		Label stateVariableLabel = new Label(result, SWT.NONE);
 		stateVariableLabel.setText(refactoring.getTypeVariableSimpleName().getIdentifier());
@@ -120,11 +115,11 @@ public class ReplaceTypeCodeWithStateStrategyInputPage extends UserInputWizardPa
 		
 		Label namedConstantTitle = new Label(result, SWT.NONE);
 		namedConstantTitle.setText("Named Constants:");
-		namedConstantTitle.setFont(font);
+		namedConstantTitle.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
 		
 		Label concreteTypeNamesTitle = new Label(result, SWT.NONE);
 		concreteTypeNamesTitle.setText("Concrete State/Strategy Type Names:");
-		concreteTypeNamesTitle.setFont(font);
+		concreteTypeNamesTitle.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
 		
 		for(Map.Entry<SimpleName, String> entry : refactoring.getStaticFieldMapEntrySet()) {
 			Label label = new Label(result, SWT.NONE);

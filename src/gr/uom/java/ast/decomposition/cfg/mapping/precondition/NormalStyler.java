@@ -6,11 +6,13 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.TextStyle;
 
-public class BoldStyler extends Styler {
+public class NormalStyler extends Styler {
 
-	private static final Font CONSOLAS_BOLD_FONT = new Font(null, new FontData("consolas", 8, SWT.BOLD));
+	private static final Font TAHOMA_NORMAL_FONT = new Font(null, new FontData("Tahoma", 8, SWT.NORMAL));
 
+	@Override
 	public void applyStyles(TextStyle textStyle) {
-		textStyle.font = CONSOLAS_BOLD_FONT;
+		textStyle.font = TAHOMA_NORMAL_FONT;
 	}
+
 }

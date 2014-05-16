@@ -833,7 +833,8 @@ public class MethodCallAnalyzer {
 			if(subclassType.isClass()/* || subclassType.isInterface()*/) {
 				Set<TypeDeclaration> typeDeclarations = extractTypeDeclarations(compilationUnit);
 				for(TypeDeclaration typeDeclaration : typeDeclarations) {
-					if(typeDeclaration.resolveBinding().getQualifiedName().equals(subclassType.getFullyQualifiedName('.'))) {
+					ITypeBinding typeDeclarationBinding = typeDeclaration.resolveBinding();
+					if(typeDeclarationBinding != null && typeDeclarationBinding.getQualifiedName().equals(subclassType.getFullyQualifiedName('.'))) {
 						MethodDeclaration[] methodDeclarations = typeDeclaration.getMethods();
 						for(MethodDeclaration methodDeclaration : methodDeclarations) {
 							if(equalSignature(methodDeclaration.resolveBinding(), methodBinding)) {
@@ -850,7 +851,8 @@ public class MethodCallAnalyzer {
 					for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
 						if(bodyDeclaration instanceof MethodDeclaration) {
 							MethodDeclaration methodDeclaration = (MethodDeclaration)bodyDeclaration;
-							if(equalSignature(methodDeclaration.resolveBinding(), methodBinding)) {
+							IMethodBinding methodDeclarationBinding = methodDeclaration.resolveBinding();
+							if(methodDeclarationBinding != null && equalSignature(methodDeclarationBinding, methodBinding)) {
 								matchingMethodDeclarations.add(methodDeclaration);
 							}
 						}

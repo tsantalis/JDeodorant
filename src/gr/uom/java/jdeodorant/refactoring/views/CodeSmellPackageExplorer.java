@@ -56,6 +56,7 @@ import org.eclipse.ui.part.ViewPart;
 import org.eclipse.ui.progress.IProgressService;
 
 public class CodeSmellPackageExplorer extends ViewPart {
+	private static final Font CONSOLAS_BOLD_FONT = new Font(null, "Consolas", 10, SWT.BOLD);
 	public static final String ID = "gr.uom.java.jdeodorant.views.CodeSmellPackageExplorer";
 	private FigureCanvas figureCanvas; 
 	private ScalableLayeredPane root = null;
@@ -157,7 +158,7 @@ public class CodeSmellPackageExplorer extends ViewPart {
 					infoLabel = new LabelControlContribution("Label", "God Class Analysis of system: ", null);
 			}
 
-			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ", new Font(null, "Consolas", 10, SWT.BOLD));
+			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ", CONSOLAS_BOLD_FONT);
 
 			if(infoLabel != null)
 				manager.add(infoLabel);

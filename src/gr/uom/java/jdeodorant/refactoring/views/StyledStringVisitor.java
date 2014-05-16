@@ -87,6 +87,17 @@ import org.eclipse.swt.graphics.TextStyle;
 
 public class StyledStringVisitor extends ASTVisitor {
 
+	public static final Color ADVANCED_MATCH_LIGHT_COLOR = new Color(null, 224, 255, 224);
+	public static final Color UNMAPPED_LIGHT_COLOR = new Color(null, 255, 224, 224);
+	public static final Color ADVANCED_MATCH_COLOR = new Color(null, 156, 255, 156);
+	public static final Color UNMAPPED_COLOR = new Color(null, 255, 156, 156);
+	public static final Color DIFFERENCE_COLOR = new Color(null, new RGB(255, 255, 200));
+	private static final Color STRING_COLOR = new Color(null, new RGB(112, 0, 255));
+	private static final Color FIELD_COLOR = new Color(null, new RGB(0, 0, 192));
+	private static final Color KEYWORD_COLOR = new Color(null, new RGB(127, 0, 85));
+	private static final Font CONSOLAS_ITALIC_FONT = new Font(null, new FontData("consolas", 10, SWT.ITALIC));
+	private static final Font CONSOLAS_NORMAL_FONT = new Font(null, new FontData("consolas", 10, SWT.NORMAL));
+	private static final Font CONSOLAS_BOLD_FONT = new Font(null, new FontData("consolas", 10, SWT.BOLD));
 	//The main field, to which all the text is appended.
 	private StyledString styledString;
 
@@ -1356,25 +1367,25 @@ public class StyledStringVisitor extends ASTVisitor {
 	public static TextStyle initializeKeywordStyle() {
 		TextStyle keywordStyle = new TextStyle();
 		keywordStyle.font = initializeBoldFont();
-		keywordStyle.foreground = new Color(null, new RGB(127, 0, 85));
+		keywordStyle.foreground = KEYWORD_COLOR;
 		return keywordStyle;
 	}
 	private static TextStyle initializeNamedConstantStyle() {
 		TextStyle namedConstantStyle = new TextStyle();
 		namedConstantStyle.font = initializeItalicFont();
-		namedConstantStyle.foreground = new Color(null, new RGB(0, 0, 192));
+		namedConstantStyle.foreground = FIELD_COLOR;
 		return namedConstantStyle;
 	}
 	private static TextStyle initializeNonStaticFieldStyle() {
 		TextStyle fieldStyle = new TextStyle();
 		fieldStyle.font = initializeFont();
-		fieldStyle.foreground = new Color(null, new RGB(0, 0, 192));
+		fieldStyle.foreground = FIELD_COLOR;
 		return fieldStyle;
 	}
 	private static TextStyle initializeStringStyle() {
 		TextStyle stringStyle = new TextStyle();
 		stringStyle.font = initializeFont();
-		stringStyle.foreground = new Color(null, new RGB(112, 0, 255));
+		stringStyle.foreground = STRING_COLOR;
 		return stringStyle;
 	}
 	private static TextStyle initializeStaticMethodCallStyle() {
@@ -1391,20 +1402,20 @@ public class StyledStringVisitor extends ASTVisitor {
 	private static TextStyle initializeDifferenceStyle() {
 		TextStyle differenceStyle = new TextStyle();
 		differenceStyle.font = null; //Difference style is appended to styles with an already existing font. A null font prevents the old font from being overwritten.
-		differenceStyle.background = new Color(null, new RGB(255, 255, 200));
+		differenceStyle.background = DIFFERENCE_COLOR;
 		return differenceStyle;
 	}
 	private static Font initializeFont(){
 		//TODO Choose the font based on the user's Eclipse preferences
-		return new Font(null, new FontData("consolas", 10, SWT.NORMAL));
+		return CONSOLAS_NORMAL_FONT;
 	}
 	private static Font initializeBoldFont(){
 		//TODO Choose the font based on the user's Eclipse preferences
-		return new Font(null, new FontData("consolas", 10, SWT.BOLD));
+		return CONSOLAS_BOLD_FONT;
 	}
 	private static Font initializeItalicFont(){
 		//TODO Choose the font based on the user's Eclipse preferences
-		return new Font(null, new FontData("consolas", 10, SWT.ITALIC));
+		return CONSOLAS_ITALIC_FONT;
 	}
 
 }

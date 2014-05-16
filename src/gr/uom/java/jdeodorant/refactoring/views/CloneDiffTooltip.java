@@ -26,6 +26,7 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.events.ControlAdapter;
 import org.eclipse.swt.events.ControlEvent;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
@@ -42,6 +43,10 @@ import org.eclipse.ui.PlatformUI;
 @SuppressWarnings("restriction")
 public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 
+	private static final Image PRECONDITION_VIOLATION_IMAGE = PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJS_ERROR_TSK);
+	private static final Image SUGGESTION_IMAGE = JavaPluginImages.get(JavaPluginImages.IMG_OBJS_QUICK_ASSIST);
+	private static final Image HEADER_IMAGE = PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE);
+	private static final Color HEADER_BACKGROUND_COLOR = new Color(null, 150, 150, 0);
 	private Table differencesTable;
 	private TreeViewer preconditionViolationTreeViewer;
 	
@@ -104,8 +109,8 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		if(nodeMapping.getNodeDifferences().size() > 0) {
 			CLabel differencesLabel = new CLabel(comp, SWT.NONE);
 			differencesLabel.setText("Differences");
-			differencesLabel.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
-			differencesLabel.setBackground(new Color(null, 150, 150, 0));
+			differencesLabel.setImage(HEADER_IMAGE);
+			differencesLabel.setBackground(HEADER_BACKGROUND_COLOR);
 			GridData differencesLabelGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 			differencesLabel.setLayoutData(differencesLabelGridData);
 
@@ -144,8 +149,8 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 		//Precondition Violations
 		if (preconditionViolations.size() > 0){
 			CLabel preconditionsLabel = new CLabel(comp, SWT.NONE);
-			preconditionsLabel.setBackground(new Color(null, 150, 150, 0));
-			preconditionsLabel.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE));
+			preconditionsLabel.setBackground(HEADER_BACKGROUND_COLOR);
+			preconditionsLabel.setImage(HEADER_IMAGE);
 			preconditionsLabel.setText("Precondition Violations");
 			GridData preconditionsLabelGridData = new GridData(SWT.FILL, SWT.FILL, true, true);
 			preconditionsLabel.setLayoutData(preconditionsLabelGridData);
@@ -240,12 +245,12 @@ public class CloneDiffTooltip extends ColumnViewerToolTipSupport {
 				StyledString styledString = preconditionViolation.getStyledViolation();
 				cell.setText(styledString.getString());
 				cell.setStyleRanges(styledString.getStyleRanges());
-				cell.setImage(PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJS_ERROR_TSK));
+				cell.setImage(PRECONDITION_VIOLATION_IMAGE);
 			}
 			if (element instanceof Suggestion){
 				Suggestion suggestion = (Suggestion) element;
 				cell.setText(suggestion.getSuggestion());
-				cell.setImage(JavaPluginImages.get(JavaPluginImages.IMG_OBJS_QUICK_ASSIST));
+				cell.setImage(SUGGESTION_IMAGE);
 			}
 		}
 	}

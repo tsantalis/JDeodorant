@@ -17,8 +17,6 @@ import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.graphics.Font;
-import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -85,12 +83,9 @@ public class ExtractClassInputPage extends UserInputWizardPage {
 		layout.numColumns= 2;
 		result.setLayout(layout);
 		
-		FontData labelFontData = new FontData("Segoe UI", 9, SWT.NORMAL);
-		Font font = new Font(parent.getDisplay(), labelFontData);
-		
 		Label extractedClassNameLabel = new Label(result, SWT.NONE);
 		extractedClassNameLabel.setText("Extracted Class Name");
-		extractedClassNameLabel.setFont(font);
+		extractedClassNameLabel.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
 		
 		Text extractedClassNameField = new Text(result, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
 		extractedClassNameField.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));

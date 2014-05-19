@@ -116,6 +116,17 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return null;
 	}
 
+	public boolean isControlDependentOnNode(PDGNode node) {
+		PDGNode parent = this.getControlDependenceParent();
+		while(parent != null) {
+			if(parent.equals(node)) {
+				return true;
+			}
+			parent = parent.getControlDependenceParent();
+		}
+		return false;
+	}
+
 	public PDGControlDependence getIncomingControlDependence() {
 		for(GraphEdge edge : incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;

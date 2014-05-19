@@ -3,7 +3,6 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
-import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
@@ -112,8 +111,10 @@ public class PDGSubTreeMapper {
 	private Set<PlainVariable> variablesToBeReturnedG2;
 	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableBefore;
 	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableAfter;
+	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableBeforeAndAfter;
 	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableBefore;
 	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableAfter;
+	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableBeforeAndAfter;
 	
 	public PDGSubTreeMapper(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -142,8 +143,10 @@ public class PDGSubTreeMapper {
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
+		this.nonMappedPDGNodesG1MovableBeforeAndAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG2MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG2MovableAfter = new TreeSet<PDGNode>();
+		this.nonMappedPDGNodesG2MovableBeforeAndAfter = new TreeSet<PDGNode>();
 		//creates CloneStructureRoot
 		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
 		if(maximumStateWithMinimumDifferences != null) {
@@ -200,6 +203,7 @@ public class PDGSubTreeMapper {
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
 			checkCloneStructureNodeForPreconditions(cloneStructureRoot);
+			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
 		}
 	}
@@ -1235,6 +1239,22 @@ public class PDGSubTreeMapper {
 		return nonMappedNodesG2;
 	}
 
+	public TreeSet<PDGNode> getNonMappedPDGNodesG1MovableBefore() {
+		return nonMappedPDGNodesG1MovableBefore;
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG1MovableAfter() {
+		return nonMappedPDGNodesG1MovableAfter;
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG2MovableBefore() {
+		return nonMappedPDGNodesG2MovableBefore;
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG2MovableAfter() {
+		return nonMappedPDGNodesG2MovableAfter;
+	}
+
 	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
 		Set<VariableDeclaration> declaredVariablesG1 = new LinkedHashSet<VariableDeclaration>();
 		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
@@ -1694,10 +1714,12 @@ public class PDGSubTreeMapper {
 		}
 		if(nodeMapping instanceof PDGNodeGap) {
 			if(nodeMapping.getNodeG1() != null && !nodeMapping.isAdvancedMatch()) {
-				processNonMappedNode(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter, variablesToBeReturnedG1);
+				processNonMappedNode(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBeforeAndAfter,
+						nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter, variablesToBeReturnedG1);
 			}
 			if(nodeMapping.getNodeG2() != null && !nodeMapping.isAdvancedMatch()) {
-				processNonMappedNode(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter, variablesToBeReturnedG2);
+				processNonMappedNode(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBeforeAndAfter,
+						nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter, variablesToBeReturnedG2);
 			}
 		}
 		if(nodeMapping instanceof PDGNodeMapping) {
@@ -1763,7 +1785,7 @@ public class PDGSubTreeMapper {
 	}
 
 	private void processNonMappedNode(NodeMapping nodeMapping, PDGNode node, TreeSet<PDGNode> removableNodes,
-			TreeSet<PDGNode> movableBefore, TreeSet<PDGNode> movableAfter, Set<PlainVariable> returnedVariables) {
+			TreeSet<PDGNode> movableBeforeAndAfter, TreeSet<PDGNode> movableBefore, TreeSet<PDGNode> movableAfter, Set<PlainVariable> returnedVariables) {
 		boolean movableNonMappedNodeBeforeFirstMappedNode = movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node);
 		boolean movableNonMappedNodeAfterLastMappedNode = movableNonMappedNodeAfterLastMappedNode(removableNodes, node, returnedVariables);
 		if(!movableNonMappedNodeBeforeFirstMappedNode && !movableNonMappedNodeAfterLastMappedNode) {
@@ -1771,6 +1793,9 @@ public class PDGSubTreeMapper {
 					PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE);
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
+		}
+		else if(movableNonMappedNodeBeforeFirstMappedNode && movableNonMappedNodeAfterLastMappedNode) {
+			movableBeforeAndAfter.add(node);
 		}
 		else if(movableNonMappedNodeBeforeFirstMappedNode) {
 			movableBefore.add(node);
@@ -1797,6 +1822,51 @@ public class PDGSubTreeMapper {
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
 		}
+	}
+	private void processNonMappedNodesMovableBeforeAndAfter() {
+		for(PDGNode nodeG1 : nonMappedPDGNodesG1MovableBeforeAndAfter) {
+			boolean movableNonMappedNodeBeforeNonMappedNodesMovableAfter = movableNonMappedNodeBeforeNonMappedNodesMovableAfter(nonMappedPDGNodesG1MovableAfter, nodeG1);
+			if(movableNonMappedNodeBeforeNonMappedNodesMovableAfter) {
+				nonMappedPDGNodesG1MovableBefore.add(nodeG1);
+			}
+			else {
+				nonMappedPDGNodesG1MovableAfter.add(nodeG1);
+			}
+		}
+		for(PDGNode nodeG2 : nonMappedPDGNodesG2MovableBeforeAndAfter) {
+			boolean movableNonMappedNodeBeforeNonMappedNodesMovableAfter = movableNonMappedNodeBeforeNonMappedNodesMovableAfter(nonMappedPDGNodesG2MovableAfter, nodeG2);
+			if(movableNonMappedNodeBeforeNonMappedNodesMovableAfter) {
+				nonMappedPDGNodesG2MovableBefore.add(nodeG2);
+			}
+			else {
+				nonMappedPDGNodesG2MovableAfter.add(nodeG2);
+			}
+		}
+	}
+	private boolean movableNonMappedNodeBeforeNonMappedNodesMovableAfter(TreeSet<PDGNode> nonMappedNodes, PDGNode nonMappedNode) {
+		Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
+		while(incomingDependenceIterator.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
+			if(dependence instanceof PDGAbstractDataDependence) {
+				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
+				PDGNode srcPDGNode = (PDGNode)dataDependence.getSrc();
+				if(nonMappedNodes.contains(srcPDGNode)) {
+					return false;
+				}
+				//examine if it is a self-loop edge due to a loop-carried dependence
+				if(srcPDGNode.equals(nonMappedNode)) {
+					if(dataDependence.isLoopCarried() && nonMappedNodes.contains(dataDependence.getLoop().getPDGNode())) {
+						return false;
+					}
+				}
+			}
+		}
+		for(PDGNode dstPDGNode : nonMappedNodes) {
+			if(dstPDGNode.isControlDependentOnNode(nonMappedNode)) {
+				return false;
+			}
+		}
+		return true;
 	}
 	//precondition: non-mapped statement can be moved before the first mapped statement
 	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {

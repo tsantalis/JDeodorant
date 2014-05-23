@@ -731,6 +731,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return super.match(node, other);
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(other instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)other;
+			if(getterMethodForField(methodInvocation, node.getName())) {
+				safeSubtreeMatch(node.getExpression(), methodInvocation.getExpression());
+				if(node.getExpression()==null && methodInvocation.getExpression()!=null) {
+					Difference diff = new Difference("",methodInvocation.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+				}
+				else if(node.getExpression()!=null && methodInvocation.getExpression()==null) {
+					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+				}
+				Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
+				astNodeDifference.addDifference(diff);
+				differences.add(astNodeDifference);
+				return true;
+			}
+		}
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof FieldAccess) {
@@ -909,6 +927,43 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(other instanceof FieldAccess) {
+			FieldAccess fieldAccess = (FieldAccess)other;
+			if(getterMethodForField(node, fieldAccess.getName())) {
+				safeSubtreeMatch(node.getExpression(), fieldAccess.getExpression());
+				if(node.getExpression()==null && fieldAccess.getExpression()!=null) {
+					Difference diff = new Difference("",fieldAccess.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+				}
+				else if(node.getExpression()!=null && fieldAccess.getExpression()==null) {
+					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+					astNodeDifference.addDifference(diff);
+				}
+				Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
+				astNodeDifference.addDifference(diff);
+				differences.add(astNodeDifference);
+				return true;
+			}
+		}
+		if(other instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)other;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField()) {
+					if(getterMethodForField(node, simpleName)) {
+						if(node.getExpression() != null) {
+							Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+							astNodeDifference.addDifference(diff);
+						}
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
+						astNodeDifference.addDifference(diff);
+						differences.add(astNodeDifference);
+						return true;
+					}
+				}
+			}
+		}
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
 			if (!(other instanceof MethodInvocation)) {
@@ -1160,6 +1215,25 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return super.match(node, other);
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(other instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)other;
+			IBinding binding = node.resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField()) {
+					if(getterMethodForField(methodInvocation, node)) {
+						if(methodInvocation.getExpression() != null) {
+							Difference diff = new Difference("",methodInvocation.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+							astNodeDifference.addDifference(diff);
+						}
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
+						astNodeDifference.addDifference(diff);
+						differences.add(astNodeDifference);
+						return true;
+					}
+				}
+			}
+		}
 		if(isTypeHolder(other)) {
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (other instanceof SimpleName) {
@@ -1464,6 +1538,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(arguments.get(0), rightHandSide);
 				if(setterMethodForField(setter, fieldAccess.getName()) && argumentRightHandSideMatch) {
+					safeSubtreeMatch(setter.getExpression(), fieldAccess.getExpression());
+					if(setter.getExpression()==null && fieldAccess.getExpression()!=null) {
+						Difference diff = new Difference("",fieldAccess.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
+					else if(setter.getExpression()!=null && fieldAccess.getExpression()==null) {
+						Difference diff = new Difference(setter.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1474,6 +1557,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 				SimpleName simpleName = (SimpleName)leftHandSide;
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(arguments.get(0), rightHandSide);
 				if(setterMethodForField(setter, simpleName) && argumentRightHandSideMatch) {
+					if(setter.getExpression() != null) {
+						Difference diff = new Difference(setter.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1499,6 +1586,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(rightHandSide, arguments.get(0));
 				if(setterMethodForField(setter, fieldAccess.getName()) && argumentRightHandSideMatch) {
+					safeSubtreeMatch(fieldAccess.getExpression(), setter.getExpression());
+					if(fieldAccess.getExpression()==null && setter.getExpression()!=null) {
+						Difference diff = new Difference("",setter.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
+					else if(fieldAccess.getExpression()!=null && setter.getExpression()==null) {
+						Difference diff = new Difference(fieldAccess.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
@@ -1509,10 +1605,43 @@ public class ASTNodeMatcher extends ASTMatcher{
 				SimpleName simpleName = (SimpleName)leftHandSide;
 				boolean argumentRightHandSideMatch = safeSubtreeMatch(rightHandSide, arguments.get(0));
 				if(setterMethodForField(setter, simpleName) && argumentRightHandSideMatch) {
+					if(setter.getExpression() != null) {
+						Difference diff = new Difference("",setter.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					differences.add(astNodeDifference);
 					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean getterMethodForField(MethodInvocation methodInvocation, SimpleName fieldName) {
+		IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+		ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
+		ClassObject declaringClass = ASTReader.getSystemObject().getClassObject(declaringClassTypeBinding.getQualifiedName());
+		if(declaringClass != null) {
+			ListIterator<MethodObject> methodIterator = declaringClass.getMethodIterator();
+			while(methodIterator.hasNext()) {
+				MethodObject method = methodIterator.next();
+				MethodDeclaration methodDeclaration = method.getMethodDeclaration();
+				if(methodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+					SimpleName getField = MethodDeclarationUtility.isGetter(methodDeclaration);
+					if(getField != null) {
+						if(getField.resolveBinding().getKind() == IBinding.VARIABLE &&
+								fieldName.resolveBinding().getKind() == IBinding.VARIABLE) {
+							IVariableBinding getFieldBinding = (IVariableBinding)getField.resolveBinding();
+							IVariableBinding fieldNameBinding = (IVariableBinding)fieldName.resolveBinding();
+							if(getFieldBinding.isEqualTo(fieldNameBinding) ||
+									(getField.getIdentifier().equals(fieldName.getIdentifier()) &&
+									getFieldBinding.getType().isEqualTo(fieldNameBinding.getType()))) {
+								return true;
+							}
+						}
+					}
 				}
 			}
 		}

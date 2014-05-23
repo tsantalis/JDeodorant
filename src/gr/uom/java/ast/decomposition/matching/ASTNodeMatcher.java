@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
@@ -63,6 +64,7 @@ import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 public class ASTNodeMatcher extends ASTMatcher{
@@ -784,6 +786,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ForStatement node, Object other) {
+		ConditionalLoop otherConditionalLoop = generateConditionalLoop(other);
+		if (otherConditionalLoop != null)
+		{
+			ConditionalLoop nodeConditionalLoop = new ConditionalLoop(node);
+			boolean conditionMatch = safeSubtreeMatch(nodeConditionalLoop.getCondition(), otherConditionalLoop.getCondition());
+			if (conditionMatch)
+			{
+				boolean loopMatch = nodeConditionalLoop.match(otherConditionalLoop, differences);
+				if (loopMatch)
+				{
+					ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+					reportAdditionalFragments(nodeConditionalLoop, this.additionallyMatchedFragments1);
+					ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+					reportAdditionalFragments(otherConditionalLoop, this.additionallyMatchedFragments2);
+					return true;
+				}
+			}
+		}
 		if (!(other instanceof ForStatement)) {
 			return false;
 		}
@@ -1836,5 +1856,48 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 		}
 		return false;
+	}
+	
+	private static ConditionalLoop generateConditionalLoop(Object object)
+	{
+		if (object instanceof ForStatement)
+		{
+			return new ConditionalLoop((ForStatement) object);
+		}
+		else if (object instanceof WhileStatement)
+		{
+			return new ConditionalLoop((WhileStatement) object);
+		}
+		else if (object instanceof DoStatement)
+		{
+			return new ConditionalLoop((DoStatement) object);
+		}
+		return null;
+	}
+
+	private void reportAdditionalFragments(ConditionalLoop conditionalLoop, List<AbstractMethodFragment> fragmentList) {
+		Map<SimpleName,List<Expression>> conditionVariableUpdatersMap = conditionalLoop.getConditionVariableUpdatersMap();
+		for(SimpleName key : conditionVariableUpdatersMap.keySet()) {
+			List<Expression> expressions = conditionVariableUpdatersMap.get(key);
+			for(Expression updater : expressions) {
+				if(updater.getParent() instanceof ExpressionStatement)
+				{
+					ExpressionStatement expressionStatement = (ExpressionStatement)updater.getParent();
+					StatementObject updaterStatementObject = new StatementObject(expressionStatement, StatementType.EXPRESSION, null);
+					fragmentList.add(updaterStatementObject);
+				}
+				else if(updater.getParent() instanceof VariableDeclarationStatement)
+				{
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)updater.getParent();
+					StatementObject updaterStatementObject = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, null);
+					fragmentList.add(updaterStatementObject);
+				}
+				else
+				{
+					AbstractExpression expressionObject = new AbstractExpression(updater);
+					fragmentList.add(expressionObject);
+				}
+			}
+		}
 	}
 }

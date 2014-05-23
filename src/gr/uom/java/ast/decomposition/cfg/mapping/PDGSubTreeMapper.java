@@ -2045,4 +2045,59 @@ public class PDGSubTreeMapper {
 		}
 		return null;
 	}
+	
+	public CloneType getCloneType() {
+		int nodeDifferences = getNodeDifferences().size();
+		if(maximumStateWithMinimumDifferences != null) {
+			if(nodeDifferences == 0 && nonMappedNodesG1.size() == 0 && nonMappedNodesG2.size() == 0) {
+				return CloneType.TYPE_1;
+			}
+			if(nodeDifferences > 0 && nonMappedNodesG1.size() == 0 && nonMappedNodesG2.size() == 0) {
+				return CloneType.TYPE_2;
+			}
+			if(nonMappedNodesG1.size() > 0 || nonMappedNodesG2.size() > 0) {
+				if(isType3(cloneStructureRoot)) {
+					return CloneType.TYPE_3;
+				}
+				else {
+					return CloneType.TYPE_2;
+				}
+			}
+		}
+		return CloneType.UNKNOWN;
+	}
+	
+	private boolean isType3(CloneStructureNode node) {
+		Map<Integer, PDGNodeGap> gapMap = new LinkedHashMap<Integer, PDGNodeGap>();
+		int counter = 0;
+		for(CloneStructureNode child : node.getChildren()) {
+			if(child.getMapping() instanceof PDGNodeGap) {
+				gapMap.put(counter, (PDGNodeGap)child.getMapping());
+			}
+			counter++;
+		}
+		if(!gapMap.isEmpty()) {
+			int gaps1 = 0;
+			int gaps2 = 0;
+			for(Integer key : gapMap.keySet()) {
+				PDGNodeGap nodeGap = gapMap.get(key);
+				if(nodeGap.getNodeG1() != null) {
+					gaps1++;
+				}
+				if(nodeGap.getNodeG2() != null) {
+					gaps2++;
+				}
+			}
+			if(gaps1 != gaps2) {
+				return true;
+			}
+		}
+		for(CloneStructureNode child : node.getChildren()) {
+			boolean type3 = isType3(child);
+			if(type3) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

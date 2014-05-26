@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.matching;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.Expression;
@@ -11,13 +12,19 @@ public class BindingSignature {
 	private List<String> bindingKeys;
 	
 	public BindingSignature(AbstractExpression expression) {
-		Expression expr = expression.getExpression();
-		expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expr);
-		BindingSignatureVisitor visitor = new BindingSignatureVisitor();
-		expr.accept(visitor);
-		this.bindingKeys = visitor.getBindingKeys();
-		if(bindingKeys.isEmpty())
-			bindingKeys.add(expr.toString());
+		if(expression != null) {
+			Expression expr = expression.getExpression();
+			expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expr);
+			BindingSignatureVisitor visitor = new BindingSignatureVisitor();
+			expr.accept(visitor);
+			this.bindingKeys = visitor.getBindingKeys();
+			if(bindingKeys.isEmpty())
+				bindingKeys.add(expr.toString());
+		}
+		else {
+			this.bindingKeys = new ArrayList<String>();
+			bindingKeys.add("this");
+		}
 	}
 
 	public boolean containsBinding(String key) {

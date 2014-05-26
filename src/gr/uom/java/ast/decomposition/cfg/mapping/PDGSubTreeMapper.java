@@ -2047,8 +2047,8 @@ public class PDGSubTreeMapper {
 	}
 	
 	public CloneType getCloneType() {
-		int nodeDifferences = getNodeDifferences().size();
 		if(maximumStateWithMinimumDifferences != null) {
+			int nodeDifferences = getNodeDifferences().size();
 			if(nodeDifferences == 0 && nonMappedNodesG1.size() == 0 && nonMappedNodesG2.size() == 0) {
 				return CloneType.TYPE_1;
 			}

@@ -4,6 +4,7 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -26,6 +27,8 @@ import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignature;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
+import gr.uom.java.ast.decomposition.matching.FieldAccessReplacedWithGetterInvocationDifference;
+import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
 
@@ -87,6 +90,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -312,9 +316,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							subTypes.contains((IType)typeBinding2.getJavaElement()))
 						superclassInheritedOnlyByRefactoringSubclasses = true;
 				}
+				boolean superclassIsOneOfTheSourceTypeDeclarations = false;
+				if(typeBinding1.isEqualTo(commonSuperTypeOfSourceTypeDeclarations) || typeBinding2.isEqualTo(commonSuperTypeOfSourceTypeDeclarations))
+					superclassIsOneOfTheSourceTypeDeclarations = true;
 				if(((mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
 						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty())
-						|| superclassInheritedOnlyByRefactoringSubclasses) &&
+						|| superclassInheritedOnlyByRefactoringSubclasses || superclassIsOneOfTheSourceTypeDeclarations) &&
 						ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null) {
 					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
 					IJavaElement javaElement = commonSuperTypeOfSourceTypeDeclarations.getJavaElement();
@@ -681,7 +688,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+				sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
 			modifierRewrite.insertLast(accessModifier, null);
 		}
@@ -694,6 +702,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				(sourceMethodDeclarations.get(1).getModifiers() & Modifier.STATIC) != 0) {
 			Modifier staticModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD);
 			modifierRewrite.insertLast(staticModifier, null);
+		}
+		
+		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		List<Name> thrownExceptions1 = sourceMethodDeclarations.get(0).thrownExceptions();
+		List<Name> thrownExceptions2 = sourceMethodDeclarations.get(1).thrownExceptions();
+		for(Name thrownException1 : thrownExceptions1) {
+			for(Name thrownException2 : thrownExceptions2) {
+				if(thrownException1.resolveTypeBinding().isEqualTo(thrownException2.resolveTypeBinding())) {
+					thrownExceptionRewrite.insertLast(thrownException1, null);
+					break;
+				}
+			}
 		}
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
@@ -761,15 +781,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		//add parameters for the differences between the clones
 		int i = 0;
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
-			Expression expression1 = difference.getExpression1().getExpression();
-			Expression expression2 = difference.getExpression2().getExpression();
-			boolean isReturnedVariable = isReturnedVariable(expression1, this.returnedVariables.get(0));
+			AbstractExpression expression1 = difference.getExpression1();
+			AbstractExpression expression2 = difference.getExpression2();
+			boolean isReturnedVariable = false;
+			if(expression1 != null) {
+				isReturnedVariable = isReturnedVariable(expression1.getExpression(), this.returnedVariables.get(0));
+			}
+			else if(expression2 != null) {
+				isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
+			}
 			if(!isReturnedVariable) {
 				ITypeBinding typeBinding = null;
 				if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) ||
 						differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
-					ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
-					ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
+					ITypeBinding typeBinding1 = expression1 != null ? expression1.getExpression().resolveTypeBinding()
+																	: expression2.getExpression().resolveTypeBinding();
+					ITypeBinding typeBinding2 = expression2 != null ? expression2.getExpression().resolveTypeBinding()
+																	: expression1.getExpression().resolveTypeBinding();
 					if(!typeBinding1.isEqualTo(typeBinding2)) {
 						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 						if(commonSuperTypeBinding != null) {
@@ -781,7 +809,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 				else {
-					typeBinding = expression1.resolveTypeBinding();
+					typeBinding = expression1 != null ? expression1.getExpression().resolveTypeBinding()
+													: expression2.getExpression().resolveTypeBinding();
 				}
 				Type type = generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -838,6 +867,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private boolean differenceContainsSubDifferenceWithSubclassTypeMismatch(ASTNodeDifference difference) {
+		if(difference.getExpression1() == null || difference.getExpression2() == null) {
+			return false;
+		}
 		Expression expression1 = difference.getExpression1().getExpression();
 		Expression expression2 = difference.getExpression2().getExpression();
 		ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
@@ -1492,7 +1524,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			Set<String> parameterBindingKeys = originalPassedParameters.keySet();
 			Set<String> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
-			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
@@ -1512,7 +1543,29 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						isCommonParameter = true;
 				}
 				if(!isCommonParameter) {
-					if(oldExpression.getParent() instanceof Type) {
+					if(difference instanceof FieldAccessReplacedWithGetterInvocationDifference) {
+						FieldAccessReplacedWithGetterInvocationDifference nodeDifference =
+								(FieldAccessReplacedWithGetterInvocationDifference)difference;
+						MethodInvocation newGetterMethodInvocation = generateGetterMethodInvocation(ast, sourceRewriter, nodeDifference);
+						if(oldASTNode.equals(oldExpression)) {
+							return newGetterMethodInvocation;
+						}
+						else {
+							replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, newGetterMethodInvocation);
+						}
+					}
+					else if(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference) {
+						FieldAssignmentReplacedWithSetterInvocationDifference nodeDifference =
+								(FieldAssignmentReplacedWithSetterInvocationDifference)difference;
+						MethodInvocation newSetterMethodInvocation = generateSetterMethodInvocation(ast, sourceRewriter, nodeDifference);
+						if(oldASTNode.equals(oldExpression)) {
+							return newSetterMethodInvocation;
+						}
+						else {
+							replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, newSetterMethodInvocation);
+						}
+					}
+					else if(oldExpression.getParent() instanceof Type) {
 						Type oldType = (Type)oldExpression.getParent();
 						if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
 							ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
@@ -1559,39 +1612,194 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 						boolean expressionIsFieldToBePulledUp = expression1IsFieldToBePulledUp && expression2IsFieldToBePulledUp;
 						if(!expressionIsFieldToBePulledUp) {
-							SimpleName argument;
-							if(parameterizedDifferenceMap.containsKey(difference.getBindingSignaturePair())) {
-								List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
-								int index = list.indexOf(difference.getBindingSignaturePair());
-								argument = ast.newSimpleName("arg" + index);
+							Expression argument = createArgument(ast, difference);
+							if(oldASTNode.equals(oldExpression)) {
+								return argument;
 							}
 							else {
-								argument = ast.newSimpleName("arg" + parameterizedDifferenceMap.size());
-								parameterizedDifferenceMap.put(difference.getBindingSignaturePair(), difference);
-							}
-							int j = 0;
-							List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldASTNode);
-							List<Expression> newExpressions = expressionExtractor.getAllExpressions(newASTNode);
-							for(Expression expression : oldExpressions) {
-								Expression newExpression = newExpressions.get(j);
-								if(expression.equals(oldExpression)) {
-									sourceRewriter.replace(newExpression, argument, null);
-									break;
-								}
-								if(oldExpression instanceof QualifiedName) {
-									QualifiedName oldQualifiedName = (QualifiedName)oldExpression;
-									if(expression.equals(oldQualifiedName.getName())) {
-										sourceRewriter.replace(newExpression.getParent(), argument, null);
-										break;
-									}
-								}
-								j++;
+								replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
 							}
 						}
 					}
 				}
 			}
 			return newASTNode;
+		}
+	}
+
+	private Expression createArgument(AST ast, ASTNodeDifference argumentDifference) {
+		Expression argument;
+		if(parameterizedDifferenceMap.containsKey(argumentDifference.getBindingSignaturePair())) {
+			List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
+			int index = list.indexOf(argumentDifference.getBindingSignaturePair());
+			argument = ast.newSimpleName("arg" + index);
+		}
+		else {
+			argument = ast.newSimpleName("arg" + parameterizedDifferenceMap.size());
+			parameterizedDifferenceMap.put(argumentDifference.getBindingSignaturePair(), argumentDifference);
+		}
+		return argument;
+	}
+
+	private MethodInvocation generateSetterMethodInvocation(AST ast, ASTRewrite sourceRewriter,
+			FieldAssignmentReplacedWithSetterInvocationDifference nodeDifference) {
+		MethodInvocation newSetterMethodInvocation = ast.newMethodInvocation();
+		sourceRewriter.set(newSetterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(nodeDifference.getSetterMethodName()), null);
+		AbstractExpression invoker1 = nodeDifference.getInvoker1();
+		AbstractExpression invoker2 = nodeDifference.getInvoker2();
+		Expression invoker = null;
+		if(invoker1 != null && invoker2 == null) {
+			Expression expression1 = invoker1.getExpression();
+			if(expression1 instanceof ThisExpression) {
+				// do nothing
+			}
+			else {
+				ASTNodeDifference invokerDifference = new ASTNodeDifference(invoker1, invoker2);
+				invoker = createArgument(ast, invokerDifference);
+			}
+		}
+		else if(invoker1 == null && invoker2 != null) {
+			Expression expression2 = invoker2.getExpression();
+			if(expression2 instanceof ThisExpression) {
+				// do nothing
+			}
+			else {
+				ASTNodeDifference invokerDifference = new ASTNodeDifference(invoker1, invoker2);
+				invoker = createArgument(ast, invokerDifference);
+			}
+		}
+		else if(!nodeDifference.getInvokerDifferences().isEmpty()) {
+			List<ASTNodeDifference> invokerDifferences = nodeDifference.getInvokerDifferences();
+			invoker = processNestedDifferences(ast, sourceRewriter, invoker1.getExpression(), invoker2.getExpression(), invokerDifferences);
+		}
+		else {
+			// the invokers are the same
+			if(invoker1 != null && invoker2 != null) {
+				invoker = invoker1.getExpression();
+			}
+		}
+		if(invoker != null) {
+			sourceRewriter.set(newSetterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
+		}
+		Expression argument1 = nodeDifference.getArgument1().getExpression();
+		Expression argument2 = nodeDifference.getArgument2().getExpression();
+		Expression argument = null;
+		if(!nodeDifference.getArgumentDifferences().isEmpty()) {
+			List<ASTNodeDifference> argumentDifferences = nodeDifference.getArgumentDifferences();
+			argument = processNestedDifferences(ast, sourceRewriter, argument1, argument2, argumentDifferences);
+		}
+		else {
+			// the arguments are the same
+			argument = argument1;
+		}
+		ListRewrite argumentRewriter = sourceRewriter.getListRewrite(newSetterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+		argumentRewriter.insertLast(argument, null);
+		return newSetterMethodInvocation;
+	}
+
+	private Expression processNestedDifferences(AST ast, ASTRewrite sourceRewriter, Expression entireExpression1, Expression entireExpression2,
+			List<ASTNodeDifference> nestedDifferences) {
+		Expression argument = null;
+		boolean differenceCoversTheEntireExpression = false;
+		for(ASTNodeDifference argumentDifference : nestedDifferences) {
+			Expression expression1 = argumentDifference.getExpression1().getExpression();
+			Expression expression2 = argumentDifference.getExpression2().getExpression();
+			if(expression1.equals(entireExpression1) && expression2.equals(entireExpression2)) {
+				differenceCoversTheEntireExpression = true;
+				break;
+			}
+		}
+		if(!differenceCoversTheEntireExpression) {
+			Expression newArgument = (Expression)ASTNode.copySubtree(ast, entireExpression1);
+			for(ASTNodeDifference argumentDifference : nestedDifferences) {
+				Expression oldExpression = argumentDifference.getExpression1().getExpression();
+				Expression replacement;
+				if(argumentDifference instanceof FieldAccessReplacedWithGetterInvocationDifference) {
+					replacement = generateGetterMethodInvocation(ast, sourceRewriter, (FieldAccessReplacedWithGetterInvocationDifference) argumentDifference);
+				}
+				else {
+					replacement = createArgument(ast, argumentDifference);
+				}
+				replaceExpression(sourceRewriter, entireExpression1, newArgument, oldExpression, replacement);
+			}
+			argument = newArgument;
+		}
+		else {
+			for(ASTNodeDifference argumentDifference : nestedDifferences) {
+				Expression expression1 = argumentDifference.getExpression1().getExpression();
+				Expression expression2 = argumentDifference.getExpression2().getExpression();
+				if(expression1.equals(entireExpression1) && expression2.equals(entireExpression2)) {
+					argument = createArgument(ast, argumentDifference);
+					break;
+				}
+			}
+		}
+		return argument;
+	}
+
+	private MethodInvocation generateGetterMethodInvocation(AST ast, ASTRewrite sourceRewriter,
+			FieldAccessReplacedWithGetterInvocationDifference nodeDifference) {
+		MethodInvocation newGetterMethodInvocation = ast.newMethodInvocation();
+		sourceRewriter.set(newGetterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(nodeDifference.getGetterMethodName()), null);
+		AbstractExpression invoker1 = nodeDifference.getInvoker1();
+		AbstractExpression invoker2 = nodeDifference.getInvoker2();
+		Expression invoker = null;
+		if(invoker1 != null && invoker2 == null) {
+			Expression expression1 = invoker1.getExpression();
+			if(expression1 instanceof ThisExpression) {
+				// do nothing
+			}
+			else {
+				ASTNodeDifference invokerDifference = new ASTNodeDifference(invoker1, invoker2);
+				invoker = createArgument(ast, invokerDifference);
+			}
+		}
+		else if(invoker1 == null && invoker2 != null) {
+			Expression expression2 = invoker2.getExpression();
+			if(expression2 instanceof ThisExpression) {
+				// do nothing
+			}
+			else {
+				ASTNodeDifference invokerDifference = new ASTNodeDifference(invoker1, invoker2);
+				invoker = createArgument(ast, invokerDifference);
+			}
+		}
+		else if(!nodeDifference.getInvokerDifferences().isEmpty()) {
+			List<ASTNodeDifference> invokerDifferences = nodeDifference.getInvokerDifferences();
+			invoker = processNestedDifferences(ast, sourceRewriter, invoker1.getExpression(), invoker2.getExpression(), invokerDifferences);
+		}
+		else {
+			// the invokers are the same
+			if(invoker1 != null && invoker2 != null) {
+				invoker = invoker1.getExpression();
+			}
+		}
+		if(invoker != null) {
+			sourceRewriter.set(newGetterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, invoker, null);
+		}
+		return newGetterMethodInvocation;
+	}
+
+	private void replaceExpression(ASTRewrite sourceRewriter, ASTNode oldASTNode, ASTNode newASTNode,
+			Expression oldExpression, Expression replacement) {
+		int j = 0;
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> oldExpressions = expressionExtractor.getAllExpressions(oldASTNode);
+		List<Expression> newExpressions = expressionExtractor.getAllExpressions(newASTNode);
+		for(Expression expression : oldExpressions) {
+			Expression newExpression = newExpressions.get(j);
+			if(expression.equals(oldExpression)) {
+				sourceRewriter.replace(newExpression, replacement, null);
+				break;
+			}
+			if(oldExpression instanceof QualifiedName) {
+				QualifiedName oldQualifiedName = (QualifiedName)oldExpression;
+				if(expression.equals(oldQualifiedName.getName())) {
+					sourceRewriter.replace(newExpression.getParent(), replacement, null);
+					break;
+				}
+			}
+			j++;
 		}
 	}
 
@@ -1686,16 +1894,32 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			List<Expression> expressions = new ArrayList<Expression>();
-			Expression expression1 = difference.getExpression1().getExpression();
-			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
-			expressions.add(expression1);
-			Expression expression2 = difference.getExpression2().getExpression();
-			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
-			expressions.add(expression2);
+			if(difference.getExpression1() != null) {
+				Expression expression1 = difference.getExpression1().getExpression();
+				expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
+				expressions.add(expression1);
+			}
+			else {
+				expressions.add(null);
+			}
+			if(difference.getExpression2() != null) {
+				Expression expression2 = difference.getExpression2().getExpression();
+				expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
+				expressions.add(expression2);
+			}
+			else {
+				expressions.add(null);
+			}
 			Expression expression = expressions.get(index);
-			boolean isReturnedVariable = isReturnedVariable(expression, returnedVariables);
-			if(!isReturnedVariable)
-				argumentsRewrite.insertLast(expression, null);
+			boolean isReturnedVariable = false;
+			if(expression != null)
+				isReturnedVariable = isReturnedVariable(expression, returnedVariables);
+			if(!isReturnedVariable) {
+				if(expression != null)
+					argumentsRewrite.insertLast(expression, null);
+				else
+					argumentsRewrite.insertLast(ast.newThisExpression(), null);
+			}
 		}
 		//place the code in the parent block of the first removable node
 		Statement firstStatement = removableNodes.first().getASTStatement();

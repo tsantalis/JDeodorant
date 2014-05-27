@@ -870,8 +870,8 @@ public class PDGSubTreeMapper {
 	}
 
 	private List<MappingState> matchBasedOnCodeFragments(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
-		CodeFragmentDecomposer cfd1 = new CodeFragmentDecomposer(nodesG1);
-		CodeFragmentDecomposer cfd2 = new CodeFragmentDecomposer(nodesG2);
+		CodeFragmentDecomposer cfd1 = new CodeFragmentDecomposer(nodesG1, pdg1.getFieldsAccessedInMethod());
+		CodeFragmentDecomposer cfd2 = new CodeFragmentDecomposer(nodesG2, pdg2.getFieldsAccessedInMethod());
 		Map<PlainVariable, Set<PDGNode>> map1 = cfd1.getObjectNodeMap();
 		Map<PlainVariable, Set<PDGNode>> map2 = cfd2.getObjectNodeMap();
 		if(map1.isEmpty() || map2.isEmpty()) {

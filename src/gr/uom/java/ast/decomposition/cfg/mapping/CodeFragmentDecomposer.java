@@ -11,11 +11,13 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.VariableDeclaration;
+
 public class CodeFragmentDecomposer {
 
 	private Map<PlainVariable, Set<PDGNode>> objectNodeMap;
 	
-	public CodeFragmentDecomposer(Set<PDGNode> nodes) {
+	public CodeFragmentDecomposer(Set<PDGNode> nodes, Set<VariableDeclaration> accessedFields) {
 		this.objectNodeMap = new LinkedHashMap<PlainVariable, Set<PDGNode>>();
 		Set<PlainVariable> declaredVariables = getDeclaredVariables(nodes);
 		for(PlainVariable objectReference : declaredVariables) {
@@ -29,6 +31,8 @@ public class CodeFragmentDecomposer {
 				objectNodeMap.put(objectReference, objectNodes);
 			}
 		}
+		Map<PlainVariable, Set<PDGNode>> definedFieldMap = getDefinedFieldMap(nodes, accessedFields);
+		objectNodeMap.putAll(definedFieldMap);
 	}
 
 	public Map<PlainVariable, Set<PDGNode>> getObjectNodeMap() {
@@ -65,7 +69,7 @@ public class CodeFragmentDecomposer {
 		Set<PlainVariable> declaredVariables = new LinkedHashSet<PlainVariable>();
 		for(PDGNode node : nodes) {
 			Iterator<AbstractVariable> iterator = node.getDeclaredVariableIterator();
-			if(iterator.hasNext()) {
+			while(iterator.hasNext()) {
 				AbstractVariable declaredVariable = iterator.next();
 				if(declaredVariable instanceof PlainVariable) {
 					declaredVariables.add((PlainVariable)declaredVariable);
@@ -73,5 +77,33 @@ public class CodeFragmentDecomposer {
 			}
 		}
 		return declaredVariables;
+	}
+	
+	private Map<PlainVariable, Set<PDGNode>> getDefinedFieldMap(Set<PDGNode> nodes, Set<VariableDeclaration> accessedFields) {
+		Set<String> fieldBindingKeys = new LinkedHashSet<String>();
+		for(VariableDeclaration fieldDeclaration : accessedFields) {
+			fieldBindingKeys.add(fieldDeclaration.resolveBinding().getKey());
+		}
+		Map<PlainVariable, Set<PDGNode>> definedFieldMap = new LinkedHashMap<PlainVariable, Set<PDGNode>>();
+		for(PDGNode node : nodes) {
+			Iterator<AbstractVariable> iterator = node.getDefinedVariableIterator();
+			while(iterator.hasNext()) {
+				AbstractVariable definedVariable = iterator.next();
+				if(definedVariable instanceof PlainVariable && 
+						fieldBindingKeys.contains(definedVariable.getVariableBindingKey())) {
+					PlainVariable plainVariable = (PlainVariable)definedVariable;
+					if(definedFieldMap.containsKey(plainVariable)) {
+						Set<PDGNode> pdgNodes = definedFieldMap.get(plainVariable);
+						pdgNodes.add(node);
+					}
+					else {
+						Set<PDGNode> pdgNodes = new LinkedHashSet<PDGNode>();
+						pdgNodes.add(node);
+						definedFieldMap.put(plainVariable, pdgNodes);
+					}
+				}
+			}
+		}
+		return definedFieldMap;
 	}
 }

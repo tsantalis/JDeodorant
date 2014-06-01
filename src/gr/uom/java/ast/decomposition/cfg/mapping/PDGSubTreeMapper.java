@@ -91,8 +91,8 @@ public class PDGSubTreeMapper {
 	private TreeSet<PDGNode> mappedNodesG2;
 	private TreeSet<PDGNode> nonMappedNodesG1;
 	private TreeSet<PDGNode> nonMappedNodesG2;
-	private Map<String, ArrayList<AbstractVariable>> commonPassedParameters;
-	private Map<String, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
+	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> commonPassedParameters;
+	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
 	private Set<AbstractVariable> passedParametersG1;
 	private Set<AbstractVariable> passedParametersG2;
 	private Set<AbstractVariable> accessedLocalFieldsG1;
@@ -128,8 +128,8 @@ public class PDGSubTreeMapper {
 		this.fullTreeMatch = fullTreeMatch;
 		this.nonMappedNodesG1 = new TreeSet<PDGNode>();
 		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
-		this.commonPassedParameters = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
-		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<String, ArrayList<AbstractVariable>>();
+		this.commonPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
+		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
 		this.passedParametersG1 = new LinkedHashSet<AbstractVariable>();
 		this.passedParametersG2 = new LinkedHashSet<AbstractVariable>();
 		this.accessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
@@ -242,6 +242,8 @@ public class PDGSubTreeMapper {
 	private void findPassedParameters() {
 		Set<AbstractVariable> passedParametersG1 = extractPassedParameters(pdg1, mappedNodesG1);
 		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, mappedNodesG2);
+		Set<AbstractVariable> parametersToBeRemovedG1 = new LinkedHashSet<AbstractVariable>();
+		Set<AbstractVariable> parametersToBeRemovedG2 = new LinkedHashSet<AbstractVariable>();
 		for(PDGNodeMapping nodeMapping : maximumStateWithMinimumDifferences.getNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
@@ -272,19 +274,14 @@ public class PDGSubTreeMapper {
 				ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
 				declaredVariables.add(declaredVariableG1);
 				declaredVariables.add(declaredVariableG2);
-				declaredLocalVariablesInMappedNodes.put(declaredVariableG1.getVariableBindingKey(), declaredVariables);
+				VariableBindingKeyPair keyPair = new VariableBindingKeyPair(declaredVariableG1.getVariableBindingKey(),
+						declaredVariableG2.getVariableBindingKey());
+				declaredLocalVariablesInMappedNodes.put(keyPair, declaredVariables);
 			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();
 			dataDependences1.retainAll(passedParametersG1);
 			dataDependences2.retainAll(passedParametersG2);
-			//remove already mapped parameters
-			for(ArrayList<AbstractVariable> variableDeclarations : commonPassedParameters.values()) {
-				AbstractVariable variableDeclaration1 = variableDeclarations.get(0);
-				AbstractVariable variableDeclaration2 = variableDeclarations.get(1);
-				dataDependences1.remove(variableDeclaration1);
-				dataDependences2.remove(variableDeclaration2);
-			}
 			if(dataDependences1.size() == dataDependences2.size()) {
 				List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
 				List<AbstractVariable> variables2 = new ArrayList<AbstractVariable>(dataDependences2);
@@ -295,13 +292,17 @@ public class PDGSubTreeMapper {
 						ArrayList<AbstractVariable> variableDeclarations = new ArrayList<AbstractVariable>();
 						variableDeclarations.add(variable1);
 						variableDeclarations.add(variable2);
-						commonPassedParameters.put(variable1.getVariableBindingKey(), variableDeclarations);
-						passedParametersG1.remove(variable1);
-						passedParametersG2.remove(variable2);
+						VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
+								variable2.getVariableBindingKey());
+						commonPassedParameters.put(keyPair, variableDeclarations);
+						parametersToBeRemovedG1.add(variable1);
+						parametersToBeRemovedG2.add(variable2);
 					}
 				}
 			}
 		}
+		passedParametersG1.removeAll(parametersToBeRemovedG1);
+		passedParametersG2.removeAll(parametersToBeRemovedG2);
 		this.passedParametersG1.addAll(passedParametersG1);
 		this.passedParametersG2.addAll(passedParametersG2);
 	}
@@ -1319,11 +1320,11 @@ public class PDGSubTreeMapper {
 		return accessedLocalMethodsG2;
 	}
 
-	public Map<String, ArrayList<VariableDeclaration>> getDeclaredLocalVariablesInMappedNodes() {
-		Map<String, ArrayList<VariableDeclaration>> declaredVariables = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
+	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getDeclaredLocalVariablesInMappedNodes() {
+		Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> declaredVariables = new LinkedHashMap<VariableBindingKeyPair, ArrayList<VariableDeclaration>>();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
-		for(String key : this.declaredLocalVariablesInMappedNodes.keySet()) {
+		for(VariableBindingKeyPair key : this.declaredLocalVariablesInMappedNodes.keySet()) {
 			ArrayList<AbstractVariable> value = this.declaredLocalVariablesInMappedNodes.get(key);
 			AbstractVariable variableDeclaration1 = value.get(0);
 			AbstractVariable variableDeclaration2 = value.get(1);
@@ -1345,11 +1346,11 @@ public class PDGSubTreeMapper {
 		return declaredVariables;
 	}
 
-	public Map<String, ArrayList<VariableDeclaration>> getCommonPassedParameters() {
-		Map<String, ArrayList<VariableDeclaration>> commonPassedParameters = new LinkedHashMap<String, ArrayList<VariableDeclaration>>();
+	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getCommonPassedParameters() {
+		Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<VariableDeclaration>>();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
-		for(String key : this.commonPassedParameters.keySet()) {
+		for(VariableBindingKeyPair key : this.commonPassedParameters.keySet()) {
 			ArrayList<AbstractVariable> value = this.commonPassedParameters.get(key);
 			AbstractVariable variableDeclaration1 = value.get(0);
 			AbstractVariable variableDeclaration2 = value.get(1);

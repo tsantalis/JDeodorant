@@ -630,13 +630,56 @@ public class PDGSubTreeMapper {
 						ControlDependenceTreeNode cdtNode1 = controlDependenceTreePDG1.getNode(predicate1);
 						ControlDependenceTreeNode cdtNode2 = controlDependenceTreePDG2.getNode(predicate2);
 						ControlDependenceTreeNode cdtNode1Parent = null;
-						if(cdtNode1 != null)
+						boolean ifStatementInsideElseIfChain1 = false;
+						if(cdtNode1 != null) {
 							cdtNode1Parent = cdtNode1.getParent();
+							ifStatementInsideElseIfChain1 = cdtNode1.ifStatementInsideElseIfChain();
+						}
 						ControlDependenceTreeNode cdtNode2Parent = null;
-						if(cdtNode2 != null)
+						boolean ifStatementInsideElseIfChain2 = false;
+						if(cdtNode2 != null) {
 							cdtNode2Parent = cdtNode2.getParent();
+							ifStatementInsideElseIfChain2 = cdtNode2.ifStatementInsideElseIfChain();
+						}
+						//the cdt nodes are part of an 'if/else if' chain, but not the first 'if' in the chain
+						if(ifStatementInsideElseIfChain1 && ifStatementInsideElseIfChain2) {
+							//check whether the final state already contains another predicate which is part of the same 'if/else if' chain
+							if(finalState != null) {
+								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
+								boolean siblingPairFoundInFinalState = false;
+								for(PDGNodeMapping nodeMapping : nodeMappings) {
+									ControlDependenceTreeNode cdtSiblingNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
+									ControlDependenceTreeNode cdtSiblingNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
+									if(cdtSiblingNode1 != null && cdtSiblingNode2 != null) {
+										if(cdtSiblingNode1.ifStatementInsideElseIfChain() && cdtSiblingNode2.ifStatementInsideElseIfChain()) {
+											List<ControlDependenceTreeNode> ifParents1 = cdtNode1.getIfParents();
+											List<ControlDependenceTreeNode> elseIfChildren1 = cdtNode1.getElseIfChildren();
+											List<ControlDependenceTreeNode> chain1 = new ArrayList<ControlDependenceTreeNode>();
+											chain1.addAll(ifParents1);
+											chain1.addAll(elseIfChildren1);
+											
+											List<ControlDependenceTreeNode> ifParents2 = cdtNode2.getIfParents();
+											List<ControlDependenceTreeNode> elseIfChildren2 = cdtNode2.getElseIfChildren();
+											List<ControlDependenceTreeNode> chain2 = new ArrayList<ControlDependenceTreeNode>();
+											chain2.addAll(ifParents2);
+											chain2.addAll(elseIfChildren2);
+											
+											if(chain1.contains(cdtSiblingNode1) && chain2.contains(cdtSiblingNode2) ||
+													cdtNode1.getIfParent() == null && cdtNode2.getIfParent() == null) {
+												siblingPairFoundInFinalState = true;
+												break;
+											}
+										}
+									}
+								}
+								if(!siblingPairFoundInFinalState) {
+									continue;
+								}
+							}
+						}
 						if(cdtNode1Parent != null && cdtNode2Parent != null &&
 								!cdtNode1Parent.equals(controlDependenceTreePDG1) && !cdtNode2Parent.equals(controlDependenceTreePDG2)) {
+							//skip the matching of cdtNode1 and cdtNode2, if one has an 'if' parent and the other an 'else' parent
 							if((cdtNode1Parent.getNode() != null && cdtNode1Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode2Parent.isElseNode()) ||
 									(cdtNode2Parent.getNode() != null && cdtNode2Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode1Parent.isElseNode()))
 								continue;
@@ -821,8 +864,8 @@ public class PDGSubTreeMapper {
 								}
 							}
 						}
-						//parents.add(parent);
-						boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGBlockNode) && (parentNodeMapping.getNodeG2() instanceof PDGBlockNode);
+						parents.add(parent);
+						/*boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGBlockNode) && (parentNodeMapping.getNodeG2() instanceof PDGBlockNode);
 						boolean isTernaryOperator = isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG1()) ||
 								isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG2());
 						if(!parent.getChildren().isEmpty() || isTryBlock || isTernaryOperator) {
@@ -831,7 +874,7 @@ public class PDGSubTreeMapper {
 						else {
 							//remove parent mapping from the current state, if no children have been mapped
 							finalState.getNodeMappings().remove(parent.getMapping());
-						}
+						}*/
 					}
 					else {
 						//create the root node of the clone structure

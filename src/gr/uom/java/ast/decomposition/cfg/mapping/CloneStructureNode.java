@@ -274,14 +274,27 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 					otherNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
 				PDGNode otherNodeG1ControlParent = otherNodeMapping.getNodeG1().getControlDependenceParent();
 				PDGNode otherNodeG2ControlParent = otherNodeMapping.getNodeG2().getControlDependenceParent();
+				PDGNode otherSymmetricalNodeG1ControlParent = null;
+				PDGNode otherSymmetricalNodeG2ControlParent = null;
+				if(otherNodeMapping.getSymmetricalIfNodePair() != null) {
+					otherSymmetricalNodeG1ControlParent = otherNodeMapping.getSymmetricalIfNodePair().getNodeG1().getControlDependenceParent();
+					otherSymmetricalNodeG2ControlParent = otherNodeMapping.getSymmetricalIfNodePair().getNodeG2().getControlDependenceParent();
+				}
 				for(CloneStructureNode child : getDescendants()) {
 					if(child.getMapping() instanceof PDGNodeMapping) {
 						PDGNodeMapping childNodeMapping = (PDGNodeMapping)child.getMapping();
 						if(childNodeMapping.getNodeG1().getCFGNode() instanceof CFGBranchIfNode &&
 								childNodeMapping.getNodeG2().getCFGNode() instanceof CFGBranchIfNode) {
 							if(childNodeMapping.getNodeG1().equals(otherNodeG1ControlParent) && 
-									childNodeMapping.getNodeG2().equals(otherNodeG2ControlParent))
+									childNodeMapping.getNodeG2().equals(otherNodeG2ControlParent)) {
 								return child;
+							}
+							if(otherSymmetricalNodeG1ControlParent != null && otherSymmetricalNodeG2ControlParent != null) {
+								if(childNodeMapping.getNodeG1().equals(otherNodeG1ControlParent) && childNodeMapping.getNodeG2().equals(otherSymmetricalNodeG2ControlParent) ||
+										childNodeMapping.getNodeG1().equals(otherSymmetricalNodeG1ControlParent) && childNodeMapping.getNodeG2().equals(otherNodeG2ControlParent)) {
+									return child;
+								}
+							}
 						}
 					}
 				}

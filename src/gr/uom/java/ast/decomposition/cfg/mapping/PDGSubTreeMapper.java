@@ -51,7 +51,6 @@ import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
-import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -67,7 +66,6 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
-import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -142,6 +140,7 @@ public class PDGSubTreeMapper {
 		this.monitor = monitor;
 		this.allNodesInSubTreePDG1 = new TreeSet<PDGNode>();
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
+		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableBeforeAndAfter = new TreeSet<PDGNode>();
@@ -200,7 +199,6 @@ public class PDGSubTreeMapper {
 			findPassedParameters();
 			findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
 			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
-			this.preconditionViolations = new ArrayList<PreconditionViolation>();
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
 			checkCloneStructureNodeForPreconditions(cloneStructureRoot);
@@ -1230,7 +1228,7 @@ public class PDGSubTreeMapper {
 		return null;
 	}
 
-	private boolean isExpressionStatementWithConditionalExpression(PDGNode node) {
+	/*private boolean isExpressionStatementWithConditionalExpression(PDGNode node) {
 		Statement statement = node.getASTStatement();
 		if(statement instanceof ExpressionStatement) {
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
@@ -1239,7 +1237,7 @@ public class PDGSubTreeMapper {
 				return true;
 		}
 		return false;
-	}
+	}*/
 
 	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {
 		int max = 0;
@@ -1360,31 +1358,11 @@ public class PDGSubTreeMapper {
 		return declaredVariablesG2;
 	}
 
-	public Set<VariableDeclaration> getAccessedLocalFieldsG1() {
-		Set<VariableDeclaration> accessedLocalFieldsG1 = new LinkedHashSet<VariableDeclaration>();
-		Set<VariableDeclaration> fieldsAccessedInMethod1 = pdg1.getFieldsAccessedInMethod();
-		for(AbstractVariable variable : this.accessedLocalFieldsG1) {
-			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod1) {
-				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey())) {
-					accessedLocalFieldsG1.add(fieldDeclaration);
-					break;
-				}
-			}
-		}
+	public Set<AbstractVariable> getAccessedLocalFieldsG1() {
 		return accessedLocalFieldsG1;
 	}
 
-	public Set<VariableDeclaration> getAccessedLocalFieldsG2() {
-		Set<VariableDeclaration> accessedLocalFieldsG2 = new LinkedHashSet<VariableDeclaration>();
-		Set<VariableDeclaration> fieldsAccessedInMethod2 = pdg2.getFieldsAccessedInMethod();
-		for(AbstractVariable variable : this.accessedLocalFieldsG2) {
-			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod2) {
-				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey())) {
-					accessedLocalFieldsG2.add(fieldDeclaration);
-					break;
-				}
-			}
-		}
+	public Set<AbstractVariable> getAccessedLocalFieldsG2() {
 		return accessedLocalFieldsG2;
 	}
 

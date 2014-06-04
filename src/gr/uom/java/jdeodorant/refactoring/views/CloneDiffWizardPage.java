@@ -125,7 +125,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		GridData nameFieldGridData = new GridData(GridData.FILL_HORIZONTAL);
 		nameFieldGridData.horizontalSpan = 2;
 		extractedMethodNameField.setLayoutData(nameFieldGridData);
-		extractedMethodNameField.setText(mapper.getMethodName1());
+		extractedMethodNameField.setText(refactoring.getExtractedMethodName());
 		extractedMethodNameField.addModifyListener(new ModifyListener() {
 			public void modifyText(ModifyEvent e) {
 				handleInputChanged();

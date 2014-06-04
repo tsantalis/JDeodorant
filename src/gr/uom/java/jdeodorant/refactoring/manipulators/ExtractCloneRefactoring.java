@@ -5,6 +5,7 @@ import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -146,6 +147,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		super();
 		this.mappers = mappers;
 		this.mapper = mappers.get(0);
+		if(this.mapper.getMethodName1().equals(this.mapper.getMethodName2())) {
+			this.extractedMethodName = this.mapper.getMethodName1() + "Extracted";
+		}
+		else {
+			this.extractedMethodName = this.mapper.getMethodName1();
+		}
 	}
 
 	public List<PDGSubTreeMapper> getMappers() {
@@ -216,7 +223,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		}
 		this.intermediateClassName = null;
-		//this.extractedMethodName = null;
 	}
 
 	public Set<IJavaElement> getJavaElementsToOpenInEditor() {
@@ -229,6 +235,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	public void setMapper(PDGSubTreeMapper mapper) {
 		this.mapper = mapper;
+	}
+
+	public String getExtractedMethodName() {
+		return extractedMethodName;
 	}
 
 	public void setExtractedMethodName(String extractedMethodName) {
@@ -285,6 +295,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+	}
+
+	private Set<VariableDeclaration> getLocallyAccessedFields(Set<AbstractVariable> accessedFields, TypeDeclaration typeDeclaration) {
+		Set<VariableDeclaration> accessedLocalFields = new LinkedHashSet<VariableDeclaration>();
+		for(AbstractVariable variable : accessedFields) {
+			for(FieldDeclaration fieldDeclaration : typeDeclaration.getFields()) {
+				List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+				for(VariableDeclarationFragment fragment : fragments) {
+					if(variable.getVariableBindingKey().equals(fragment.resolveBinding().getKey())) {
+						accessedLocalFields.add(fragment);
+						break;
+					}
+				}
+			}
+		}
+		return accessedLocalFields;
 	}
 
 	private void extractClone() {
@@ -438,8 +464,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 		}
 		if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
-			Set<VariableDeclaration> accessedLocalFieldsG1 = mapper.getAccessedLocalFieldsG1();
-			Set<VariableDeclaration> accessedLocalFieldsG2 = mapper.getAccessedLocalFieldsG2();
+			Set<VariableDeclaration> accessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
+			Set<VariableDeclaration> accessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 			for(VariableDeclaration localFieldG1 : accessedLocalFieldsG1) {
 				FieldDeclaration originalFieldDeclarationG1 = (FieldDeclaration)localFieldG1.getParent();
 				for(VariableDeclaration localFieldG2 : accessedLocalFieldsG2) {
@@ -536,57 +562,65 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 							}*/
-							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(localFieldG1.resolveBinding().getType());
-							getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-							fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
-							fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
-							VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-							sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
-							if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
-								Expression initializer1 = localFieldG1.getInitializer();
-								Expression initializer2 = localFieldG2.getInitializer();
-								if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
-									sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
-								}
+							//check if the common superclass is one of the source classes
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
 							}
-							FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
-							sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
-							/*if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
+							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
+							}
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+								typeBindings.add(localFieldG1.resolveBinding().getType());
+								getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+								VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+								sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
+								if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
+									Expression initializer1 = localFieldG1.getInitializer();
+									Expression initializer2 = localFieldG2.getInitializer();
+									if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
+										sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
+									}
+								}
+								FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
 								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
-							}
-							else if(innerTypeName != null) {
-								Name typeName = ast.newName(innerTypeName);
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
-							}
-							else {
-								Name typeName = ast.newName(commonSuperType.getQualifiedName());
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
-							}*/
-							if(originalFieldDeclarationG1.getJavadoc() != null) {
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
-							}
-							ListRewrite newFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
-							newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-							List<IExtendedModifier> originalModifiers = originalFieldDeclarationG1.modifiers();
-							for(IExtendedModifier extendedModifier : originalModifiers) {
-								if(extendedModifier.isModifier()) {
-									Modifier modifier = (Modifier)extendedModifier;
-									if(modifier.isFinal()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
-									}
-									else if(modifier.isStatic()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
-									}
-									else if(modifier.isTransient()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
-									}
-									else if(modifier.isVolatile()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.VOLATILE_KEYWORD), null);
+								/*if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
+								}
+								else if(innerTypeName != null) {
+									Name typeName = ast.newName(innerTypeName);
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
+								}
+								else {
+									Name typeName = ast.newName(commonSuperType.getQualifiedName());
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
+								}*/
+								if(originalFieldDeclarationG1.getJavadoc() != null) {
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
+								}
+								ListRewrite newFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+								newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+								List<IExtendedModifier> originalModifiers = originalFieldDeclarationG1.modifiers();
+								for(IExtendedModifier extendedModifier : originalModifiers) {
+									if(extendedModifier.isModifier()) {
+										Modifier modifier = (Modifier)extendedModifier;
+										if(modifier.isFinal()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
+										}
+										else if(modifier.isStatic()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+										}
+										else if(modifier.isTransient()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
+										}
+										else if(modifier.isVolatile()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.VOLATILE_KEYWORD), null);
+										}
 									}
 								}
+								bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
 							}
-							bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
 							break;
 						}
 					}
@@ -620,39 +654,50 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 						boolean exactClones = methodDeclaration1.subtreeMatch(new ASTMatcher(), methodDeclaration2);
 						if(exactClones) {
-							bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
-							methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
-							methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
+							//check if the common superclass is one of the source classes
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
+							}
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
+							}
+							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
+							}
 						}
 						else {
-							MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
-							sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
-							sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclaration1.getReturnType2(), null);	
-							ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-							List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
-							for(IExtendedModifier extendedModifier : originalModifiers) {
-								if(extendedModifier.isModifier()) {
-									Modifier modifier = (Modifier)extendedModifier;
-									if(modifier.isProtected()) {
-										modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-									}
-									else if(modifier.isPublic()) {
-										modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
+								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
+								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclaration1.getReturnType2(), null);	
+								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+								List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
+								for(IExtendedModifier extendedModifier : originalModifiers) {
+									if(extendedModifier.isModifier()) {
+										Modifier modifier = (Modifier)extendedModifier;
+										if(modifier.isProtected()) {
+											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+										}
+										else if(modifier.isPublic()) {
+											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+										}
 									}
 								}
+								modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+								ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
+								for(SingleVariableDeclaration parameter : parameters) {
+									parametersRewrite.insertLast(parameter, null);
+								}
+								ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+								List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
+								for(Name thrownException : thrownExceptions) {
+									thrownExceptionsRewrite.insertLast(thrownException, null);
+								}
+								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 							}
-							modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-							ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-							List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
-							for(SingleVariableDeclaration parameter : parameters) {
-								parametersRewrite.insertLast(parameter, null);
-							}
-							ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
-							List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
-							for(Name thrownException : thrownExceptions) {
-								thrownExceptionsRewrite.insertLast(thrownException, null);
-							}
-							bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 						}
 						break;
 					}

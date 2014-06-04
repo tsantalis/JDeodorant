@@ -27,7 +27,8 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 		}
 		else if(type.equals(PreconditionViolationType.UNMATCHED_BREAK_STATEMENT) ||
 				type.equals(PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT) ||
-				type.equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT)) {
+				type.equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT) ||
+				type.equals(PreconditionViolationType.UNMATCHED_THROW_STATEMENT)) {
 			sb.append("Unmatched ");
 			String str = statement.toString();
 			sb.append(str.substring(0, str.lastIndexOf("\n")));
@@ -61,7 +62,8 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 		}
 		else if(type.equals(PreconditionViolationType.UNMATCHED_BREAK_STATEMENT) ||
 				type.equals(PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT) ||
-				type.equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT)) {
+				type.equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT) ||
+				type.equals(PreconditionViolationType.UNMATCHED_THROW_STATEMENT)) {
 			styledString.append("Unmatched ", normalStyler);
 			String str = statement.toString();
 			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);

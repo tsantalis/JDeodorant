@@ -20,6 +20,7 @@ import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
 import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
 import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
+import gr.uom.java.ast.decomposition.cfg.CFGThrowNode;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.GraphNode;
@@ -629,29 +630,51 @@ public class PDGSubTreeMapper {
 					else {
 						ControlDependenceTreeNode cdtNode1 = controlDependenceTreePDG1.getNode(predicate1);
 						ControlDependenceTreeNode cdtNode2 = controlDependenceTreePDG2.getNode(predicate2);
+						//check parent-child relationship preservation
+						if(level1 < maxLevel1 && level2 < maxLevel2 && cdtNode1 != null && cdtNode2 != null) {
+							List<ControlDependenceTreeNode> children1 = cdtNode1.getChildren();
+							List<ControlDependenceTreeNode> children2 = cdtNode2.getChildren();
+							if(finalState != null && !children1.isEmpty() && !children2.isEmpty()) {
+								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
+								boolean childPairFoundInFinalState = false;
+								for(PDGNodeMapping nodeMapping : nodeMappings) {
+									ControlDependenceTreeNode cdtChildNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
+									ControlDependenceTreeNode cdtChildNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
+									if(cdtChildNode1 != null && cdtChildNode2 != null) {
+										if(children1.contains(cdtChildNode1) && children2.contains(cdtChildNode2)) {
+											childPairFoundInFinalState = true;
+											break;
+										}
+									}
+								}
+								if(!childPairFoundInFinalState) {
+									continue;
+								}
+							}
+						}
 						ControlDependenceTreeNode cdtNode1Parent = null;
 						boolean ifStatementInsideElseIfChain1 = false;
 						if(cdtNode1 != null) {
 							cdtNode1Parent = cdtNode1.getParent();
-							ifStatementInsideElseIfChain1 = cdtNode1.ifStatementInsideElseIfChain();
+							ifStatementInsideElseIfChain1 = isInsideElseIfChain(cdtNode1);
 						}
 						ControlDependenceTreeNode cdtNode2Parent = null;
 						boolean ifStatementInsideElseIfChain2 = false;
 						if(cdtNode2 != null) {
 							cdtNode2Parent = cdtNode2.getParent();
-							ifStatementInsideElseIfChain2 = cdtNode2.ifStatementInsideElseIfChain();
+							ifStatementInsideElseIfChain2 = isInsideElseIfChain(cdtNode2);
 						}
 						//the cdt nodes are part of an 'if/else if' chain, but not the first 'if' in the chain
 						if(ifStatementInsideElseIfChain1 && ifStatementInsideElseIfChain2) {
 							//check whether the final state already contains another predicate which is part of the same 'if/else if' chain
 							if(finalState != null) {
 								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
-								boolean siblingPairFoundInFinalState = false;
+								boolean siblingPairFoundInFinalState = cdtNode1.getIfParent() == null && cdtNode2.getIfParent() == null;
 								for(PDGNodeMapping nodeMapping : nodeMappings) {
 									ControlDependenceTreeNode cdtSiblingNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
 									ControlDependenceTreeNode cdtSiblingNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
 									if(cdtSiblingNode1 != null && cdtSiblingNode2 != null) {
-										if(cdtSiblingNode1.ifStatementInsideElseIfChain() && cdtSiblingNode2.ifStatementInsideElseIfChain()) {
+										if(isInsideElseIfChain(cdtSiblingNode1) && isInsideElseIfChain(cdtSiblingNode2)) {
 											List<ControlDependenceTreeNode> ifParents1 = cdtNode1.getIfParents();
 											List<ControlDependenceTreeNode> elseIfChildren1 = cdtNode1.getElseIfChildren();
 											List<ControlDependenceTreeNode> chain1 = new ArrayList<ControlDependenceTreeNode>();
@@ -664,8 +687,7 @@ public class PDGSubTreeMapper {
 											chain2.addAll(ifParents2);
 											chain2.addAll(elseIfChildren2);
 											
-											if(chain1.contains(cdtSiblingNode1) && chain2.contains(cdtSiblingNode2) ||
-													cdtNode1.getIfParent() == null && cdtNode2.getIfParent() == null) {
+											if(chain1.contains(cdtSiblingNode1) && chain2.contains(cdtSiblingNode2)) {
 												siblingPairFoundInFinalState = true;
 												break;
 											}
@@ -911,6 +933,17 @@ public class PDGSubTreeMapper {
 		}
 		this.maximumStateWithMinimumDifferences = finalState;
 		this.cloneStructureRoot = root;
+	}
+
+	private boolean isInsideElseIfChain(ControlDependenceTreeNode cdtNode) {
+		boolean ifStatementInsideElseIfChain = cdtNode.ifStatementInsideElseIfChain();
+		if(ifStatementInsideElseIfChain) {
+			ControlDependenceTreeNode elseIfChild = cdtNode.getElseIfChild();
+			if(elseIfChild != null && elseIfChild.isElseNode() && cdtNode.getIfParent() == null) {
+				ifStatementInsideElseIfChain = false;
+			}
+		}
+		return ifStatementInsideElseIfChain;
 	}
 
 	private List<MappingState> matchBasedOnCodeFragments(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
@@ -1863,6 +1896,12 @@ public class PDGSubTreeMapper {
 		else if(cfgNode instanceof CFGExitNode) {
 			PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 					PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
+			nodeMapping.addPreconditionViolation(violation);
+			preconditionViolations.add(violation);
+		}
+		else if(cfgNode instanceof CFGThrowNode) {
+			PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+					PreconditionViolationType.UNMATCHED_THROW_STATEMENT);
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
 		}

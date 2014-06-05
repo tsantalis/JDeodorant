@@ -667,7 +667,7 @@ public class PDGSubTreeMapper {
 							//check whether the final state already contains another predicate which is part of the same 'if/else if' chain
 							if(finalState != null) {
 								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
-								boolean siblingPairFoundInFinalState = cdtNode1.getIfParent() == null && cdtNode2.getIfParent() == null;
+								boolean siblingPairFoundInFinalState = cdtNode1.getIfParent() == null;
 								for(PDGNodeMapping nodeMapping : nodeMappings) {
 									ControlDependenceTreeNode cdtSiblingNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
 									ControlDependenceTreeNode cdtSiblingNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());

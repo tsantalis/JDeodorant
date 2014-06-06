@@ -329,6 +329,11 @@ public class ControlDependenceTreeNode {
 		this.elseIfChild = elseIfChild;
 	}
 
+	public void setIfParentAndElseIfChild(ControlDependenceTreeNode ifParent) {
+		this.ifParent = ifParent;
+		ifParent.elseIfChild = this;
+	}
+
 	public int hashCode() {
 		if(this.getNode() != null) {
 			return this.getNode().hashCode();

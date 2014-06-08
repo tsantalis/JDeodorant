@@ -94,6 +94,16 @@ public class MappingState {
 		return differences.size();
 	}
 
+	public int getNonDistinctDifferenceCount() {
+		List<Difference> differences = new ArrayList<Difference>();
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
+				differences.addAll(difference.getDifferences());
+			}
+		}
+		return differences.size();
+	}
+
 	//returns the sum of the differences in the node Ids of the mapped nodes
 	public int getNodeMappingIdDiff() {
 		int sum = 0;

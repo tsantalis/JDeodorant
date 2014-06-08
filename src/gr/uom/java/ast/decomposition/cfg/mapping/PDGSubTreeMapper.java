@@ -444,16 +444,36 @@ public class PDGSubTreeMapper {
 				}
 			}
 		}
-		//TODO: Introduce comparison of difference "weights" in the case of multiple maximum states with minimum differences
-		List<MappingState> maximumStatesWithMinimumDifferencesAndMinimumIdDiff = new ArrayList<MappingState>();
+		
+		List<MappingState> maximumStatesWithMinimumNonDistinctDifferences = new ArrayList<MappingState>();
 		if(maximumStatesWithMinimumDifferences.size() == 1) {
-			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumDifferences.get(0));
+			maximumStatesWithMinimumNonDistinctDifferences.add(maximumStatesWithMinimumDifferences.get(0));
 		}
 		else {
-			int minimum = maximumStatesWithMinimumDifferences.get(0).getNodeMappingIdDiff();
-			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumDifferences.get(0));
+			int minimum = maximumStatesWithMinimumDifferences.get(0).getNonDistinctDifferenceCount();
+			maximumStatesWithMinimumNonDistinctDifferences.add(maximumStatesWithMinimumDifferences.get(0));
 			for(int i=1; i<maximumStatesWithMinimumDifferences.size(); i++) {
 				MappingState currentState = maximumStatesWithMinimumDifferences.get(i);
+				if(currentState.getNonDistinctDifferenceCount() < minimum) {
+					minimum = currentState.getNonDistinctDifferenceCount();
+					maximumStatesWithMinimumNonDistinctDifferences.clear();
+					maximumStatesWithMinimumNonDistinctDifferences.add(currentState);
+				}
+				else if(currentState.getNonDistinctDifferenceCount() == minimum) {
+					maximumStatesWithMinimumNonDistinctDifferences.add(currentState);
+				}
+			}
+		}
+		//TODO: Introduce comparison of difference "weights" in the case of multiple maximum states with minimum differences
+		List<MappingState> maximumStatesWithMinimumDifferencesAndMinimumIdDiff = new ArrayList<MappingState>();
+		if(maximumStatesWithMinimumNonDistinctDifferences.size() == 1) {
+			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
+		}
+		else {
+			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingIdDiff();
+			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
+			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferences.size(); i++) {
+				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferences.get(i);
 				if(currentState.getNodeMappingIdDiff() < minimum) {
 					minimum = currentState.getNodeMappingIdDiff();
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.clear();
@@ -628,7 +648,7 @@ public class PDGSubTreeMapper {
 					else {
 						ControlDependenceTreeNode cdtNode1 = controlDependenceTreePDG1.getNode(predicate1);
 						ControlDependenceTreeNode cdtNode2 = controlDependenceTreePDG2.getNode(predicate2);
-						//check parent-child relationship preservation
+						//check parent-child relationship preservation (parent in the current level, children in the previously examined level)
 						if(level1 < maxLevel1 && level2 < maxLevel2 && cdtNode1 != null && cdtNode2 != null) {
 							List<ControlDependenceTreeNode> children1 = cdtNode1.getChildren();
 							List<ControlDependenceTreeNode> children2 = cdtNode2.getChildren();
@@ -650,55 +670,49 @@ public class PDGSubTreeMapper {
 								}
 							}
 						}
+						//check sibling relationship preservation (all siblings in the current level)
 						ControlDependenceTreeNode cdtNode1Parent = null;
-						boolean ifStatementInsideElseIfChain1 = false;
-						if(cdtNode1 != null) {
-							cdtNode1Parent = cdtNode1.getParent();
-							ifStatementInsideElseIfChain1 = isInsideElseIfChain(cdtNode1);
-						}
 						ControlDependenceTreeNode cdtNode2Parent = null;
-						boolean ifStatementInsideElseIfChain2 = false;
-						if(cdtNode2 != null) {
+						if(cdtNode1 != null && cdtNode2 != null) {
+							cdtNode1Parent = cdtNode1.getParent();
 							cdtNode2Parent = cdtNode2.getParent();
-							ifStatementInsideElseIfChain2 = isInsideElseIfChain(cdtNode2);
-						}
-						//the cdt nodes are part of an 'if/else if' chain, but not the first 'if' in the chain
-						if(ifStatementInsideElseIfChain1 && ifStatementInsideElseIfChain2) {
-							//check whether the final state already contains another predicate which is part of the same 'if/else if' chain
 							if(finalState != null) {
 								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
 								boolean siblingPairFoundInFinalState = cdtNode1.getIfParent() == null;
+								boolean ifParentChildFoundInFinalState = false;
+								List<ControlDependenceTreeNode> ifParentChildren1 = getIfParentChildren(cdtNode1Parent);
+								List<ControlDependenceTreeNode> ifParentChildren2 = getIfParentChildren(cdtNode2Parent);
+								List<ControlDependenceTreeNode> siblings1 = cdtNode1.getSiblings();
+								List<ControlDependenceTreeNode> siblings2 = cdtNode2.getSiblings();
 								for(PDGNodeMapping nodeMapping : nodeMappings) {
 									ControlDependenceTreeNode cdtSiblingNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
 									ControlDependenceTreeNode cdtSiblingNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
 									if(cdtSiblingNode1 != null && cdtSiblingNode2 != null) {
-										if(isInsideElseIfChain(cdtSiblingNode1) && isInsideElseIfChain(cdtSiblingNode2)) {
-											List<ControlDependenceTreeNode> ifParents1 = cdtNode1.getIfParents();
-											List<ControlDependenceTreeNode> elseIfChildren1 = cdtNode1.getElseIfChildren();
-											List<ControlDependenceTreeNode> chain1 = new ArrayList<ControlDependenceTreeNode>();
-											chain1.addAll(ifParents1);
-											chain1.addAll(elseIfChildren1);
-											
-											List<ControlDependenceTreeNode> ifParents2 = cdtNode2.getIfParents();
-											List<ControlDependenceTreeNode> elseIfChildren2 = cdtNode2.getElseIfChildren();
-											List<ControlDependenceTreeNode> chain2 = new ArrayList<ControlDependenceTreeNode>();
-											chain2.addAll(ifParents2);
-											chain2.addAll(elseIfChildren2);
-											
-											if(chain1.contains(cdtSiblingNode1) && chain2.contains(cdtSiblingNode2)) {
-												siblingPairFoundInFinalState = true;
-												break;
+										if(cdtNode1Parent.isElseNode() && cdtNode2Parent.isElseNode()) {
+											if(ifParentChildren1.contains(cdtSiblingNode1) && ifParentChildren2.contains(cdtSiblingNode2)) {
+												ifParentChildFoundInFinalState = true;
 											}
+										}
+										if(siblings1.contains(cdtSiblingNode1) && siblings2.contains(cdtSiblingNode2)) {
+											siblingPairFoundInFinalState = true;
+											break;
 										}
 									}
 								}
-								if(!siblingPairFoundInFinalState) {
+								if(cdtNode1Parent.isElseNode() && cdtNode2Parent.isElseNode() &&
+										!ifParentChildren1.isEmpty() && !ifParentChildren2.isEmpty()) {
+									if(!ifParentChildFoundInFinalState) {
+										continue;
+									}
+								}
+								else if(!siblingPairFoundInFinalState) {
 									continue;
 								}
 							}
 						}
 						if(cdtNode1Parent != null && cdtNode2Parent != null &&
-								!cdtNode1Parent.equals(controlDependenceTreePDG1) && !cdtNode2Parent.equals(controlDependenceTreePDG2)) {
+								!cdtNode1Parent.equals(controlDependenceTreePDG1) && !cdtNode2Parent.equals(controlDependenceTreePDG2) &&
+								cdtNode1Parent.getLevel() > 1 && cdtNode2Parent.getLevel() > 1) {
 							//skip the matching of cdtNode1 and cdtNode2, if one has an 'if' parent and the other an 'else' parent
 							if((cdtNode1Parent.getNode() != null && cdtNode1Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode2Parent.isElseNode()) ||
 									(cdtNode2Parent.getNode() != null && cdtNode2Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode1Parent.isElseNode()))
@@ -933,15 +947,15 @@ public class PDGSubTreeMapper {
 		this.cloneStructureRoot = root;
 	}
 
-	private boolean isInsideElseIfChain(ControlDependenceTreeNode cdtNode) {
-		boolean ifStatementInsideElseIfChain = cdtNode.ifStatementInsideElseIfChain();
-		if(ifStatementInsideElseIfChain) {
-			ControlDependenceTreeNode elseIfChild = cdtNode.getElseIfChild();
-			if(elseIfChild != null && elseIfChild.isElseNode() && cdtNode.getIfParent() == null) {
-				ifStatementInsideElseIfChain = false;
+	private List<ControlDependenceTreeNode> getIfParentChildren(ControlDependenceTreeNode cdtNode) {
+		List<ControlDependenceTreeNode> children = new ArrayList<ControlDependenceTreeNode>();
+		if(cdtNode != null && cdtNode.isElseNode()) {
+			ControlDependenceTreeNode ifParent = cdtNode.getIfParent();
+			if(ifParent != null) {
+				children.addAll(ifParent.getChildren());
 			}
 		}
-		return ifStatementInsideElseIfChain;
+		return children;
 	}
 
 	private List<MappingState> matchBasedOnCodeFragments(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {

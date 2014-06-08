@@ -860,7 +860,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractExpression exp1 = new AbstractExpression(node);
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 		AbstractExpression exp2 = new AbstractExpression((Expression)other);
-		if(isInfixExpressionWithCompositeParent(node) || isInfixExpressionWithCompositeParent((ASTNode)other)) {
+		//if only one of them is infix expression with a composite parent, not both
+		boolean infix1 = isInfixExpressionWithCompositeParent(node);
+		boolean infix2 = isInfixExpressionWithCompositeParent((ASTNode)other);
+		if((infix1 && !infix2) || (!infix1 && infix2)) {
 			return super.match(node, other);
 		}
 		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);

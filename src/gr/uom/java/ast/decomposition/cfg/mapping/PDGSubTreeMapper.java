@@ -791,6 +791,14 @@ public class PDGSubTreeMapper {
 						PDGNodeMapping mapping = nodeMappings.get(i);
 						if(parent == null) {
 							parent = new CloneStructureNode(mapping);
+							//search for symmetrical if statements
+							for(int j=0; j<index; j++) {
+								PDGNodeMapping otherMapping = nodeMappings.get(j);
+								if(symmetricalIfNodes(mapping.getNodeG1(), mapping.getNodeG2(), otherMapping.getNodeG1(), otherMapping.getNodeG2())) {
+									mapping.setSymmetricalIfNodePair(otherMapping);
+									otherMapping.setSymmetricalIfNodePair(mapping);
+								}
+							}
 						}
 						else {
 							PDGBlockNode nestedUnderTry1 = pdg1.isDirectlyNestedWithinBlockNode(mapping.getNodeG1());
@@ -1112,9 +1120,6 @@ public class PDGSubTreeMapper {
 					boolean match = astNodeMatcher.match(node1, node2);
 					if(match && astNodeMatcher.isParameterizable()) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
-						if(symmetricalIfNodes != null)
-							mapping.setSymmetricalIfNodePair(symmetricalIfNodes);
 						if(finalStates.isEmpty()) {
 							MappingState state = new MappingState(parent, mapping);
 							state.traverse(mapping);
@@ -1154,9 +1159,6 @@ public class PDGSubTreeMapper {
 					boolean match = astNodeMatcher.match(node1, node2);
 					if(match && astNodeMatcher.isParameterizable()) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						PDGNodeMapping symmetricalIfNodes = symmetricalIfNodes(node1, node2);
-						if(symmetricalIfNodes != null)
-							mapping.setSymmetricalIfNodePair(symmetricalIfNodes);
 						if(finalStates.isEmpty()) {
 							MappingState state = new MappingState(parent, mapping);
 							state.traverse(mapping);
@@ -1191,55 +1193,17 @@ public class PDGSubTreeMapper {
 		return finalStates;
 	}
 
-	private PDGNodeMapping symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2) {
-		PDGNode dstNodeG1 = falseControlDependentNode(nodeG1);
-		PDGNode dstNodeG2 = falseControlDependentNode(nodeG2);
-		if(dstNodeG1 != null && dstNodeG2 != null) {
-			PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
-			PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();
-			PDGNode dstNodeG1ControlParent = dstNodeG1.getControlDependenceParent();
-			PDGNode dstNodeG2ControlParent = dstNodeG2.getControlDependenceParent();
-			if((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
-					(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) {
-				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-				astNodeMatcher.match(dstNodeG1, dstNodeG2);
-				return new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
-			}
+	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2, PDGNode dstNodeG1, PDGNode dstNodeG2) {
+		PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
+		PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();
+		PDGNode dstNodeG1ControlParent = dstNodeG1.getControlDependenceParent();
+		PDGNode dstNodeG2ControlParent = dstNodeG2.getControlDependenceParent();
+		if(((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
+				(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) &&
+				dstNodeG1.getCFGNode() instanceof CFGBranchIfNode && dstNodeG2.getCFGNode() instanceof CFGBranchIfNode) {
+			return true;
 		}
-		return null;
-	}
-
-	private PDGNode falseControlDependentNode(PDGNode node) {
-		PDGNode dstNode = null;
-		int count = 0;
-		for(Iterator<GraphEdge> outgoingDependenceIterator = node.getOutgoingDependenceIterator(); outgoingDependenceIterator.hasNext();) {
-			PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
-			if(dependence instanceof PDGControlDependence) {
-				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
-				if(controlDependence.isFalseControlDependence()) {
-					dstNode = (PDGNode)controlDependence.getDst();
-					count++;
-				}
-			}
-		}
-		if(count == 1 && dstNode.getCFGNode() instanceof CFGBranchIfNode)
-			return dstNode;
-		
-		dstNode = null;
-		count = 0;
-		for(Iterator<GraphEdge> incomingDependenceIterator = node.getIncomingDependenceIterator(); incomingDependenceIterator.hasNext();) {
-			PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
-			if(dependence instanceof PDGControlDependence) {
-				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
-				if(controlDependence.isFalseControlDependence()) {
-					dstNode = (PDGNode)controlDependence.getSrc();
-					count++;
-				}
-			}
-		}
-		if(count == 1 && dstNode.getCFGNode() instanceof CFGBranchIfNode)
-			return dstNode;
-		return null;
+		return false;
 	}
 
 	/*private boolean isExpressionStatementWithConditionalExpression(PDGNode node) {

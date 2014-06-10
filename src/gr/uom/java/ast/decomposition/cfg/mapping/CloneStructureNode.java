@@ -280,6 +280,9 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 					otherSymmetricalNodeG1ControlParent = otherNodeMapping.getSymmetricalIfNodePair().getNodeG1().getControlDependenceParent();
 					otherSymmetricalNodeG2ControlParent = otherNodeMapping.getSymmetricalIfNodePair().getNodeG2().getControlDependenceParent();
 				}
+				CloneStructureNode nodeG1ControlParent = null;
+				CloneStructureNode nodeG2ControlParent = null;
+				CloneStructureNode lastControlParent = null;
 				for(CloneStructureNode child : getDescendants()) {
 					if(child.getMapping() instanceof PDGNodeMapping) {
 						PDGNodeMapping childNodeMapping = (PDGNodeMapping)child.getMapping();
@@ -289,6 +292,14 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 									childNodeMapping.getNodeG2().equals(otherNodeG2ControlParent)) {
 								return child;
 							}
+							if(childNodeMapping.getNodeG1().equals(otherNodeG1ControlParent)) {
+								nodeG1ControlParent = child;
+								lastControlParent = child;
+							}
+							if(childNodeMapping.getNodeG2().equals(otherNodeG2ControlParent)) {
+								nodeG2ControlParent = child;
+								lastControlParent = child;
+							}
 							if(otherSymmetricalNodeG1ControlParent != null && otherSymmetricalNodeG2ControlParent != null) {
 								if(childNodeMapping.getNodeG1().equals(otherNodeG1ControlParent) && childNodeMapping.getNodeG2().equals(otherSymmetricalNodeG2ControlParent) ||
 										childNodeMapping.getNodeG1().equals(otherSymmetricalNodeG1ControlParent) && childNodeMapping.getNodeG2().equals(otherNodeG2ControlParent)) {
@@ -297,6 +308,9 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 							}
 						}
 					}
+				}
+				if(nodeG1ControlParent != null && nodeG2ControlParent != null) {
+					return lastControlParent;
 				}
 			}
 		}

@@ -20,7 +20,7 @@ public enum DifferenceType {
 	FIELD_ASSIGNMENT_REPLACED_WITH_SETTER,
 	FIELD_ACCESS_REPLACED_WITH_GETTER,
 	ANONYMOUS_CLASS_DECLARATION_MISMATCH,
-	SIMPLIFICATION_MATCH;
+	IF_ELSE_SYMMETRICAL_MATCH;
 
 	public String toString(){
 		if (name().equals(AST_TYPE_MISMATCH.name())){
@@ -80,8 +80,8 @@ public enum DifferenceType {
 		else if (name().equals(ANONYMOUS_CLASS_DECLARATION_MISMATCH.name())){
 			return "The anonymous class declarations are different";
 		}
-		else if (name().equals(SIMPLIFICATION_MATCH.name())){
-			return "The expressions can be simplified to the same expression";
+		else if (name().equals(IF_ELSE_SYMMETRICAL_MATCH.name())){
+			return "If clause matched with else clause";
 		}
 		return "";
 	}

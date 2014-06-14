@@ -314,8 +314,9 @@ public class MappingState {
 		PDGNode nodeG2ControlParent = dstNodeG2.getControlDependenceParent();
 		PDGControlDependence nodeG1IncomingControlDependence = dstNodeG1.getIncomingControlDependence();
 		PDGControlDependence nodeG2IncomingControlDependence = dstNodeG2.getIncomingControlDependence();
+		PDGNodeMapping parentNodeMapping = findMappingWithBothNodes(nodeG1ControlParent, nodeG2ControlParent);
 		if(this.containsBothNodesInMappings(nodeG1ControlParent, nodeG2ControlParent)
-				&& nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence))
+				&& (nodeG1IncomingControlDependence.sameLabel(nodeG2IncomingControlDependence) || parentNodeMapping.isSymmetricalIfElse()))
 			return true;
 		if(!this.containsNodeG1InMappings(nodeG1ControlParent) && !this.containsNodeG2InMappings(nodeG2ControlParent))
 			return true;
@@ -337,6 +338,16 @@ public class MappingState {
 			}
 		//}
 		return false;
+	}
+
+	private PDGNodeMapping findMappingWithBothNodes(PDGNode nodeG1, PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			if(nodeMapping.getNodeG1().equals(nodeG1) &&
+					nodeMapping.getNodeG2().equals(nodeG2)) {
+				return nodeMapping;
+			}
+		}
+		return null;
 	}
 
 	private boolean containsBothNodesInMappings(PDGNode nodeG1, PDGNode nodeG2) {

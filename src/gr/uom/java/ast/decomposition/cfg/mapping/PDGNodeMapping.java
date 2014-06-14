@@ -27,6 +27,7 @@ public class PDGNodeMapping extends IdBasedMapping {
 	private List<AbstractMethodFragment> additionallyMatchedFragments1;
 	private List<AbstractMethodFragment> additionallyMatchedFragments2;
 	private PDGNodeMapping symmetricalIfNodePair;
+	private boolean symmetricalIfElse;
 	private volatile int hashCode = 0;
 	
 	public PDGNodeMapping(PDGNode nodeG1, PDGNode nodeG2, ASTNodeMatcher matcher) {
@@ -52,7 +53,7 @@ public class PDGNodeMapping extends IdBasedMapping {
 	}
 
 	public boolean isAdvancedMatch() {
-		return additionallyMatchedFragments1.size() > 0 || additionallyMatchedFragments2.size() > 0;
+		return additionallyMatchedFragments1.size() > 0 || additionallyMatchedFragments2.size() > 0 || symmetricalIfElse;
 	}
 
 	public List<AbstractMethodFragment> getAdditionallyMatchedFragments1() {
@@ -120,6 +121,14 @@ public class PDGNodeMapping extends IdBasedMapping {
 		this.symmetricalIfNodePair = symmetricalIfNodePair;
 	}
 
+	public boolean isSymmetricalIfElse() {
+		return symmetricalIfElse;
+	}
+
+	public void setSymmetricalIfElse(boolean symmetricalIfElse) {
+		this.symmetricalIfElse = symmetricalIfElse;
+	}
+
 	public boolean isFalseControlDependent() {
 		PDGControlDependence controlDependence1 = nodeG1.getIncomingControlDependence();
 		PDGControlDependence controlDependence2 = nodeG2.getIncomingControlDependence();
@@ -127,6 +136,24 @@ public class PDGNodeMapping extends IdBasedMapping {
 			return controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence();
 		if(nodeG1 instanceof PDGBlockNode && nodeG2 instanceof PDGBlockNode)
 			return isNestedUnderElse((PDGBlockNode)nodeG1) && isNestedUnderElse((PDGBlockNode)nodeG2);
+		return false;
+	}
+
+	public boolean isNode1FalseControlDependent() {
+		PDGControlDependence controlDependence1 = nodeG1.getIncomingControlDependence();
+		if(controlDependence1 != null)
+			return controlDependence1.isFalseControlDependence();
+		if(nodeG1 instanceof PDGBlockNode)
+			return isNestedUnderElse((PDGBlockNode)nodeG1);
+		return false;
+	}
+
+	public boolean isNode2FalseControlDependent() {
+		PDGControlDependence controlDependence2 = nodeG2.getIncomingControlDependence();
+		if(controlDependence2 != null)
+			return controlDependence2.isFalseControlDependence();
+		if(nodeG2 instanceof PDGBlockNode)
+			return isNestedUnderElse((PDGBlockNode)nodeG2);
 		return false;
 	}
 

@@ -14,8 +14,6 @@ import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
-import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
-import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
 import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
 import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
@@ -37,7 +35,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
-import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionWithCommonSuperTypePreconditionViolation;
@@ -57,7 +54,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -76,16 +72,13 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
-import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
-public class PDGSubTreeMapper {
+public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	private PDG pdg1;
 	private PDG pdg2;
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
-	private MappingState maximumStateWithMinimumDifferences;
-	private CloneStructureNode cloneStructureRoot;
 	private TreeSet<PDGNode> mappedNodesG1;
 	private TreeSet<PDGNode> mappedNodesG2;
 	private TreeSet<PDGNode> nonMappedNodesG1;
@@ -100,11 +93,6 @@ public class PDGSubTreeMapper {
 	private Set<MethodInvocationObject> accessedLocalMethodsG2;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG1;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
-	private TreeSet<PDGNode> allNodesInSubTreePDG1;
-	private TreeSet<PDGNode> allNodesInSubTreePDG2;
-	//if true full tree match is performed, otherwise subtree match is performed
-	private boolean fullTreeMatch;
-	private IProgressMonitor monitor;
 	private List<PreconditionViolation> preconditionViolations;
 	private Set<PlainVariable> variablesToBeReturnedG1;
 	private Set<PlainVariable> variablesToBeReturnedG2;
@@ -120,11 +108,11 @@ public class PDGSubTreeMapper {
 			ControlDependenceTreeNode controlDependenceSubTreePDG1,
 			ControlDependenceTreeNode controlDependenceSubTreePDG2,
 			boolean fullTreeMatch, IProgressMonitor monitor) {
+		super(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, fullTreeMatch, monitor);
 		this.pdg1 = pdg1;
 		this.pdg2 = pdg2;
 		this.iCompilationUnit1 = iCompilationUnit1;
 		this.iCompilationUnit2 = iCompilationUnit2;
-		this.fullTreeMatch = fullTreeMatch;
 		this.nonMappedNodesG1 = new TreeSet<PDGNode>();
 		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
@@ -137,9 +125,6 @@ public class PDGSubTreeMapper {
 		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodInvocationObject>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1 = new LinkedHashSet<AbstractVariable>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
-		this.monitor = monitor;
-		this.allNodesInSubTreePDG1 = new TreeSet<PDGNode>();
-		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
 		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
@@ -148,15 +133,15 @@ public class PDGSubTreeMapper {
 		this.nonMappedPDGNodesG2MovableAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG2MovableBeforeAndAfter = new TreeSet<PDGNode>();
 		//creates CloneStructureRoot
-		matchBasedOnControlDependenceTreeStructure(controlDependenceSubTreePDG1, controlDependenceSubTreePDG2);
-		if(maximumStateWithMinimumDifferences != null) {
-			this.mappedNodesG1 = maximumStateWithMinimumDifferences.getMappedNodesG1();
-			this.mappedNodesG2 = maximumStateWithMinimumDifferences.getMappedNodesG2();
-			findNonMappedNodes(pdg1, allNodesInSubTreePDG1, mappedNodesG1, nonMappedNodesG1);
-			findNonMappedNodes(pdg2, allNodesInSubTreePDG2, mappedNodesG2, nonMappedNodesG2);
+		matchBasedOnControlDependenceTreeStructure();
+		if(getMaximumStateWithMinimumDifferences() != null) {
+			this.mappedNodesG1 = getMaximumStateWithMinimumDifferences().getMappedNodesG1();
+			this.mappedNodesG2 = getMaximumStateWithMinimumDifferences().getMappedNodesG2();
+			findNonMappedNodes(pdg1, getAllNodesInSubTreePDG1(), mappedNodesG1, nonMappedNodesG1);
+			findNonMappedNodes(pdg2, getAllNodesInSubTreePDG2(), mappedNodesG2, nonMappedNodesG2);
 			Set<PDGNode> additionallyMatchedNodesG1 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
-				boolean advancedMatch = cloneStructureRoot.isGapNodeG1InAdditionalMatches(nodeG1);
+				boolean advancedMatch = getCloneStructureRoot().isGapNodeG1InAdditionalMatches(nodeG1);
 				if(advancedMatch) {
 					additionallyMatchedNodesG1.add(nodeG1);
 				}
@@ -164,19 +149,19 @@ public class PDGSubTreeMapper {
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
 				PDGBlockNode tryNode = pdg1.isDirectlyNestedWithinBlockNode(nodeG1);
 				if(tryNode != null) {
-					CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG1(tryNode);
+					CloneStructureNode cloneStructureTry = getCloneStructureRoot().findNodeG1(tryNode);
 					if(cloneStructureTry != null) {
 						node.setParent(cloneStructureTry);
 					}
 				}
 				else {
-					cloneStructureRoot.addGapChild(node);
+					getCloneStructureRoot().addGapChild(node);
 				}
 			}
 			nonMappedNodesG1.removeAll(additionallyMatchedNodesG1);
 			Set<PDGNode> additionallyMatchedNodesG2 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG2 : nonMappedNodesG2) {
-				boolean advancedMatch = cloneStructureRoot.isGapNodeG2InAdditionalMatches(nodeG2);
+				boolean advancedMatch = getCloneStructureRoot().isGapNodeG2InAdditionalMatches(nodeG2);
 				if(advancedMatch) {
 					additionallyMatchedNodesG2.add(nodeG2);
 				}
@@ -184,13 +169,13 @@ public class PDGSubTreeMapper {
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
 				PDGBlockNode tryNode = pdg2.isDirectlyNestedWithinBlockNode(nodeG2);
 				if(tryNode != null) {
-					CloneStructureNode cloneStructureTry = cloneStructureRoot.findNodeG2(tryNode);
+					CloneStructureNode cloneStructureTry = getCloneStructureRoot().findNodeG2(tryNode);
 					if(cloneStructureTry != null) {
 						node.setParent(cloneStructureTry);
 					}
 				}
 				else {
-					cloneStructureRoot.addGapChild(node);
+					getCloneStructureRoot().addGapChild(node);
 				}
 			}
 			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
@@ -201,7 +186,7 @@ public class PDGSubTreeMapper {
 			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
-			checkCloneStructureNodeForPreconditions(cloneStructureRoot);
+			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
 		}
@@ -243,7 +228,7 @@ public class PDGSubTreeMapper {
 		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, mappedNodesG2);
 		Set<AbstractVariable> parametersToBeRemovedG1 = new LinkedHashSet<AbstractVariable>();
 		Set<AbstractVariable> parametersToBeRemovedG2 = new LinkedHashSet<AbstractVariable>();
-		for(PDGNodeMapping nodeMapping : maximumStateWithMinimumDifferences.getNodeMappings()) {
+		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
 			List<AbstractVariable> nonAnonymousDeclaredVariablesG1 = new ArrayList<AbstractVariable>();
@@ -411,95 +396,32 @@ public class PDGSubTreeMapper {
 		}
 	}
 
-	private MappingState findMaximumStateWithMinimumDifferences(List<MappingState> states) {
-		int max = 0;
-		List<MappingState> maximumStates = new ArrayList<MappingState>();
-		for(MappingState currentState : states) {
-			if(currentState.getSize() > max) {
-				max = currentState.getSize();
-				maximumStates.clear();
-				maximumStates.add(currentState);
-			}
-			else if(currentState.getSize() == max) {
-				maximumStates.add(currentState);
-			}
-		}
-		
-		List<MappingState> maximumStatesWithMinimumDifferences = new ArrayList<MappingState>();
-		if(maximumStates.size() == 1) {
-			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
-		}
-		else {
-			int minimum = maximumStates.get(0).getDistinctDifferenceCount();
-			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
-			for(int i=1; i<maximumStates.size(); i++) {
-				MappingState currentState = maximumStates.get(i);
-				if(currentState.getDistinctDifferenceCount() < minimum) {
-					minimum = currentState.getDistinctDifferenceCount();
-					maximumStatesWithMinimumDifferences.clear();
-					maximumStatesWithMinimumDifferences.add(currentState);
-				}
-				else if(currentState.getDistinctDifferenceCount() == minimum) {
-					maximumStatesWithMinimumDifferences.add(currentState);
-				}
-			}
-		}
-		
-		List<MappingState> maximumStatesWithMinimumNonDistinctDifferences = new ArrayList<MappingState>();
-		if(maximumStatesWithMinimumDifferences.size() == 1) {
-			maximumStatesWithMinimumNonDistinctDifferences.add(maximumStatesWithMinimumDifferences.get(0));
-		}
-		else {
-			int minimum = maximumStatesWithMinimumDifferences.get(0).getNonDistinctDifferenceCount();
-			maximumStatesWithMinimumNonDistinctDifferences.add(maximumStatesWithMinimumDifferences.get(0));
-			for(int i=1; i<maximumStatesWithMinimumDifferences.size(); i++) {
-				MappingState currentState = maximumStatesWithMinimumDifferences.get(i);
-				if(currentState.getNonDistinctDifferenceCount() < minimum) {
-					minimum = currentState.getNonDistinctDifferenceCount();
-					maximumStatesWithMinimumNonDistinctDifferences.clear();
-					maximumStatesWithMinimumNonDistinctDifferences.add(currentState);
-				}
-				else if(currentState.getNonDistinctDifferenceCount() == minimum) {
-					maximumStatesWithMinimumNonDistinctDifferences.add(currentState);
-				}
-			}
-		}
-		//TODO: Introduce comparison of difference "weights" in the case of multiple maximum states with minimum differences
-		List<MappingState> maximumStatesWithMinimumDifferencesAndMinimumIdDiff = new ArrayList<MappingState>();
-		if(maximumStatesWithMinimumNonDistinctDifferences.size() == 1) {
-			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
-		}
-		else {
-			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingIdDiff();
-			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
-			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferences.size(); i++) {
-				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferences.get(i);
-				if(currentState.getNodeMappingIdDiff() < minimum) {
-					minimum = currentState.getNodeMappingIdDiff();
-					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.clear();
-					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
-				}
-				else if(currentState.getNodeMappingIdDiff() == minimum) {
-					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
-				}
-			}
-		}
-		
-		if(maximumStatesWithMinimumDifferencesAndMinimumIdDiff.size() == 1) {
-			return maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(0);
-		}
-		else {
-			int minimum = maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(0).getEditDistanceOfDifferences();
-			MappingState maximumStateWithMinimumDifferences = maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(0);
-			for(int i=1; i<maximumStatesWithMinimumDifferencesAndMinimumIdDiff.size(); i++) {
-				MappingState currentState = maximumStatesWithMinimumDifferencesAndMinimumIdDiff.get(i);
-				if(currentState.getEditDistanceOfDifferences() < minimum) {
-					minimum = currentState.getEditDistanceOfDifferences();
-					maximumStateWithMinimumDifferences = currentState;
-				}
-			}
-			return maximumStateWithMinimumDifferences;
-		}
+	protected Set<PDGNode> getNodesInRegion1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
+			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot) {
+		return getNodesInRegion(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, controlDependenceTreeRoot);
+	}
+
+	protected Set<PDGNode> getNodesInRegion2(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
+			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot) {
+		return getNodesInRegion(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, controlDependenceTreeRoot);
+	}
+
+	protected Set<PDGNode> getElseNodesOfSymmetricalIfStatement1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
+			Set<PDGNode> controlPredicateNodesInNextLevel) {
+		return getElseNodesOfSymmetricalIfStatement(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel);
+	}
+
+	protected Set<PDGNode> getElseNodesOfSymmetricalIfStatement2(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
+			Set<PDGNode> controlPredicateNodesInNextLevel) {
+		return getElseNodesOfSymmetricalIfStatement(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel);
+	}
+
+	protected List<ControlDependenceTreeNode> getIfParentChildren1(ControlDependenceTreeNode cdtNode) {
+		return getIfParentChildren(cdtNode);
+	}
+
+	protected List<ControlDependenceTreeNode> getIfParentChildren2(ControlDependenceTreeNode cdtNode) {
+		return getIfParentChildren(cdtNode);
 	}
 
 	private Set<PDGNode> getNodesInRegion(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
@@ -555,406 +477,6 @@ public class PDGSubTreeMapper {
 		return nodesInRegion;
 	}
 
-	private void matchBasedOnControlDependenceTreeStructure(ControlDependenceTreeNode controlDependenceTreePDG1, ControlDependenceTreeNode controlDependenceTreePDG2) {
-		int maxLevel1 = controlDependenceTreePDG1.getMaxLevel();
-		int level1 = maxLevel1;
-		int maxLevel2 = controlDependenceTreePDG2.getMaxLevel();
-		int level2 = maxLevel2;
-		if(monitor != null)
-			monitor.beginTask("Mapping Program Dependence Graphs", Math.min(maxLevel1, maxLevel2));
-		CloneStructureNode root = null;
-		MappingState finalState = null;
-		List<CloneStructureNode> parents = new ArrayList<CloneStructureNode>();
-		while(level1 >= 0 && level2 >= 0) {
-			Set<PDGNode> controlPredicateNodesG1 = controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1);
-			Set<PDGNode> controlPredicateNodesG2 = controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2);
-			Set<PDGNode> controlPredicateNodesInNextLevelG1 = new LinkedHashSet<PDGNode>();
-			Set<PDGNode> controlPredicateNodesInNextLevelG2 = new LinkedHashSet<PDGNode>();
-			if(level1 < maxLevel1) {
-				Set<PDGNode> nodesInNextLevel = controlDependenceTreePDG1.getControlPredicateNodesInLevel(level1+1);
-				controlPredicateNodesInNextLevelG1.addAll(nodesInNextLevel);
-				for(PDGNode node : nodesInNextLevel) {
-					if(node instanceof PDGBlockNode) {
-						controlPredicateNodesInNextLevelG1.addAll(pdg1.getNestedNodesWithinBlockNode((PDGBlockNode)node));
-					}
-				}
-			}
-			if(level2 < maxLevel2) {
-				Set<PDGNode> nodesInNextLevel = controlDependenceTreePDG2.getControlPredicateNodesInLevel(level2+1);
-				controlPredicateNodesInNextLevelG2.addAll(nodesInNextLevel);
-				for(PDGNode node : nodesInNextLevel) {
-					if(node instanceof PDGBlockNode) {
-						controlPredicateNodesInNextLevelG2.addAll(pdg2.getNestedNodesWithinBlockNode((PDGBlockNode)node));
-					}
-				}
-			}
-			for(PDGNode predicate1 : controlPredicateNodesG1) {
-				Set<PDGNode> nodesG1 = getNodesInRegion(pdg1, predicate1, controlPredicateNodesG1, controlPredicateNodesInNextLevelG1, controlDependenceTreePDG1);
-				//special handling in level 0 for sub tree match
-				if(level1 == 0 && !fullTreeMatch) {
-					int maxId = allNodesInSubTreePDG1.last().getId();
-					Set<PDGNode> nodesG1ToBeRemoved = new LinkedHashSet<PDGNode>();
-					for(PDGNode nodeG1 : nodesG1) {
-						if(nodeG1.getId() > maxId) {
-							nodesG1ToBeRemoved.add(nodeG1);
-						}
-						if(controlDependenceTreePDG1.isElseNode()) {
-							double elseNodeId = controlDependenceTreePDG1.getId();
-							if(nodeG1.getId() < elseNodeId) {
-								nodesG1ToBeRemoved.add(nodeG1);
-							}
-						}
-					}
-					nodesG1.removeAll(nodesG1ToBeRemoved);
-				}
-				this.allNodesInSubTreePDG1.addAll(nodesG1);
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode predicate2 : controlPredicateNodesG2) {
-					Set<PDGNode> nodesG2 = getNodesInRegion(pdg2, predicate2, controlPredicateNodesG2, controlPredicateNodesInNextLevelG2, controlDependenceTreePDG2);
-					//special handling to add the nodes inside the final else of a symmetrical if/else if
-					for(CloneStructureNode parentCloneStructure : parents) {
-						if(parentCloneStructure.getMapping() instanceof PDGNodeMapping) {
-							PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)parentCloneStructure.getMapping();
-							PDGNodeMapping symmetricalPDGNodeMapping = pdgNodeMapping.getSymmetricalIfNodePair();
-							if(symmetricalPDGNodeMapping != null) {
-								if(symmetricalPDGNodeMapping.getNodeG1().equals(predicate1) && symmetricalPDGNodeMapping.getNodeG2().equals(predicate2)) {
-									Set<PDGNode> elseNodes = getElseNodesOfSymmetricalIfStatement(pdg2, pdgNodeMapping.getNodeG2(), controlPredicateNodesG2, controlPredicateNodesInNextLevelG2);
-									nodesG2.addAll(elseNodes);
-								}
-							}
-						}
-					}
-					if(level2 == 0 && !fullTreeMatch) {
-						int maxId = allNodesInSubTreePDG2.last().getId();
-						Set<PDGNode> nodesG2ToBeRemoved = new LinkedHashSet<PDGNode>();
-						for(PDGNode nodeG2 : nodesG2) {
-							if(nodeG2.getId() > maxId) {
-								nodesG2ToBeRemoved.add(nodeG2);
-							}
-							if(controlDependenceTreePDG2.isElseNode()) {
-								double elseNodeId = controlDependenceTreePDG2.getId();
-								if(nodeG2.getId() < elseNodeId) {
-									nodesG2ToBeRemoved.add(nodeG2);
-								}
-							}
-						}
-						nodesG2.removeAll(nodesG2ToBeRemoved);
-					}
-					this.allNodesInSubTreePDG2.addAll(nodesG2);
-					List<MappingState> maxStates = null;
-					if(level1 == 0 || level2 == 0) {
-						maxStates = matchBasedOnCodeFragments(finalState, nodesG1, nodesG2);
-					}
-					else {
-						ControlDependenceTreeNode cdtNode1 = controlDependenceTreePDG1.getNode(predicate1);
-						ControlDependenceTreeNode cdtNode2 = controlDependenceTreePDG2.getNode(predicate2);
-						//check parent-child relationship preservation (parent in the current level, children in the previously examined level)
-						if(level1 < maxLevel1 && level2 < maxLevel2 && cdtNode1 != null && cdtNode2 != null) {
-							List<ControlDependenceTreeNode> children1 = cdtNode1.getChildren();
-							List<ControlDependenceTreeNode> children2 = cdtNode2.getChildren();
-							if(finalState != null && !children1.isEmpty() && !children2.isEmpty()) {
-								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
-								boolean childPairFoundInFinalState = false;
-								for(PDGNodeMapping nodeMapping : nodeMappings) {
-									ControlDependenceTreeNode cdtChildNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
-									ControlDependenceTreeNode cdtChildNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
-									if(cdtChildNode1 != null && cdtChildNode2 != null) {
-										if(children1.contains(cdtChildNode1) && children2.contains(cdtChildNode2)) {
-											childPairFoundInFinalState = true;
-											break;
-										}
-									}
-								}
-								if(!childPairFoundInFinalState) {
-									continue;
-								}
-							}
-						}
-						//check sibling relationship preservation (all siblings in the current level)
-						ControlDependenceTreeNode cdtNode1Parent = null;
-						ControlDependenceTreeNode cdtNode2Parent = null;
-						if(cdtNode1 != null && cdtNode2 != null) {
-							cdtNode1Parent = cdtNode1.getParent();
-							cdtNode2Parent = cdtNode2.getParent();
-							if(finalState != null) {
-								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
-								boolean siblingPairFoundInFinalState = cdtNode1.getIfParent() == null;
-								boolean ifParentChildFoundInFinalState = false;
-								List<ControlDependenceTreeNode> ifParentChildren1 = getIfParentChildren(cdtNode1Parent);
-								List<ControlDependenceTreeNode> ifParentChildren2 = getIfParentChildren(cdtNode2Parent);
-								List<ControlDependenceTreeNode> siblings1 = cdtNode1.getSiblings();
-								List<ControlDependenceTreeNode> siblings2 = cdtNode2.getSiblings();
-								for(PDGNodeMapping nodeMapping : nodeMappings) {
-									ControlDependenceTreeNode cdtSiblingNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
-									ControlDependenceTreeNode cdtSiblingNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
-									if(cdtSiblingNode1 != null && cdtSiblingNode2 != null) {
-										if(cdtNode1Parent.isElseNode() && cdtNode2Parent.isElseNode()) {
-											if(ifParentChildren1.contains(cdtSiblingNode1) && ifParentChildren2.contains(cdtSiblingNode2)) {
-												ifParentChildFoundInFinalState = true;
-											}
-										}
-										if(siblings1.contains(cdtSiblingNode1) && siblings2.contains(cdtSiblingNode2)) {
-											siblingPairFoundInFinalState = true;
-											break;
-										}
-									}
-								}
-								if(cdtNode1Parent.isElseNode() && cdtNode2Parent.isElseNode() &&
-										!ifParentChildren1.isEmpty() && !ifParentChildren2.isEmpty()) {
-									if(!ifParentChildFoundInFinalState) {
-										continue;
-									}
-								}
-								else if(!siblingPairFoundInFinalState) {
-									continue;
-								}
-							}
-						}
-						if(cdtNode1Parent != null && cdtNode2Parent != null &&
-								!cdtNode1Parent.equals(controlDependenceTreePDG1) && !cdtNode2Parent.equals(controlDependenceTreePDG2) &&
-								cdtNode1Parent.getLevel() > 1 && cdtNode2Parent.getLevel() > 1) {
-							//skip the matching of cdtNode1 and cdtNode2, if one has an 'if' parent and the other an 'else' parent
-							if((cdtNode1Parent.getNode() != null && cdtNode1Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode2Parent.isElseNode()) ||
-									(cdtNode2Parent.getNode() != null && cdtNode2Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode1Parent.isElseNode()))
-								continue;
-						}
-						if(predicate1.getASTStatement() instanceof SwitchStatement && predicate2.getASTStatement() instanceof SwitchStatement) {
-							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-							boolean match = astNodeMatcher.match(predicate1, predicate2);
-							if(match && astNodeMatcher.isParameterizable()) {
-								PDGNodeMapping mapping = new PDGNodeMapping(predicate1, predicate2, astNodeMatcher);
-								MappingState state = new MappingState(finalState, mapping);
-								if(finalState != null)
-									finalState.addChild(state);
-								//remove switch nodes from the nodes to be processed
-								Set<PDGNode> switchBodyNodes1 = new LinkedHashSet<PDGNode>(nodesG1);
-								switchBodyNodes1.remove(predicate1);
-								Set<PDGNode> switchBodyNodes2 = new LinkedHashSet<PDGNode>(nodesG2);
-								switchBodyNodes2.remove(predicate2);
-								maxStates = matchBasedOnSwitchCases(state, switchBodyNodes1, switchBodyNodes2);
-							}
-						}
-						else {
-							maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
-						}
-					}
-					for(MappingState temp : maxStates) {
-						if(!currentStates.contains(temp)) {
-							currentStates.add(temp);
-						}
-					}
-				}
-				if(!currentStates.isEmpty()) {
-					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
-					List<PDGNodeMapping> nodeMappings = new ArrayList<PDGNodeMapping>(best.getNodeMappings());
-					//if predicate is a do-loop place it before the nodes nested inside it
-					if(predicate1.getCFGNode() instanceof CFGBranchDoLoopNode) {
-						Set<PDGNode> controlDependentNodes1 = new LinkedHashSet<PDGNode>();
-						for(PDGNode pdgNode : predicate1.getControlDependentNodes()) {
-							if(pdg1.isDirectlyNestedWithinBlockNode(pdgNode) == null) {
-								controlDependentNodes1.add(pdgNode);
-							}
-						}
-						PDGNodeMapping firstNonPredicateNestedInDoLoop = null;
-						for(PDGNodeMapping mapping : nodeMappings) {
-							if(mapping.getNodeG1() instanceof PDGStatementNode && controlDependentNodes1.contains(mapping.getNodeG1())) {
-								firstNonPredicateNestedInDoLoop = mapping;
-								break;
-							}
-						}
-						PDGNodeMapping doLoop = null;
-						for(PDGNodeMapping mapping : nodeMappings) {
-							if(mapping.getNodeG1().equals(predicate1)) {
-								doLoop = mapping;
-								break;
-							}
-						}
-						if(firstNonPredicateNestedInDoLoop != null && doLoop != null) {
-							int firstNonPredicateNestedInDoLoopPosition = nodeMappings.indexOf(firstNonPredicateNestedInDoLoop);
-							int doLoopPosition = nodeMappings.indexOf(doLoop);
-							nodeMappings.remove(doLoopPosition);
-							nodeMappings.add(firstNonPredicateNestedInDoLoopPosition, doLoop);
-						}
-					}
-					int index = 0;
-					for(PDGNodeMapping mapping : nodeMappings) {
-						if(mapping.getNodeG1().equals(predicate1)) {
-							controlPredicateNodesG2.remove(mapping.getNodeG2());
-							break;
-						}
-						index++;
-					}
-					finalState = best;
-					CloneStructureNode parent = null;
-					CloneStructureNode newElseParent = null;
-					for(int i=index; i<nodeMappings.size(); i++) {
-						PDGNodeMapping mapping = nodeMappings.get(i);
-						if(parent == null) {
-							parent = new CloneStructureNode(mapping);
-							//search for symmetrical if statements
-							for(int j=0; j<index; j++) {
-								PDGNodeMapping otherMapping = nodeMappings.get(j);
-								if(symmetricalIfNodes(mapping.getNodeG1(), mapping.getNodeG2(), otherMapping.getNodeG1(), otherMapping.getNodeG2())) {
-									mapping.setSymmetricalIfNodePair(otherMapping);
-									otherMapping.setSymmetricalIfNodePair(mapping);
-								}
-							}
-						}
-						else {
-							PDGBlockNode nestedUnderTry1 = pdg1.isDirectlyNestedWithinBlockNode(mapping.getNodeG1());
-							PDGBlockNode nestedUnderTry2 = pdg2.isDirectlyNestedWithinBlockNode(mapping.getNodeG2());
-							boolean nestedUnderTry = nestedUnderTry1 != null && nestedUnderTry2 != null;
-							if(mapping.isFalseControlDependent() && !nestedUnderTry) {
-								if(newElseParent == null) {
-									ControlDependenceTreeNode elseNodeG1 = controlDependenceTreePDG1.getElseNode(parent.getMapping().getNodeG1());
-									ControlDependenceTreeNode elseNodeG2 = controlDependenceTreePDG2.getElseNode(parent.getMapping().getNodeG2());
-									if(parent.getMapping() instanceof PDGNodeMapping) {
-										PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)parent.getMapping();
-										PDGNodeMapping symmetricalIfNodeMapping = pdgNodeMapping.getSymmetricalIfNodePair();
-										if(symmetricalIfNodeMapping != null) {
-											boolean symmetricalIfFoundInParents = false;
-											for(CloneStructureNode parentCloneStructureNode : parents) {
-												if(parentCloneStructureNode.getMapping().equals(symmetricalIfNodeMapping)) {
-													symmetricalIfFoundInParents = true;
-													break;
-												}
-											}
-											if(symmetricalIfFoundInParents) {
-												if(elseNodeG1 == null) {
-													elseNodeG1 = controlDependenceTreePDG1.getElseNode(symmetricalIfNodeMapping.getNodeG1());
-												}
-												if(elseNodeG2 == null) {
-													elseNodeG2 = controlDependenceTreePDG2.getElseNode(symmetricalIfNodeMapping.getNodeG2());
-												}
-											}
-										}
-									}
-									if(elseNodeG1 != null && elseNodeG2 != null) {
-										PDGElseMapping elseMapping = new PDGElseMapping(elseNodeG1.getId(), elseNodeG2.getId());
-										newElseParent = new CloneStructureNode(elseMapping);
-										parent.addChild(newElseParent);
-										CloneStructureNode child = new CloneStructureNode(mapping);
-										newElseParent.addChild(child);
-									}
-								}
-								else {
-									CloneStructureNode child = new CloneStructureNode(mapping);
-									newElseParent.addChild(child);
-								}
-							}
-							else {
-								CloneStructureNode child = new CloneStructureNode(mapping);
-								parent.addChild(child);
-							}
-						}
-					}
-					if(parent != null) {
-						//add previous parents under the new parent
-						PDGNodeMapping parentNodeMapping = (PDGNodeMapping) parent.getMapping();
-						double parentId1 = parentNodeMapping.getId1();
-						double parentId2 = parentNodeMapping.getId2();
-						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
-							CloneStructureNode previousParent = parentIterator.next();
-							PDGNodeMapping previousParentNodeMapping = (PDGNodeMapping) previousParent.getMapping();
-							double previousParentId1 = previousParentNodeMapping.getId1();
-							double previousParentId2 = previousParentNodeMapping.getId2();
-							if(controlDependenceTreePDG1.parentChildRelationship(parentId1, previousParentId1) &&
-									controlDependenceTreePDG2.parentChildRelationship(parentId2, previousParentId2)) {
-								parent.addChild(previousParent);
-								parentIterator.remove();
-							}
-							else if(previousParentNodeMapping.isFalseControlDependent()) {
-								if(newElseParent == null) {
-									ControlDependenceTreeNode elseNodeG1 = controlDependenceTreePDG1.getElseNode(parentNodeMapping.getNodeG1());
-									ControlDependenceTreeNode elseNodeG2 = controlDependenceTreePDG2.getElseNode(parentNodeMapping.getNodeG2());
-									PDGNodeMapping symmetricalIfNodeMapping = parentNodeMapping.getSymmetricalIfNodePair();
-									if(symmetricalIfNodeMapping != null) {
-										boolean symmetricalIfFoundInParents = false;
-										for(CloneStructureNode parentCloneStructureNode : parents) {
-											if(parentCloneStructureNode.getMapping().equals(symmetricalIfNodeMapping)) {
-												symmetricalIfFoundInParents = true;
-												break;
-											}
-										}
-										if(symmetricalIfFoundInParents) {
-											if(elseNodeG1 == null) {
-												elseNodeG1 = controlDependenceTreePDG1.getElseNode(symmetricalIfNodeMapping.getNodeG1());
-											}
-											if(elseNodeG2 == null) {
-												elseNodeG2 = controlDependenceTreePDG2.getElseNode(symmetricalIfNodeMapping.getNodeG2());
-											}
-										}
-									}
-									if(elseNodeG1 != null && elseNodeG2 != null) {
-										if(controlDependenceTreePDG1.parentChildRelationship(elseNodeG1.getId(), previousParentId1) &&
-												controlDependenceTreePDG2.parentChildRelationship(elseNodeG2.getId(), previousParentId2)) {
-											PDGElseMapping elseMapping = new PDGElseMapping(elseNodeG1.getId(), elseNodeG2.getId());
-											newElseParent = new CloneStructureNode(elseMapping);
-											parent.addChild(newElseParent);
-											newElseParent.addChild(previousParent);
-											parentIterator.remove();
-										}
-									}
-								}
-								else {
-									PDGElseMapping elseMapping = (PDGElseMapping) newElseParent.getMapping();
-									if(controlDependenceTreePDG1.parentChildRelationship(elseMapping.getId1(), previousParentId1) &&
-											controlDependenceTreePDG2.parentChildRelationship(elseMapping.getId2(), previousParentId2)) {
-										newElseParent.addChild(previousParent);
-										parentIterator.remove();
-									}
-								}
-							}
-						}
-						parents.add(parent);
-						/*boolean isTryBlock = (parentNodeMapping.getNodeG1() instanceof PDGBlockNode) && (parentNodeMapping.getNodeG2() instanceof PDGBlockNode);
-						boolean isTernaryOperator = isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG1()) ||
-								isExpressionStatementWithConditionalExpression(parentNodeMapping.getNodeG2());
-						if(!parent.getChildren().isEmpty() || isTryBlock || isTernaryOperator) {
-							parents.add(parent);
-						}
-						else {
-							//remove parent mapping from the current state, if no children have been mapped
-							finalState.getNodeMappings().remove(parent.getMapping());
-						}*/
-					}
-					else {
-						//create the root node of the clone structure
-						root = new CloneStructureNode(null);
-						for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
-							CloneStructureNode previousParent = parentIterator.next();
-							root.addChild(previousParent);
-							parentIterator.remove();
-						}
-						for(PDGNodeMapping nodeMapping : best.getNodeMappings()) {
-							if(nodesG1.contains(nodeMapping.getNodeG1())) {
-								CloneStructureNode childNode = new CloneStructureNode(nodeMapping);
-								root.addChild(childNode);
-							}
-						}
-					}
-				}
-			}
-			level1--;
-			level2--;
-			if(monitor != null)
-				monitor.worked(1);
-		}
-		if(monitor != null)
-			monitor.done();
-		if(root == null) {
-			//create the root node of the clone structure
-			root = new CloneStructureNode(null);
-			for(ListIterator<CloneStructureNode> parentIterator = parents.listIterator(); parentIterator.hasNext();) {
-				CloneStructureNode previousParent = parentIterator.next();
-				root.addChild(previousParent);
-				parentIterator.remove();
-			}
-		}
-		this.maximumStateWithMinimumDifferences = finalState;
-		this.cloneStructureRoot = root;
-	}
-
 	private List<ControlDependenceTreeNode> getIfParentChildren(ControlDependenceTreeNode cdtNode) {
 		List<ControlDependenceTreeNode> children = new ArrayList<ControlDependenceTreeNode>();
 		if(cdtNode != null && cdtNode.isElseNode()) {
@@ -964,292 +486,6 @@ public class PDGSubTreeMapper {
 			}
 		}
 		return children;
-	}
-
-	private List<MappingState> matchBasedOnCodeFragments(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
-		CodeFragmentDecomposer cfd1 = new CodeFragmentDecomposer(nodesG1, pdg1.getFieldsAccessedInMethod());
-		CodeFragmentDecomposer cfd2 = new CodeFragmentDecomposer(nodesG2, pdg2.getFieldsAccessedInMethod());
-		Map<PlainVariable, Set<PDGNode>> map1 = cfd1.getObjectNodeMap();
-		Map<PlainVariable, Set<PDGNode>> map2 = cfd2.getObjectNodeMap();
-		if(map1.isEmpty() || map2.isEmpty()) {
-			return processPDGNodes(parent, nodesG1, nodesG2);
-		}
-		else {
-			MappingState finalState = parent;
-			for(PlainVariable variable1 : map1.keySet()) {
-				Set<PDGNode> variableNodesG1 = map1.get(variable1);
-				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
-				Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
-				for(PlainVariable variable2 : map2.keySet()) {
-					Set<PDGNode> variableNodesG2 = map2.get(variable2);
-					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
-					if(finalState != null) {
-						for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-							if(tempNodesG1.contains(mapping.getNodeG1()))
-								tempNodesG1.remove(mapping.getNodeG1());
-							if(tempNodesG2.contains(mapping.getNodeG2()))
-								tempNodesG2.remove(mapping.getNodeG2());
-						}
-					}
-					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
-					currentStateMap.put(variable2, maxStates);
-				}
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PlainVariable variable2 : currentStateMap.keySet()) {
-					currentStates.addAll(currentStateMap.get(variable2));
-				}
-				if(!currentStates.isEmpty()) {
-					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
-					PlainVariable variableToRemove = null;
-					for(PlainVariable variable2 : currentStateMap.keySet()) {
-						if(currentStateMap.get(variable2).contains(best)) {
-							variableToRemove = variable2;
-							break;
-						}
-					}
-					map2.remove(variableToRemove);
-					finalState = best;
-				}
-			}
-			List<MappingState> currentStates = new ArrayList<MappingState>();
-			Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(nodesG1);
-			Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(nodesG2);
-			for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-				if(tempNodesG1.contains(mapping.getNodeG1()))
-					tempNodesG1.remove(mapping.getNodeG1());
-				if(tempNodesG2.contains(mapping.getNodeG2()))
-					tempNodesG2.remove(mapping.getNodeG2());
-			}
-			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
-				currentStates.add(finalState);
-			}
-			else {
-				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
-				for(MappingState temp : maxStates) {
-					if(!currentStates.contains(temp)) {
-						currentStates.add(temp);
-					}
-				}
-			}
-			return currentStates;
-		}
-	}
-
-	private List<MappingState> matchBasedOnSwitchCases(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
-		SwitchBodyDecomposer sbd1 = new SwitchBodyDecomposer(nodesG1);
-		SwitchBodyDecomposer sbd2 = new SwitchBodyDecomposer(nodesG2);
-		Map<PDGNode, Set<PDGNode>> map1 = sbd1.getSwitchCaseNodeMap();
-		Map<PDGNode, Set<PDGNode>> map2 = sbd2.getSwitchCaseNodeMap();
-		if(map1.isEmpty() || map2.isEmpty()) {
-			return processPDGNodes(parent, nodesG1, nodesG2);
-		}
-		else {
-			MappingState finalState = parent;
-			for(PDGNode switchCase1 : map1.keySet()) {
-				Set<PDGNode> switchCaseNodesG1 = map1.get(switchCase1);
-				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>();
-				tempNodesG1.add(switchCase1);
-				tempNodesG1.addAll(switchCaseNodesG1);
-				Map<PDGNode, List<MappingState>> currentStateMap = new LinkedHashMap<PDGNode, List<MappingState>>();
-				for(PDGNode switchCase2 : map2.keySet()) {
-					Set<PDGNode> switchCaseNodesG2 = map2.get(switchCase2);
-					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>();
-					tempNodesG2.add(switchCase2);
-					tempNodesG2.addAll(switchCaseNodesG2);
-					if(finalState != null) {
-						for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-							if(tempNodesG1.contains(mapping.getNodeG1()))
-								tempNodesG1.remove(mapping.getNodeG1());
-							if(tempNodesG2.contains(mapping.getNodeG2()))
-								tempNodesG2.remove(mapping.getNodeG2());
-						}
-					}
-					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
-					currentStateMap.put(switchCase2, maxStates);
-				}
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode switchCase2 : currentStateMap.keySet()) {
-					currentStates.addAll(currentStateMap.get(switchCase2));
-				}
-				if(!currentStates.isEmpty()) {
-					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
-					PDGNode switchCaseToRemove = null;
-					for(PDGNode switchCase2 : currentStateMap.keySet()) {
-						if(currentStateMap.get(switchCase2).contains(best)) {
-							switchCaseToRemove = switchCase2;
-							break;
-						}
-					}
-					map2.remove(switchCaseToRemove);
-					finalState = best;
-				}
-			}
-			List<MappingState> currentStates = new ArrayList<MappingState>();
-			Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(nodesG1);
-			Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(nodesG2);
-			for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-				if(tempNodesG1.contains(mapping.getNodeG1()))
-					tempNodesG1.remove(mapping.getNodeG1());
-				if(tempNodesG2.contains(mapping.getNodeG2()))
-					tempNodesG2.remove(mapping.getNodeG2());
-			}
-			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
-				currentStates.add(finalState);
-			}
-			else {
-				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
-				for(MappingState temp : maxStates) {
-					if(!currentStates.contains(temp)) {
-						currentStates.add(temp);
-					}
-				}
-			}
-			return currentStates;
-		}
-	}
-
-	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
-		MappingState.setRestrictedNodesG1(nodesG1);
-		MappingState.setRestrictedNodesG2(nodesG2);
-		List<MappingState> finalStates = new ArrayList<MappingState>();
-		if(nodesG1.size() <= nodesG2.size()) {
-			for(PDGNode node1 : nodesG1) {
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode node2 : nodesG2) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable()) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						if(finalStates.isEmpty()) {
-							MappingState state = new MappingState(parent, mapping);
-							state.traverse(mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
-								}
-							}
-						}
-						else {
-							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
-									MappingState state = new MappingState(previousState, mapping);
-									previousState.addChild(state);
-									state.traverse(mapping);
-									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-									for(MappingState temp : maxStates) {
-										if(!currentStates.contains(temp)) {
-											currentStates.add(temp);
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				if(!currentStates.isEmpty())
-					finalStates = getMaximumStates(currentStates);
-			}
-		}
-		else {
-			for(PDGNode node2 : nodesG2) {
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode node1 : nodesG1) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable()) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						if(finalStates.isEmpty()) {
-							MappingState state = new MappingState(parent, mapping);
-							state.traverse(mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
-								}
-							}
-						}
-						else {
-							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
-									MappingState state = new MappingState(previousState, mapping);
-									previousState.addChild(state);
-									state.traverse(mapping);
-									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-									for(MappingState temp : maxStates) {
-										if(!currentStates.contains(temp)) {
-											currentStates.add(temp);
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				if(!currentStates.isEmpty())
-					finalStates = getMaximumStates(currentStates);
-			}
-		}
-		return finalStates;
-	}
-
-	private boolean symmetricalIfNodes(PDGNode nodeG1, PDGNode nodeG2, PDGNode dstNodeG1, PDGNode dstNodeG2) {
-		PDGNode nodeG1ControlParent = nodeG1.getControlDependenceParent();
-		PDGNode nodeG2ControlParent = nodeG2.getControlDependenceParent();
-		PDGNode dstNodeG1ControlParent = dstNodeG1.getControlDependenceParent();
-		PDGNode dstNodeG2ControlParent = dstNodeG2.getControlDependenceParent();
-		if(((dstNodeG1ControlParent != null && dstNodeG1ControlParent.equals(nodeG1) && nodeG2ControlParent != null && nodeG2ControlParent.equals(dstNodeG2)) ||
-				(dstNodeG2ControlParent != null && dstNodeG2ControlParent.equals(nodeG2) && nodeG1ControlParent != null && nodeG1ControlParent.equals(dstNodeG1))) &&
-				dstNodeG1.getCFGNode() instanceof CFGBranchIfNode && dstNodeG2.getCFGNode() instanceof CFGBranchIfNode) {
-			return true;
-		}
-		return false;
-	}
-
-	/*private boolean isExpressionStatementWithConditionalExpression(PDGNode node) {
-		Statement statement = node.getASTStatement();
-		if(statement instanceof ExpressionStatement) {
-			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-			List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(statement);
-			if(conditionalExpressions.size() == 1)
-				return true;
-		}
-		return false;
-	}*/
-
-	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {
-		int max = 0;
-		List<MappingState> maximumStates = new ArrayList<MappingState>();
-		for(MappingState currentState : currentStates) {
-			if(currentState.getSize() > max) {
-				max = currentState.getSize();
-				maximumStates.clear();
-				maximumStates.add(currentState);
-			}
-			else if(currentState.getSize() == max) {
-				maximumStates.add(currentState);
-			}
-		}
-		List<MappingState> maximumStatesWithMinimumDifferences = new ArrayList<MappingState>();
-		if(maximumStates.size() == 1) {
-			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
-		}
-		else {
-			int minimum = maximumStates.get(0).getDistinctDifferenceCount();
-			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));
-			for(int i=1; i<maximumStates.size(); i++) {
-				MappingState currentState = maximumStates.get(i);
-				if(currentState.getDistinctDifferenceCount() < minimum) {
-					minimum = currentState.getDistinctDifferenceCount();
-					maximumStatesWithMinimumDifferences.clear();
-					maximumStatesWithMinimumDifferences.add(currentState);
-				}
-				else if(currentState.getDistinctDifferenceCount() == minimum) {
-					maximumStatesWithMinimumDifferences.add(currentState);
-				}
-			}
-		}
-		return maximumStatesWithMinimumDifferences;
 	}
 
 	public PDG getPDG1() {
@@ -1266,14 +502,6 @@ public class PDGSubTreeMapper {
 
 	public String getMethodName2() {
 		return pdg2.getMethod().getName();
-	}
-
-	public MappingState getMaximumStateWithMinimumDifferences() {
-		return maximumStateWithMinimumDifferences;
-	}
-
-	public CloneStructureNode getCloneStructureRoot() {
-		return cloneStructureRoot;
 	}
 
 	public TreeSet<PDGNode> getRemovableNodesG1() {
@@ -1405,11 +633,11 @@ public class PDGSubTreeMapper {
 	}
 
 	public List<ASTNodeDifference> getNodeDifferences() {
-		return maximumStateWithMinimumDifferences.getNodeDifferences();
+		return getMaximumStateWithMinimumDifferences().getNodeDifferences();
 	}
 
 	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
-		return maximumStateWithMinimumDifferences.getNonOverlappingNodeDifferences();
+		return getMaximumStateWithMinimumDifferences().getNonOverlappingNodeDifferences();
 	}
 
 	public Set<BindingSignaturePair> getRenamedVariables() {
@@ -1759,10 +987,10 @@ public class PDGSubTreeMapper {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
-			if(allNodesInSubTreePDG1.size() != pdg1.getNodes().size()) {
+			if(getAllNodesInSubTreePDG1().size() != pdg1.getNodes().size()) {
 				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
 			}
-			if(allNodesInSubTreePDG2.size() != pdg2.getNodes().size()) {
+			if(getAllNodesInSubTreePDG2().size() != pdg2.getNodes().size()) {
 				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
 			}
 		}
@@ -2086,7 +1314,7 @@ public class PDGSubTreeMapper {
 	}
 	
 	public CloneType getCloneType() {
-		if(maximumStateWithMinimumDifferences != null) {
+		if(getMaximumStateWithMinimumDifferences() != null) {
 			int nodeDifferences = getNodeDifferences().size();
 			if(nodeDifferences == 0 && nonMappedNodesG1.size() == 0 && nonMappedNodesG2.size() == 0) {
 				return CloneType.TYPE_1;
@@ -2095,7 +1323,7 @@ public class PDGSubTreeMapper {
 				return CloneType.TYPE_2;
 			}
 			if(nonMappedNodesG1.size() > 0 || nonMappedNodesG2.size() > 0) {
-				if(isType3(cloneStructureRoot)) {
+				if(isType3(getCloneStructureRoot())) {
 					return CloneType.TYPE_3;
 				}
 				else {

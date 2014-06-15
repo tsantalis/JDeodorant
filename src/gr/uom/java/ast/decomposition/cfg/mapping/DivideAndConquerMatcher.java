@@ -382,7 +382,9 @@ public abstract class DivideAndConquerMatcher {
 							cdtNode2Parent = cdtNode2.getParent();
 							if(finalState != null) {
 								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
-								boolean siblingPairFoundInFinalState = cdtNode1.getIfParent() == null;
+								List<ControlDependenceTreeNode> parentChildren1 = cdtNode1Parent.getChildren();
+								//set true only if cdtNode is the first node in the list of children
+								boolean siblingPairFoundInFinalState = !parentChildren1.isEmpty() && parentChildren1.get(0).equals(cdtNode1);
 								boolean ifParentChildFoundInFinalState = false;
 								List<ControlDependenceTreeNode> ifParentChildren1 = getIfParentChildren1(cdtNode1Parent);
 								List<ControlDependenceTreeNode> ifParentChildren2 = getIfParentChildren2(cdtNode2Parent);
@@ -413,14 +415,6 @@ public abstract class DivideAndConquerMatcher {
 									continue;
 								}
 							}
-						}
-						if(cdtNode1Parent != null && cdtNode2Parent != null &&
-								!cdtNode1Parent.equals(controlDependenceTreePDG1) && !cdtNode2Parent.equals(controlDependenceTreePDG2) &&
-								cdtNode1Parent.getLevel() > 1 && cdtNode2Parent.getLevel() > 1) {
-							//skip the matching of cdtNode1 and cdtNode2, if one has an 'if' parent and the other an 'else' parent
-							if((cdtNode1Parent.getNode() != null && cdtNode1Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode2Parent.isElseNode()) ||
-									(cdtNode2Parent.getNode() != null && cdtNode2Parent.getNode().getCFGNode() instanceof CFGBranchIfNode && cdtNode1Parent.isElseNode()))
-								continue;
 						}
 						if(predicate1.getASTStatement() instanceof SwitchStatement && predicate2.getASTStatement() instanceof SwitchStatement) {
 							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);

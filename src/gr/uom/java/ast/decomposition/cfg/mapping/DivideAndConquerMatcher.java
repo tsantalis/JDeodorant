@@ -330,11 +330,27 @@ public abstract class DivideAndConquerMatcher {
 													List<AbstractExpression> expressions1 = composite1.getExpressions();
 													CompositeStatementObject composite2 = (CompositeStatementObject)predicate2.getStatement();
 													List<AbstractExpression> expressions2 = composite2.getExpressions();
-													ASTNodeDifference nodeDifference = new ASTNodeDifference(expressions1.get(0), expressions2.get(0));
-													Difference diff = new Difference(expressions1.get(0).toString(),expressions2.get(0).toString(),
-															DifferenceType.IF_ELSE_SYMMETRICAL_MATCH);
-													nodeDifference.addDifference(diff);
-													astNodeMatcher.getDifferences().add(nodeDifference);
+													AbstractExpression conditional1 = expressions1.get(0);
+													AbstractExpression conditional2 = expressions2.get(0);
+													//check if there is already a difference covering the entire conditional expressions
+													boolean found = false;
+													for(ASTNodeDifference nodeDifference : astNodeMatcher.getDifferences()) {
+														if(nodeDifference.getExpression1().toString().equals(conditional1.toString()) &&
+																nodeDifference.getExpression2().toString().equals(conditional2.toString())) {
+															found = true;
+															Difference diff = new Difference(conditional1.toString(),conditional2.toString(),
+																	DifferenceType.IF_ELSE_SYMMETRICAL_MATCH);
+															nodeDifference.addDifference(diff);
+															break;
+														}
+													}
+													if(!found) {
+														ASTNodeDifference nodeDifference = new ASTNodeDifference(conditional1, conditional2);
+														Difference diff = new Difference(conditional1.toString(),conditional2.toString(),
+																DifferenceType.IF_ELSE_SYMMETRICAL_MATCH);
+														nodeDifference.addDifference(diff);
+														astNodeMatcher.getDifferences().add(nodeDifference);
+													}
 													PDGNodeMapping mapping = new PDGNodeMapping(predicate1, predicate2, astNodeMatcher);
 													mapping.setSymmetricalIfElse(true);
 													MappingState state = new MappingState(finalState, mapping);

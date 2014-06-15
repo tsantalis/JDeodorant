@@ -84,6 +84,8 @@ import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.ParameterizedType;
+import org.eclipse.jdt.core.dom.ParenthesizedExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -974,6 +976,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, newIfExpression, null);
 			List<CloneStructureNode> trueControlDependentChildren = new ArrayList<CloneStructureNode>();
 			List<CloneStructureNode> falseControlDependentChildren = new ArrayList<CloneStructureNode>();
+			boolean symmetricalIfElse = nodeMapping.isSymmetricalIfElse();
 			for(CloneStructureNode child : node.getChildren()) {
 				if(child.getMapping() instanceof PDGNodeMapping) {
 					PDGNodeMapping childMapping = (PDGNodeMapping) child.getMapping();
@@ -992,18 +995,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
 						PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
 						if(controlDependence1 != null && controlDependence2 != null) {
-							if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
+							if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
+									(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
 								trueControlDependentChildren.add(child);
 							}
-							else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
+							else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
+									(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
 								falseControlDependentChildren.add(child);
 							}
 						}
 						else {
-							if(isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) {
+							if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
+									isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
 								falseControlDependentChildren.add(child);
 							}
-							else if(!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) {
+							else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
+									!isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
 								trueControlDependentChildren.add(child);
 							}
 						}
@@ -1028,18 +1035,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
 								PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
 								if(controlDependence1 != null && controlDependence2 != null) {
-									if(controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) {
+									if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
+											(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
 										trueControlDependentChildren.add(child2);
 									}
-									else if(controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) {
+									else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
+											(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
 										falseControlDependentChildren.add(child2);
 									}
 								}
 								else {
-									if(isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) {
+									if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
+											(isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
 										falseControlDependentChildren.add(child2);
 									}
-									else if(!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) {
+									else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
+											(!isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
 										trueControlDependentChildren.add(child2);
 									}
 								}
@@ -1975,10 +1986,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(expression != null)
 				isReturnedVariable = isReturnedVariable(expression, returnedVariables);
 			if(!isReturnedVariable) {
-				if(expression != null)
-					argumentsRewrite.insertLast(expression, null);
-				else
+				if(expression != null) {
+					if(difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH) && index == 1) {
+						ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
+						methodBodyRewriter.set(parenthesizedExpression, ParenthesizedExpression.EXPRESSION_PROPERTY, expression, null);
+						PrefixExpression prefixExpression = ast.newPrefixExpression();
+						methodBodyRewriter.set(prefixExpression, PrefixExpression.OPERAND_PROPERTY, parenthesizedExpression, null);
+						methodBodyRewriter.set(prefixExpression, PrefixExpression.OPERATOR_PROPERTY, PrefixExpression.Operator.NOT, null);
+						argumentsRewrite.insertLast(prefixExpression, null);
+					}
+					else {
+						argumentsRewrite.insertLast(expression, null);
+					}
+				}
+				else {
 					argumentsRewrite.insertLast(ast.newThisExpression(), null);
+				}
 			}
 		}
 		//place the code in the parent block of the first removable node

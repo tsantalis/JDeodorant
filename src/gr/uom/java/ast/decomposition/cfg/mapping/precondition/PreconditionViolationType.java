@@ -18,10 +18,10 @@ public enum PreconditionViolationType {
 	
 	public String toString() {
 		if(name().equals(EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED.name())) {
-			return "cannot be parameterized, because it accesses variables declared in statements that will be extracted";
+			return "cannot be parameterized, because it has dependencies to/from statements that will be extracted";
 		}
 		else if(name().equals(UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE.name())) {
-			return "cannot be moved before or after the extracted code, because it accesses variables declared in statements that will be extracted";
+			return "cannot be moved before or after the extracted code, because it has dependencies to/from statements that will be extracted";
 		}
 		return "";
 	}

@@ -94,6 +94,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG1;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
 	private List<PreconditionViolation> preconditionViolations;
+	private Set<BindingSignaturePair> renamedVariables;
 	private Set<PlainVariable> variablesToBeReturnedG1;
 	private Set<PlainVariable> variablesToBeReturnedG2;
 	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableBefore;
@@ -186,6 +187,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
+			this.renamedVariables = getRenamedVariables();
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
@@ -641,8 +643,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	}
 
 	public Set<BindingSignaturePair> getRenamedVariables() {
-		List<BindingSignaturePair> variableNameMismatches = new ArrayList<BindingSignaturePair>();
-		List<Difference> variableNameMismatchDifferences = new ArrayList<Difference>();
+		Set<BindingSignaturePair> variableNameMismatches = new LinkedHashSet<BindingSignaturePair>();
 		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
 			List<Difference> diffs = nodeDifference.getDifferences();
 			for(Difference diff : diffs) {
@@ -664,107 +665,92 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 							if(declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
 									declaringMethod2 != null && declaringMethod2.isEqualTo(method2)) {
 								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
-								variableNameMismatchDifferences.add(diff);
-							}
-						}
-					}
-				}
-				if(diff.getType().equals(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT)) {
-					Expression expression1 = nodeDifference.getExpression1().getExpression();
-					Expression expression2 = nodeDifference.getExpression2().getExpression();
-					if(expression1 instanceof SimpleName && !(expression2 instanceof SimpleName)) {
-						SimpleName simpleName1 = (SimpleName)expression1;
-						IBinding binding1 = simpleName1.resolveBinding();
-						if(binding1.getKind() == IBinding.VARIABLE) {
-							IVariableBinding variableBinding1 = (IVariableBinding)binding1;
-							IMethodBinding declaringMethod1 = variableBinding1.getDeclaringMethod();
-							IMethodBinding  method1 = pdg1.getMethod().getMethodDeclaration().resolveBinding();
-							if(declaringMethod1 != null && declaringMethod1.isEqualTo(method1)) {
-								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
-								variableNameMismatchDifferences.add(diff);
-							}
-						}
-					}
-					else if(!(expression1 instanceof SimpleName) && expression2 instanceof SimpleName) {
-						SimpleName simpleName2 = (SimpleName)expression2;
-						IBinding binding2 = simpleName2.resolveBinding();
-						if(binding2.getKind() == IBinding.VARIABLE) {
-							IVariableBinding variableBinding2 = (IVariableBinding)binding2;
-							IMethodBinding declaringMethod2 = variableBinding2.getDeclaringMethod();
-							IMethodBinding  method2 = pdg2.getMethod().getMethodDeclaration().resolveBinding();
-							if(declaringMethod2 != null && declaringMethod2.isEqualTo(method2)) {
-								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
-								variableNameMismatchDifferences.add(diff);
 							}
 						}
 					}
 				}
 			}
 		}
-		Set<BindingSignaturePair> renamedVariables = new LinkedHashSet<BindingSignaturePair>();
-		Set<BindingSignaturePair> swappedVariables = new LinkedHashSet<BindingSignaturePair>();
-		for(int i=0; i<variableNameMismatches.size(); i++) {
-			BindingSignaturePair signaturePairI = variableNameMismatches.get(i);
-			if(!renamedVariables.contains(signaturePairI)) {
-				boolean isRenamed = true;
-				boolean isSwapped = true;
-				int renameCount = 0;
-				int swapCount = 0;
-				for(int j=0; j<variableNameMismatches.size(); j++) {
-					BindingSignaturePair signaturePairJ = variableNameMismatches.get(j);
-					if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
-						if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
-							renameCount++;
-						}
-						else {
-							isRenamed = false;
+		Set<BindingSignaturePair> inconsistentRenames = new LinkedHashSet<BindingSignaturePair>();
+		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+			PDGNode nodeG1 = nodeMapping.getNodeG1();
+			PDGNode nodeG2 = nodeMapping.getNodeG2();
+			Set<PlainVariable> variables1 = getVariables(nodeG1);
+			Set<PlainVariable> variables2 = getVariables(nodeG2);
+			for(PlainVariable plainVariable1 : variables1) {
+				BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
+				if(pair1 != null) {
+					boolean matchingPairFound = false;
+					for(PlainVariable plainVariable2 : variables2) {
+						BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, variableNameMismatches);
+						if(pair2 != null && pair2.equals(pair1)) {
+							matchingPairFound = true;
 							break;
 						}
 					}
-					else if(signaturePairI.getSignature2().equals(signaturePairJ.getSignature2())) {
-						if(signaturePairI.getSignature1().equals(signaturePairJ.getSignature1())) {
-							renameCount++;
-						}
-						else {
-							isRenamed = false;
+					if(!matchingPairFound) {
+						inconsistentRenames.add(pair1);
+					}
+				}
+			}
+			for(PlainVariable plainVariable2 : variables2) {
+				BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, variableNameMismatches);
+				if(pair2 != null) {
+					boolean matchingPairFound = false;
+					for(PlainVariable plainVariable1 : variables1) {
+						BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
+						if(pair1 != null && pair1.equals(pair2)) {
+							matchingPairFound = true;
 							break;
 						}
 					}
-					else {
-						Difference diffI = variableNameMismatchDifferences.get(i);
-						Difference diffJ = variableNameMismatchDifferences.get(j);
-						if(diffI.getFirstValue().equals(diffJ.getSecondValue())) {
-							if(diffI.getSecondValue().equals(diffJ.getFirstValue())) {
-								swapCount++;
-							}
-							else {
-								isSwapped = false;
-								break;
-							}
-						}
-						else if(diffI.getSecondValue().equals(diffJ.getFirstValue())) {
-							if(diffI.getFirstValue().equals(diffJ.getSecondValue())) {
-								swapCount++;
-							}
-							else {
-								isSwapped = false;
-								break;
-							}
-						}
+					if(!matchingPairFound) {
+						inconsistentRenames.add(pair2);
 					}
-				}
-				if(isRenamed && renameCount > 1) {
-					renamedVariables.add(signaturePairI);
-				}
-				if(isSwapped && isRenamed && swapCount > 0) {
-					swappedVariables.add(signaturePairI);
 				}
 			}
 		}
 		Set<BindingSignaturePair> variables = new LinkedHashSet<BindingSignaturePair>();
-		variables.addAll(renamedVariables);
-		variables.addAll(swappedVariables);
+		variables.addAll(variableNameMismatches);
+		variables.removeAll(inconsistentRenames);
 		return variables;
+	}
+
+	private Set<PlainVariable> getVariables(PDGNode node) {
+		Set<PlainVariable> variables = new LinkedHashSet<PlainVariable>();
+		Iterator<AbstractVariable> definedVariableIterator = node.getDefinedVariableIterator();
+		while(definedVariableIterator.hasNext()) {
+			AbstractVariable variable = definedVariableIterator.next();
+			if(variable instanceof PlainVariable) {
+				variables.add((PlainVariable)variable);
+			}
+		}
+		Iterator<AbstractVariable> usedVariableIterator = node.getUsedVariableIterator();
+		while(usedVariableIterator.hasNext()) {
+			AbstractVariable variable = usedVariableIterator.next();
+			if(variable instanceof PlainVariable) {
+				variables.add((PlainVariable)variable);
+			}
+		}
+		return variables;
+	}
+
+	private BindingSignaturePair getBindingSignaturePairForVariable1(PlainVariable plainVariable, Set<BindingSignaturePair> variableNameMismatches) {
+		for(BindingSignaturePair pair : variableNameMismatches) {
+			if(pair.getSignature1().containsOnlyBinding(plainVariable.getVariableBindingKey())) {
+				return pair;
+			}
+		}
+		return null;
+	}
+
+	private BindingSignaturePair getBindingSignaturePairForVariable2(PlainVariable plainVariable, Set<BindingSignaturePair> variableNameMismatches) {
+		for(BindingSignaturePair pair : variableNameMismatches) {
+			if(pair.getSignature2().containsOnlyBinding(plainVariable.getVariableBindingKey())) {
+				return pair;
+			}
+		}
+		return null;
 	}
 
 	public List<PreconditionViolation> getPreconditionViolations() {
@@ -877,7 +863,6 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	}
 
 	private void checkPreconditions(CloneStructureNode node) {
-		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
 		TreeSet<PDGNode> removableNodesG1 = getRemovableNodesG1();
 		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
 		NodeMapping nodeMapping = node.getMapping();

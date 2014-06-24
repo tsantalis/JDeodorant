@@ -16,6 +16,7 @@ import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -727,11 +728,37 @@ public abstract class DivideAndConquerMatcher {
 		CodeFragmentDecomposer cfd2 = new CodeFragmentDecomposer(nodesG2, pdg2.getFieldsAccessedInMethod());
 		Map<PlainVariable, Set<PDGNode>> map1 = cfd1.getObjectNodeMap();
 		Map<PlainVariable, Set<PDGNode>> map2 = cfd2.getObjectNodeMap();
+		Set<PlainVariable> variables1 = new LinkedHashSet<PlainVariable>(map1.keySet());
+		Set<PlainVariable> variables2 = new LinkedHashSet<PlainVariable>(map2.keySet());
+		MappingState finalState = parent;
 		if(map1.isEmpty() || map2.isEmpty()) {
-			return processPDGNodes(parent, nodesG1, nodesG2);
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(nodesG1);
+			Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(nodesG2);
+			List<MappingState> tempStates = matchBasedOnIdenticalStatements(finalState, tempNodesG1, tempNodesG2, variables1, variables2);
+			if(!tempStates.isEmpty()) {
+				finalState = findMaximumStateWithMinimumDifferences(tempStates);
+				for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+					if(tempNodesG1.contains(mapping.getNodeG1()))
+						tempNodesG1.remove(mapping.getNodeG1());
+					if(tempNodesG2.contains(mapping.getNodeG2()))
+						tempNodesG2.remove(mapping.getNodeG2());
+				}
+			}
+			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
+				currentStates.add(finalState);
+			}
+			else {
+				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+				for(MappingState temp : maxStates) {
+					if(!currentStates.contains(temp)) {
+						currentStates.add(temp);
+					}
+				}
+			}
+			return currentStates;
 		}
 		else {
-			MappingState finalState = parent;
 			for(PlainVariable variable1 : map1.keySet()) {
 				Set<PDGNode> variableNodesG1 = map1.get(variable1);
 				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
@@ -782,15 +809,80 @@ public abstract class DivideAndConquerMatcher {
 				currentStates.add(finalState);
 			}
 			else {
-				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
-				for(MappingState temp : maxStates) {
-					if(!currentStates.contains(temp)) {
-						currentStates.add(temp);
+				List<MappingState> tempStates = matchBasedOnIdenticalStatements(finalState, tempNodesG1, tempNodesG2, variables1, variables2);
+				finalState = findMaximumStateWithMinimumDifferences(tempStates);
+				for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+					if(tempNodesG1.contains(mapping.getNodeG1()))
+						tempNodesG1.remove(mapping.getNodeG1());
+					if(tempNodesG2.contains(mapping.getNodeG2()))
+						tempNodesG2.remove(mapping.getNodeG2());
+				}
+				if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
+					currentStates.add(finalState);
+				}
+				else {
+					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+					for(MappingState temp : maxStates) {
+						if(!currentStates.contains(temp)) {
+							currentStates.add(temp);
+						}
 					}
 				}
 			}
 			return currentStates;
 		}
+	}
+
+	private List<MappingState> matchBasedOnIdenticalStatements(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2,
+			Set<PlainVariable> variables1, Set<PlainVariable> variables2) {
+		IdenticalStatementDecomposer isd1 = new IdenticalStatementDecomposer(nodesG1);
+		IdenticalStatementDecomposer isd2 = new IdenticalStatementDecomposer(nodesG2);
+		Map<String, Set<PDGNode>> map1 = isd1.getIdenticalNodeMap();
+		Map<String, Set<PDGNode>> map2 = isd2.getIdenticalNodeMap();
+		MappingState finalState = parent;
+		for(String variable1 : map1.keySet()) {
+			Set<PDGNode> variableNodesG1 = map1.get(variable1);
+			Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
+			Map<String, List<MappingState>> currentStateMap = new LinkedHashMap<String, List<MappingState>>();
+			for(String variable2 : map2.keySet()) {
+				String renamedVariable2 = variable2;
+				if(variables1.size() == variables2.size()) {
+					Iterator<PlainVariable> iterator1 = variables1.iterator();
+					Iterator<PlainVariable> iterator2 = variables2.iterator();
+					while(iterator1.hasNext()) {
+						PlainVariable var1 = iterator1.next();
+						PlainVariable var2 = iterator2.next();
+						renamedVariable2 = renamedVariable2.replaceAll(var2.getVariableName(), var1.getVariableName());
+					}
+				}
+				if(variable1.equals(variable2) || variable1.equals(renamedVariable2)) {
+					Set<PDGNode> variableNodesG2 = map2.get(variable2);
+					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
+					if(finalState != null) {
+						for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+							if(tempNodesG1.contains(mapping.getNodeG1()))
+								tempNodesG1.remove(mapping.getNodeG1());
+							if(tempNodesG2.contains(mapping.getNodeG2()))
+								tempNodesG2.remove(mapping.getNodeG2());
+						}
+					}
+					List<MappingState> maxStates = processIdenticalPDGNodes(finalState, tempNodesG1, tempNodesG2);
+					currentStateMap.put(variable2, maxStates);
+				}
+			}
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			for(String variable2 : currentStateMap.keySet()) {
+				currentStates.addAll(currentStateMap.get(variable2));
+			}
+			if(!currentStates.isEmpty()) {
+				MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
+				finalState = best;
+			}
+		}
+		List<MappingState> currentStates = new ArrayList<MappingState>();
+		if(finalState != null)
+			currentStates.add(finalState);
+		return currentStates;
 	}
 
 	private List<MappingState> matchBasedOnSwitchCases(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
@@ -948,6 +1040,56 @@ public abstract class DivideAndConquerMatcher {
 					finalStates = getMaximumStates(currentStates);
 			}
 		}
+		return finalStates;
+	}
+
+
+	private List<MappingState> processIdenticalPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		MappingState finalState = parent;
+		if(nodesG1.size() <= nodesG2.size()) {
+			for(PDGNode node1 : nodesG1) {
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PDGNode node2 : nodesG2) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match = astNodeMatcher.match(node1, node2);
+					if(match && astNodeMatcher.isParameterizable()) {
+						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+						MappingState state = new MappingState(finalState, mapping);
+						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+						for(MappingState temp : maxStates) {
+							if(!currentStates.contains(temp)) {
+								currentStates.add(temp);
+							}
+						}
+					}
+				}
+				if(!currentStates.isEmpty())
+					finalState = findMaximumStateWithMinimumDifferences(currentStates);
+			}
+		}
+		else {
+			for(PDGNode node2 : nodesG2) {
+				List<MappingState> currentStates = new ArrayList<MappingState>();
+				for(PDGNode node1 : nodesG1) {
+					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+					boolean match = astNodeMatcher.match(node1, node2);
+					if(match && astNodeMatcher.isParameterizable()) {
+						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+						MappingState state = new MappingState(finalState, mapping);
+						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+						for(MappingState temp : maxStates) {
+							if(!currentStates.contains(temp)) {
+								currentStates.add(temp);
+							}
+						}
+					}
+				}
+				if(!currentStates.isEmpty())
+					finalState = findMaximumStateWithMinimumDifferences(currentStates);
+			}
+		}
+		List<MappingState> finalStates = new ArrayList<MappingState>();
+		finalStates.add(finalState);
 		return finalStates;
 	}
 

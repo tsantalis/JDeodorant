@@ -271,6 +271,34 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			if(dataDependences1.size() == dataDependences2.size()) {
 				List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
 				List<AbstractVariable> variables2 = new ArrayList<AbstractVariable>(dataDependences2);
+				List<String> variableNames1 = new ArrayList<String>();
+				List<String> variableNames2 = new ArrayList<String>();
+				for(int i=0; i<variables1.size(); i++) {
+					variableNames1.add(variables1.get(i).getVariableName());
+					variableNames2.add(variables2.get(i).getVariableName());
+				}
+				if(variableNames1.containsAll(variableNames2) && variableNames2.containsAll(variableNames1) &&
+						variableNames1.size() > 0 && variableNames2.size() > 0) {
+					//sort variables based on their names
+					List<AbstractVariable> sortedVariables1 = new ArrayList<AbstractVariable>();
+					List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
+					for(int i=0; i<variables1.size(); i++) {
+						AbstractVariable variable1 = variables1.get(i);
+						sortedVariables1.add(variable1);
+						for(int j=0; j<variables2.size(); j++) {
+							AbstractVariable variable2 = variables2.get(j);
+							if(variable2.getVariableName().equals(variable1.getVariableName()) &&
+									variable2.getVariableType().equals(variable1.getVariableType())) {
+								sortedVariables2.add(variable2);
+								break;
+							}
+						}
+					}
+					if(sortedVariables1.size() == sortedVariables2.size()) {
+						variables1 = sortedVariables1;
+						variables2 = sortedVariables2;
+					}
+				}
 				for(int i=0; i<variables1.size(); i++) {
 					AbstractVariable variable1 = variables1.get(i);
 					AbstractVariable variable2 = variables2.get(i);

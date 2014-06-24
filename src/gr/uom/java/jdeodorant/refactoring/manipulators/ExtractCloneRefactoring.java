@@ -374,7 +374,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			cloneInfo.ast = cloneInfo.sourceTypeDeclaration.getAST();
 		}
 		else {
-			//check is they have a common superclass
+			//check if they have a common superclass
 			ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
 			ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
 			commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
@@ -390,9 +390,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				boolean superclassIsOneOfTheSourceTypeDeclarations = false;
 				if(typeBinding1.isEqualTo(commonSuperTypeOfSourceTypeDeclarations) || typeBinding2.isEqualTo(commonSuperTypeOfSourceTypeDeclarations))
 					superclassIsOneOfTheSourceTypeDeclarations = true;
+				boolean superclassDirectlyInheritedFromRefactoringSubclasses =
+						typeBinding1.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+						typeBinding2.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations);
 				if(((mapper.getAccessedLocalFieldsG1().isEmpty() && mapper.getAccessedLocalFieldsG2().isEmpty() &&
 						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty())
-						|| superclassInheritedOnlyByRefactoringSubclasses || superclassIsOneOfTheSourceTypeDeclarations) &&
+						|| superclassInheritedOnlyByRefactoringSubclasses || superclassIsOneOfTheSourceTypeDeclarations
+						|| !superclassDirectlyInheritedFromRefactoringSubclasses) &&
 						ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null) {
 					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
 					IJavaElement javaElement = commonSuperTypeOfSourceTypeDeclarations.getJavaElement();
@@ -699,12 +703,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								break;
 							}
 						}
+						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 						boolean exactClones = methodDeclaration1.subtreeMatch(new ASTMatcher(), methodDeclaration2);
 						if(exactClones) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
 									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
+								typeBindings.add(methodDeclaration1.getReturnType2().resolveBinding());
+								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
+								for(SingleVariableDeclaration parameter : parameters) {
+									typeBindings.add(parameter.getType().resolveBinding());
+								}
+								List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
+								for(Name thrownException : thrownExceptions) {
+									typeBindings.add(thrownException.resolveTypeBinding());
+								}
 							}
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
@@ -718,7 +732,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
-								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclaration1.getReturnType2(), null);	
+								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, methodDeclaration1.getReturnType2(), null);
+								typeBindings.add(methodDeclaration1.getReturnType2().resolveBinding());
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
 								for(IExtendedModifier extendedModifier : originalModifiers) {
@@ -737,15 +752,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
 								for(SingleVariableDeclaration parameter : parameters) {
 									parametersRewrite.insertLast(parameter, null);
+									typeBindings.add(parameter.getType().resolveBinding());
 								}
 								ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
 								List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
 								for(Name thrownException : thrownExceptions) {
 									thrownExceptionsRewrite.insertLast(thrownException, null);
+									typeBindings.add(thrownException.resolveTypeBinding());
 								}
 								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 							}
 						}
+						getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						break;
 					}
 				}

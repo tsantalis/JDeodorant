@@ -53,6 +53,9 @@ public class CodeFragmentDecomposer {
 					}
 				}
 			}
+			if(pdgNode.instantiatesLocalVariable(reference)) {
+				nodesDefiningAttributes.add(pdgNode);
+			}
 		}
 		return nodesDefiningAttributes;
 	}

@@ -177,7 +177,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	public boolean instantiatesLocalVariable(AbstractVariable variable) {
-		if(variable instanceof PlainVariable) {
+		if(variable instanceof PlainVariable && this.definesLocalVariable(variable)) {
 			PlainVariable plainVariable = (PlainVariable)variable;
 			String variableType = plainVariable.getVariableType();
 			for(TypeObject type : createdTypes) {

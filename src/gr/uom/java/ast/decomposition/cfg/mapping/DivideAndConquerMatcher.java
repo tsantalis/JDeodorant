@@ -1040,6 +1040,8 @@ public abstract class DivideAndConquerMatcher {
 					finalStates = getMaximumStates(currentStates);
 			}
 		}
+		if(finalStates.isEmpty() && parent != null)
+			finalStates.add(parent);
 		return finalStates;
 	}
 

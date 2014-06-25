@@ -127,6 +127,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1 = new LinkedHashSet<AbstractVariable>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		this.preconditionViolations = new ArrayList<PreconditionViolation>();
+		this.renamedVariables = new LinkedHashSet<BindingSignaturePair>();
 		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableBeforeAndAfter = new TreeSet<PDGNode>();
@@ -187,7 +188,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
-			this.renamedVariables = getRenamedVariables();
+			this.renamedVariables = findRenamedVariables();
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
@@ -670,7 +671,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return getMaximumStateWithMinimumDifferences().getNonOverlappingNodeDifferences();
 	}
 
-	public Set<BindingSignaturePair> getRenamedVariables() {
+	private Set<BindingSignaturePair> findRenamedVariables() {
 		Set<BindingSignaturePair> variableNameMismatches = new LinkedHashSet<BindingSignaturePair>();
 		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
 			List<Difference> diffs = nodeDifference.getDifferences();
@@ -783,6 +784,10 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 
 	public List<PreconditionViolation> getPreconditionViolations() {
 		return preconditionViolations;
+	}
+
+	public Set<BindingSignaturePair> getRenamedVariables() {
+		return renamedVariables;
 	}
 
 	public Set<PlainVariable> getVariablesToBeReturnedG1() {

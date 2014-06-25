@@ -810,12 +810,14 @@ public abstract class DivideAndConquerMatcher {
 			}
 			else {
 				List<MappingState> tempStates = matchBasedOnIdenticalStatements(finalState, tempNodesG1, tempNodesG2, variables1, variables2);
-				finalState = findMaximumStateWithMinimumDifferences(tempStates);
-				for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-					if(tempNodesG1.contains(mapping.getNodeG1()))
-						tempNodesG1.remove(mapping.getNodeG1());
-					if(tempNodesG2.contains(mapping.getNodeG2()))
-						tempNodesG2.remove(mapping.getNodeG2());
+				if(!tempStates.isEmpty()) {
+					finalState = findMaximumStateWithMinimumDifferences(tempStates);
+					for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+						if(tempNodesG1.contains(mapping.getNodeG1()))
+							tempNodesG1.remove(mapping.getNodeG1());
+						if(tempNodesG2.contains(mapping.getNodeG2()))
+							tempNodesG2.remove(mapping.getNodeG2());
+					}
 				}
 				if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
 					currentStates.add(finalState);
@@ -1091,7 +1093,8 @@ public abstract class DivideAndConquerMatcher {
 			}
 		}
 		List<MappingState> finalStates = new ArrayList<MappingState>();
-		finalStates.add(finalState);
+		if(finalState != null)
+			finalStates.add(finalState);
 		return finalStates;
 	}
 

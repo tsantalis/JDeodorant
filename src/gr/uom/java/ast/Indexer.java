@@ -79,6 +79,8 @@ public class Indexer {
 				IJavaSearchScope scope = null;
 				if(packageFragment.getElementName().equals("java.util"))
 					scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {packageFragment}, false);
+				else if(superType.getFullyQualifiedName().equals("java.lang.Runnable"))
+					scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {packageFragment}, false);
 				else
 					scope = SearchEngine.createHierarchyScope(superType);
 				SearchRequestor requestor = new TypeSearchRequestor(subTypes);

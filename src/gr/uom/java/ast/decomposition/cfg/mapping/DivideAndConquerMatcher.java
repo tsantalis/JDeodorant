@@ -719,7 +719,8 @@ public abstract class DivideAndConquerMatcher {
 			}
 		}
 		List<MappingState> currentStates = new ArrayList<MappingState>();
-		currentStates.add(finalState);
+		if(finalState != null)
+			currentStates.add(finalState);
 		return currentStates;
 	}
 
@@ -746,7 +747,8 @@ public abstract class DivideAndConquerMatcher {
 				}
 			}
 			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
-				currentStates.add(finalState);
+				if(finalState != null)
+					currentStates.add(finalState);
 			}
 			else {
 				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
@@ -806,7 +808,8 @@ public abstract class DivideAndConquerMatcher {
 				}
 			}
 			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
-				currentStates.add(finalState);
+				if(finalState != null)
+					currentStates.add(finalState);
 			}
 			else {
 				List<MappingState> tempStates = matchBasedOnIdenticalStatements(finalState, tempNodesG1, tempNodesG2, variables1, variables2);
@@ -820,7 +823,8 @@ public abstract class DivideAndConquerMatcher {
 					}
 				}
 				if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
-					currentStates.add(finalState);
+					if(finalState != null)
+						currentStates.add(finalState);
 				}
 				else {
 					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
@@ -946,7 +950,8 @@ public abstract class DivideAndConquerMatcher {
 					tempNodesG2.remove(mapping.getNodeG2());
 			}
 			if(tempNodesG1.isEmpty() || tempNodesG2.isEmpty()) {
-				currentStates.add(finalState);
+				if(finalState != null)
+					currentStates.add(finalState);
 			}
 			else {
 				List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);

@@ -3,6 +3,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
@@ -54,6 +55,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -87,10 +89,12 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
 	private Set<AbstractVariable> passedParametersG1;
 	private Set<AbstractVariable> passedParametersG2;
-	private Set<AbstractVariable> accessedLocalFieldsG1;
-	private Set<AbstractVariable> accessedLocalFieldsG2;
-	private Set<MethodInvocationObject> accessedLocalMethodsG1;
-	private Set<MethodInvocationObject> accessedLocalMethodsG2;
+	private Set<AbstractVariable> directlyAccessedLocalFieldsG1;
+	private Set<AbstractVariable> directlyAccessedLocalFieldsG2;
+	private Set<AbstractVariable> indirectlyAccessedLocalFieldsG1;
+	private Set<AbstractVariable> indirectlyAccessedLocalFieldsG2;
+	private Set<MethodObject> accessedLocalMethodsG1;
+	private Set<MethodObject> accessedLocalMethodsG2;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG1;
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
 	private List<PreconditionViolation> preconditionViolations;
@@ -120,10 +124,12 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
 		this.passedParametersG1 = new LinkedHashSet<AbstractVariable>();
 		this.passedParametersG2 = new LinkedHashSet<AbstractVariable>();
-		this.accessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
-		this.accessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
-		this.accessedLocalMethodsG1 = new LinkedHashSet<MethodInvocationObject>();
-		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodInvocationObject>();
+		this.directlyAccessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
+		this.directlyAccessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
+		this.indirectlyAccessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
+		this.indirectlyAccessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
+		this.accessedLocalMethodsG1 = new LinkedHashSet<MethodObject>();
+		this.accessedLocalMethodsG2 = new LinkedHashSet<MethodObject>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG1 = new LinkedHashSet<AbstractVariable>();
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		this.preconditionViolations = new ArrayList<PreconditionViolation>();
@@ -184,8 +190,24 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 			findPassedParameters();
-			findLocallyAccessedFields(pdg1, mappedNodesG1, accessedLocalFieldsG1, accessedLocalMethodsG1);
-			findLocallyAccessedFields(pdg2, mappedNodesG2, accessedLocalFieldsG2, accessedLocalMethodsG2);
+			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
+			List<AbstractExpression> expressions2 = new ArrayList<AbstractExpression>();
+			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions1 = new ArrayList<AbstractExpression>();
+			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions2 = new ArrayList<AbstractExpression>();
+			for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
+				if(!nodeDifference.containsDifferenceType(DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER)) {
+					expressions1.add(nodeDifference.getExpression1());
+					expressions2.add(nodeDifference.getExpression2());
+				}
+				else {
+					fieldAccessReplacedWithGetterExpressions1.add(nodeDifference.getExpression1());
+					fieldAccessReplacedWithGetterExpressions2.add(nodeDifference.getExpression2());
+				}
+			}
+			findLocallyAccessedFields(pdg1, mappedNodesG1, directlyAccessedLocalFieldsG1, indirectlyAccessedLocalFieldsG1, accessedLocalMethodsG1,
+					expressions1, fieldAccessReplacedWithGetterExpressions1);
+			findLocallyAccessedFields(pdg2, mappedNodesG2, directlyAccessedLocalFieldsG2, indirectlyAccessedLocalFieldsG2, accessedLocalMethodsG2,
+					expressions2, fieldAccessReplacedWithGetterExpressions2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
 			this.renamedVariables = findRenamedVariables();
@@ -338,8 +360,18 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return passedParameters;
 	}
 
-	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> accessedFields,
-			Set<MethodInvocationObject> accessedMethods) {
+	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> directlyAccessedFields,
+			Set<AbstractVariable> indirectlyAccessedFields, Set<MethodObject> accessedMethods,
+			List<AbstractExpression> expressionsInDifferences, List<AbstractExpression> fieldAccessReplacedWithGetterExpressions) {
+		Set<MethodInvocationObject> methodInvocationsToBeExcluded = new LinkedHashSet<MethodInvocationObject>();
+		for(AbstractExpression expression : expressionsInDifferences) {
+			methodInvocationsToBeExcluded.addAll(expression.getInvokedMethodsThroughThisReference());
+			methodInvocationsToBeExcluded.addAll(expression.getInvokedStaticMethods());
+		}
+		Set<AbstractVariable> fieldsWithGetterToBeIncluded = new LinkedHashSet<AbstractVariable>();
+		for(AbstractExpression expression : fieldAccessReplacedWithGetterExpressions) {
+			fieldsWithGetterToBeIncluded.addAll(expression.getUsedFieldsThroughThisReference());
+		}
 		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
 		Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
 		for(PDGNode pdgNode : mappedNodes) {
@@ -377,6 +409,69 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod) {
 				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey()) &&
 						fieldDeclaration.resolveBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
+					directlyAccessedFields.add(variable);
+					if(fieldsWithGetterToBeIncluded.contains(variable)) {
+						SystemObject system = ASTReader.getSystemObject();
+						ClassObject accessedClass = system.getClassObject(pdg.getMethod().getClassName());
+						if(accessedClass != null) {
+							ListIterator<MethodObject> it = accessedClass.getMethodIterator();
+							while(it.hasNext()) {
+								MethodObject method = it.next();
+								FieldInstructionObject getterFieldInstruction = method.isGetter();
+								if(getterFieldInstruction != null) {
+									if(variable.getVariableBindingKey().equals(getterFieldInstruction.getSimpleName().resolveBinding().getKey())) {
+										accessedMethods.add(method);
+										break;
+									}
+								}
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
+		for(MethodInvocationObject invocation : accessedLocalMethods) {
+			if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding) &&
+					!methodInvocationsToBeExcluded.contains(invocation)) {
+				//exclude recursive method calls
+				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
+					SystemObject system = ASTReader.getSystemObject();
+					MethodObject calledMethod = system.getMethod(invocation);
+					if(calledMethod != null) {
+						accessedMethods.add(calledMethod);
+						FieldInstructionObject getterFieldInstruction = calledMethod.isGetter();
+						if(getterFieldInstruction != null) {
+							Set<PlainVariable> usedFields = calledMethod.getUsedFieldsThroughThisReference();
+							for(PlainVariable plainVariable : usedFields) {
+								if(plainVariable.getVariableBindingKey().equals(getterFieldInstruction.getSimpleName().resolveBinding().getKey())) {
+									directlyAccessedFields.add(plainVariable);
+									break;
+								}
+							}
+						}
+						ClassObject calledClass = system.getClassObject(calledMethod.getClassName());
+						getAdditionalLocallyAccessedFieldsAndMethods(calledMethod, calledClass, indirectlyAccessedFields, accessedMethods);
+					}
+				}
+			}
+		}
+	}
+	
+	private void getAdditionalLocallyAccessedFieldsAndMethods(MethodObject calledMethod, ClassObject calledClass,
+			Set<AbstractVariable> accessedFields, Set<MethodObject> accessedMethods) {
+		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
+		Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
+		usedLocalFields.addAll(calledMethod.getUsedFieldsThroughThisReference());
+		accessedLocalMethods.addAll(calledMethod.getInvokedMethodsThroughThisReference());
+		accessedLocalMethods.addAll(calledMethod.getInvokedStaticMethods());
+		ITypeBinding declaringClassTypeBinding = calledMethod.getMethodDeclaration().resolveBinding().getDeclaringClass();
+		Set<FieldObject> fieldsAccessedInMethod = calledClass.getFieldsAccessedInsideMethod(calledMethod);
+		for(PlainVariable variable : usedLocalFields) {
+			for(FieldObject fieldDeclaration : fieldsAccessedInMethod) {
+				IVariableBinding fieldBinding = fieldDeclaration.getVariableDeclaration().resolveBinding();
+				if(variable.getVariableBindingKey().equals(fieldBinding.getKey()) &&
+						fieldBinding.getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
 					accessedFields.add(variable);
 					break;
 				}
@@ -384,44 +479,12 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 		for(MethodInvocationObject invocation : accessedLocalMethods) {
 			if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
-				//exclude recursive method calls
-				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
-					accessedMethods.add(invocation);
-					getAdditionalLocallyAccessedFieldsAndMethods(invocation, accessedFields, accessedMethods);
-				}
-			}
-		}
-	}
-	
-	private void getAdditionalLocallyAccessedFieldsAndMethods(MethodInvocationObject methodCall,
-			Set<AbstractVariable> accessedFields, Set<MethodInvocationObject> accessedMethods) {
-		SystemObject system = ASTReader.getSystemObject();
-		MethodObject calledMethod = system.getMethod(methodCall);
-		if(calledMethod != null) {
-			ClassObject calledClass = system.getClassObject(calledMethod.getClassName());
-			Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
-			Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
-			usedLocalFields.addAll(calledMethod.getUsedFieldsThroughThisReference());
-			accessedLocalMethods.addAll(calledMethod.getInvokedMethodsThroughThisReference());
-			accessedLocalMethods.addAll(calledMethod.getInvokedStaticMethods());
-			ITypeBinding declaringClassTypeBinding = calledMethod.getMethodDeclaration().resolveBinding().getDeclaringClass();
-			Set<FieldObject> fieldsAccessedInMethod = calledClass.getFieldsAccessedInsideMethod(calledMethod);
-			for(PlainVariable variable : usedLocalFields) {
-				for(FieldObject fieldDeclaration : fieldsAccessedInMethod) {
-					IVariableBinding fieldBinding = fieldDeclaration.getVariableDeclaration().resolveBinding();
-					if(variable.getVariableBindingKey().equals(fieldBinding.getKey()) &&
-							fieldBinding.getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
-						accessedFields.add(variable);
-						break;
-					}
-				}
-			}
-			for(MethodInvocationObject invocation : accessedLocalMethods) {
-				if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
-					if(!accessedMethods.contains(invocation)) {
-						accessedMethods.add(invocation);
-						getAdditionalLocallyAccessedFieldsAndMethods(invocation, accessedFields, accessedMethods);
-					}
+				SystemObject system = ASTReader.getSystemObject();
+				MethodObject calledMethod2 = system.getMethod(invocation);
+				if(calledMethod2 != null && !accessedMethods.contains(calledMethod2)) {
+					accessedMethods.add(calledMethod2);
+					ClassObject calledClass2 = system.getClassObject(calledMethod2.getClassName());
+					getAdditionalLocallyAccessedFieldsAndMethods(calledMethod2, calledClass2, accessedFields, accessedMethods);
 				}
 			}
 		}
@@ -595,19 +658,27 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return declaredVariablesG2;
 	}
 
-	public Set<AbstractVariable> getAccessedLocalFieldsG1() {
-		return accessedLocalFieldsG1;
+	public Set<AbstractVariable> getDirectlyAccessedLocalFieldsG1() {
+		return directlyAccessedLocalFieldsG1;
 	}
 
-	public Set<AbstractVariable> getAccessedLocalFieldsG2() {
-		return accessedLocalFieldsG2;
+	public Set<AbstractVariable> getDirectlyAccessedLocalFieldsG2() {
+		return directlyAccessedLocalFieldsG2;
 	}
 
-	public Set<MethodInvocationObject> getAccessedLocalMethodsG1() {
+	public Set<AbstractVariable> getIndirectlyAccessedLocalFieldsG1() {
+		return indirectlyAccessedLocalFieldsG1;
+	}
+
+	public Set<AbstractVariable> getIndirectlyAccessedLocalFieldsG2() {
+		return indirectlyAccessedLocalFieldsG2;
+	}
+
+	public Set<MethodObject> getAccessedLocalMethodsG1() {
 		return accessedLocalMethodsG1;
 	}
 
-	public Set<MethodInvocationObject> getAccessedLocalMethodsG2() {
+	public Set<MethodObject> getAccessedLocalMethodsG2() {
 		return accessedLocalMethodsG2;
 	}
 
@@ -702,10 +773,19 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 		Set<BindingSignaturePair> inconsistentRenames = new LinkedHashSet<BindingSignaturePair>();
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+			List<ASTNodeDifference> nodeDifferences = nodeMapping.getNodeDifferences();
+			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
+			List<AbstractExpression> expressions2 = new ArrayList<AbstractExpression>();
+			for(ASTNodeDifference nodeDifference : nodeDifferences) {
+				if(!nodeDifference.containsDifferenceType(DifferenceType.VARIABLE_NAME_MISMATCH)) {
+					expressions1.add(nodeDifference.getExpression1());
+					expressions2.add(nodeDifference.getExpression2());
+				}
+			}
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
-			Set<PlainVariable> variables1 = getVariables(nodeG1);
-			Set<PlainVariable> variables2 = getVariables(nodeG2);
+			Set<PlainVariable> variables1 = getVariables(nodeG1, expressions1);
+			Set<PlainVariable> variables2 = getVariables(nodeG2, expressions2);
 			for(PlainVariable plainVariable1 : variables1) {
 				BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
 				if(pair1 != null) {
@@ -745,19 +825,24 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return variables;
 	}
 
-	private Set<PlainVariable> getVariables(PDGNode node) {
+	private Set<PlainVariable> getVariables(PDGNode node, List<AbstractExpression> expressionsInDifferences) {
+		Set<PlainVariable> variablesToBeExcluded = new LinkedHashSet<PlainVariable>();
+		for(AbstractExpression expression : expressionsInDifferences) {
+			variablesToBeExcluded.addAll(expression.getDefinedLocalVariables());
+			variablesToBeExcluded.addAll(expression.getUsedLocalVariables());
+		}
 		Set<PlainVariable> variables = new LinkedHashSet<PlainVariable>();
 		Iterator<AbstractVariable> definedVariableIterator = node.getDefinedVariableIterator();
 		while(definedVariableIterator.hasNext()) {
 			AbstractVariable variable = definedVariableIterator.next();
-			if(variable instanceof PlainVariable) {
+			if(variable instanceof PlainVariable && !variablesToBeExcluded.contains(variable)) {
 				variables.add((PlainVariable)variable);
 			}
 		}
 		Iterator<AbstractVariable> usedVariableIterator = node.getUsedVariableIterator();
 		while(usedVariableIterator.hasNext()) {
 			AbstractVariable variable = usedVariableIterator.next();
-			if(variable instanceof PlainVariable) {
+			if(variable instanceof PlainVariable && !variablesToBeExcluded.contains(variable)) {
 				variables.add((PlainVariable)variable);
 			}
 		}

@@ -143,7 +143,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> originalPassedParameters;
 	private Map<BindingSignaturePair, ASTNodeDifference> parameterizedDifferenceMap;
 	private List<ArrayList<VariableDeclaration>> returnedVariables;
-	private String intermediateClassName;
 	private String extractedMethodName;
 	private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
 	private CloneInformation cloneInfo;
@@ -162,6 +161,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		private List<ListRewrite> argumentRewriteList = new ArrayList<ListRewrite>();
 		private List<ASTRewrite> originalMethodBodyRewriteList = new ArrayList<ASTRewrite>();
 		private boolean superclassIsNotDirectlyInheritedFromRefactoringSubclasses;
+		private boolean extractUtilityClass;
+		private String intermediateClassName;
 	}
 	
 	public ExtractCloneRefactoring(List<PDGSubTreeMapper> mappers) {
@@ -245,7 +246,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		}
-		this.intermediateClassName = null;
 		this.cloneInfo = null;
 	}
 
@@ -429,18 +429,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					compilationUnitChanges.put(iCompilationUnit, compilationUnitChange);
 				}
 				else {
-					//create an intermediate superclass
-					this.intermediateClassName = "Intermediate" + commonSuperTypeOfSourceTypeDeclarations.getName();
+					//create an intermediate superclass or a utility class
+					if(mapper.getDirectlyAccessedLocalFieldsG1().isEmpty() && mapper.getDirectlyAccessedLocalFieldsG2().isEmpty() &&
+							mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty() &&
+							commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
+						cloneInfo.extractUtilityClass = true;
+					}
+					if(cloneInfo.extractUtilityClass) {
+						cloneInfo.intermediateClassName = "Utility";
+					}
+					else {
+						cloneInfo.intermediateClassName = "Intermediate" + commonSuperTypeOfSourceTypeDeclarations.getName();
+					}
 					CompilationUnit compilationUnit = sourceCompilationUnits.get(0);
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 					IContainer container = (IContainer)iCompilationUnit.getResource().getParent();
 					if(container instanceof IProject) {
 						IProject contextProject = (IProject)container;
-						cloneInfo.file = contextProject.getFile(intermediateClassName + ".java");
+						cloneInfo.file = contextProject.getFile(cloneInfo.intermediateClassName + ".java");
 					}
 					else if(container instanceof IFolder) {
 						IFolder contextFolder = (IFolder)container;
-						cloneInfo.file = contextFolder.getFile(intermediateClassName + ".java");
+						cloneInfo.file = contextFolder.getFile(cloneInfo.intermediateClassName + ".java");
 					}
 					boolean intermediateAlreadyExists = false;
 					ICompilationUnit intermediateICompilationUnit = JavaCore.createCompilationUnitFrom(cloneInfo.file);
@@ -466,10 +476,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						for(AbstractTypeDeclaration abstractTypeDeclaration : abstractTypeDeclarations) {
 							if(abstractTypeDeclaration instanceof TypeDeclaration) {
 								TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
-								if(typeDeclaration.getName().getIdentifier().equals(intermediateClassName)) {
+								if(typeDeclaration.getName().getIdentifier().equals(cloneInfo.intermediateClassName)) {
 									intermediateTypeDeclaration = typeDeclaration;
 									int intermediateModifiers = intermediateTypeDeclaration.getModifiers();
-									if((intermediateModifiers & Modifier.ABSTRACT) == 0) {
+									if((intermediateModifiers & Modifier.ABSTRACT) == 0 && !cloneInfo.extractUtilityClass) {
 										ListRewrite intermediateModifiersRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
 										intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 									}
@@ -487,13 +497,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							intermediateRewriter.set(intermediateCompilationUnit, CompilationUnit.PACKAGE_PROPERTY, compilationUnit.getPackage(), null);
 						}
 						intermediateTypeDeclaration = intermediateAST.newTypeDeclaration();
-						SimpleName intermediateName = intermediateAST.newSimpleName(intermediateClassName);
+						SimpleName intermediateName = intermediateAST.newSimpleName(cloneInfo.intermediateClassName);
 						intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.NAME_PROPERTY, intermediateName, null);
 						ListRewrite intermediateModifiersRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
 						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-						intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
-								intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+						if(!cloneInfo.extractUtilityClass) {
+							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+							intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+									intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+						}
 						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
 					}
 					cloneInfo.sourceCompilationUnit = intermediateCompilationUnit;
@@ -686,13 +698,17 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD);
 			modifierRewrite.insertLast(accessModifier, null);
 		}
+		else if(cloneInfo.extractUtilityClass) {
+			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+			modifierRewrite.insertLast(accessModifier, null);
+		}
 		else {
 			Modifier accessModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD);
 			modifierRewrite.insertLast(accessModifier, null);
 		}
 		
-		if((sourceMethodDeclarations.get(0).getModifiers() & Modifier.STATIC) != 0 &&
-				(sourceMethodDeclarations.get(1).getModifiers() & Modifier.STATIC) != 0) {
+		if(((sourceMethodDeclarations.get(0).getModifiers() & Modifier.STATIC) != 0 &&
+				(sourceMethodDeclarations.get(1).getModifiers() & Modifier.STATIC) != 0) || cloneInfo.extractUtilityClass) {
 			Modifier staticModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD);
 			modifierRewrite.insertLast(staticModifier, null);
 		}
@@ -2147,8 +2163,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
 			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
 		AST ast = typeDeclaration.getAST();
-		if(intermediateClassName != null) {
-			modifySuperclassType(compilationUnit, typeDeclaration, intermediateClassName);
+		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
+			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
 			ASTRewrite rewriter = ASTRewrite.create(ast);
@@ -2197,6 +2213,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				e.printStackTrace();
 			}
 		}
+		try {
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			ImportRewrite importRewrite = ImportRewrite.create(compilationUnit, true);
+			if(cloneInfo.extractUtilityClass) {
+				PackageDeclaration utilityClassPackage = sourceCompilationUnits.get(0).getPackage();
+				if(!compilationUnit.getPackage().resolveBinding().isEqualTo(utilityClassPackage.resolveBinding())) {
+					importRewrite.addImport(utilityClassPackage.getName().getFullyQualifiedName() +
+							"." + cloneInfo.intermediateClassName);
+				}
+			}		
+			TextEdit importEdit = importRewrite.rewriteImports(null);
+			if(importRewrite.getCreatedImports().length > 0) {
+				change.getEdit().addChild(importEdit);
+				change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
+			}
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void modifySuperclassType(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration, String superclassTypeName) {
@@ -2228,6 +2263,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 		MethodInvocation methodInvocation = ast.newMethodInvocation();
 		methodBodyRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(extractedMethodName), null);
+		if(cloneInfo.extractUtilityClass) {
+			methodBodyRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(cloneInfo.intermediateClassName), null);
+		}
 		ListRewrite argumentsRewrite = methodBodyRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
 			List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);

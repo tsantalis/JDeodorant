@@ -189,6 +189,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
+			this.renamedVariables = findRenamedVariables();
 			findPassedParameters();
 			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
 			List<AbstractExpression> expressions2 = new ArrayList<AbstractExpression>();
@@ -210,7 +211,6 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					expressions2, fieldAccessReplacedWithGetterExpressions2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
-			this.renamedVariables = findRenamedVariables();
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
@@ -298,7 +298,12 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				List<String> variableNames2 = new ArrayList<String>();
 				for(int i=0; i<variables1.size(); i++) {
 					variableNames1.add(variables1.get(i).getVariableName());
-					variableNames2.add(variables2.get(i).getVariableName());
+					AbstractVariable variable2 = variables2.get(i);
+					String renamedVariableName = findRenamedVariableName(variable2);
+					if(renamedVariableName != null)
+						variableNames2.add(renamedVariableName);
+					else
+						variableNames2.add(variable2.getVariableName());
 				}
 				if(variableNames1.containsAll(variableNames2) && variableNames2.containsAll(variableNames1) &&
 						variableNames1.size() > 0 && variableNames2.size() > 0) {
@@ -310,7 +315,9 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						sortedVariables1.add(variable1);
 						for(int j=0; j<variables2.size(); j++) {
 							AbstractVariable variable2 = variables2.get(j);
-							if(variable2.getVariableName().equals(variable1.getVariableName()) &&
+							String renamedVariableName = findRenamedVariableName(variable2);
+							if((variable2.getVariableName().equals(variable1.getVariableName()) ||
+									variable1.getVariableName().equals(renamedVariableName)) &&
 									variable2.getVariableType().equals(variable1.getVariableType())) {
 								sortedVariables2.add(variable2);
 								break;
@@ -342,6 +349,20 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		passedParametersG2.removeAll(parametersToBeRemovedG2);
 		this.passedParametersG1.addAll(passedParametersG1);
 		this.passedParametersG2.addAll(passedParametersG2);
+	}
+
+	private String findRenamedVariableName(AbstractVariable variable) {
+		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
+		String renamedVariableName = null;
+		for(BindingSignaturePair pair : renamedVariables) {
+			if(pair.getSignature2().containsOnlyBinding(variable.getVariableBindingKey())) {
+				String signature1 = pair.getSignature1().toString();
+				renamedVariableName = signature1.substring(signature1.lastIndexOf("#") + 1,
+						signature1.lastIndexOf("]"));
+				break;
+			}
+		}
+		return renamedVariableName;
 	}
 
 	private Set<AbstractVariable> extractPassedParameters(PDG pdg, Set<PDGNode> mappedNodes) {

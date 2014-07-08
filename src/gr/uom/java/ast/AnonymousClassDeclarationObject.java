@@ -39,6 +39,10 @@ public class AnonymousClassDeclarationObject extends ClassDeclarationObject {
 		return null;
 	}
 
+	public TypeObject getSuperclass() {
+		return null;
+	}
+
 	protected void accessedFieldFromThisClass(Set<FieldObject> fields, FieldInstructionObject fieldInstruction) {
 		List<FieldObject> allFields = new ArrayList<FieldObject>(fieldList);
 		if(classObject != null) {

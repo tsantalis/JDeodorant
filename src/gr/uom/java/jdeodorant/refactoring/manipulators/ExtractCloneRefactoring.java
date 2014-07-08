@@ -2,8 +2,10 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
+import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
@@ -351,17 +353,37 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Set<VariableDeclaration> getLocallyAccessedFields(Set<AbstractVariable> accessedFields, TypeDeclaration typeDeclaration) {
 		Set<VariableDeclaration> accessedLocalFields = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : accessedFields) {
-			for(FieldDeclaration fieldDeclaration : typeDeclaration.getFields()) {
-				List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-				for(VariableDeclarationFragment fragment : fragments) {
-					if(variable.getVariableBindingKey().equals(fragment.resolveBinding().getKey())) {
-						accessedLocalFields.add(fragment);
-						break;
-					}
-				}
+			VariableDeclaration fieldDeclaration = findFieldDeclaration(variable, typeDeclaration);
+			if(fieldDeclaration != null) {
+				accessedLocalFields.add(fieldDeclaration);
 			}
 		}
 		return accessedLocalFields;
+	}
+
+	private VariableDeclaration findFieldDeclaration(AbstractVariable variable, TypeDeclaration typeDeclaration) {
+		for(FieldDeclaration fieldDeclaration : typeDeclaration.getFields()) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				if(variable.getVariableBindingKey().equals(fragment.resolveBinding().getKey())) {
+					return fragment;
+				}
+			}
+		}
+		//fragment was not found in typeDeclaration
+		Type superclassType = typeDeclaration.getSuperclassType();
+		if(superclassType != null) {
+			String superclassQualifiedName = superclassType.resolveBinding().getQualifiedName();
+			SystemObject system = ASTReader.getSystemObject();
+			ClassObject superclassObject = system.getClassObject(superclassQualifiedName);
+			if(superclassObject != null) {
+				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
+				if(superclassTypeDeclaration instanceof TypeDeclaration) {
+					return findFieldDeclaration(variable, (TypeDeclaration)superclassTypeDeclaration);
+				}
+			}
+		}
+		return null;
 	}
 
 	private void extractClone() {
@@ -2162,56 +2184,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
 			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
-		AST ast = typeDeclaration.getAST();
 		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
-			ASTRewrite rewriter = ASTRewrite.create(ast);
-			ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-			bodyRewrite.remove(methodDeclaration, null);
-			try {
-				TextEdit sourceEdit = rewriter.rewriteAST();
-				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-				change.getEdit().addChild(sourceEdit);
-				change.addTextEditGroup(new TextEditGroup("Pull up method to superclass", new TextEdit[] {sourceEdit}));
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			}
+			removeMethodDeclaration(methodDeclaration, findTypeDeclaration(methodDeclaration), findCompilationUnit(methodDeclaration));
 		}
-		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
 		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
-			boolean found = false;
-			ASTRewrite rewriter = ASTRewrite.create(ast);
-			ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-			for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-				List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-				ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
-				for(VariableDeclarationFragment fragment : fragments) {
-					if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-						found = true;
-						if(fragments.size() > 1) {
-							fragmentsRewrite.remove(fragment, null);
-						}
-						else {
-							bodyRewrite.remove(fieldDeclaration, null);
-						}
-						break;
-					}
-				}
-				if(found)
-					break;
-			}
-			try {
-				TextEdit sourceEdit = rewriter.rewriteAST();
-				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-				change.getEdit().addChild(sourceEdit);
-				change.addTextEditGroup(new TextEditGroup("Pull up field to superclass", new TextEdit[] {sourceEdit}));
-			} catch (JavaModelException e) {
-				e.printStackTrace();
-			}
+			removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
 		}
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
@@ -2230,6 +2210,91 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
 			}
 		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void removeFieldDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+		boolean found = false;
+		AST ast = typeDeclaration.getAST();
+		ASTRewrite rewriter = ASTRewrite.create(ast);
+		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
+			for(VariableDeclarationFragment fragment : fragments) {
+				if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					found = true;
+					if(fragments.size() > 1) {
+						fragmentsRewrite.remove(fragment, null);
+					}
+					else {
+						bodyRewrite.remove(fieldDeclaration, null);
+					}
+					break;
+				}
+			}
+			if(found)
+				break;
+		}
+		try {
+			TextEdit sourceEdit = rewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			if(change == null) {
+				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+				change = new CompilationUnitChange("", sourceICompilationUnit);
+				change.setEdit(sourceMultiTextEdit);
+				compilationUnitChanges.put(sourceICompilationUnit, change);
+			}
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Pull up field to superclass", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private TypeDeclaration findTypeDeclaration(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof TypeDeclaration) {
+				return (TypeDeclaration)parent;
+			}
+			parent = parent.getParent();
+		}
+		return null;
+	}
+	
+	private CompilationUnit findCompilationUnit(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof CompilationUnit) {
+				return (CompilationUnit)parent;
+			}
+			parent = parent.getParent();
+		}
+		return null;
+	}
+
+	private void removeMethodDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+		AST ast = typeDeclaration.getAST();
+		ASTRewrite rewriter = ASTRewrite.create(ast);
+		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		bodyRewrite.remove(methodDeclaration, null);
+		try {
+			TextEdit sourceEdit = rewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			if(change == null) {
+				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+				change = new CompilationUnitChange("", sourceICompilationUnit);
+				change.setEdit(sourceMultiTextEdit);
+				compilationUnitChanges.put(sourceICompilationUnit, change);
+			}
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Pull up method to superclass", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
 	}

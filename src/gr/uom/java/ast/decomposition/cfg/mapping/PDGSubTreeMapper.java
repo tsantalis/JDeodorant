@@ -205,9 +205,11 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					fieldAccessReplacedWithGetterExpressions2.add(nodeDifference.getExpression2());
 				}
 			}
-			findLocallyAccessedFields(pdg1, mappedNodesG1, directlyAccessedLocalFieldsG1, indirectlyAccessedLocalFieldsG1, accessedLocalMethodsG1,
+			ITypeBinding commonSuperclass = ASTNodeMatcher.commonSuperType(pdg1.getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass(),
+					pdg2.getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass());
+			findLocallyAccessedFields(pdg1, mappedNodesG1, commonSuperclass, directlyAccessedLocalFieldsG1, indirectlyAccessedLocalFieldsG1, accessedLocalMethodsG1,
 					expressions1, fieldAccessReplacedWithGetterExpressions1);
-			findLocallyAccessedFields(pdg2, mappedNodesG2, directlyAccessedLocalFieldsG2, indirectlyAccessedLocalFieldsG2, accessedLocalMethodsG2,
+			findLocallyAccessedFields(pdg2, mappedNodesG2, commonSuperclass, directlyAccessedLocalFieldsG2, indirectlyAccessedLocalFieldsG2, accessedLocalMethodsG2,
 					expressions2, fieldAccessReplacedWithGetterExpressions2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
@@ -381,8 +383,8 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return passedParameters;
 	}
 
-	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> directlyAccessedFields,
-			Set<AbstractVariable> indirectlyAccessedFields, Set<MethodObject> accessedMethods,
+	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, ITypeBinding commonSuperclass,
+			Set<AbstractVariable> directlyAccessedFields, Set<AbstractVariable> indirectlyAccessedFields, Set<MethodObject> accessedMethods,
 			List<AbstractExpression> expressionsInDifferences, List<AbstractExpression> fieldAccessReplacedWithGetterExpressions) {
 		Set<MethodInvocationObject> methodInvocationsToBeExcluded = new LinkedHashSet<MethodInvocationObject>();
 		for(AbstractExpression expression : expressionsInDifferences) {
@@ -428,32 +430,51 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		Set<VariableDeclaration> fieldsAccessedInMethod = pdg.getFieldsAccessedInMethod();
 		for(PlainVariable variable : usedLocalFields) {
 			for(VariableDeclaration fieldDeclaration : fieldsAccessedInMethod) {
-				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey()) &&
-						fieldDeclaration.resolveBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding)) {
-					directlyAccessedFields.add(variable);
-					if(fieldsWithGetterToBeIncluded.contains(variable)) {
-						SystemObject system = ASTReader.getSystemObject();
-						ClassObject accessedClass = system.getClassObject(pdg.getMethod().getClassName());
-						if(accessedClass != null) {
-							ListIterator<MethodObject> it = accessedClass.getMethodIterator();
-							while(it.hasNext()) {
-								MethodObject method = it.next();
-								FieldInstructionObject getterFieldInstruction = method.isGetter();
-								if(getterFieldInstruction != null) {
-									if(variable.getVariableBindingKey().equals(getterFieldInstruction.getSimpleName().resolveBinding().getKey())) {
-										accessedMethods.add(method);
-										break;
+				if(variable.getVariableBindingKey().equals(fieldDeclaration.resolveBinding().getKey())) {
+					ITypeBinding fieldDeclaringClassTypeBinding = fieldDeclaration.resolveBinding().getDeclaringClass();
+					Set<ITypeBinding> superTypes = getAllSuperTypesUpToCommonSuperclass(declaringClassTypeBinding, commonSuperclass);
+					boolean fieldFoundInSuperType = false;
+					for(ITypeBinding typeBinding : superTypes) {
+						if(typeBinding.isEqualTo(fieldDeclaringClassTypeBinding)) {
+							fieldFoundInSuperType = true;
+							break;
+						}
+					}
+					if(fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) {
+						directlyAccessedFields.add(variable);
+						if(fieldsWithGetterToBeIncluded.contains(variable)) {
+							SystemObject system = ASTReader.getSystemObject();
+							ClassObject accessedClass = system.getClassObject(fieldDeclaringClassTypeBinding.getQualifiedName());
+							if(accessedClass != null) {
+								ListIterator<MethodObject> it = accessedClass.getMethodIterator();
+								while(it.hasNext()) {
+									MethodObject method = it.next();
+									FieldInstructionObject getterFieldInstruction = method.isGetter();
+									if(getterFieldInstruction != null) {
+										if(variable.getVariableBindingKey().equals(getterFieldInstruction.getSimpleName().resolveBinding().getKey())) {
+											accessedMethods.add(method);
+											break;
+										}
 									}
 								}
 							}
 						}
+						break;
 					}
-					break;
 				}
 			}
 		}
 		for(MethodInvocationObject invocation : accessedLocalMethods) {
-			if(invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass().isEqualTo(declaringClassTypeBinding) &&
+			ITypeBinding invokedMethodDeclaringClassTypeBinding = invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass();
+			Set<ITypeBinding> superTypes = getAllSuperTypesUpToCommonSuperclass(declaringClassTypeBinding, commonSuperclass);
+			boolean invokedMethodFoundInSuperType = false;
+			for(ITypeBinding typeBinding : superTypes) {
+				if(typeBinding.isEqualTo(invokedMethodDeclaringClassTypeBinding)) {
+					invokedMethodFoundInSuperType = true;
+					break;
+				}
+			}
+			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodFoundInSuperType) &&
 					!methodInvocationsToBeExcluded.contains(invocation)) {
 				//exclude recursive method calls
 				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
@@ -479,6 +500,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 	}
 	
+	private static Set<ITypeBinding> getAllSuperTypesUpToCommonSuperclass(ITypeBinding typeBinding, ITypeBinding commonSuperclass) {
+		Set<ITypeBinding> superTypes = new LinkedHashSet<ITypeBinding>();
+		ITypeBinding superTypeBinding = typeBinding.getSuperclass();
+		if(superTypeBinding != null && !superTypeBinding.isEqualTo(commonSuperclass)) {
+			superTypes.add(superTypeBinding);
+			superTypes.addAll(getAllSuperTypesUpToCommonSuperclass(superTypeBinding, commonSuperclass));
+		}
+		return superTypes;
+	}
+
 	private void getAdditionalLocallyAccessedFieldsAndMethods(MethodObject calledMethod, ClassObject calledClass,
 			Set<AbstractVariable> accessedFields, Set<MethodObject> accessedMethods) {
 		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();

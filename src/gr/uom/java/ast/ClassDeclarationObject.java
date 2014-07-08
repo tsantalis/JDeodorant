@@ -25,6 +25,7 @@ public abstract class ClassDeclarationObject {
 	public abstract ITypeRoot getITypeRoot();
 	public abstract ClassObject getClassObject();
 	public abstract IFile getIFile();
+	public abstract TypeObject getSuperclass();
 
 	public boolean addMethod(MethodObject method) {
 		return methodList.add(method);
@@ -127,19 +128,28 @@ public abstract class ClassDeclarationObject {
 	public Set<FieldObject> getFieldsAccessedInsideMethod(AbstractMethodDeclaration method) {
 		Set<FieldObject> fields = new LinkedHashSet<FieldObject>();
 		for(FieldInstructionObject fieldInstruction : method.getFieldInstructions()) {
-			accessedFieldFromThisClass(fields, fieldInstruction);
+			FieldObject accessedFieldFromThisClass = findField(fieldInstruction);
+			if(accessedFieldFromThisClass != null) {
+				fields.add(accessedFieldFromThisClass);
+			}
 		}
 		if(method.getMethodBody() != null) {
 			List<TryStatementObject> tryStatements = method.getMethodBody().getTryStatements();
 			for(TryStatementObject tryStatement : tryStatements) {
 				for(CatchClauseObject catchClause : tryStatement.getCatchClauses()) {
 					for(FieldInstructionObject fieldInstruction : catchClause.getBody().getFieldInstructions()) {
-						accessedFieldFromThisClass(fields, fieldInstruction);
+						FieldObject accessedFieldFromThisClass = findField(fieldInstruction);
+						if(accessedFieldFromThisClass != null) {
+							fields.add(accessedFieldFromThisClass);
+						}
 					}
 				}
 				if(tryStatement.getFinallyClause() != null) {
 					for(FieldInstructionObject fieldInstruction : tryStatement.getFinallyClause().getFieldInstructions()) {
-						accessedFieldFromThisClass(fields, fieldInstruction);
+						FieldObject accessedFieldFromThisClass = findField(fieldInstruction);
+						if(accessedFieldFromThisClass != null) {
+							fields.add(accessedFieldFromThisClass);
+						}
 					}
 				}
 			}
@@ -147,13 +157,29 @@ public abstract class ClassDeclarationObject {
 		return fields;
 	}
 
-	protected void accessedFieldFromThisClass(Set<FieldObject> fields, FieldInstructionObject fieldInstruction) {
+	public FieldObject getField(FieldInstructionObject fieldInstruction) {
 		for(FieldObject field : fieldList) {
 			if(field.equals(fieldInstruction)) {
-				if(!fields.contains(field))
-					fields.add(field);
-				break;
+				return field;
 			}
 		}
+		return null;
+	}
+	
+	protected FieldObject findField(FieldInstructionObject fieldInstruction) {
+		FieldObject field = getField(fieldInstruction);
+		if(field != null) {
+			return field;
+		}
+		else {
+			TypeObject superclassType = getSuperclass();
+			if(superclassType != null) {
+				ClassObject superclassObject = ASTReader.getSystemObject().getClassObject(superclassType.toString());
+				if(superclassObject != null) {
+					return superclassObject.findField(fieldInstruction);
+				}
+			}
+		}
+		return null;
 	}
 }

@@ -76,6 +76,7 @@ import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
+import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
@@ -165,6 +166,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		private boolean superclassIsNotDirectlyInheritedFromRefactoringSubclasses;
 		private boolean extractUtilityClass;
 		private String intermediateClassName;
+		private IPackageBinding intermediateClassPackageBinding;
 	}
 	
 	public ExtractCloneRefactoring(List<PDGSubTreeMapper> mappers) {
@@ -463,7 +465,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					else {
 						cloneInfo.intermediateClassName = "Intermediate" + commonSuperTypeOfSourceTypeDeclarations.getName();
 					}
-					CompilationUnit compilationUnit = sourceCompilationUnits.get(0);
+					ClassObject commonSuperType = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
+					CompilationUnit compilationUnit = null;
+					if(commonSuperType != null) {
+						compilationUnit = findCompilationUnit(commonSuperType.getAbstractTypeDeclaration());
+					}
+					else {
+						compilationUnit = sourceCompilationUnits.get(0);
+					}
+					cloneInfo.intermediateClassPackageBinding = compilationUnit.getPackage().resolveBinding();
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 					IContainer container = (IContainer)iCompilationUnit.getResource().getParent();
 					if(container instanceof IProject) {
@@ -2197,10 +2207,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			ImportRewrite importRewrite = ImportRewrite.create(compilationUnit, true);
-			if(cloneInfo.extractUtilityClass) {
-				PackageDeclaration utilityClassPackage = sourceCompilationUnits.get(0).getPackage();
-				if(!compilationUnit.getPackage().resolveBinding().isEqualTo(utilityClassPackage.resolveBinding())) {
-					importRewrite.addImport(utilityClassPackage.getName().getFullyQualifiedName() +
+			if(cloneInfo.intermediateClassPackageBinding != null) {
+				if(!compilationUnit.getPackage().resolveBinding().isEqualTo(cloneInfo.intermediateClassPackageBinding)) {
+					importRewrite.addImport(cloneInfo.intermediateClassPackageBinding.getName() +
 							"." + cloneInfo.intermediateClassName);
 				}
 			}		

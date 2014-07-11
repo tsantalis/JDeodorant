@@ -452,7 +452,14 @@ public abstract class AbstractMethodFragment {
 			if(anonymous != null) {
 				final AnonymousClassDeclarationObject anonymousClassObject = new AnonymousClassDeclarationObject();
 				ITypeBinding anonymousTypeBinding = anonymous.resolveBinding();
-				anonymousClassObject.setName(anonymousTypeBinding.getBinaryName());
+				if(anonymousTypeBinding.getBinaryName() != null) {
+					anonymousClassObject.setName(anonymousTypeBinding.getBinaryName());
+				}
+				else {
+					String anonymousKey = anonymousTypeBinding.getKey();
+					String formattedKey = anonymousKey.substring(1, anonymousKey.length()-1).replaceAll("/", ".");
+					anonymousClassObject.setName(formattedKey);
+				}
 				anonymousClassObject.setAnonymousClassDeclaration(anonymous);
 				List<BodyDeclaration> bodyDeclarations = anonymous.bodyDeclarations();
 				for(BodyDeclaration bodyDeclaration : bodyDeclarations) {

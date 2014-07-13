@@ -163,7 +163,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		private ListRewrite parameterRewrite;
 		private List<ListRewrite> argumentRewriteList = new ArrayList<ListRewrite>();
 		private List<ASTRewrite> originalMethodBodyRewriteList = new ArrayList<ASTRewrite>();
-		private boolean superclassIsNotDirectlyInheritedFromRefactoringSubclasses;
+		private boolean superclassNotDirectlyInheritedFromRefactoredSubclasses;
 		private boolean extractUtilityClass;
 		private String intermediateClassName;
 		private IPackageBinding intermediateClassPackageBinding;
@@ -404,26 +404,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
 			commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 			if(commonSuperTypeOfSourceTypeDeclarations != null) {
-				boolean superclassInheritedOnlyByRefactoringSubclasses = false;
-				if(!commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
-					CompilationUnitCache cache = CompilationUnitCache.getInstance();
-					Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
-					if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
-							subTypes.contains((IType)typeBinding2.getJavaElement()))
-						superclassInheritedOnlyByRefactoringSubclasses = true;
-				}
-				boolean superclassIsOneOfTheSourceTypeDeclarations = false;
-				if(typeBinding1.isEqualTo(commonSuperTypeOfSourceTypeDeclarations) || typeBinding2.isEqualTo(commonSuperTypeOfSourceTypeDeclarations))
-					superclassIsOneOfTheSourceTypeDeclarations = true;
-				boolean superclassDirectlyInheritedFromRefactoringSubclasses =
-						typeBinding1.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
-						typeBinding2.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations);
-				if(((mapper.getDirectlyAccessedLocalFieldsG1().isEmpty() && mapper.getDirectlyAccessedLocalFieldsG2().isEmpty() &&
-						mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty())
-						|| superclassInheritedOnlyByRefactoringSubclasses || superclassIsOneOfTheSourceTypeDeclarations
-						|| !superclassDirectlyInheritedFromRefactoringSubclasses) &&
-						ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null) {
-					//OR if the superclass in inherited ONLY by the subclasses participating in the refactoring
+				if(pullUpToCommonSuperclass(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
 					IJavaElement javaElement = commonSuperTypeOfSourceTypeDeclarations.getJavaElement();
 					javaElementsToOpenInEditor.add(javaElement);
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
@@ -442,7 +423,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								cloneInfo.sourceTypeDeclaration = typeDeclaration;
 								cloneInfo.sourceRewriter = ASTRewrite.create(cloneInfo.sourceTypeDeclaration.getAST());
 								cloneInfo.ast = cloneInfo.sourceTypeDeclaration.getAST();
-								cloneInfo.superclassIsNotDirectlyInheritedFromRefactoringSubclasses = !superclassDirectlyInheritedFromRefactoringSubclasses;
+								cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses =
+										!superclassDirectlyInheritedFromRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations,
+										typeBinding1, typeBinding2);
 								break;
 							}
 						}
@@ -454,9 +437,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 				else {
 					//create an intermediate superclass or a utility class
-					if(mapper.getDirectlyAccessedLocalFieldsG1().isEmpty() && mapper.getDirectlyAccessedLocalFieldsG2().isEmpty() &&
-							mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty() &&
-							commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
+					if(extractToUtilityClass(commonSuperTypeOfSourceTypeDeclarations)) {
 						cloneInfo.extractUtilityClass = true;
 					}
 					if(cloneInfo.extractUtilityClass) {
@@ -627,7 +608,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										}
 									}
 								}
-								if(cloneInfo.superclassIsNotDirectlyInheritedFromRefactoringSubclasses) {
+								if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
 									Block methodBody = ast.newBlock();
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
 									ListRewrite statementsRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
@@ -870,6 +851,71 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {
+		return (cloneFragmentsDoNotAccessFieldsOrMethods() || cloneFragmentsAccessOnlyStaticMethods()) &&
+				commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object");
+	}
+
+	private boolean cloneFragmentsDoNotAccessFieldsOrMethods() {
+		return mapper.getDirectlyAccessedLocalFieldsG1().isEmpty() && mapper.getDirectlyAccessedLocalFieldsG2().isEmpty() &&
+				mapper.getIndirectlyAccessedLocalFieldsG1().isEmpty() && mapper.getIndirectlyAccessedLocalFieldsG2().isEmpty() &&
+				mapper.getAccessedLocalMethodsG1().isEmpty() && mapper.getAccessedLocalMethodsG2().isEmpty();
+	}
+	
+	private boolean cloneFragmentsAccessOnlyStaticMethods() {
+		int counter = 0;
+		for(MethodObject m : mapper.getAccessedLocalMethodsG1()) {
+			if(!m.isStatic()) {
+				return false;
+			}
+			counter++;
+		}
+		for(MethodObject m : mapper.getAccessedLocalMethodsG2()) {
+			if(!m.isStatic()) {
+				return false;
+			}
+			counter++;
+		}
+		return counter > 0;
+	}
+
+	private boolean pullUpToCommonSuperclass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		return (cloneFragmentsDoNotAccessFieldsOrMethods() ||
+				superclassInheritedOnlyByRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
+				superclassIsOneOfRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
+				!superclassDirectlyInheritedFromRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) &&
+				ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null;
+	}
+
+	private boolean superclassDirectlyInheritedFromRefactoredSubclasses(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		return typeBinding1.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+				typeBinding2.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations);
+	}
+
+	private boolean superclassIsOneOfRefactoredSubclasses(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		if(typeBinding1.isEqualTo(commonSuperTypeOfSourceTypeDeclarations) ||
+				typeBinding2.isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
+			return true;
+		}
+		return false;
+	}
+
+	private boolean superclassInheritedOnlyByRefactoredSubclasses(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		if(!commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
+			CompilationUnitCache cache = CompilationUnitCache.getInstance();
+			Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
+			if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
+					subTypes.contains((IType)typeBinding2.getJavaElement())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private Set<VariableDeclaration> getFieldsAccessedInMethod(Set<VariableDeclaration> indirectlyAccessedLocalFields,

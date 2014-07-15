@@ -350,10 +350,21 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 								}
 							}
 							else {
-								if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2)) {
-									sortedVariables2.add(variable2);
-									found = true;
-									break;
+								String renamedVariableName = findRenamedVariableName(variable2);
+								if(renamedVariableName != null) {
+									if(variable2.getVariableType().equals(variable1.getVariableType()) && variable1.getVariableName().equals(renamedVariableName) &&
+											!sortedVariables2.contains(variable2)) {
+										sortedVariables2.add(variable2);
+										found = true;
+										break;
+									}
+								}
+								else {
+									if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2)) {
+										sortedVariables2.add(variable2);
+										found = true;
+										break;
+									}
 								}
 							}
 						}

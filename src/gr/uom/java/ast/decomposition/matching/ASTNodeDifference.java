@@ -56,6 +56,17 @@ public class ASTNodeDifference {
 		return false;
 	}
 
+	public boolean containsOnlyDifferenceType(DifferenceType type) {
+		for(Difference difference : differences)
+		{
+			if(!difference.getType().equals(type))
+				return false;
+		}
+		if(!differences.isEmpty())
+			return true;
+		return false;
+	}
+
 	public boolean isParameterizable()
 	{
 		for(Difference difference : differences)

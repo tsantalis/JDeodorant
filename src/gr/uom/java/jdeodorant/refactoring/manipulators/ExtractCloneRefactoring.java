@@ -20,6 +20,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.StatementCollector;
 import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingKeyPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
@@ -57,6 +58,7 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
@@ -558,12 +560,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
 						MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
 						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-						boolean exactClones = methodDeclaration1.subtreeMatch(new ASTMatcher(), methodDeclaration2);
+						boolean clones = type2Clones(methodDeclaration1, methodDeclaration2);
 						Type returnType = methodDeclaration1.getReturnType2();
-						if(exactClones) {
+						TypeDeclaration typeDeclaration1 = findTypeDeclaration(methodDeclaration1);
+						TypeDeclaration typeDeclaration2 = findTypeDeclaration(methodDeclaration2);
+						if(clones) {
 							//check if the common superclass is one of the source classes
-							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
 								typeBindings.add(returnType.resolveBinding());
 								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
@@ -581,16 +585,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								fieldsAccessedInMethod2.removeAll(accessedLocalFieldsG2);
 								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 							}
-							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
 							}
-							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							if(!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
 							}
 						}
 						else {
-							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
@@ -602,9 +606,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										Modifier modifier = (Modifier)extendedModifier;
 										if(modifier.isProtected()) {
 											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+											updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
 										}
 										else if(modifier.isPublic()) {
 											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+											updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 										}
 									}
 								}
@@ -851,6 +857,98 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private void updateAccessModifier(MethodDeclaration methodDeclaration, Modifier.ModifierKeyword modifierKeyword) {
+		AST ast = methodDeclaration.getAST();
+		ASTRewrite rewriter = ASTRewrite.create(ast);
+		CompilationUnit compilationUnit = findCompilationUnit(methodDeclaration);
+		ListRewrite modifiersRewrite = rewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+		List<IExtendedModifier> originalModifiers = methodDeclaration.modifiers();
+		boolean accessModifierFound = false;
+		for(IExtendedModifier extendedModifier : originalModifiers) {
+			if(extendedModifier.isModifier()) {
+				Modifier modifier = (Modifier)extendedModifier;
+				if(modifier.isProtected() || modifier.isPrivate() || modifier.isPublic()) {
+					accessModifierFound = true;
+					if(modifier.getKeyword().toFlagValue() != modifierKeyword.toFlagValue()) {
+						modifiersRewrite.replace(modifier, ast.newModifier(modifierKeyword), null);
+					}
+				}
+			}
+		}
+		if(!accessModifierFound) {
+			modifiersRewrite.insertFirst(ast.newModifier(modifierKeyword), null);
+		}
+		try {
+			TextEdit sourceEdit = rewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			if(change == null) {
+				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+				change = new CompilationUnitChange("", sourceICompilationUnit);
+				change.setEdit(sourceMultiTextEdit);
+				compilationUnitChanges.put(sourceICompilationUnit, change);
+			}
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Update access modifier", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private boolean type2Clones(MethodDeclaration methodDeclaration1, MethodDeclaration methodDeclaration2) {
+		if(methodDeclaration1.getBody() != null && methodDeclaration2.getBody() != null) {
+			StatementCollector collector1 = new StatementCollector();
+			methodDeclaration1.getBody().accept(collector1);
+			List<ASTNode> statements1 = collector1.getStatementList();
+			StatementCollector collector2 = new StatementCollector();
+			methodDeclaration2.getBody().accept(collector2);
+			List<ASTNode> statements2 = collector2.getStatementList();
+			ITypeRoot typeRoot1 = findCompilationUnit(methodDeclaration1).getTypeRoot();
+			ITypeRoot typeRoot2 = findCompilationUnit(methodDeclaration2).getTypeRoot();
+			if(statements1.size() != statements2.size()) {
+				return false;
+			}
+			else {
+				for(int i=0; i<statements1.size(); i++) {
+					ASTNode node1 = statements1.get(i);
+					ASTNode node2 = statements2.get(i);
+					boolean match = compareStatements(typeRoot1, typeRoot2, node1, node2);
+					if(!match)
+						return false;
+				}
+				return true;
+			}
+		}
+		else if(methodDeclaration1.getBody() != null && methodDeclaration2.getBody() == null) {
+			return false;
+		}
+		else if(methodDeclaration1.getBody() == null && methodDeclaration2.getBody() != null) {
+			return false;
+		}
+		else {
+			//both methods are abstract
+			return true;
+		}
+	}
+
+	private boolean compareStatements(ITypeRoot typeRoot1, ITypeRoot typeRoot2, ASTNode node1, ASTNode node2) {
+		boolean exactClones = false;
+		ASTNodeMatcher astMatcher = new ASTNodeMatcher(typeRoot1, typeRoot2);
+		boolean match = node1.subtreeMatch(astMatcher, node2);
+		if(match) {
+			List<ASTNodeDifference> differences = astMatcher.getDifferences();
+			boolean onlyVariableNameMismatches = true; 
+			for(ASTNodeDifference difference : differences) {
+				if(!difference.containsOnlyDifferenceType(DifferenceType.VARIABLE_NAME_MISMATCH)) {
+					onlyVariableNameMismatches = false;
+					break;
+				}
+			}
+			exactClones = onlyVariableNameMismatches;
+		}
+		return exactClones;
 	}
 
 	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {

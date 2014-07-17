@@ -25,12 +25,15 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.TypeDeclarationStatement;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -141,6 +144,19 @@ public class ASTReader {
 
 	private List<TypeDeclaration> getRecursivelyInnerTypes(TypeDeclaration typeDeclaration) {
 		List<TypeDeclaration> innerTypeDeclarations = new ArrayList<TypeDeclaration>();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
+			if(methodDeclaration.getBody() != null) {
+				List<Statement> statements = statementExtractor.getTypeDeclarationStatements(methodDeclaration.getBody());
+				for(Statement statement : statements) {
+					TypeDeclarationStatement typeDeclarationStatement = (TypeDeclarationStatement)statement;
+					AbstractTypeDeclaration declaration = typeDeclarationStatement.getDeclaration();
+					if(declaration instanceof TypeDeclaration) {
+						innerTypeDeclarations.add((TypeDeclaration)declaration);
+					}
+				}
+			}
+		}
 		TypeDeclaration[] types = typeDeclaration.getTypes();
 		for(TypeDeclaration type : types) {
 			innerTypeDeclarations.add(type);
@@ -173,7 +189,15 @@ public class ASTReader {
         		for(TypeDeclaration typeDeclaration : typeDeclarations) {
 	        		final ClassObject classObject = new ClassObject();
 		        	classObject.setIFile(iFile);
-		        	classObject.setName(typeDeclaration.resolveBinding().getQualifiedName());
+		        	ITypeBinding typeDeclarationBinding = typeDeclaration.resolveBinding();
+		        	if(typeDeclarationBinding.isLocal()) {
+		        		ITypeBinding declaringClass = typeDeclarationBinding.getDeclaringClass();
+		        		String className = declaringClass.getQualifiedName() + "." + typeDeclarationBinding.getName();
+		        		classObject.setName(className);
+		        	}
+		        	else {
+		        		classObject.setName(typeDeclarationBinding.getQualifiedName());
+		        	}
 		        	classObject.setAbstractTypeDeclaration(typeDeclaration);
 		        	
 		        	if(typeDeclaration.isInterface()) {

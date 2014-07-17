@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.TypeDeclarationStatement;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -91,6 +92,11 @@ public class StatementExtractor {
 
 	public List<Statement> getDoStatements(Statement statement) {
 		instanceChecker = new InstanceOfDoStatement();
+		return getStatements(statement);
+	}
+
+	public List<Statement> getTypeDeclarationStatements(Statement statement) {
+		instanceChecker = new InstanceOfTypeDeclarationStatement();
 		return getStatements(statement);
 	}
 	
@@ -206,7 +212,11 @@ public class StatementExtractor {
 			if(instanceChecker.instanceOf(continueStatement))
 				statementList.add(continueStatement);
 		}
-		
+		else if(statement instanceof TypeDeclarationStatement) {
+			TypeDeclarationStatement typeDeclarationStatement = (TypeDeclarationStatement)statement;
+			if(instanceChecker.instanceOf(typeDeclarationStatement))
+				statementList.add(typeDeclarationStatement);
+		}
 		return statementList;
 	}
 	
@@ -304,7 +314,9 @@ public class StatementExtractor {
 		else if(statement instanceof ContinueStatement) {
 			statementCounter += 1;
 		}
-		
+		else if(statement instanceof TypeDeclarationStatement) {
+			statementCounter += 1;
+		}
 		return statementCounter;
 	}
 }

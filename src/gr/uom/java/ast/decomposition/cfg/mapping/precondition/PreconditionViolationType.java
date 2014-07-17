@@ -5,6 +5,7 @@ public enum PreconditionViolationType {
 	INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH,
 	INFEASIBLE_UNIFICATION_DUE_TO_MISSING_MEMBERS_IN_THE_COMMON_SUPERCLASS,
 	UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE,
+	UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE,
 	UNMATCHED_BREAK_STATEMENT,
 	UNMATCHED_CONTINUE_STATEMENT,
 	UNMATCHED_RETURN_STATEMENT,
@@ -22,6 +23,9 @@ public enum PreconditionViolationType {
 		}
 		else if(name().equals(UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE.name())) {
 			return "cannot be moved before or after the extracted code, because it has dependencies to/from statements that will be extracted";
+		}
+		else if(name().equals(UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE.name())) {
+			return "cannot be moved before the extracted code, because it has control dependencies from statements that will be extracted";
 		}
 		return "";
 	}

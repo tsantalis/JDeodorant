@@ -212,6 +212,12 @@ public class ExpressionExtractor {
 		return getExpressions(statement);
 	}
 	
+	// returns a List of InstanceofExpression objects
+	public List<Expression> getInstanceofExpressions(Expression expression) {
+		instanceChecker = new InstanceOfInstanceofExpression();
+		return getExpressions(expression);
+	}
+	
 	// returns a List of Assignment objects
 	public List<Expression> getAssignments(Statement statement) {
 		instanceChecker = new InstanceOfAssignment();

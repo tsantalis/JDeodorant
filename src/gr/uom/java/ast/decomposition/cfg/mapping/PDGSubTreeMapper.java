@@ -15,6 +15,7 @@ import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
 import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
 import gr.uom.java.ast.decomposition.cfg.CFGExitNode;
@@ -49,6 +50,7 @@ import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -68,6 +70,8 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -1255,12 +1259,34 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE);
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+				PreconditionViolation violation2 = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
+				nodeMapping.addPreconditionViolation(violation2);
+				preconditionViolations.add(violation2);
+			}
 		}
 		else if(movableNonMappedNodeBeforeFirstMappedNode && movableNonMappedNodeAfterLastMappedNode) {
-			movableBeforeAndAfter.add(node);
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
+			else {
+				movableBeforeAndAfter.add(node);
+			}
 		}
 		else if(movableNonMappedNodeBeforeFirstMappedNode) {
-			movableBefore.add(node);
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
+			else {
+				movableBefore.add(node);
+			}
 		}
 		else if(movableNonMappedNodeAfterLastMappedNode) {
 			movableAfter.add(node);
@@ -1290,6 +1316,59 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
 		}
+	}
+	private boolean controlParentExaminesVariableUsedInNonMappedNode(PDGNode node, TreeSet<PDGNode> removableNodes) {
+		TreeSet<PDGNode> removableControlParents = new TreeSet<PDGNode>();
+		for(PDGNode removableNode : removableNodes) {
+			if(node.isControlDependentOnNode(removableNode)) {
+				removableControlParents.add(removableNode);
+			}
+		}
+		Iterator<AbstractVariable> iterator = node.getUsedVariableIterator();
+		while(iterator.hasNext()) {
+			AbstractVariable variable = iterator.next();
+			if(variable instanceof PlainVariable) {
+				PlainVariable plainVariable = (PlainVariable)variable;
+				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean controlParentExaminesVariableInCondition(PlainVariable plainVariable, TreeSet<PDGNode> removableControlParents) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		for(PDGNode controlParent : removableControlParents) {
+			if(controlParent.getCFGNode() instanceof CFGBranchIfNode) {
+				CFGBranchIfNode ifNode = (CFGBranchIfNode)controlParent.getCFGNode();
+				CompositeStatementObject composite = (CompositeStatementObject)ifNode.getStatement();
+				List<AbstractExpression> expressions = composite.getExpressions();
+				List<Expression> allSimpleNamesInLeftOperands = new ArrayList<Expression>();
+				Expression conditionalExpression = expressions.get(0).getExpression();
+				List<Expression> infixExpressions = expressionExtractor.getInfixExpressions(conditionalExpression);
+				for(Expression expression : infixExpressions) {
+					InfixExpression infixExpression = (InfixExpression)expression;
+					allSimpleNamesInLeftOperands.addAll(expressionExtractor.getVariableInstructions(infixExpression.getLeftOperand()));
+				}
+				List<Expression> instanceofExpressions = expressionExtractor.getInstanceofExpressions(conditionalExpression);
+				for(Expression expression : instanceofExpressions) {
+					InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
+					allSimpleNamesInLeftOperands.addAll(expressionExtractor.getVariableInstructions(instanceofExpression.getLeftOperand()));
+				}
+				for(Expression expression : allSimpleNamesInLeftOperands) {
+					SimpleName simpleName = (SimpleName)expression;
+					IBinding binding = simpleName.resolveBinding();
+					if(binding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding variableBinding = (IVariableBinding)binding;
+						if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 	private void processNonMappedNodesMovableBeforeAndAfter() {
 		for(PDGNode nodeG1 : nonMappedPDGNodesG1MovableBeforeAndAfter) {

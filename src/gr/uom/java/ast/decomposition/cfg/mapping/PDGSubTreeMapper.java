@@ -1338,7 +1338,25 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 		return false;
 	}
-
+	private boolean controlParentExaminesVariableUsedInDifferenceExpression(PDGExpression expression, PDGNode nodeContainingExpression, TreeSet<PDGNode> removableNodes) {
+		TreeSet<PDGNode> removableControlParents = new TreeSet<PDGNode>();
+		for(PDGNode removableNode : removableNodes) {
+			if(nodeContainingExpression.isControlDependentOnNode(removableNode)) {
+				removableControlParents.add(removableNode);
+			}
+		}
+		Iterator<AbstractVariable> iterator = expression.getUsedVariableIterator();
+		while(iterator.hasNext()) {
+			AbstractVariable variable = iterator.next();
+			if(variable instanceof PlainVariable) {
+				PlainVariable plainVariable = (PlainVariable)variable;
+				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 	private boolean controlParentExaminesVariableInCondition(PlainVariable plainVariable, TreeSet<PDGNode> removableControlParents) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		for(PDGNode controlParent : removableControlParents) {
@@ -1544,6 +1562,9 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						}
 					}
 				}
+			}
+			if(controlParentExaminesVariableUsedInDifferenceExpression(pdgExpression, nodeContainingExpression, nodes)) {
+				return false;
 			}
 		}
 		else {

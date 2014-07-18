@@ -6,6 +6,7 @@ import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,18 @@ public class PDGExpression {
 		this.thrownExceptionTypes = new LinkedHashSet<String>();
 		this.methodCallAnalyzer = new MethodCallAnalyzer(definedVariables, usedVariables, thrownExceptionTypes, variableDeclarationsInMethod);
 		determineDefinedAndUsedVariables(expression);
+	}
+
+	public Iterator<AbstractVariable> getDeclaredVariableIterator() {
+		return declaredVariables.iterator();
+	}
+
+	public Iterator<AbstractVariable> getDefinedVariableIterator() {
+		return definedVariables.iterator();
+	}
+
+	public Iterator<AbstractVariable> getUsedVariableIterator() {
+		return usedVariables.iterator();
 	}
 
 	public boolean definesLocalVariable(AbstractVariable variable) {

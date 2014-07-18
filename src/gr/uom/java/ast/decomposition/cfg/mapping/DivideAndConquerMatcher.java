@@ -374,6 +374,37 @@ public abstract class DivideAndConquerMatcher {
 									continue;
 								}
 							}
+							//handle the case where only one of the cdtNodes has mapped children
+							if(finalState != null && !children1.isEmpty() && children2.isEmpty()) {
+								//cdtNode2 has no children
+								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
+								boolean cdtNode1MappedChild = false;
+								for(PDGNodeMapping nodeMapping : nodeMappings) {
+									ControlDependenceTreeNode cdtChildNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
+									if(cdtChildNode1 != null && children1.contains(cdtChildNode1)) {
+										cdtNode1MappedChild = true;
+										break;
+									}
+								}
+								if(cdtNode1MappedChild) {
+									continue;
+								}
+							}
+							if(finalState != null && children1.isEmpty() && !children2.isEmpty()) {
+								//cdtNode1 has no children
+								Set<PDGNodeMapping> nodeMappings = finalState.getNodeMappings();
+								boolean cdtNode2MappedChild = false;
+								for(PDGNodeMapping nodeMapping : nodeMappings) {
+									ControlDependenceTreeNode cdtChildNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
+									if(cdtChildNode2 != null && children2.contains(cdtChildNode2)) {
+										cdtNode2MappedChild = true;
+										break;
+									}
+								}
+								if(cdtNode2MappedChild) {
+									continue;
+								}
+							}
 						}
 						//check sibling relationship preservation (all siblings in the current level)
 						ControlDependenceTreeNode cdtNode1Parent = null;

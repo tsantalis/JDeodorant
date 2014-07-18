@@ -224,14 +224,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	}
 
 	private void findNonMappedNodes(PDG pdg, TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
-		PDGNode first = allNodes.first();
-		PDGNode last = allNodes.last();
-		Iterator<GraphNode> iterator = pdg.getNodeIterator();
-		while(iterator.hasNext()) {
-			PDGNode pdgNode = (PDGNode)iterator.next();
-			if(pdgNode.getId() >= first.getId() && pdgNode.getId() <= last.getId()) {
-				if(!mappedNodes.contains(pdgNode)) {
-					nonMappedNodes.add(pdgNode);
+		if(allNodes.size() > 0) {
+			PDGNode first = allNodes.first();
+			PDGNode last = allNodes.last();
+			Iterator<GraphNode> iterator = pdg.getNodeIterator();
+			while(iterator.hasNext()) {
+				PDGNode pdgNode = (PDGNode)iterator.next();
+				if(pdgNode.getId() >= first.getId() && pdgNode.getId() <= last.getId()) {
+					if(!mappedNodes.contains(pdgNode)) {
+						nonMappedNodes.add(pdgNode);
+					}
 				}
 			}
 		}

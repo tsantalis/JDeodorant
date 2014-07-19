@@ -66,6 +66,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -78,6 +79,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGSubTreeMapper extends DivideAndConquerMatcher {
@@ -1359,6 +1361,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	}
 	private boolean controlParentExaminesVariableInCondition(PlainVariable plainVariable, TreeSet<PDGNode> removableControlParents) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<ASTNodeDifference> differences = getNodeDifferences();
 		for(PDGNode controlParent : removableControlParents) {
 			if(controlParent.getCFGNode() instanceof CFGBranchIfNode) {
 				CFGBranchIfNode ifNode = (CFGBranchIfNode)controlParent.getCFGNode();
@@ -1378,11 +1381,22 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				}
 				for(Expression expression : allSimpleNamesInLeftOperands) {
 					SimpleName simpleName = (SimpleName)expression;
-					IBinding binding = simpleName.resolveBinding();
-					if(binding.getKind() == IBinding.VARIABLE) {
-						IVariableBinding variableBinding = (IVariableBinding)binding;
-						if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
-							return true;
+					boolean foundInDifferences = false;
+					for(ASTNodeDifference difference : differences) {
+						Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+						Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+						if(isExpressionWithinExpression(simpleName, expr1) || isExpressionWithinExpression(simpleName, expr2)) {
+							foundInDifferences = true;
+							break;
+						}
+					}
+					if(!foundInDifferences) {
+						IBinding binding = simpleName.resolveBinding();
+						if(binding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)binding;
+							if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
+								return true;
+							}
 						}
 					}
 				}
@@ -1515,6 +1529,21 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		else {
 			pdgExpression = new PDGExpression(initialAbstractExpression, variableDeclarationsInMethod);
 		}
+		boolean expressionIsVariableName = false;
+		if(expr instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expr;
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				expressionIsVariableName = true;
+			}
+		}
+		else if(expr instanceof FieldAccess) {
+			FieldAccess fieldAccess = (FieldAccess)expr;
+			SimpleName simpleName = fieldAccess.getName();
+			if(fieldAccess.getExpression() instanceof ThisExpression &&
+					simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				expressionIsVariableName = true;
+			}
+		}
 		//find mapped node containing the expression
 		PDGNode nodeContainingExpression = null;
 		for(PDGNode node : mappedNodes) {
@@ -1563,7 +1592,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					}
 				}
 			}
-			if(controlParentExaminesVariableUsedInDifferenceExpression(pdgExpression, nodeContainingExpression, nodes)) {
+			if(!expressionIsVariableName && controlParentExaminesVariableUsedInDifferenceExpression(pdgExpression, nodeContainingExpression, nodes)) {
 				return false;
 			}
 		}
@@ -1593,6 +1622,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			return true;
 		if(!(parent instanceof Statement))
 			return isExpressionUnderStatement(parent, statement);
+		else
+			return false;
+	}
+	
+	private boolean isExpressionWithinExpression(ASTNode expression, Expression parentExpression) {
+		if(expression.equals(parentExpression))
+			return true;
+		ASTNode parent = expression.getParent();
+		if(!(parent instanceof Statement))
+			return isExpressionWithinExpression(parent, parentExpression);
 		else
 			return false;
 	}

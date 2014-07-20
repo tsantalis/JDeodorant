@@ -66,6 +66,7 @@ import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
@@ -74,6 +75,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -307,6 +309,33 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 					}
 				}
+			}
+		}
+		return false;
+	}
+
+	private boolean mappedNodesContainStatementDeclaringVariable(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
+			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
+			boolean node1DeclaresVariable = false;
+			for(Iterator<AbstractVariable> declaredVariableIterator = pdgNode1.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable.getVariableBindingKey().equals(variableDeclaration1.resolveBinding().getKey())) {
+					node1DeclaresVariable = true;
+					break;
+				}
+			}
+			boolean node2DeclaresVariable = false;
+			for(Iterator<AbstractVariable> declaredVariableIterator = pdgNode2.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable.getVariableBindingKey().equals(variableDeclaration2.resolveBinding().getKey())) {
+					node2DeclaresVariable = true;
+					break;
+				}
+			}
+			if(node1DeclaresVariable && node2DeclaresVariable) {
+				return true;
 			}
 		}
 		return false;
@@ -617,44 +646,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
 									Block methodBody = ast.newBlock();
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
-									ListRewrite statementsRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
 									//create a default return statement
-									ReturnStatement returnStatement = ast.newReturnStatement();
-									Expression returnedExpression = null;
-									boolean isVoid = false;
-									if(returnType.isPrimitiveType()) {
-										PrimitiveType primitiveType = (PrimitiveType)returnType;
-										if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BOOLEAN)) {
-											returnedExpression = ast.newBooleanLiteral(false);
-										}
-										else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.CHAR)) {
-											CharacterLiteral characterLiteral = ast.newCharacterLiteral();
-											sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
-											returnedExpression = characterLiteral;
-										}
-										else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.INT) ||
-												primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.SHORT) ||
-												primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BYTE)) {
-											returnedExpression = ast.newNumberLiteral("0");
-										}
-										else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.LONG)) {
-											returnedExpression = ast.newNumberLiteral("0L");
-										}
-										else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.FLOAT)) {
-											returnedExpression = ast.newNumberLiteral("0.0f");
-										}
-										else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.DOUBLE)) {
-											returnedExpression = ast.newNumberLiteral("0.0d");
-										}
-										else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
-											isVoid = true;
-										}
-									}
-									else {
-										returnedExpression = ast.newNullLiteral();
-									}
-									sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedExpression, null);
-									if(!isVoid) {
+									Expression returnedExpression = generateDefaultValue(sourceRewriter, ast, returnType);
+									if(returnedExpression != null) {
+										ReturnStatement returnStatement = ast.newReturnStatement();
+										sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedExpression, null);
+										ListRewrite statementsRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
 										statementsRewrite.insertLast(returnStatement, null);
 									}
 								}
@@ -805,6 +802,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ReturnStatement returnStatement = ast.newReturnStatement();
 			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariables1.get(0).getName(), null);
 			methodBodyRewrite.insertLast(returnStatement, null);
+			if(!mappedNodesContainStatementDeclaringVariable(returnedVariables1.get(0), returnedVariables2.get(0))) {
+				Type returnedType = extractType(returnedVariables1.get(0));
+				Expression initializer = generateDefaultValue(sourceRewriter, ast, returnedType);
+				VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+				sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariables1.get(0).getName(), null);
+				sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				VariableDeclarationStatement declarationStatement = ast.newVariableDeclarationStatement(fragment);
+				sourceRewriter.set(declarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedType, null);
+				methodBodyRewrite.insertFirst(declarationStatement, null);
+			}
 		}
 		
 		//add parameters for the differences between the clones
@@ -857,6 +864,42 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, Type returnType) {
+		Expression returnedExpression = null;
+		if(returnType.isPrimitiveType()) {
+			PrimitiveType primitiveType = (PrimitiveType)returnType;
+			if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BOOLEAN)) {
+				returnedExpression = ast.newBooleanLiteral(false);
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.CHAR)) {
+				CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+				sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
+				returnedExpression = characterLiteral;
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.INT) ||
+					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.SHORT) ||
+					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BYTE)) {
+				returnedExpression = ast.newNumberLiteral("0");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.LONG)) {
+				returnedExpression = ast.newNumberLiteral("0L");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.FLOAT)) {
+				returnedExpression = ast.newNumberLiteral("0.0f");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.DOUBLE)) {
+				returnedExpression = ast.newNumberLiteral("0.0d");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
+				returnedExpression = null;
+			}
+		}
+		else {
+			returnedExpression = ast.newNullLiteral();
+		}
+		return returnedExpression;
 	}
 
 	private void updateAccessModifier(MethodDeclaration methodDeclaration, Modifier.ModifierKeyword modifierKeyword) {
@@ -2596,32 +2639,53 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		Statement extractedMethodInvocationStatement = null;
 		if(returnedVariables.size() == 1) {
-			//create a variable declaration statement
+			Statement methodInvocationStatement = null;
 			VariableDeclaration variableDeclaration = returnedVariables.get(0);
-			Type variableType = extractType(variableDeclaration);
-			VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
-			methodBodyRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclaration.getName(), null);
-			ITypeBinding returnTypeBinding = findReturnTypeBinding();
-			if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableType.resolveBinding())) {
-				CastExpression castExpression = ast.newCastExpression();
-				methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
-				methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, variableType, null);
-				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, castExpression, null);
+			if(variableDeclaration.resolveBinding().isParameter() || variableDeclaration.resolveBinding().isField()) {
+				//create an assignment statement
+				Type variableType = extractType(variableDeclaration);
+				Assignment assignment = ast.newAssignment();
+				methodBodyRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, variableDeclaration.getName(), null);
+				ITypeBinding returnTypeBinding = findReturnTypeBinding();
+				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableType.resolveBinding())) {
+					CastExpression castExpression = ast.newCastExpression();
+					methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
+					methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, variableType, null);
+					methodBodyRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, castExpression, null);
+				}
+				else {
+					methodBodyRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, methodInvocation, null);
+				}
+				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
+				methodInvocationStatement = expressionStatement;
 			}
 			else {
-				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, methodInvocation, null);
+				//create a variable declaration statement
+				Type variableType = extractType(variableDeclaration);
+				VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
+				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclaration.getName(), null);
+				ITypeBinding returnTypeBinding = findReturnTypeBinding();
+				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableType.resolveBinding())) {
+					CastExpression castExpression = ast.newCastExpression();
+					methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
+					methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, variableType, null);
+					methodBodyRewriter.set(newFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, castExpression, null);
+				}
+				else {
+					methodBodyRewriter.set(newFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, methodInvocation, null);
+				}
+				VariableDeclarationStatement newVariableDeclarationStatement = ast.newVariableDeclarationStatement(newFragment);
+				methodBodyRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableType, null);
+				methodInvocationStatement = newVariableDeclarationStatement;
 			}
-			VariableDeclarationStatement newVariableDeclarationStatement = ast.newVariableDeclarationStatement(newFragment);
-			
-			methodBodyRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableType, null);
 			if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
-				blockRewrite.insertBefore(newVariableDeclarationStatement, firstStatement, null);
+				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
 			}
 			else {
 				Statement lastPreservedStatement = nodesToBePreservedInTheOriginalMethod.get(index).last().getASTStatement();
-				blockRewrite.insertAfter(newVariableDeclarationStatement, lastPreservedStatement, null);
+				blockRewrite.insertAfter(methodInvocationStatement, lastPreservedStatement, null);
 			}
-			extractedMethodInvocationStatement = newVariableDeclarationStatement;
+			extractedMethodInvocationStatement = methodInvocationStatement;
 		}
 		else {
 			ITypeBinding returnTypeBinding = findReturnTypeBinding();

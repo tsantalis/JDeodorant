@@ -7,6 +7,7 @@ import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
@@ -251,6 +252,31 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						if(pdgNode.usesLocalVariable(declaredVariable) || pdgNode.definesLocalVariable(declaredVariable)) {
 							variables.add(declaredVariable);
 							break;
+						}
+					}
+				}
+			}
+			//special handling for parameters
+			ListIterator<ParameterObject> parameterIterator = pdg.getMethod().getParameterListIterator();
+			while(parameterIterator.hasNext()) {
+				ParameterObject parameter = parameterIterator.next();
+				VariableDeclaration variableDeclaration = parameter.getVariableDeclaration();
+				AbstractVariable definedVariable = null;
+				for(Iterator<AbstractVariable> definedVariableIterator = mappedNode.getDefinedVariableIterator(); definedVariableIterator.hasNext();) {
+					AbstractVariable variable = definedVariableIterator.next();
+					if(variable instanceof PlainVariable && variable.getVariableBindingKey().equals(variableDeclaration.resolveBinding().getKey())) {
+						definedVariable = variable;
+						break;
+					}
+				}
+				if(definedVariable != null) {
+					for(GraphNode node : pdg.getNodes()) {
+						PDGNode pdgNode = (PDGNode)node;
+						if(!mappedNodes.contains(pdgNode)) {
+							if(pdgNode.usesLocalVariable(definedVariable) || pdgNode.definesLocalVariable(definedVariable)) {
+								variables.add(definedVariable);
+								break;
+							}
 						}
 					}
 				}
@@ -1263,12 +1289,6 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE);
 			nodeMapping.addPreconditionViolation(violation);
 			preconditionViolations.add(violation);
-			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
-				PreconditionViolation violation2 = new StatementPreconditionViolation(node.getStatement(),
-						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
-				nodeMapping.addPreconditionViolation(violation2);
-				preconditionViolations.add(violation2);
-			}
 		}
 		else if(movableNonMappedNodeBeforeFirstMappedNode && movableNonMappedNodeAfterLastMappedNode) {
 			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
@@ -1293,7 +1313,15 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			}
 		}
 		else if(movableNonMappedNodeAfterLastMappedNode) {
-			movableAfter.add(node);
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
+			else {
+				movableAfter.add(node);
+			}
 		}
 		CFGNode cfgNode = node.getCFGNode();
 		if(cfgNode instanceof CFGBreakNode) {

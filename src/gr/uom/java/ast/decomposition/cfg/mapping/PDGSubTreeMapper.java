@@ -194,8 +194,8 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				}
 			}
 			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
-			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
-			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
+			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
+			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 			this.renamedVariables = findRenamedVariables();
 			findPassedParameters();
 			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
@@ -242,13 +242,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 	}
 
-	private void findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(PDG pdg, Set<PDGNode> mappedNodes, Set<AbstractVariable> variables) {
-		for(PDGNode mappedNode : mappedNodes) {
+	private void findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(PDG pdg, Set<PDGNode> mappedNodes, Set<PDGNode> unmappedNodes, Set<AbstractVariable> variables) {
+		Set<PDGNode> nodes = new TreeSet<PDGNode>();
+		nodes.addAll(mappedNodes);
+		nodes.addAll(unmappedNodes);
+		for(PDGNode mappedNode : nodes) {
 			for(Iterator<AbstractVariable> declaredVariableIterator = mappedNode.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
 				AbstractVariable declaredVariable = declaredVariableIterator.next();
 				for(GraphNode node : pdg.getNodes()) {
 					PDGNode pdgNode = (PDGNode)node;
-					if(!mappedNodes.contains(pdgNode)) {
+					if(!mappedNodes.contains(pdgNode) && !pdgNode.equals(mappedNode)) {
 						if(pdgNode.usesLocalVariable(declaredVariable) || pdgNode.definesLocalVariable(declaredVariable)) {
 							variables.add(declaredVariable);
 							break;
@@ -272,7 +275,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				if(definedVariable != null) {
 					for(GraphNode node : pdg.getNodes()) {
 						PDGNode pdgNode = (PDGNode)node;
-						if(!mappedNodes.contains(pdgNode)) {
+						if(!mappedNodes.contains(pdgNode) && !pdgNode.equals(mappedNode)) {
 							if(pdgNode.usesLocalVariable(definedVariable) || pdgNode.definesLocalVariable(definedVariable)) {
 								variables.add(definedVariable);
 								break;
@@ -1337,10 +1340,12 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			preconditionViolations.add(violation);
 		}
 		else if(cfgNode instanceof CFGExitNode) {
-			PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-					PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
-			nodeMapping.addPreconditionViolation(violation);
-			preconditionViolations.add(violation);
+			if(!movableAfter.contains(node)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_RETURN_STATEMENT);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
 		}
 		else if(cfgNode instanceof CFGThrowNode) {
 			PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),

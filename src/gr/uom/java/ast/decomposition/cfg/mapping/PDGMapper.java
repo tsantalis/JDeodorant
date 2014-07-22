@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -38,7 +39,9 @@ public class PDGMapper {
 				if(pair.getNode2().isTernary() && !pair.getNode1().isTernary())
 					ternaryOperatorCount2++;
 			}
-			if(subTreeSize == (size1 - ternaryOperatorCount2) && subTreeSize == (size2 - ternaryOperatorCount1)) {
+			int treeSize1 = size1 - ternaryOperatorCount2;
+			int treeSize2 = size2 - ternaryOperatorCount1;
+			if(subTreeSize == treeSize1 && subTreeSize == treeSize2) {
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2, true, monitor);
 				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
 					subTreeMappers.add(mapper);
@@ -46,7 +49,9 @@ public class PDGMapper {
 			else {
 				ControlDependenceTreeNode controlDependenceSubTreePDG1 = generateControlDependenceSubTree(controlDependenceTreePDG1, subTreeMatch.getControlDependenceTreeNodes1());
 				ControlDependenceTreeNode controlDependenceSubTreePDG2 = generateControlDependenceSubTree(controlDependenceTreePDG2, subTreeMatch.getControlDependenceTreeNodes2());
-				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, false, monitor);
+				TreeSet<ControlDependenceTreeNodeMatchPair> matchPairs = subTreeMatch.getMatchPairs();
+				boolean fullTreeMatch = matchPairs.size() == Math.min(treeSize1, treeSize2);
+				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, fullTreeMatch, monitor);
 				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
 					subTreeMappers.add(mapper);
 			}

@@ -151,7 +151,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<BindingSignaturePair, ASTNodeDifference> parameterizedDifferenceMap;
 	private List<ArrayList<VariableDeclaration>> returnedVariables;
 	private String extractedMethodName;
-	private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
+	//private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
 	private CloneInformation cloneInfo;
 	
 	private class CloneInformation {
@@ -213,12 +213,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
 		this.methodDeclarationsToBePulledUp = new ArrayList<Set<MethodDeclaration>>();
 		this.labeledStatementsToBeRemoved = new ArrayList<Set<LabeledStatement>>();
-		this.nodesToBePreservedInTheOriginalMethod = new ArrayList<TreeSet<PDGNode>>();
+		//this.nodesToBePreservedInTheOriginalMethod = new ArrayList<TreeSet<PDGNode>>();
 		for(int i=0; i<2; i++) {
 			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
 			methodDeclarationsToBePulledUp.add(new LinkedHashSet<MethodDeclaration>());
 			labeledStatementsToBeRemoved.add(new LinkedHashSet<LabeledStatement>());
-			nodesToBePreservedInTheOriginalMethod.add(new TreeSet<PDGNode>());
+			//nodesToBePreservedInTheOriginalMethod.add(new TreeSet<PDGNode>());
 		}
 		this.compilationUnitChanges = new LinkedHashMap<ICompilationUnit, CompilationUnitChange>();
 		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
@@ -288,7 +288,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		finalizeCloneExtraction();
 	}
 
-	private boolean mappedNodesContainReturnStatementReturingVariable(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+	private boolean mappedNodesContainStatementReturningVariable(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
@@ -335,6 +335,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			if(node1DeclaresVariable && node2DeclaresVariable) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean variableIsPassedAsCommonParameter(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+		for(VariableBindingKeyPair pair : mapper.getCommonPassedParameters().keySet()) {
+			if(pair.getKey1().equals(variableDeclaration1.resolveBinding().getKey()) &&
+					pair.getKey2().equals(variableDeclaration2.resolveBinding().getKey())) {
 				return true;
 			}
 		}
@@ -798,11 +808,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 &&
-				!mappedNodesContainReturnStatementReturingVariable(returnedVariables1.get(0), returnedVariables2.get(0))) {
+				!mappedNodesContainStatementReturningVariable(returnedVariables1.get(0), returnedVariables2.get(0))) {
 			ReturnStatement returnStatement = ast.newReturnStatement();
 			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariables1.get(0).getName(), null);
 			methodBodyRewrite.insertLast(returnStatement, null);
-			if(!mappedNodesContainStatementDeclaringVariable(returnedVariables1.get(0), returnedVariables2.get(0))) {
+			if(!mappedNodesContainStatementDeclaringVariable(returnedVariables1.get(0), returnedVariables2.get(0)) &&
+					!variableIsPassedAsCommonParameter(returnedVariables1.get(0), returnedVariables2.get(0))) {
 				Type returnedType = extractType(returnedVariables1.get(0));
 				Expression initializer = generateDefaultValue(sourceRewriter, ast, returnedType);
 				VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
@@ -1245,7 +1256,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private boolean variableIsUsedByExtractedStatement(CloneStructureNode node, PlainVariable variable) {
+	/*private boolean variableIsUsedByExtractedStatement(CloneStructureNode node, PlainVariable variable) {
 		PDGNodeMapping nodeMapping = (PDGNodeMapping) node.getMapping();
 		List<ASTNodeDifference> differences = nodeMapping.getNodeDifferences();
 		PDGNode node1 = nodeMapping.getNodeG1();
@@ -1275,7 +1286,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return false;
 	}
 
-	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getDeclaredLocalVariables(
+	private Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getDeclaredLocalVariables(
 			LinkedHashMap<VariableBindingKeyPair, ArrayList<PlainVariable>> declaredLocalVariables) {
 		Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> declaredVariables = new LinkedHashMap<VariableBindingKeyPair, ArrayList<VariableDeclaration>>();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = mapper.getPDG1().getVariableDeclarationsAndAccessedFieldsInMethod();
@@ -1300,10 +1311,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			declaredVariables.put(key, variableDeclarations);
 		}
 		return declaredVariables;
-	}
+	}*/
 
 	private void finalizeCloneExtraction() {
-		TreeSet<PDGNode> nodesToBePreservedInTheOriginalMethod1 = nodesToBePreservedInTheOriginalMethod.get(0);
+		/*TreeSet<PDGNode> nodesToBePreservedInTheOriginalMethod1 = nodesToBePreservedInTheOriginalMethod.get(0);
 		ArrayList<PDGNode> nodesToBePreservedInTheOriginalMethod2 = new ArrayList<PDGNode>(nodesToBePreservedInTheOriginalMethod.get(1));
 		LinkedHashMap<VariableBindingKeyPair, ArrayList<PlainVariable>> declaredLocalVariables =
 				new LinkedHashMap<VariableBindingKeyPair, ArrayList<PlainVariable>>();
@@ -1376,7 +1387,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			//modify the arguments of the method calls to the extracted method
 			cloneInfo.argumentRewriteList.get(0).insertLast(variableDeclaration1.getName(), null);
 			cloneInfo.argumentRewriteList.get(1).insertLast(variableDeclaration2.getName(), null);
-		}
+		}*/
 		finalizeOriginalMethod(sourceCompilationUnits.get(0), cloneInfo.originalMethodBodyRewriteList.get(0));
 		finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
 		try {
@@ -2574,7 +2585,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		cloneInfo.argumentRewriteList.add(index, argumentsRewrite);
-		TreeSet<PDGNode> nodesToBeRemoved = new TreeSet<PDGNode>();
+		/*TreeSet<PDGNode> nodesToBeRemoved = new TreeSet<PDGNode>();
 		for(PDGNode pdgNode : removableNodes) {
 			boolean declaresParameterizedVariable = false;
 			Iterator<AbstractVariable> declaredVariableIterator = pdgNode.getDeclaredVariableIterator();
@@ -2603,9 +2614,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				nodesToBePreservedInTheOriginalMethod.get(index).add(pdgNode);
 			}
-		}
+		}*/
 		//place the code in the parent block of the first removable node
-		Statement firstStatement = nodesToBeRemoved.first().getASTStatement();
+		Statement firstStatement = /*nodesToBeRemoved*/removableNodes.first().getASTStatement();
 		Block parentBlock = (Block)firstStatement.getParent();
 		ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentBlock, Block.STATEMENTS_PROPERTY);
 		CloneStructureNode root = mapper.getCloneStructureRoot();
@@ -2641,7 +2652,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(returnedVariables.size() == 1) {
 			Statement methodInvocationStatement = null;
 			VariableDeclaration variableDeclaration = returnedVariables.get(0);
-			if(variableDeclaration.resolveBinding().isParameter() || variableDeclaration.resolveBinding().isField()) {
+			if(variableDeclaration.resolveBinding().isParameter() || variableDeclaration.resolveBinding().isField()
+					|| statementsToBeMovedBefore.contains(variableDeclaration.getParent())) {
 				//create an assignment statement
 				Type variableType = extractType(variableDeclaration);
 				Assignment assignment = ast.newAssignment();
@@ -2658,6 +2670,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
 				methodInvocationStatement = expressionStatement;
+				if(statementsToBeMovedBefore.contains(variableDeclaration.getParent()) && variableDeclaration.getInitializer() == null) {
+					methodBodyRewriter.set(variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY,
+							generateDefaultValue(methodBodyRewriter, ast, variableType), null);
+				}
 			}
 			else {
 				//create a variable declaration statement
@@ -2678,13 +2694,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodBodyRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableType, null);
 				methodInvocationStatement = newVariableDeclarationStatement;
 			}
-			if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
+			blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
+			/*if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
 				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
 			}
 			else {
 				Statement lastPreservedStatement = nodesToBePreservedInTheOriginalMethod.get(index).last().getASTStatement();
 				blockRewrite.insertAfter(methodInvocationStatement, lastPreservedStatement, null);
-			}
+			}*/
 			extractedMethodInvocationStatement = methodInvocationStatement;
 		}
 		else {
@@ -2706,13 +2723,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				methodInvocationStatement = ast.newExpressionStatement(methodInvocation);
 			}
-			if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
+			blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
+			/*if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
 				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
 			}
 			else {
 				Statement lastPreservedStatement = nodesToBePreservedInTheOriginalMethod.get(index).last().getASTStatement();
 				blockRewrite.insertAfter(methodInvocationStatement, lastPreservedStatement, null);
-			}
+			}*/
 			extractedMethodInvocationStatement = methodInvocationStatement;
 		}
 		for(Statement movedBefore : statementsToBeMovedBefore) {
@@ -2722,7 +2740,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Statement movedAfter = statementsToBeMovedAfter.get(i);
 			blockRewrite.insertAfter(movedAfter, extractedMethodInvocationStatement, null);
 		}
-		for(PDGNode pdgNode : nodesToBeRemoved) {
+		for(PDGNode pdgNode : /*nodesToBeRemoved*/removableNodes) {
 			Statement statement = pdgNode.getASTStatement();
 			methodBodyRewriter.remove(statement, null);
 		}

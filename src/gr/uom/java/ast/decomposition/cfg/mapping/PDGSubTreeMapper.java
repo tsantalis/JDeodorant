@@ -1043,6 +1043,23 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				}
 			}
 		}
+		for(PDGNode mappedNode : mappedNodes) {
+			Iterator<GraphEdge> incomingDependenceIt = mappedNode.getIncomingDependenceIterator();
+			while(incomingDependenceIt.hasNext()) {
+				PDGDependence dependence = (PDGDependence)incomingDependenceIt.next();
+				if(dependence instanceof PDGDataDependence) {
+					PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+					PDGNode srcNode = (PDGNode)dataDependence.getSrc();
+					if(mappedNodes.contains(srcNode) && dataDependence.getData() instanceof PlainVariable) {
+						PlainVariable variable = (PlainVariable)dataDependence.getData();
+						if(dataDependence.isLoopCarried() && !mappedNodes.contains(dataDependence.getLoop().getPDGNode())) {
+							if(!variable.isField())
+								variablesToBeReturned.add(variable);
+						}
+					}
+				}
+			}
+		}
 		return variablesToBeReturned;
 	}
 

@@ -84,7 +84,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 										CFG cfg2 = new CFG(methodObject2);
 										final PDG pdg2 = new PDG(cfg2, classObject2.getIFile(), classObject2.getFieldsAccessedInsideMethod(methodObject2), monitor);
 										mapper = new PDGMapper(pdg1, pdg2, monitor);
-										CompilationUnitCache.getInstance().releaseLock();
+										//CompilationUnitCache.getInstance().releaseLock();
 									}
 								});
 							}
@@ -106,6 +106,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 								e.printStackTrace();
 							}
 						}
+						CompilationUnitCache.getInstance().releaseLock();
 					}
 					else
 						MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",

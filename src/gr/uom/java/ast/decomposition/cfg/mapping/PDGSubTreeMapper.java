@@ -1092,7 +1092,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 	}
 
-	private void conditionalReturnStatement(NodeMapping nodeMapping, PDGNode node) {
+	private void conditionalReturnStatement(NodeMapping nodeMapping, PDGNode node, Set<PlainVariable> returnedVariables) {
 		CFGNode cfgNode = node.getCFGNode();
 		if(cfgNode instanceof CFGExitNode) {
 			ReturnStatement returnStatement = (ReturnStatement)cfgNode.getASTStatement();
@@ -1101,6 +1101,25 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
 				nodeMapping.addPreconditionViolation(violation);
 				preconditionViolations.add(violation);
+			}
+			else {
+				Expression expression = returnStatement.getExpression();
+				boolean isReturnedVariable = false;
+				if(expression instanceof SimpleName) {
+					SimpleName simpleName = (SimpleName)expression;
+					for(PlainVariable variable : returnedVariables) {
+						if(variable.getVariableBindingKey().equals(simpleName.resolveBinding().getKey())) {
+							isReturnedVariable = true;
+							break;
+						}
+					}
+				}
+				if(!isReturnedVariable) {
+					PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
+				}
 			}
 		}
 	}
@@ -1260,10 +1279,10 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
 			if(getAllNodesInSubTreePDG1().size() != pdg1.getNodes().size()) {
-				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
+				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1(), this.variablesToBeReturnedG1);
 			}
 			if(getAllNodesInSubTreePDG2().size() != pdg2.getNodes().size()) {
-				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
+				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2(), this.variablesToBeReturnedG2);
 			}
 		}
 	}

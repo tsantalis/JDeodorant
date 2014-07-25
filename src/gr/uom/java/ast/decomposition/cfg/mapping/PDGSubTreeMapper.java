@@ -66,6 +66,7 @@ import java.util.TreeSet;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -909,12 +910,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		Set<BindingSignaturePair> inconsistentRenames = new LinkedHashSet<BindingSignaturePair>();
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
 			List<ASTNodeDifference> nodeDifferences = nodeMapping.getNodeDifferences();
+			Set<BindingSignaturePair> localVariableNameMismatches = new LinkedHashSet<BindingSignaturePair>();
 			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
 			List<AbstractExpression> expressions2 = new ArrayList<AbstractExpression>();
 			for(ASTNodeDifference nodeDifference : nodeDifferences) {
 				if(!nodeDifference.containsDifferenceType(DifferenceType.VARIABLE_NAME_MISMATCH)) {
 					expressions1.add(nodeDifference.getExpression1());
 					expressions2.add(nodeDifference.getExpression2());
+				}
+				else {
+					localVariableNameMismatches.add(nodeDifference.getBindingSignaturePair());
 				}
 			}
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
@@ -927,7 +932,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					boolean matchingPairFound = false;
 					for(PlainVariable plainVariable2 : variables2) {
 						BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, variableNameMismatches);
-						if(pair2 != null && pair2.equals(pair1)) {
+						if(pair2 != null && pair2.equals(pair1) && localVariableNameMismatches.contains(pair1)) {
 							matchingPairFound = true;
 							break;
 						}
@@ -943,7 +948,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					boolean matchingPairFound = false;
 					for(PlainVariable plainVariable1 : variables1) {
 						BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
-						if(pair1 != null && pair1.equals(pair2)) {
+						if(pair1 != null && pair1.equals(pair2) && localVariableNameMismatches.contains(pair2)) {
 							matchingPairFound = true;
 							break;
 						}
@@ -1169,6 +1174,18 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 							violation.addSuggestion(message);
 						}
 					}
+				}
+				if(isFieldUpdate(abstractExpression1)) {
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
+							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_FIELD_UPDATE);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
+				}
+				if(isFieldUpdate(abstractExpression2)) {
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
+							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_FIELD_UPDATE);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
 				}
 			}
 			if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
@@ -1564,6 +1581,35 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			}
 		}
 		return true;
+	}
+	
+	private boolean isFieldUpdate(AbstractExpression expression) {
+		Expression expr = expression.getExpression();
+		boolean expressionIsField = false;
+		if(expr instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expr;
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+				expressionIsField = variableBinding.isField();
+			}
+		}
+		else if(expr instanceof FieldAccess) {
+			FieldAccess fieldAccess = (FieldAccess)expr;
+			SimpleName simpleName = fieldAccess.getName();
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+				expressionIsField = variableBinding.isField();
+			}
+		}
+		if(expressionIsField) {
+			if(expr.getParent() instanceof Assignment) {
+				Assignment assignment = (Assignment)expr.getParent();
+				if(assignment.getLeftHandSide().equals(expr)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 	//precondition: differences in expressions should be parameterizable
 	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression,

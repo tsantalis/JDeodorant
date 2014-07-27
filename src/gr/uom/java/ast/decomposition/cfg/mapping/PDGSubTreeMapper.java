@@ -67,6 +67,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -224,6 +225,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
+			checkIfAllPossibleExecutionFlowsEndInReturn();
 		}
 	}
 
@@ -1058,7 +1060,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					if(mappedNodes.contains(srcNode) && dataDependence.getData() instanceof PlainVariable) {
 						PlainVariable variable = (PlainVariable)dataDependence.getData();
 						if(dataDependence.isLoopCarried() && !mappedNodes.contains(dataDependence.getLoop().getPDGNode())) {
-							if(!variable.isField())
+							if(!variable.isField() && !srcNode.declaresLocalVariable(variable))
 								variablesToBeReturned.add(variable);
 						}
 					}
@@ -1092,7 +1094,52 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 	}
 
-	private void conditionalReturnStatement(NodeMapping nodeMapping, PDGNode node, Set<PlainVariable> returnedVariables) {
+	private void checkIfAllPossibleExecutionFlowsEndInReturn() {
+		Set<PDGNode> allConditionalReturnStatements1 = extractConditionalReturnStatements(pdg1.getNodes());
+		Set<PDGNode> allConditionalReturnStatements2 = extractConditionalReturnStatements(pdg2.getNodes());
+		Set<PDGNode> mappedConditionalReturnStatements1 = extractConditionalReturnStatements(mappedNodesG1);
+		Set<PDGNode> mappedConditionalReturnStatements2 = extractConditionalReturnStatements(mappedNodesG2);
+		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() &&
+				allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size()) {
+			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+				PDGNode node1 = nodeMapping.getNodeG1();
+				PDGNode node2 = nodeMapping.getNodeG2();
+				if(mappedConditionalReturnStatements1.contains(node1)) {
+					PreconditionViolation violation = new StatementPreconditionViolation(node1.getStatement(),
+							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
+				}
+				if(mappedConditionalReturnStatements2.contains(node2)) {
+					PreconditionViolation violation = new StatementPreconditionViolation(node2.getStatement(),
+							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
+				}
+			}
+		}
+	}
+
+	private Set<PDGNode> extractConditionalReturnStatements(Set<? extends GraphNode> nodes) {
+		Set<PDGNode> conditionalReturnStatements = new TreeSet<PDGNode>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			if(cfgNode instanceof CFGExitNode) {
+				ReturnStatement returnStatement = (ReturnStatement)cfgNode.getASTStatement();
+				Expression expression = returnStatement.getExpression();
+				if(expression != null && expression instanceof BooleanLiteral) {
+					PDGNode controlParentNode = pdgNode.getControlDependenceParent();
+					if(controlParentNode instanceof PDGControlPredicateNode) {
+						conditionalReturnStatements.add(pdgNode);
+					}
+				}
+			}
+		}
+		return conditionalReturnStatements;
+	}
+
+	private void conditionalReturnStatement(NodeMapping nodeMapping, PDGNode node) {
 		CFGNode cfgNode = node.getCFGNode();
 		if(cfgNode instanceof CFGExitNode) {
 			ReturnStatement returnStatement = (ReturnStatement)cfgNode.getASTStatement();
@@ -1101,25 +1148,6 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
 				nodeMapping.addPreconditionViolation(violation);
 				preconditionViolations.add(violation);
-			}
-			else {
-				Expression expression = returnStatement.getExpression();
-				boolean isReturnedVariable = false;
-				if(expression instanceof SimpleName) {
-					SimpleName simpleName = (SimpleName)expression;
-					for(PlainVariable variable : returnedVariables) {
-						if(variable.getVariableBindingKey().equals(simpleName.resolveBinding().getKey())) {
-							isReturnedVariable = true;
-							break;
-						}
-					}
-				}
-				if(!isReturnedVariable) {
-					PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
-							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
-					nodeMapping.addPreconditionViolation(violation);
-					preconditionViolations.add(violation);
-				}
 			}
 		}
 	}
@@ -1279,10 +1307,10 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
 			if(getAllNodesInSubTreePDG1().size() != pdg1.getNodes().size()) {
-				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1(), this.variablesToBeReturnedG1);
+				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());
 			}
 			if(getAllNodesInSubTreePDG2().size() != pdg2.getNodes().size()) {
-				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2(), this.variablesToBeReturnedG2);
+				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
 			}
 		}
 	}

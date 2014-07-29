@@ -77,8 +77,10 @@ public class Indexer {
 				SearchPattern searchPattern = SearchPattern.createPattern(superType, IJavaSearchConstants.IMPLEMENTORS);
 				SearchEngine searchEngine = new SearchEngine();
 				IJavaSearchScope scope = null;
-				if(packageFragment.getElementName().equals("java.util") || packageFragment.getElementName().equals("java.lang") ||
-						packageFragment.getElementName().equals("java.sql") || packageFragment.getElementName().equals("org.w3c.dom"))
+				String packageFragmentName = packageFragment.getElementName();
+				if(packageFragmentName.equals("java.util") || packageFragmentName.equals("java.lang") ||
+						packageFragmentName.equals("java.sql") || packageFragmentName.equals("org.w3c.dom") ||
+						packageFragmentName.equals("java.text"))
 					scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {packageFragment}, false);
 				else
 					scope = SearchEngine.createHierarchyScope(superType);

@@ -614,7 +614,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
 									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
-								typeBindings.add(returnType.resolveBinding());
+								/*typeBindings.add(returnType.resolveBinding());
 								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
 								for(SingleVariableDeclaration parameter : parameters) {
 									typeBindings.add(parameter.getType().resolveBinding());
@@ -622,7 +622,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
 								for(Name thrownException : thrownExceptions) {
 									typeBindings.add(thrownException.resolveTypeBinding());
-								}
+								}*/
+								TypeVisitor typeVisitor = new TypeVisitor();
+								methodDeclaration1.accept(typeVisitor);
+								typeBindings.addAll(typeVisitor.getTypeBindings());
 								//check if the pulled up method is using fields that should be also pulled up, remove fields that have been already pulled up
 								Set<VariableDeclaration> fieldsAccessedInMethod1 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG1, methodDeclaration1);
 								fieldsAccessedInMethod1.removeAll(accessedLocalFieldsG1);
@@ -651,11 +654,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										Modifier modifier = (Modifier)extendedModifier;
 										if(modifier.isProtected()) {
 											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-											updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+											if((methodDeclaration2.getModifiers() & Modifier.PROTECTED) == 0) {
+												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+											}
 										}
 										else if(modifier.isPublic()) {
 											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-											updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+											if((methodDeclaration2.getModifiers() & Modifier.PUBLIC) == 0) {
+												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+											}
 										}
 									}
 								}
@@ -843,14 +850,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else if(expression2 != null) {
 				isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
 			}
+			ITypeBinding typeBinding1 = expression1 != null ? expression1.getExpression().resolveTypeBinding()
+					: expression2.getExpression().resolveTypeBinding();
+			ITypeBinding typeBinding2 = expression2 != null ? expression2.getExpression().resolveTypeBinding()
+					: expression1.getExpression().resolveTypeBinding();
 			if(!isReturnedVariable) {
 				ITypeBinding typeBinding = null;
 				if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) ||
 						differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
-					ITypeBinding typeBinding1 = expression1 != null ? expression1.getExpression().resolveTypeBinding()
-																	: expression2.getExpression().resolveTypeBinding();
-					ITypeBinding typeBinding2 = expression2 != null ? expression2.getExpression().resolveTypeBinding()
-																	: expression1.getExpression().resolveTypeBinding();
 					if(!typeBinding1.isEqualTo(typeBinding2)) {
 						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 						if(commonSuperTypeBinding != null) {
@@ -862,8 +869,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 				else {
-					typeBinding = expression1 != null ? expression1.getExpression().resolveTypeBinding()
-													: expression2.getExpression().resolveTypeBinding();
+					if(expression1 != null && !typeBinding1.getQualifiedName().equals("null")) {
+						typeBinding = typeBinding1;
+					}
+					else {
+						typeBinding = typeBinding2;
+					}
 				}
 				Type type = generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();

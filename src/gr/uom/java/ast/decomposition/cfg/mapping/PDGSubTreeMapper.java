@@ -200,14 +200,28 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 			this.renamedVariables = findRenamedVariables();
 			findPassedParameters();
-			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
-			List<AbstractExpression> expressions2 = new ArrayList<AbstractExpression>();
+			List<Expression> expressions1 = new ArrayList<Expression>();
+			List<Expression> expressions2 = new ArrayList<Expression>();
 			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions1 = new ArrayList<AbstractExpression>();
 			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions2 = new ArrayList<AbstractExpression>();
 			for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
 				if(!nodeDifference.containsDifferenceType(DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER)) {
-					expressions1.add(nodeDifference.getExpression1());
-					expressions2.add(nodeDifference.getExpression2());
+					Expression expression1 = nodeDifference.getExpression1().getExpression();
+					Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
+					if(expression1.equals(expr1)) {
+						expressions1.add(expression1);
+					}
+					else {
+						expressions1.add(expr1);
+					}
+					Expression expression2 = nodeDifference.getExpression2().getExpression();
+					Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
+					if(expression2.equals(expr2)) {
+						expressions2.add(expression2);
+					}
+					else {
+						expressions2.add(expr2);
+					}
 				}
 				else {
 					fieldAccessReplacedWithGetterExpressions1.add(nodeDifference.getExpression1());
@@ -333,9 +347,9 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();
 			dataDependences1.retainAll(passedParametersG1);
 			dataDependences2.retainAll(passedParametersG2);
+			List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
+			List<AbstractVariable> variables2 = new ArrayList<AbstractVariable>(dataDependences2);
 			if(dataDependences1.size() == dataDependences2.size()) {
-				List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
-				List<AbstractVariable> variables2 = new ArrayList<AbstractVariable>(dataDependences2);
 				List<String> variableNames1 = new ArrayList<String>();
 				List<String> variableNames2 = new ArrayList<String>();
 				for(int i=0; i<variables1.size(); i++) {
@@ -375,61 +389,35 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					//sort variables based on their types (if a variable has the same type with multiple variables, apply first match)
 					List<AbstractVariable> sortedVariables1 = new ArrayList<AbstractVariable>();
 					List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
-					boolean requireVariableNameMatch = getRenamedVariables().isEmpty();
-					for(int i=0; i<variables1.size(); i++) {
-						AbstractVariable variable1 = variables1.get(i);
-						boolean found = false;
-						for(int j=0; j<variables2.size(); j++) {
-							AbstractVariable variable2 = variables2.get(j);
-							if(requireVariableNameMatch) {
-								if(variable2.getVariableName().equals(variable1.getVariableName()) && variable2.getVariableType().equals(variable1.getVariableType()) &&
-										!sortedVariables2.contains(variable2)) {
-									sortedVariables2.add(variable2);
-									found = true;
-									break;
-								}
-							}
-							else {
-								String renamedVariableName = findRenamedVariableName(variable2);
-								if(renamedVariableName != null) {
-									if(variable2.getVariableType().equals(variable1.getVariableType()) && variable1.getVariableName().equals(renamedVariableName) &&
-											!sortedVariables2.contains(variable2)) {
-										sortedVariables2.add(variable2);
-										found = true;
-										break;
-									}
-								}
-								else {
-									if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2)) {
-										sortedVariables2.add(variable2);
-										found = true;
-										break;
-									}
-								}
-							}
-						}
-						if(found) {
-							sortedVariables1.add(variable1);
-						}
-					}
+					sortVariables(variables1, variables2, sortedVariables1, sortedVariables2);
 					if(sortedVariables1.size() == sortedVariables2.size()) {
 						variables1 = sortedVariables1;
 						variables2 = sortedVariables2;
 					}
 				}
-				for(int i=0; i<variables1.size(); i++) {
-					AbstractVariable variable1 = variables1.get(i);
-					AbstractVariable variable2 = variables2.get(i);
-					if(passedParametersG1.contains(variable1) && passedParametersG2.contains(variable2)) {
-						ArrayList<AbstractVariable> variableDeclarations = new ArrayList<AbstractVariable>();
-						variableDeclarations.add(variable1);
-						variableDeclarations.add(variable2);
-						VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
-								variable2.getVariableBindingKey());
-						commonPassedParameters.put(keyPair, variableDeclarations);
-						parametersToBeRemovedG1.add(variable1);
-						parametersToBeRemovedG2.add(variable2);
-					}
+			}
+			else {
+				//there is a different number of incoming dependencies
+				List<AbstractVariable> sortedVariables1 = new ArrayList<AbstractVariable>();
+				List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
+				sortVariables(variables1, variables2, sortedVariables1, sortedVariables2);
+				if(sortedVariables1.size() == sortedVariables2.size()) {
+					variables1 = sortedVariables1;
+					variables2 = sortedVariables2;
+				}
+			}
+			for(int i=0; i<variables1.size(); i++) {
+				AbstractVariable variable1 = variables1.get(i);
+				AbstractVariable variable2 = variables2.get(i);
+				if(passedParametersG1.contains(variable1) && passedParametersG2.contains(variable2)) {
+					ArrayList<AbstractVariable> variableDeclarations = new ArrayList<AbstractVariable>();
+					variableDeclarations.add(variable1);
+					variableDeclarations.add(variable2);
+					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
+							variable2.getVariableBindingKey());
+					commonPassedParameters.put(keyPair, variableDeclarations);
+					parametersToBeRemovedG1.add(variable1);
+					parametersToBeRemovedG2.add(variable2);
 				}
 			}
 		}
@@ -437,6 +425,47 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		passedParametersG2.removeAll(parametersToBeRemovedG2);
 		this.passedParametersG1.addAll(passedParametersG1);
 		this.passedParametersG2.addAll(passedParametersG2);
+	}
+
+	private void sortVariables(List<AbstractVariable> variables1, List<AbstractVariable> variables2,
+			List<AbstractVariable> sortedVariables1, List<AbstractVariable> sortedVariables2) {
+		boolean requireVariableNameMatch = getRenamedVariables().isEmpty();
+		for(int i=0; i<variables1.size(); i++) {
+			AbstractVariable variable1 = variables1.get(i);
+			boolean found = false;
+			for(int j=0; j<variables2.size(); j++) {
+				AbstractVariable variable2 = variables2.get(j);
+				if(requireVariableNameMatch) {
+					if(variable2.getVariableName().equals(variable1.getVariableName()) && variable2.getVariableType().equals(variable1.getVariableType()) &&
+							!sortedVariables2.contains(variable2)) {
+						sortedVariables2.add(variable2);
+						found = true;
+						break;
+					}
+				}
+				else {
+					String renamedVariableName = findRenamedVariableName(variable2);
+					if(renamedVariableName != null) {
+						if(variable2.getVariableType().equals(variable1.getVariableType()) && variable1.getVariableName().equals(renamedVariableName) &&
+								!sortedVariables2.contains(variable2)) {
+							sortedVariables2.add(variable2);
+							found = true;
+							break;
+						}
+					}
+					else {
+						if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2)) {
+							sortedVariables2.add(variable2);
+							found = true;
+							break;
+						}
+					}
+				}
+			}
+			if(found) {
+				sortedVariables1.add(variable1);
+			}
+		}
 	}
 
 	private String findRenamedVariableName(AbstractVariable variable) {
@@ -471,11 +500,12 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 
 	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, ITypeBinding commonSuperclass,
 			Set<AbstractVariable> directlyAccessedFields, Set<AbstractVariable> indirectlyAccessedFields, Set<MethodObject> accessedMethods,
-			List<AbstractExpression> expressionsInDifferences, List<AbstractExpression> fieldAccessReplacedWithGetterExpressions) {
-		Set<MethodInvocationObject> methodInvocationsToBeExcluded = new LinkedHashSet<MethodInvocationObject>();
-		for(AbstractExpression expression : expressionsInDifferences) {
-			methodInvocationsToBeExcluded.addAll(expression.getInvokedMethodsThroughThisReference());
-			methodInvocationsToBeExcluded.addAll(expression.getInvokedStaticMethods());
+			List<Expression> expressionsInDifferences, List<AbstractExpression> fieldAccessReplacedWithGetterExpressions) {
+		Set<MethodInvocation> methodInvocationsToBeExcluded = new LinkedHashSet<MethodInvocation>();
+		for(Expression expression : expressionsInDifferences) {
+			if(expression instanceof MethodInvocation) {
+				methodInvocationsToBeExcluded.add((MethodInvocation)expression);
+			}
 		}
 		Set<AbstractVariable> fieldsWithGetterToBeIncluded = new LinkedHashSet<AbstractVariable>();
 		for(AbstractExpression expression : fieldAccessReplacedWithGetterExpressions) {
@@ -561,7 +591,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				}
 			}
 			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodFoundInSuperType) &&
-					!methodInvocationsToBeExcluded.contains(invocation)) {
+					!methodInvocationsToBeExcluded.contains(invocation.getMethodInvocation())) {
 				//exclude recursive method calls
 				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
 					SystemObject system = ASTReader.getSystemObject();

@@ -1266,6 +1266,18 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 				}
+				if(isVoidMethodCall(abstractExpression1)) {
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
+							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
+				}
+				if(isVoidMethodCall(abstractExpression2)) {
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
+							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
+					nodeMapping.addPreconditionViolation(violation);
+					preconditionViolations.add(violation);
+				}
 			}
 			if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
 				if(nodeMapping instanceof PDGNodeMapping) {
@@ -1662,6 +1674,26 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return true;
 	}
 	
+	private boolean isVoidMethodCall(AbstractExpression initialAbstractExpression) {
+		Expression initialExpression = initialAbstractExpression.getExpression();
+		Expression expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(initialExpression);
+		if(expr instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)expr;
+			ITypeBinding returnTypeBinding = methodInvocation.resolveMethodBinding().getReturnType();
+			if(returnTypeBinding.getQualifiedName().equals("void")) {
+				return true;
+			}
+		}
+		else if(expr instanceof SuperMethodInvocation) {
+			SuperMethodInvocation methodInvocation = (SuperMethodInvocation)expr;
+			ITypeBinding returnTypeBinding = methodInvocation.resolveMethodBinding().getReturnType();
+			if(returnTypeBinding.getQualifiedName().equals("void")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private boolean isFieldUpdate(AbstractExpression expression) {
 		Expression expr = expression.getExpression();
 		boolean expressionIsField = isField(expr);

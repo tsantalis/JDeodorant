@@ -3123,7 +3123,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 			}
-			apply();
+			if(mapper.getPreconditionViolations().isEmpty()) {
+				apply();
+			}
+			else {
+				initialize();
+			}
 		} finally {
 			pm.done();
 		}

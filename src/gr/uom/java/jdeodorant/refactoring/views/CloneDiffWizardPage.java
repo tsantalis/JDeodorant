@@ -4,11 +4,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
@@ -348,6 +352,9 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 
 	private void handleInputChanged() {
 		String methodNamePattern = "[a-zA-Z\\$_][a-zA-Z0-9\\$_]*";
+		ITypeBinding typeBinding1 = mapper.getPDG1().getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass();
+		ITypeBinding typeBinding2 = mapper.getPDG2().getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass();
+		ITypeBinding commonSuperclass = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 		if(!Pattern.matches(methodNamePattern, extractedMethodNameField.getText())) {
 			setPageComplete(false);
 			String message = "Method name \"" + extractedMethodNameField.getText() + "\" is not valid";
@@ -355,10 +362,44 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 			return;
 		}
 		else {
-			refactoring.setExtractedMethodName(extractedMethodNameField.getText());
+			if(typeBinding1 != null && methodDeclaredInTypeBinding(typeBinding1, extractedMethodNameField.getText())) {
+				setPageComplete(false);
+				String message = "A method with name \"" + extractedMethodNameField.getText() + "\" is declared in class " +
+						typeBinding1.getQualifiedName();
+				setMessage(message, ERROR);
+				return;
+			}
+			if(typeBinding2 != null && methodDeclaredInTypeBinding(typeBinding2, extractedMethodNameField.getText())) {
+				setPageComplete(false);
+				String message = "A method with name \"" + extractedMethodNameField.getText() + "\" is declared in class " +
+						typeBinding2.getQualifiedName();
+				setMessage(message, ERROR);
+				return;
+			}
+			if(commonSuperclass != null && methodDeclaredInTypeBinding(commonSuperclass, extractedMethodNameField.getText())) {
+				setPageComplete(false);
+				String message = "A method with name \"" + extractedMethodNameField.getText() + "\" is declared in class " +
+						commonSuperclass.getQualifiedName();
+				setMessage(message, ERROR);
+				return;
+			}
 		}
+		refactoring.setExtractedMethodName(extractedMethodNameField.getText());
 		setPageComplete(true);
 		setMessage("", NONE);
+	}
+	
+	private boolean methodDeclaredInTypeBinding(ITypeBinding typeBinding, String methodName) {
+		if(!typeBinding.getQualifiedName().equals("java.lang.Object") &&
+				ASTReader.getSystemObject().getClassObject(typeBinding.getQualifiedName()) != null) {
+			IMethodBinding[] declaredMethods = typeBinding.getDeclaredMethods();
+			for(IMethodBinding declaredMethod : declaredMethods) {
+				if(declaredMethod.getName().equals(methodName)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 	
 	public void dispose() {

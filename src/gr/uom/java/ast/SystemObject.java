@@ -296,50 +296,50 @@ public class SystemObject {
     }
 
     public AbstractMethodDeclaration getMethodObject(IMethod method) {
-    	IType declaringType = method.getDeclaringType();
-    	String fullyQualifiedName = declaringType.getFullyQualifiedName('.');
-		ClassObject classObject = getClassObject(fullyQualifiedName);
-    	if(classObject != null) {
-    		ListIterator<MethodObject> mi = classObject.getMethodIterator();
-    		while(mi.hasNext()) {
-                MethodObject mo = mi.next();
-                IMethod resolvedMethod = (IMethod)mo.getMethodDeclaration().resolveBinding().getJavaElement();
-                if(method.isSimilar(resolvedMethod))
-                	return mo;
-    		}
-    		ListIterator<ConstructorObject> ci = classObject.getConstructorIterator();
-    		while(ci.hasNext()) {
-    			ConstructorObject co = ci.next();
-                IMethod resolvedMethod = (IMethod)co.getMethodDeclaration().resolveBinding().getJavaElement();
-                if(method.isSimilar(resolvedMethod))
-                	return co;
-    		}
-    	}
     	try {
+    		IType declaringType = method.getDeclaringType();
+    		String fullyQualifiedName = declaringType.getFullyQualifiedName('.');
+    		ClassObject classObject = getClassObject(fullyQualifiedName);
+    		if(classObject != null) {
+    			ListIterator<MethodObject> mi = classObject.getMethodIterator();
+    			while(mi.hasNext()) {
+    				MethodObject mo = mi.next();
+    				IMethod resolvedMethod = (IMethod)mo.getMethodDeclaration().resolveBinding().getJavaElement();
+    				if(method.isSimilar(resolvedMethod) && method.getSourceRange().equals(resolvedMethod.getSourceRange()))
+    					return mo;
+    			}
+    			ListIterator<ConstructorObject> ci = classObject.getConstructorIterator();
+    			while(ci.hasNext()) {
+    				ConstructorObject co = ci.next();
+    				IMethod resolvedMethod = (IMethod)co.getMethodDeclaration().resolveBinding().getJavaElement();
+    				if(method.isSimilar(resolvedMethod) && method.getSourceRange().equals(resolvedMethod.getSourceRange()))
+    					return co;
+    			}
+    		}
     		//check if declaringType is an anonymous class declaration
-			if(declaringType.isAnonymous()) {
-				IJavaElement declaringTypeParent = declaringType.getParent();
-				IMethod methodContainingAnonymousClass = null;
-				if(declaringTypeParent instanceof IMethod) {
-					methodContainingAnonymousClass = (IMethod)declaringTypeParent;
-				}
-				if(methodContainingAnonymousClass != null) {
-					AbstractMethodDeclaration md = getMethodObject(methodContainingAnonymousClass);
-					List<AnonymousClassDeclarationObject> anonymousClassDeclarations = md.getAnonymousClassDeclarations();
-					for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
-						ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
-                		while(mi2.hasNext()) {
-                			MethodObject mo2 = mi2.next();
-                			IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
-                			if(method.isSimilar(resolvedMethod))
-                				return mo2;
-                		}
-					}
-				}
-			}
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-		}
+    		if(declaringType.isAnonymous()) {
+    			IJavaElement declaringTypeParent = declaringType.getParent();
+    			IMethod methodContainingAnonymousClass = null;
+    			if(declaringTypeParent instanceof IMethod) {
+    				methodContainingAnonymousClass = (IMethod)declaringTypeParent;
+    			}
+    			if(methodContainingAnonymousClass != null) {
+    				AbstractMethodDeclaration md = getMethodObject(methodContainingAnonymousClass);
+    				List<AnonymousClassDeclarationObject> anonymousClassDeclarations = md.getAnonymousClassDeclarations();
+    				for(AnonymousClassDeclarationObject anonymous : anonymousClassDeclarations) {
+    					ListIterator<MethodObject> mi2 = anonymous.getMethodIterator();
+    					while(mi2.hasNext()) {
+    						MethodObject mo2 = mi2.next();
+    						IMethod resolvedMethod = (IMethod)mo2.getMethodDeclaration().resolveBinding().getJavaElement();
+    						if(method.isSimilar(resolvedMethod) && method.getSourceRange().equals(resolvedMethod.getSourceRange()))
+    							return mo2;
+    					}
+    				}
+    			}
+    		}
+    	} catch (JavaModelException e) {
+    		e.printStackTrace();
+    	}
     	return null;
     }
 

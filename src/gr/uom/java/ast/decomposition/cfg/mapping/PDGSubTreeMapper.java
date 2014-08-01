@@ -78,6 +78,8 @@ import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
@@ -1662,6 +1664,29 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	
 	private boolean isFieldUpdate(AbstractExpression expression) {
 		Expression expr = expression.getExpression();
+		boolean expressionIsField = isField(expr);
+		if(expressionIsField) {
+			if(expr.getParent() instanceof Assignment) {
+				Assignment assignment = (Assignment)expr.getParent();
+				if(assignment.getLeftHandSide().equals(expr)) {
+					return true;
+				}
+			}
+			else if(expr.getParent() instanceof PostfixExpression) {
+				return true;
+			}
+			else if(expr.getParent() instanceof PrefixExpression) {
+				PrefixExpression prefix = (PrefixExpression)expr.getParent();
+				if(prefix.getOperator().equals(PrefixExpression.Operator.INCREMENT) ||
+						prefix.getOperator().equals(PrefixExpression.Operator.DECREMENT)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean isField(Expression expr) {
 		boolean expressionIsField = false;
 		if(expr instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expr;
@@ -1678,15 +1703,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				expressionIsField = variableBinding.isField();
 			}
 		}
-		if(expressionIsField) {
-			if(expr.getParent() instanceof Assignment) {
-				Assignment assignment = (Assignment)expr.getParent();
-				if(assignment.getLeftHandSide().equals(expr)) {
-					return true;
-				}
-			}
-		}
-		return false;
+		return expressionIsField;
 	}
 	//precondition: differences in expressions should be parameterizable
 	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression,

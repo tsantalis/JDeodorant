@@ -81,6 +81,7 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -501,7 +502,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					else {
 						compilationUnit = sourceCompilationUnits.get(0);
 					}
-					cloneInfo.intermediateClassPackageBinding = compilationUnit.getPackage().resolveBinding();
+					if(compilationUnit.getPackage() != null) {
+						cloneInfo.intermediateClassPackageBinding = compilationUnit.getPackage().resolveBinding();
+					}
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 					IContainer container = (IContainer)iCompilationUnit.getResource().getParent();
 					if(container instanceof IProject) {
@@ -1010,16 +1013,44 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		boolean match = node1.subtreeMatch(astMatcher, node2);
 		if(match) {
 			List<ASTNodeDifference> differences = astMatcher.getDifferences();
-			boolean onlyVariableNameMismatches = true; 
+			boolean onlyLocalVariableNameMismatches = true; 
 			for(ASTNodeDifference difference : differences) {
 				if(!difference.containsOnlyDifferenceType(DifferenceType.VARIABLE_NAME_MISMATCH)) {
-					onlyVariableNameMismatches = false;
+					onlyLocalVariableNameMismatches = false;
 					break;
 				}
+				else {
+					Expression expr1 = difference.getExpression1().getExpression();
+					Expression expr2 = difference.getExpression2().getExpression();
+					if(isField(expr1) || isField(expr2)) {
+						onlyLocalVariableNameMismatches = false;
+						break;
+					}
+				}
 			}
-			exactClones = onlyVariableNameMismatches;
+			exactClones = onlyLocalVariableNameMismatches;
 		}
 		return exactClones;
+	}
+	
+	private boolean isField(Expression expr) {
+		boolean expressionIsField = false;
+		if(expr instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)expr;
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+				expressionIsField = variableBinding.isField();
+			}
+		}
+		else if(expr instanceof FieldAccess) {
+			FieldAccess fieldAccess = (FieldAccess)expr;
+			SimpleName simpleName = fieldAccess.getName();
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+				expressionIsField = variableBinding.isField();
+			}
+		}
+		return expressionIsField;
 	}
 
 	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {
@@ -2622,7 +2653,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				compilationUnitChanges.put(sourceICompilationUnit, change);
 			}
 			change.getEdit().addChild(sourceEdit);
-			change.addTextEditGroup(new TextEditGroup("Pull up field to superclass", new TextEdit[] {sourceEdit}));
+			String message = cloneInfo.extractUtilityClass ? "Move field to utility class" : "Pull up field to superclass";
+			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
@@ -2666,7 +2698,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				compilationUnitChanges.put(sourceICompilationUnit, change);
 			}
 			change.getEdit().addChild(sourceEdit);
-			change.addTextEditGroup(new TextEditGroup("Pull up method to superclass", new TextEdit[] {sourceEdit}));
+			String message = cloneInfo.extractUtilityClass ? "Move method to utility class" : "Pull up method to superclass";
+			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}

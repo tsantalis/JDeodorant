@@ -69,6 +69,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -1563,6 +1564,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return false;
 	}
 	private void processNonMappedNodesMovableBeforeAndAfter() {
+		examineIfNonMappedNodesUpdateTheSameVariable(nonMappedPDGNodesG1MovableBeforeAndAfter);
 		for(PDGNode nodeG1 : nonMappedPDGNodesG1MovableBeforeAndAfter) {
 			boolean movableNonMappedNodeBeforeNonMappedNodesMovableAfter = movableNonMappedNodeBeforeNonMappedNodesMovableAfter(nonMappedPDGNodesG1MovableAfter, nodeG1);
 			if(movableNonMappedNodeBeforeNonMappedNodesMovableAfter) {
@@ -1572,6 +1574,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				nonMappedPDGNodesG1MovableAfter.add(nodeG1);
 			}
 		}
+		examineIfNonMappedNodesUpdateTheSameVariable(nonMappedPDGNodesG2MovableBeforeAndAfter);
 		for(PDGNode nodeG2 : nonMappedPDGNodesG2MovableBeforeAndAfter) {
 			boolean movableNonMappedNodeBeforeNonMappedNodesMovableAfter = movableNonMappedNodeBeforeNonMappedNodesMovableAfter(nonMappedPDGNodesG2MovableAfter, nodeG2);
 			if(movableNonMappedNodeBeforeNonMappedNodesMovableAfter) {
@@ -1582,6 +1585,69 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			}
 		}
 	}
+	private void examineIfNonMappedNodesUpdateTheSameVariable(TreeSet<PDGNode> nonMappedNodes) {
+		Map<PlainVariable, Set<PDGNode>> nodesUpdatingTheSameVariable = new LinkedHashMap<PlainVariable, Set<PDGNode>>();
+		for(PDGNode node : nonMappedNodes) {
+			AbstractStatement abstractStatement = node.getStatement();
+			Statement statement = node.getASTStatement();
+			if(statement instanceof ExpressionStatement) {
+				ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+				Expression expression = expressionStatement.getExpression();
+				if(expression instanceof Assignment) {
+					Assignment assignment = (Assignment)expression;
+					Expression leftHandSide = assignment.getLeftHandSide();
+					if(leftHandSide instanceof SimpleName) {
+						SimpleName simpleName = (SimpleName)leftHandSide;
+						if(isUpdated(simpleName)) {
+							PlainVariable plainVariable = null;
+							for(PlainVariable variable : abstractStatement.getDefinedLocalVariables()) {
+								if(simpleName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+									plainVariable = variable;
+									break;
+								}
+							}
+							if(plainVariable != null) {
+								if(nodesUpdatingTheSameVariable.containsKey(plainVariable)) {
+									Set<PDGNode> nodes = nodesUpdatingTheSameVariable.get(plainVariable);
+									nodes.add(node);
+								}
+								else {
+									Set<PDGNode> nodes = new TreeSet<PDGNode>();
+									nodes.add(node);
+									nodesUpdatingTheSameVariable.put(plainVariable, nodes);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		for(PlainVariable variable : nodesUpdatingTheSameVariable.keySet()) {
+			Set<PDGNode> nodes = nodesUpdatingTheSameVariable.get(variable);
+			if(nodes.size() > 1) {
+				nonMappedNodes.removeAll(nodes);
+				for(PDGNode node : nodes) {
+					CloneStructureNode cloneStructureNode1 = getCloneStructureRoot().findNodeG1(node);
+					if(cloneStructureNode1 != null && cloneStructureNode1.getMapping().getNodeG1().getASTStatement().equals(node.getASTStatement())) {
+						NodeMapping nodeMapping = cloneStructureNode1.getMapping();
+						PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+								PreconditionViolationType.MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE);
+						nodeMapping.addPreconditionViolation(violation);
+						preconditionViolations.add(violation);
+					}
+					CloneStructureNode cloneStructureNode2 = getCloneStructureRoot().findNodeG2(node);
+					if(cloneStructureNode2 != null && cloneStructureNode2.getMapping().getNodeG2().getASTStatement().equals(node.getASTStatement())) {
+						NodeMapping nodeMapping = cloneStructureNode2.getMapping();
+						PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+								PreconditionViolationType.MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE);
+						nodeMapping.addPreconditionViolation(violation);
+						preconditionViolations.add(violation);
+					}
+				}
+			}
+		}
+	}
+	
 	private boolean movableNonMappedNodeBeforeNonMappedNodesMovableAfter(TreeSet<PDGNode> nonMappedNodes, PDGNode nonMappedNode) {
 		Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
 		while(incomingDependenceIterator.hasNext()) {
@@ -1696,23 +1762,24 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 
 	private boolean isFieldUpdate(AbstractExpression expression) {
 		Expression expr = expression.getExpression();
-		boolean expressionIsField = isField(expr);
-		if(expressionIsField) {
-			if(expr.getParent() instanceof Assignment) {
-				Assignment assignment = (Assignment)expr.getParent();
-				if(assignment.getLeftHandSide().equals(expr)) {
-					return true;
-				}
-			}
-			else if(expr.getParent() instanceof PostfixExpression) {
+		return isField(expr) && isUpdated(expr);
+	}
+
+	private boolean isUpdated(Expression expr) {
+		if(expr.getParent() instanceof Assignment) {
+			Assignment assignment = (Assignment)expr.getParent();
+			if(assignment.getLeftHandSide().equals(expr)) {
 				return true;
 			}
-			else if(expr.getParent() instanceof PrefixExpression) {
-				PrefixExpression prefix = (PrefixExpression)expr.getParent();
-				if(prefix.getOperator().equals(PrefixExpression.Operator.INCREMENT) ||
-						prefix.getOperator().equals(PrefixExpression.Operator.DECREMENT)) {
-					return true;
-				}
+		}
+		else if(expr.getParent() instanceof PostfixExpression) {
+			return true;
+		}
+		else if(expr.getParent() instanceof PrefixExpression) {
+			PrefixExpression prefix = (PrefixExpression)expr.getParent();
+			if(prefix.getOperator().equals(PrefixExpression.Operator.INCREMENT) ||
+					prefix.getOperator().equals(PrefixExpression.Operator.DECREMENT)) {
+				return true;
 			}
 		}
 		return false;

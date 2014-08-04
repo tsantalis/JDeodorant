@@ -27,6 +27,16 @@ public class BindingSignature {
 		}
 	}
 
+	public int getOccurrences(String key) {
+		int counter = 0;
+		for(String bindingKey : bindingKeys) {
+			if(bindingKey.equals(key)) {
+				counter++;
+			}
+		}
+		return counter;
+	}
+
 	public boolean containsBinding(String key) {
 		return bindingKeys.contains(key);
 	}

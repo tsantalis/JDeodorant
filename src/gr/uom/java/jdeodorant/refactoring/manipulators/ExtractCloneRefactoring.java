@@ -1653,23 +1653,39 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private boolean parameterIsUsedByNodesWithoutDifferences(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
 		PlainVariable variable1 = new PlainVariable(variableDeclaration1);
 		PlainVariable variable2 = new PlainVariable(variableDeclaration2);
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode node1 = pdgNodeMapping.getNodeG1();
 			PDGNode node2 = pdgNodeMapping.getNodeG2();
-			if(node1.usesLocalVariable(variable1) && node2.usesLocalVariable(variable2)) {
+			if((node1.usesLocalVariable(variable1) || node1.definesLocalVariable(variable1)) &&
+					(node2.usesLocalVariable(variable2) || node2.definesLocalVariable(variable2))) {
 				List<ASTNodeDifference> differences = pdgNodeMapping.getNonOverlappingNodeDifferences();
 				if(differences.isEmpty())
 					return true;
-				boolean foundInDifferences = false;
+				int occurrencesInDifferences1 = 0;
+				int occurrencesInDifferences2 = 0;
 				for(ASTNodeDifference difference : differences) {
 					BindingSignaturePair signaturePair = difference.getBindingSignaturePair();
-					if(signaturePair.getSignature1().containsBinding(variableDeclaration1.resolveBinding().getKey()) &&
-							signaturePair.getSignature2().containsBinding(variableDeclaration2.resolveBinding().getKey())) {
-						foundInDifferences = true;
-						break;
+					occurrencesInDifferences1 += signaturePair.getSignature1().getOccurrences(variableDeclaration1.resolveBinding().getKey());
+					occurrencesInDifferences2 += signaturePair.getSignature2().getOccurrences(variableDeclaration2.resolveBinding().getKey());
+				}
+				List<Expression> simpleNames1 = expressionExtractor.getVariableInstructions(node1.getASTStatement());
+				List<Expression> simpleNames2 = expressionExtractor.getVariableInstructions(node2.getASTStatement());
+				int occurrencesInStatement1 = 0;
+				int occurrencesInStatement2 = 0;
+				for(Expression expression : simpleNames1) {
+					SimpleName simpleName = (SimpleName)expression;
+					if(simpleName.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
+						occurrencesInStatement1++;
 					}
 				}
-				if(!foundInDifferences) {
+				for(Expression expression : simpleNames2) {
+					SimpleName simpleName = (SimpleName)expression;
+					if(simpleName.resolveBinding().isEqualTo(variableDeclaration2.resolveBinding())) {
+						occurrencesInStatement2++;
+					}
+				}
+				if(occurrencesInStatement1 > occurrencesInDifferences1 || occurrencesInStatement2 > occurrencesInDifferences2) {
 					return true;
 				}
 			}

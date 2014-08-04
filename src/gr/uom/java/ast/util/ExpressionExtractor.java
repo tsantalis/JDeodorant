@@ -277,6 +277,18 @@ public class ExpressionExtractor {
 		instanceChecker = new InstanceOfConditionalExpression();
 		return getExpressions(expression);
 	}
+	
+	// returns a List of variable updaters (i.e. Assignment, PrefixExpression, or PostfixExpression objects)
+	public List<Expression> getVariableModifiers(Statement statement) {
+		instanceChecker = new InstanceOfVariableModifier();
+		return getExpressions(statement);
+	}
+
+	// returns a List of variable updaters (i.e. Assignment, PrefixExpression, or PostfixExpression objects)
+	public List<Expression> getVariableModifiers(Expression expression) {
+		instanceChecker = new InstanceOfVariableModifier();
+		return getExpressions(expression);
+	}
 
 	public List<Expression> getAllExpressions(ASTNode node) {
 		instanceChecker = new InstanceOfExpression();

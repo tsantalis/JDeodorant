@@ -9,6 +9,10 @@ import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.matching.loop.AbstractLoop;
+import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
+import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoopASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
@@ -16,7 +20,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
@@ -158,7 +161,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	private boolean isTypeHolder(Object o) {
+	protected boolean isTypeHolder(Object o) {
 		if(o.getClass().equals(MethodInvocation.class) || o.getClass().equals(SuperMethodInvocation.class)			
 				|| o.getClass().equals(NumberLiteral.class) || o.getClass().equals(StringLiteral.class)
 				|| o.getClass().equals(CharacterLiteral.class) || o.getClass().equals(BooleanLiteral.class)
@@ -175,7 +178,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	private ITypeBinding getTypeBinding(Object o) {
+	protected ITypeBinding getTypeBinding(Object o) {
 		if(o.getClass().equals(MethodInvocation.class)) {
 			MethodInvocation methodInvocation = (MethodInvocation) o;
 			return methodInvocation.resolveMethodBinding().getReturnType();
@@ -263,7 +266,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return null;
 	}
 
-	private boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
+	protected boolean typeBindingMatch(ITypeBinding binding1, ITypeBinding binding2) {
 		//if bindings are both null then they were recovered from SimpleName expressions representing labels
 		if(binding1 == null && binding2 == null)
 			return true;
@@ -700,28 +703,37 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(DoStatement node, Object other) {
-		if (!(other instanceof DoStatement)) {
-			return false;
+		if (other instanceof DoStatement)
+		{
+			DoStatement o = (DoStatement) other;
+			if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+				return super.match(node, o);
+			}
+			if (safeSubtreeMatch(node.getExpression(), o.getExpression()))
+			{
+				return true;
+			}
 		}
-		DoStatement o = (DoStatement) other;
-		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
-			return super.match(node, o);
-		}
-		return (
-				safeSubtreeMatch(node.getExpression(), o.getExpression()));
+		ConditionalLoop nodeConditionalLoop = new ConditionalLoop(node);
+		return loopMatch(nodeConditionalLoop, other);
 	}
 
 	public boolean match(EnhancedForStatement node, Object other) {
-		if (!(other instanceof EnhancedForStatement)) {
-			return false;
+		if (other instanceof EnhancedForStatement)
+		{
+			EnhancedForStatement o = (EnhancedForStatement) other;
+			if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+				return super.match(node, o);
+			}
+			boolean paramMatch = safeSubtreeMatch(node.getParameter(), o.getParameter());
+			boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
+			if (paramMatch && expMatch)
+			{
+				return true;
+			}
 		}
-		EnhancedForStatement o = (EnhancedForStatement) other;
-		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
-			return super.match(node, o);
-		}
-		boolean paramMatch = safeSubtreeMatch(node.getParameter(), o.getParameter());
-		boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
-		return paramMatch && expMatch;
+		EnhancedForLoop nodeEnhancedForLoop = new EnhancedForLoop(node);
+		return loopMatch(nodeEnhancedForLoop, other);
 	}
 
 	public boolean match(ExpressionStatement node, Object other) {
@@ -808,35 +820,22 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ForStatement node, Object other) {
-		/*ConditionalLoop otherConditionalLoop = generateConditionalLoop(other);
-		if (otherConditionalLoop != null)
+		if (other instanceof ForStatement)
 		{
-			ConditionalLoop nodeConditionalLoop = new ConditionalLoop(node);
-			boolean conditionMatch = safeSubtreeMatch(nodeConditionalLoop.getCondition(), otherConditionalLoop.getCondition());
-			if (conditionMatch)
-			{
-				boolean loopMatch = nodeConditionalLoop.match(otherConditionalLoop, differences);
-				if (loopMatch)
-				{
-					ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
-					reportAdditionalFragments(nodeConditionalLoop, this.additionallyMatchedFragments1);
-					ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
-					reportAdditionalFragments(otherConditionalLoop, this.additionallyMatchedFragments2);
-					return true;
-				}
+			ForStatement o = (ForStatement) other;
+			if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+				return super.match(node, o);
 			}
-		}*/
-		if (!(other instanceof ForStatement)) {
-			return false;
+			boolean initializerMatch = safeSubtreeListMatch(node.initializers(), o.initializers());
+			boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
+			boolean updaterMatch = safeSubtreeListMatch(node.updaters(), o.updaters());
+			if (initializerMatch && expMatch && updaterMatch)
+			{
+				return true;
+			}
 		}
-		ForStatement o = (ForStatement) other;
-		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
-			return super.match(node, o);
-		}
-		boolean initializerMatch = safeSubtreeListMatch(node.initializers(), o.initializers());
-		boolean expMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
-		boolean updaterMatch = safeSubtreeListMatch(node.updaters(), o.updaters());
-		return initializerMatch && expMatch && updaterMatch;
+		ConditionalLoop nodeConditionalLoop = new ConditionalLoop(node);
+		return loopMatch(nodeConditionalLoop, other);
 	}
 	
 	public boolean match(IfStatement node, Object other) {
@@ -1579,15 +1578,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(WhileStatement node, Object other) {
-		if (!(other instanceof WhileStatement)) {
-			return false;
+		if (other instanceof WhileStatement)
+		{
+			WhileStatement o = (WhileStatement) other;
+			if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
+				return super.match(node, o);
+			}
+			if ((safeSubtreeMatch(node.getExpression(), o.getExpression())))
+			{
+				return true;
+			}
 		}
-		WhileStatement o = (WhileStatement) other;
-		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
-			return super.match(node, o);
-		}
-		return (
-				safeSubtreeMatch(node.getExpression(), o.getExpression()));
+		AbstractLoop nodeConditionalLoop = new ConditionalLoop(node);
+		return loopMatch(nodeConditionalLoop, other);
 	}
 	
 	private boolean setterReplacedWithFieldAssignment(MethodInvocation setter, Assignment assignment) {
@@ -1948,8 +1951,31 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		return false;
 	}
+
+	private boolean loopMatch(AbstractLoop nodeAbstractLoop, Object other)
+	{
+		AbstractLoop otherAbstractLoop = generateConditionalLoop(other);
+		if (otherAbstractLoop != null)
+		{
+			ConditionalLoopASTNodeMatcher matcher = new ConditionalLoopASTNodeMatcher(typeRoot1, typeRoot2);
+			boolean loopMatch = nodeAbstractLoop.match(otherAbstractLoop, matcher);
+			if (loopMatch)
+			{
+				ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+				reportAdditionalFragments(nodeAbstractLoop, this.additionallyMatchedFragments1);
+				ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+				reportAdditionalFragments(otherAbstractLoop, this.additionallyMatchedFragments2);
+				for (ASTNodeDifference currentDifference : matcher.getDifferences())
+				{
+					differences.add(currentDifference);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
 	
-	private static ConditionalLoop generateConditionalLoop(Object object)
+	private static AbstractLoop generateConditionalLoop(Object object)
 	{
 		if (object instanceof ForStatement)
 		{
@@ -1963,31 +1989,34 @@ public class ASTNodeMatcher extends ASTMatcher{
 		{
 			return new ConditionalLoop((DoStatement) object);
 		}
+		else if (object instanceof EnhancedForStatement)
+		{
+			return new EnhancedForLoop((EnhancedForStatement) object);
+		}
 		return null;
 	}
 
-	private void reportAdditionalFragments(ConditionalLoop conditionalLoop, List<AbstractMethodFragment> fragmentList) {
-		Map<SimpleName,List<Expression>> conditionVariableUpdatersMap = conditionalLoop.getConditionVariableUpdatersMap();
-		for(SimpleName key : conditionVariableUpdatersMap.keySet()) {
-			List<Expression> expressions = conditionVariableUpdatersMap.get(key);
-			for(Expression updater : expressions) {
-				if(updater.getParent() instanceof ExpressionStatement)
-				{
-					ExpressionStatement expressionStatement = (ExpressionStatement)updater.getParent();
-					StatementObject updaterStatementObject = new StatementObject(expressionStatement, StatementType.EXPRESSION, null);
-					fragmentList.add(updaterStatementObject);
-				}
-				else if(updater.getParent() instanceof VariableDeclarationStatement)
-				{
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)updater.getParent();
-					StatementObject updaterStatementObject = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, null);
-					fragmentList.add(updaterStatementObject);
-				}
-				else
-				{
-					AbstractExpression expressionObject = new AbstractExpression(updater);
-					fragmentList.add(expressionObject);
-				}
+	// updated to use the method getAdditionalFragments() from the conditionalLoop class
+	private void reportAdditionalFragments(AbstractLoop abstractLoop, List<AbstractMethodFragment> fragmentList) {
+		List<ASTNode> additionalFragements = abstractLoop.getAdditionalFragments();
+		for(ASTNode currentFragment : additionalFragements) {
+			if(currentFragment.getParent() instanceof ExpressionStatement)
+			{
+				ExpressionStatement expressionStatement = (ExpressionStatement)currentFragment.getParent();
+				StatementObject updaterStatementObject = new StatementObject(expressionStatement, StatementType.EXPRESSION, null);
+				fragmentList.add(updaterStatementObject);
+			}
+			else if(currentFragment.getParent() instanceof VariableDeclarationStatement)
+			{
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)currentFragment.getParent();
+				StatementObject updaterStatementObject = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, null);
+				fragmentList.add(updaterStatementObject);
+			}
+			else if (currentFragment instanceof Expression)
+			{
+				Expression currentExpression = (Expression) currentFragment;
+				AbstractExpression expressionObject = new AbstractExpression(currentExpression);
+				fragmentList.add(expressionObject);
 			}
 		}
 	}

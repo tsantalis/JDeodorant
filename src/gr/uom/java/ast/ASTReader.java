@@ -142,25 +142,34 @@ public class ASTReader {
 		return numberOfCompilationUnits;
 	}
 
-	private List<TypeDeclaration> getRecursivelyInnerTypes(TypeDeclaration typeDeclaration) {
-		List<TypeDeclaration> innerTypeDeclarations = new ArrayList<TypeDeclaration>();
+	private List<AbstractTypeDeclaration> getRecursivelyInnerTypes(AbstractTypeDeclaration typeDeclaration) {
+		List<AbstractTypeDeclaration> innerTypeDeclarations = new ArrayList<AbstractTypeDeclaration>();
 		StatementExtractor statementExtractor = new StatementExtractor();
-		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
-			if(methodDeclaration.getBody() != null) {
-				List<Statement> statements = statementExtractor.getTypeDeclarationStatements(methodDeclaration.getBody());
-				for(Statement statement : statements) {
-					TypeDeclarationStatement typeDeclarationStatement = (TypeDeclarationStatement)statement;
-					AbstractTypeDeclaration declaration = typeDeclarationStatement.getDeclaration();
-					if(declaration instanceof TypeDeclaration) {
-						innerTypeDeclarations.add((TypeDeclaration)declaration);
+		List<BodyDeclaration> bodyDeclarations = typeDeclaration.bodyDeclarations();
+		for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+			if(bodyDeclaration instanceof MethodDeclaration) {
+				MethodDeclaration methodDeclaration = (MethodDeclaration)bodyDeclaration;
+				if(methodDeclaration.getBody() != null) {
+					List<Statement> statements = statementExtractor.getTypeDeclarationStatements(methodDeclaration.getBody());
+					for(Statement statement : statements) {
+						TypeDeclarationStatement typeDeclarationStatement = (TypeDeclarationStatement)statement;
+						AbstractTypeDeclaration declaration = typeDeclarationStatement.getDeclaration();
+						if(declaration instanceof TypeDeclaration) {
+							innerTypeDeclarations.add((TypeDeclaration)declaration);
+						}
 					}
 				}
 			}
-		}
-		TypeDeclaration[] types = typeDeclaration.getTypes();
-		for(TypeDeclaration type : types) {
-			innerTypeDeclarations.add(type);
-			innerTypeDeclarations.addAll(getRecursivelyInnerTypes(type));
+			else if(bodyDeclaration instanceof TypeDeclaration) {
+				TypeDeclaration type = (TypeDeclaration)bodyDeclaration;
+				innerTypeDeclarations.add(type);
+				innerTypeDeclarations.addAll(getRecursivelyInnerTypes(type));
+			}
+			else if(bodyDeclaration instanceof EnumDeclaration) {
+				EnumDeclaration type = (EnumDeclaration)bodyDeclaration;
+				innerTypeDeclarations.add(type);
+				innerTypeDeclarations.addAll(getRecursivelyInnerTypes(type));
+			}
 		}
 		return innerTypeDeclarations;
 	}
@@ -183,151 +192,167 @@ public class ASTReader {
         for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
         	if(abstractTypeDeclaration instanceof TypeDeclaration) {
         		TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
-        		List<TypeDeclaration> typeDeclarations = new ArrayList<TypeDeclaration>();
+        		List<AbstractTypeDeclaration> typeDeclarations = new ArrayList<AbstractTypeDeclaration>();
         		typeDeclarations.add(topLevelTypeDeclaration);
         		typeDeclarations.addAll(getRecursivelyInnerTypes(topLevelTypeDeclaration));
-        		for(TypeDeclaration typeDeclaration : typeDeclarations) {
-	        		final ClassObject classObject = new ClassObject();
-		        	classObject.setIFile(iFile);
-		        	ITypeBinding typeDeclarationBinding = typeDeclaration.resolveBinding();
-		        	if(typeDeclarationBinding.isLocal()) {
-		        		ITypeBinding declaringClass = typeDeclarationBinding.getDeclaringClass();
-		        		String className = declaringClass.getQualifiedName() + "." + typeDeclarationBinding.getName();
-		        		classObject.setName(className);
-		        	}
-		        	else {
-		        		classObject.setName(typeDeclarationBinding.getQualifiedName());
-		        	}
-		        	classObject.setAbstractTypeDeclaration(typeDeclaration);
-		        	
-		        	if(typeDeclaration.isInterface()) {
-		        		classObject.setInterface(true);
-		        	}
-		        	
-		        	int modifiers = typeDeclaration.getModifiers();
-		        	if((modifiers & Modifier.ABSTRACT) != 0)
-		        		classObject.setAbstract(true);
-		        	
-		        	if((modifiers & Modifier.PUBLIC) != 0)
-		        		classObject.setAccess(Access.PUBLIC);
-		        	else if((modifiers & Modifier.PROTECTED) != 0)
-		        		classObject.setAccess(Access.PROTECTED);
-		        	else if((modifiers & Modifier.PRIVATE) != 0)
-		        		classObject.setAccess(Access.PRIVATE);
-		        	else
-		        		classObject.setAccess(Access.NONE);
-		        	
-		        	if((modifiers & Modifier.STATIC) != 0)
-		        		classObject.setStatic(true);
-		        	
-		        	Type superclassType = typeDeclaration.getSuperclassType();
-		        	if(superclassType != null) {
-		        		ITypeBinding binding = superclassType.resolveBinding();
-		        		String qualifiedName = binding.getQualifiedName();
-	        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
-		        		classObject.setSuperclass(typeObject);
-		        	}
-		        	
-		        	List<Type> superInterfaceTypes = typeDeclaration.superInterfaceTypes();
-		        	for(Type interfaceType : superInterfaceTypes) {
-		        		ITypeBinding binding = interfaceType.resolveBinding();
-		        		String qualifiedName = binding.getQualifiedName();
-	        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
-		        		classObject.addInterface(typeObject);
-		        	}
-		        	
-		        	FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
-		        	for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-		        		Type fieldType = fieldDeclaration.getType();
-		        		ITypeBinding binding = fieldType.resolveBinding();
-		        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-		        		for(VariableDeclarationFragment fragment : fragments) {
-		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
-		        			typeObject.setArrayDimension(typeObject.getArrayDimension() + fragment.getExtraDimensions());
-		        			FieldObject fieldObject = new FieldObject(typeObject, fragment.getName().getIdentifier());
-		        			fieldObject.setClassName(classObject.getName());
-		        			fieldObject.setVariableDeclarationFragment(fragment);
-		        			
-		        			int fieldModifiers = fieldDeclaration.getModifiers();
-		        			if((fieldModifiers & Modifier.PUBLIC) != 0)
-		                		fieldObject.setAccess(Access.PUBLIC);
-		                	else if((fieldModifiers & Modifier.PROTECTED) != 0)
-		                		fieldObject.setAccess(Access.PROTECTED);
-		                	else if((fieldModifiers & Modifier.PRIVATE) != 0)
-		                		fieldObject.setAccess(Access.PRIVATE);
-		                	else
-		                		fieldObject.setAccess(Access.NONE);
-		                	
-		                	if((fieldModifiers & Modifier.STATIC) != 0)
-		                		fieldObject.setStatic(true);
-		                	
-		        			classObject.addField(fieldObject);
-		        		}
-		        	}
-		        	
-		        	MethodDeclaration[] methodDeclarations = typeDeclaration.getMethods();
-		        	for(MethodDeclaration methodDeclaration : methodDeclarations) {
-		        		processMethodDeclaration(classObject, methodDeclaration);
-		        	}
-		        	classObjects.add(classObject);
+        		for(AbstractTypeDeclaration typeDeclaration : typeDeclarations) {
+        			if(typeDeclaration instanceof TypeDeclaration) {
+        				final ClassObject classObject = processTypeDeclaration(iFile, (TypeDeclaration)typeDeclaration);
+        				classObjects.add(classObject);
+        			}
+        			else if(typeDeclaration instanceof EnumDeclaration) {
+        				final ClassObject classObject = processEnumDeclaration(iFile, (EnumDeclaration)typeDeclaration);
+        				classObjects.add(classObject);
+        			}
         		}
         	}
         	else if(abstractTypeDeclaration instanceof EnumDeclaration) {
         		EnumDeclaration enumDeclaration = (EnumDeclaration)abstractTypeDeclaration;
-        		final ClassObject classObject = new ClassObject();
-        		classObject.setEnum(true);
-	        	classObject.setIFile(iFile);
-	        	classObject.setName(enumDeclaration.resolveBinding().getQualifiedName());
-	        	classObject.setAbstractTypeDeclaration(enumDeclaration);
-	        	
-	        	int modifiers = enumDeclaration.getModifiers();
-	        	if((modifiers & Modifier.ABSTRACT) != 0)
-	        		classObject.setAbstract(true);
-	        	
-	        	if((modifiers & Modifier.PUBLIC) != 0)
-	        		classObject.setAccess(Access.PUBLIC);
-	        	else if((modifiers & Modifier.PROTECTED) != 0)
-	        		classObject.setAccess(Access.PROTECTED);
-	        	else if((modifiers & Modifier.PRIVATE) != 0)
-	        		classObject.setAccess(Access.PRIVATE);
-	        	else
-	        		classObject.setAccess(Access.NONE);
-	        	
-	        	if((modifiers & Modifier.STATIC) != 0)
-	        		classObject.setStatic(true);
-	        	
-	        	List<Type> superInterfaceTypes = enumDeclaration.superInterfaceTypes();
-	        	for(Type interfaceType : superInterfaceTypes) {
-	        		ITypeBinding binding = interfaceType.resolveBinding();
-	        		String qualifiedName = binding.getQualifiedName();
-        			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
-	        		classObject.addInterface(typeObject);
-	        	}
-	        	
-	        	List<EnumConstantDeclaration> enumConstantDeclarations = enumDeclaration.enumConstants();
-	        	for(EnumConstantDeclaration enumConstantDeclaration : enumConstantDeclarations) {
-	        		EnumConstantDeclarationObject enumConstantDeclarationObject = new EnumConstantDeclarationObject(enumConstantDeclaration.getName().getIdentifier());
-        			enumConstantDeclarationObject.setEnumName(classObject.getName());
-        			enumConstantDeclarationObject.setEnumConstantDeclaration(enumConstantDeclaration);
-        			List<Expression> arguments = enumConstantDeclaration.arguments();
-        			for(Expression argument : arguments) {
-        				AbstractExpression abstractExpression = new AbstractExpression(argument);
-        				enumConstantDeclarationObject.addArgument(abstractExpression);
-        			}
-        			classObject.addEnumConstantDeclaration(enumConstantDeclarationObject);
-	        	}
-	        	
-	        	List<BodyDeclaration> bodyDeclarations = enumDeclaration.bodyDeclarations();
-	        	for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
-	        		if(bodyDeclaration instanceof MethodDeclaration) {
-	        			processMethodDeclaration(classObject, (MethodDeclaration)bodyDeclaration);
-	        		}
-	        	}
+        		final ClassObject classObject = processEnumDeclaration(iFile, enumDeclaration);
 	        	classObjects.add(classObject);
         	}
         }
         return classObjects;
+	}
+
+	private ClassObject processTypeDeclaration(IFile iFile, TypeDeclaration typeDeclaration) {
+		final ClassObject classObject = new ClassObject();
+		classObject.setIFile(iFile);
+		ITypeBinding typeDeclarationBinding = typeDeclaration.resolveBinding();
+		if(typeDeclarationBinding.isLocal()) {
+			ITypeBinding declaringClass = typeDeclarationBinding.getDeclaringClass();
+			String className = declaringClass.getQualifiedName() + "." + typeDeclarationBinding.getName();
+			classObject.setName(className);
+		}
+		else {
+			classObject.setName(typeDeclarationBinding.getQualifiedName());
+		}
+		classObject.setAbstractTypeDeclaration(typeDeclaration);
+		
+		if(typeDeclaration.isInterface()) {
+			classObject.setInterface(true);
+		}
+		
+		int modifiers = typeDeclaration.getModifiers();
+		if((modifiers & Modifier.ABSTRACT) != 0)
+			classObject.setAbstract(true);
+		
+		if((modifiers & Modifier.PUBLIC) != 0)
+			classObject.setAccess(Access.PUBLIC);
+		else if((modifiers & Modifier.PROTECTED) != 0)
+			classObject.setAccess(Access.PROTECTED);
+		else if((modifiers & Modifier.PRIVATE) != 0)
+			classObject.setAccess(Access.PRIVATE);
+		else
+			classObject.setAccess(Access.NONE);
+		
+		if((modifiers & Modifier.STATIC) != 0)
+			classObject.setStatic(true);
+		
+		Type superclassType = typeDeclaration.getSuperclassType();
+		if(superclassType != null) {
+			ITypeBinding binding = superclassType.resolveBinding();
+			String qualifiedName = binding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+			classObject.setSuperclass(typeObject);
+		}
+		
+		List<Type> superInterfaceTypes = typeDeclaration.superInterfaceTypes();
+		for(Type interfaceType : superInterfaceTypes) {
+			ITypeBinding binding = interfaceType.resolveBinding();
+			String qualifiedName = binding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+			classObject.addInterface(typeObject);
+		}
+		
+		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			Type fieldType = fieldDeclaration.getType();
+			ITypeBinding binding = fieldType.resolveBinding();
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				String qualifiedName = binding.getQualifiedName();
+				TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+				typeObject.setArrayDimension(typeObject.getArrayDimension() + fragment.getExtraDimensions());
+				FieldObject fieldObject = new FieldObject(typeObject, fragment.getName().getIdentifier());
+				fieldObject.setClassName(classObject.getName());
+				fieldObject.setVariableDeclarationFragment(fragment);
+				
+				int fieldModifiers = fieldDeclaration.getModifiers();
+				if((fieldModifiers & Modifier.PUBLIC) != 0)
+		    		fieldObject.setAccess(Access.PUBLIC);
+		    	else if((fieldModifiers & Modifier.PROTECTED) != 0)
+		    		fieldObject.setAccess(Access.PROTECTED);
+		    	else if((fieldModifiers & Modifier.PRIVATE) != 0)
+		    		fieldObject.setAccess(Access.PRIVATE);
+		    	else
+		    		fieldObject.setAccess(Access.NONE);
+		    	
+		    	if((fieldModifiers & Modifier.STATIC) != 0)
+		    		fieldObject.setStatic(true);
+		    	
+				classObject.addField(fieldObject);
+			}
+		}
+		
+		MethodDeclaration[] methodDeclarations = typeDeclaration.getMethods();
+		for(MethodDeclaration methodDeclaration : methodDeclarations) {
+			processMethodDeclaration(classObject, methodDeclaration);
+		}
+		return classObject;
+	}
+
+	private ClassObject processEnumDeclaration(IFile iFile, EnumDeclaration enumDeclaration) {
+		final ClassObject classObject = new ClassObject();
+		classObject.setEnum(true);
+		classObject.setIFile(iFile);
+		classObject.setName(enumDeclaration.resolveBinding().getQualifiedName());
+		classObject.setAbstractTypeDeclaration(enumDeclaration);
+		
+		int modifiers = enumDeclaration.getModifiers();
+		if((modifiers & Modifier.ABSTRACT) != 0)
+			classObject.setAbstract(true);
+		
+		if((modifiers & Modifier.PUBLIC) != 0)
+			classObject.setAccess(Access.PUBLIC);
+		else if((modifiers & Modifier.PROTECTED) != 0)
+			classObject.setAccess(Access.PROTECTED);
+		else if((modifiers & Modifier.PRIVATE) != 0)
+			classObject.setAccess(Access.PRIVATE);
+		else
+			classObject.setAccess(Access.NONE);
+		
+		if((modifiers & Modifier.STATIC) != 0)
+			classObject.setStatic(true);
+		
+		List<Type> superInterfaceTypes = enumDeclaration.superInterfaceTypes();
+		for(Type interfaceType : superInterfaceTypes) {
+			ITypeBinding binding = interfaceType.resolveBinding();
+			String qualifiedName = binding.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedName);
+			classObject.addInterface(typeObject);
+		}
+		
+		List<EnumConstantDeclaration> enumConstantDeclarations = enumDeclaration.enumConstants();
+		for(EnumConstantDeclaration enumConstantDeclaration : enumConstantDeclarations) {
+			EnumConstantDeclarationObject enumConstantDeclarationObject = new EnumConstantDeclarationObject(enumConstantDeclaration.getName().getIdentifier());
+			enumConstantDeclarationObject.setEnumName(classObject.getName());
+			enumConstantDeclarationObject.setEnumConstantDeclaration(enumConstantDeclaration);
+			List<Expression> arguments = enumConstantDeclaration.arguments();
+			for(Expression argument : arguments) {
+				AbstractExpression abstractExpression = new AbstractExpression(argument);
+				enumConstantDeclarationObject.addArgument(abstractExpression);
+			}
+			classObject.addEnumConstantDeclaration(enumConstantDeclarationObject);
+		}
+		
+		List<BodyDeclaration> bodyDeclarations = enumDeclaration.bodyDeclarations();
+		for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+			if(bodyDeclaration instanceof MethodDeclaration) {
+				processMethodDeclaration(classObject, (MethodDeclaration)bodyDeclaration);
+			}
+		}
+		return classObject;
 	}
 
 	private void processMethodDeclaration(final ClassObject classObject, MethodDeclaration methodDeclaration) {

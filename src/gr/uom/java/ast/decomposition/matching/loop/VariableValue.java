@@ -6,8 +6,7 @@ public class VariableValue
 	{
 		INTEGER,
 		VARIABLE,
-		COLLECTION_SIZE,
-		ARRAY_LENGTH
+		DATA_STRUCTURE_SIZE
 	}
 	
 	private ValueType type;

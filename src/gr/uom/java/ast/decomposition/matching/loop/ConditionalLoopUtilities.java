@@ -356,7 +356,7 @@ public class ConditionalLoopUtilities
 		{
 			MethodInvocation methodInvocation = (MethodInvocation) updater;
 			ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
-			return bindingInformation.getUpdateMethodBindingUpdateValue(methodInvocation.resolveMethodBinding().getMethodDeclaration().getKey());
+			return bindingInformation.getupdateMethodValue(methodInvocation.resolveMethodBinding().getMethodDeclaration().getKey());
 		}
 		return null;
 	}
@@ -482,22 +482,6 @@ public class ConditionalLoopUtilities
 			}
 		}
 		return numberLiteralValue;
-	}
-	
-	// takes the initializing method call of an iterator and returns its initial value. returns null if method is not supported or initial value cannot be determined from arguments
-	public static Integer getInitialIteratorValue(MethodInvocation iteratorInvocation)
-	{
-		ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
-		String methodBindingKey = iteratorInvocation.resolveMethodBinding().getMethodDeclaration().getKey();
-		List<Expression> arguments = iteratorInvocation.arguments();
-		if (bindingInformation.iteratorInstantiationMethodBindingStartValuesContains(methodBindingKey) && arguments.size() > 0)
-		{
-			return getIntegerValue(arguments.get(0));
-		}
-		else
-		{
-			return bindingInformation.getIteratorInstantiationMethodBindingStartValue(methodBindingKey);
-		}
 	}
 	
 	// returns a list of all the .size() method invocations being performed on a collection

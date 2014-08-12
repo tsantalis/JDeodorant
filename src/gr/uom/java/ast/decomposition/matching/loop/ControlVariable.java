@@ -10,6 +10,7 @@ import java.util.ListIterator;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -78,10 +79,10 @@ public class ControlVariable extends AbstractControlVariable
 	
 	private static VariableValue getStartValue(SimpleName variableNode)
 	{
-		VariableValue variableValue         = new VariableValue();
+		VariableValue variableValue         = new VariableValue(VariableValue.ValueType.INTEGER);		// begin as an integer so, if at any point in the modifiers, there is a variable, the whole value becomes variable
 		List<ASTNode> contributingModifiers = getValueContributingModifiers(variableNode);
-		Integer cumulativeValue             = null;
-		VariableValue.ValueType type        = VariableValue.ValueType.INTEGER;		// begin as an integer so, if at any point in the modifiers, there is a variable, the whole value becomes variable
+		//Integer cumulativeValue             = null;
+		//VariableValue.ValueType type        = VariableValue.ValueType.INTEGER;
 		Iterator<ASTNode> it                = contributingModifiers.iterator();
 		// we traverse the contributingModifiers and determine the type of value and, if possible, the cumulative value
 		while (it.hasNext())
@@ -115,47 +116,36 @@ public class ControlVariable extends AbstractControlVariable
 				{
 					if (expression instanceof MethodInvocation)
 					{
-						MethodInvocation methodInvocation = (MethodInvocation) expression;
-						List<Expression> arguments = methodInvocation.arguments();
-						if (ConditionalLoopUtilities.isSizeInvocation(methodInvocation))
-						{
-							type = VariableValue.ValueType.COLLECTION_SIZE;
-							cumulativeValue = 0;
-						}
-						else if (ConditionalLoopUtilities.isListIteratorInvocation(methodInvocation) &&
-									arguments.size() == 1 && ConditionalLoopUtilities.isSizeInvocation(arguments.get(0)))
-						{
-							type = VariableValue.ValueType.COLLECTION_SIZE;
-							cumulativeValue = 0;
-						}
-						else if (ConditionalLoopUtilities.isIteratorInvocation(methodInvocation) ||
-								ConditionalLoopUtilities.isElementsInvocation(methodInvocation))
-						{
-							cumulativeValue = ConditionalLoopUtilities.getInitialIteratorValue(methodInvocation);
-						}
-						else
-						{
-							type = VariableValue.ValueType.VARIABLE;
-						}
+						MethodInvocation methodInvocation      = (MethodInvocation) expression;
+						List<Expression> arguments             = methodInvocation.arguments();
+						IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding().getMethodDeclaration();
+						setMethodInvocationStartValue(expression, methodInvocationBinding, arguments, variableValue);
+					}
+					else if (expression instanceof ClassInstanceCreation)
+					{
+						ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation) expression;
+						List<Expression> arguments                  = classInstanceCreation.arguments();
+						IMethodBinding methodInvocationBinding      = classInstanceCreation.resolveConstructorBinding().getMethodDeclaration();
+						setMethodInvocationStartValue(expression, methodInvocationBinding, arguments, variableValue);
 					}
 					else if (expression instanceof QualifiedName)
 					{
 						if (ConditionalLoopUtilities.isLengthFieldAccess(expression))
 						{
-							type = VariableValue.ValueType.ARRAY_LENGTH;
-							cumulativeValue = 0;
+							variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
+							variableValue.setValue(0);
 						}
 						else
 						{
-							type = VariableValue.ValueType.VARIABLE;
+							variableValue.setType(VariableValue.ValueType.VARIABLE);
 						}
 					}
 					else
 					{
-						cumulativeValue = ConditionalLoopUtilities.getIntegerValue(expression);
-						if (cumulativeValue == null)
+						variableValue.setValue(ConditionalLoopUtilities.getIntegerValue(expression));
+						if (variableValue.getValue() == null)
 						{
-							type = VariableValue.ValueType.VARIABLE;
+							variableValue.setType(VariableValue.ValueType.VARIABLE);
 						}
 					}
 				}
@@ -164,25 +154,53 @@ public class ControlVariable extends AbstractControlVariable
 			else if (currentNode instanceof Assignment || currentNode instanceof PrefixExpression || currentNode instanceof PostfixExpression || currentNode instanceof MethodInvocation)
 			{
 				updateValue = ConditionalLoopUtilities.getUpdateValue((Expression)currentNode);
-				if (cumulativeValue != null && updateValue != null)
+				if (variableValue.getValue() != null && updateValue != null)
 				{
-					cumulativeValue += updateValue;
+					variableValue.setValue(variableValue.getValue() + updateValue);
 				}
 				else
 				{
-					if (type == VariableValue.ValueType.INTEGER)
-					{
-						type = VariableValue.ValueType.VARIABLE;
-					}
+					variableValue.setType(VariableValue.ValueType.VARIABLE);
 				}
 			}
 		}
-		if (type == VariableValue.ValueType.INTEGER)
-		{
-			variableValue.setValue(cumulativeValue);
-		}
-		variableValue.setType(type);
 		return variableValue;
+	}
+
+	private static void setMethodInvocationStartValue(Expression expression,
+			IMethodBinding methodInvocationBinding, List<Expression> arguments,
+			VariableValue variableValue) {
+		ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+		String bindingKey = methodInvocationBinding.getKey();
+		if (bindingInformation.iteratorInstantiationMethodBindingStartValuesContains(bindingKey))
+		{
+			Integer value = bindingInformation.getIteratorInstantiationMethodBindingStartValue(bindingKey);
+			if (value == null)
+			{
+				if (arguments.size() == 1 && ConditionalLoopUtilities.isSizeInvocation(arguments.get(0)))
+				{
+					variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
+					variableValue.setValue(0);
+				}
+				else
+				{
+					variableValue.setType(VariableValue.ValueType.VARIABLE);
+				}
+			}
+			else
+			{
+				variableValue.setValue(value);
+			}
+		}
+		else if (ConditionalLoopUtilities.isSizeInvocation(expression))
+		{
+			variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
+			variableValue.setValue(0);
+		}
+		else
+		{
+			variableValue.setType(VariableValue.ValueType.VARIABLE);
+		}
 	}
 	
 	private static List<ASTNode> getValueContributingModifiers(SimpleName variable)
@@ -327,11 +345,11 @@ public class ControlVariable extends AbstractControlVariable
 			// evaluate the value of the opposing operand
 			if (ConditionalLoopUtilities.isLengthFieldAccess(nonVariableOperand))
 			{
-				variableValue = new VariableValue(VariableValue.ValueType.ARRAY_LENGTH);
+				variableValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 			}
 			else if (ConditionalLoopUtilities.isSizeInvocation(nonVariableOperand))
 			{
-				variableValue = new VariableValue(VariableValue.ValueType.COLLECTION_SIZE);
+				variableValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 			}
 			else
 			{
@@ -391,8 +409,7 @@ public class ControlVariable extends AbstractControlVariable
 	{
 		List<Expression> updaters               = new ArrayList<Expression>();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-
-		List<Statement> innerStatements = new ArrayList<Statement>();
+		List<Statement> innerStatements         = new ArrayList<Statement>();
 		if (statement instanceof Block)
 		{
 			Block statementBlock = (Block) statement;
@@ -419,16 +436,10 @@ public class ControlVariable extends AbstractControlVariable
 					{
 						MethodInvocation currentMethodInvocation      = (MethodInvocation) currentExpression;
 						IMethodBinding currentMethodInvocationBinding = currentMethodInvocation.resolveMethodBinding();
-						String currentMethodName                      = currentMethodInvocationBinding.getName();
-						Expression callingExpression                  = currentMethodInvocation.getExpression();
-						if (callingExpression != null)
+						ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+						if (bindingInformation.updateMethodValuesContains(currentMethodInvocationBinding.getMethodDeclaration().getKey()))
 						{
-							if (((currentMethodName.equals("next") || currentMethodName.equals("previous")) && ConditionalLoopUtilities.isListIterator(callingExpression)) ||
-								(currentMethodName.equals("next") && ConditionalLoopUtilities.isIterator(callingExpression)) ||
-								(currentMethodName.equals("nextElement") && ConditionalLoopUtilities.isEnumeration(callingExpression)))
-							{
-								updaters.add(currentMethodInvocation);
-							}
+							updaters.add(currentMethodInvocation);
 						}
 					}
 				}

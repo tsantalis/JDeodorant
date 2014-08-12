@@ -7,27 +7,40 @@ public class ConditionalLoopBindingInformation {
 	private static ConditionalLoopBindingInformation instance;
 	private static HashMap<String, Integer> iteratorInstantiationMethodBindingStartValues;		// the start values of different "iterators" when created by these instantiation methods
 	private static HashMap<String, VariableValue> conditionalExpressionEndValues;				// the end values of different "iterators" being checked when these methods are called
-	private static HashMap<String, Integer> updateMethodUpdateValues;							// the value by which different "iterators" are updated when these methods are called
+	private static HashMap<String, Integer> updateMethodValues;									// the value by which different "iterators" are updated when these methods are called
+	private static HashMap<String, VariableValue> dataStructureSizeMethodEndValues;				// the end values of different methods being used in an InfixExpression to check the size of a data structure
 
 	private ConditionalLoopBindingInformation()
 	{
 		iteratorInstantiationMethodBindingStartValues = new HashMap<String, Integer>();
-		iteratorInstantiationMethodBindingStartValues.put(".iterator()Ljava/util/Iterator<TE;>;", 0);				// .iterator()
-		iteratorInstantiationMethodBindingStartValues.put(".listIterator()Ljava/util/ListIterator<TE;>;", 0);		// .listIterator()
-		iteratorInstantiationMethodBindingStartValues.put(".listIterator(I)Ljava/util/ListIterator<TE;>;", null);	// .listIterator(int index)
-		iteratorInstantiationMethodBindingStartValues.put(".elements()Ljava/util/Enumeration<TV;>;", 0);			// .elements()
+		iteratorInstantiationMethodBindingStartValues.put(".iterator()Ljava/util/Iterator<TE;>;", 0);									// .iterator()
+		iteratorInstantiationMethodBindingStartValues.put(".listIterator()Ljava/util/ListIterator<TE;>;", 0);							// .listIterator()
+		iteratorInstantiationMethodBindingStartValues.put(".listIterator(I)Ljava/util/ListIterator<TE;>;", null);						// .listIterator(int)
+		iteratorInstantiationMethodBindingStartValues.put(".elements()Ljava/util/Enumeration<TV;>;", 0);								// .elements()
+		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;)V", 0);						// StringTokenizer(String)
+		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;Ljava/lang/String;)V", 0);	// StringTokenizer(String, String)
+		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;Ljava/lang/String;Z)V", 0);	// StringTokenizer(String, String, boolean)
 		
 		conditionalExpressionEndValues = new HashMap<String, VariableValue>();
-		conditionalExpressionEndValues.put("Ljava/util/Iterator;.hasNext()Z", new VariableValue(VariableValue.ValueType.COLLECTION_SIZE));				// .hasNext() (from Iterator)
-		conditionalExpressionEndValues.put("Ljava/util/ListIterator;.hasNext()Z", new VariableValue(VariableValue.ValueType.COLLECTION_SIZE));			// .hasNext() (from ListIterator)
-		conditionalExpressionEndValues.put("Ljava/util/ListIterator;.hasPrevious()Z", new VariableValue(0));											// .hasPrevious()
-		conditionalExpressionEndValues.put("Ljava/util/Enumeration;.hasMoreElements()Z", new VariableValue(VariableValue.ValueType.COLLECTION_SIZE));	// .hasMoreElements()
+		conditionalExpressionEndValues.put("Ljava/util/Iterator;.hasNext()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));					// .hasNext() (from Iterator)
+		conditionalExpressionEndValues.put("Ljava/util/ListIterator;.hasNext()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));				// .hasNext() (from ListIterator)
+		conditionalExpressionEndValues.put("Ljava/util/ListIterator;.hasPrevious()Z", new VariableValue(0));													// .hasPrevious()
+		conditionalExpressionEndValues.put("Ljava/util/Enumeration;.hasMoreElements()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));		// .hasMoreElements() (from Enumeration)
+		conditionalExpressionEndValues.put("Ljava/util/StringTokenizer;.hasMoreElements()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));	// .hasMoreElements() (from StringTokenizer)
+		conditionalExpressionEndValues.put("Ljava/util/StringTokenizer;.hasMoreTokens()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));		// .hasMoreTokens()
 
-		updateMethodUpdateValues = new HashMap<String, Integer>();
-		updateMethodUpdateValues.put("Ljava/util/Iterator;.next()TE;", 1);					// .next() (from Iterator)
-		updateMethodUpdateValues.put("Ljava/util/ListIterator;.next()TE;", 1);				// .next() (from ListIterator)
-		updateMethodUpdateValues.put("Ljava/util/ListIterator;.previous()TE;", (-1));		// .previous()
-		updateMethodUpdateValues.put("Ljava/util/Enumeration;.nextElement()TE;", 1);		// .nextElement()
+		
+		updateMethodValues = new HashMap<String, Integer>();
+		updateMethodValues.put("Ljava/util/Iterator;.next()TE;", 1);									// .next() (from Iterator)
+		updateMethodValues.put("Ljava/util/ListIterator;.next()TE;", 1);								// .next() (from ListIterator)
+		updateMethodValues.put("Ljava/util/ListIterator;.previous()TE;", (-1));							// .previous()
+		updateMethodValues.put("Ljava/util/Enumeration;.nextElement()TE;", 1);							// .nextElement()
+		updateMethodValues.put("Ljava/util/StringTokenizer;.nextElement()Ljava/lang/Object;", 1);		// .nextElement()
+		updateMethodValues.put("Ljava/util/StringTokenizer;.nextToken()Ljava/lang/String;", 1);			// .nextToken()
+		
+		
+		dataStructureSizeMethodEndValues = new HashMap<String, VariableValue>();
+		dataStructureSizeMethodEndValues.put(".size()I", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));		// .size()
 	}
 	
 	public static ConditionalLoopBindingInformation getInstance()
@@ -59,9 +72,15 @@ public class ConditionalLoopBindingInformation {
 	}
 
 	// checks if the updateMethodBindingUpdateValues field contains the specified MethodBinding key
-	public boolean updateMethodBindingUpdateValuesContains(String methodBindingKey)
+	public boolean updateMethodValuesContains(String methodBindingKey)
 	{
-		return updateMethodUpdateValues.keySet().contains(methodBindingKey);
+		return updateMethodValues.keySet().contains(methodBindingKey);
+	}
+
+	// checks if the dataStructureSizeMethods field contains the specified MethodBinding key
+	public boolean dataStructureSizeMethodEndValuesContains(String methodBindingKey)
+	{
+		return dataStructureSizeMethodEndValues.keySet().contains(methodBindingKey);
 	}
 	
 	public Integer getIteratorInstantiationMethodBindingStartValue(String methodBindingKey)
@@ -81,8 +100,20 @@ public class ConditionalLoopBindingInformation {
 		return conditionalExpressionEndValues.get(methodBindingKey);
 	}
 	
-	public Integer getUpdateMethodBindingUpdateValue(String methodBindingKey)
+	public Integer getupdateMethodValue(String methodBindingKey)
 	{
-		return updateMethodUpdateValues.get(methodBindingKey);
+		return updateMethodValues.get(methodBindingKey);
+	}
+	
+	public VariableValue getdataStructureSizeMethodEndValue(String methodBindingKey)
+	{
+		for (String methodBindingEnd : dataStructureSizeMethodEndValues.keySet())
+		{
+			if (methodBindingKey.endsWith(methodBindingEnd))
+			{
+				return dataStructureSizeMethodEndValues.get(methodBindingEnd);
+			}
+		}
+		return null;
 	}
 }

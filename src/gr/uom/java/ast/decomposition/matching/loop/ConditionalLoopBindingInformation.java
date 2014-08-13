@@ -100,7 +100,7 @@ public class ConditionalLoopBindingInformation {
 		return conditionalExpressionEndValues.get(methodBindingKey);
 	}
 	
-	public Integer getupdateMethodValue(String methodBindingKey)
+	public Integer getUpdateMethodValue(String methodBindingKey)
 	{
 		return updateMethodValues.get(methodBindingKey);
 	}

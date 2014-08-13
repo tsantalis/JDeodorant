@@ -219,7 +219,7 @@ public class ConditionalLoopUtilities
 		{
 			MethodInvocation methodInvocation = (MethodInvocation) updater;
 			ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
-			return bindingInformation.getupdateMethodValue(methodInvocation.resolveMethodBinding().getMethodDeclaration().getKey());
+			return bindingInformation.getUpdateMethodValue(methodInvocation.resolveMethodBinding().getMethodDeclaration().getKey());
 		}
 		return null;
 	}

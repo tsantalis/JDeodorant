@@ -57,7 +57,7 @@ public class ControlVariable extends AbstractControlVariable
 		return variableNode;
 	}
 
-	private static ASTNode getConditionContainingVariable(SimpleName variableNode)
+	private static ASTNode getConditionContainingVariable(SimpleName variableNode)		// found bug here!!! TODO
 	{
 		ASTNode currentParent = variableNode;
 		while (currentParent != null && currentParent.getParent() instanceof Expression)
@@ -68,7 +68,6 @@ public class ControlVariable extends AbstractControlVariable
 			{
 				return currentParent;
 			}
-			currentParent = variableNode.getParent();
 		}
 		return currentParent;
 	}
@@ -81,8 +80,6 @@ public class ControlVariable extends AbstractControlVariable
 	{
 		VariableValue variableValue         = new VariableValue(VariableValue.ValueType.INTEGER);		// begin as an integer so, if at any point in the modifiers, there is a variable, the whole value becomes variable
 		List<ASTNode> contributingModifiers = getValueContributingModifiers(variableNode);
-		//Integer cumulativeValue             = null;
-		//VariableValue.ValueType type        = VariableValue.ValueType.INTEGER;
 		Iterator<ASTNode> it                = contributingModifiers.iterator();
 		// we traverse the contributingModifiers and determine the type of value and, if possible, the cumulative value
 		while (it.hasNext())

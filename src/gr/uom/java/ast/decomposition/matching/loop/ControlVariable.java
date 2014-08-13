@@ -255,8 +255,9 @@ public class ControlVariable extends AbstractControlVariable
 			else if (currentNode instanceof MethodInvocation)
 			{
 				MethodInvocation currentMethodInvocation = (MethodInvocation) currentNode;
-				if (ConditionalLoopUtilities.isHasNextInvocation(currentMethodInvocation) || ConditionalLoopUtilities.isHasMoreElementsInvocation(currentMethodInvocation) ||
-						ConditionalLoopUtilities.isHasPreviousInvocation(currentMethodInvocation))
+				ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+				String currentMethodBindingKey = currentMethodInvocation.resolveMethodBinding().getMethodDeclaration().getKey();
+				if (bindingInformation.updateMethodValuesContains(currentMethodBindingKey))
 				{
 					contributingModifiers.add(currentNode);
 				}
@@ -343,11 +344,7 @@ public class ControlVariable extends AbstractControlVariable
 			}
 			Expression nonVariableOperand = (isVariableLeftOperand) ? rightOperand : leftOperand;
 			// evaluate the value of the opposing operand
-			if (ConditionalLoopUtilities.isLengthFieldAccess(nonVariableOperand))
-			{
-				variableValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
-			}
-			else if (ConditionalLoopUtilities.isSizeInvocation(nonVariableOperand))
+			if (ConditionalLoopUtilities.isLengthFieldAccess(nonVariableOperand) || ConditionalLoopUtilities.isSizeInvocation(nonVariableOperand))
 			{
 				variableValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 			}

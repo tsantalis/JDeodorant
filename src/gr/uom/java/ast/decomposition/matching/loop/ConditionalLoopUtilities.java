@@ -9,10 +9,8 @@ import java.util.List;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
-import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -31,7 +29,6 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
-import org.eclipse.jdt.core.dom.WhileStatement;
 
 @SuppressWarnings("unchecked")
 public class ConditionalLoopUtilities
@@ -61,131 +58,12 @@ public class ConditionalLoopUtilities
 		return false;
 	}
 	
-	public static boolean isSameVariable(Expression operand, SimpleName variable)
+	private static boolean isSameVariable(Expression operand, SimpleName variable)
 	{
 		if (operand instanceof SimpleName)
 		{
 			SimpleName simpleNameOperand = (SimpleName) operand;
 			return variable.resolveBinding().isEqualTo(simpleNameOperand.resolveBinding());
-		}
-		return false;
-	}
-	
-	public static boolean isUsingComparisonOperator(InfixExpression infixExpression)
-	{
-		if (infixExpression != null)
-		{
-			InfixExpression.Operator operator = infixExpression.getOperator();
-			return operator == InfixExpression.Operator.EQUALS ||
-					operator == InfixExpression.Operator.NOT_EQUALS ||
-					operator == InfixExpression.Operator.LESS ||
-					operator == InfixExpression.Operator.LESS_EQUALS ||
-					operator == InfixExpression.Operator.GREATER ||
-					operator == InfixExpression.Operator.GREATER_EQUALS;
-		}
-		return false;
-	}
-	
-	public static boolean isLoopStatement(ASTNode node)
-	{
-		return node instanceof ForStatement ||
-				node instanceof WhileStatement ||
-				node instanceof DoStatement ||
-				node instanceof EnhancedForStatement;
-	}
-	
-	public static boolean isIteratorInvocation(Expression expression)
-	{
-		if (expression instanceof MethodInvocation)
-		{
-			MethodInvocation methodInvocation = (MethodInvocation) expression;
-			Expression callingExpression = methodInvocation.getExpression();
-			if (callingExpression instanceof SimpleName)
-			{
-				SimpleName variable = (SimpleName) callingExpression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				return (isCollection(variable) && methodBinding.getName().equals("iterator"));
-			}
-		}
-		return false;
-	}
-	
-	public static boolean isListIteratorInvocation(Expression expression)
-	{
-		if (expression instanceof MethodInvocation)
-		{
-			MethodInvocation methodInvocation = (MethodInvocation) expression;
-			Expression callingExpression = methodInvocation.getExpression();
-			if (callingExpression instanceof SimpleName)
-			{
-				SimpleName variable = (SimpleName) callingExpression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				return (isCollection(variable) && methodBinding.getName().equals("listIterator"));
-			}
-		}
-		return false;
-	}
-	
-	public static boolean isElementsInvocation(Expression expression)
-	{
-		if (expression instanceof MethodInvocation)
-		{
-			MethodInvocation methodInvocation = (MethodInvocation) expression;
-			Expression callingExpression = methodInvocation.getExpression();
-			if (callingExpression instanceof SimpleName)
-			{
-				SimpleName variable = (SimpleName) callingExpression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				return (isCollection(variable) && methodBinding.getName().equals("elements"));
-			}
-		}
-		return false;
-	}
-	
-	public static boolean isHasNextInvocation(ASTNode node)
-	{
-		if (node instanceof MethodInvocation)
-		{
-			MethodInvocation methodInvocation = (MethodInvocation) node;
-			Expression callingExpression = methodInvocation.getExpression();
-			if (callingExpression instanceof SimpleName)
-			{
-				SimpleName variable = (SimpleName) callingExpression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				return ((isIterator(variable) || isListIterator(variable)) && methodBinding.getName().equals("hasNext"));
-			}
-		}
-		return false;
-	}
-	
-	public static boolean isHasMoreElementsInvocation(ASTNode node)
-	{
-		if (node instanceof MethodInvocation)
-		{
-			MethodInvocation methodInvocation = (MethodInvocation) node;
-			Expression callingExpression = methodInvocation.getExpression();
-			if (callingExpression instanceof SimpleName)
-			{
-				SimpleName variable = (SimpleName) callingExpression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				return (isEnumeration(variable) && methodBinding.getName().equals("hasMoreElements"));
-			}
-		}
-		return false;
-	}
-	
-	public static boolean isHasPreviousInvocation(ASTNode node)
-	{
-		if (node instanceof MethodInvocation)
-		{
-			MethodInvocation methodInvocation = (MethodInvocation) node;
-			Expression callingExpression = methodInvocation.getExpression();
-			if (callingExpression instanceof SimpleName)
-			{
-				SimpleName variable = (SimpleName) callingExpression;
-				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
-				return (isListIterator(variable) && methodBinding.getName().equals("hasPrevious"));
-			}
 		}
 		return false;
 	}
@@ -231,21 +109,6 @@ public class ConditionalLoopUtilities
 		return isSubclassOf(variable,"java.util.AbstractCollection");
 	}
 	
-	public static boolean isIterator(Expression variable)
-	{
-		return isSubclassOf(variable,"java.util.Iterator");
-	}
-	
-	public static boolean isListIterator(Expression variable)
-	{
-		return isSubclassOf(variable,"java.util.ListIterator");
-	}
-	
-	public static boolean isEnumeration(Expression variable)
-	{
-		return isSubclassOf(variable,"java.util.Enumeration");
-	}
-	
 	public static boolean isSubclassOf(Expression expression, String qualifiedName)
 	{
 		ITypeBinding typeBinding = expression.resolveTypeBinding();
@@ -283,25 +146,8 @@ public class ConditionalLoopUtilities
 		}
 		return variableDeclaration;
 	}
-
-	public static MethodDeclaration findParentMethodDeclaration(ASTNode node)
-	{
-		MethodDeclaration parentMethodDeclaration = null;
-		ASTNode parent = node.getParent();
-
-		while (parent != null)
-		{
-			if (parent instanceof MethodDeclaration)
-			{
-				parentMethodDeclaration = (MethodDeclaration) parent;
-				break;
-			}
-			parent = parent.getParent();
-		}
-		return parentMethodDeclaration;
-	}
 	
-	public static List<VariableDeclaration> getAllVariableDeclarations(MethodDeclaration method)
+	private static List<VariableDeclaration> getAllVariableDeclarations(MethodDeclaration method)
 	{
 		StatementExtractor statementExtractor            = new StatementExtractor();
 		ExpressionExtractor expressionExtractor          = new ExpressionExtractor();
@@ -339,6 +185,23 @@ public class ConditionalLoopUtilities
 		
 		return variableDeclarations;
 	}
+
+	public static MethodDeclaration findParentMethodDeclaration(ASTNode node)
+	{
+		MethodDeclaration parentMethodDeclaration = null;
+		ASTNode parent = node.getParent();
+
+		while (parent != null)
+		{
+			if (parent instanceof MethodDeclaration)
+			{
+				parentMethodDeclaration = (MethodDeclaration) parent;
+				break;
+			}
+			parent = parent.getParent();
+		}
+		return parentMethodDeclaration;
+	}
 	
 	// returns null if the main variable (LHS in an assignment, expression in postfix, prefix, or methodInvocation) is not being UPDATED
 	public static Integer getUpdateValue(Expression updater)
@@ -362,7 +225,7 @@ public class ConditionalLoopUtilities
 	}
 
 	// returns null if specified expression is not a Prefix or PostfixExpression
-	public static Integer getIncrementValue(Expression expression)
+	private static Integer getIncrementValue(Expression expression)
 	{
 		Integer incrementValue = null;
 		String operator = null;
@@ -388,7 +251,7 @@ public class ConditionalLoopUtilities
 	}
 
 	// returns null if the assignment is not UPDATING the variable on the left hand side or if the updateValue cannot be evaluated to an integer
-	public static Integer assignmentUpdateValue(Assignment assignment)
+	private static Integer assignmentUpdateValue(Assignment assignment)
 	{
 		Integer updateValue          = null;
 		Expression leftHandSide      = assignment.getLeftHandSide();
@@ -482,38 +345,6 @@ public class ConditionalLoopUtilities
 			}
 		}
 		return numberLiteralValue;
-	}
-	
-	// returns a list of all the .size() method invocations being performed on a collection
-	public static List<Expression> getSizeInvocations(Expression expression)
-	{
-		List<Expression> sizeInvocations  = new ArrayList<Expression>();
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> expressions            = expressionExtractor.getMethodInvocations(expression);
-		for (Expression currentExpression : expressions)
-		{
-			if (isSizeInvocation(currentExpression))
-			{
-				sizeInvocations.add(currentExpression);
-			}
-		}
-		return sizeInvocations;
-	}
-
-	// returns a list of all the .length field accesses being performed on an array
-	public static List<Expression> getLengthFieldAccesses(Expression expression)
-	{
-		List<Expression> lengthFieldAccesses   = new ArrayList<Expression>();
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> expressions            = expressionExtractor.getFieldAccesses(expression);
-		for (Expression currentExpression : expressions)
-		{
-			if (isLengthFieldAccess(currentExpression))
-			{
-				lengthFieldAccesses.add(currentExpression);
-			}
-		}
-		return lengthFieldAccesses;
 	}
 	
 	// returns a boolean indicating which side of the specified infixExpression the specified variable is on

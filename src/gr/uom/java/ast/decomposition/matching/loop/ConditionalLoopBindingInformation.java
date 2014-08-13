@@ -34,8 +34,8 @@ public class ConditionalLoopBindingInformation {
 		updateMethodValues.put("Ljava/util/Iterator;.next()TE;", 1);									// .next() (from Iterator)
 		updateMethodValues.put("Ljava/util/ListIterator;.next()TE;", 1);								// .next() (from ListIterator)
 		updateMethodValues.put("Ljava/util/ListIterator;.previous()TE;", (-1));							// .previous()
-		updateMethodValues.put("Ljava/util/Enumeration;.nextElement()TE;", 1);							// .nextElement()
-		updateMethodValues.put("Ljava/util/StringTokenizer;.nextElement()Ljava/lang/Object;", 1);		// .nextElement()
+		updateMethodValues.put("Ljava/util/Enumeration;.nextElement()TE;", 1);							// .nextElement() (from Enumeration)
+		updateMethodValues.put("Ljava/util/StringTokenizer;.nextElement()Ljava/lang/Object;", 1);		// .nextElement() (from StringTokenizer)
 		updateMethodValues.put("Ljava/util/StringTokenizer;.nextToken()Ljava/lang/String;", 1);			// .nextToken()
 		
 		

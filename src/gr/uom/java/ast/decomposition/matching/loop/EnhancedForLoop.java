@@ -31,11 +31,7 @@ public class EnhancedForLoop extends AbstractLoop
 		// initialize endValue
 		VariableValue endValue = null;
 		ITypeBinding dataStructureBinding = dataStructure.resolveTypeBinding();
-		if (dataStructureBinding.isArray())
-		{
-			endValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
-		}
-		else if (ConditionalLoopUtilities.isCollection(dataStructure))
+		if (dataStructureBinding.isArray() || ConditionalLoopUtilities.isCollection(dataStructure))
 		{
 			endValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 		}

@@ -145,6 +145,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
 	private List<Set<VariableDeclaration>> fieldDeclarationsToBePulledUp;
+	private List<Set<VariableDeclaration>> fieldDeclarationsToBeParameterized;
 	private List<Set<MethodDeclaration>> methodDeclarationsToBePulledUp;
 	private List<Set<LabeledStatement>> labeledStatementsToBeRemoved;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
@@ -218,11 +219,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1()));
 		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2()));
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
+		this.fieldDeclarationsToBeParameterized = new ArrayList<Set<VariableDeclaration>>();
 		this.methodDeclarationsToBePulledUp = new ArrayList<Set<MethodDeclaration>>();
 		this.labeledStatementsToBeRemoved = new ArrayList<Set<LabeledStatement>>();
 		//this.nodesToBePreservedInTheOriginalMethod = new ArrayList<TreeSet<PDGNode>>();
 		for(int i=0; i<2; i++) {
 			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
+			fieldDeclarationsToBeParameterized.add(new LinkedHashSet<VariableDeclaration>());
 			methodDeclarationsToBePulledUp.add(new LinkedHashSet<MethodDeclaration>());
 			labeledStatementsToBeRemoved.add(new LinkedHashSet<LabeledStatement>());
 			//nodesToBePreservedInTheOriginalMethod.add(new TreeSet<PDGNode>());
@@ -290,7 +293,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
 			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
-					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), i);
+					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
 		}
 		finalizeCloneExtraction();
 	}
@@ -890,6 +893,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				parameterRewrite.insertLast(parameter, null);
 			}
 		}
+		//add parameters for the fields that should be parameterized instead of being pulled up
+		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
+			SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+			Type type = generateTypeFromTypeBinding(variableDeclaration.resolveBinding().getType(), ast, sourceRewriter);
+			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
+			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
+			parameterRewrite.insertLast(parameter, null);
+		}
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 		bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
@@ -1387,30 +1398,35 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 						}*/
-						//check if the common superclass is one of the source classes
-						if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-							fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
-						}
-						if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-							fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
-						}
-						if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-								!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(localFieldG1.resolveBinding().getType());
-							getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-							VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-							sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
-							if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
-								Expression initializer1 = localFieldG1.getInitializer();
-								Expression initializer2 = localFieldG2.getInitializer();
-								if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
-									sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
-								}
+						boolean avoidPullUpDueToSerialization1 = implementsSerializableInterface(sourceTypeDeclarations.get(0).resolveBinding()) &&
+								(localFieldG1.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
+						boolean avoidPullUpDueToSerialization2 = implementsSerializableInterface(sourceTypeDeclarations.get(1).resolveBinding()) &&
+								(localFieldG2.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
+						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
+							//check if the common superclass is one of the source classes
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
 							}
-							FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
-							sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
-							/*if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
+							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
+							}
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+								typeBindings.add(localFieldG1.resolveBinding().getType());
+								getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+								VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+								sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
+								if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
+									Expression initializer1 = localFieldG1.getInitializer();
+									Expression initializer2 = localFieldG2.getInitializer();
+									if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
+										sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
+									}
+								}
+								FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
+								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
+								/*if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
 							}
 							else if(innerTypeName != null) {
@@ -1421,30 +1437,35 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								Name typeName = ast.newName(commonSuperType.getQualifiedName());
 								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
 							}*/
-							if(originalFieldDeclarationG1.getJavadoc() != null) {
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
-							}
-							ListRewrite newFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
-							newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-							List<IExtendedModifier> originalModifiers = originalFieldDeclarationG1.modifiers();
-							for(IExtendedModifier extendedModifier : originalModifiers) {
-								if(extendedModifier.isModifier()) {
-									Modifier modifier = (Modifier)extendedModifier;
-									if(modifier.isFinal()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
-									}
-									else if(modifier.isStatic()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
-									}
-									else if(modifier.isTransient()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
-									}
-									else if(modifier.isVolatile()) {
-										newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.VOLATILE_KEYWORD), null);
+								if(originalFieldDeclarationG1.getJavadoc() != null) {
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
+								}
+								ListRewrite newFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+								newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+								List<IExtendedModifier> originalModifiers = originalFieldDeclarationG1.modifiers();
+								for(IExtendedModifier extendedModifier : originalModifiers) {
+									if(extendedModifier.isModifier()) {
+										Modifier modifier = (Modifier)extendedModifier;
+										if(modifier.isFinal()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
+										}
+										else if(modifier.isStatic()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+										}
+										else if(modifier.isTransient()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
+										}
+										else if(modifier.isVolatile()) {
+											newFieldDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.VOLATILE_KEYWORD), null);
+										}
 									}
 								}
+								bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
 							}
-							bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
+						}
+						else {
+							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
+							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 						}
 						break;
 					}
@@ -1453,6 +1474,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
+	private boolean implementsSerializableInterface(ITypeBinding typeBinding) {
+		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
+		for(ITypeBinding implementedInterface : implementedInterfaces) {
+			if(implementedInterface.getQualifiedName().equals("java.io.Serializable")) {
+				return true;
+			}
+		}
+		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
+		if(superclassTypeBinding != null) {
+			return implementsSerializableInterface(superclassTypeBinding);
+		}
+		return false;
+	}
 	/*private boolean variableIsUsedByExtractedStatement(CloneStructureNode node, PlainVariable variable) {
 		PDGNodeMapping nodeMapping = (PDGNodeMapping) node.getMapping();
 		List<ASTNodeDifference> differences = nodeMapping.getNodeDifferences();
@@ -2310,12 +2344,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private ASTNode processASTNodeWithDifferences(AST ast, ASTRewrite sourceRewriter, ASTNode oldASTNode, List<ASTNodeDifference> differences) {
 		if(differences.isEmpty()) {
-			return oldASTNode;
+			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
+				ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
+				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
+				return newASTNode;
+			}
+			else {
+				return oldASTNode;
+			}
 		}
 		else {
 			Set<VariableBindingKeyPair> parameterBindingKeys = originalPassedParameters.keySet();
 			Set<VariableBindingKeyPair> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
+			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
+				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
 			for(ASTNodeDifference difference : differences) {
 				Expression oldExpression = difference.getExpression1().getExpression();
 				oldExpression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(oldExpression);
@@ -2424,6 +2468,32 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			return newASTNode;
+		}
+	}
+
+	private void replaceFieldAccessesOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, ASTNode oldASTNode, ASTNode newASTNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> oldFieldAccesses = new ArrayList<Expression>();
+		List<Expression> newFieldAccesses = new ArrayList<Expression>();
+		if(oldASTNode instanceof Expression) {
+			oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Expression)oldASTNode));
+			newFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Expression)newASTNode));
+		}
+		else if(oldASTNode instanceof Statement) {
+			oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Statement)oldASTNode));
+			newFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Statement)newASTNode));
+		}
+		int j = 0;
+		for(Expression oldExpression : oldFieldAccesses) {
+			FieldAccess oldFieldAccess = (FieldAccess)oldExpression;
+			FieldAccess newFieldAccess = (FieldAccess)newFieldAccesses.get(j);
+			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
+				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					sourceRewriter.replace(newFieldAccess, ast.newSimpleName(variableDeclaration.getName().getIdentifier()), null);
+					break;
+				}
+			}
+			j++;
 		}
 	}
 
@@ -2745,7 +2815,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void modifySourceMethod(CompilationUnit compilationUnit, MethodDeclaration methodDeclaration, TreeSet<PDGNode> removableNodes,
-			TreeSet<PDGNode> remainingNodesMovableBefore, TreeSet<PDGNode> remainingNodesMovableAfter, List<VariableDeclaration> returnedVariables, int index) {
+			TreeSet<PDGNode> remainingNodesMovableBefore, TreeSet<PDGNode> remainingNodesMovableAfter, List<VariableDeclaration> returnedVariables,
+			Set<VariableDeclaration> fieldsToBeParamterized, int index) {
 		AST ast = methodDeclaration.getAST();
 		ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 		MethodInvocation methodInvocation = ast.newMethodInvocation();
@@ -2798,6 +2869,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					argumentsRewrite.insertLast(ast.newThisExpression(), null);
 				}
 			}
+		}
+		for(VariableDeclaration variableDeclaration : fieldsToBeParamterized) {
+			argumentsRewrite.insertLast(variableDeclaration.getName(), null);
 		}
 		cloneInfo.argumentRewriteList.add(index, argumentsRewrite);
 		/*TreeSet<PDGNode> nodesToBeRemoved = new TreeSet<PDGNode>();

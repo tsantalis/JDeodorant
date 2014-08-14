@@ -148,15 +148,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 	private boolean onlyVariableTypeMismatchDifferences() {
 		int diffCount = 0;
 		int variableTypeMismatchCount = 0;
+		int variableNameMismatchCount = 0;
 		for(ASTNodeDifference difference : differences) {
 			for(Difference diff : difference.getDifferences()) {
 				diffCount++;
 				if(diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
 					variableTypeMismatchCount++;
 				}
+				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
+					variableNameMismatchCount++;
+				}
 			}
 		}
-		if(diffCount > 0 && diffCount == variableTypeMismatchCount)
+		if(diffCount > 0 && diffCount == (variableTypeMismatchCount + variableNameMismatchCount))
 			return true;
 		return false;
 	}

@@ -57,7 +57,7 @@ public class ControlVariable extends AbstractControlVariable
 		return variableNode;
 	}
 
-	private static ASTNode getConditionContainingVariable(SimpleName variableNode)		// found bug here!!! TODO
+	private static ASTNode getConditionContainingVariable(SimpleName variableNode)
 	{
 		ASTNode currentParent = variableNode;
 		while (currentParent != null && currentParent.getParent() instanceof Expression)
@@ -164,11 +164,10 @@ public class ControlVariable extends AbstractControlVariable
 		return variableValue;
 	}
 
-	private static void setMethodInvocationStartValue(Expression expression,
-			IMethodBinding methodInvocationBinding, List<Expression> arguments,
-			VariableValue variableValue) {
+	private static void setMethodInvocationStartValue(Expression expression, IMethodBinding methodInvocationBinding, List<Expression> arguments, VariableValue variableValue)
+	{
 		ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
-		String bindingKey = methodInvocationBinding.getKey();
+		String bindingKey = methodInvocationBinding.getMethodDeclaration().getKey();
 		if (bindingInformation.iteratorInstantiationMethodBindingStartValuesContains(bindingKey))
 		{
 			Integer value = bindingInformation.getIteratorInstantiationMethodBindingStartValue(bindingKey);
@@ -220,11 +219,13 @@ public class ControlVariable extends AbstractControlVariable
 		while (it.hasNext())
 		{
 			ASTNode currentNode = it.next();
+			boolean currentNodeAdded = false;
 			// if the current node is the declaration or an assignment, the list restarts the modifiers. if it is a plus, minus, times, or divide equals, then it adds to the modifiers
 			if (currentNode instanceof VariableDeclaration)
 			{
 				contributingModifiers = new ArrayList<ASTNode>();
 				contributingModifiers.add(currentNode);
+				currentNodeAdded = true;
 				noModifierInLowerScope = true;
 			}
 			else if (currentNode instanceof Assignment)
@@ -235,6 +236,7 @@ public class ControlVariable extends AbstractControlVariable
 				{
 					contributingModifiers = new ArrayList<ASTNode>();
 					contributingModifiers.add(currentNode);
+					currentNodeAdded = true;
 					noModifierInLowerScope = true;
 				}
 				else if (operator == Assignment.Operator.PLUS_ASSIGN ||
@@ -243,11 +245,13 @@ public class ControlVariable extends AbstractControlVariable
 						operator == Assignment.Operator.DIVIDE_ASSIGN)
 				{
 					contributingModifiers.add(currentNode);
+					currentNodeAdded = true;
 				}				
 			}
 			else if (currentNode instanceof PrefixExpression || currentNode instanceof PostfixExpression)
 			{
 				contributingModifiers.add(currentNode);
+				currentNodeAdded = true;
 			}
 			else if (currentNode instanceof MethodInvocation)
 			{
@@ -257,23 +261,27 @@ public class ControlVariable extends AbstractControlVariable
 				if (bindingInformation.updateMethodValuesContains(currentMethodBindingKey))
 				{
 					contributingModifiers.add(currentNode);
+					currentNodeAdded = true;
 				}
 			}
-			// move up through it's parents until the first block or conditional parent and check if it is in the variableParents list, if not, it is in a lower scope
-			ASTNode currentNodeParent = currentNode.getParent();
-			while (currentNodeParent != null)
+			// if currentNode was added, move up through it's parents until the first block or conditional parent and check if it is in the variableParents list, if not, it is in a lower scope
+			if (currentNodeAdded)
 			{
-				if ((currentNodeParent instanceof MethodDeclaration || currentNodeParent instanceof IfStatement || currentNodeParent instanceof ForStatement ||
-						currentNodeParent instanceof WhileStatement || currentNodeParent instanceof DoStatement || currentNodeParent instanceof EnhancedForStatement ||
-						currentNodeParent instanceof SwitchStatement || currentNodeParent instanceof TryStatement))
+				ASTNode currentNodeParent = currentNode.getParent();
+				while (currentNodeParent != null)
 				{
-					if (!variableParents.contains(currentNodeParent))
+					if ((currentNodeParent instanceof MethodDeclaration || currentNodeParent instanceof IfStatement || currentNodeParent instanceof ForStatement ||
+							currentNodeParent instanceof WhileStatement || currentNodeParent instanceof DoStatement || currentNodeParent instanceof EnhancedForStatement ||
+							currentNodeParent instanceof SwitchStatement || currentNodeParent instanceof TryStatement))
 					{
-						noModifierInLowerScope = false;
+						if (!variableParents.contains(currentNodeParent))
+						{
+							noModifierInLowerScope = false;
+						}
+						break;
 					}
-					break;
+					currentNodeParent = currentNodeParent.getParent();
 				}
-				currentNodeParent = currentNodeParent.getParent();
 			}
 		}
 		// return constructed list if all modifiers are in same or higher scope

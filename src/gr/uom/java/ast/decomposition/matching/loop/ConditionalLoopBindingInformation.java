@@ -13,10 +13,14 @@ public class ConditionalLoopBindingInformation {
 	private ConditionalLoopBindingInformation()
 	{
 		iteratorInstantiationMethodBindingStartValues = new HashMap<String, Integer>();
-		iteratorInstantiationMethodBindingStartValues.put(".iterator()Ljava/util/Iterator<TE;>;", 0);									// .iterator()
-		iteratorInstantiationMethodBindingStartValues.put(".listIterator()Ljava/util/ListIterator<TE;>;", 0);							// .listIterator()
-		iteratorInstantiationMethodBindingStartValues.put(".listIterator(I)Ljava/util/ListIterator<TE;>;", null);						// .listIterator(int)
-		iteratorInstantiationMethodBindingStartValues.put(".elements()Ljava/util/Enumeration<TV;>;", 0);								// .elements()
+		iteratorInstantiationMethodBindingStartValues.put(".iterator()Ljava/util/Iterator<TE;>;", 0);									// .iterator()<E>
+		iteratorInstantiationMethodBindingStartValues.put(".iterator()Ljava/util/Iterator;", 0);										// .iterator()
+		iteratorInstantiationMethodBindingStartValues.put(".listIterator()Ljava/util/ListIterator<TE;>;", 0);							// .listIterator()<E>
+		iteratorInstantiationMethodBindingStartValues.put(".listIterator(I)Ljava/util/ListIterator<TE;>;", null);						// .listIterator(int)<E>
+		iteratorInstantiationMethodBindingStartValues.put(".listIterator()Ljava/util/ListIterator;", 0);								// .listIterator()
+		iteratorInstantiationMethodBindingStartValues.put(".listIterator(I)Ljava/util/ListIterator;", null);							// .listIterator(int)
+		iteratorInstantiationMethodBindingStartValues.put(".elements()Ljava/util/Enumeration<TV;>;", 0);								// .elements()<V>
+		iteratorInstantiationMethodBindingStartValues.put(".elements()Ljava/util/Enumeration;", 0);										// .elements()
 		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;)V", 0);						// StringTokenizer(String)
 		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;Ljava/lang/String;)V", 0);	// StringTokenizer(String, String)
 		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;Ljava/lang/String;Z)V", 0);	// StringTokenizer(String, String, boolean)
@@ -105,7 +109,7 @@ public class ConditionalLoopBindingInformation {
 		return updateMethodValues.get(methodBindingKey);
 	}
 	
-	public VariableValue getdataStructureSizeMethodEndValue(String methodBindingKey)
+	public VariableValue getDataStructureSizeMethodEndValue(String methodBindingKey)
 	{
 		for (String methodBindingEnd : dataStructureSizeMethodEndValues.keySet())
 		{

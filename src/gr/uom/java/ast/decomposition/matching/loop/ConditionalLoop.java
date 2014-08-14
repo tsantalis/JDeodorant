@@ -86,6 +86,11 @@ public class ConditionalLoop extends AbstractLoop
 			{
 				additionalFragments.add(currentVariableUpdater.getUpdater());
 			}
+			if (currentControlVariable instanceof ControlVariable)
+			{
+				ControlVariable controlVariable = (ControlVariable) currentControlVariable;
+				additionalFragments.add(ConditionalLoopUtilities.getVariableDeclaration(controlVariable.getVariable()));
+			}
 		}
 		/*// if the current ConditionalLoop is a for loop, remove all for the updaters found in the for declaration
 		if (this.getLoopStatement() instanceof ForStatement)

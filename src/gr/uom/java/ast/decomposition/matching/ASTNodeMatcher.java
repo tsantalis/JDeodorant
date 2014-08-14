@@ -2009,8 +2009,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			else if(currentFragment.getParent() instanceof VariableDeclarationStatement)
 			{
 				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)currentFragment.getParent();
-				StatementObject updaterStatementObject = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, null);
-				fragmentList.add(updaterStatementObject);
+				if (variableDeclarationStatement.fragments().size() == 1)
+				{
+					StatementObject updaterStatementObject = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, null);
+					fragmentList.add(updaterStatementObject);
+				}
 			}
 			else if (currentFragment instanceof Expression)
 			{

@@ -4,6 +4,7 @@ public enum PreconditionViolationType {
 	EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED,
 	EXPRESSION_DIFFERENCE_IS_FIELD_UPDATE,
 	EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL,
+	EXPRESSION_DIFFERENCE_IS_METHOD_CALL_THROWING_EXCEPTION_WITHIN_MATCHED_TRY_BLOCK,
 	INFEASIBLE_UNIFICATION_DUE_TO_VARIABLE_TYPE_MISMATCH,
 	INFEASIBLE_UNIFICATION_DUE_TO_MISSING_MEMBERS_IN_THE_COMMON_SUPERCLASS,
 	UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE,
@@ -30,6 +31,9 @@ public enum PreconditionViolationType {
 		}
 		else if(name().equals(EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL.name())) {
 			return "is a void method call, and thus it cannot be parameterized";
+		}
+		else if(name().equals(EXPRESSION_DIFFERENCE_IS_METHOD_CALL_THROWING_EXCEPTION_WITHIN_MATCHED_TRY_BLOCK.name())) {
+			return "is a method call throwing exception(s) that should be caught by a try block that will be extracted";
 		}
 		else if(name().equals(UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE.name())) {
 			return "cannot be moved before or after the extracted code, because it has dependencies to/from statements that will be extracted";

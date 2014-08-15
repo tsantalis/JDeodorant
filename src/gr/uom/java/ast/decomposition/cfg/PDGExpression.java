@@ -52,6 +52,12 @@ public class PDGExpression {
 		return usedVariables.contains(variable);
 	}
 
+	public boolean throwsException() {
+		if(!thrownExceptionTypes.isEmpty())
+			return true;
+		return false;
+	}
+
 	private void determineDefinedAndUsedVariables(AbstractExpression expression) {
 		List<CreationObject> creations = expression.getCreations();
 		for(CreationObject creation : creations) {

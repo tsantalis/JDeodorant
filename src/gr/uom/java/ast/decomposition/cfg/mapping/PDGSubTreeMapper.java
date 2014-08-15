@@ -1228,9 +1228,9 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			AbstractExpression abstractExpression2 = difference.getExpression2();
 			Expression expression2 = abstractExpression2.getExpression();
 			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !isVariableWithTypeMismatchDifference(expression1, expression2, difference)) {
-				if(!isParameterizableExpression(removableNodesG1, abstractExpression1, pdg1.getVariableDeclarationsInMethod(), iCompilationUnit1)) {
-					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
-							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+				PreconditionViolationType violationType1 = isParameterizableExpression(pdg1, removableNodesG1, abstractExpression1, iCompilationUnit1);
+				if(violationType1 != null) {
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(), violationType1);
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression1);
@@ -1242,9 +1242,9 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						}
 					}
 				}
-				if(!isParameterizableExpression(removableNodesG2, abstractExpression2, pdg2.getVariableDeclarationsInMethod(), iCompilationUnit2)) {
-					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
-							PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED);
+				PreconditionViolationType violationType2 = isParameterizableExpression(pdg2, removableNodesG2, abstractExpression2, iCompilationUnit2);
+				if(violationType2 != null) {
+					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(), violationType2);
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 					IMethodBinding methodBinding = getMethodBinding(expression2);
@@ -1815,8 +1815,8 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return expressionIsField;
 	}
 	//precondition: differences in expressions should be parameterizable
-	private boolean isParameterizableExpression(TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression,
-			Set<VariableDeclaration> variableDeclarationsInMethod, ICompilationUnit iCompilationUnit) {
+	private PreconditionViolationType isParameterizableExpression(PDG pdg, TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression, ICompilationUnit iCompilationUnit) {
+		Set<VariableDeclaration> variableDeclarationsInMethod = pdg.getVariableDeclarationsInMethod();
 		Expression initialExpression = initialAbstractExpression.getExpression();
 		Expression expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(initialExpression);
 		PDGExpression pdgExpression;
@@ -1865,19 +1865,19 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 							PDGDataDependence dataDependence = (PDGDataDependence)dependence;
 							//check if pdgExpression is using dataDependence.data
 							if(pdgExpression.usesLocalVariable(dataDependence.getData()))
-								return false;
+								return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 						}
 						else if(dependence instanceof PDGAntiDependence) {
 							PDGAntiDependence antiDependence = (PDGAntiDependence)dependence;
 							//check if pdgExpression is defining dataDependence.data
 							if(pdgExpression.definesLocalVariable(antiDependence.getData()))
-								return false;
+								return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 						}
 						else if(dependence instanceof PDGOutputDependence) {
 							PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
 							//check if pdgExpression is defining dataDependence.data
 							if(pdgExpression.definesLocalVariable(outputDependence.getData()))
-								return false;
+								return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 						}
 					}
 					//examine if it is a self-loop edge due to a loop-carried dependence
@@ -1885,14 +1885,20 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 						if(abstractDependence.isLoopCarried() && nodes.contains(abstractDependence.getLoop().getPDGNode())) {
 							if(pdgExpression.definesLocalVariable(abstractDependence.getData()) ||
 									pdgExpression.usesLocalVariable(abstractDependence.getData())) {
-								return false;
+								return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 							}
 						}
 					}
 				}
 			}
 			if(!expressionIsVariableName && controlParentExaminesVariableUsedInDifferenceExpression(pdgExpression, nodeContainingExpression, nodes)) {
-				return false;
+				return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
+			}
+			if(pdgExpression.throwsException()) {
+				PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(nodeContainingExpression);
+				if(blockNode != null && blockNode instanceof PDGTryNode && mappedNodes.contains(blockNode)) {
+					return PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_METHOD_CALL_THROWING_EXCEPTION_WITHIN_MATCHED_TRY_BLOCK;
+				}
 			}
 		}
 		else {
@@ -1902,17 +1908,17 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				while(definedVariableIterator.hasNext()) {
 					AbstractVariable definedVariable = definedVariableIterator.next();
 					if(pdgExpression.usesLocalVariable(definedVariable) || pdgExpression.definesLocalVariable(definedVariable))
-						return false;
+						return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 				}
 				Iterator<AbstractVariable> usedVariableIterator = mappedNode.getUsedVariableIterator();
 				while(usedVariableIterator.hasNext()) {
 					AbstractVariable usedVariable = usedVariableIterator.next();
 					if(pdgExpression.definesLocalVariable(usedVariable))
-						return false;
+						return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 				}
 			}
 		}
-		return true;
+		return null;
 	}
 
 	private boolean isExpressionUnderStatement(ASTNode expression, Statement statement) {

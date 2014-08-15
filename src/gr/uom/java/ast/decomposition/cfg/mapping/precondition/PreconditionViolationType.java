@@ -12,6 +12,7 @@ public enum PreconditionViolationType {
 	UNMATCHED_CONTINUE_STATEMENT,
 	UNMATCHED_RETURN_STATEMENT,
 	UNMATCHED_THROW_STATEMENT,
+	UNMATCHED_EXCEPTION_THROWING_STATEMENT_NESTED_WITHIN_MATCHED_TRY_BLOCK,
 	MULTIPLE_RETURNED_VARIABLES,
 	UNEQUAL_NUMBER_OF_RETURNED_VARIABLES,
 	SINGLE_RETURNED_VARIABLE_WITH_DIFFERENT_TYPES,
@@ -38,6 +39,9 @@ public enum PreconditionViolationType {
 		}
 		else if(name().equals(MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE.name())) {
 			return "cannot be moved, because it updates a variable modified in other unmapped statements";
+		}
+		else if(name().equals(UNMATCHED_EXCEPTION_THROWING_STATEMENT_NESTED_WITHIN_MATCHED_TRY_BLOCK.name())) {
+			return "cannot be moved before or after the extracted code, because it throws exception(s) that should be caught by a try block that will be extracted";
 		}
 		return "";
 	}

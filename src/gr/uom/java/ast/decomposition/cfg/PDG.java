@@ -22,7 +22,6 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.Statement;
-import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jface.preference.IPreferenceStore;
 
@@ -110,6 +109,20 @@ public class PDG extends Graph {
 			}
 		}
 		return null;
+	}
+	
+	public PDGBlockNode isNestedWithinBlockNode(PDGNode node) {
+		PDGBlockNode blockNode = isDirectlyNestedWithinBlockNode(node);
+		if(blockNode != null) {
+			return blockNode;
+		}
+		else {
+			PDGNode controlParent = node.getControlDependenceParent();
+			if(controlParent != null) {
+				return isNestedWithinBlockNode(controlParent);
+			}
+			return null;
+		}
 	}
 
 	public Set<PDGNode> getNestedNodesWithinBlockNode(PDGBlockNode blockNode) {

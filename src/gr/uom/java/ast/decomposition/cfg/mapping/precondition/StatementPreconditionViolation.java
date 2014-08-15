@@ -20,7 +20,8 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 		StringBuilder sb = new StringBuilder();
 		if(type.equals(PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE) ||
 				type.equals(PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE) ||
-				type.equals(PreconditionViolationType.MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE)) {
+				type.equals(PreconditionViolationType.MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE) ||
+				type.equals(PreconditionViolationType.UNMATCHED_EXCEPTION_THROWING_STATEMENT_NESTED_WITHIN_MATCHED_TRY_BLOCK)) {
 			sb.append("Unmatched statement ");
 			String str = statement.toString();
 			sb.append(str.substring(0, str.lastIndexOf("\n")));
@@ -57,7 +58,8 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 		NormalStyler normalStyler = new NormalStyler();
 		if(type.equals(PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE) ||
 				type.equals(PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE) ||
-				type.equals(PreconditionViolationType.MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE)) {
+				type.equals(PreconditionViolationType.MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE) ||
+				type.equals(PreconditionViolationType.UNMATCHED_EXCEPTION_THROWING_STATEMENT_NESTED_WITHIN_MATCHED_TRY_BLOCK)) {
 			styledString.append("Unmatched statement ", normalStyler);
 			String str = statement.toString();
 			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);

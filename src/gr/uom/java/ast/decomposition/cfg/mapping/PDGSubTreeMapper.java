@@ -38,6 +38,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionWithCommonSuperTypePreconditionViolation;
@@ -1339,11 +1340,11 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 		if(nodeMapping instanceof PDGNodeGap) {
 			if(nodeMapping.getNodeG1() != null && !nodeMapping.isAdvancedMatch()) {
-				processNonMappedNode(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBeforeAndAfter,
+				processNonMappedNode(pdg1, nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBeforeAndAfter,
 						nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter, variablesToBeReturnedG1);
 			}
 			if(nodeMapping.getNodeG2() != null && !nodeMapping.isAdvancedMatch()) {
-				processNonMappedNode(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBeforeAndAfter,
+				processNonMappedNode(pdg2, nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBeforeAndAfter,
 						nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter, variablesToBeReturnedG2);
 			}
 		}
@@ -1409,7 +1410,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 	}
 
-	private void processNonMappedNode(NodeMapping nodeMapping, PDGNode node, TreeSet<PDGNode> removableNodes,
+	private void processNonMappedNode(PDG pdg, NodeMapping nodeMapping, PDGNode node, TreeSet<PDGNode> removableNodes,
 			TreeSet<PDGNode> movableBeforeAndAfter, TreeSet<PDGNode> movableBefore, TreeSet<PDGNode> movableAfter, Set<PlainVariable> returnedVariables) {
 		boolean movableNonMappedNodeBeforeFirstMappedNode = movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node);
 		boolean movableNonMappedNodeAfterLastMappedNode = movableNonMappedNodeAfterLastMappedNode(removableNodes, node, returnedVariables);
@@ -1450,6 +1451,15 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			}
 			else {
 				movableAfter.add(node);
+			}
+		}
+		if(node.throwsException()) {
+			PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(node);
+			if(blockNode != null && blockNode instanceof PDGTryNode && removableNodes.contains(blockNode)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.UNMATCHED_EXCEPTION_THROWING_STATEMENT_NESTED_WITHIN_MATCHED_TRY_BLOCK);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
 			}
 		}
 		CFGNode cfgNode = node.getCFGNode();

@@ -1,16 +1,18 @@
 package gr.uom.java.ast.decomposition.matching.loop;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
-public class ConditionalLoopBindingInformation {
+public class AbstractLoopBindingInformation
+{
 	
-	private static ConditionalLoopBindingInformation instance;
+	private static AbstractLoopBindingInformation instance;
 	private static HashMap<String, Integer> iteratorInstantiationMethodBindingStartValues;		// the start values of different "iterators" when created by these instantiation methods
 	private static HashMap<String, VariableValue> conditionalExpressionEndValues;				// the end values of different "iterators" being checked when these methods are called
 	private static HashMap<String, Integer> updateMethodValues;									// the value by which different "iterators" are updated when these methods are called
-	private static HashMap<String, VariableValue> dataStructureSizeMethodEndValues;				// the end values of different methods being used in an InfixExpression to check the size of a data structure
+	private static ArrayList<String> dataStructureSizeMethods;									// the end values of different methods being used in an InfixExpression to check the size of a data structure
 
-	private ConditionalLoopBindingInformation()
+	private AbstractLoopBindingInformation()
 	{
 		iteratorInstantiationMethodBindingStartValues = new HashMap<String, Integer>();
 		iteratorInstantiationMethodBindingStartValues.put(".iterator()Ljava/util/Iterator<TE;>;", 0);									// .iterator()<E>
@@ -43,15 +45,17 @@ public class ConditionalLoopBindingInformation {
 		updateMethodValues.put("Ljava/util/StringTokenizer;.nextToken()Ljava/lang/String;", 1);			// .nextToken()
 		
 		
-		dataStructureSizeMethodEndValues = new HashMap<String, VariableValue>();
-		dataStructureSizeMethodEndValues.put(".size()I", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));		// .size()
+		dataStructureSizeMethods = new ArrayList<String>();
+		// .size method of a collection is handled by the method isCollectionSizeInvocation(Expression) in the AbstractLoopUtilities class
+		// .length of an array is handled by the method isLengthFieldAccess(Expression) in the AbstractLoopUtilities class
+		dataStructureSizeMethods.add("Ljava/lang/String;.length()I");			// .length() (from String)
 	}
 	
-	public static ConditionalLoopBindingInformation getInstance()
+	public static AbstractLoopBindingInformation getInstance()
 	{
 		if (instance == null)
 		{
-			instance = new ConditionalLoopBindingInformation();
+			instance = new AbstractLoopBindingInformation();
 		}
 		return instance;
 	}
@@ -84,7 +88,7 @@ public class ConditionalLoopBindingInformation {
 	// checks if the dataStructureSizeMethods field contains the specified MethodBinding key
 	public boolean dataStructureSizeMethodEndValuesContains(String methodBindingKey)
 	{
-		return dataStructureSizeMethodEndValues.keySet().contains(methodBindingKey);
+		return dataStructureSizeMethods.contains(methodBindingKey);
 	}
 	
 	public Integer getIteratorInstantiationMethodBindingStartValue(String methodBindingKey)
@@ -107,17 +111,5 @@ public class ConditionalLoopBindingInformation {
 	public Integer getUpdateMethodValue(String methodBindingKey)
 	{
 		return updateMethodValues.get(methodBindingKey);
-	}
-	
-	public VariableValue getDataStructureSizeMethodEndValue(String methodBindingKey)
-	{
-		for (String methodBindingEnd : dataStructureSizeMethodEndValues.keySet())
-		{
-			if (methodBindingKey.endsWith(methodBindingEnd))
-			{
-				return dataStructureSizeMethodEndValues.get(methodBindingEnd);
-			}
-		}
-		return null;
 	}
 }

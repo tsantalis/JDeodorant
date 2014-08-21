@@ -27,19 +27,19 @@ public class EnhancedForLoop extends AbstractLoop
 	{
 		// initialize startValue
 		VariableValue startValue = new VariableValue(0);
-		
 		// initialize endValue
 		VariableValue endValue = null;
 		ITypeBinding dataStructureBinding = dataStructure.resolveTypeBinding();
-		if (dataStructureBinding.isArray() || ConditionalLoopUtilities.isCollection(dataStructure))
+		// if the dataStructure is an array or a mehtodInvocation returning and array (both covered by the first expression) OR
+		// the data structure is a collection or the data structure is a methodInvocation returning a collection (both covered by the second expression)
+		// These are the only cases supported by the JAVA enhanced for loop
+		if (dataStructureBinding.isArray() || AbstractLoopUtilities.isCollection(dataStructureBinding))
 		{
 			endValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 		}
-		
 		// initialize variableUpdaters
 		List<VariableUpdater> variableUpdaters = new ArrayList<VariableUpdater>();
 		variableUpdaters.add(new VariableUpdater(1));
-		
 		if (endValue == null)
 		{
 			return null;
@@ -50,8 +50,7 @@ public class EnhancedForLoop extends AbstractLoop
 	public List<ASTNode> getAdditionalFragments()
 	{
 		List<ASTNode> additionalFragments = new ArrayList<ASTNode>();
-
-		List<VariableUpdater> updaters = conditionControlVariable.getVariableUpdaters();
+		List<VariableUpdater> updaters    = conditionControlVariable.getVariableUpdaters();
 		for (VariableUpdater currentVariableUpdater : updaters)
 		{
 			if (currentVariableUpdater.getUpdater() != null)
@@ -59,7 +58,6 @@ public class EnhancedForLoop extends AbstractLoop
 				additionalFragments.add(currentVariableUpdater.getUpdater());
 			}
 		}
-		
 		return additionalFragments;
 	}
 	
@@ -79,8 +77,8 @@ public class EnhancedForLoop extends AbstractLoop
 		return false;
 	}
 
-	public boolean match(EnhancedForLoop otherLoop, ConditionalLoopASTNodeMatcher matcher) {
-
+	public boolean match(EnhancedForLoop otherLoop, ConditionalLoopASTNodeMatcher matcher)
+	{
 		return this.conditionControlVariable.match(otherLoop.conditionControlVariable);
 	}
 }

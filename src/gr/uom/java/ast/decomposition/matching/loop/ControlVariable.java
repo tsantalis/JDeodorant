@@ -127,7 +127,7 @@ public class ControlVariable extends AbstractControlVariable
 					}
 					else if (expression instanceof QualifiedName)
 					{
-						if (ConditionalLoopUtilities.isLengthFieldAccess(expression))
+						if (AbstractLoopUtilities.isLengthFieldAccess(expression))
 						{
 							variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 							variableValue.setValue(0);
@@ -139,7 +139,7 @@ public class ControlVariable extends AbstractControlVariable
 					}
 					else
 					{
-						variableValue.setValue(ConditionalLoopUtilities.getIntegerValue(expression));
+						variableValue.setValue(AbstractLoopUtilities.getIntegerValue(expression));
 						if (variableValue.getValue() == null)
 						{
 							variableValue.setType(VariableValue.ValueType.VARIABLE);
@@ -150,7 +150,7 @@ public class ControlVariable extends AbstractControlVariable
 			// if the currentNode was an Assignment but not with an ASSIGN operator (the later assumed if it made it here), a Prefix or PostfixExpression, or a MethodInvocation
 			else if (currentNode instanceof Assignment || currentNode instanceof PrefixExpression || currentNode instanceof PostfixExpression || currentNode instanceof MethodInvocation)
 			{
-				updateValue = ConditionalLoopUtilities.getUpdateValue((Expression)currentNode);
+				updateValue = AbstractLoopUtilities.getUpdateValue((Expression)currentNode);
 				if (variableValue.getValue() != null && updateValue != null)
 				{
 					variableValue.setValue(variableValue.getValue() + updateValue);
@@ -166,14 +166,14 @@ public class ControlVariable extends AbstractControlVariable
 
 	private static void setMethodInvocationStartValue(Expression expression, IMethodBinding methodInvocationBinding, List<Expression> arguments, VariableValue variableValue)
 	{
-		ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+		AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
 		String bindingKey = methodInvocationBinding.getMethodDeclaration().getKey();
 		if (bindingInformation.iteratorInstantiationMethodBindingStartValuesContains(bindingKey))
 		{
 			Integer value = bindingInformation.getIteratorInstantiationMethodBindingStartValue(bindingKey);
 			if (value == null)
 			{
-				if (arguments.size() == 1 && ConditionalLoopUtilities.isSizeInvocation(arguments.get(0)))
+				if (arguments.size() == 1 && AbstractLoopUtilities.isCollectionSizeInvocation(arguments.get(0)))
 				{
 					variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 					variableValue.setValue(0);
@@ -188,7 +188,7 @@ public class ControlVariable extends AbstractControlVariable
 				variableValue.setValue(value);
 			}
 		}
-		else if (ConditionalLoopUtilities.isSizeInvocation(expression))
+		else if (AbstractLoopUtilities.isCollectionSizeInvocation(expression))
 		{
 			variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 			variableValue.setValue(0);
@@ -204,7 +204,7 @@ public class ControlVariable extends AbstractControlVariable
 		List<ASTNode> allVariableModifiers  = getAllVariableModifiersInParentMehtod(variable);
 		List<ASTNode> contributingModifiers = null;
 		boolean noModifierInLowerScope      = true;
-		MethodDeclaration parentMethod      = ConditionalLoopUtilities.findParentMethodDeclaration(variable);
+		MethodDeclaration parentMethod      = AbstractLoopUtilities.findParentMethodDeclaration(variable);
 		// create a list of all parents of the specified variable until the root method
 		List<ASTNode> variableParents = new ArrayList<ASTNode>();
 		ASTNode currentVariableParent = variable.getParent();
@@ -256,7 +256,7 @@ public class ControlVariable extends AbstractControlVariable
 			else if (currentNode instanceof MethodInvocation)
 			{
 				MethodInvocation currentMethodInvocation = (MethodInvocation) currentNode;
-				ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+				AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
 				String currentMethodBindingKey = currentMethodInvocation.resolveMethodBinding().getMethodDeclaration().getKey();
 				if (bindingInformation.updateMethodValuesContains(currentMethodBindingKey))
 				{
@@ -296,7 +296,7 @@ public class ControlVariable extends AbstractControlVariable
 	private static List<ASTNode> getAllVariableModifiersInParentMehtod(SimpleName variable)
 	{
 		List<ASTNode> bodyVariableModifiers = null;
-		MethodDeclaration parentMethod = ConditionalLoopUtilities.findParentMethodDeclaration(variable);
+		MethodDeclaration parentMethod = AbstractLoopUtilities.findParentMethodDeclaration(variable);
 		if (parentMethod != null)
 		{
 			Block parentMethodBody = parentMethod.getBody();
@@ -312,14 +312,14 @@ public class ControlVariable extends AbstractControlVariable
 					if (currentNode instanceof Expression)
 					{
 						Expression currentExpression = (Expression) currentNode;
-						if (!ConditionalLoopUtilities.isUpdatingVariable(currentExpression, variable) || currentExpression.getStartPosition() >= variable.getStartPosition())
+						if (!AbstractLoopUtilities.isUpdatingVariable(currentExpression, variable) || currentExpression.getStartPosition() >= variable.getStartPosition())
 						{
 							it.remove();
 						}
 					}
 				}
 				// add the variable's declaration
-				VariableDeclaration variableDeclaration = ConditionalLoopUtilities.getVariableDeclaration(variable);
+				VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(variable);
 				if (variableDeclaration != null)
 				{
 					bodyVariableModifiers.add(0, variableDeclaration);
@@ -342,20 +342,21 @@ public class ControlVariable extends AbstractControlVariable
 			Expression leftOperand          = infixExpression.getLeftOperand();
 			Expression rightOperand         = infixExpression.getRightOperand();
 			// get the operand opposite to the variable
-			Boolean isVariableLeftOperand   = ConditionalLoopUtilities.isVariableLeftOperand(variableNode, infixExpression);
+			Boolean isVariableLeftOperand   = AbstractLoopUtilities.isVariableLeftOperand(variableNode, infixExpression);
 			if (isVariableLeftOperand == null)
 			{
 				return null;
 			}
 			Expression nonVariableOperand = (isVariableLeftOperand) ? rightOperand : leftOperand;
 			// evaluate the value of the opposing operand
-			if (ConditionalLoopUtilities.isLengthFieldAccess(nonVariableOperand) || ConditionalLoopUtilities.isSizeInvocation(nonVariableOperand))
+			if (AbstractLoopUtilities.isLengthFieldAccess(nonVariableOperand) || AbstractLoopUtilities.isCollectionSizeInvocation(nonVariableOperand) ||
+					AbstractLoopUtilities.isDataStructureSizeInvocation(nonVariableOperand))
 			{
 				variableValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 			}
 			else
 			{
-				Integer value = ConditionalLoopUtilities.getIntegerValue(nonVariableOperand);
+				Integer value = AbstractLoopUtilities.getIntegerValue(nonVariableOperand);
 				if (value != null)
 				{
 					variableValue = new VariableValue(value);
@@ -367,7 +368,7 @@ public class ControlVariable extends AbstractControlVariable
 			// get the variableValue of that MethodBinding from ConditionalLoopBindingInformation
 			MethodInvocation methodInvocation = (MethodInvocation) conditionContainingVariable;
 			String methodBindingKey = methodInvocation.resolveMethodBinding().getMethodDeclaration().getKey();		// use .getMethodDeclaration() so we get the abstract method and not the method of the specific collection
-			ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+			AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
 			if (bindingInformation.conditionalMethodBindingEndValuesContains(methodBindingKey))
 			{
 				variableValue = bindingInformation.getConditionalMethodBindingEndValue(methodBindingKey);
@@ -391,14 +392,14 @@ public class ControlVariable extends AbstractControlVariable
 		{
 			for (Expression currentUpdaterNode : forUpdaters)
 			{
-				if (ConditionalLoopUtilities.isUpdatingVariable(currentUpdaterNode, variable))
+				if (AbstractLoopUtilities.isUpdatingVariable(currentUpdaterNode, variable))
 				{
 					variableUpdaters.add(new VariableUpdater(currentUpdaterNode));
 				}
 			}
 			for (Expression currentUpdaterNode : possibleUpdatersInBody)
 			{
-				if (ConditionalLoopUtilities.isUpdatingVariable(currentUpdaterNode, variable))
+				if (AbstractLoopUtilities.isUpdatingVariable(currentUpdaterNode, variable))
 				{
 					variableUpdaters.add(new VariableUpdater(currentUpdaterNode));
 				}
@@ -412,15 +413,8 @@ public class ControlVariable extends AbstractControlVariable
 		List<Expression> updaters               = new ArrayList<Expression>();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Statement> innerStatements         = new ArrayList<Statement>();
-		if (statement instanceof Block)
-		{
-			Block statementBlock = (Block) statement;
-			innerStatements.addAll(statementBlock.statements());
-		}
-		else
-		{
-			innerStatements.add(statement);
-		}
+		innerStatements.add(statement);
+		innerStatements = AbstractLoopUtilities.unBlock(innerStatements);
 		// get all first level PrefixExpressions, PostfixExpressions, Assignments, and next() MethodInvocations from each inner statement
 		for (Statement currentStatement : innerStatements)
 		{
@@ -438,7 +432,7 @@ public class ControlVariable extends AbstractControlVariable
 					{
 						MethodInvocation currentMethodInvocation      = (MethodInvocation) currentExpression;
 						IMethodBinding currentMethodInvocationBinding = currentMethodInvocation.resolveMethodBinding();
-						ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+						AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
 						if (bindingInformation.updateMethodValuesContains(currentMethodInvocationBinding.getMethodDeclaration().getKey()))
 						{
 							updaters.add(currentMethodInvocation);
@@ -452,7 +446,6 @@ public class ControlVariable extends AbstractControlVariable
 	
 	private static List<Expression> removeExpressionsInAConditionalExpression(List<Expression> expressions, Statement containingStatement)
 	{
-		// remove any expressions in a ConditionalExpression
 		ListIterator<Expression> it = expressions.listIterator();
 		while (it.hasNext())
 		{

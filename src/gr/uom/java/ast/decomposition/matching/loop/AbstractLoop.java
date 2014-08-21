@@ -31,7 +31,7 @@ public abstract class AbstractLoop
 		{
 			return this.match((EnhancedForLoop)otherLoop, matcher);
 		}
-			return false;
+		return false;
 	}
 	
 	public abstract boolean match(ConditionalLoop otherLoop, ConditionalLoopASTNodeMatcher matcher);

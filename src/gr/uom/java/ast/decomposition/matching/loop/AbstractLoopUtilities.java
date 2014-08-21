@@ -26,12 +26,13 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 @SuppressWarnings("unchecked")
-public class ConditionalLoopUtilities
+public class AbstractLoopUtilities
 {
 	public static boolean isUpdatingVariable(Expression updater, SimpleName variable)
 	{
@@ -68,7 +69,7 @@ public class ConditionalLoopUtilities
 		return false;
 	}
 	
-	public static boolean isSizeInvocation(Expression expression)
+	public static boolean isCollectionSizeInvocation(Expression expression)
 	{
 		if (expression instanceof MethodInvocation)
 		{
@@ -76,8 +77,24 @@ public class ConditionalLoopUtilities
 			Expression callingExpression      = methodInvocation.getExpression();
 			IMethodBinding methodBinding      = methodInvocation.resolveMethodBinding();
 			if (methodBinding != null && callingExpression != null)
-			{					
-				return (methodBinding.getName().equals("size") && ConditionalLoopUtilities.isCollection(callingExpression));
+			{
+				return (methodBinding.getName().equals("size") && AbstractLoopUtilities.isCollection(callingExpression.resolveTypeBinding()));
+			}
+		}
+		return false;
+	}
+	
+	public static boolean isDataStructureSizeInvocation(Expression expression)
+	{
+		if (expression instanceof MethodInvocation)
+		{
+			MethodInvocation methodInvocation = (MethodInvocation) expression;
+			Expression callingExpression      = methodInvocation.getExpression();
+			IMethodBinding methodBinding      = methodInvocation.resolveMethodBinding();
+			if (methodBinding != null && callingExpression != null)
+			{
+				AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
+				return bindingInformation.dataStructureSizeMethodEndValuesContains(methodBinding.getKey());
 			}
 		}
 		return false;
@@ -104,14 +121,13 @@ public class ConditionalLoopUtilities
 		return false;
 	}
 	
-	public static boolean isCollection(Expression variable)
+	public static boolean isCollection(ITypeBinding typeBinding)
 	{
-		return isSubclassOf(variable,"java.util.AbstractCollection");
+		return isSubclassOf(typeBinding, "java.util.AbstractCollection") || isSubinterfaceOf(typeBinding, "java.util.Collection");
 	}
 	
-	public static boolean isSubclassOf(Expression expression, String qualifiedName)
+	public static boolean isSubclassOf(ITypeBinding typeBinding, String qualifiedName)
 	{
-		ITypeBinding typeBinding = expression.resolveTypeBinding();
 		do
 		{
 			if (typeBinding.getQualifiedName().startsWith(qualifiedName))
@@ -121,6 +137,26 @@ public class ConditionalLoopUtilities
 			typeBinding = typeBinding.getSuperclass();
 		} while (typeBinding != null);
 		return false;
+	}
+	
+	public static boolean isSubinterfaceOf(ITypeBinding typeBinding, String qualifiedName)
+	{
+		if (typeBinding.getQualifiedName().startsWith(qualifiedName))
+		{
+			return true;
+		}
+		else
+		{
+			ITypeBinding[] superInterfaces = typeBinding.getInterfaces();
+			for (ITypeBinding superInterface : superInterfaces)
+			{
+				if (isSubinterfaceOf(superInterface, qualifiedName))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 
 	public static VariableDeclaration getVariableDeclaration(SimpleName variable)
@@ -182,7 +218,6 @@ public class ConditionalLoopUtilities
 				variableDeclarations.add(currentEnhancedForStatement.getParameter());
 			}
 		}
-		
 		return variableDeclarations;
 	}
 
@@ -208,7 +243,7 @@ public class ConditionalLoopUtilities
 	{
 		if (updater instanceof PrefixExpression || updater instanceof PostfixExpression)
 		{
-			return ConditionalLoopUtilities.getIncrementValue(updater);
+			return AbstractLoopUtilities.getIncrementValue(updater);
 		}
 		else if (updater instanceof Assignment)
 		{
@@ -218,7 +253,7 @@ public class ConditionalLoopUtilities
 		else if (updater instanceof MethodInvocation)
 		{
 			MethodInvocation methodInvocation = (MethodInvocation) updater;
-			ConditionalLoopBindingInformation bindingInformation = ConditionalLoopBindingInformation.getInstance();
+			AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
 			return bindingInformation.getUpdateMethodValue(methodInvocation.resolveMethodBinding().getMethodDeclaration().getKey());
 		}
 		return null;
@@ -260,11 +295,11 @@ public class ConditionalLoopUtilities
 		
 		if (operator == Assignment.Operator.PLUS_ASSIGN)
 		{			
-			updateValue = ConditionalLoopUtilities.getIntegerValue(rightHandSide);
+			updateValue = AbstractLoopUtilities.getIntegerValue(rightHandSide);
 		}
 		else if (operator == Assignment.Operator.MINUS_ASSIGN)
 		{
-			Integer rightHandSideIntegerValue = ConditionalLoopUtilities.getIntegerValue(rightHandSide);
+			Integer rightHandSideIntegerValue = AbstractLoopUtilities.getIntegerValue(rightHandSide);
 			if (rightHandSideIntegerValue != null)
 			{
 				updateValue = (-1) * rightHandSideIntegerValue;
@@ -287,7 +322,7 @@ public class ConditionalLoopUtilities
 					IBinding leftOperandBinding      = leftOperandSimpleName.resolveBinding();
 					if (leftOperandBinding.isEqualTo(leftHandSideBinding))
 					{
-						Integer rightOperandIntegerValue = ConditionalLoopUtilities.getIntegerValue(rightOperand);
+						Integer rightOperandIntegerValue = AbstractLoopUtilities.getIntegerValue(rightOperand);
 						if (infixOperator.toString().equals("+") && rightOperandIntegerValue != null)
 						{
 							updateValue = rightOperandIntegerValue;
@@ -304,7 +339,7 @@ public class ConditionalLoopUtilities
 					IBinding rightOperandBinding      = rightOperandSimpleName.resolveBinding();
 					if (rightOperandBinding.isEqualTo(leftHandSideBinding))
 					{
-						Integer leftOperandIntegerValue = ConditionalLoopUtilities.getIntegerValue(leftOperand);
+						Integer leftOperandIntegerValue = AbstractLoopUtilities.getIntegerValue(leftOperand);
 						if (infixOperator.toString().equals("+") && leftOperandIntegerValue != null)
 						{
 							updateValue = leftOperandIntegerValue;
@@ -374,5 +409,28 @@ public class ConditionalLoopUtilities
 			}
 		}
 		return leftOperandIsVariable;
+	}
+	
+	public static List<Statement> unBlock(List<Statement> statements)
+	{
+		List<Statement> returnList = new ArrayList<Statement>();
+		for (Statement currentStatement : statements)
+		{
+			if (currentStatement instanceof Block)
+			{
+				List<Statement> subList = ((Block)currentStatement).statements();
+				returnList.addAll(unBlock(subList));
+			}
+			else if (currentStatement instanceof TryStatement)
+			{
+				List<Statement> subList = ((TryStatement)currentStatement).getBody().statements();
+				returnList.addAll(unBlock(subList));
+			}
+			else
+			{
+				returnList.add(currentStatement);
+			}
+		}
+		return returnList;
 	}
 }

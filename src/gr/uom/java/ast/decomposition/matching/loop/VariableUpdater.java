@@ -10,7 +10,7 @@ public class VariableUpdater
 	public VariableUpdater(Expression updater)
 	{
 		this.updater     = updater;
-		this.updateValue = ConditionalLoopUtilities.getUpdateValue(updater);
+		this.updateValue = AbstractLoopUtilities.getUpdateValue(updater);
 	}
 	
 	public VariableUpdater(Integer updateValue)

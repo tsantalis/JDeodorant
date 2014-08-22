@@ -4,9 +4,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
@@ -210,6 +212,12 @@ public class ControlDependenceTreeGenerator {
 			List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(statement);
 			if(conditionalExpressions.size() == 1)
 				return true;
+		}
+		else if (statement instanceof ReturnStatement) {
+			ReturnStatement returnStatement = (ReturnStatement)statement;
+			if (returnStatement.getExpression() instanceof ConditionalExpression) {
+				return true;
+			}
 		}
 		return false;
 	}

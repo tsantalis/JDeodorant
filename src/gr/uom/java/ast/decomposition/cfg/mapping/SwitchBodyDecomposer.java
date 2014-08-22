@@ -18,6 +18,7 @@ public class SwitchBodyDecomposer {
 		for(PDGNode node : nodes) {
 			if(node.getASTStatement() instanceof SwitchCase) {
 				currentSwitchCase = node;
+				switchCaseNodeMap.put(currentSwitchCase, new LinkedHashSet<PDGNode>());
 			}
 			else {
 				if(currentSwitchCase != null) {

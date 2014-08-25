@@ -163,10 +163,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			Set<PDGNode> additionallyMatchedNodesG1 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
 				boolean advancedMatch = getCloneStructureRoot().isGapNodeG1InAdditionalMatches(nodeG1);
+				List<ASTNodeDifference> differencesForAdvancedMatch = new ArrayList<ASTNodeDifference>();
 				if(advancedMatch) {
 					additionallyMatchedNodesG1.add(nodeG1);
+					for(ASTNodeDifference difference : getNodeDifferences()) {
+						if(isExpressionUnderStatement(difference.getExpression1().getExpression(), nodeG1.getASTStatement())) {
+							differencesForAdvancedMatch.add(difference);
+						}
+					}
 				}
-				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null, advancedMatch);
+				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null, advancedMatch, differencesForAdvancedMatch);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
 				PDGBlockNode tryNode = pdg1.isDirectlyNestedWithinBlockNode(nodeG1);
 				if(tryNode != null) {
@@ -183,10 +189,16 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			Set<PDGNode> additionallyMatchedNodesG2 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG2 : nonMappedNodesG2) {
 				boolean advancedMatch = getCloneStructureRoot().isGapNodeG2InAdditionalMatches(nodeG2);
+				List<ASTNodeDifference> differencesForAdvancedMatch = new ArrayList<ASTNodeDifference>();
 				if(advancedMatch) {
 					additionallyMatchedNodesG2.add(nodeG2);
+					for(ASTNodeDifference difference : getNodeDifferences()) {
+						if(isExpressionUnderStatement(difference.getExpression2().getExpression(), nodeG2.getASTStatement())) {
+							differencesForAdvancedMatch.add(difference);
+						}
+					}
 				}
-				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2, advancedMatch);
+				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2, advancedMatch, differencesForAdvancedMatch);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
 				PDGBlockNode tryNode = pdg2.isDirectlyNestedWithinBlockNode(nodeG2);
 				if(tryNode != null) {

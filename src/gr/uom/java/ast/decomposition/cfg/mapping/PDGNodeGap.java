@@ -1,6 +1,5 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.Block;
@@ -15,13 +14,15 @@ import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 public class PDGNodeGap extends IdBasedGap {
 	private PDGNode nodeG1;
 	private PDGNode nodeG2;
+	private List<ASTNodeDifference> nodeDifferences;
 	private volatile int hashCode = 0;
 	
-	public PDGNodeGap(PDGNode nodeG1, PDGNode nodeG2, boolean advancedMatch) {
+	public PDGNodeGap(PDGNode nodeG1, PDGNode nodeG2, boolean advancedMatch, List<ASTNodeDifference> nodeDifferences) {
 		super(nodeG1 != null ? nodeG1.getId() : 0, nodeG2 != null ? nodeG2.getId() : 0,
 				advancedMatch);
 		this.nodeG1 = nodeG1;
 		this.nodeG2 = nodeG2;
+		this.nodeDifferences = nodeDifferences;
 	}
 	
 	public PDGNode getNodeG1() {
@@ -33,7 +34,7 @@ public class PDGNodeGap extends IdBasedGap {
 	}
 
 	public List<ASTNodeDifference> getNodeDifferences() {
-		return new ArrayList<ASTNodeDifference>();
+		return nodeDifferences;
 	}
 
 	public boolean isFalseControlDependent() {

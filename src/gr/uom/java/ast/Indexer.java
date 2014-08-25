@@ -80,7 +80,8 @@ public class Indexer {
 				if(ASTReader.getSystemObject().getClassObject(superType.getFullyQualifiedName()) == null)
 					scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {packageFragment}, false);
 				else
-					scope = SearchEngine.createHierarchyScope(superType);
+					scope = SearchEngine.createStrictHierarchyScope(ASTReader.getExaminedProject(), superType, 
+							true, false, null);
 				SearchRequestor requestor = new TypeSearchRequestor(subTypes);
 				searchEngine.search(searchPattern, new SearchParticipant[] {SearchEngine.getDefaultSearchParticipant()},
 						scope, requestor, null);

@@ -4,6 +4,7 @@ import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
+import gr.uom.java.ast.decomposition.cfg.CFGBranchSwitchNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -271,7 +272,12 @@ public abstract class DivideAndConquerMatcher {
 					this.allNodesInSubTreePDG2.addAll(nodesG2);
 					List<MappingState> maxStates = null;
 					if(level1 == 0 || level2 == 0) {
-						maxStates = matchBasedOnCodeFragments(finalState, nodesG1, nodesG2);
+						if(predicate1.getCFGNode() instanceof CFGBranchSwitchNode && predicate2.getCFGNode() instanceof CFGBranchSwitchNode) {
+							maxStates = matchBasedOnSwitchCases(finalState, nodesG1, nodesG2);
+						}
+						else {
+							maxStates = matchBasedOnCodeFragments(finalState, nodesG1, nodesG2);
+						}
 					}
 					else {
 						ControlDependenceTreeNode cdtNode1 = controlDependenceTreePDG1.getNode(predicate1);

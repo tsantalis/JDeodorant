@@ -9,11 +9,15 @@ import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.matching.conditional.AbstractControlStructure;
+import gr.uom.java.ast.decomposition.matching.conditional.AbstractControlStructureUtilities;
+import gr.uom.java.ast.decomposition.matching.conditional.IfControlStructure;
+import gr.uom.java.ast.decomposition.matching.conditional.SwitchControlStructure;
+import gr.uom.java.ast.decomposition.matching.conditional.TernaryControlStructure;
 import gr.uom.java.ast.decomposition.matching.loop.AbstractLoop;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoopASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
-import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
@@ -57,8 +61,8 @@ import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -741,9 +745,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ExpressionStatement node, Object other) {
-		if(other instanceof IfStatement) {
-			if(ternaryOperatorReplacedWithIfStatement(node, (IfStatement)other))
-				return true;
+		if (AbstractControlStructureUtilities.hasOneConditionalExpression(node) != null)
+		{
+			TernaryControlStructure nodeTernaryControlStructure = new TernaryControlStructure(node);
+			return ifMatch(nodeTernaryControlStructure, other);
 		}
 		return super.match(node, other);
 	}
@@ -844,9 +849,23 @@ public class ASTNodeMatcher extends ASTMatcher{
 	
 	public boolean match(IfStatement node, Object other) {
 		if (!(other instanceof IfStatement)) {
-			if(other instanceof ExpressionStatement) {
-				if(ifStatementReplacedWithTernaryOperator(node, (ExpressionStatement)other))
-					return true;
+			if(other instanceof ExpressionStatement)
+			{
+				ExpressionStatement otherExpressionStatement = (ExpressionStatement)other;
+				if (AbstractControlStructureUtilities.hasOneConditionalExpression(otherExpressionStatement) != null)
+				{
+					IfControlStructure nodeIfControlStructure = new IfControlStructure(node);
+					return ifMatch(nodeIfControlStructure, other);
+				}
+			}
+			else if (other instanceof ReturnStatement)
+			{
+				ReturnStatement otherReturnStatement = (ReturnStatement)other;
+				if (otherReturnStatement.getExpression() instanceof ConditionalExpression)
+				{
+					IfControlStructure nodeIfControlStructure = new IfControlStructure(node);
+					return ifMatch(nodeIfControlStructure, other);
+				}
 			}
 			return false;
 		}
@@ -1270,6 +1289,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 		astNodeDifference.addDifference(diff);
 		differences.add(astNodeDifference);
 		return false;
+	}
+
+	public boolean match(ReturnStatement node, Object other) {
+		if (node.getExpression() instanceof ConditionalExpression)
+		{
+			TernaryControlStructure nodeTernaryControlStructure = new TernaryControlStructure(node);
+			return ifMatch(nodeTernaryControlStructure, other);
+		}
+		return super.match(node, other);
 	}
 
 	public boolean match(SimpleName node, Object other) {
@@ -1794,143 +1822,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		return false;
 	}
-
-	private boolean ifStatementReplacedWithTernaryOperator(IfStatement ifStatement, ExpressionStatement expressionStatement) {
-		Expression ifExpression = ifStatement.getExpression();
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(expressionStatement);
-		if(conditionalExpressions.size() == 1) {
-			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
-			boolean conditionalExpressionMatch = safeSubtreeMatch(ifExpression, conditionalExpression.getExpression());
-			if(conditionalExpressionMatch) {
-				//the ifStatement should have an else part, which is not an 'else if' statement
-				if(ifStatement.getElseStatement() != null && !(ifStatement.getElseStatement() instanceof IfStatement)) {
-					Statement thenStatement = ifStatement.getThenStatement();
-					Statement elseStatement = ifStatement.getElseStatement();
-					ExpressionStatement thenExpressionStatement = isExpressionStatement(thenStatement);
-					ExpressionStatement elseExpressionStatement = isExpressionStatement(elseStatement);
-					if(thenExpressionStatement != null && elseExpressionStatement != null) {
-						//check whether thenExpression, elseExpression, and conditionalExpression have the same ASTNode type
-						int thenExpressionType = thenExpressionStatement.getExpression().getNodeType();
-						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
-						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
-						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
-							if(thenExpressionStatement.getExpression() instanceof Assignment) {
-								Assignment thenAssignment = (Assignment)thenExpressionStatement.getExpression();
-								Assignment elseAssignment = (Assignment)elseExpressionStatement.getExpression();
-								Assignment conditionalAssignment = (Assignment)expressionStatement.getExpression();
-								Expression thenRightHandSide = thenAssignment.getRightHandSide();
-								Expression elseRightHandSide = elseAssignment.getRightHandSide();
-								Expression conditionalThen = conditionalExpression.getThenExpression();
-								Expression conditionalElse = conditionalExpression.getElseExpression();
-								Expression thenLeftHandSide = thenAssignment.getLeftHandSide();
-								Expression elseLeftHandSide = elseAssignment.getLeftHandSide();
-								if(thenLeftHandSide instanceof SimpleName && elseLeftHandSide instanceof SimpleName) {
-									SimpleName thenLeftHandSideSimpleName = (SimpleName)thenLeftHandSide;
-									SimpleName elseLeftHandSideSimpleName = (SimpleName)elseLeftHandSide;
-									IBinding thenLeftHandSideBinding = thenLeftHandSideSimpleName.resolveBinding();
-									IBinding elseLeftHandSideBinding = elseLeftHandSideSimpleName.resolveBinding();
-									if(thenLeftHandSideBinding.getKind() == IBinding.VARIABLE &&
-											elseLeftHandSideBinding.getKind() == IBinding.VARIABLE) {
-										IVariableBinding thenLeftHandSideVariableBinding = (IVariableBinding)thenLeftHandSideBinding;
-										IVariableBinding elseLeftHandSideVariableBinding = (IVariableBinding)elseLeftHandSideBinding;
-										//both assignment statements in then and else clauses assign to the same variable
-										if(thenLeftHandSideVariableBinding.isEqualTo(elseLeftHandSideVariableBinding)) {
-											//compare the right hand sides of the assignments in then and else clauses with the conditional then/else expressions
-											//TODO
-											ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
-											StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
-											StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
-											this.additionallyMatchedFragments1.add(thenStatementObject);
-											this.additionallyMatchedFragments1.add(elseStatementObject);
-											return true;
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	private ExpressionStatement isExpressionStatement(Statement statement) {
-		ExpressionStatement expressionStatement = null;
-		if(statement instanceof ExpressionStatement) {
-			expressionStatement = (ExpressionStatement)statement;
-		}
-		else if(statement instanceof Block) {
-			Block block = (Block)statement;
-			List<Statement> blockStatements = block.statements();
-			if(blockStatements.size() == 1 && blockStatements.get(0) instanceof ExpressionStatement) {
-				expressionStatement = (ExpressionStatement)blockStatements.get(0);
-			}
-		}
-		return expressionStatement;
-	}
-
-	private boolean ternaryOperatorReplacedWithIfStatement(ExpressionStatement expressionStatement, IfStatement ifStatement) {
-		Expression ifExpression = ifStatement.getExpression();
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(expressionStatement);
-		if(conditionalExpressions.size() == 1) {
-			ConditionalExpression conditionalExpression = (ConditionalExpression)conditionalExpressions.get(0);
-			boolean conditionalExpressionMatch = safeSubtreeMatch(conditionalExpression.getExpression(), ifExpression);
-			if(conditionalExpressionMatch) {
-				//the ifStatement should have an else part, which is not an 'else if' statement
-				if(ifStatement.getElseStatement() != null && !(ifStatement.getElseStatement() instanceof IfStatement)) {
-					Statement thenStatement = ifStatement.getThenStatement();
-					Statement elseStatement = ifStatement.getElseStatement();
-					ExpressionStatement thenExpressionStatement = isExpressionStatement(thenStatement);
-					ExpressionStatement elseExpressionStatement = isExpressionStatement(elseStatement);
-					if(thenExpressionStatement != null && elseExpressionStatement != null) {
-						//check whether thenExpression, elseExpression, and conditionalExpression have the same ASTNode type
-						int thenExpressionType = thenExpressionStatement.getExpression().getNodeType();
-						int elseExpressionType = elseExpressionStatement.getExpression().getNodeType();
-						int conditionalExpressionType = expressionStatement.getExpression().getNodeType();
-						if(thenExpressionType == elseExpressionType && thenExpressionType == conditionalExpressionType) {
-							if(thenExpressionStatement.getExpression() instanceof Assignment) {
-								Assignment thenAssignment = (Assignment)thenExpressionStatement.getExpression();
-								Assignment elseAssignment = (Assignment)elseExpressionStatement.getExpression();
-								Assignment conditionalAssignment = (Assignment)expressionStatement.getExpression();
-								Expression thenRightHandSide = thenAssignment.getRightHandSide();
-								Expression elseRightHandSide = elseAssignment.getRightHandSide();
-								Expression conditionalThen = conditionalExpression.getThenExpression();
-								Expression conditionalElse = conditionalExpression.getElseExpression();
-								Expression thenLeftHandSide = thenAssignment.getLeftHandSide();
-								Expression elseLeftHandSide = elseAssignment.getLeftHandSide();
-								if(thenLeftHandSide instanceof SimpleName && elseLeftHandSide instanceof SimpleName) {
-									SimpleName thenLeftHandSideSimpleName = (SimpleName)thenLeftHandSide;
-									SimpleName elseLeftHandSideSimpleName = (SimpleName)elseLeftHandSide;
-									IBinding thenLeftHandSideBinding = thenLeftHandSideSimpleName.resolveBinding();
-									IBinding elseLeftHandSideBinding = elseLeftHandSideSimpleName.resolveBinding();
-									if(thenLeftHandSideBinding.getKind() == IBinding.VARIABLE &&
-											elseLeftHandSideBinding.getKind() == IBinding.VARIABLE) {
-										IVariableBinding thenLeftHandSideVariableBinding = (IVariableBinding)thenLeftHandSideBinding;
-										IVariableBinding elseLeftHandSideVariableBinding = (IVariableBinding)elseLeftHandSideBinding;
-										//both assignment statements in then and else clauses assign to the same variable
-										if(thenLeftHandSideVariableBinding.isEqualTo(elseLeftHandSideVariableBinding)) {
-											//compare the right hand sides of the assignments in then and else clauses with the conditional then/else expressions
-											//TODO
-											ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
-											StatementObject thenStatementObject = new StatementObject(thenExpressionStatement, StatementType.EXPRESSION, null);
-											StatementObject elseStatementObject = new StatementObject(elseExpressionStatement, StatementType.EXPRESSION, null);
-											this.additionallyMatchedFragments2.add(thenStatementObject);
-											this.additionallyMatchedFragments2.add(elseStatementObject);
-											return true;
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		return false;
-	}
 	
 	private boolean isNestedUnderAnonymousClassDeclaration(ASTNode node) {
 		ASTNode parent = node.getParent();
@@ -1956,19 +1847,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	private boolean loopMatch(AbstractLoop nodeAbstractLoop, Object other)
+	private boolean loopMatch(AbstractLoop nodeLoop, Object other)
 	{
-		AbstractLoop otherAbstractLoop = generateConditionalLoop(other);
-		if (otherAbstractLoop != null)
+		AbstractLoop otherLoop = generateAbstractLoop(other);
+		if (otherLoop != null)
 		{
 			ConditionalLoopASTNodeMatcher matcher = new ConditionalLoopASTNodeMatcher(typeRoot1, typeRoot2);
-			boolean loopMatch = nodeAbstractLoop.match(otherAbstractLoop, matcher);
+			boolean loopMatch = nodeLoop.match(otherLoop, matcher);
 			if (loopMatch)
 			{
 				ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
-				reportAdditionalFragments(nodeAbstractLoop, this.additionallyMatchedFragments1);
+				reportAdditionalFragments(nodeLoop, this.additionallyMatchedFragments1);
 				ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
-				reportAdditionalFragments(otherAbstractLoop, this.additionallyMatchedFragments2);
+				reportAdditionalFragments(otherLoop, this.additionallyMatchedFragments2);
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())
 				{
 					differences.add(currentDifference);
@@ -1979,7 +1870,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 	
-	private static AbstractLoop generateConditionalLoop(Object object)
+	private static AbstractLoop generateAbstractLoop(Object object)
 	{
 		if (object instanceof ForStatement)
 		{
@@ -2000,11 +1891,82 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return null;
 	}
 
-	// updated to use the method getAdditionalFragments() from the conditionalLoop class
-	private void reportAdditionalFragments(AbstractLoop abstractLoop, List<AbstractMethodFragment> fragmentList) {
+	private void reportAdditionalFragments(AbstractLoop abstractLoop, List<AbstractMethodFragment> fragmentList)
+	{
 		List<ASTNode> additionalFragements = abstractLoop.getAdditionalFragments();
-		for(ASTNode currentFragment : additionalFragements) {
-			if(currentFragment.getParent() instanceof ExpressionStatement)
+		reportAdditionalFragments(additionalFragements, fragmentList);
+	}
+
+	private boolean ifMatch(AbstractControlStructure nodeControlStructure, Object other)
+	{
+		AbstractControlStructure otherControlStructure = generateAbstractControlStructure(other);
+		if (otherControlStructure != null)
+		{
+			boolean ifMatch = nodeControlStructure.match(otherControlStructure, this);
+			if (ifMatch)
+			{
+				ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+				reportAdditionalFragments(nodeControlStructure, this.additionallyMatchedFragments1);
+				ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+				reportAdditionalFragments(otherControlStructure, this.additionallyMatchedFragments2);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static AbstractControlStructure generateAbstractControlStructure(Object object)
+	{
+		if (object instanceof IfStatement)
+		{
+			return new IfControlStructure((IfStatement) object);
+		}
+		else if (object instanceof SwitchStatement)
+		{
+			return new SwitchControlStructure((SwitchStatement) object);
+		}
+		else if (object instanceof ExpressionStatement)
+		{
+			ExpressionStatement expressionStatement = (ExpressionStatement) object;
+			if (AbstractControlStructureUtilities.hasOneConditionalExpression(expressionStatement) != null)
+			{
+				return new TernaryControlStructure(expressionStatement);
+			}
+		}
+		else if (object instanceof ReturnStatement)
+		{
+			ReturnStatement returnStatement = (ReturnStatement) object;
+			if (AbstractControlStructureUtilities.hasOneConditionalExpression(returnStatement) != null)
+			{
+				return new TernaryControlStructure(returnStatement);
+			}
+		}
+		return null;
+	}
+	
+	private void reportAdditionalFragments(AbstractControlStructure abstractControlStructure, List<AbstractMethodFragment> fragmentList)
+	{
+		List<ASTNode> additionalFragements = abstractControlStructure.getAdditionalFragments();
+		reportAdditionalFragments(additionalFragements, fragmentList);
+	}
+
+	private void reportAdditionalFragments(List<ASTNode> additionalFragements, List<AbstractMethodFragment> fragmentList)
+	{
+		for(ASTNode currentFragment : additionalFragements)
+		{
+			if (currentFragment instanceof ExpressionStatement)
+			{
+				ExpressionStatement expressionStatement = (ExpressionStatement)currentFragment;
+				StatementObject statementObject = new StatementObject(expressionStatement, StatementType.EXPRESSION, null);
+				fragmentList.add(statementObject);
+			}
+			else if (currentFragment instanceof ReturnStatement)
+			{
+				ReturnStatement returnStatement = (ReturnStatement)currentFragment;
+				StatementObject statementObject = new StatementObject(returnStatement, StatementType.RETURN, null);
+				fragmentList.add(statementObject);
+			}
+			else if(currentFragment.getParent() instanceof ExpressionStatement)
 			{
 				ExpressionStatement expressionStatement = (ExpressionStatement)currentFragment.getParent();
 				StatementObject updaterStatementObject = new StatementObject(expressionStatement, StatementType.EXPRESSION, null);

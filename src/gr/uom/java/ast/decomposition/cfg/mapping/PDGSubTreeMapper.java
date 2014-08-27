@@ -10,6 +10,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -972,8 +973,8 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			}
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
-			Set<PlainVariable> variables1 = getVariables(nodeG1, expressions1);
-			Set<PlainVariable> variables2 = getVariables(nodeG2, expressions2);
+			Set<PlainVariable> variables1 = getVariables(nodeG1, nodeMapping.getAdditionallyMatchedFragments1(), expressions1);
+			Set<PlainVariable> variables2 = getVariables(nodeG2, nodeMapping.getAdditionallyMatchedFragments2(), expressions2);
 			for(PlainVariable plainVariable1 : variables1) {
 				BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
 				if(pair1 != null) {
@@ -1013,7 +1014,8 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return variables;
 	}
 
-	private Set<PlainVariable> getVariables(PDGNode node, List<AbstractExpression> expressionsInDifferences) {
+	private Set<PlainVariable> getVariables(PDGNode node, List<AbstractMethodFragment> additionallyMatchedFragments,
+			List<AbstractExpression> expressionsInDifferences) {
 		Set<PlainVariable> variablesToBeExcluded = new LinkedHashSet<PlainVariable>();
 		for(AbstractExpression expression : expressionsInDifferences) {
 			variablesToBeExcluded.addAll(expression.getDefinedLocalVariables());
@@ -1032,6 +1034,20 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			AbstractVariable variable = usedVariableIterator.next();
 			if(variable instanceof PlainVariable && !variablesToBeExcluded.contains(variable)) {
 				variables.add((PlainVariable)variable);
+			}
+		}
+		for(AbstractMethodFragment methodFragment : additionallyMatchedFragments) {
+			Set<PlainVariable> usedLocalVariables = methodFragment.getUsedLocalVariables();
+			for(PlainVariable variable : usedLocalVariables) {
+				if(variable instanceof PlainVariable && !variablesToBeExcluded.contains(variable)) {
+					variables.add(variable);
+				}
+			}
+			Set<PlainVariable> definedLocalVariables = methodFragment.getDefinedLocalVariables();
+			for(PlainVariable variable : definedLocalVariables) {
+				if(variable instanceof PlainVariable && !variablesToBeExcluded.contains(variable)) {
+					variables.add(variable);
+				}
 			}
 		}
 		return variables;

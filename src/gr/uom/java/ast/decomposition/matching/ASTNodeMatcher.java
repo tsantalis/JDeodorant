@@ -1531,8 +1531,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(isNestedUnderAnonymousClassDeclaration(node) && isNestedUnderAnonymousClassDeclaration(o)) {
 			return super.match(node, o);
 		}
-		return (
-				safeSubtreeMatch(node.getExpression(), o.getExpression()));
+		SwitchControlStructure nodeSwitchStructure = new SwitchControlStructure(node);
+		SwitchControlStructure otherSwitchStructure = new SwitchControlStructure((SwitchStatement)other);
+		return nodeSwitchStructure.match(otherSwitchStructure, this);
 	}
 
 	public boolean match(SynchronizedStatement node, Object other) {

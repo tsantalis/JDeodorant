@@ -11,6 +11,18 @@ public abstract class AbstractControlCase
 {
 	protected Expression caseCondition;
 	protected List<Statement> body;
+
+	@Override
+	public String toString()
+	{
+		StringBuilder returnString = new StringBuilder();
+		returnString.append("caseCondition = " + this.caseCondition + "\n");
+		for (Statement currentStatement : this.body)
+		{
+			returnString.append("  " + currentStatement);
+		}
+		return returnString.toString();
+	}
 	
 	public void addBodyStatement(Statement statement)
 	{

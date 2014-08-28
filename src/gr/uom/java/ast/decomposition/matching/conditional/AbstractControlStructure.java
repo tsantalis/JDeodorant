@@ -17,6 +17,12 @@ public abstract class AbstractControlStructure
 		this.node = node;
 	}
 	
+	@Override
+	public String toString()
+	{
+		return node.toString();
+	}
+	
 	public Statement getNode()
 	{
 		return node;

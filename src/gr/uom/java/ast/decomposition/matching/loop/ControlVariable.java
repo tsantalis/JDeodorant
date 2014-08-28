@@ -9,6 +9,7 @@ import java.util.ListIterator;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Assignment.Operator;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
@@ -39,11 +40,13 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 public class ControlVariable extends AbstractControlVariable
 {
 	private SimpleName variableNode;
+	private Expression dataStructureExpression;
 
 	public ControlVariable(SimpleName variableNode, Statement loopBody, List<Expression> forUpdaters)
 	{
-		this.variableNode     = variableNode;
-		this.variableUpdaters = getVariableUpdaters(variableNode, loopBody, forUpdaters);
+		this.variableNode            = variableNode;
+		this.dataStructureExpression = null;
+		this.variableUpdaters        = getVariableUpdaters(variableNode, loopBody, forUpdaters);
 		if (variableUpdaters.size() > 0)
 		{
 			this.startValue                     = getStartValue(variableNode);
@@ -55,6 +58,11 @@ public class ControlVariable extends AbstractControlVariable
 	public SimpleName getVariable()
 	{
 		return variableNode;
+	}
+
+	public Expression getDataStructureExpression()
+	{
+		return dataStructureExpression;
 	}
 
 	private static ASTNode getConditionContainingVariable(SimpleName variableNode)
@@ -76,7 +84,7 @@ public class ControlVariable extends AbstractControlVariable
 	// startValue methods
 	// ****************************************************************************************************************************************************************
 	
-	private static VariableValue getStartValue(SimpleName variableNode)
+	private VariableValue getStartValue(SimpleName variableNode)
 	{
 		VariableValue variableValue         = new VariableValue(VariableValue.ValueType.INTEGER);		// begin as an integer so, if at any point in the modifiers, there is a variable, the whole value becomes variable
 		List<ASTNode> contributingModifiers = getValueContributingModifiers(variableNode);
@@ -116,14 +124,22 @@ public class ControlVariable extends AbstractControlVariable
 						MethodInvocation methodInvocation      = (MethodInvocation) expression;
 						List<Expression> arguments             = methodInvocation.arguments();
 						IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding().getMethodDeclaration();
-						setMethodInvocationStartValue(expression, methodInvocationBinding, arguments, variableValue);
+						setMethodInvocationStartValue(methodInvocation, methodInvocationBinding, arguments, variableValue);
+						if (variableValue.getType() == VariableValue.ValueType.DATA_STRUCTURE_SIZE)
+						{
+							this.dataStructureExpression = methodInvocation.getExpression();
+						}
 					}
 					else if (expression instanceof ClassInstanceCreation)
 					{
 						ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation) expression;
 						List<Expression> arguments                  = classInstanceCreation.arguments();
 						IMethodBinding methodInvocationBinding      = classInstanceCreation.resolveConstructorBinding().getMethodDeclaration();
-						setMethodInvocationStartValue(expression, methodInvocationBinding, arguments, variableValue);
+						setMethodInvocationStartValue(classInstanceCreation, methodInvocationBinding, arguments, variableValue);
+						if (variableValue.getType() == VariableValue.ValueType.DATA_STRUCTURE_SIZE && arguments.size() > 0)
+						{
+							this.dataStructureExpression = arguments.get(0);
+						}
 					}
 					else if (expression instanceof QualifiedName)
 					{
@@ -131,6 +147,7 @@ public class ControlVariable extends AbstractControlVariable
 						{
 							variableValue.setType(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
 							variableValue.setValue(0);
+							this.dataStructureExpression = ((QualifiedName)expression).getQualifier();
 						}
 						else
 						{
@@ -333,7 +350,7 @@ public class ControlVariable extends AbstractControlVariable
 	// endValue methods
 	// ****************************************************************************************************************************************************************
 
-	private static VariableValue getEndValue(SimpleName variableNode, ASTNode conditionContainingVariable)
+	private VariableValue getEndValue(SimpleName variableNode, ASTNode conditionContainingVariable)
 	{
 		VariableValue variableValue = new VariableValue();
 		if (conditionContainingVariable instanceof InfixExpression)
@@ -353,6 +370,14 @@ public class ControlVariable extends AbstractControlVariable
 					AbstractLoopUtilities.isDataStructureSizeInvocation(nonVariableOperand))
 			{
 				variableValue = new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE);
+				if (nonVariableOperand instanceof QualifiedName)
+				{
+					this.dataStructureExpression = ((QualifiedName)nonVariableOperand).getQualifier();
+				}
+				else if (nonVariableOperand instanceof MethodInvocation)
+				{
+					this.dataStructureExpression = ((MethodInvocation)nonVariableOperand).getExpression();
+				}
 			}
 			else
 			{
@@ -372,9 +397,72 @@ public class ControlVariable extends AbstractControlVariable
 			if (bindingInformation.conditionalMethodBindingEndValuesContains(methodBindingKey))
 			{
 				variableValue = bindingInformation.getConditionalMethodBindingEndValue(methodBindingKey);
+				if (variableValue.getType() == VariableValue.ValueType.DATA_STRUCTURE_SIZE)
+				{
+					this.dataStructureExpression = getIteratorDataStrcutureExpression(variableNode);
+				}
 			}
 		}
 		return variableValue;
+	}
+	
+	private Expression getIteratorDataStrcutureExpression(SimpleName variableNode)
+	{
+		List<ASTNode> modifiers = getValueContributingModifiers(variableNode);
+		if (modifiers.size() > 0)
+		{
+			ASTNode initializer      = modifiers.get(0);
+			Operator operator        = null;
+			Expression rightHandSide = null;
+			if (initializer instanceof Assignment)
+			{
+				Assignment assignment = (Assignment) initializer;
+				operator              = assignment.getOperator();
+				rightHandSide         = assignment.getRightHandSide();
+			}
+			// if the currentNode is a variable declaration or an ASSIGN Assignment
+			if (initializer instanceof VariableDeclaration || (operator != null && operator == Assignment.Operator.ASSIGN))
+			{
+				// take the rightHandSide of either
+				Expression expression = null;
+				if (initializer instanceof VariableDeclaration)
+				{
+					VariableDeclaration variableDeclaration = (VariableDeclaration) initializer;
+					expression                              = variableDeclaration.getInitializer();
+				}
+				else if (initializer instanceof Assignment)
+				{
+					expression = rightHandSide;
+				}
+				// evaluate the rightHandSide
+				if (expression != null)
+				{
+					if (expression instanceof MethodInvocation)
+					{
+						MethodInvocation methodInvocation = (MethodInvocation) expression;
+						IMethodBinding binding            = methodInvocation.resolveMethodBinding().getMethodDeclaration();
+						if (AbstractLoopBindingInformation.getInstance().iteratorInstantiationMethodBindingStartValuesContains(binding.getKey()))
+						{
+							return methodInvocation.getExpression();
+						}
+					}
+					else if (expression instanceof ClassInstanceCreation)
+					{
+						ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation) expression;
+						IMethodBinding binding                      = classInstanceCreation.resolveConstructorBinding().getMethodDeclaration();
+						if (AbstractLoopBindingInformation.getInstance().iteratorInstantiationMethodBindingStartValuesContains(binding.getKey()))
+						{
+							List<Expression> arguments = classInstanceCreation.arguments();
+							if (arguments.size() > 0)
+							{
+								return arguments.get(0);
+							}
+						}
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	// ****************************************************************************************************************************************************************

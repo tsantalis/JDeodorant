@@ -8,6 +8,8 @@ import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -78,12 +80,64 @@ public class SwitchControlCase extends AbstractControlCase
 			{
 				return ((StringLiteral)caseCondition1).getLiteralValue().equals(((StringLiteral)caseCondition2).getLiteralValue());
 			}
-			// Enum
+			// Enum, constant variables with different bindings but same values
 			else if (caseCondition1 instanceof Name && caseCondition2 instanceof Name)
 			{
-				return ((Name)caseCondition1).resolveBinding().isEqualTo(((Name)caseCondition2).resolveBinding());
+				String nameValue1 = getConstantValue((Name)caseCondition1);
+				String nameValue2 = getConstantValue((Name)caseCondition2);
+				return (((Name)caseCondition1).resolveBinding().isEqualTo(((Name)caseCondition2).resolveBinding()) ||
+						(nameValue1 != null && nameValue2 != null && nameValue1.equals(nameValue2)));
+			}
+			// constant variable and a literal value
+			else if (caseCondition1 instanceof Name)
+			{
+				String nameValue = getConstantValue((Name)caseCondition1);
+				String otherValue = getLiteralValue(caseCondition2);
+				return (nameValue != null && otherValue != null && nameValue.equals(otherValue));
+			}
+			// literal value and a constant variable
+			else if (caseCondition2 instanceof Name)
+			{
+				String nameValue = getConstantValue((Name)caseCondition2);
+				String otherValue = getLiteralValue(caseCondition2);
+				return (nameValue != null && otherValue != null && nameValue.equals(otherValue));
 			}
 		}
 		return false;
+	}
+	
+	private String getConstantValue(Name name)
+	{
+		IBinding nameBinding = name.resolveBinding();
+		if (nameBinding.getKind() == IBinding.VARIABLE)
+		{
+			IVariableBinding nameVariableBinding = (IVariableBinding)nameBinding;
+			Object valueObject = nameVariableBinding.getConstantValue();
+			if (valueObject instanceof Integer || valueObject instanceof Byte || valueObject instanceof Character || valueObject instanceof String)
+			{
+				return valueObject.toString();
+			}
+		}
+		return null;
+	}
+	
+	private String getLiteralValue(Expression expression)
+	{
+		if (expression instanceof NumberLiteral)
+		{
+			return ((NumberLiteral)expression).getToken();
+		}
+		else if (expression instanceof CharacterLiteral)
+		{
+			return String.valueOf(((CharacterLiteral)expression).charValue());
+		}
+		else if (expression instanceof StringLiteral)
+		{
+			return ((StringLiteral)expression).getLiteralValue();
+		}
+		else
+		{
+			return null;
+		}
 	}
 }

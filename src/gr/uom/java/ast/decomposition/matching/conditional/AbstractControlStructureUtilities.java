@@ -28,7 +28,6 @@ public class AbstractControlStructureUtilities
 		// if the ifControlStructure is a basic if-else
 		if (ifCases.size() == 2 && ifCases.get(1).caseCondition == null)
 		{
-			matchList.add(new Pair<Expression>(ifCases.get(0).caseCondition, ternaryStructure.getCondition()));
 			List<Statement> thenBody = ifCases.get(0).body;
 			List<Statement> elseBody = ifCases.get(1).body;
 			// if both then and else bodies have one statement
@@ -43,7 +42,7 @@ public class AbstractControlStructureUtilities
 					Expression thenExpression    = ((ExpressionStatement)ifThenStatement).getExpression();
 					Expression elseExpression    = ((ExpressionStatement)ifElseStatement).getExpression();
 					Expression ternaryExpression = ((ExpressionStatement)ternaryStatement).getExpression();
-					matchList = matchExpressionStatementExpressions(thenExpression, elseExpression, ternaryExpression, ternaryStructure, matchList);
+					matchExpressionStatementExpressions(thenExpression, elseExpression, ternaryExpression, ternaryStructure, matchList);
 				}
 				// if the then statement, the else statement and the statement containing the ConditionalExpression are ReturnStatements
 				// AND the expression of the ternary ReturnStatement is the the ConditionalExpression we are comparing
@@ -59,10 +58,14 @@ public class AbstractControlStructureUtilities
 				}
 			}
 		}
+		if (!matchList.isEmpty())
+		{
+			matchList.add(0, new Pair<Expression>(ifCases.get(0).caseCondition, ternaryStructure.getCondition()));
+		}
 		return matchList;
 	}
 
-	private static List<Pair<Expression>> matchExpressionStatementExpressions(Expression thenExpression, Expression elseExpression, Expression ternaryExpression,
+	private static void matchExpressionStatementExpressions(Expression thenExpression, Expression elseExpression, Expression ternaryExpression,
 			TernaryControlStructure ternaryStructure, List<Pair<Expression>> matchList)
 	{
 		// if all three expressions are Assignments
@@ -115,7 +118,8 @@ public class AbstractControlStructureUtilities
 					}
 				}
 				// if the ConditionalExpression is the method's expression
-				else if ((unParenthesize(ternaryMethodInvocation.getExpression()).equals(ternaryStructure.getConditionalExpression())))
+				else if (ternaryMethodInvocation.getExpression() != null &&
+						(unParenthesize(ternaryMethodInvocation.getExpression()).equals(ternaryStructure.getConditionalExpression())))
 				{
 					// match the expressions
 					Expression thenMethodExpression = thenMethodInvocation.getExpression();
@@ -131,7 +135,6 @@ public class AbstractControlStructureUtilities
 				}
 			}
 		}
-		return matchList;
 	}
 
 	private static Integer getTernaryArgumentIndex(MethodInvocation ternaryMethodInvocation, ConditionalExpression conditionalExpression)

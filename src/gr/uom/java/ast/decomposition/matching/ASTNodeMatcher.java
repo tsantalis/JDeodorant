@@ -745,7 +745,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ExpressionStatement node, Object other) {
-		if (AbstractControlStructureUtilities.hasOneConditionalExpression(node) != null)
+		if (AbstractControlStructureUtilities.hasOneConditionalExpression(node) != null && other instanceof IfStatement)
 		{
 			TernaryControlStructure nodeTernaryControlStructure = new TernaryControlStructure(node);
 			return ifMatch(nodeTernaryControlStructure, other);
@@ -1292,7 +1292,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(ReturnStatement node, Object other) {
-		if (node.getExpression() instanceof ConditionalExpression)
+		if (node.getExpression() instanceof ConditionalExpression && other instanceof IfStatement)
 		{
 			TernaryControlStructure nodeTernaryControlStructure = new TernaryControlStructure(node);
 			return ifMatch(nodeTernaryControlStructure, other);
@@ -1937,7 +1937,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		else if (object instanceof ReturnStatement)
 		{
 			ReturnStatement returnStatement = (ReturnStatement) object;
-			if (AbstractControlStructureUtilities.hasOneConditionalExpression(returnStatement) != null)
+			if (returnStatement.getExpression() instanceof ConditionalExpression)
 			{
 				return new TernaryControlStructure(returnStatement);
 			}

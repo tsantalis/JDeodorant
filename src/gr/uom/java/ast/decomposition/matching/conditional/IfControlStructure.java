@@ -79,15 +79,19 @@ public class IfControlStructure extends AbstractControlStructure
 			return false;
 		}
 		List<Pair<Expression>> matchList = AbstractControlStructureUtilities.getIfAndTernaryStructureMatchList(this, otherStructure);
-		boolean allPairsMatch = true;
-		for (Pair<Expression> currentPair : matchList)
+		if (!matchList.isEmpty())
 		{
-			if (!matcher.safeSubtreeMatch(currentPair.getFirst(), currentPair.getSecond()))		// here the match order is done (first, second) because the this object is the IfControlStructure
+			boolean allPairsMatch = true;
+			for (Pair<Expression> currentPair : matchList)
 			{
-				allPairsMatch = false;
+				if (!matcher.safeSubtreeMatch(currentPair.getFirst(), currentPair.getSecond()))		// here the match order is done (first, second) because the this object is the IfControlStructure
+				{
+					allPairsMatch = false;
+				}
 			}
+			return allPairsMatch;
 		}
-		return allPairsMatch;
+		return false;
 	}
 
 	@Override

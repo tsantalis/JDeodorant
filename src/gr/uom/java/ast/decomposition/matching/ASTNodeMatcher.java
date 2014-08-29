@@ -15,8 +15,10 @@ import gr.uom.java.ast.decomposition.matching.conditional.IfControlStructure;
 import gr.uom.java.ast.decomposition.matching.conditional.SwitchControlStructure;
 import gr.uom.java.ast.decomposition.matching.conditional.TernaryControlStructure;
 import gr.uom.java.ast.decomposition.matching.loop.AbstractLoop;
+import gr.uom.java.ast.decomposition.matching.loop.AbstractLoopUtilities;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoopASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.loop.ControlVariable;
 import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
@@ -1859,8 +1861,34 @@ public class ASTNodeMatcher extends ASTMatcher{
 			{
 				ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 				reportAdditionalFragments(nodeLoop, this.additionallyMatchedFragments1);
+				if (nodeLoop instanceof ConditionalLoop && otherLoop instanceof EnhancedForLoop)
+				{
+					ConditionalLoop nodeConditionalLoop  = (ConditionalLoop)nodeLoop;
+					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)otherLoop.getLoopStatement()).getParameter().getName();
+					ControlVariable conditionalLoopControlVariable = (ControlVariable)nodeConditionalLoop.getConditionControlVariables().values().toArray()[0];
+					SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
+					if (safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter))
+					{
+						List<ASTNode> additionalNodes = new ArrayList<ASTNode>();
+						additionalNodes.add(variableInitializedUsingControlVariable.getParent());
+						reportAdditionalFragments(additionalNodes, this.additionallyMatchedFragments1);
+					}				
+				}
 				ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 				reportAdditionalFragments(otherLoop, this.additionallyMatchedFragments2);
+				if (nodeLoop instanceof EnhancedForLoop && otherLoop instanceof ConditionalLoop)
+				{
+					ConditionalLoop otherConditionalLoop = (ConditionalLoop)otherLoop;
+					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)nodeLoop.getLoopStatement()).getParameter().getName();
+					ControlVariable conditionalLoopControlVariable = (ControlVariable)otherConditionalLoop.getConditionControlVariables().values().toArray()[0];
+					SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
+					if (safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable))
+					{
+						List<ASTNode> additionalNodes = new ArrayList<ASTNode>();
+						additionalNodes.add(variableInitializedUsingControlVariable.getParent());
+						reportAdditionalFragments(additionalNodes, this.additionallyMatchedFragments2);
+					}
+				}
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())
 				{
 					differences.add(currentDifference);

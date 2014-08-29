@@ -5,12 +5,12 @@ import java.util.HashMap;
 
 public class AbstractLoopBindingInformation
 {
-	
 	private static AbstractLoopBindingInformation instance;
 	private static HashMap<String, Integer> iteratorInstantiationMethodBindingStartValues;		// the start values of different "iterators" when created by these instantiation methods
 	private static HashMap<String, VariableValue> conditionalExpressionEndValues;				// the end values of different "iterators" being checked when these methods are called
 	private static HashMap<String, Integer> updateMethodValues;									// the value by which different "iterators" are updated when these methods are called
 	private static ArrayList<String> dataStructureSizeMethods;									// the end values of different methods being used in an InfixExpression to check the size of a data structure
+	private static ArrayList<String> dataStructureAccessMethods;
 
 	private AbstractLoopBindingInformation()
 	{
@@ -35,7 +35,6 @@ public class AbstractLoopBindingInformation
 		conditionalExpressionEndValues.put("Ljava/util/StringTokenizer;.hasMoreElements()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));	// .hasMoreElements() (from StringTokenizer)
 		conditionalExpressionEndValues.put("Ljava/util/StringTokenizer;.hasMoreTokens()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));		// .hasMoreTokens()
 
-		
 		updateMethodValues = new HashMap<String, Integer>();
 		updateMethodValues.put("Ljava/util/Iterator;.next()TE;", 1);									// .next() (from Iterator)
 		updateMethodValues.put("Ljava/util/ListIterator;.next()TE;", 1);								// .next() (from ListIterator)
@@ -44,11 +43,21 @@ public class AbstractLoopBindingInformation
 		updateMethodValues.put("Ljava/util/StringTokenizer;.nextElement()Ljava/lang/Object;", 1);		// .nextElement() (from StringTokenizer)
 		updateMethodValues.put("Ljava/util/StringTokenizer;.nextToken()Ljava/lang/String;", 1);			// .nextToken()
 		
-		
 		dataStructureSizeMethods = new ArrayList<String>();
 		// .size method of a collection is handled by the method isCollectionSizeInvocation(Expression) in the AbstractLoopUtilities class
 		// .length of an array is handled by the method isLengthFieldAccess(Expression) in the AbstractLoopUtilities class
 		dataStructureSizeMethods.add("Ljava/lang/String;.length()I");			// .length() (from String)
+		
+		dataStructureAccessMethods = new ArrayList<String>();
+		dataStructureAccessMethods.add("Ljava/util/ArrayList;.get(I)TE;");						// .get(int) (from ArrayList)
+		dataStructureAccessMethods.add("Ljava/util/LinkedList;.get(I)TE;");						// .get(int) (from LinkedList)
+		dataStructureAccessMethods.add("Ljava/util/Vector;.get(I)TE;");							// .get(int) (from Vector)
+		dataStructureAccessMethods.add("Ljava/util/AbstractList;.get(I)TE;");					// .get(int) (from AbstractList)
+		dataStructureAccessMethods.add("Ljava/util/List;.get(I)TE;");							// .get(int) (from List)
+		dataStructureAccessMethods.add("Ljava/util/AbstractSequentialList;.get(I)TE;");			// .get(int) (from AbstractSequentialList)
+		dataStructureAccessMethods.add("Ljava/util/Stack;.get(I)TE;");							// .get(int) (from Stack)
+		dataStructureAccessMethods.add("Ljava/util/Vector;.elementAt(I)TE;");					// .elementAt(int) (from Vector)
+		dataStructureAccessMethods.add("Ljava/util/Stack;.elementAt(I)TE;");					// .elementAt(int) (from Stack)
 	}
 	
 	public static AbstractLoopBindingInformation getInstance()
@@ -86,9 +95,15 @@ public class AbstractLoopBindingInformation
 	}
 
 	// checks if the dataStructureSizeMethods field contains the specified MethodBinding key
-	public boolean dataStructureSizeMethodEndValuesContains(String methodBindingKey)
+	public boolean dataStructureSizeMethodContains(String methodBindingKey)
 	{
 		return dataStructureSizeMethods.contains(methodBindingKey);
+	}
+
+	// checks if the dataStructureSizeMethods field contains the specified MethodBinding key
+	public boolean dataStructureAccessMethodsContains(String methodBindingKey)
+	{
+		return dataStructureAccessMethods.contains(methodBindingKey);
 	}
 	
 	public Integer getIteratorInstantiationMethodBindingStartValue(String methodBindingKey)

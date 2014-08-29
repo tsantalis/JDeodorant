@@ -119,7 +119,7 @@ public class AbstractControlStructureUtilities
 				}
 				// if the ConditionalExpression is the method's expression
 				else if (ternaryMethodInvocation.getExpression() != null &&
-						(unParenthesize(ternaryMethodInvocation.getExpression()).equals(ternaryStructure.getConditionalExpression())))
+						(unparenthesize(ternaryMethodInvocation.getExpression()).equals(ternaryStructure.getConditionalExpression())))
 				{
 					// match the expressions
 					Expression thenMethodExpression = thenMethodInvocation.getExpression();
@@ -200,13 +200,13 @@ public class AbstractControlStructureUtilities
 		return returnList;
 	}
 	
-	public static Expression unParenthesize(Expression expression)
+	public static Expression unparenthesize(Expression expression)
 	{
 		if (expression instanceof ParenthesizedExpression)
 		{
 			ParenthesizedExpression parenthesizedExpression = (ParenthesizedExpression)expression;
 			Expression innerExpression = parenthesizedExpression.getExpression();
-			return unParenthesize(innerExpression);
+			return unparenthesize(innerExpression);
 		}
 		return expression;
 	}

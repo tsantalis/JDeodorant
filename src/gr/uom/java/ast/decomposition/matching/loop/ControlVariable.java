@@ -17,6 +17,7 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -377,6 +378,10 @@ public class ControlVariable extends AbstractControlVariable
 				else if (nonVariableOperand instanceof MethodInvocation)
 				{
 					this.dataStructureExpression = ((MethodInvocation)nonVariableOperand).getExpression();
+				}
+				else if (nonVariableOperand instanceof FieldAccess)
+				{
+					this.dataStructureExpression = ((FieldAccess)nonVariableOperand).getExpression();
 				}
 			}
 			else

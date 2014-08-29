@@ -1,16 +1,20 @@
 package gr.uom.java.ast.decomposition.matching.loop;
 
+import gr.uom.java.ast.decomposition.matching.conditional.AbstractControlStructureUtilities;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -29,6 +33,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 
 @SuppressWarnings("unchecked")
@@ -59,11 +64,11 @@ public class AbstractLoopUtilities
 		return false;
 	}
 	
-	private static boolean isSameVariable(Expression operand, SimpleName variable)
+	private static boolean isSameVariable(Expression expression, SimpleName variable)
 	{
-		if (operand instanceof SimpleName)
+		if (expression instanceof SimpleName)
 		{
-			SimpleName simpleNameOperand = (SimpleName) operand;
+			SimpleName simpleNameOperand = (SimpleName) expression;
 			return variable.resolveBinding().isEqualTo(simpleNameOperand.resolveBinding());
 		}
 		return false;
@@ -94,7 +99,7 @@ public class AbstractLoopUtilities
 			if (methodBinding != null && callingExpression != null)
 			{
 				AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
-				return bindingInformation.dataStructureSizeMethodEndValuesContains(methodBinding.getKey());
+				return bindingInformation.dataStructureSizeMethodContains(methodBinding.getKey());
 			}
 		}
 		return false;
@@ -102,20 +107,29 @@ public class AbstractLoopUtilities
 	
 	public static boolean isLengthFieldAccess(Expression expression)
 	{
+		SimpleName name          = null;
+		ITypeBinding typeBinding = null;
 		if (expression instanceof QualifiedName)
 		{
 			QualifiedName qualifiedName = (QualifiedName) expression;
-			SimpleName name             = qualifiedName.getName();
+			name                        = qualifiedName.getName();
 			Name qualifier              = qualifiedName.getQualifier();
-			if (name != null && qualifier != null)
+			typeBinding                 = qualifier.resolveTypeBinding();
+		}
+		else if (expression instanceof FieldAccess)
+		{
+			FieldAccess fieldAccess           = (FieldAccess)expression;
+			name                              = fieldAccess.getName();
+			Expression fieldAsccessExpression = fieldAccess.getExpression();
+			typeBinding                       = fieldAsccessExpression.resolveTypeBinding();
+		}
+		if (name != null && typeBinding != null)
+		{
+			IBinding nameBinding = name.resolveBinding();
+			if (nameBinding != null && nameBinding.getKind() == IBinding.VARIABLE && typeBinding != null)
 			{
-				IBinding nameBinding = name.resolveBinding();
-				ITypeBinding qualifierTypeBinding = qualifier.resolveTypeBinding();
-				if (nameBinding != null && nameBinding.getKind() == IBinding.VARIABLE && qualifierTypeBinding != null)
-				{
-					IVariableBinding nameVariableBinding = (IVariableBinding) nameBinding;
-					return (nameVariableBinding.getName().equals("length") && qualifierTypeBinding.isArray());
-				}
+				IVariableBinding nameVariableBinding = (IVariableBinding) nameBinding;
+				return (nameVariableBinding.getName().equals("length") && typeBinding.isArray());
 			}
 		}
 		return false;
@@ -164,7 +178,6 @@ public class AbstractLoopUtilities
 		VariableDeclaration variableDeclaration        = null;
 		MethodDeclaration method                       = findParentMethodDeclaration(variable);
 		List<VariableDeclaration> variableDeclarations = getAllVariableDeclarations(method);
-		
 		// find the variable's initializer
 		IBinding binding = variable.resolveBinding();
 		if (binding.getKind() == IBinding.VARIABLE)
@@ -193,7 +206,6 @@ public class AbstractLoopUtilities
 		List<Expression> variableDeclarationExpressions  = expressionExtractor.getVariableDeclarationExpressions(methodBody);
 		List<Statement> enhancedForStatements            = statementExtractor.getEnhancedForStatements(methodBody);
 		List<VariableDeclaration> variableDeclarations   = new ArrayList<VariableDeclaration>(methodParameters);
-		
 		for (Statement currentStatement : variableDeclarationStatements)
 		{
 			if (currentStatement instanceof VariableDeclarationStatement)
@@ -225,7 +237,6 @@ public class AbstractLoopUtilities
 	{
 		MethodDeclaration parentMethodDeclaration = null;
 		ASTNode parent = node.getParent();
-
 		while (parent != null)
 		{
 			if (parent instanceof MethodDeclaration)
@@ -292,7 +303,6 @@ public class AbstractLoopUtilities
 		Expression leftHandSide      = assignment.getLeftHandSide();
 		Assignment.Operator operator = assignment.getOperator();
 		Expression rightHandSide     = assignment.getRightHandSide();
-		
 		if (operator == Assignment.Operator.PLUS_ASSIGN)
 		{			
 			updateValue = AbstractLoopUtilities.getIntegerValue(rightHandSide);
@@ -313,7 +323,6 @@ public class AbstractLoopUtilities
 			InfixExpression.Operator infixOperator = infixExpression.getOperator();
 			Expression rightOperand                = infixExpression.getRightOperand();
 			Expression leftOperand                 = infixExpression.getLeftOperand();
-			
 			if (infixOperator.toString().equals("+") || infixOperator.toString().equals("-"))
 			{
 				if (leftOperand instanceof SimpleName)
@@ -432,5 +441,158 @@ public class AbstractLoopUtilities
 			}
 		}
 		return returnList;
+	}
+	
+	// this method finds the first variable to be initialized (if any) using the control variable to access the data structure it is traversing (if any)
+	public static SimpleName getVariableInitializedUsingControlVariable(ControlVariable controlVariable, Statement conditionalLoopBody)
+	{
+		SimpleName initializedVariableName                                 = null;
+		List<ASTNode> variableDeclarationsAndAssignmentsContainingVariable = getVariableDeclarationsAndAssignmentsContainingAccessUsingVariable(conditionalLoopBody, controlVariable);
+		// find the node in variableDeclarationsAndAssignmentsContainingVariable that has the smallest start position, compare new variable created to the enhancedForVariable and then return it
+		if (variableDeclarationsAndAssignmentsContainingVariable.size() > 0)
+		{
+			Collections.sort(variableDeclarationsAndAssignmentsContainingVariable, new EarliestStartPositionComparator());
+			ASTNode nodeContainingVariable = variableDeclarationsAndAssignmentsContainingVariable.get(0);
+			if (nodeContainingVariable instanceof VariableDeclaration)
+			{
+				initializedVariableName = ((VariableDeclaration)nodeContainingVariable).getName();
+			}
+			else if (nodeContainingVariable instanceof Assignment && ((Assignment)nodeContainingVariable).getLeftHandSide() instanceof SimpleName)
+			{
+				initializedVariableName = (SimpleName)((Assignment)nodeContainingVariable).getLeftHandSide();
+			}
+		}
+		return initializedVariableName;
+	}
+	
+	private static List<ASTNode> getVariableDeclarationsAndAssignmentsContainingAccessUsingVariable(Statement body, ControlVariable variable)
+	{
+		StatementExtractor statementExtractor = new StatementExtractor();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		ArrayList<ASTNode> returnList = new ArrayList<ASTNode>();
+		List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(body);
+		List<Expression> assignments = expressionExtractor.getAssignments(body);
+		for (Statement currentStatement : variableDeclarationStatements)
+		{
+			List<VariableDeclarationFragment> fragments = ((VariableDeclarationStatement)currentStatement).fragments();
+			for (VariableDeclarationFragment fragment : fragments)
+			{
+				Expression initializer = fragment.getInitializer();
+				if (isAccessUsingVariable(initializer, variable))
+				{
+					returnList.add(fragment);
+				}
+			}
+		}
+		for (Expression currentExpression : assignments)
+		{
+			Assignment currentAssignment = (Assignment)currentExpression;
+			Expression rightHandSide = currentAssignment.getRightHandSide();
+			if (isAccessUsingVariable(rightHandSide, variable))
+			{
+				returnList.add(currentAssignment);
+			}
+		}
+		return returnList;
+	}
+	
+	private static boolean isAccessUsingVariable(Expression expression, ControlVariable controlVariable)
+	{
+		List<SimpleName> variableOccurrences = getOccurrencesOfSimpleName(expression, controlVariable.getVariable());
+		Expression controlVariableDataStructure = controlVariable.getDataStructureExpression();
+		if (variableOccurrences.size() == 1)
+		{
+			SimpleName variableOccurrence = variableOccurrences.get(0);
+			ASTNode firstParent = variableOccurrence.getParent();
+			ASTNode secondParent = variableOccurrence.getParent().getParent();
+			if (firstParent != null && secondParent != null)
+			{
+				// if expression is an array access
+				if (expression instanceof ArrayAccess)
+				{
+					ArrayAccess arrayAccess = (ArrayAccess)expression;
+					Expression array = arrayAccess.getArray();
+					if ((firstParent.equals(arrayAccess) || (firstParent instanceof PostfixExpression && secondParent.equals(arrayAccess))))
+					{
+						if (array instanceof Name  && controlVariableDataStructure instanceof Name)
+						{
+							Name controlVariableDataStructureName = (Name)controlVariableDataStructure;
+							return ((Name)array).resolveBinding().isEqualTo(controlVariableDataStructureName.resolveBinding());
+						}
+						else if (array instanceof MethodInvocation  && controlVariableDataStructure instanceof MethodInvocation)
+						{
+							MethodInvocation controlVariableDataStructureMethodInvocation = (MethodInvocation)controlVariableDataStructure;
+							return ((MethodInvocation)array).resolveMethodBinding().isEqualTo(controlVariableDataStructureMethodInvocation.resolveMethodBinding());
+						}
+					}
+				}
+				// if expression is a method invocation
+				else if (expression instanceof MethodInvocation)
+				{
+					MethodInvocation methodInvocation                 = (MethodInvocation)expression;
+					IMethodBinding methodBinding                      = methodInvocation.resolveMethodBinding().getMethodDeclaration();
+					AbstractLoopBindingInformation bindingInformation = AbstractLoopBindingInformation.getInstance();
+					if (methodInvocation.getExpression() != null)
+					{
+						// if the variable is the expression of the method (ex: variable is an iterator)
+						if (methodInvocation.getExpression().equals(variableOccurrence))
+						{
+							return bindingInformation.updateMethodValuesContains(methodBinding.getKey());
+						}
+						// if the variable is an argument of the method OR (the first parent is a postfix expression AND an argument of the method)
+						else if (isExpressionAnArgument(variableOccurrence, methodInvocation) || (firstParent instanceof PostfixExpression && isExpressionAnArgument((PostfixExpression)firstParent, methodInvocation)))
+						{
+							if (bindingInformation.dataStructureAccessMethodsContains(methodBinding.getKey()))
+							{
+								// check that the expression is the variables traversed data structure
+								if (methodInvocation.getExpression() instanceof Name && controlVariableDataStructure instanceof Name)
+								{
+									Name methodExpressionName = (Name)methodInvocation.getExpression();
+									Name controlVariableDataStructureName = (Name)controlVariableDataStructure;
+									return methodExpressionName.resolveBinding().isEqualTo(controlVariableDataStructureName.resolveBinding());
+								}
+								else if (methodInvocation.getExpression() instanceof MethodInvocation && controlVariableDataStructure instanceof MethodInvocation)
+								{
+									MethodInvocation methodExpressionMethodInvocation = (MethodInvocation)methodInvocation.getExpression();
+									MethodInvocation controlVariableDataStructureMethodInvocation = (MethodInvocation)controlVariableDataStructure;
+									return methodExpressionMethodInvocation.resolveMethodBinding().isEqualTo(controlVariableDataStructureMethodInvocation.resolveMethodBinding());
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+	
+	private static List<SimpleName> getOccurrencesOfSimpleName(Expression expression, SimpleName simpleName)
+	{
+		List<SimpleName> returnList = new ArrayList<SimpleName>();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expression);
+		for (Expression currentExpression : simpleNames)
+		{
+			SimpleName currentSimpleName = (SimpleName)currentExpression;
+			if (currentSimpleName.resolveBinding().isEqualTo(simpleName.resolveBinding()))
+			{
+				returnList.add(currentSimpleName);
+			}
+		}
+		return returnList;
+	}
+	
+	private static boolean isExpressionAnArgument(Expression expression, MethodInvocation methodInvocation)
+	{
+		List<Expression> arguments = methodInvocation.arguments();
+		for (Expression currentArgument : arguments)
+		{
+			Expression unparenthesizedArgument = AbstractControlStructureUtilities.unparenthesize(currentArgument);
+			if (currentArgument.equals(expression) || unparenthesizedArgument.equals(expression))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 }

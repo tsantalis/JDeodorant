@@ -102,7 +102,7 @@ public class TernaryControlStructure extends AbstractControlStructure
 	@Override
 	public boolean match(TernaryControlStructure otherStructure, ASTNodeMatcher matcher)
 	{
-		return matcher.safeSubtreeMatch(this.getNode(), otherStructure.getNode());
+		return false;
 	}
 
 	@Override

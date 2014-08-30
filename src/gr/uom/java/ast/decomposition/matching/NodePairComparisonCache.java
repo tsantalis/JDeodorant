@@ -69,4 +69,8 @@ public class NodePairComparisonCache {
 	public void setAdditionallyMatchedFragments2(NodePair pair, List<AbstractMethodFragment> fragments) {
 		additionallyMatchedFragmentMap2.put(pair, fragments);
 	}
+
+	public int getMapSize() {
+		return matchMap.size();
+	}
 }

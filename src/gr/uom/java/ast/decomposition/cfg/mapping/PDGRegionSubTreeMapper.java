@@ -90,7 +90,7 @@ import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
-public class PDGSubTreeMapper extends DivideAndConquerMatcher {
+public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 	private PDG pdg1;
 	private PDG pdg2;
 	private ICompilationUnit iCompilationUnit1;
@@ -121,11 +121,15 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableBefore;
 	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableAfter;
 	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableBeforeAndAfter;
-	
-	public PDGSubTreeMapper(PDG pdg1, PDG pdg2,
+	private List<ASTNode> cloneFragmentASTNodes1;
+	private List<ASTNode> cloneFragmentASTNodes2;
+
+	public PDGRegionSubTreeMapper(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
 			ControlDependenceTreeNode controlDependenceSubTreePDG1,
 			ControlDependenceTreeNode controlDependenceSubTreePDG2,
+			List<ASTNode> ASTNodes1,
+			List<ASTNode> ASTNodes2,
 			boolean fullTreeMatch, IProgressMonitor monitor) {
 		super(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, fullTreeMatch, monitor);
 		this.pdg1 = pdg1;
@@ -154,6 +158,10 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		this.nonMappedPDGNodesG2MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG2MovableAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG2MovableBeforeAndAfter = new TreeSet<PDGNode>();
+		this.cloneFragmentASTNodes1 = ASTNodes1;
+		this.cloneFragmentASTNodes2 = ASTNodes2;
+		this.mappedNodesG1 = new TreeSet<PDGNode>();
+		this.mappedNodesG2 = new TreeSet<PDGNode>();
 		//creates CloneStructureRoot
 		matchBasedOnControlDependenceTreeStructure();
 		if(getMaximumStateWithMinimumDifferences() != null) {
@@ -677,43 +685,43 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 
 	protected Set<PDGNode> getNodesInRegion1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
 			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot) {
-		return getNodesInRegion(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, controlDependenceTreeRoot);
+		return getNodesInRegion(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, controlDependenceTreeRoot, cloneFragmentASTNodes1);
 	}
 
 	protected Set<PDGNode> getNodesInRegion2(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
 			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot) {
-		return getNodesInRegion(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, controlDependenceTreeRoot);
+		return getNodesInRegion(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, controlDependenceTreeRoot, cloneFragmentASTNodes2);
 	}
 
 	protected Set<PDGNode> getElseNodesOfSymmetricalIfStatement1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
 			Set<PDGNode> controlPredicateNodesInNextLevel) {
-		return getElseNodesOfSymmetricalIfStatement(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel);
+		return getElseNodesOfSymmetricalIfStatement(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, cloneFragmentASTNodes1);
 	}
 
 	protected Set<PDGNode> getElseNodesOfSymmetricalIfStatement2(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
 			Set<PDGNode> controlPredicateNodesInNextLevel) {
-		return getElseNodesOfSymmetricalIfStatement(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel);
+		return getElseNodesOfSymmetricalIfStatement(pdg, controlPredicate, controlPredicateNodesInCurrentLevel, controlPredicateNodesInNextLevel, cloneFragmentASTNodes2);
 	}
 
 	protected List<ControlDependenceTreeNode> getIfParentChildren1(ControlDependenceTreeNode cdtNode) {
-		return getIfParentChildren(cdtNode);
+		return getIfParentChildren(cdtNode, cloneFragmentASTNodes1);
 	}
 
 	protected List<ControlDependenceTreeNode> getIfParentChildren2(ControlDependenceTreeNode cdtNode) {
-		return getIfParentChildren(cdtNode);
+		return getIfParentChildren(cdtNode, cloneFragmentASTNodes2);
 	}
 
 	private Set<PDGNode> getNodesInRegion(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
-			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot) {
+			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot, List<ASTNode> cloneFragmentNodes) {
 		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
 		if(!(controlPredicate instanceof PDGMethodEntryNode) &&
-				!controlPredicate.equals(controlDependenceTreeRoot.getNode()))
+				!controlPredicate.equals(controlDependenceTreeRoot.getNode()) && cloneFragmentContainsPDGNode(cloneFragmentNodes,controlPredicate))
 			nodesInRegion.add(controlPredicate);
 		if(controlPredicate instanceof PDGBlockNode) {
 			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinBlockNode((PDGBlockNode)controlPredicate);
 			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
 				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode)) {
-					if(!(nestedNode instanceof PDGControlPredicateNode))
+					if(!(nestedNode instanceof PDGControlPredicateNode) && cloneFragmentContainsPDGNode(cloneFragmentNodes,nestedNode))
 						nodesInRegion.add(nestedNode);
 				}
 			}
@@ -726,7 +734,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
 					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
 					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
-						if(!(pdgNode instanceof PDGControlPredicateNode))
+						if(!(pdgNode instanceof PDGControlPredicateNode) && cloneFragmentContainsPDGNode(cloneFragmentNodes,pdgNode))
 							nodesInRegion.add(pdgNode);
 					}
 				}
@@ -736,7 +744,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 	}
 	
 	private Set<PDGNode> getElseNodesOfSymmetricalIfStatement(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
-			Set<PDGNode> controlPredicateNodesInNextLevel) {
+			Set<PDGNode> controlPredicateNodesInNextLevel, List<ASTNode> cloneFragmentNodes) {
 		Set<PDGNode> nodesInRegion = new TreeSet<PDGNode>();
 		Iterator<GraphEdge> edgeIterator = controlPredicate.getOutgoingDependenceIterator();
 		while(edgeIterator.hasNext()) {
@@ -747,7 +755,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
 					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
 					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
-						if(!(pdgNode instanceof PDGControlPredicateNode))
+						if(!(pdgNode instanceof PDGControlPredicateNode)  && cloneFragmentContainsPDGNode(cloneFragmentNodes,pdgNode))
 							nodesInRegion.add(pdgNode);
 					}
 				}
@@ -756,15 +764,27 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		return nodesInRegion;
 	}
 
-	private List<ControlDependenceTreeNode> getIfParentChildren(ControlDependenceTreeNode cdtNode) {
+	private List<ControlDependenceTreeNode> getIfParentChildren(ControlDependenceTreeNode cdtNode, List<ASTNode> cloneFragmentNodes) {
 		List<ControlDependenceTreeNode> children = new ArrayList<ControlDependenceTreeNode>();
 		if(cdtNode != null && cdtNode.isElseNode()) {
 			ControlDependenceTreeNode ifParent = cdtNode.getIfParent();
-			if(ifParent != null) {
+			if(ifParent != null && cloneFragmentContainsPDGNode(cloneFragmentNodes, ifParent.getNode())) {
 				children.addAll(ifParent.getChildren());
 			}
 		}
 		return children;
+	}
+
+	private boolean cloneFragmentContainsPDGNode(List<ASTNode> cloneFragmentNodes, PDGNode pdgNode) {
+		Statement pdgStatement = pdgNode.getASTStatement();
+		int start = pdgStatement.getStartPosition();
+		int cloneFragmentStart = cloneFragmentNodes.get(0).getStartPosition();
+		int cloneFragmentLastNodeStart = cloneFragmentNodes.get(cloneFragmentNodes.size()-1).getStartPosition();
+		int cloneFragmentEnd = cloneFragmentLastNodeStart + cloneFragmentNodes.get(cloneFragmentNodes.size()-1).getLength();
+		if (start >= cloneFragmentStart && start <= cloneFragmentEnd)
+			return true;
+		else 
+			return false;
 	}
 
 	public PDG getPDG1() {

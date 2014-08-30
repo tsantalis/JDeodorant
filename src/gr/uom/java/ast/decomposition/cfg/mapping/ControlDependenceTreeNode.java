@@ -391,4 +391,13 @@ public class ControlDependenceTreeNode {
 			return node.getId();
 		}
 	}
+	
+	public ControlDependenceTreeNode getElseChild() {
+		for(ControlDependenceTreeNode cdtNode : getSiblings()) {
+			if(cdtNode.isElseNode && this.equals(cdtNode.getIfParent())) {
+				return cdtNode;
+			}
+		}
+		return null;
+	}
 }

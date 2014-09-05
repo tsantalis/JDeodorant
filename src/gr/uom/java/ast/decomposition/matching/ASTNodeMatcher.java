@@ -73,6 +73,8 @@ import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
@@ -751,6 +753,36 @@ public class ASTNodeMatcher extends ASTMatcher{
 		{
 			TernaryControlStructure nodeTernaryControlStructure = new TernaryControlStructure(node);
 			return ifMatch(nodeTernaryControlStructure, other);
+		}
+		else if(node.getExpression() instanceof Assignment && other instanceof VariableDeclarationStatement) {
+			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)other;
+			List fragments = variableDeclarationStatement.fragments();
+			if(fragments.size() == 1) {
+				VariableDeclarationFragment fragment = (VariableDeclarationFragment)fragments.get(0);
+				Assignment assignment = (Assignment)node.getExpression();
+				Expression leftHandSide = assignment.getLeftHandSide();
+				if(leftHandSide instanceof SimpleName) {
+					SimpleName simpleName = (SimpleName)leftHandSide;
+					boolean variableMatch = safeSubtreeMatch(simpleName, fragment.getName());
+					boolean initializerMatch = false;
+					Expression initializer = fragment.getInitializer();
+					Expression rightHandSide = assignment.getRightHandSide();
+					if(initializer != null && initializer.getNodeType() == rightHandSide.getNodeType()) {
+						initializerMatch = safeSubtreeMatch(rightHandSide, initializer);
+					}
+					if(variableMatch && initializerMatch) {
+						VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(simpleName);
+						if(variableDeclaration != null && hasEmptyInitializer(variableDeclaration)) {
+							safeSubtreeMatch(variableDeclaration.getName(), fragment.getName());
+							List<ASTNode> astNodes = new ArrayList<ASTNode>();
+							astNodes.add(variableDeclaration);
+							ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+							reportAdditionalFragments(astNodes, this.additionallyMatchedFragments1);
+							return true;
+						}
+					}
+				}
+			}
 		}
 		return super.match(node, other);
 	}
@@ -1612,6 +1644,41 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
+	public boolean match(VariableDeclarationStatement node, Object other) {
+		List fragments = node.fragments();
+		if(fragments.size() == 1 && other instanceof ExpressionStatement) {
+			VariableDeclarationFragment fragment = (VariableDeclarationFragment)fragments.get(0);
+			ExpressionStatement expressionStatement = (ExpressionStatement)other;
+			Expression expression = expressionStatement.getExpression();
+			if(expression instanceof Assignment) {
+				Assignment assignment = (Assignment)expression;
+				Expression leftHandSide = assignment.getLeftHandSide();
+				if(leftHandSide instanceof SimpleName) {
+					SimpleName simpleName = (SimpleName)leftHandSide;
+					boolean variableMatch = safeSubtreeMatch(fragment.getName(), simpleName);
+					boolean initializerMatch = false;
+					Expression initializer = fragment.getInitializer();
+					Expression rightHandSide = assignment.getRightHandSide();
+					if(initializer != null && initializer.getNodeType() == rightHandSide.getNodeType()) {
+						initializerMatch = safeSubtreeMatch(initializer, rightHandSide);
+					}
+					if(variableMatch && initializerMatch) {
+						VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(simpleName);
+						if(variableDeclaration != null && hasEmptyInitializer(variableDeclaration)) {
+							safeSubtreeMatch(fragment.getName(), variableDeclaration.getName());
+							List<ASTNode> astNodes = new ArrayList<ASTNode>();
+							astNodes.add(variableDeclaration);
+							ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+							reportAdditionalFragments(astNodes, this.additionallyMatchedFragments2);
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return super.match(node, other);
+	}
+
 	public boolean match(WhileStatement node, Object other) {
 		if (other instanceof WhileStatement)
 		{
@@ -1845,6 +1912,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 			Block finallyBlock = tryStatement.getFinally();
 			if(node instanceof Block && finallyBlock != null) {
 				return finallyBlock.equals((Block)node);
+			}
+		}
+		return false;
+	}
+
+	private boolean hasEmptyInitializer(VariableDeclaration variableDeclaration) {
+		if(variableDeclaration.getInitializer() == null) {
+			return true;
+		}
+		else {
+			Expression initializer = variableDeclaration.getInitializer();
+			if(initializer instanceof NullLiteral) {
+				return true;
 			}
 		}
 		return false;

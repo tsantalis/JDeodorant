@@ -219,8 +219,8 @@ public class ControlVariable extends AbstractControlVariable
 	
 	private static List<ASTNode> getValueContributingModifiers(SimpleName variable)
 	{
-		List<ASTNode> allVariableModifiers  = getAllVariableModifiersInParentMehtod(variable);
-		List<ASTNode> contributingModifiers = null;
+		List<ASTNode> allVariableModifiers  = getAllVariableModifiersInParentMethod(variable);
+		List<ASTNode> contributingModifiers = new ArrayList<ASTNode>();
 		boolean noModifierInLowerScope      = true;
 		MethodDeclaration parentMethod      = AbstractLoopUtilities.findParentMethodDeclaration(variable);
 		// create a list of all parents of the specified variable until the root method
@@ -311,9 +311,9 @@ public class ControlVariable extends AbstractControlVariable
 	}
 	
 	// returns all modifiers of the specified variable occurring before it in its containing method
-	private static List<ASTNode> getAllVariableModifiersInParentMehtod(SimpleName variable)
+	private static List<ASTNode> getAllVariableModifiersInParentMethod(SimpleName variable)
 	{
-		List<ASTNode> bodyVariableModifiers = null;
+		List<ASTNode> bodyVariableModifiers = new ArrayList<ASTNode>();
 		MethodDeclaration parentMethod = AbstractLoopUtilities.findParentMethodDeclaration(variable);
 		if (parentMethod != null)
 		{
@@ -321,7 +321,7 @@ public class ControlVariable extends AbstractControlVariable
 			if (parentMethodBody != null)
 			{
 				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-				bodyVariableModifiers = new ArrayList<ASTNode>(expressionExtractor.getVariableModifiers(parentMethodBody));
+				bodyVariableModifiers.addAll(expressionExtractor.getVariableModifiers(parentMethodBody));
 				// remove all variable updaters that are not modifying the specified variable or are after the position of the variable in use
 				Iterator<ASTNode> it = bodyVariableModifiers.iterator();
 				while (it.hasNext())

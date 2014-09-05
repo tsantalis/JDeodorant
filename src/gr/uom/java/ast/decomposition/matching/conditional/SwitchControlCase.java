@@ -46,7 +46,14 @@ public class SwitchControlCase extends AbstractControlCase
 				{
 					SwitchCase currentThisSwitchCase = (SwitchCase)currentThisStatement;
 					SwitchCase currentOtherSwitchCase = (SwitchCase)currentOtherStatement;
-					switchCaseStatementMatch = matchCaseCondition(currentThisSwitchCase.getExpression(), currentOtherSwitchCase.getExpression());
+					if(currentThisSwitchCase.isDefault() && currentOtherSwitchCase.isDefault())
+					{
+						switchCaseStatementMatch = true;
+					}
+					else
+					{
+						switchCaseStatementMatch = matchCaseCondition(currentThisSwitchCase.getExpression(), currentOtherSwitchCase.getExpression());
+					}
 				}
 				boolean endStatementMatch = ((currentThisStatement instanceof BreakStatement && currentOtherStatement instanceof BreakStatement) ||
 						(currentThisStatement instanceof ContinueStatement && currentOtherStatement instanceof ContinueStatement) ||
@@ -63,7 +70,7 @@ public class SwitchControlCase extends AbstractControlCase
 
 	private boolean matchCaseCondition(Expression caseCondition1, Expression caseCondition2)
 	{
-		if(caseCondition1.resolveTypeBinding().isEqualTo(caseCondition2.resolveTypeBinding()))
+		if(caseCondition1 != null && caseCondition2 != null && caseCondition1.resolveTypeBinding().isEqualTo(caseCondition2.resolveTypeBinding()))
 		{
 			// int, byte
 			if (caseCondition1 instanceof NumberLiteral && caseCondition2 instanceof NumberLiteral)

@@ -137,7 +137,8 @@ public class AbstractLoopUtilities
 	
 	public static boolean isCollection(ITypeBinding typeBinding)
 	{
-		return isSubclassOf(typeBinding, "java.util.AbstractCollection") || isSubinterfaceOf(typeBinding, "java.util.Collection");
+		return isSubclassOf(typeBinding, "java.util.AbstractCollection") || isSubinterfaceOf(typeBinding, "java.util.Collection") ||
+				isSubinterfaceOf(typeBinding, "java.lang.Iterable");
 	}
 	
 	public static boolean isSubclassOf(ITypeBinding typeBinding, String qualifiedName)

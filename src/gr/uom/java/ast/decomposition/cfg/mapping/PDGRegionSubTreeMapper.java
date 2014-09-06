@@ -53,6 +53,7 @@ import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
+import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
@@ -1322,13 +1323,13 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 				}
-				if(isVoidMethodCall(abstractExpression1)) {
+				if(isVoidMethodCall(abstractExpression1) && !(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 				}
-				if(isVoidMethodCall(abstractExpression2)) {
+				if(isVoidMethodCall(abstractExpression2) && !(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
 					nodeMapping.addPreconditionViolation(violation);

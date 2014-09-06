@@ -17,6 +17,7 @@ import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.WhileStatement;
 
 @SuppressWarnings("unchecked")
@@ -89,7 +90,11 @@ public class ConditionalLoop extends AbstractLoop
 			if (currentControlVariable instanceof ControlVariable)
 			{
 				ControlVariable controlVariable = (ControlVariable) currentControlVariable;
-				additionalFragments.add(AbstractLoopUtilities.getVariableDeclaration(controlVariable.getVariable()));
+				VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(controlVariable.getVariable());
+				if(variableDeclaration != null)
+				{
+					additionalFragments.add(variableDeclaration);
+				}
 			}
 		}
 		/*// if the current ConditionalLoop is a for loop, remove all for the updaters found in the for declaration

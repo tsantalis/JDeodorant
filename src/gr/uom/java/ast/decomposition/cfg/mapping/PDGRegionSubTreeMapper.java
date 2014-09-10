@@ -124,7 +124,11 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 	private TreeSet<PDGNode> nonMappedPDGNodesG2MovableBeforeAndAfter;
 	private List<ASTNode> cloneFragmentASTNodes1;
 	private List<ASTNode> cloneFragmentASTNodes2;
-
+	private TreeSet<PDGNode> additionallyMatchedNodesG1;
+	private TreeSet<PDGNode> additionallyMatchedNodesG2;
+	private Set<AbstractVariable> declaredLocalVariablesInAdditionallyMatchedNodesG1;
+	private Set<AbstractVariable> declaredLocalVariablesInAdditionallyMatchedNodesG2;
+	
 	public PDGRegionSubTreeMapper(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
 			ControlDependenceTreeNode controlDependenceSubTreePDG1,
@@ -163,6 +167,10 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 		this.cloneFragmentASTNodes2 = ASTNodes2;
 		this.mappedNodesG1 = new TreeSet<PDGNode>();
 		this.mappedNodesG2 = new TreeSet<PDGNode>();
+		this.additionallyMatchedNodesG1 = new TreeSet<PDGNode>();
+		this.additionallyMatchedNodesG2 = new TreeSet<PDGNode>();
+		this.declaredLocalVariablesInAdditionallyMatchedNodesG1 = new LinkedHashSet<AbstractVariable>();
+		this.declaredLocalVariablesInAdditionallyMatchedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		//creates CloneStructureRoot
 		matchBasedOnControlDependenceTreeStructure();
 		if(getMaximumStateWithMinimumDifferences() != null) {
@@ -170,7 +178,6 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 			this.mappedNodesG2 = getMaximumStateWithMinimumDifferences().getMappedNodesG2();
 			findNonMappedNodes(pdg1, getAllNodesInSubTreePDG1(), mappedNodesG1, nonMappedNodesG1);
 			findNonMappedNodes(pdg2, getAllNodesInSubTreePDG2(), mappedNodesG2, nonMappedNodesG2);
-			Set<PDGNode> additionallyMatchedNodesG1 = new LinkedHashSet<PDGNode>();
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
 				boolean advancedMatch = getCloneStructureRoot().isGapNodeG1InAdditionalMatches(nodeG1);
 				List<ASTNodeDifference> differencesForAdvancedMatch = new ArrayList<ASTNodeDifference>();
@@ -181,6 +188,17 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 							differencesForAdvancedMatch.add(difference);
 						}
 					}
+					List<AbstractVariable> nonAnonymousDeclaredVariablesG1 = new ArrayList<AbstractVariable>();
+					Iterator<AbstractVariable> declaredVariableIteratorG1 = nodeG1.getDeclaredVariableIterator();
+					while(declaredVariableIteratorG1.hasNext()) {
+						AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
+						String key1 = declaredVariableG1.getVariableBindingKey();
+						String declaringType1 = key1.substring(0, key1.indexOf(";"));
+						if(!declaringType1.contains("$")) {
+							nonAnonymousDeclaredVariablesG1.add(declaredVariableG1);
+						}
+					}
+					declaredLocalVariablesInAdditionallyMatchedNodesG1.addAll(nonAnonymousDeclaredVariablesG1);
 				}
 				PDGNodeGap nodeGap = new PDGNodeGap(nodeG1, null, advancedMatch, differencesForAdvancedMatch);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
@@ -196,7 +214,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 				}
 			}
 			nonMappedNodesG1.removeAll(additionallyMatchedNodesG1);
-			Set<PDGNode> additionallyMatchedNodesG2 = new LinkedHashSet<PDGNode>();
+			mappedNodesG1.addAll(additionallyMatchedNodesG1);
 			for(PDGNode nodeG2 : nonMappedNodesG2) {
 				boolean advancedMatch = getCloneStructureRoot().isGapNodeG2InAdditionalMatches(nodeG2);
 				List<ASTNodeDifference> differencesForAdvancedMatch = new ArrayList<ASTNodeDifference>();
@@ -207,6 +225,17 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 							differencesForAdvancedMatch.add(difference);
 						}
 					}
+					List<AbstractVariable> nonAnonymousDeclaredVariablesG2 = new ArrayList<AbstractVariable>();
+					Iterator<AbstractVariable> declaredVariableIteratorG2 = nodeG2.getDeclaredVariableIterator();
+					while(declaredVariableIteratorG2.hasNext()) {
+						AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
+						String key2 = declaredVariableG2.getVariableBindingKey();
+						String declaringType2 = key2.substring(0, key2.indexOf(";"));
+						if(!declaringType2.contains("$")) {
+							nonAnonymousDeclaredVariablesG2.add(declaredVariableG2);
+						}
+					}
+					declaredLocalVariablesInAdditionallyMatchedNodesG2.addAll(nonAnonymousDeclaredVariablesG2);
 				}
 				PDGNodeGap nodeGap = new PDGNodeGap(null, nodeG2, advancedMatch, differencesForAdvancedMatch);
 				CloneStructureNode node = new CloneStructureNode(nodeGap);
@@ -222,6 +251,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 				}
 			}
 			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
+			mappedNodesG2.addAll(additionallyMatchedNodesG2);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 			this.renamedVariables = findRenamedVariables();
@@ -836,6 +866,14 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 		return nonMappedPDGNodesG2MovableAfter;
 	}
 
+	public TreeSet<PDGNode> getAdditionallyMatchedNodesG1() {
+		return additionallyMatchedNodesG1;
+	}
+
+	public TreeSet<PDGNode> getAdditionallyMatchedNodesG2() {
+		return additionallyMatchedNodesG2;
+	}
+
 	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
 		Set<VariableDeclaration> declaredVariablesG1 = new LinkedHashSet<VariableDeclaration>();
 		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
@@ -912,6 +950,50 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 			declaredVariables.put(key, variableDeclarations);
 		}
 		return declaredVariables;
+	}
+	
+	public Set<VariableDeclaration> getDeclaredLocalVariablesInAdditionallyMatchedNodesG1() {
+		Set<VariableDeclaration> declaredVariables = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(AbstractVariable variable : this.declaredLocalVariablesInAdditionallyMatchedNodesG1) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod1) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+					declaredVariables.add(variableDeclaration);
+					break;
+				}
+			}
+		}
+		return declaredVariables;
+	}
+
+	public Set<String> getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1() {
+		Set<String> declaredVariableKeys = new LinkedHashSet<String>();
+		for(AbstractVariable variable : this.declaredLocalVariablesInAdditionallyMatchedNodesG1) {
+			declaredVariableKeys.add(variable.getVariableBindingKey());
+		}
+		return declaredVariableKeys;
+	}
+
+	public Set<VariableDeclaration> getDeclaredLocalVariablesInAdditionallyMatchedNodesG2() {
+		Set<VariableDeclaration> declaredVariables = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
+		for(AbstractVariable variable : this.declaredLocalVariablesInAdditionallyMatchedNodesG2) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsAndAccessedFieldsInMethod2) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+					declaredVariables.add(variableDeclaration);
+					break;
+				}
+			}
+		}
+		return declaredVariables;
+	}
+
+	public Set<String> getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2() {
+		Set<String> declaredVariableKeys = new LinkedHashSet<String>();
+		for(AbstractVariable variable : this.declaredLocalVariablesInAdditionallyMatchedNodesG2) {
+			declaredVariableKeys.add(variable.getVariableBindingKey());
+		}
+		return declaredVariableKeys;
 	}
 
 	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getCommonPassedParameters() {

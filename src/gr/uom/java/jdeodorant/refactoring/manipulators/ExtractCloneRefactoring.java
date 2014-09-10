@@ -823,7 +823,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		CloneStructureNode root = mapper.getCloneStructureRoot();
 		for(CloneStructureNode child : root.getChildren()) {
-			if(child.getMapping() instanceof PDGNodeMapping) {
+			if(processableNode(child)) {
 				Statement statement = processCloneStructureNode(child, ast, sourceRewriter);
 				methodBodyRewrite.insertLast(statement, null);
 			}
@@ -1747,285 +1747,305 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private Statement processCloneStructureNode(CloneStructureNode node, AST ast, ASTRewrite sourceRewriter) {
-		PDGNodeMapping nodeMapping = (PDGNodeMapping) node.getMapping();
-		PDGNode nodeG1 = nodeMapping.getNodeG1();
-		Statement oldStatement = nodeG1.getASTStatement();
 		Statement newStatement = null;
-		if(oldStatement instanceof IfStatement) {
-			IfStatement oldIfStatement = (IfStatement)oldStatement;
-			IfStatement newIfStatement = ast.newIfStatement();
-			Expression newIfExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldIfStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, newIfExpression, null);
-			List<CloneStructureNode> trueControlDependentChildren = new ArrayList<CloneStructureNode>();
-			List<CloneStructureNode> falseControlDependentChildren = new ArrayList<CloneStructureNode>();
-			boolean symmetricalIfElse = nodeMapping.isSymmetricalIfElse();
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					PDGNodeMapping childMapping = (PDGNodeMapping) child.getMapping();
-					PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
-					if(symmetrical != null) {
-						if(symmetrical.equals(nodeMapping)) {
-							falseControlDependentChildren.add(child);
-						}
-						else {
-							trueControlDependentChildren.add(child);
-						}
-					}
-					else {
-						PDGNode childNodeG1 = child.getMapping().getNodeG1();
-						PDGNode childNodeG2 = child.getMapping().getNodeG2();
-						PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-						PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-						if(controlDependence1 != null && controlDependence2 != null) {
-							if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
-									(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
-								trueControlDependentChildren.add(child);
-							}
-							else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
-									(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+		if(processableMappedNode(node)) {
+			PDGNodeMapping nodeMapping = (PDGNodeMapping) node.getMapping();
+			PDGNode nodeG1 = nodeMapping.getNodeG1();
+			Statement oldStatement = nodeG1.getASTStatement();
+			if(oldStatement instanceof IfStatement) {
+				IfStatement oldIfStatement = (IfStatement)oldStatement;
+				IfStatement newIfStatement = ast.newIfStatement();
+				Expression newIfExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldIfStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newIfStatement, IfStatement.EXPRESSION_PROPERTY, newIfExpression, null);
+				List<CloneStructureNode> trueControlDependentChildren = new ArrayList<CloneStructureNode>();
+				List<CloneStructureNode> falseControlDependentChildren = new ArrayList<CloneStructureNode>();
+				boolean symmetricalIfElse = nodeMapping.isSymmetricalIfElse();
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						PDGNodeMapping childMapping = (PDGNodeMapping) child.getMapping();
+						PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
+						if(symmetrical != null) {
+							if(symmetrical.equals(nodeMapping)) {
 								falseControlDependentChildren.add(child);
 							}
-						}
-						else {
-							if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
-									isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
-								falseControlDependentChildren.add(child);
-							}
-							else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
-									!isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+							else {
 								trueControlDependentChildren.add(child);
 							}
 						}
-					}
-				}
-				else if(child.getMapping() instanceof PDGElseMapping) {
-					for(CloneStructureNode child2 : child.getChildren()) {
-						if(child2.getMapping() instanceof PDGNodeMapping) {
-							PDGNodeMapping childMapping = (PDGNodeMapping) child2.getMapping();
-							PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
-							if(symmetrical != null) {
-								if(symmetrical.equals(nodeMapping)) {
-									falseControlDependentChildren.add(child2);
+						else {
+							PDGNode childNodeG1 = child.getMapping().getNodeG1();
+							PDGNode childNodeG2 = child.getMapping().getNodeG2();
+							PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+							PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+							if(controlDependence1 != null && controlDependence2 != null) {
+								if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
+										(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
+									trueControlDependentChildren.add(child);
 								}
-								else {
-									trueControlDependentChildren.add(child2);
+								else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
+										(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+									falseControlDependentChildren.add(child);
 								}
 							}
 							else {
-								PDGNode childNodeG1 = child2.getMapping().getNodeG1();
-								PDGNode childNodeG2 = child2.getMapping().getNodeG2();
-								PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-								PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-								if(controlDependence1 != null && controlDependence2 != null) {
-									if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
-											(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
-										trueControlDependentChildren.add(child2);
-									}
-									else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
-											(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+								if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
+										isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+									falseControlDependentChildren.add(child);
+								}
+								else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
+										!isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+									trueControlDependentChildren.add(child);
+								}
+							}
+						}
+					}
+					else if(child.getMapping() instanceof PDGElseMapping) {
+						for(CloneStructureNode child2 : child.getChildren()) {
+							if(processableNode(child2)) {
+								PDGNodeMapping childMapping = (PDGNodeMapping) child2.getMapping();
+								PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
+								if(symmetrical != null) {
+									if(symmetrical.equals(nodeMapping)) {
 										falseControlDependentChildren.add(child2);
+									}
+									else {
+										trueControlDependentChildren.add(child2);
 									}
 								}
 								else {
-									if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
-											(isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
-										falseControlDependentChildren.add(child2);
+									PDGNode childNodeG1 = child2.getMapping().getNodeG1();
+									PDGNode childNodeG2 = child2.getMapping().getNodeG2();
+									PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+									PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+									if(controlDependence1 != null && controlDependence2 != null) {
+										if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
+												(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
+											trueControlDependentChildren.add(child2);
+										}
+										else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
+												(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+											falseControlDependentChildren.add(child2);
+										}
 									}
-									else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
-											(!isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
-										trueControlDependentChildren.add(child2);
+									else {
+										if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
+												(isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
+											falseControlDependentChildren.add(child2);
+										}
+										else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
+												(!isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
+											trueControlDependentChildren.add(child2);
+										}
 									}
 								}
 							}
 						}
 					}
 				}
-			}
-			if(oldIfStatement.getThenStatement() instanceof Block || trueControlDependentChildren.size() > 1) {
-				Block thenBlock = ast.newBlock();
-				ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
-				for(CloneStructureNode child : trueControlDependentChildren) {
-					thenBodyRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				if(oldIfStatement.getThenStatement() instanceof Block || trueControlDependentChildren.size() > 1) {
+					Block thenBlock = ast.newBlock();
+					ListRewrite thenBodyRewrite = sourceRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
+					for(CloneStructureNode child : trueControlDependentChildren) {
+						thenBodyRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+					sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
 				}
-				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, thenBlock, null);
-			}
-			else if(trueControlDependentChildren.size() == 1) {
-				CloneStructureNode child = trueControlDependentChildren.get(0);
-				sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, processCloneStructureNode(child, ast, sourceRewriter), null);
-			}
-			if(oldIfStatement.getElseStatement() instanceof Block || falseControlDependentChildren.size() > 1) {
-				Block elseBlock = ast.newBlock();
-				ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
-				for(CloneStructureNode child : falseControlDependentChildren) {
-					elseBodyRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+				else if(trueControlDependentChildren.size() == 1) {
+					CloneStructureNode child = trueControlDependentChildren.get(0);
+					sourceRewriter.set(newIfStatement, IfStatement.THEN_STATEMENT_PROPERTY, processCloneStructureNode(child, ast, sourceRewriter), null);
 				}
-				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+				if(oldIfStatement.getElseStatement() instanceof Block || falseControlDependentChildren.size() > 1) {
+					Block elseBlock = ast.newBlock();
+					ListRewrite elseBodyRewrite = sourceRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
+					for(CloneStructureNode child : falseControlDependentChildren) {
+						elseBodyRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+					sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, elseBlock, null);
+				}
+				else if(falseControlDependentChildren.size() == 1) {
+					CloneStructureNode child = falseControlDependentChildren.get(0);
+					sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, processCloneStructureNode(child, ast, sourceRewriter), null);
+				}
+				newStatement = newIfStatement;
 			}
-			else if(falseControlDependentChildren.size() == 1) {
-				CloneStructureNode child = falseControlDependentChildren.get(0);
-				sourceRewriter.set(newIfStatement, IfStatement.ELSE_STATEMENT_PROPERTY, processCloneStructureNode(child, ast, sourceRewriter), null);
+			else if(oldStatement instanceof SynchronizedStatement) {
+				SynchronizedStatement oldSynchronizedStatement = (SynchronizedStatement)oldStatement;
+				SynchronizedStatement newSynchronizedStatement = ast.newSynchronizedStatement();
+				Expression newExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSynchronizedStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.EXPRESSION_PROPERTY, newExpression, null);
+				Block newBlock = ast.newBlock();
+				ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.BODY_PROPERTY, newBlock, null);
+				newStatement = newSynchronizedStatement;
 			}
-			newStatement = newIfStatement;
+			else if(oldStatement instanceof TryStatement) {
+				TryStatement oldTryStatement = (TryStatement)oldStatement;
+				TryStatement newTryStatement = ast.newTryStatement();
+				ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+				List<VariableDeclarationExpression> resources = oldTryStatement.resources();
+				for(VariableDeclarationExpression expression : resources) {
+					Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
+					resourceRewrite.insertLast(newResourceExpression, null);
+				}
+				Block newBlock = ast.newBlock();
+				ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, newBlock, null);
+				ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+				List<CatchClause> catchClauses = oldTryStatement.catchClauses();
+				for(CatchClause catchClause : catchClauses) {
+					CatchClause newCatchClause = ast.newCatchClause();
+					sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
+					Block newCatchBody = ast.newBlock();
+					ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
+					List<Statement> oldCatchStatements = catchClause.getBody().statements();
+					for(Statement oldCatchStatement : oldCatchStatements) {
+						Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldCatchStatement, nodeMapping.getNonOverlappingNodeDifferences());
+						newCatchBodyRewrite.insertLast(newStatement2, null);
+					}
+					sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
+					catchClauseRewrite.insertLast(newCatchClause, null);
+				}
+				if(oldTryStatement.getFinally() != null) {
+					Block newFinallyBody = ast.newBlock();
+					ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
+					List<Statement> oldFinallyStatements = oldTryStatement.getFinally().statements();
+					for(Statement oldFinallyStatement : oldFinallyStatements) {
+						Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldFinallyStatement, nodeMapping.getNonOverlappingNodeDifferences());
+						newFinallyBodyRewrite.insertLast(newStatement2, null);
+					}
+					sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
+				}
+				newStatement = newTryStatement;
+			}
+			else if(oldStatement instanceof SwitchStatement) {
+				SwitchStatement oldSwitchStatement = (SwitchStatement)oldStatement;
+				SwitchStatement newSwitchStatement = ast.newSwitchStatement();
+				Expression newSwitchExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSwitchStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newSwitchStatement, SwitchStatement.EXPRESSION_PROPERTY, newSwitchExpression, null);
+				ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						switchStatementsRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				newStatement = newSwitchStatement;
+			}
+			else if(oldStatement instanceof WhileStatement) {
+				WhileStatement oldWhileStatement = (WhileStatement)oldStatement;
+				WhileStatement newWhileStatement = ast.newWhileStatement();
+				Expression newWhileExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldWhileStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newWhileStatement, WhileStatement.EXPRESSION_PROPERTY, newWhileExpression, null);
+				Block loopBlock = ast.newBlock();
+				ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				sourceRewriter.set(newWhileStatement, WhileStatement.BODY_PROPERTY, loopBlock, null);
+				newStatement = newWhileStatement;
+			}
+			else if(oldStatement instanceof ForStatement) {
+				ForStatement oldForStatement = (ForStatement)oldStatement;
+				ForStatement newForStatement = ast.newForStatement();
+				Expression newForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldForStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newForStatement, ForStatement.EXPRESSION_PROPERTY, newForExpression, null);
+				ListRewrite initializerRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.INITIALIZERS_PROPERTY);
+				List<Expression> initializers = oldForStatement.initializers();
+				for(Expression expression : initializers) {
+					Expression newInitializerExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
+					initializerRewrite.insertLast(newInitializerExpression, null);
+				}
+				ListRewrite updaterRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.UPDATERS_PROPERTY);
+				List<Expression> updaters = oldForStatement.updaters();
+				for(Expression expression : updaters) {
+					Expression newUpdaterExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
+					updaterRewrite.insertLast(newUpdaterExpression, null);
+				}
+				Block loopBlock = ast.newBlock();
+				ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				sourceRewriter.set(newForStatement, ForStatement.BODY_PROPERTY, loopBlock, null);
+				newStatement = newForStatement;
+			}
+			else if(oldStatement instanceof EnhancedForStatement) {
+				EnhancedForStatement oldEnhancedForStatement = (EnhancedForStatement)oldStatement;
+				EnhancedForStatement newEnhancedForStatement = ast.newEnhancedForStatement();
+				sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.PARAMETER_PROPERTY, oldEnhancedForStatement.getParameter(), null);
+				Expression newEnhancedForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldEnhancedForStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.EXPRESSION_PROPERTY, newEnhancedForExpression, null);
+				Block loopBlock = ast.newBlock();
+				ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.BODY_PROPERTY, loopBlock, null);
+				newStatement = newEnhancedForStatement;
+			}
+			else if(oldStatement instanceof DoStatement) {
+				DoStatement oldDoStatement = (DoStatement)oldStatement;
+				DoStatement newDoStatement = ast.newDoStatement();
+				Expression newDoExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldDoStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
+				sourceRewriter.set(newDoStatement, DoStatement.EXPRESSION_PROPERTY, newDoExpression, null);
+				Block loopBlock = ast.newBlock();
+				ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
+				for(CloneStructureNode child : node.getChildren()) {
+					if(processableNode(child)) {
+						loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
+					}
+				}
+				sourceRewriter.set(newDoStatement, DoStatement.BODY_PROPERTY, loopBlock, null);
+				newStatement = newDoStatement;
+			}
+			else {
+				newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNonOverlappingNodeDifferences());
+			}
+			LabeledStatement labeled1 = belongsToLabeledStatement(nodeG1);
+			LabeledStatement labeled2 = belongsToLabeledStatement(nodeMapping.getNodeG2());
+			if(labeled1 != null && labeled2 != null) {
+				labeledStatementsToBeRemoved.get(0).add(labeled1);
+				labeledStatementsToBeRemoved.get(1).add(labeled2);
+				LabeledStatement newLabeledStatement = ast.newLabeledStatement();
+				sourceRewriter.set(newLabeledStatement, LabeledStatement.LABEL_PROPERTY, labeled1.getLabel(), null);
+				sourceRewriter.set(newLabeledStatement, LabeledStatement.BODY_PROPERTY, newStatement, null);
+				newStatement = newLabeledStatement;
+			}
 		}
-		else if(oldStatement instanceof SynchronizedStatement) {
-			SynchronizedStatement oldSynchronizedStatement = (SynchronizedStatement)oldStatement;
-			SynchronizedStatement newSynchronizedStatement = ast.newSynchronizedStatement();
-			Expression newExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSynchronizedStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.EXPRESSION_PROPERTY, newExpression, null);
-			Block newBlock = ast.newBlock();
-			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			sourceRewriter.set(newSynchronizedStatement, SynchronizedStatement.BODY_PROPERTY, newBlock, null);
-			newStatement = newSynchronizedStatement;
-		}
-		else if(oldStatement instanceof TryStatement) {
-			TryStatement oldTryStatement = (TryStatement)oldStatement;
-			TryStatement newTryStatement = ast.newTryStatement();
-			ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
-			List<VariableDeclarationExpression> resources = oldTryStatement.resources();
-			for(VariableDeclarationExpression expression : resources) {
-				Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
-				resourceRewrite.insertLast(newResourceExpression, null);
-			}
-			Block newBlock = ast.newBlock();
-			ListRewrite blockRewrite = sourceRewriter.getListRewrite(newBlock, Block.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					blockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			sourceRewriter.set(newTryStatement, TryStatement.BODY_PROPERTY, newBlock, null);
-			ListRewrite catchClauseRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
-			List<CatchClause> catchClauses = oldTryStatement.catchClauses();
-			for(CatchClause catchClause : catchClauses) {
-				CatchClause newCatchClause = ast.newCatchClause();
-				sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
-				Block newCatchBody = ast.newBlock();
-				ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
-				List<Statement> oldCatchStatements = catchClause.getBody().statements();
-				for(Statement oldCatchStatement : oldCatchStatements) {
-					Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldCatchStatement, nodeMapping.getNonOverlappingNodeDifferences());
-					newCatchBodyRewrite.insertLast(newStatement2, null);
-				}
-				sourceRewriter.set(newCatchClause, CatchClause.BODY_PROPERTY, newCatchBody, null);
-				catchClauseRewrite.insertLast(newCatchClause, null);
-			}
-			if(oldTryStatement.getFinally() != null) {
-				Block newFinallyBody = ast.newBlock();
-				ListRewrite newFinallyBodyRewrite = sourceRewriter.getListRewrite(newFinallyBody, Block.STATEMENTS_PROPERTY);
-				List<Statement> oldFinallyStatements = oldTryStatement.getFinally().statements();
-				for(Statement oldFinallyStatement : oldFinallyStatements) {
-					Statement newStatement2 = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldFinallyStatement, nodeMapping.getNonOverlappingNodeDifferences());
-					newFinallyBodyRewrite.insertLast(newStatement2, null);
-				}
-				sourceRewriter.set(newTryStatement, TryStatement.FINALLY_PROPERTY, newFinallyBody, null);
-			}
-			newStatement = newTryStatement;
-		}
-		else if(oldStatement instanceof SwitchStatement) {
-			SwitchStatement oldSwitchStatement = (SwitchStatement)oldStatement;
-			SwitchStatement newSwitchStatement = ast.newSwitchStatement();
-			Expression newSwitchExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldSwitchStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newSwitchStatement, SwitchStatement.EXPRESSION_PROPERTY, newSwitchExpression, null);
-			ListRewrite switchStatementsRewrite = sourceRewriter.getListRewrite(newSwitchStatement, SwitchStatement.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					switchStatementsRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			newStatement = newSwitchStatement;
-		}
-		else if(oldStatement instanceof WhileStatement) {
-			WhileStatement oldWhileStatement = (WhileStatement)oldStatement;
-			WhileStatement newWhileStatement = ast.newWhileStatement();
-			Expression newWhileExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldWhileStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newWhileStatement, WhileStatement.EXPRESSION_PROPERTY, newWhileExpression, null);
-			Block loopBlock = ast.newBlock();
-			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			sourceRewriter.set(newWhileStatement, WhileStatement.BODY_PROPERTY, loopBlock, null);
-			newStatement = newWhileStatement;
-		}
-		else if(oldStatement instanceof ForStatement) {
-			ForStatement oldForStatement = (ForStatement)oldStatement;
-			ForStatement newForStatement = ast.newForStatement();
-			Expression newForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldForStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newForStatement, ForStatement.EXPRESSION_PROPERTY, newForExpression, null);
-			ListRewrite initializerRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.INITIALIZERS_PROPERTY);
-			List<Expression> initializers = oldForStatement.initializers();
-			for(Expression expression : initializers) {
-				Expression newInitializerExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
-				initializerRewrite.insertLast(newInitializerExpression, null);
-			}
-			ListRewrite updaterRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.UPDATERS_PROPERTY);
-			List<Expression> updaters = oldForStatement.updaters();
-			for(Expression expression : updaters) {
-				Expression newUpdaterExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping.getNonOverlappingNodeDifferences());
-				updaterRewrite.insertLast(newUpdaterExpression, null);
-			}
-			Block loopBlock = ast.newBlock();
-			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			sourceRewriter.set(newForStatement, ForStatement.BODY_PROPERTY, loopBlock, null);
-			newStatement = newForStatement;
-		}
-		else if(oldStatement instanceof EnhancedForStatement) {
-			EnhancedForStatement oldEnhancedForStatement = (EnhancedForStatement)oldStatement;
-			EnhancedForStatement newEnhancedForStatement = ast.newEnhancedForStatement();
-			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.PARAMETER_PROPERTY, oldEnhancedForStatement.getParameter(), null);
-			Expression newEnhancedForExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldEnhancedForStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.EXPRESSION_PROPERTY, newEnhancedForExpression, null);
-			Block loopBlock = ast.newBlock();
-			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			sourceRewriter.set(newEnhancedForStatement, EnhancedForStatement.BODY_PROPERTY, loopBlock, null);
-			newStatement = newEnhancedForStatement;
-		}
-		else if(oldStatement instanceof DoStatement) {
-			DoStatement oldDoStatement = (DoStatement)oldStatement;
-			DoStatement newDoStatement = ast.newDoStatement();
-			Expression newDoExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, oldDoStatement.getExpression(), nodeMapping.getNonOverlappingNodeDifferences());
-			sourceRewriter.set(newDoStatement, DoStatement.EXPRESSION_PROPERTY, newDoExpression, null);
-			Block loopBlock = ast.newBlock();
-			ListRewrite loopBlockRewrite = sourceRewriter.getListRewrite(loopBlock, Block.STATEMENTS_PROPERTY);
-			for(CloneStructureNode child : node.getChildren()) {
-				if(child.getMapping() instanceof PDGNodeMapping) {
-					loopBlockRewrite.insertLast(processCloneStructureNode(child, ast, sourceRewriter), null);
-				}
-			}
-			sourceRewriter.set(newDoStatement, DoStatement.BODY_PROPERTY, loopBlock, null);
-			newStatement = newDoStatement;
-		}
-		else {
-			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping.getNonOverlappingNodeDifferences());
-		}
-		LabeledStatement labeled1 = belongsToLabeledStatement(nodeG1);
-		LabeledStatement labeled2 = belongsToLabeledStatement(nodeMapping.getNodeG2());
-		if(labeled1 != null && labeled2 != null) {
-			labeledStatementsToBeRemoved.get(0).add(labeled1);
-			labeledStatementsToBeRemoved.get(1).add(labeled2);
-			LabeledStatement newLabeledStatement = ast.newLabeledStatement();
-			sourceRewriter.set(newLabeledStatement, LabeledStatement.LABEL_PROPERTY, labeled1.getLabel(), null);
-			sourceRewriter.set(newLabeledStatement, LabeledStatement.BODY_PROPERTY, newStatement, null);
-			newStatement = newLabeledStatement;
+		else if(processableGapNode(node)) {
+			PDGNodeGap nodeGap = (PDGNodeGap) node.getMapping();
+			PDGNode nodeG1 = nodeGap.getNodeG1();
+			Statement oldStatement = nodeG1.getASTStatement();
+			newStatement = oldStatement;
 		}
 		return newStatement;
+	}
+
+	private boolean processableNode(CloneStructureNode child) {
+		return processableMappedNode(child)  || processableGapNode(child);
+	}
+
+	private boolean processableMappedNode(CloneStructureNode child) {
+		return child.getMapping() instanceof PDGNodeMapping;
+	}
+
+	private boolean processableGapNode(CloneStructureNode child) {
+		return child.getMapping() instanceof PDGNodeGap && child.getMapping().isAdvancedMatch() && child.getMapping().getNodeG1() != null;
 	}
 
 	private Statement processCloneStructureGapNode(CloneStructureNode node, AST ast, ASTRewrite sourceRewriter, int index) {
@@ -2375,6 +2395,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			Set<VariableBindingKeyPair> parameterBindingKeys = originalPassedParameters.keySet();
 			Set<VariableBindingKeyPair> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
+			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
+			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
 				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
@@ -2391,7 +2413,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					IBinding binding = oldSimpleName.resolveBinding();
 					IBinding binding2 = oldSimpleName2.resolveBinding();
 					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
-					if(parameterBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeys.contains(keyPair))
+					if(parameterBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeys.contains(keyPair) ||
+							declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
+							declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
 						isCommonParameter = true;
 				}
 				else if(oldExpression instanceof QualifiedName && oldExpression2 instanceof QualifiedName) {
@@ -2402,7 +2426,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					IBinding binding = oldSimpleName.resolveBinding();
 					IBinding binding2 = oldSimpleName2.resolveBinding();
 					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
-					if(parameterBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeys.contains(keyPair))
+					if(parameterBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeys.contains(keyPair) ||
+							declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
+							declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
 						isCommonParameter = true;
 				}
 				if(!isCommonParameter) {

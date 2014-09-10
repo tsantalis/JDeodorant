@@ -594,9 +594,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
 			getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 		}
+		Set<VariableDeclaration> accessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
+		Set<VariableDeclaration> accessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 		if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
-			Set<VariableDeclaration> accessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
-			Set<VariableDeclaration> accessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 			pullUpLocallyAccessedFields(accessedLocalFieldsG1, accessedLocalFieldsG2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 
 			Set<VariableDeclaration> indirectlyAccessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getIndirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
@@ -615,7 +615,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						Type returnType = methodDeclaration1.getReturnType2();
 						TypeDeclaration typeDeclaration1 = findTypeDeclaration(methodDeclaration1);
 						TypeDeclaration typeDeclaration2 = findTypeDeclaration(methodDeclaration2);
-						if(clones) {
+						Set<VariableDeclaration> fieldsAccessedInMethod1 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG1, methodDeclaration1);
+						Set<VariableDeclaration> fieldsAccessedInMethod2 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG2, methodDeclaration2);
+						boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
+						boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
+						if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
 							//check if the common superclass is one of the source classes
 							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
 									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
@@ -633,9 +637,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								methodDeclaration1.accept(typeVisitor);
 								typeBindings.addAll(typeVisitor.getTypeBindings());
 								//check if the pulled up method is using fields that should be also pulled up, remove fields that have been already pulled up
-								Set<VariableDeclaration> fieldsAccessedInMethod1 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG1, methodDeclaration1);
 								fieldsAccessedInMethod1.removeAll(accessedLocalFieldsG1);
-								Set<VariableDeclaration> fieldsAccessedInMethod2 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG2, methodDeclaration2);
 								fieldsAccessedInMethod2.removeAll(accessedLocalFieldsG2);
 								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 							}
@@ -895,11 +897,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		//add parameters for the fields that should be parameterized instead of being pulled up
 		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
-			SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-			Type type = generateTypeFromTypeBinding(variableDeclaration.resolveBinding().getType(), ast, sourceRewriter);
-			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
-			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
-			parameterRewrite.insertLast(parameter, null);
+			if(accessedLocalFieldsG1.contains(variableDeclaration)) {
+				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+				Type type = generateTypeFromTypeBinding(variableDeclaration.resolveBinding().getType(), ast, sourceRewriter);
+				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
+				parameterRewrite.insertLast(parameter, null);
+			}
 		}
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 		bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
@@ -1398,10 +1402,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 						}*/
-						boolean avoidPullUpDueToSerialization1 = implementsSerializableInterface(sourceTypeDeclarations.get(0).resolveBinding()) &&
-								(localFieldG1.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
-						boolean avoidPullUpDueToSerialization2 = implementsSerializableInterface(sourceTypeDeclarations.get(1).resolveBinding()) &&
-								(localFieldG2.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
+						boolean avoidPullUpDueToSerialization1 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(0), localFieldG1);
+						boolean avoidPullUpDueToSerialization2 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(1), localFieldG2);
 						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
@@ -1466,6 +1468,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						else {
 							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
+							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+							typeBindings.add(localFieldG1.resolveBinding().getType());
+							getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						break;
 					}
@@ -1484,6 +1489,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
 		if(superclassTypeBinding != null) {
 			return implementsSerializableInterface(superclassTypeBinding);
+		}
+		return false;
+	}
+	
+	private boolean avoidPullUpFieldDueToSerialization(TypeDeclaration typeDeclaration, VariableDeclaration localField) {
+		return implementsSerializableInterface(typeDeclaration.resolveBinding()) &&
+				(localField.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
+	}
+	
+	private boolean avoidPullUpMethodDueToSerialization(TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldsAccessedInMethod) {
+		for(VariableDeclaration localField : fieldsAccessedInMethod) {
+			if(avoidPullUpFieldDueToSerialization(typeDeclaration, localField)) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -2816,7 +2835,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private void modifySourceMethod(CompilationUnit compilationUnit, MethodDeclaration methodDeclaration, TreeSet<PDGNode> removableNodes,
 			TreeSet<PDGNode> remainingNodesMovableBefore, TreeSet<PDGNode> remainingNodesMovableAfter, List<VariableDeclaration> returnedVariables,
-			Set<VariableDeclaration> fieldsToBeParamterized, int index) {
+			Set<VariableDeclaration> fieldsToBeParameterized, int index) {
 		AST ast = methodDeclaration.getAST();
 		ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 		MethodInvocation methodInvocation = ast.newMethodInvocation();
@@ -2870,8 +2889,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
-		for(VariableDeclaration variableDeclaration : fieldsToBeParamterized) {
-			argumentsRewrite.insertLast(variableDeclaration.getName(), null);
+		Set<VariableDeclaration> accessedLocalFields = null;
+		if(index == 0)
+			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
+		else
+			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
+		for(VariableDeclaration variableDeclaration : fieldsToBeParameterized) {
+			if(accessedLocalFields.contains(variableDeclaration)) {
+				argumentsRewrite.insertLast(variableDeclaration.getName(), null);
+			}
 		}
 		cloneInfo.argumentRewriteList.add(index, argumentsRewrite);
 		/*TreeSet<PDGNode> nodesToBeRemoved = new TreeSet<PDGNode>();

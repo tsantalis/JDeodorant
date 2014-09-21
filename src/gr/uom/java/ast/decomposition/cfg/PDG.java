@@ -156,6 +156,20 @@ public class PDG extends Graph {
 		return variables;
 	}
 
+	public Set<PlainVariable> getAllDeclaredVariables() {
+		Set<PlainVariable> variables = new LinkedHashSet<PlainVariable>();
+		for(AbstractVariable variable : entryNode.declaredVariables)
+			variables.add((PlainVariable)variable);
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(!(pdgNode instanceof PDGControlPredicateNode)) {
+				for(AbstractVariable variable : pdgNode.declaredVariables)
+					variables.add((PlainVariable)variable);
+			}
+		}
+		return variables;
+	}
+
 	public int getTotalNumberOfStatements() {
 		return nodes.size();
 	}

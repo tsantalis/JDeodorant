@@ -31,10 +31,13 @@ import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerCell;
 import org.eclipse.jface.window.IShellProvider;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -80,6 +83,19 @@ public class SliceProfileDialog extends Dialog {
 		
 		Composite resultComposite = new Composite(composite, SWT.NONE);
 		resultComposite.setLayout(new GridLayout(1, false));
+		
+		Group enableScopeVariablesGroup = new Group(resultComposite, SWT.SHADOW_ETCHED_IN);
+		enableScopeVariablesGroup.setLayout(new GridLayout(1, false));
+		Button enableButton = null;
+		if(System.getProperty("os.name").toLowerCase().indexOf("win") >= 0) {
+			enableButton = new MultilineButton(enableScopeVariablesGroup, SWT.WRAP | SWT.CHECK);
+		}
+		else {
+			enableButton = new Button(enableScopeVariablesGroup, SWT.WRAP | SWT.CHECK);
+		}
+		enableButton.setText("Enable only variables\nwith method scope");
+		enableButton.addSelectionListener(new MySelectionListener(enableButton));
+		
 		enabledVariableTableViewer = CheckboxTableViewer.newCheckList(resultComposite, SWT.BORDER);
 		enabledVariableTableViewer.setContentProvider(new EnabledVariableViewContentProvider());
 		enabledVariableTableViewer.addCheckStateListener(new EnabledVariableCheckStateListener());
@@ -115,7 +131,7 @@ public class SliceProfileDialog extends Dialog {
 		statementIDColumn.pack();
 		
 		int columnIndex = 1;
-		for(PlainVariable plainVariable : pdg.getVariablesWithMethodBodyScope()) {
+		for(PlainVariable plainVariable : pdg.getAllDeclaredVariables()) {
 			PDGNode firstDefNode = pdg.getFirstDef(plainVariable);
 			PDGNode lastUseNode = pdg.getLastUse(plainVariable);
 			if(firstDefNode != null && lastUseNode != null) {
@@ -243,31 +259,51 @@ public class SliceProfileDialog extends Dialog {
 		}
 	}
 
+	class MySelectionListener extends SelectionAdapter {
+		private Button button;
+		public MySelectionListener(Button button) {
+			this.button = button;
+		}
+		public void widgetSelected(SelectionEvent e) {
+			Set<PlainVariable> variablesWithMethodScope = pdg.getVariablesWithMethodBodyScope();
+			if(button.getSelection()) {
+				for(PlainVariable variable : enabledVariableMap.keySet()) {
+					if(!variablesWithMethodScope.contains(variable)) {
+						enabledVariableMap.put(variable, false);
+						int index = getColumnIndex(variable);
+						sliceProfileTableViewer.getTable().getColumn(index).setWidth(0);
+						enabledVariableTableViewer.setChecked(variable, false);
+					}
+					else {
+						enabledVariableMap.put(variable, true);
+						int index = getColumnIndex(variable);
+						sliceProfileTableViewer.getTable().getColumn(index).setWidth(columnWidthMap.get(variable));
+						enabledVariableTableViewer.setChecked(variable, true);
+					}
+				}
+			}
+			else {
+				for(PlainVariable variable : enabledVariableMap.keySet()) {
+					enabledVariableMap.put(variable, true);
+					int index = getColumnIndex(variable);
+					sliceProfileTableViewer.getTable().getColumn(index).setWidth(columnWidthMap.get(variable));
+					enabledVariableTableViewer.setChecked(variable, true);
+				}
+			}
+			updateMetrics();
+		}
+	}
+
 	class EnabledVariableCheckStateListener implements ICheckStateListener {
 		public void checkStateChanged(CheckStateChangedEvent event) {
 			PlainVariable element = (PlainVariable)event.getElement();
 			enabledVariableMap.put(element, event.getChecked());
-			int index = 0;
-			for(Integer key : columnIndexMap.keySet()) {
-				if(columnIndexMap.get(key).equals(element)) {
-					index = key;
-					break;
-				}
-			}
+			int index = getColumnIndex(element);
 			if(event.getChecked())
 				sliceProfileTableViewer.getTable().getColumn(index).setWidth(columnWidthMap.get(element));
 			else
 				sliceProfileTableViewer.getTable().getColumn(index).setWidth(0);
-			Set<PlainVariable> enabledVariables = new LinkedHashSet<PlainVariable>();
-			for(PlainVariable variable : enabledVariableMap.keySet()) {
-				if(enabledVariableMap.get(variable) == true)
-					enabledVariables.add(variable);
-			}
-			sliceProfileIntersectionIndices = computeSliceProfileIntersectionStatements(enabledVariables);
-			sliceProfileTableViewer.refresh();
-			overlapText.setText(decimalFormat.format(overlap(enabledVariables)));
-			tightnessText.setText(decimalFormat.format(tightness()));
-			coverageText.setText(decimalFormat.format(coverage(enabledVariables)));
+			updateMetrics();
 		}
 	}
 
@@ -308,5 +344,29 @@ public class SliceProfileDialog extends Dialog {
 			sliceRatioSum += (double)SLint/(double)sliceSize;
 		}
 		return sliceRatioSum/(double)enabledVariables.size();
+	}
+
+	private int getColumnIndex(PlainVariable variable) {
+		int index = 0;
+		for(Integer key : columnIndexMap.keySet()) {
+			if(columnIndexMap.get(key).equals(variable)) {
+				index = key;
+				break;
+			}
+		}
+		return index;
+	}
+
+	private void updateMetrics() {
+		Set<PlainVariable> enabledVariables = new LinkedHashSet<PlainVariable>();
+		for(PlainVariable variable : enabledVariableMap.keySet()) {
+			if(enabledVariableMap.get(variable) == true)
+				enabledVariables.add(variable);
+		}
+		sliceProfileIntersectionIndices = computeSliceProfileIntersectionStatements(enabledVariables);
+		sliceProfileTableViewer.refresh();
+		overlapText.setText(decimalFormat.format(overlap(enabledVariables)));
+		tightnessText.setText(decimalFormat.format(tightness()));
+		coverageText.setText(decimalFormat.format(coverage(enabledVariables)));
 	}
 }

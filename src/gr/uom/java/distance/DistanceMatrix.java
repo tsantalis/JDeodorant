@@ -1,5 +1,6 @@
 package gr.uom.java.distance;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
@@ -233,22 +234,7 @@ public class DistanceMatrix {
     			if(classNamesToBeExamined.contains(sourceClass)) {
     				MyMethod method = (MyMethod)entity;
     				Set<String> entitySetI = entityMap.get(entityNames[i]);
-    				//ArrayList<String> contains the accessed entities per target class (key)
-    				Map<String, ArrayList<String>> accessMap = new LinkedHashMap<String, ArrayList<String>>();
-    				for(String e : entitySetI) {
-    					String[] tokens = e.split("::");
-    					String classOrigin = tokens[0];
-    					String entityName = tokens[1];
-    					if(accessMap.containsKey(classOrigin)) {
-    						ArrayList<String> list = accessMap.get(classOrigin);
-    						list.add(entityName);
-    					}
-    					else {
-    						ArrayList<String> list = new ArrayList<String>();
-    						list.add(entityName);
-    						accessMap.put(classOrigin, list);
-    					}
-    				}
+    				Map<String, ArrayList<String>> accessMap = computeAccessMap(entitySetI);
     				List<MoveMethodCandidateRefactoring> conceptuallyBoundRefactorings = identifyConceptualBindings(method, accessMap.keySet());
     				if(!conceptuallyBoundRefactorings.isEmpty()) {
     					candidateRefactoringList.addAll(conceptuallyBoundRefactorings);
@@ -347,6 +333,37 @@ public class DistanceMatrix {
     	return candidateRefactoringList;
     }
 
+	private Map<String, ArrayList<String>> computeAccessMap(Set<String> entitySetI) {
+		//ArrayList<String> contains the accessed entities per target class (key)
+		Map<String, ArrayList<String>> accessMap = new LinkedHashMap<String, ArrayList<String>>();
+		for(String e : entitySetI) {
+			String[] tokens = e.split("::");
+			String classOrigin = tokens[0];
+			String entityName = tokens[1];
+			if(accessMap.containsKey(classOrigin)) {
+				ArrayList<String> list = accessMap.get(classOrigin);
+				list.add(entityName);
+			}
+			else {
+				ArrayList<String> list = new ArrayList<String>();
+				list.add(entityName);
+				accessMap.put(classOrigin, list);
+			}
+		}
+		for(String key1 : accessMap.keySet()) {
+			ClassObject classObject = ASTReader.getSystemObject().getClassObject(key1);
+			if(classObject != null && classObject.getSuperclass() != null) {
+				for(String key2 : accessMap.keySet()) {
+					if(classObject.getSuperclass().getClassType().equals(key2)) {
+						ArrayList<String> list = accessMap.get(key1);
+						list.addAll(accessMap.get(key2));
+					}
+				}
+			}
+		}
+		return accessMap;
+	}
+
     public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByDistance() {
     	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
     	double entityPlacement0 = this.getSystemEntityPlacementValue();
@@ -356,22 +373,7 @@ public class DistanceMatrix {
     			String sourceClass = entity.getClassOrigin();
     			MyMethod method = (MyMethod)entity;
     			Set<String> entitySetI = entityMap.get(entityNames[i]);
-    			//ArrayList<String> contains the accessed entities per target class (key)
-    			Map<String, ArrayList<String>> accessMap = new LinkedHashMap<String, ArrayList<String>>();
-    			for(String e : entitySetI) {
-    				String[] tokens = e.split("::");
-    				String classOrigin = tokens[0];
-    				String entityName = tokens[1];
-    				if(accessMap.containsKey(classOrigin)) {
-    					ArrayList<String> list = accessMap.get(classOrigin);
-    					list.add(entityName);
-    				}
-    				else {
-    					ArrayList<String> list = new ArrayList<String>();
-    					list.add(entityName);
-    					accessMap.put(classOrigin, list);
-    				}
-    			}
+    			Map<String, ArrayList<String>> accessMap = computeAccessMap(entitySetI);
     			//ArrayList<String> contains the target classes from which entity i has key distance
     			TreeMap<Double, ArrayList<String>> sortedByDistanceMap = new TreeMap<Double, ArrayList<String>>();
     			for(String targetClass : accessMap.keySet()) {

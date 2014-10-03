@@ -1436,7 +1436,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 							for(IMethodBinding methodBinding1 : methods1) {
 								for(IMethodBinding methodBinding2 : methods2) {
 									if(MethodCallAnalyzer.equalSignature(methodBinding1, methodBinding2)) {
-										IMethodBinding[] declaredMethods = commonSuperType.getDeclaredMethods();
+										Set<IMethodBinding> declaredMethods = getDeclaredMethods(commonSuperType);
 										boolean commonSuperTypeMethodFound = false;
 										for(IMethodBinding commonSuperTypeMethod : declaredMethods) {
 											if(MethodCallAnalyzer.equalSignature(methodBinding1, commonSuperTypeMethod)) {
@@ -1496,6 +1496,23 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG2());
 			}
 		}
+	}
+
+	private Set<IMethodBinding> getDeclaredMethods(ITypeBinding typeBinding) {
+		Set<IMethodBinding> declaredMethods = new LinkedHashSet<IMethodBinding>();
+		//first add the directly declared methods
+		for(IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
+			declaredMethods.add(methodBinding);
+		}
+		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
+		if(superclassTypeBinding != null) {
+			declaredMethods.addAll(getDeclaredMethods(superclassTypeBinding));
+		}
+		ITypeBinding[] interfaces = typeBinding.getInterfaces();
+		for(ITypeBinding interfaceTypeBinding : interfaces) {
+			declaredMethods.addAll(getDeclaredMethods(interfaceTypeBinding));
+		}
+		return declaredMethods;
 	}
 
 	private boolean isVariableWithTypeMismatchDifference(Expression expression1, Expression expression2, ASTNodeDifference difference) {

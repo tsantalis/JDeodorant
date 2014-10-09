@@ -18,6 +18,7 @@ public class ConstructorObject implements AbstractMethodDeclaration {
 
     protected String name;
 	protected List<ParameterObject> parameterList;
+	protected List<CommentObject> commentList;
     protected Access access;
     protected String className;
     protected MethodBodyObject methodBody;
@@ -27,6 +28,7 @@ public class ConstructorObject implements AbstractMethodDeclaration {
 
     public ConstructorObject() {
 		this.parameterList = new ArrayList<ParameterObject>();
+		this.commentList = new ArrayList<CommentObject>();
         this.access = Access.NONE;
     }
 
@@ -71,6 +73,14 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     public String getClassName() {
         return this.className;
     }
+
+	public boolean addComment(CommentObject comment) {
+		return commentList.add(comment);
+	}
+
+	public ListIterator<CommentObject> getCommentListIterator() {
+		return commentList.listIterator();
+	}
 
 	public boolean addParameter(ParameterObject parameter) {
 		return parameterList.add(parameter);

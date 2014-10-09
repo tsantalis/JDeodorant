@@ -16,10 +16,12 @@ public abstract class ClassDeclarationObject {
 	protected String name;
 	protected List<MethodObject> methodList;
 	protected List<FieldObject> fieldList;
+	protected List<CommentObject> commentList;
 	
 	public ClassDeclarationObject() {
 		this.methodList = new ArrayList<MethodObject>();
 		this.fieldList = new ArrayList<FieldObject>();
+		this.commentList = new ArrayList<CommentObject>();
 	}
 
 	public abstract ITypeRoot getITypeRoot();
@@ -35,12 +37,24 @@ public abstract class ClassDeclarationObject {
 		return fieldList.add(f);
 	}
 
+	public boolean addComment(CommentObject comment) {
+		return commentList.add(comment);
+	}
+
+	public boolean addComments(List<CommentObject> comments) {
+		return commentList.addAll(comments);
+	}
+
 	public ListIterator<MethodObject> getMethodIterator() {
 		return methodList.listIterator();
 	}
 
 	public ListIterator<FieldObject> getFieldIterator() {
 		return fieldList.listIterator();
+	}
+
+	public ListIterator<CommentObject> getCommentIterator() {
+		return commentList.listIterator();
 	}
 
 	public int getNumberOfMethods() {

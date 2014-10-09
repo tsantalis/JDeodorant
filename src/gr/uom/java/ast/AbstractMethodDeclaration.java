@@ -25,6 +25,8 @@ public interface AbstractMethodDeclaration {
 
     public String getClassName();
 
+    public ListIterator<CommentObject> getCommentListIterator();
+    
     public ListIterator<ParameterObject> getParameterListIterator();
 
     public ParameterObject getParameter(int position);

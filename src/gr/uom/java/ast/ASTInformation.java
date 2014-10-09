@@ -30,6 +30,14 @@ public class ASTInformation {
 		return iTypeRoot;
 	}
 	
+	public int getStartPosition() {
+		return startPosition;
+	}
+
+	public int getLength() {
+		return length;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o) {
 			return true;

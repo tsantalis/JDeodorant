@@ -19,6 +19,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.Comment;
@@ -484,6 +485,16 @@ public class ASTReader {
 		
 		for(AnonymousClassDeclarationObject anonymous : constructorObject.getAnonymousClassDeclarations()) {
 			anonymous.setClassObject(classObject);
+			AnonymousClassDeclaration anonymousClassDeclaration = anonymous.getAnonymousClassDeclaration();
+			int anonymousClassDeclarationStartPosition = anonymousClassDeclaration.getStartPosition();
+			int anonymousClassDeclarationEndPosition = anonymousClassDeclarationStartPosition + anonymousClassDeclaration.getLength();
+			for(CommentObject comment : constructorObject.commentList) {
+				int commentStartPosition = comment.getStartPosition();
+				int commentEndPosition = commentStartPosition + comment.getLength();
+				if(anonymousClassDeclarationStartPosition <= commentStartPosition && anonymousClassDeclarationEndPosition >= commentEndPosition) {
+					anonymous.addComment(comment);
+				}
+			}
 		}
 		
 		if(methodDeclaration.isConstructor()) {

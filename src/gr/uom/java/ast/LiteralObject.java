@@ -26,7 +26,9 @@ public class LiteralObject {
 			NullLiteral nullLiteral = (NullLiteral)expression;
 			literalType = LiteralType.NULL;
 			value = "null";
-			type = TypeObject.extractTypeObject(nullLiteral.resolveTypeBinding().getQualifiedName());
+			if(nullLiteral.resolveTypeBinding() != null) {
+				type = TypeObject.extractTypeObject(nullLiteral.resolveTypeBinding().getQualifiedName());
+			}
 		}
 		else if(expression instanceof NumberLiteral) {
 			NumberLiteral numberLiteral = (NumberLiteral)expression;

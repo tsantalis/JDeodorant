@@ -846,7 +846,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		//add parameters for the differences between the clones
+		int existingArgValue = findExistingParametersWithArgName();
 		int i = 0;
+		if(existingArgValue > 0) {
+			i = existingArgValue + 1;
+		}
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			AbstractExpression expression1 = difference.getExpression1();
 			AbstractExpression expression2 = difference.getExpression2();
@@ -2507,13 +2511,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private Expression createArgument(AST ast, ASTNodeDifference argumentDifference) {
 		Expression argument;
+		int existingArgValue = findExistingParametersWithArgName();
+		int i = 0;
+		if(existingArgValue > 0) {
+			i = existingArgValue + 1;
+		}
 		if(parameterizedDifferenceMap.containsKey(argumentDifference.getBindingSignaturePair())) {
 			List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
 			int index = list.indexOf(argumentDifference.getBindingSignaturePair());
-			argument = ast.newSimpleName("arg" + index);
+			argument = ast.newSimpleName("arg" + (i + index));
 		}
 		else {
-			argument = ast.newSimpleName("arg" + parameterizedDifferenceMap.size());
+			argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
 			parameterizedDifferenceMap.put(argumentDifference.getBindingSignaturePair(), argumentDifference);
 		}
 		return argument;
@@ -3159,6 +3168,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				importRewrite.insertLast(importDeclaration, null);
 			}
 		}
+	}
+
+	private int findExistingParametersWithArgName() {
+		int arg = 0;
+		for(MethodDeclaration sourceMethodDeclaration : this.sourceMethodDeclarations) {
+			List<SingleVariableDeclaration> parameters = sourceMethodDeclaration.parameters();
+			for(SingleVariableDeclaration parameter : parameters) {
+				String parameterName = parameter.getName().getIdentifier();
+				if(parameterName.startsWith("arg")) {
+					try {
+						int value = Integer.parseInt(parameterName.substring(3));
+						if(value > arg) {
+							arg = value;
+						}
+					}
+					catch(NumberFormatException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		return arg;
 	}
 
 	/*private void processTryStatement(TryStatement tryStatement) {

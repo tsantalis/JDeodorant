@@ -23,6 +23,7 @@ import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
@@ -37,6 +38,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -540,5 +542,41 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 			}
 		}
 		return returnedVariableType;
+	}
+
+	protected Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, Type returnType) {
+		Expression returnedExpression = null;
+		if(returnType.isPrimitiveType()) {
+			PrimitiveType primitiveType = (PrimitiveType)returnType;
+			if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BOOLEAN)) {
+				returnedExpression = ast.newBooleanLiteral(false);
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.CHAR)) {
+				CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+				sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
+				returnedExpression = characterLiteral;
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.INT) ||
+					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.SHORT) ||
+					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BYTE)) {
+				returnedExpression = ast.newNumberLiteral("0");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.LONG)) {
+				returnedExpression = ast.newNumberLiteral("0L");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.FLOAT)) {
+				returnedExpression = ast.newNumberLiteral("0.0f");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.DOUBLE)) {
+				returnedExpression = ast.newNumberLiteral("0.0d");
+			}
+			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
+				returnedExpression = null;
+			}
+		}
+		else {
+			returnedExpression = ast.newNullLiteral();
+		}
+		return returnedExpression;
 	}
 }

@@ -75,7 +75,6 @@ import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
-import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -910,42 +909,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
-	}
-
-	private Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, Type returnType) {
-		Expression returnedExpression = null;
-		if(returnType.isPrimitiveType()) {
-			PrimitiveType primitiveType = (PrimitiveType)returnType;
-			if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BOOLEAN)) {
-				returnedExpression = ast.newBooleanLiteral(false);
-			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.CHAR)) {
-				CharacterLiteral characterLiteral = ast.newCharacterLiteral();
-				sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
-				returnedExpression = characterLiteral;
-			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.INT) ||
-					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.SHORT) ||
-					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BYTE)) {
-				returnedExpression = ast.newNumberLiteral("0");
-			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.LONG)) {
-				returnedExpression = ast.newNumberLiteral("0L");
-			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.FLOAT)) {
-				returnedExpression = ast.newNumberLiteral("0.0f");
-			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.DOUBLE)) {
-				returnedExpression = ast.newNumberLiteral("0.0d");
-			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
-				returnedExpression = null;
-			}
-		}
-		else {
-			returnedExpression = ast.newNullLiteral();
-		}
-		return returnedExpression;
 	}
 
 	private void updateAccessModifier(MethodDeclaration methodDeclaration, Modifier.ModifierKeyword modifierKeyword) {

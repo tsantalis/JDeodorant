@@ -118,4 +118,6 @@ public interface AbstractMethodDeclaration {
     public List<TypeObject> getParameterTypeList();
 
     public List<String> getParameterList();
+
+    public String getSignature();
 }

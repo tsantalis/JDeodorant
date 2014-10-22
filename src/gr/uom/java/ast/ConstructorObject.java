@@ -453,8 +453,21 @@ public class ConstructorObject implements AbstractMethodDeclaration {
             sb.append(parameterList.get(parameterList.size()-1).toString());
         }
         sb.append(")");
-        if(methodBody != null)
-        	sb.append("\n").append(methodBody.toString());
+        /*if(methodBody != null)
+        	sb.append("\n").append(methodBody.toString());*/
         return sb.toString();
     }
+
+	public String getSignature() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(this.name);
+		sb.append("(");
+		if (!this.parameterList.isEmpty()) {
+			for (int i = 0; i < this.parameterList.size() - 1; i++)
+				sb.append(this.parameterList.get(i).getType()).append(", ");
+			sb.append(this.parameterList.get(this.parameterList.size() - 1).getType());
+		}
+		sb.append(")");
+		return sb.toString();
+	}
 }

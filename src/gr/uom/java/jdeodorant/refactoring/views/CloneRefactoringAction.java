@@ -52,11 +52,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 						IWorkbench wb = PlatformUI.getWorkbench();
 						IProgressService ps = wb.getProgressService();
 						if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-							ps.busyCursorWhile(new IRunnableWithProgress() {
-								public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-									new ASTReader(selectedProject, ASTReader.getSystemObject(), monitor);
-								}
-							});
+							new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
 						}
 						else {
 							ps.busyCursorWhile(new IRunnableWithProgress() {

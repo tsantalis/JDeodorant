@@ -25,7 +25,6 @@ import org.eclipse.jface.viewers.CheckboxTableViewer;
 import org.eclipse.jface.viewers.ICheckStateListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.StyledCellLabelProvider;
-import org.eclipse.jface.viewers.TableLayout;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerCell;
@@ -35,8 +34,8 @@ import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -64,6 +63,7 @@ public class SliceProfileDialog extends Dialog {
 
 	protected SliceProfileDialog(IShellProvider parentShell, PDG pdg) {
 		super(parentShell);
+		setShellStyle(getShellStyle() | SWT.RESIZE  | SWT.MAX);
 		this.pdg = pdg;
 		this.sliceProfileMap = new LinkedHashMap<PlainVariable, Set<PDGNode>>();
 		this.enabledVariableMap = new LinkedHashMap<PlainVariable, Boolean>();
@@ -75,7 +75,7 @@ public class SliceProfileDialog extends Dialog {
 	protected Control createDialogArea(Composite parent) {
 		Composite composite = (Composite)super.createDialogArea(parent);
 		parent.getShell().setText("Slice-based Cohesion Metrics");
-	    composite.setLayout(new RowLayout());
+	    composite.setLayout(new GridLayout(2, false));
 	    
 		sliceProfileTableViewer = new TableViewer(composite, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
 		sliceProfileTableViewer.setContentProvider(new SliceProfileViewContentProvider());
@@ -83,6 +83,10 @@ public class SliceProfileDialog extends Dialog {
 		
 		Composite resultComposite = new Composite(composite, SWT.NONE);
 		resultComposite.setLayout(new GridLayout(1, false));
+		
+		Group metricsGroup = new Group(resultComposite, SWT.SHADOW_ETCHED_IN);
+		metricsGroup.setLayout(new GridLayout(2, false));
+		metricsGroup.setText("Metrics");
 		
 		Group enableScopeVariablesGroup = new Group(resultComposite, SWT.SHADOW_ETCHED_IN);
 		enableScopeVariablesGroup.setLayout(new GridLayout(1, false));
@@ -99,10 +103,6 @@ public class SliceProfileDialog extends Dialog {
 		enabledVariableTableViewer = CheckboxTableViewer.newCheckList(resultComposite, SWT.BORDER);
 		enabledVariableTableViewer.setContentProvider(new EnabledVariableViewContentProvider());
 		enabledVariableTableViewer.addCheckStateListener(new EnabledVariableCheckStateListener());
-		
-		Group metricsGroup = new Group(resultComposite, SWT.SHADOW_ETCHED_IN);
-		metricsGroup.setLayout(new GridLayout(2, false));
-		metricsGroup.setText("Metrics");
 		
 		Label overlapLabel = new Label(metricsGroup, SWT.NONE);
 		overlapLabel.setText("Overlap:");
@@ -124,7 +124,6 @@ public class SliceProfileDialog extends Dialog {
 		
 		metricsGroup.pack();
 		
-		TableLayout layout = new TableLayout();
 		TableColumn statementIDColumn = new TableColumn(sliceProfileTableViewer.getTable(), SWT.CENTER);
 		statementIDColumn.setText("id");
 		statementIDColumn.setResizable(false);
@@ -166,7 +165,8 @@ public class SliceProfileDialog extends Dialog {
 				columnIndex++;
 			}
 		}
-		sliceProfileTableViewer.getTable().setLayout(layout);
+		GridData layoutData = new GridData(GridData.GRAB_VERTICAL | GridData.GRAB_HORIZONTAL | GridData.FILL_BOTH);
+		sliceProfileTableViewer.getTable().setLayoutData(layoutData);
 		sliceProfileTableViewer.getTable().setLinesVisible(true);
 		sliceProfileTableViewer.getTable().setHeaderVisible(true);
 		

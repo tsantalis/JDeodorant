@@ -47,6 +47,10 @@ public class AbstractLoopBindingInformation
 		// .size method of a collection is handled by the method isCollectionSizeInvocation(Expression) in the AbstractLoopUtilities class
 		// .length of an array is handled by the method isLengthFieldAccess(Expression) in the AbstractLoopUtilities class
 		dataStructureSizeMethods.add("Ljava/lang/String;.length()I");			// .length() (from String)
+		dataStructureSizeMethods.add(".getSize()I");							// .getSize() (from any class)
+		dataStructureSizeMethods.add(".getLength()I");							// .getLength() (from any class)
+		dataStructureSizeMethods.add(".size()I");								// .size() (from any class)
+		dataStructureSizeMethods.add(".length()I");								// .length() (from any class)
 		
 		dataStructureAccessMethods = new ArrayList<String>();
 		dataStructureAccessMethods.add("Ljava/util/ArrayList;.get(I)TE;");						// .get(int) (from ArrayList)
@@ -97,7 +101,14 @@ public class AbstractLoopBindingInformation
 	// checks if the dataStructureSizeMethods field contains the specified MethodBinding key
 	public boolean dataStructureSizeMethodContains(String methodBindingKey)
 	{
-		return dataStructureSizeMethods.contains(methodBindingKey);
+		for (String methodBindingEnd : dataStructureSizeMethods)
+		{
+			if (methodBindingKey.endsWith(methodBindingEnd))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// checks if the dataStructureSizeMethods field contains the specified MethodBinding key

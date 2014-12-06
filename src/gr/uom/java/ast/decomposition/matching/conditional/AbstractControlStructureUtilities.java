@@ -99,11 +99,11 @@ public class AbstractControlStructureUtilities
 				// if the ConditionalExpression is in the arguments
 				if (ternaryArgumentIndex != null)
 				{
+					// match the expressions
+					matchList.add(new Pair<Expression>(thenMethodInvocation.getExpression(), ternaryMethodInvocation.getExpression()));
+					matchList.add(new Pair<Expression>(elseMethodInvocation.getExpression(), ternaryMethodInvocation.getExpression()));
 					for (int i = 0; i < ternaryArguments.size(); i++)
 					{
-						// match the expressions
-						matchList.add(new Pair<Expression>(thenMethodInvocation.getExpression(), ternaryMethodInvocation.getExpression()));
-						matchList.add(new Pair<Expression>(elseMethodInvocation.getExpression(), ternaryMethodInvocation.getExpression()));
 						// match the arguments
 						if (i == ternaryArgumentIndex)
 						{

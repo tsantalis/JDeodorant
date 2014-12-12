@@ -4,8 +4,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractMethodRefactoring;
 
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.ltk.ui.refactoring.UserInputWizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
@@ -74,10 +77,18 @@ public class ExtractMethodInputPage extends UserInputWizardPage {
 
 	private void handleInputChanged() {
 		String methodNamePattern = "[a-zA-Z\\$_][a-zA-Z0-9\\$_]*";
+		ITypeBinding typeBinding = refactoring.getSlice().getSourceTypeDeclaration().resolveBinding();
 		for(Text text : textMap.keySet()) {
 			if(!Pattern.matches(methodNamePattern, text.getText())) {
 				setPageComplete(false);
 				String message = "Method name \"" + text.getText() + "\" is not valid";
+				setMessage(message, ERROR);
+				return;
+			}
+			else if(typeBinding != null && methodDeclaredInTypeBinding(typeBinding, text.getText())) {
+				setPageComplete(false);
+				String message = "A method with name \"" + text.getText() + "\" is declared in class " +
+						typeBinding.getQualifiedName();
 				setMessage(message, ERROR);
 				return;
 			}
@@ -87,5 +98,18 @@ public class ExtractMethodInputPage extends UserInputWizardPage {
 		}
 		setPageComplete(true);
 		setMessage("", NONE);
+	}
+	
+	private boolean methodDeclaredInTypeBinding(ITypeBinding typeBinding, String methodName) {
+		if(!typeBinding.getQualifiedName().equals("java.lang.Object") &&
+				ASTReader.getSystemObject().getClassObject(typeBinding.getQualifiedName()) != null) {
+			IMethodBinding[] declaredMethods = typeBinding.getDeclaredMethods();
+			for(IMethodBinding declaredMethod : declaredMethods) {
+				if(declaredMethod.getName().equals(methodName)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }

@@ -116,6 +116,10 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
+	public ASTSlice getSlice() {
+		return slice;
+	}
+
 	public String getExtractedMethodName() {
 		return slice.getExtractedMethodName();
 	}

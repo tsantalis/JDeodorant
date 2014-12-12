@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
+import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
@@ -30,6 +31,10 @@ public class PDGControlPredicateNode extends PDGNode {
 				List<CreationObject> creations = expression.getCreations();
 				for(CreationObject creation : creations) {
 					createdTypes.add(creation.getType());
+					if(creation instanceof ClassInstanceCreationObject) {
+						ClassInstanceCreationObject classInstanceCreation = (ClassInstanceCreationObject)creation;
+						thrownExceptionTypes.addAll(classInstanceCreation.getThrownExceptions());
+					}
 				}
 				for(PlainVariable variable : expression.getDeclaredLocalVariables()) {
 					declaredVariables.add(variable);

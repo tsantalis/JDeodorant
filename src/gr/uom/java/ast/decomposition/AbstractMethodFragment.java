@@ -448,6 +448,10 @@ public abstract class AbstractMethodFragment {
 				TypeObject parameterTypeObject = TypeObject.extractTypeObject(qualifiedParameterName);
 				creationObject.addParameter(parameterTypeObject);
 			}
+			ITypeBinding[] thrownExceptionTypes = constructorBinding.getExceptionTypes();
+			for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
+				creationObject.addThrownException(thrownExceptionType.getQualifiedName());
+			}
 			AnonymousClassDeclaration anonymous = classInstanceCreation.getAnonymousClassDeclaration();
 			if(anonymous != null) {
 				final AnonymousClassDeclarationObject anonymousClassObject = new AnonymousClassDeclarationObject();

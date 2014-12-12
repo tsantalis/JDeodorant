@@ -1,18 +1,22 @@
 package gr.uom.java.ast;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 
 public class ClassInstanceCreationObject extends CreationObject {
 
 	private List<TypeObject> parameterList;
+	private Set<String> thrownExceptions;
 	
 	public ClassInstanceCreationObject(TypeObject type) {
 		super(type);
 		this.parameterList = new ArrayList<TypeObject>();
+		this.thrownExceptions = new LinkedHashSet<String>();
 	}
 
 	public ClassInstanceCreation getClassInstanceCreation() {
@@ -40,6 +44,14 @@ public class ClassInstanceCreationObject extends CreationObject {
     	for(TypeObject typeObject : parameterList)
     		list.add(typeObject.toString());
     	return list;
+    }
+
+    public void addThrownException(String type) {
+    	thrownExceptions.add(type);
+    }
+
+    public Set<String> getThrownExceptions() {
+    	return this.thrownExceptions;
     }
 
 	public String toString() {

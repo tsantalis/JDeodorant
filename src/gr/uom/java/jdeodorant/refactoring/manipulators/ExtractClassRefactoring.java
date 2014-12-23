@@ -463,6 +463,41 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 	}
 
+	private boolean existsNonTransientExtractedFieldFragment() {
+		for(VariableDeclaration fieldFragment : extractedFieldFragments) {
+			FieldDeclaration originalFieldDeclaration = (FieldDeclaration)fieldFragment.getParent();
+			List<IExtendedModifier> originalModifiers = originalFieldDeclaration.modifiers();
+			boolean transientFound = false;
+    		for(IExtendedModifier extendedModifier : originalModifiers) {
+    			if(extendedModifier.isModifier()) {
+    				Modifier modifier = (Modifier)extendedModifier;
+    				if(modifier.isTransient()) {
+    					transientFound = true;
+    					break;
+    				}
+    			}
+    		}
+    		if(!transientFound) {
+    			return true;
+    		}
+		}
+		return false;
+	}
+
+	private ITypeBinding implementsSerializableInterface(ITypeBinding typeBinding) {
+		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
+		for(ITypeBinding implementedInterface : implementedInterfaces) {
+			if(implementedInterface.getQualifiedName().equals("java.io.Serializable")) {
+				return implementedInterface;
+			}
+		}
+		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
+		if(superclassTypeBinding != null) {
+			return implementsSerializableInterface(superclassTypeBinding);
+		}
+		return null;
+	}
+
 	private void createExtractedClass() {
 		IContainer contextContainer = (IContainer)sourceFile.getParent();
 		IFile extractedClassFile = null;
@@ -494,6 +529,14 @@ public class ExtractClassRefactoring extends Refactoring {
         extractedClassRewriter.set(extractedClassTypeDeclaration, TypeDeclaration.NAME_PROPERTY, extractedClassName, null);
         ListRewrite extractedClassModifiersRewrite = extractedClassRewriter.getListRewrite(extractedClassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
         extractedClassModifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+        
+        ITypeBinding serializableTypeBinding = implementsSerializableInterface(sourceTypeDeclaration.resolveBinding());
+        if(serializableTypeBinding != null && existsNonTransientExtractedFieldFragment()) {
+        	ListRewrite extractedClassImplementedInterfacesRewrite = extractedClassRewriter.getListRewrite(extractedClassTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
+        	Type serializableType = extractedClassAST.newSimpleType(extractedClassAST.newName(serializableTypeBinding.getName()));
+        	extractedClassImplementedInterfacesRewrite.insertLast(serializableType, null);
+        	requiredImportDeclarationsInExtractedClass.add(serializableTypeBinding);
+        }
 
         ListRewrite extractedClassBodyRewrite = extractedClassRewriter.getListRewrite(extractedClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
         ExpressionExtractor expressionExtractor = new ExpressionExtractor();
@@ -2393,6 +2436,9 @@ public class ExtractClassRefactoring extends Refactoring {
 		sourceRewriter.set(extractedReferenceFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 		ListRewrite typeFieldDeclarationModifiersRewrite = sourceRewriter.getListRewrite(extractedReferenceFieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
 		typeFieldDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+		if(implementsSerializableInterface(sourceTypeDeclaration.resolveBinding()) != null && !existsNonTransientExtractedFieldFragment()) {
+			typeFieldDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.TRANSIENT_KEYWORD), null);
+        }
 		contextBodyRewrite.insertFirst(extractedReferenceFieldDeclaration, null);
 		
 		try {

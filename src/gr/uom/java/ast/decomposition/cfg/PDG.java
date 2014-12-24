@@ -442,6 +442,14 @@ public class PDG extends Graph {
 		return null;
 	}
 
+	private boolean containsNodeWithID(int id) {
+		for(GraphNode node : cfg.nodes) {
+			if(node.getId() == id)
+				return true;
+		}
+		return false;
+	}
+
 	private void createControlDependenciesFromEntryNode() {
 		for(GraphNode node : cfg.nodes) {
 			CFGNode cfgNode = (CFGNode)node;
@@ -451,16 +459,20 @@ public class PDG extends Graph {
 		}
 		Map<CFGBlockNode, List<CFGNode>> directlyNestedNodesInBlocks = cfg.getDirectlyNestedNodesInBlocks();
 		for(CFGBlockNode blockNode : directlyNestedNodesInBlocks.keySet()) {
-			PDGBlockNode pdgBlockNode = null;
-			if(blockNode instanceof CFGTryNode) {
-				CFGTryNode tryNode = (CFGTryNode)blockNode;
-				pdgBlockNode = new PDGTryNode(tryNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+			if(!containsNodeWithID(blockNode.getId())) {
+				PDGBlockNode pdgBlockNode = null;
+				if(blockNode instanceof CFGTryNode) {
+					CFGTryNode tryNode = (CFGTryNode)blockNode;
+					pdgBlockNode = new PDGTryNode(tryNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+				}
+				else if(blockNode instanceof CFGSynchronizedNode) {
+					CFGSynchronizedNode synchronizedNode = (CFGSynchronizedNode)blockNode;
+					pdgBlockNode = new PDGSynchronizedNode(synchronizedNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+				}
+				if(pdgBlockNode != null) {
+					nodes.add(pdgBlockNode);
+				}
 			}
-			else if(blockNode instanceof CFGSynchronizedNode) {
-				CFGSynchronizedNode synchronizedNode = (CFGSynchronizedNode)blockNode;
-				pdgBlockNode = new PDGSynchronizedNode(synchronizedNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
-			}
-			nodes.add(pdgBlockNode);
 		}
 	}
 
@@ -478,8 +490,10 @@ public class PDG extends Graph {
 			PDGNode pdgNode = null;
 			if(cfgNode instanceof CFGExitNode)
 				pdgNode = new PDGExitNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
-			/*else if(cfgNode instanceof CFGTryNode)
-				pdgNode = new PDGTryNode((CFGTryNode)cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);*/
+			else if(cfgNode instanceof CFGTryNode)
+				pdgNode = new PDGTryNode((CFGTryNode)cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
+			else if(cfgNode instanceof CFGSynchronizedNode)
+				pdgNode = new PDGSynchronizedNode((CFGSynchronizedNode)cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			else
 				pdgNode = new PDGStatementNode(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 			nodes.add(pdgNode);

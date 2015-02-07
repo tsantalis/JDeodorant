@@ -157,6 +157,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		int diffCount = 0;
 		int variableTypeMismatchCount = 0;
 		int variableNameMismatchCount = 0;
+		int methodInvocationNameMismatchCount = 0;
 		for(ASTNodeDifference difference : differences) {
 			for(Difference diff : difference.getDifferences()) {
 				diffCount++;
@@ -166,9 +167,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
 					variableNameMismatchCount++;
 				}
+				if(diff.getType().equals(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH)) {
+					methodInvocationNameMismatchCount++;
+				}
 			}
 		}
-		if(diffCount > 0 && diffCount == (variableTypeMismatchCount + variableNameMismatchCount))
+		if(diffCount > 0 && (diffCount == (variableTypeMismatchCount + variableNameMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + methodInvocationNameMismatchCount)))
 			return true;
 		return false;
 	}

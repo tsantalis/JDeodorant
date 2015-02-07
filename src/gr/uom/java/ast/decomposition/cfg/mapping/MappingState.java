@@ -88,7 +88,10 @@ public class MappingState {
 		Set<Difference> differences = new LinkedHashSet<Difference>();
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
-				differences.addAll(difference.getDifferences());
+				for(Difference diff : difference.getDifferences()) {
+					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH))
+						differences.add(diff);
+				}
 			}
 		}
 		return differences.size();
@@ -98,7 +101,10 @@ public class MappingState {
 		List<Difference> differences = new ArrayList<Difference>();
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
-				differences.addAll(difference.getDifferences());
+				for(Difference diff : difference.getDifferences()) {
+					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH))
+						differences.add(diff);
+				}
 			}
 		}
 		return differences.size();

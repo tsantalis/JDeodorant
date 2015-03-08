@@ -14,6 +14,7 @@ import gr.uom.java.ast.decomposition.matching.conditional.AbstractControlStructu
 import gr.uom.java.ast.decomposition.matching.conditional.IfControlStructure;
 import gr.uom.java.ast.decomposition.matching.conditional.SwitchControlStructure;
 import gr.uom.java.ast.decomposition.matching.conditional.TernaryControlStructure;
+import gr.uom.java.ast.decomposition.matching.loop.AbstractControlVariable;
 import gr.uom.java.ast.decomposition.matching.loop.AbstractLoop;
 import gr.uom.java.ast.decomposition.matching.loop.AbstractLoopUtilities;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
@@ -23,6 +24,7 @@ import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -306,6 +308,36 @@ public class ASTNodeMatcher extends ASTMatcher{
 				return false;
 			}
 		}
+		if(binding1.isCapture() && binding2.isCapture()) {
+			ITypeBinding wildcardTypeBinding1 = binding1.getWildcard();
+			ITypeBinding wildcardTypeBinding2 = binding2.getWildcard();
+			if(wildcardTypeBinding1.isEqualTo(wildcardTypeBinding2))
+				return true;
+		}
+		if(binding1.isParameterizedType() && binding2.isParameterizedType()) {
+			ITypeBinding[] typeArguments1 = binding1.getTypeArguments();
+			ITypeBinding[] typeArguments2 = binding2.getTypeArguments();
+			boolean allTypeArgumentsMatch = true;
+			if(typeArguments1.length == typeArguments2.length) {
+				int i = 0;
+				for(ITypeBinding typeArgument1 : typeArguments1) {
+					ITypeBinding typeArgument2 = typeArguments2[i];
+					if(!typeBindingMatch(typeArgument1, typeArgument2)) {
+						allTypeArgumentsMatch = false;
+						break;
+					}
+					i++;
+				}
+			}
+			else {
+				allTypeArgumentsMatch = false;
+			}
+			ITypeBinding declarationTypeBinding1 = binding1.getTypeDeclaration();
+			ITypeBinding declarationTypeBinding2 = binding2.getTypeDeclaration();
+			boolean declarationTypeMatch = typeBindingMatch(declarationTypeBinding1, declarationTypeBinding2);
+			if(declarationTypeMatch && allTypeArgumentsMatch)
+				return true;
+		}
 		if(binding1.isEqualTo(binding2))
 			return true;
 		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {
@@ -324,11 +356,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
 		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
 		for(ITypeBinding superType2 : superTypes2) {
-			if(superType2.isEqualTo(typeBinding1))
+			if(superType2.isEqualTo(typeBinding1) || implementsInterface(superType2, typeBinding1))
 				return typeBinding1;
 		}
 		for(ITypeBinding superType1 : superTypes1) {
-			if(superType1.isEqualTo(typeBinding2))
+			if(superType1.isEqualTo(typeBinding2) || implementsInterface(superType1, typeBinding2))
 				return typeBinding2;
 		}
 		boolean found = false;
@@ -345,6 +377,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 				break;
 		}
 		return commonSuperType;
+	}
+
+	private static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
+		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
+		for(ITypeBinding implementedInterface : implementedInterfaces) {
+			if(implementedInterface.isEqualTo(interfaceType))
+				return true;
+		}
+		return false;
 	}
 
 	private static Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {
@@ -1950,35 +1991,44 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					ConditionalLoop nodeConditionalLoop  = (ConditionalLoop)nodeLoop;
 					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)otherLoop.getLoopStatement()).getParameter().getName();
-					ControlVariable conditionalLoopControlVariable = (ControlVariable)nodeConditionalLoop.getConditionControlVariables().values().toArray()[0];
-					SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
-					safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter);
+					Collection<AbstractControlVariable> nodeConditionControlVariables = nodeConditionalLoop.getConditionControlVariables().values();
+					if (!nodeConditionControlVariables.isEmpty())
+					{
+						ControlVariable conditionalLoopControlVariable = (ControlVariable)nodeConditionControlVariables.toArray()[0];
+						SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
+						safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter);
+					}
 				}
 				if (nodeLoop instanceof ConditionalLoop && otherLoop instanceof ConditionalLoop)
 				{
 					ConditionalLoop nodeConditionalLoop  = (ConditionalLoop)nodeLoop;
 					ConditionalLoop otherConditionalLoop  = (ConditionalLoop)otherLoop;
-					ControlVariable nodeConditionalLoopControlVariable = (ControlVariable)nodeConditionalLoop.getConditionControlVariables().values().toArray()[0];
-					ControlVariable otherConditionalLoopControlVariable = (ControlVariable)otherConditionalLoop.getConditionControlVariables().values().toArray()[0];
-					ASTNode nodeDataStructureAccessExpression = nodeConditionalLoopControlVariable.getDataStructureAccessExpression();
-					ASTNode otherDataStructureAccessExpression = otherConditionalLoopControlVariable.getDataStructureAccessExpression();
-					if (nodeDataStructureAccessExpression != null && otherDataStructureAccessExpression != null)
+					Collection<AbstractControlVariable> nodeConditionControlVariables = nodeConditionalLoop.getConditionControlVariables().values();
+					Collection<AbstractControlVariable> otherConditionControlVariables = otherConditionalLoop.getConditionControlVariables().values();
+					if (!nodeConditionControlVariables.isEmpty() && !otherConditionControlVariables.isEmpty())
 					{
-						if (nodeDataStructureAccessExpression instanceof MethodInvocation &&
-								otherDataStructureAccessExpression instanceof MethodInvocation)
+						ControlVariable nodeConditionalLoopControlVariable = (ControlVariable)nodeConditionControlVariables.toArray()[0];
+						ControlVariable otherConditionalLoopControlVariable = (ControlVariable)otherConditionControlVariables.toArray()[0];
+						ASTNode nodeDataStructureAccessExpression = nodeConditionalLoopControlVariable.getDataStructureAccessExpression();
+						ASTNode otherDataStructureAccessExpression = otherConditionalLoopControlVariable.getDataStructureAccessExpression();
+						if (nodeDataStructureAccessExpression != null && otherDataStructureAccessExpression != null)
 						{
-							MethodInvocation nodeDataStructureAccessMethodInvocation = (MethodInvocation)nodeDataStructureAccessExpression;
-							MethodInvocation otherDataStructureAccessMethodInvocation = (MethodInvocation)otherDataStructureAccessExpression;
-							if (nodeDataStructureAccessMethodInvocation.resolveMethodBinding().isEqualTo(otherDataStructureAccessMethodInvocation.resolveMethodBinding()))
+							if (nodeDataStructureAccessExpression instanceof MethodInvocation &&
+									otherDataStructureAccessExpression instanceof MethodInvocation)
 							{
-								safeSubtreeListMatch(nodeDataStructureAccessMethodInvocation.arguments(), otherDataStructureAccessMethodInvocation.arguments());
+								MethodInvocation nodeDataStructureAccessMethodInvocation = (MethodInvocation)nodeDataStructureAccessExpression;
+								MethodInvocation otherDataStructureAccessMethodInvocation = (MethodInvocation)otherDataStructureAccessExpression;
+								if (nodeDataStructureAccessMethodInvocation.resolveMethodBinding().isEqualTo(otherDataStructureAccessMethodInvocation.resolveMethodBinding()))
+								{
+									safeSubtreeListMatch(nodeDataStructureAccessMethodInvocation.arguments(), otherDataStructureAccessMethodInvocation.arguments());
+								}
 							}
-						}
-						else
-						{
-							SimpleName nodeVariableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(nodeConditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
-							SimpleName otherVariableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(otherConditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
-							safeSubtreeMatch(nodeVariableInitializedUsingControlVariable, otherVariableInitializedUsingControlVariable);
+							else
+							{
+								SimpleName nodeVariableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(nodeConditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
+								SimpleName otherVariableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(otherConditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
+								safeSubtreeMatch(nodeVariableInitializedUsingControlVariable, otherVariableInitializedUsingControlVariable);
+							}
 						}
 					}
 				}
@@ -1988,9 +2038,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					ConditionalLoop otherConditionalLoop = (ConditionalLoop)otherLoop;
 					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)nodeLoop.getLoopStatement()).getParameter().getName();
-					ControlVariable conditionalLoopControlVariable = (ControlVariable)otherConditionalLoop.getConditionControlVariables().values().toArray()[0];
-					SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
-					safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable);
+					Collection<AbstractControlVariable> otherConditionControlVariables = otherConditionalLoop.getConditionControlVariables().values();
+					if (!!otherConditionControlVariables.isEmpty())
+					{
+						ControlVariable conditionalLoopControlVariable = (ControlVariable)otherConditionControlVariables.toArray()[0];
+						SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
+						safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable);
+					}
 				}
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())
 				{

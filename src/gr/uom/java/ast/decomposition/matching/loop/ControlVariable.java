@@ -42,6 +42,7 @@ public class ControlVariable extends AbstractControlVariable
 {
 	private SimpleName variableNode;
 	private Expression dataStructureExpression;
+	private ASTNode dataStructureAccessExpression;
 
 	public ControlVariable(SimpleName variableNode, Statement loopBody, List<Expression> forUpdaters)
 	{
@@ -54,6 +55,13 @@ public class ControlVariable extends AbstractControlVariable
 			ASTNode conditionContainingVariable = getConditionContainingVariable(variableNode);
 			this.endValue                       = getEndValue(variableNode, conditionContainingVariable);
 		}
+		List<ASTNode> dataStructureAccessExpressions =
+				AbstractLoopUtilities.getVariableDeclarationsAndAssignmentsContainingAccessUsingVariable(loopBody, this);
+		if(dataStructureAccessExpressions.size() == 1)
+		{
+			dataStructureAccessExpression = dataStructureAccessExpressions.get(0);
+		}
+		
 	}
 
 	public SimpleName getVariable()
@@ -64,6 +72,10 @@ public class ControlVariable extends AbstractControlVariable
 	public Expression getDataStructureExpression()
 	{
 		return dataStructureExpression;
+	}
+
+	public ASTNode getDataStructureAccessExpression() {
+		return dataStructureAccessExpression;
 	}
 
 	private static ASTNode getConditionContainingVariable(SimpleName variableNode)

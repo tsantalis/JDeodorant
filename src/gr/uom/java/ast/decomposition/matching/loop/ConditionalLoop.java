@@ -95,6 +95,11 @@ public class ConditionalLoop extends AbstractLoop
 				{
 					additionalFragments.add(variableDeclaration);
 				}
+				ASTNode dataStructureAccessExpression = controlVariable.getDataStructureAccessExpression();
+				if(dataStructureAccessExpression != null)
+				{
+					additionalFragments.add(dataStructureAccessExpression);
+				}
 			}
 		}
 		/*// if the current ConditionalLoop is a for loop, remove all for the updaters found in the for declaration

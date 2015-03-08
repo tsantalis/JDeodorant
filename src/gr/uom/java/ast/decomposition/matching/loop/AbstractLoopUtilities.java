@@ -466,7 +466,7 @@ public class AbstractLoopUtilities
 		return initializedVariableName;
 	}
 	
-	private static List<ASTNode> getVariableDeclarationsAndAssignmentsContainingAccessUsingVariable(Statement body, ControlVariable variable)
+	public static List<ASTNode> getVariableDeclarationsAndAssignmentsContainingAccessUsingVariable(Statement body, ControlVariable variable)
 	{
 		StatementExtractor statementExtractor = new StatementExtractor();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
@@ -492,6 +492,22 @@ public class AbstractLoopUtilities
 			if (isAccessUsingVariable(rightHandSide, variable))
 			{
 				returnList.add(currentAssignment);
+			}
+		}
+		List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(body);
+		for (Expression expression : methodInvocations)
+		{
+			if (expression instanceof MethodInvocation)
+			{
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				Expression methodInvocationExpression = methodInvocation.getExpression();
+				if(methodInvocationExpression != null)
+				{
+					if (isAccessUsingVariable(methodInvocationExpression, variable))
+					{
+						returnList.add(methodInvocation);
+					}
+				}
 			}
 		}
 		return returnList;

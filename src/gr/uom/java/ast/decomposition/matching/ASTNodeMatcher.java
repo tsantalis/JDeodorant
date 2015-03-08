@@ -1952,12 +1952,35 @@ public class ASTNodeMatcher extends ASTMatcher{
 					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)otherLoop.getLoopStatement()).getParameter().getName();
 					ControlVariable conditionalLoopControlVariable = (ControlVariable)nodeConditionalLoop.getConditionControlVariables().values().toArray()[0];
 					SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
-					if (safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter))
+					safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter);
+				}
+				if (nodeLoop instanceof ConditionalLoop && otherLoop instanceof ConditionalLoop)
+				{
+					ConditionalLoop nodeConditionalLoop  = (ConditionalLoop)nodeLoop;
+					ConditionalLoop otherConditionalLoop  = (ConditionalLoop)otherLoop;
+					ControlVariable nodeConditionalLoopControlVariable = (ControlVariable)nodeConditionalLoop.getConditionControlVariables().values().toArray()[0];
+					ControlVariable otherConditionalLoopControlVariable = (ControlVariable)otherConditionalLoop.getConditionControlVariables().values().toArray()[0];
+					ASTNode nodeDataStructureAccessExpression = nodeConditionalLoopControlVariable.getDataStructureAccessExpression();
+					ASTNode otherDataStructureAccessExpression = otherConditionalLoopControlVariable.getDataStructureAccessExpression();
+					if (nodeDataStructureAccessExpression != null && otherDataStructureAccessExpression != null)
 					{
-						List<ASTNode> additionalNodes = new ArrayList<ASTNode>();
-						additionalNodes.add(variableInitializedUsingControlVariable.getParent());
-						reportAdditionalFragments(additionalNodes, this.additionallyMatchedFragments1);
-					}				
+						if (nodeDataStructureAccessExpression instanceof MethodInvocation &&
+								otherDataStructureAccessExpression instanceof MethodInvocation)
+						{
+							MethodInvocation nodeDataStructureAccessMethodInvocation = (MethodInvocation)nodeDataStructureAccessExpression;
+							MethodInvocation otherDataStructureAccessMethodInvocation = (MethodInvocation)otherDataStructureAccessExpression;
+							if (nodeDataStructureAccessMethodInvocation.resolveMethodBinding().isEqualTo(otherDataStructureAccessMethodInvocation.resolveMethodBinding()))
+							{
+								safeSubtreeListMatch(nodeDataStructureAccessMethodInvocation.arguments(), otherDataStructureAccessMethodInvocation.arguments());
+							}
+						}
+						else
+						{
+							SimpleName nodeVariableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(nodeConditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
+							SimpleName otherVariableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(otherConditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
+							safeSubtreeMatch(nodeVariableInitializedUsingControlVariable, otherVariableInitializedUsingControlVariable);
+						}
+					}
 				}
 				ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 				reportAdditionalFragments(otherLoop, this.additionallyMatchedFragments2);
@@ -1967,12 +1990,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)nodeLoop.getLoopStatement()).getParameter().getName();
 					ControlVariable conditionalLoopControlVariable = (ControlVariable)otherConditionalLoop.getConditionControlVariables().values().toArray()[0];
 					SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
-					if (safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable))
-					{
-						List<ASTNode> additionalNodes = new ArrayList<ASTNode>();
-						additionalNodes.add(variableInitializedUsingControlVariable.getParent());
-						reportAdditionalFragments(additionalNodes, this.additionallyMatchedFragments2);
-					}
+					safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable);
 				}
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())
 				{

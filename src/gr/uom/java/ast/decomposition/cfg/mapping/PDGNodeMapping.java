@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
@@ -86,6 +90,46 @@ public class PDGNodeMapping extends IdBasedMapping {
 			}
 		}
 		return false;
+	}
+
+	public boolean isDifferenceInConditionalExpressionOfAdvancedLoopMatch(ASTNodeDifference difference) {
+		if(isAdvancedMatch()) {
+			AbstractStatement statement1 = nodeG1.getStatement();
+			AbstractStatement statement2 = nodeG2.getStatement();
+			if(statement1 instanceof CompositeStatementObject && statement2 instanceof CompositeStatementObject) {
+				CompositeStatementObject composite1 = (CompositeStatementObject)statement1;	
+				boolean foundInComposite1 = false;
+				for(AbstractExpression expression1 : composite1.getExpressions()) {
+					AbstractExpression differenceExpression1 = difference.getExpression1();
+					if(isExpressionWithinExpression(differenceExpression1.getExpression(), expression1.getExpression())) {
+						foundInComposite1 = true;
+						break;
+					}
+				}
+				CompositeStatementObject composite2 = (CompositeStatementObject)statement2;
+				boolean foundInComposite2 = false;
+				for(AbstractExpression expression2 : composite2.getExpressions()) {
+					AbstractExpression differenceExpression2 = difference.getExpression2();
+					if(isExpressionWithinExpression(differenceExpression2.getExpression(), expression2.getExpression())) {
+						foundInComposite2 = true;
+						break;
+					}
+				}
+				if(foundInComposite1 && foundInComposite2)
+					return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isExpressionWithinExpression(ASTNode expression, Expression parentExpression) {
+		if(expression.equals(parentExpression))
+			return true;
+		ASTNode parent = expression.getParent();
+		if(!(parent instanceof Statement))
+			return isExpressionWithinExpression(parent, parentExpression);
+		else
+			return false;
 	}
 
 	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {

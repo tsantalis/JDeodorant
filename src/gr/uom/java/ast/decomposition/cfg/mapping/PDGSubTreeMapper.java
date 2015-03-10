@@ -1342,11 +1342,18 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
 		NodeMapping nodeMapping = node.getMapping();
 		for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
+			boolean isDifferenceInConditionalExpressionOfAdvancedLoopMatch = false;
+			if(nodeMapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)nodeMapping;
+				if(pdgNodeMapping.isDifferenceInConditionalExpressionOfAdvancedLoopMatch(difference))
+					isDifferenceInConditionalExpressionOfAdvancedLoopMatch = true;
+			}
 			AbstractExpression abstractExpression1 = difference.getExpression1();
 			Expression expression1 = abstractExpression1.getExpression();
 			AbstractExpression abstractExpression2 = difference.getExpression2();
 			Expression expression2 = abstractExpression2.getExpression();
-			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !isVariableWithTypeMismatchDifference(expression1, expression2, difference)) {
+			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !isVariableWithTypeMismatchDifference(expression1, expression2, difference) &&
+					!isDifferenceInConditionalExpressionOfAdvancedLoopMatch) {
 				PreconditionViolationType violationType1 = isParameterizableExpression(pdg1, removableNodesG1, abstractExpression1, iCompilationUnit1);
 				if(violationType1 != null) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(), violationType1);

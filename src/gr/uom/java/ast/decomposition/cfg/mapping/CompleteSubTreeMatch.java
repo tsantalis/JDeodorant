@@ -1,5 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +17,26 @@ public class CompleteSubTreeMatch {
 
 	public TreeSet<ControlDependenceTreeNodeMatchPair> getMatchPairs() {
 		return matchPairs;
+	}
+
+	public List<AbstractMethodFragment> getAdditionalFragments1() {
+		List<AbstractMethodFragment> additionalFragments = new ArrayList<AbstractMethodFragment>();
+		for(ControlDependenceTreeNodeMatchPair pair : matchPairs) {
+			additionalFragments.addAll(pair.getAdditionalFragments1());
+		}
+		return additionalFragments;
+	}
+
+	public List<AbstractMethodFragment> getAdditionalFragments2() {
+		List<AbstractMethodFragment> additionalFragments = new ArrayList<AbstractMethodFragment>();
+		for(ControlDependenceTreeNodeMatchPair pair : matchPairs) {
+			additionalFragments.addAll(pair.getAdditionalFragments2());
+		}
+		return additionalFragments;
+	}
+
+	public boolean isAdvancedMatch() {
+		return !getAdditionalFragments1().isEmpty() || !getAdditionalFragments2().isEmpty();
 	}
 
 	public List<ControlDependenceTreeNode> getControlDependenceTreeNodes1() {

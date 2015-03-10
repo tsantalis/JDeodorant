@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 
@@ -9,6 +10,8 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 	private ControlDependenceTreeNode node1;
 	private ControlDependenceTreeNode node2;
 	private List<ASTNodeDifference> nodeDifferences;
+	private List<AbstractMethodFragment> additionalFragments1;
+	private List<AbstractMethodFragment> additionalFragments2;
 	private volatile int hashCode = 0;
 
 	public ControlDependenceTreeNodeMatchPair(ControlDependenceTreeNode node1, ControlDependenceTreeNode node2,
@@ -16,6 +19,8 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 		this.node1 = node1;
 		this.node2 = node2;
 		this.nodeDifferences = matcher.getDifferences();
+		this.additionalFragments1 = matcher.getAdditionallyMatchedFragments1();
+		this.additionalFragments2 = matcher.getAdditionallyMatchedFragments2();
 	}
 
 	public ControlDependenceTreeNode getNode1() {
@@ -28,6 +33,14 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 
 	public List<ASTNodeDifference> getNodeDifferences() {
 		return nodeDifferences;
+	}
+
+	public List<AbstractMethodFragment> getAdditionalFragments1() {
+		return additionalFragments1;
+	}
+
+	public List<AbstractMethodFragment> getAdditionalFragments2() {
+		return additionalFragments2;
 	}
 
 	public boolean ifStatementInsideElseIfChain() {

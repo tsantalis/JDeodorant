@@ -394,11 +394,11 @@ public class AbstractLoopUtilities
 	
 	// returns a boolean indicating which side of the specified infixExpression the specified variable is on
 	// returns null if it is on neither side
-	public static Boolean isVariableLeftOperand(SimpleName variable, InfixExpression infixExpression)
+	public static boolean isVariableLeftOperand(SimpleName variable, InfixExpression infixExpression)
 	{
-		Boolean leftOperandIsVariable     = null;
+		boolean leftOperandIsVariable     = false;
 		Expression leftOperand            = infixExpression.getLeftOperand();
-		Expression rightOperand           = infixExpression.getRightOperand();
+		//Expression rightOperand           = infixExpression.getRightOperand();
 		IBinding infixVariableBinding     = variable.resolveBinding();
 		if (leftOperand instanceof SimpleName)
 		{
@@ -409,16 +409,75 @@ public class AbstractLoopUtilities
 				leftOperandIsVariable = true;
 			}
 		}
+		else if (leftOperand instanceof InfixExpression)
+		{
+			InfixExpression infixLeftOperand = (InfixExpression) leftOperand;
+			boolean left = isVariableLeftOperand(variable, infixLeftOperand);
+			boolean right = isVariableRightOperand(variable, infixLeftOperand);
+			List<Expression> extendedOperands = infixLeftOperand.extendedOperands();
+			boolean variableFoundInExtendedOperands = false;
+			for (Expression expression : extendedOperands)
+			{
+				if (expression instanceof SimpleName)
+				{
+					SimpleName simpleName = (SimpleName) expression;
+					IBinding simpleNameBinding = simpleName.resolveBinding();
+					if (simpleNameBinding.isEqualTo(infixVariableBinding))
+					{
+						variableFoundInExtendedOperands = true;
+						break;
+					}
+				}
+			}
+			if (left || right || variableFoundInExtendedOperands)
+			{
+				leftOperandIsVariable = true;
+			}
+		}
+		return leftOperandIsVariable;
+	}
+	
+	private static boolean isVariableRightOperand(SimpleName variable, InfixExpression infixExpression)
+	{
+		boolean rightOperandIsVariable     = false;
+		//Expression leftOperand            = infixExpression.getLeftOperand();
+		Expression rightOperand           = infixExpression.getRightOperand();
+		IBinding infixVariableBinding     = variable.resolveBinding();
 		if (rightOperand instanceof SimpleName)
 		{
 			SimpleName rightOperandSimpleName = (SimpleName) rightOperand;
 			IBinding rightOperandBinding      = rightOperandSimpleName.resolveBinding();
 			if (rightOperandBinding.isEqualTo(infixVariableBinding))
 			{
-				leftOperandIsVariable = false;
+				rightOperandIsVariable = true;
 			}
 		}
-		return leftOperandIsVariable;
+		else if (rightOperand instanceof InfixExpression)
+		{
+			InfixExpression infixRightOperand = (InfixExpression) rightOperand;
+			boolean left = isVariableLeftOperand(variable, infixRightOperand);
+			boolean right = isVariableRightOperand(variable, infixRightOperand);
+			List<Expression> extendedOperands = infixRightOperand.extendedOperands();
+			boolean variableFoundInExtendedOperands = false;
+			for (Expression expression : extendedOperands)
+			{
+				if (expression instanceof SimpleName)
+				{
+					SimpleName simpleName = (SimpleName) expression;
+					IBinding simpleNameBinding = simpleName.resolveBinding();
+					if (simpleNameBinding.isEqualTo(infixVariableBinding))
+					{
+						variableFoundInExtendedOperands = true;
+						break;
+					}
+				}
+			}
+			if (left || right || variableFoundInExtendedOperands)
+			{
+				rightOperandIsVariable = true;
+			}
+		}
+		return rightOperandIsVariable;
 	}
 	
 	public static List<Statement> unBlock(List<Statement> statements)

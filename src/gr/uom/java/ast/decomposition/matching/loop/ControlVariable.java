@@ -416,14 +416,14 @@ public class ControlVariable extends AbstractControlVariable
 				variableValue = bindingInformation.getConditionalMethodBindingEndValue(methodBindingKey);
 				if (variableValue.getType() == VariableValue.ValueType.DATA_STRUCTURE_SIZE)
 				{
-					this.dataStructureExpression = getIteratorDataStrcutureExpression(variableNode);
+					this.dataStructureExpression = getIteratorDataStructureExpression(variableNode);
 				}
 			}
 		}
 		return variableValue;
 	}
 	
-	private Expression getIteratorDataStrcutureExpression(SimpleName variableNode)
+	private Expression getIteratorDataStructureExpression(SimpleName variableNode)
 	{
 		List<ASTNode> modifiers = getValueContributingModifiers(variableNode);
 		if (modifiers.size() > 0)

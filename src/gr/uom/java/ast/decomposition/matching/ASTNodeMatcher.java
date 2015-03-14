@@ -398,7 +398,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return superTypes;
 	}
 
-	private boolean isInfixExpressionWithCompositeParent(ASTNode node) {
+	protected boolean isInfixExpressionWithCompositeParent(ASTNode node) {
 		if(node instanceof InfixExpression &&
 				(node.getParent() instanceof IfStatement || node.getParent() instanceof InfixExpression ||
 				node.getParent() instanceof WhileStatement || node.getParent() instanceof DoStatement ||
@@ -2140,6 +2140,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	{
 		for(ASTNode currentFragment : additionalFragements)
 		{
+			ASTNode parent = currentFragment.getParent();
 			if (currentFragment instanceof ExpressionStatement)
 			{
 				ExpressionStatement expressionStatement = (ExpressionStatement)currentFragment;
@@ -2152,20 +2153,26 @@ public class ASTNodeMatcher extends ASTMatcher{
 				StatementObject statementObject = new StatementObject(returnStatement, StatementType.RETURN, null);
 				fragmentList.add(statementObject);
 			}
-			else if(currentFragment.getParent() instanceof ExpressionStatement)
+			else if(parent instanceof ExpressionStatement)
 			{
-				ExpressionStatement expressionStatement = (ExpressionStatement)currentFragment.getParent();
+				ExpressionStatement expressionStatement = (ExpressionStatement)parent;
 				StatementObject updaterStatementObject = new StatementObject(expressionStatement, StatementType.EXPRESSION, null);
 				fragmentList.add(updaterStatementObject);
 			}
-			else if(currentFragment.getParent() instanceof VariableDeclarationStatement)
+			else if(parent instanceof VariableDeclarationStatement)
 			{
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)currentFragment.getParent();
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)parent;
 				if (variableDeclarationStatement.fragments().size() == 1)
 				{
 					StatementObject updaterStatementObject = new StatementObject(variableDeclarationStatement, StatementType.VARIABLE_DECLARATION, null);
 					fragmentList.add(updaterStatementObject);
 				}
+			}
+			else if(parent instanceof CastExpression && parent.getParent() instanceof VariableDeclarationFragment)
+			{
+				List<ASTNode> nodes = new ArrayList<ASTNode>();
+				nodes.add(parent.getParent());
+				reportAdditionalFragments(nodes, fragmentList);
 			}
 			else if (currentFragment instanceof Expression)
 			{

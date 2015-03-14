@@ -8,6 +8,7 @@ import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
 import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.InfixExpression;
 
@@ -15,6 +16,10 @@ public class ConditionalLoopASTNodeMatcher extends ASTNodeMatcher {
 
 	public ConditionalLoopASTNodeMatcher(ITypeRoot root1, ITypeRoot root2) {
 		super(root1, root2);
+	}
+
+	public boolean isInfixExpressionWithCompositeParent(ASTNode node) {
+		return false;
 	}
 
 	public boolean match(InfixExpression node, Object other) {

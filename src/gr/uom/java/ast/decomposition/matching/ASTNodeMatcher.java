@@ -21,6 +21,7 @@ import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoopASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.loop.ControlVariable;
 import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
+import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
@@ -67,6 +68,7 @@ import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
@@ -144,7 +146,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean isParameterizable() {
-		if(onlyVariableTypeMismatchDifferences())
+		if(onlyVariableTypeMismatchDifferences() || additionallyMatchedFragments1.size() > 0 || additionallyMatchedFragments2.size() > 0)
 			return true;
 		else {
 			for(ASTNodeDifference diff : differences) {
@@ -2001,6 +2003,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression conditionalLoopDataStructureExpression = conditionalLoopControlVariable.getDataStructureExpression();
 						Expression enhancedForLoopDataStructureExpression = otherEnhancedForLoop.getControlVariable().getDataStructureExpression();
 						safeSubtreeMatch(conditionalLoopDataStructureExpression, enhancedForLoopDataStructureExpression);
+						if (conditionalLoopDataStructureExpression instanceof SimpleName)
+						{
+							SimpleName simpleName = (SimpleName) conditionalLoopDataStructureExpression;
+							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(nodeConditionalLoop.getLoopBody(), simpleName);
+							for (SimpleName name : occurrencesOfSimpleName)
+							{
+								safeSubtreeMatch(name, enhancedForLoopDataStructureExpression);
+							}
+						}
+						if (enhancedForLoopDataStructureExpression instanceof SimpleName)
+						{
+							SimpleName simpleName = (SimpleName) enhancedForLoopDataStructureExpression;
+							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(otherEnhancedForLoop.getLoopBody(), simpleName);
+							for (SimpleName name : occurrencesOfSimpleName)
+							{
+								safeSubtreeMatch(conditionalLoopDataStructureExpression, name);
+							}
+						}
 					}
 				}
 				if (nodeLoop instanceof ConditionalLoop && otherLoop instanceof ConditionalLoop)
@@ -2016,6 +2036,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression nodeConditionalLoopDataStructureExpression = nodeConditionalLoopControlVariable.getDataStructureExpression();
 						Expression otherConditionalLoopDataStructureExpression = otherConditionalLoopControlVariable.getDataStructureExpression();
 						safeSubtreeMatch(nodeConditionalLoopDataStructureExpression, otherConditionalLoopDataStructureExpression);
+						if (nodeConditionalLoopDataStructureExpression instanceof SimpleName)
+						{
+							SimpleName simpleName = (SimpleName) nodeConditionalLoopDataStructureExpression;
+							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(nodeConditionalLoop.getLoopBody(), simpleName);
+							for (SimpleName name : occurrencesOfSimpleName)
+							{
+								safeSubtreeMatch(name, otherConditionalLoopDataStructureExpression);
+							}
+						}
+						if (otherConditionalLoopDataStructureExpression instanceof SimpleName)
+						{
+							SimpleName simpleName = (SimpleName) otherConditionalLoopDataStructureExpression;
+							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(otherConditionalLoop.getLoopBody(), simpleName);
+							for (SimpleName name : occurrencesOfSimpleName)
+							{
+								safeSubtreeMatch(nodeConditionalLoopDataStructureExpression, name);
+							}
+						}
 						ASTNode nodeDataStructureAccessExpression = nodeConditionalLoopControlVariable.getDataStructureAccessExpression();
 						ASTNode otherDataStructureAccessExpression = otherConditionalLoopControlVariable.getDataStructureAccessExpression();
 						if (nodeDataStructureAccessExpression != null && otherDataStructureAccessExpression != null)
@@ -2055,6 +2093,24 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression enhancedForLoopDataStructureExpression = nodeEnhancedForLoop.getControlVariable().getDataStructureExpression();
 						Expression conditionalLoopDataStructureExpression = conditionalLoopControlVariable.getDataStructureExpression();
 						safeSubtreeMatch(enhancedForLoopDataStructureExpression, conditionalLoopDataStructureExpression);
+						if (enhancedForLoopDataStructureExpression instanceof SimpleName)
+						{
+							SimpleName simpleName = (SimpleName) enhancedForLoopDataStructureExpression;
+							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(nodeEnhancedForLoop.getLoopBody(), simpleName);
+							for (SimpleName name : occurrencesOfSimpleName)
+							{
+								safeSubtreeMatch(name, conditionalLoopDataStructureExpression);
+							}
+						}
+						if (conditionalLoopDataStructureExpression instanceof SimpleName)
+						{
+							SimpleName simpleName = (SimpleName) conditionalLoopDataStructureExpression;
+							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(otherConditionalLoop.getLoopBody(), simpleName);
+							for (SimpleName name : occurrencesOfSimpleName)
+							{
+								safeSubtreeMatch(enhancedForLoopDataStructureExpression, name);
+							}
+						}
 					}
 				}
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())
@@ -2066,7 +2122,31 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		return false;
 	}
-	
+
+	private static List<SimpleName> getOccurrencesOfSimpleName(ASTNode node, SimpleName simpleName)
+	{
+		List<SimpleName> returnList = new ArrayList<SimpleName>();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> simpleNames = new ArrayList<Expression>();
+		if (node instanceof Expression)
+		{
+			simpleNames.addAll(expressionExtractor.getVariableInstructions((Expression)node));
+		}
+		else if (node instanceof Statement)
+		{
+			simpleNames.addAll(expressionExtractor.getVariableInstructions((Statement)node));
+		}
+		for (Expression currentExpression : simpleNames)
+		{
+			SimpleName currentSimpleName = (SimpleName)currentExpression;
+			if (currentSimpleName.resolveBinding().isEqualTo(simpleName.resolveBinding()))
+			{
+				returnList.add(currentSimpleName);
+			}
+		}
+		return returnList;
+	}
+
 	private static AbstractLoop generateAbstractLoop(Object object)
 	{
 		if (object instanceof ForStatement)

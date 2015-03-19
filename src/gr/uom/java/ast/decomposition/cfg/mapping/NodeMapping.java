@@ -3,6 +3,13 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.Statement;
+
+import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.AbstractStatement;
+import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
@@ -22,6 +29,64 @@ public abstract class NodeMapping implements Comparable<NodeMapping> {
 	public abstract PDGNode getNodeG2();
 	public abstract List<ASTNodeDifference> getNodeDifferences();
 	public abstract boolean isAdvancedMatch();
+
+	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
+		List<ASTNodeDifference> nodeDifferences = getNodeDifferences();
+		List<ASTNodeDifference> nonOverlappingDifferences = new ArrayList<ASTNodeDifference>(nodeDifferences);
+		for(int i=0; i<nodeDifferences.size(); i++) {
+			ASTNodeDifference nodeDifferenceI = nodeDifferences.get(i);
+			for(int j=i+1; j<nodeDifferences.size(); j++) {
+				ASTNodeDifference nodeDifferenceJ = nodeDifferences.get(j);
+				if(nodeDifferenceI.isParentNodeDifferenceOf(nodeDifferenceJ)) {
+					nonOverlappingDifferences.remove(nodeDifferenceJ);
+				}
+				else if(nodeDifferenceJ.isParentNodeDifferenceOf(nodeDifferenceI)) {
+					nonOverlappingDifferences.remove(nodeDifferenceI);
+				}
+			}
+		}
+		return nonOverlappingDifferences;
+	}
+
+	public boolean isDifferenceInConditionalExpressionOfAdvancedLoopMatch(ASTNodeDifference difference) {
+		if(isAdvancedMatch() && getNodeG1() != null && getNodeG2() != null) {
+			AbstractStatement statement1 = getNodeG1().getStatement();
+			AbstractStatement statement2 = getNodeG2().getStatement();
+			if(statement1 instanceof CompositeStatementObject && statement2 instanceof CompositeStatementObject) {
+				CompositeStatementObject composite1 = (CompositeStatementObject)statement1;	
+				boolean foundInComposite1 = false;
+				for(AbstractExpression expression1 : composite1.getExpressions()) {
+					AbstractExpression differenceExpression1 = difference.getExpression1();
+					if(isExpressionWithinExpression(differenceExpression1.getExpression(), expression1.getExpression())) {
+						foundInComposite1 = true;
+						break;
+					}
+				}
+				CompositeStatementObject composite2 = (CompositeStatementObject)statement2;
+				boolean foundInComposite2 = false;
+				for(AbstractExpression expression2 : composite2.getExpressions()) {
+					AbstractExpression differenceExpression2 = difference.getExpression2();
+					if(isExpressionWithinExpression(differenceExpression2.getExpression(), expression2.getExpression())) {
+						foundInComposite2 = true;
+						break;
+					}
+				}
+				if(foundInComposite1 && foundInComposite2)
+					return true;
+			}
+		}
+		return false;
+	}
+	
+	private boolean isExpressionWithinExpression(ASTNode expression, Expression parentExpression) {
+		if(expression.equals(parentExpression))
+			return true;
+		ASTNode parent = expression.getParent();
+		if(!(parent instanceof Statement))
+			return isExpressionWithinExpression(parent, parentExpression);
+		else
+			return false;
+	}
 
 	public boolean equals(Object o) {
 		if(this == o)

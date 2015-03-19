@@ -20,6 +20,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.NodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeGap;
@@ -1998,7 +1999,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			PDGNodeGap nodeGap = (PDGNodeGap) node.getMapping();
 			PDGNode nodeG1 = nodeGap.getNodeG1();
 			Statement oldStatement = nodeG1.getASTStatement();
-			newStatement = oldStatement;
+			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeGap);
 		}
 		return newStatement;
 	}
@@ -2348,7 +2349,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return parameterizedType;
 	}
 
-	private ASTNode processASTNodeWithDifferences(AST ast, ASTRewrite sourceRewriter, ASTNode oldASTNode, PDGNodeMapping nodeMapping) {
+	private ASTNode processASTNodeWithDifferences(AST ast, ASTRewrite sourceRewriter, ASTNode oldASTNode, NodeMapping nodeMapping) {
 		List<ASTNodeDifference> differences = nodeMapping.getNonOverlappingNodeDifferences();
 		if(differences.isEmpty()) {
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {

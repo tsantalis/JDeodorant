@@ -44,7 +44,7 @@ public class EnhancedForLoop extends AbstractLoop
 		{
 			return null;
 		}
-		return new AbstractControlVariable(startValue, endValue, variableUpdaters);
+		return new AbstractControlVariable(startValue, endValue, variableUpdaters, dataStructure);
 	}
 
 	public List<ASTNode> getAdditionalFragments()

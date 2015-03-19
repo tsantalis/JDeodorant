@@ -2003,7 +2003,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 				if(dependence instanceof PDGAbstractDataDependence) {
 					PDGAbstractDataDependence abstractDependence = (PDGAbstractDataDependence)dependence;
 					PDGNode srcPDGNode = (PDGNode)abstractDependence.getSrc();
-					if(nodes.contains(srcPDGNode)) {
+					if(nodes.contains(srcPDGNode) && !isAdvancedMatchNode(srcPDGNode)) {
 						if(dependence instanceof PDGDataDependence) {
 							PDGDataDependence dataDependence = (PDGDataDependence)dependence;
 							//check if pdgExpression is using dataDependence.data
@@ -2062,6 +2062,17 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			}
 		}
 		return null;
+	}
+
+	private boolean isAdvancedMatchNode(PDGNode node) {
+		if(this.additionallyMatchedNodesG1.contains(node) || this.additionallyMatchedNodesG2.contains(node))
+			return true;
+		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+			if(nodeMapping.isAdvancedMatch() && (nodeMapping.getNodeG1().equals(node) || nodeMapping.getNodeG2().equals(node))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean isExpressionUnderStatement(ASTNode expression, Statement statement) {

@@ -3,11 +3,14 @@ package gr.uom.java.ast.decomposition.matching.loop;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.Expression;
+
 public class AbstractControlVariable
 {
 	protected VariableValue startValue;
 	protected VariableValue endValue;
 	protected List<VariableUpdater> variableUpdaters;
+	protected Expression dataStructureExpression;
 
 	public AbstractControlVariable()
 	{
@@ -16,16 +19,23 @@ public class AbstractControlVariable
 		this.variableUpdaters = new ArrayList<VariableUpdater>();
 	}
 	
-	public AbstractControlVariable(VariableValue startValue, VariableValue endValue, List<VariableUpdater> variableUpdaters)
+	public AbstractControlVariable(VariableValue startValue, VariableValue endValue, List<VariableUpdater> variableUpdaters,
+			Expression dataStructureExpression)
 	{
-		this.startValue       = startValue;
-		this.endValue         = endValue;
-		this.variableUpdaters = variableUpdaters;
+		this.startValue              = startValue;
+		this.endValue                = endValue;
+		this.variableUpdaters        = variableUpdaters;
+		this.dataStructureExpression = dataStructureExpression;
 	}
 
 	public List<VariableUpdater> getVariableUpdaters()
 	{
 		return variableUpdaters;
+	}
+
+	public Expression getDataStructureExpression()
+	{
+		return dataStructureExpression;
 	}
 
 	public boolean match(AbstractControlVariable otherControlVariable)

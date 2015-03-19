@@ -1990,6 +1990,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if (nodeLoop instanceof ConditionalLoop && otherLoop instanceof EnhancedForLoop)
 				{
 					ConditionalLoop nodeConditionalLoop  = (ConditionalLoop)nodeLoop;
+					EnhancedForLoop otherEnhancedForLoop = (EnhancedForLoop)otherLoop;
 					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)otherLoop.getLoopStatement()).getParameter().getName();
 					Collection<AbstractControlVariable> nodeConditionControlVariables = nodeConditionalLoop.getConditionControlVariables().values();
 					if (!nodeConditionControlVariables.isEmpty())
@@ -1997,6 +1998,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 						ControlVariable conditionalLoopControlVariable = (ControlVariable)nodeConditionControlVariables.toArray()[0];
 						SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, nodeConditionalLoop.getLoopBody());
 						safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter);
+						Expression conditionalLoopDataStructureExpression = conditionalLoopControlVariable.getDataStructureExpression();
+						Expression enhancedForLoopDataStructureExpression = otherEnhancedForLoop.getControlVariable().getDataStructureExpression();
+						safeSubtreeMatch(conditionalLoopDataStructureExpression, enhancedForLoopDataStructureExpression);
 					}
 				}
 				if (nodeLoop instanceof ConditionalLoop && otherLoop instanceof ConditionalLoop)
@@ -2009,6 +2013,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					{
 						ControlVariable nodeConditionalLoopControlVariable = (ControlVariable)nodeConditionControlVariables.toArray()[0];
 						ControlVariable otherConditionalLoopControlVariable = (ControlVariable)otherConditionControlVariables.toArray()[0];
+						Expression nodeConditionalLoopDataStructureExpression = nodeConditionalLoopControlVariable.getDataStructureExpression();
+						Expression otherConditionalLoopDataStructureExpression = otherConditionalLoopControlVariable.getDataStructureExpression();
+						safeSubtreeMatch(nodeConditionalLoopDataStructureExpression, otherConditionalLoopDataStructureExpression);
 						ASTNode nodeDataStructureAccessExpression = nodeConditionalLoopControlVariable.getDataStructureAccessExpression();
 						ASTNode otherDataStructureAccessExpression = otherConditionalLoopControlVariable.getDataStructureAccessExpression();
 						if (nodeDataStructureAccessExpression != null && otherDataStructureAccessExpression != null)
@@ -2036,14 +2043,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 				reportAdditionalFragments(otherLoop, this.additionallyMatchedFragments2);
 				if (nodeLoop instanceof EnhancedForLoop && otherLoop instanceof ConditionalLoop)
 				{
+					EnhancedForLoop nodeEnhancedForLoop = (EnhancedForLoop)nodeLoop;
 					ConditionalLoop otherConditionalLoop = (ConditionalLoop)otherLoop;
 					SimpleName enhancedForLoopParameter  = ((EnhancedForStatement)nodeLoop.getLoopStatement()).getParameter().getName();
 					Collection<AbstractControlVariable> otherConditionControlVariables = otherConditionalLoop.getConditionControlVariables().values();
-					if (!!otherConditionControlVariables.isEmpty())
+					if (!otherConditionControlVariables.isEmpty())
 					{
 						ControlVariable conditionalLoopControlVariable = (ControlVariable)otherConditionControlVariables.toArray()[0];
 						SimpleName variableInitializedUsingControlVariable = AbstractLoopUtilities.getVariableInitializedUsingControlVariable(conditionalLoopControlVariable, otherConditionalLoop.getLoopBody());
 						safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable);
+						Expression enhancedForLoopDataStructureExpression = nodeEnhancedForLoop.getControlVariable().getDataStructureExpression();
+						Expression conditionalLoopDataStructureExpression = conditionalLoopControlVariable.getDataStructureExpression();
+						safeSubtreeMatch(enhancedForLoopDataStructureExpression, conditionalLoopDataStructureExpression);
 					}
 				}
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())

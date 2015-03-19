@@ -41,7 +41,6 @@ import org.eclipse.jdt.core.dom.WhileStatement;
 public class ControlVariable extends AbstractControlVariable
 {
 	private SimpleName variableNode;
-	private Expression dataStructureExpression;
 	private ASTNode dataStructureAccessExpression;
 
 	public ControlVariable(SimpleName variableNode, Statement loopBody, List<Expression> forUpdaters)
@@ -67,11 +66,6 @@ public class ControlVariable extends AbstractControlVariable
 	public SimpleName getVariable()
 	{
 		return variableNode;
-	}
-
-	public Expression getDataStructureExpression()
-	{
-		return dataStructureExpression;
 	}
 
 	public ASTNode getDataStructureAccessExpression() {

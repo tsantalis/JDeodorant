@@ -650,7 +650,8 @@ public class AbstractLoopUtilities
 		for (Expression currentExpression : simpleNames)
 		{
 			SimpleName currentSimpleName = (SimpleName)currentExpression;
-			if (currentSimpleName.resolveBinding().isEqualTo(simpleName.resolveBinding()))
+			IBinding currentSimpleNameBinding = currentSimpleName.resolveBinding();
+			if (currentSimpleNameBinding != null && currentSimpleNameBinding.isEqualTo(simpleName.resolveBinding()))
 			{
 				returnList.add(currentSimpleName);
 			}

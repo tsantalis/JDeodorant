@@ -170,8 +170,8 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		if(getMaximumStateWithMinimumDifferences() != null) {
 			this.mappedNodesG1 = getMaximumStateWithMinimumDifferences().getMappedNodesG1();
 			this.mappedNodesG2 = getMaximumStateWithMinimumDifferences().getMappedNodesG2();
-			findNonMappedNodes(pdg1, getAllNodesInSubTreePDG1(), mappedNodesG1, nonMappedNodesG1);
-			findNonMappedNodes(pdg2, getAllNodesInSubTreePDG2(), mappedNodesG2, nonMappedNodesG2);
+			findNonMappedNodes(getAllNodesInSubTreePDG1(), mappedNodesG1, nonMappedNodesG1);
+			findNonMappedNodes(getAllNodesInSubTreePDG2(), mappedNodesG2, nonMappedNodesG2);
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
 				boolean advancedMatch = getCloneStructureRoot().isGapNodeG1InAdditionalMatches(nodeG1);
 				List<ASTNodeDifference> differencesForAdvancedMatch = new ArrayList<ASTNodeDifference>();
@@ -293,18 +293,10 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 		}
 	}
 
-	private void findNonMappedNodes(PDG pdg, TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
-		if(allNodes.size() > 0) {
-			PDGNode first = allNodes.first();
-			PDGNode last = allNodes.last();
-			Iterator<GraphNode> iterator = pdg.getNodeIterator();
-			while(iterator.hasNext()) {
-				PDGNode pdgNode = (PDGNode)iterator.next();
-				if(pdgNode.getId() >= first.getId() && pdgNode.getId() <= last.getId()) {
-					if(!mappedNodes.contains(pdgNode)) {
-						nonMappedNodes.add(pdgNode);
-					}
-				}
+	private void findNonMappedNodes(TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
+		for(PDGNode pdgNode : allNodes) {
+			if(!mappedNodes.contains(pdgNode)) {
+				nonMappedNodes.add(pdgNode);
 			}
 		}
 	}

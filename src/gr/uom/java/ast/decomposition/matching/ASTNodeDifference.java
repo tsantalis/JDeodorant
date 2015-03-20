@@ -176,6 +176,46 @@ public class ASTNodeDifference {
 		return expression;
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result
+				+ ((differences == null) ? 0 : differences.hashCode());
+		result = prime * result
+				+ ((expression1 == null) ? 0 : expression1.hashCode());
+		result = prime * result
+				+ ((expression2 == null) ? 0 : expression2.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ASTNodeDifference other = (ASTNodeDifference) obj;
+		if (differences == null) {
+			if (other.differences != null)
+				return false;
+		} else if (!differences.equals(other.differences))
+			return false;
+		if (expression1 == null) {
+			if (other.expression1 != null)
+				return false;
+		} else if (!expression1.equals(other.expression1))
+			return false;
+		if (expression2 == null) {
+			if (other.expression2 != null)
+				return false;
+		} else if (!expression2.equals(other.expression2))
+			return false;
+		return true;
+	}
+
 	public String toString()
 	{
 		StringBuilder sb = new StringBuilder();

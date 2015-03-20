@@ -117,6 +117,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 	}
 
+	private void addDifference(ASTNodeDifference difference) {
+		if(!differences.contains(difference))
+			differences.add(difference);
+	}
+
 	public List<ASTNodeDifference> getDifferences() {
 		return differences;
 	}
@@ -425,12 +430,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -442,7 +447,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -494,12 +499,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				safeSubtreeMatch(node.getInitializer(), o.getInitializer());
 			}
 			if(!astNodeDifference.isEmpty())
-				differences.add(astNodeDifference);
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -537,12 +542,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else 
@@ -552,14 +557,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -578,12 +583,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else 
@@ -596,7 +601,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -625,12 +630,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else 
@@ -640,14 +645,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -711,12 +716,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 			}
 			if(!astNodeDifference.isEmpty())
-				differences.add(astNodeDifference);
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -735,12 +740,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -748,7 +753,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				/*if(!node.resolveTypeBinding().isEqualTo(o.resolveTypeBinding()) && typeMatch) {
 					Difference diff = new Difference(node.resolveTypeBinding().getName(),o.resolveTypeBinding().getName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}*/
 				safeSubtreeMatch(node.getExpression(),o.getExpression());
 				safeSubtreeMatch(node.getThenExpression(), o.getThenExpression());
@@ -758,7 +763,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -871,7 +876,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
 				astNodeDifference.addDifference(diff);
-				differences.add(astNodeDifference);
+				addDifference(astNodeDifference);
 				return true;
 			}
 		}
@@ -901,12 +906,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 			}
 			if(!astNodeDifference.isEmpty())
-				differences.add(astNodeDifference);
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1023,7 +1028,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						AbstractExpression leftOp2 = new AbstractExpression(o.getLeftOperand());
 						ASTNodeDifference astLeftOperandDifference = new ASTNodeDifference(leftOp1, leftOp2);
 						astLeftOperandDifference.addDifference(leftOperandDiff);
-						differences.add(astLeftOperandDifference);
+						addDifference(astLeftOperandDifference);
 					}
 				}
 				else if(leftOperandMatch && !rightOperandMatch) {
@@ -1036,17 +1041,17 @@ public class ASTNodeMatcher extends ASTMatcher{
 						AbstractExpression rightOp2 = new AbstractExpression(o.getRightOperand());
 						ASTNodeDifference astRightOperandDifference = new ASTNodeDifference(rightOp1, rightOp2);
 						astRightOperandDifference.addDifference(rightOperandDiff);
-						differences.add(astRightOperandDifference);
+						addDifference(astRightOperandDifference);
 					}
 				}
 			}
 			if(!astNodeDifference.isEmpty())
-				differences.add(astNodeDifference);
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1103,7 +1108,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
 				astNodeDifference.addDifference(diff);
-				differences.add(astNodeDifference);
+				addDifference(astNodeDifference);
 				return true;
 			}
 		}
@@ -1124,7 +1129,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						}
 						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
 						astNodeDifference.addDifference(diff);
-						differences.add(astNodeDifference);
+						addDifference(astNodeDifference);
 						return true;
 					}
 				}
@@ -1161,13 +1166,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 				}
 			}
-			if(!astNodeDifference.isEmpty()) 
-				differences.add(astNodeDifference);
+			if(!astNodeDifference.isEmpty())
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1186,7 +1191,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -1196,7 +1201,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1215,12 +1220,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else 
@@ -1230,14 +1235,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1256,12 +1261,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -1272,7 +1277,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1291,12 +1296,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -1304,7 +1309,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(!node.getOperator().equals(o.getOperator())) {
 					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.OPERATOR_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				safeSubtreeMatch(node.getOperand(), o.getOperand());
 			}
@@ -1312,7 +1317,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1363,13 +1368,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 				}
 			}
-			if(!astNodeDifference.isEmpty()) 
-				differences.add(astNodeDifference);
+			if(!astNodeDifference.isEmpty())
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1407,7 +1412,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						}
 						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER);
 						astNodeDifference.addDifference(diff);
-						differences.add(astNodeDifference);
+						addDifference(astNodeDifference);
 						return true;
 					}
 				}
@@ -1470,13 +1475,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 				}
 			}
-			if(!astNodeDifference.isEmpty()) 
-				differences.add(astNodeDifference);
+			if(!astNodeDifference.isEmpty())
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1495,12 +1500,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else 
@@ -1510,14 +1515,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1553,13 +1558,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 				}
 			}
-			if(!astNodeDifference.isEmpty()) 
-				differences.add(astNodeDifference);
+			if(!astNodeDifference.isEmpty())
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1578,12 +1583,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -1591,7 +1596,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				safeSubtreeMatch(node.getName(), o.getName());
 				safeSubtreeListMatch(node.arguments(), o.arguments());
@@ -1601,7 +1606,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1645,12 +1650,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 				}
 			}
 			else {
@@ -1661,7 +1666,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		differences.add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
 	}
 
@@ -1790,7 +1795,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 					return true;
 				}
 			}
@@ -1805,7 +1810,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 					return true;
 				}
 			}
@@ -1860,7 +1865,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 					return true;
 				}
 			}
@@ -1875,7 +1880,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
-					differences.add(astNodeDifference);
+					addDifference(astNodeDifference);
 					return true;
 				}
 			}
@@ -2115,7 +2120,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				for (ASTNodeDifference currentDifference : matcher.getDifferences())
 				{
-					differences.add(currentDifference);
+					addDifference(currentDifference);
 				}
 				return true;
 			}

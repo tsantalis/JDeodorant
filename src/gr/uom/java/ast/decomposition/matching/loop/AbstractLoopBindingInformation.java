@@ -26,6 +26,7 @@ public class AbstractLoopBindingInformation
 		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;)V", 0);						// StringTokenizer(String)
 		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;Ljava/lang/String;)V", 0);	// StringTokenizer(String, String)
 		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/StringTokenizer;.(Ljava/lang/String;Ljava/lang/String;Z)V", 0);	// StringTokenizer(String, String, boolean)
+		iteratorInstantiationMethodBindingStartValues.put("Ljava/util/Properties;.propertyNames()Ljava/util/Enumeration<*>;", 0);		// Properies.propertyNames()
 		
 		conditionalExpressionEndValues = new HashMap<String, VariableValue>();
 		conditionalExpressionEndValues.put("Ljava/util/Iterator;.hasNext()Z", new VariableValue(VariableValue.ValueType.DATA_STRUCTURE_SIZE));					// .hasNext() (from Iterator)

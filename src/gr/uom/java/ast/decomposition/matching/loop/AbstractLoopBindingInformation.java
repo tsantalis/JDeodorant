@@ -63,6 +63,7 @@ public class AbstractLoopBindingInformation
 		dataStructureAccessMethods.add("Ljava/util/Stack;.get(I)TE;");							// .get(int) (from Stack)
 		dataStructureAccessMethods.add("Ljava/util/Vector;.elementAt(I)TE;");					// .elementAt(int) (from Vector)
 		dataStructureAccessMethods.add("Ljava/util/Stack;.elementAt(I)TE;");					// .elementAt(int) (from Stack)
+		dataStructureAccessMethods.add("Ljava/lang/String;.charAt(I)C");						// .charAt(int) (from String)
 	}
 	
 	public static AbstractLoopBindingInformation getInstance()

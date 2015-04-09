@@ -112,31 +112,44 @@ public class ConditionalLoopASTNodeMatcher extends ASTNodeMatcher {
 	}
 	
 	public void compareTypes(Expression node, Expression other) {
-		ASTInformationGenerator.setCurrentITypeRoot(getTypeRoot1());
-		AbstractExpression exp1 = new AbstractExpression(node);
-		ASTInformationGenerator.setCurrentITypeRoot(getTypeRoot2());
-		AbstractExpression exp2 = new AbstractExpression((Expression)other);
-		boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
-		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
-		if(!typeMatch) {
-			Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),other.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
-			astNodeDifference.addDifference(diff);
-		}
-		else if(node instanceof SimpleName && other instanceof SimpleName) {
-			IBinding nodeBinding = ((SimpleName)node).resolveBinding();
-			IBinding otherBinding = ((SimpleName)other).resolveBinding();
-			if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.VARIABLE && otherBinding.getKind() == IBinding.VARIABLE) {
-				IVariableBinding nodeVariableBinding = (IVariableBinding)nodeBinding;
-				IVariableBinding otherVariableBinding = (IVariableBinding)otherBinding;
-				ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
-				ITypeBinding otherTypeBinding = otherVariableBinding.getType();
-				if(nodeTypeBinding != null && otherTypeBinding != null && !nodeTypeBinding.isEqualTo(otherTypeBinding)) {
-					Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
-					astNodeDifference.addDifference(diff);
+		if(node != null && other != null) {
+			ASTInformationGenerator.setCurrentITypeRoot(getTypeRoot1());
+			AbstractExpression exp1 = new AbstractExpression(node);
+			ASTInformationGenerator.setCurrentITypeRoot(getTypeRoot2());
+			AbstractExpression exp2 = new AbstractExpression((Expression)other);
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+			if(!typeMatch) {
+				Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),other.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+				astNodeDifference.addDifference(diff);
+			}
+			else if(node instanceof SimpleName && other instanceof SimpleName) {
+				SimpleName nodeSimpleName = (SimpleName)node;
+				SimpleName otherSimpleName = (SimpleName)other;
+				IBinding nodeBinding = nodeSimpleName.resolveBinding();
+				IBinding otherBinding = otherSimpleName.resolveBinding();
+				if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.VARIABLE && otherBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding nodeVariableBinding = (IVariableBinding)nodeBinding;
+					IVariableBinding otherVariableBinding = (IVariableBinding)otherBinding;
+					if(nodeVariableBinding.isField() || otherVariableBinding.isField()) {
+						if(!nodeSimpleName.getIdentifier().equals(otherSimpleName.getIdentifier())) {
+							Difference diff = new Difference(nodeSimpleName.getIdentifier(),otherSimpleName.getIdentifier(),DifferenceType.VARIABLE_NAME_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+					}
+					ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
+					ITypeBinding otherTypeBinding = otherVariableBinding.getType();
+					if(nodeTypeBinding != null && otherTypeBinding != null && !nodeTypeBinding.isEqualTo(otherTypeBinding)) {
+						Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
 				}
 			}
+			else {
+				safeSubtreeMatch(node, other);
+			}
+			if(!astNodeDifference.isEmpty())
+				addDifference(astNodeDifference);
 		}
-		if(!astNodeDifference.isEmpty())
-			addDifference(astNodeDifference);
 	}
 }

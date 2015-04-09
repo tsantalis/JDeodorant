@@ -10,7 +10,11 @@ import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.SimpleName;
 
 public class ConditionalLoopASTNodeMatcher extends ASTNodeMatcher {
 
@@ -80,7 +84,7 @@ public class ConditionalLoopASTNodeMatcher extends ASTNodeMatcher {
 						AbstractExpression leftOp2 = new AbstractExpression(o.getLeftOperand());
 						ASTNodeDifference astLeftOperandDifference = new ASTNodeDifference(leftOp1, leftOp2);
 						astLeftOperandDifference.addDifference(leftOperandDiff);
-						getDifferences().add(astLeftOperandDifference);
+						addDifference(astLeftOperandDifference);
 					}
 				}
 				else if(leftOperandMatch && !rightOperandMatch) {
@@ -93,17 +97,46 @@ public class ConditionalLoopASTNodeMatcher extends ASTNodeMatcher {
 						AbstractExpression rightOp2 = new AbstractExpression(o.getRightOperand());
 						ASTNodeDifference astRightOperandDifference = new ASTNodeDifference(rightOp1, rightOp2);
 						astRightOperandDifference.addDifference(rightOperandDiff);
-						getDifferences().add(astRightOperandDifference);
+						addDifference(astRightOperandDifference);
 					}
 				}
 			}
 			if(!astNodeDifference.isEmpty())
-				getDifferences().add(astNodeDifference);
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 		astNodeDifference.addDifference(diff);
-		getDifferences().add(astNodeDifference);
+		addDifference(astNodeDifference);
 		return false;
+	}
+	
+	public void compareTypes(Expression node, Expression other) {
+		ASTInformationGenerator.setCurrentITypeRoot(getTypeRoot1());
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(getTypeRoot2());
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(!typeMatch) {
+			Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),other.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+			astNodeDifference.addDifference(diff);
+		}
+		else if(node instanceof SimpleName && other instanceof SimpleName) {
+			IBinding nodeBinding = ((SimpleName)node).resolveBinding();
+			IBinding otherBinding = ((SimpleName)other).resolveBinding();
+			if(nodeBinding != null && otherBinding != null && nodeBinding.getKind() == IBinding.VARIABLE && otherBinding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding nodeVariableBinding = (IVariableBinding)nodeBinding;
+				IVariableBinding otherVariableBinding = (IVariableBinding)otherBinding;
+				ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
+				ITypeBinding otherTypeBinding = otherVariableBinding.getType();
+				if(nodeTypeBinding != null && otherTypeBinding != null && !nodeTypeBinding.isEqualTo(otherTypeBinding)) {
+					Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+			}
+		}
+		if(!astNodeDifference.isEmpty())
+			addDifference(astNodeDifference);
 	}
 }

@@ -1068,8 +1068,18 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 			}
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
-			Set<PlainVariable> variables1 = getVariables(nodeG1, nodeMapping.getAdditionallyMatchedFragments1(), expressions1);
-			Set<PlainVariable> variables2 = getVariables(nodeG2, nodeMapping.getAdditionallyMatchedFragments2(), expressions2);
+			Set<PDGNode> mappedNodesWithoutAdditionallyMappedNodesG1 = new TreeSet<PDGNode>(mappedNodesG1);
+			mappedNodesWithoutAdditionallyMappedNodesG1.removeAll(additionallyMatchedNodesG1);
+			List<AbstractMethodFragment> additionallyMatchedFragments1 = getAdditionallyMatchedFragmentsNotBeingUnderMappedStatement(
+					nodeMapping.getAdditionallyMatchedFragments1(), mappedNodesWithoutAdditionallyMappedNodesG1);
+			
+			Set<PDGNode> mappedNodesWithoutAdditionallyMappedNodesG2 = new TreeSet<PDGNode>(mappedNodesG2);
+			mappedNodesWithoutAdditionallyMappedNodesG2.removeAll(additionallyMatchedNodesG2);
+			List<AbstractMethodFragment> additionallyMatchedFragments2 = getAdditionallyMatchedFragmentsNotBeingUnderMappedStatement(
+					nodeMapping.getAdditionallyMatchedFragments2(), mappedNodesWithoutAdditionallyMappedNodesG2);
+			
+			Set<PlainVariable> variables1 = getVariables(nodeG1, additionallyMatchedFragments1, expressions1);
+			Set<PlainVariable> variables2 = getVariables(nodeG2, additionallyMatchedFragments2, expressions2);
 			for(PlainVariable plainVariable1 : variables1) {
 				BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
 				if(pair1 != null) {
@@ -1107,6 +1117,38 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 		variables.addAll(variableNameMismatches);
 		variables.removeAll(inconsistentRenames);
 		return variables;
+	}
+
+	private List<AbstractMethodFragment> getAdditionallyMatchedFragmentsNotBeingUnderMappedStatement(
+			List<AbstractMethodFragment> originalFragments, Set<PDGNode> mappedStatements) {
+		List<AbstractMethodFragment> fragments = new ArrayList<AbstractMethodFragment>();
+		for(AbstractMethodFragment fragment : originalFragments) {
+			boolean isUnderMappedStatement = false;
+			if(fragment instanceof AbstractExpression) {
+				AbstractExpression expression = (AbstractExpression)fragment;
+				Expression expr = expression.getExpression();
+				for(PDGNode node : mappedStatements) {
+					if(isExpressionUnderStatement(expr, node.getASTStatement())) {
+						isUnderMappedStatement = true;
+						break;
+					}
+				}
+			}
+			else if(fragment instanceof StatementObject) {
+				StatementObject statement = (StatementObject)fragment;
+				Statement stmt = statement.getStatement();
+				for(PDGNode node : mappedStatements) {
+					if(stmt.equals(node.getASTStatement())) {
+						isUnderMappedStatement = true;
+						break;
+					}
+				}
+			}
+			if(!isUnderMappedStatement) {
+				fragments.add(fragment);
+			}
+		}
+		return fragments;
 	}
 
 	private Set<PlainVariable> getVariables(PDGNode node, List<AbstractMethodFragment> additionallyMatchedFragments,
@@ -2013,7 +2055,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 				if(dependence instanceof PDGAbstractDataDependence) {
 					PDGAbstractDataDependence abstractDependence = (PDGAbstractDataDependence)dependence;
 					PDGNode srcPDGNode = (PDGNode)abstractDependence.getSrc();
-					if(nodes.contains(srcPDGNode) && !isAdvancedMatchNode(srcPDGNode)) {
+					if(nodes.contains(srcPDGNode) && !isAdvancedMatchNode(srcPDGNode, expr)) {
 						if(dependence instanceof PDGDataDependence) {
 							PDGDataDependence dataDependence = (PDGDataDependence)dependence;
 							//check if pdgExpression is using dataDependence.data
@@ -2035,7 +2077,8 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 					}
 					//examine if it is a self-loop edge due to a loop-carried dependence
 					if(srcPDGNode.equals(nodeContainingExpression)) {
-						if(abstractDependence.isLoopCarried() && nodes.contains(abstractDependence.getLoop().getPDGNode())) {
+						PDGNode loopNode = abstractDependence.getLoop().getPDGNode();
+						if(abstractDependence.isLoopCarried() && nodes.contains(loopNode) && !isAdvancedMatchNode(loopNode, expr)) {
 							if(pdgExpression.definesLocalVariable(abstractDependence.getData()) ||
 									pdgExpression.usesLocalVariable(abstractDependence.getData())) {
 								return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
@@ -2074,12 +2117,39 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 		return null;
 	}
 
-	private boolean isAdvancedMatchNode(PDGNode node) {
+	private boolean isAdvancedMatchNode(PDGNode node, Expression expressionToBeParameterized) {
 		if(this.additionallyMatchedNodesG1.contains(node) || this.additionallyMatchedNodesG2.contains(node))
 			return true;
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
 			if(nodeMapping.isAdvancedMatch() && (nodeMapping.getNodeG1().equals(node) || nodeMapping.getNodeG2().equals(node))) {
-				return true;
+				for(AbstractMethodFragment fragment1 : nodeMapping.getAdditionallyMatchedFragments1()) {
+					if(fragment1 instanceof AbstractExpression) {
+						AbstractExpression expression1 = (AbstractExpression)fragment1;
+						if(isExpressionWithinExpression(expressionToBeParameterized, expression1.getExpression())) {
+							return true;
+						}
+					}
+					else if(fragment1 instanceof StatementObject) {
+						StatementObject statement1 = (StatementObject)fragment1;
+						if(isExpressionUnderStatement(expressionToBeParameterized, statement1.getStatement())) {
+							return true;
+						}
+					}
+				}
+				for(AbstractMethodFragment fragment2 : nodeMapping.getAdditionallyMatchedFragments2()) {
+					if(fragment2 instanceof AbstractExpression) {
+						AbstractExpression expression2 = (AbstractExpression)fragment2;
+						if(isExpressionWithinExpression(expressionToBeParameterized, expression2.getExpression())) {
+							return true;
+						}
+					}
+					else if(fragment2 instanceof StatementObject) {
+						StatementObject statement2 = (StatementObject)fragment2;
+						if(isExpressionUnderStatement(expressionToBeParameterized, statement2.getStatement())) {
+							return true;
+						}
+					}
+				}
 			}
 		}
 		return false;

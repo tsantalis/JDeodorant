@@ -117,7 +117,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 	}
 
-	private void addDifference(ASTNodeDifference difference) {
+	protected void addDifference(ASTNodeDifference difference) {
 		if(!differences.contains(difference))
 			differences.add(difference);
 	}
@@ -2007,14 +2007,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 						safeSubtreeMatch(variableInitializedUsingControlVariable, enhancedForLoopParameter);
 						Expression conditionalLoopDataStructureExpression = conditionalLoopControlVariable.getDataStructureExpression();
 						Expression enhancedForLoopDataStructureExpression = otherEnhancedForLoop.getControlVariable().getDataStructureExpression();
-						safeSubtreeMatch(conditionalLoopDataStructureExpression, enhancedForLoopDataStructureExpression);
+						matcher.compareTypes(conditionalLoopDataStructureExpression, enhancedForLoopDataStructureExpression);
 						if (conditionalLoopDataStructureExpression instanceof SimpleName)
 						{
 							SimpleName simpleName = (SimpleName) conditionalLoopDataStructureExpression;
 							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(nodeConditionalLoop.getLoopBody(), simpleName);
 							for (SimpleName name : occurrencesOfSimpleName)
 							{
-								safeSubtreeMatch(name, enhancedForLoopDataStructureExpression);
+								matcher.compareTypes(name, enhancedForLoopDataStructureExpression);
 							}
 						}
 						if (enhancedForLoopDataStructureExpression instanceof SimpleName)
@@ -2023,7 +2023,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(otherEnhancedForLoop.getLoopBody(), simpleName);
 							for (SimpleName name : occurrencesOfSimpleName)
 							{
-								safeSubtreeMatch(conditionalLoopDataStructureExpression, name);
+								matcher.compareTypes(conditionalLoopDataStructureExpression, name);
 							}
 						}
 					}
@@ -2040,14 +2040,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 						ControlVariable otherConditionalLoopControlVariable = (ControlVariable)otherConditionControlVariables.toArray()[0];
 						Expression nodeConditionalLoopDataStructureExpression = nodeConditionalLoopControlVariable.getDataStructureExpression();
 						Expression otherConditionalLoopDataStructureExpression = otherConditionalLoopControlVariable.getDataStructureExpression();
-						safeSubtreeMatch(nodeConditionalLoopDataStructureExpression, otherConditionalLoopDataStructureExpression);
+						matcher.compareTypes(nodeConditionalLoopDataStructureExpression, otherConditionalLoopDataStructureExpression);
 						if (nodeConditionalLoopDataStructureExpression instanceof SimpleName)
 						{
 							SimpleName simpleName = (SimpleName) nodeConditionalLoopDataStructureExpression;
 							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(nodeConditionalLoop.getLoopBody(), simpleName);
 							for (SimpleName name : occurrencesOfSimpleName)
 							{
-								safeSubtreeMatch(name, otherConditionalLoopDataStructureExpression);
+								matcher.compareTypes(name, otherConditionalLoopDataStructureExpression);
 							}
 						}
 						if (otherConditionalLoopDataStructureExpression instanceof SimpleName)
@@ -2056,7 +2056,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(otherConditionalLoop.getLoopBody(), simpleName);
 							for (SimpleName name : occurrencesOfSimpleName)
 							{
-								safeSubtreeMatch(nodeConditionalLoopDataStructureExpression, name);
+								matcher.compareTypes(nodeConditionalLoopDataStructureExpression, name);
 							}
 						}
 						ASTNode nodeDataStructureAccessExpression = nodeConditionalLoopControlVariable.getDataStructureAccessExpression();
@@ -2097,14 +2097,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 						safeSubtreeMatch(enhancedForLoopParameter, variableInitializedUsingControlVariable);
 						Expression enhancedForLoopDataStructureExpression = nodeEnhancedForLoop.getControlVariable().getDataStructureExpression();
 						Expression conditionalLoopDataStructureExpression = conditionalLoopControlVariable.getDataStructureExpression();
-						safeSubtreeMatch(enhancedForLoopDataStructureExpression, conditionalLoopDataStructureExpression);
+						matcher.compareTypes(enhancedForLoopDataStructureExpression, conditionalLoopDataStructureExpression);
 						if (enhancedForLoopDataStructureExpression instanceof SimpleName)
 						{
 							SimpleName simpleName = (SimpleName) enhancedForLoopDataStructureExpression;
 							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(nodeEnhancedForLoop.getLoopBody(), simpleName);
 							for (SimpleName name : occurrencesOfSimpleName)
 							{
-								safeSubtreeMatch(name, conditionalLoopDataStructureExpression);
+								matcher.compareTypes(name, conditionalLoopDataStructureExpression);
 							}
 						}
 						if (conditionalLoopDataStructureExpression instanceof SimpleName)
@@ -2113,7 +2113,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							List<SimpleName> occurrencesOfSimpleName = getOccurrencesOfSimpleName(otherConditionalLoop.getLoopBody(), simpleName);
 							for (SimpleName name : occurrencesOfSimpleName)
 							{
-								safeSubtreeMatch(enhancedForLoopDataStructureExpression, name);
+								matcher.compareTypes(enhancedForLoopDataStructureExpression, name);
 							}
 						}
 					}

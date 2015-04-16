@@ -443,9 +443,7 @@ public class PDGSlice extends Graph {
 			for(PDGNode defNode : defNodes) {
 				sliceNodes.addAll(traverseBackward(defNode, new LinkedHashSet<PDGNode>()));
 			}
-			if(defNodes.isEmpty()) {
-				sliceNodes.addAll(traverseBackward(nodeCriterion, new LinkedHashSet<PDGNode>()));
-			}
+			sliceNodes.addAll(traverseBackward(nodeCriterion, new LinkedHashSet<PDGNode>()));
 		}
 		return sliceNodes;
 	}

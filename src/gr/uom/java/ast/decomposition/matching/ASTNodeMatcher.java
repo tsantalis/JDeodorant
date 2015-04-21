@@ -374,7 +374,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		ITypeBinding commonSuperType = null;
 		for(ITypeBinding superType1 : superTypes1) {
 			for(ITypeBinding superType2 : superTypes2) {
-				if(superType1.isEqualTo(superType2)) {
+				if(superType1.isEqualTo(superType2) && !superType1.getQualifiedName().equals("java.lang.Object")) {
 					commonSuperType = superType1;
 					found = true;
 					break;
@@ -401,6 +401,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(superTypeBinding != null) {
 			superTypes.add(superTypeBinding);
 			superTypes.addAll(getAllSuperTypes(superTypeBinding));
+		}
+		ITypeBinding[] superInterfaces = typeBinding.getInterfaces();
+		for(ITypeBinding superInterface : superInterfaces) {
+			superTypes.add(superInterface);
+			superTypes.addAll(getAllSuperTypes(superInterface));
 		}
 		return superTypes;
 	}

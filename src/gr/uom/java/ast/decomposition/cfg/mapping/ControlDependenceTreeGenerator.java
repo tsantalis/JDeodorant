@@ -4,10 +4,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
@@ -210,8 +212,21 @@ public class ControlDependenceTreeGenerator {
 		if(statement instanceof ExpressionStatement) {
 			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 			List<Expression> conditionalExpressions = expressionExtractor.getConditionalExpressions(statement);
-			if(conditionalExpressions.size() == 1)
-				return true;
+			if(conditionalExpressions.size() == 1) {
+				ConditionalExpression conditional = (ConditionalExpression)conditionalExpressions.get(0);
+				ASTNode parent = conditional.getParent();
+				ASTNode grandParent = parent.getParent();
+				if(grandParent != null && grandParent.equals(statement)) {
+					return true;
+				}
+				if(parent instanceof ParenthesizedExpression) {
+					if(grandParent != null) {
+						if(grandParent.getParent() != null && grandParent.getParent().equals(statement)) {
+							return true;
+						}
+					}
+				}
+			}
 		}
 		else if (statement instanceof ReturnStatement) {
 			ReturnStatement returnStatement = (ReturnStatement)statement;

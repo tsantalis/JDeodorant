@@ -673,7 +673,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 		}
 		ITypeBinding[] superInterfaces = typeBinding.getInterfaces();
 		for(ITypeBinding superInterface : superInterfaces) {
-			if(!superTypeBinding.isEqualTo(commonSuperclass)) {
+			if(!superInterface.isEqualTo(commonSuperclass)) {
 				superTypes.add(superInterface);
 				superTypes.addAll(getAllSuperTypesUpToCommonSuperclass(superInterface, commonSuperclass));
 			}

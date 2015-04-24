@@ -59,6 +59,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NullLiteral;
@@ -199,7 +200,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				|| o.getClass().equals(SimpleName.class) || o.getClass().equals(QualifiedName.class)
 				|| o.getClass().equals(CastExpression.class) || o.getClass().equals(InfixExpression.class)
 				|| o.getClass().equals(PrefixExpression.class)
-				|| o.getClass().equals(ThisExpression.class) || o.getClass().equals(ConditionalExpression.class))
+				|| o.getClass().equals(ThisExpression.class) || o.getClass().equals(ConditionalExpression.class)
+				|| o.getClass().equals(LambdaExpression.class))
 			return true;
 		return false;
 	}
@@ -287,6 +289,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		else if(o.getClass().equals(ConditionalExpression.class)) {
 			ConditionalExpression expression = (ConditionalExpression) o;
+			return expression.resolveTypeBinding();
+		}
+		else if(o.getClass().equals(LambdaExpression.class)) {
+			LambdaExpression expression = (LambdaExpression) o;
 			return expression.resolveTypeBinding();
 		}
 		return null;
@@ -1070,6 +1076,46 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		return (
 				safeSubtreeMatch(node.getLabel(), o.getLabel()));
+	}
+
+	public boolean match(LambdaExpression node, Object other) {
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
+		}
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof LambdaExpression)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
+			}
+			else {
+				LambdaExpression o = (LambdaExpression)other;
+				if(node.parameters().size() != o.parameters().size()) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
+				safeSubtreeListMatch(node.parameters(), o.parameters());
+				safeSubtreeMatch(node.getBody(), o.getBody());
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		addDifference(astNodeDifference);
+		return false;
 	}
 
 	public boolean match(MethodInvocation node, Object other) {

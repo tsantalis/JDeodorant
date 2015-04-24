@@ -178,7 +178,7 @@ public class PackageMapDiagram {
 						ICompilationUnit iCompilationUnit = (ICompilationUnit) child;
 
 						ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
-						ASTParser parser = ASTParser.newParser(AST.JLS4);
+						ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 						parser.setKind(ASTParser.K_COMPILATION_UNIT);
 						parser.setSource(iCompilationUnit);
 						parser.setResolveBindings(true); // we need bindings later on

@@ -459,7 +459,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					IJavaElement javaElement = commonSuperTypeOfSourceTypeDeclarations.getJavaElement();
 					javaElementsToOpenInEditor.add(javaElement);
 					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
-					ASTParser parser = ASTParser.newParser(AST.JLS4);
+					ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 					parser.setKind(ASTParser.K_COMPILATION_UNIT);
 					parser.setSource(iCompilationUnit);
 					parser.setResolveBindings(true); // we need bindings later on
@@ -521,7 +521,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					boolean intermediateAlreadyExists = false;
 					ICompilationUnit intermediateICompilationUnit = JavaCore.createCompilationUnitFrom(cloneInfo.file);
 					javaElementsToOpenInEditor.add(intermediateICompilationUnit);
-					ASTParser intermediateParser = ASTParser.newParser(AST.JLS4);
+					ASTParser intermediateParser = ASTParser.newParser(ASTReader.JLS);
 					intermediateParser.setKind(ASTParser.K_COMPILATION_UNIT);
 					if(cloneInfo.file.exists()) {
 						intermediateAlreadyExists = true;

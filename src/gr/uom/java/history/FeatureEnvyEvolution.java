@@ -1,6 +1,7 @@
 package gr.uom.java.history;
 
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
@@ -123,7 +124,7 @@ public class FeatureEnvyEvolution implements Evolution {
 		int numberOfEnviedElements = 0;
 		if(method != null) {
 			ICompilationUnit iCompilationUnit = method.getCompilationUnit();
-			ASTParser parser = ASTParser.newParser(AST.JLS4);
+			ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 			parser.setKind(ASTParser.K_COMPILATION_UNIT);
 			parser.setSource(iCompilationUnit);
 			parser.setResolveBindings(true);

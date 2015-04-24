@@ -25,11 +25,13 @@ import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
+import org.eclipse.jdt.core.dom.CreationReference;
 import org.eclipse.jdt.core.dom.Dimension;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EmptyStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ForStatement;
@@ -63,10 +65,12 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.SwitchCase;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
@@ -76,6 +80,7 @@ import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclarationStatement;
 import org.eclipse.jdt.core.dom.TypeLiteral;
+import org.eclipse.jdt.core.dom.TypeMethodReference;
 import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
@@ -304,6 +309,16 @@ public class StyledStringVisitor extends ASTVisitor {
 		/*
 		 * { { Statement } }
 		 */
+		if(stmnt.getParent() instanceof LambdaExpression) {
+			appendOpenCurlyBracket();
+			appendSpace();
+			List statements = stmnt.statements();
+			for(int i=0; i < statements.size(); i++) {
+				handleStatement((Statement) statements.get(i));
+				appendSpace();
+			}
+			appendClosedCurlyBracket();
+		}
 		return false;
 	}
 
@@ -422,6 +437,20 @@ public class StyledStringVisitor extends ASTVisitor {
 		return false;
 	}
 	
+	public boolean visit(CreationReference reference) {
+		/*
+		 * Type :: [ < Type { , Type } > ] new
+		 */
+		activateDiffStyle(reference);
+		handleType(reference.getType());
+		appendColon();
+		appendColon();
+		handleTypeArguments(reference.typeArguments());
+		styledString.append("new", determineDiffStyle(reference, new StyledStringStyler(keywordStyle)));
+		deactivateDiffStyle(reference);
+		return false;
+	}
+	
 	public boolean visit(Dimension dimension) {
 		/*
 		 * { Annotation } []
@@ -465,6 +494,20 @@ public class StyledStringVisitor extends ASTVisitor {
 		appendSpace();
 		handleExpression(stmnt.getExpression());
 		appendClosedParenthesis();
+		return false;
+	}
+
+	public boolean visit(ExpressionMethodReference reference) {
+		/*
+		 * Expression :: [ < Type { , Type } > ] Identifier
+		 */
+		activateDiffStyle(reference);
+		handleExpression(reference.getExpression());
+		appendColon();
+		appendColon();
+		handleTypeArguments(reference.typeArguments());
+		handleExpression(reference.getName());
+		deactivateDiffStyle(reference);
 		return false;
 	}
 
@@ -959,6 +1002,25 @@ public class StyledStringVisitor extends ASTVisitor {
 		deactivateDiffStyle(expr);
 		return false;
 	}
+	
+	public boolean visit(SuperMethodReference reference) {
+		/*
+		 * [ ClassName . ] super :: [ < Type { , Type } > ] Identifier
+		 */
+		activateDiffStyle(reference);
+		if (reference.getQualifier() != null) {
+			handleExpression(reference.getQualifier());
+			appendPeriod();
+		}
+		styledString.append("super", determineDiffStyle(reference, new StyledStringStyler(keywordStyle)));
+		appendColon();
+		appendColon();
+		handleTypeArguments(reference.typeArguments());
+		handleExpression(reference.getName());
+		deactivateDiffStyle(reference);
+		return false;
+	}
+
 	public boolean visit(SwitchCase stmnt){
 		/*
 		 * case Expression  :
@@ -1063,6 +1125,21 @@ public class StyledStringVisitor extends ASTVisitor {
 		deactivateDiffStyle(expr);
 		return false;
 	}
+	
+	public boolean visit(TypeMethodReference reference) {
+		/*
+		 * Type :: [ < Type { , Type } > ] Identifier
+		 */
+		activateDiffStyle(reference);
+		handleType(reference.getType());
+		appendColon();
+		appendColon();
+		handleTypeArguments(reference.typeArguments());
+		handleExpression(reference.getName());
+		deactivateDiffStyle(reference);
+		return false;
+	}
+	
 	public boolean visit(UnionType type){
 		/*
 		 *  Type | Type { | Type }
@@ -1253,6 +1330,62 @@ public class StyledStringVisitor extends ASTVisitor {
 			visit((MarkerAnnotation) expression);
 		} else if (expression instanceof NormalAnnotation) {
 			visit((NormalAnnotation) expression);
+		} else if (expression instanceof CreationReference) {
+			visit((CreationReference) expression);
+		} else if (expression instanceof ExpressionMethodReference) {
+			visit((ExpressionMethodReference) expression);
+		} else if (expression instanceof SuperMethodReference) {
+			visit((SuperMethodReference) expression);
+		} else if (expression instanceof TypeMethodReference) {
+			visit((TypeMethodReference) expression);
+		}
+	}
+
+	private void handleStatement(Statement statement) {
+		if(statement instanceof AssertStatement) {
+			visit((AssertStatement) statement);
+		} else if(statement instanceof Block) {
+			visit((Block) statement);
+		} else if(statement instanceof BreakStatement) {
+			visit((BreakStatement) statement);
+		} else if(statement instanceof ConstructorInvocation) {
+			visit((ConstructorInvocation) statement);
+		} else if(statement instanceof ContinueStatement) {
+			visit((ContinueStatement) statement);
+		} else if(statement instanceof DoStatement) {
+			visit((DoStatement) statement);
+		} else if(statement instanceof EmptyStatement) {
+			visit((EmptyStatement) statement);
+		} else if(statement instanceof EnhancedForStatement) {
+			visit((EnhancedForStatement) statement);
+		} else if(statement instanceof ExpressionStatement) {
+			visit((ExpressionStatement) statement);
+		} else if(statement instanceof ForStatement) {
+			visit((ForStatement) statement);
+		} else if(statement instanceof IfStatement) {
+			visit((IfStatement) statement);
+		} else if(statement instanceof LabeledStatement) {
+			visit((LabeledStatement) statement);
+		} else if(statement instanceof ReturnStatement) {
+			visit((ReturnStatement) statement);
+		} else if(statement instanceof SuperConstructorInvocation) {
+			visit((SuperConstructorInvocation) statement);
+		} else if(statement instanceof SwitchCase) {
+			visit((SwitchCase) statement);
+		} else if(statement instanceof SwitchStatement) {
+			visit((SwitchStatement) statement);
+		} else if(statement instanceof SynchronizedStatement) {
+			visit((SynchronizedStatement) statement);
+		} else if(statement instanceof ThrowStatement) {
+			visit((ThrowStatement) statement);
+		} else if(statement instanceof TryStatement) {
+			visit((TryStatement) statement);
+		} else if(statement instanceof TypeDeclarationStatement) {
+			visit((TypeDeclarationStatement) statement);
+		} else if(statement instanceof VariableDeclarationStatement) {
+			visit((VariableDeclarationStatement) statement);
+		} else if(statement instanceof WhileStatement) {
+			visit((WhileStatement) statement);
 		}
 	}
 

@@ -1107,6 +1107,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
+				if(node.getBody().getNodeType() != o.getBody().getNodeType()) {
+					return false;
+				}
 				safeSubtreeListMatch(node.parameters(), o.parameters());
 				safeSubtreeMatch(node.getBody(), o.getBody());
 			}
@@ -2001,7 +2004,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		ASTNode parent = node.getParent();
 		while(parent != null) {
 			if(parent instanceof AnonymousClassDeclaration || parent instanceof CatchClause ||
-					isFinallyBlockOfTryStatement(parent)) {
+					isFinallyBlockOfTryStatement(parent) || parent instanceof LambdaExpression) {
 				return true;
 			}
 			parent = parent.getParent();

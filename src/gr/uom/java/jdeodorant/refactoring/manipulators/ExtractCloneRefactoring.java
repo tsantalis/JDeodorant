@@ -4,7 +4,6 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
-import gr.uom.java.ast.LocalVariableInstructionObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
@@ -958,19 +957,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<ITypeBinding, IVariableBinding> findParametersForLambdaExpression(ASTNodeDifference difference, int index) {
 		AbstractExpression expression1 = difference.getExpression1();
 		AbstractExpression expression2 = difference.getExpression2();
-		List<LocalVariableInstructionObject> localVariableInstructions1 = expression1.getLocalVariableInstructions();
+		Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression());
+		Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression());
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		
+		List<Expression> localVariableInstructions1 = expressionExtractor.getVariableInstructions(expr1);
 		Set<IVariableBinding> variableBindings1 = new LinkedHashSet<IVariableBinding>();
-		for(LocalVariableInstructionObject variableInstruction : localVariableInstructions1) {
-			SimpleName simpleName = variableInstruction.getSimpleName();
+		for(Expression variableInstruction : localVariableInstructions1) {
+			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				variableBindings1.add((IVariableBinding) binding);
 			}
 		}
-		List<LocalVariableInstructionObject> localVariableInstructions2 = expression2.getLocalVariableInstructions();
+		List<Expression> localVariableInstructions2 = expressionExtractor.getVariableInstructions(expr2);
 		Set<IVariableBinding> variableBindings2 = new LinkedHashSet<IVariableBinding>();
-		for(LocalVariableInstructionObject variableInstruction : localVariableInstructions2) {
-			SimpleName simpleName = variableInstruction.getSimpleName();
+		for(Expression variableInstruction : localVariableInstructions2) {
+			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				variableBindings2.add((IVariableBinding) binding);
@@ -3329,19 +3332,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					if(difference != null && ! difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
 						AbstractExpression expression1 = difference.getExpression1();
 						AbstractExpression expression2 = difference.getExpression2();
-						List<LocalVariableInstructionObject> localVariableInstructions1 = expression1.getLocalVariableInstructions();
+						Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression());
+						Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression());
+						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+						
+						List<Expression> localVariableInstructions1 = expressionExtractor.getVariableInstructions(expr1);
 						Set<IVariableBinding> variableBindings1 = new LinkedHashSet<IVariableBinding>();
-						for(LocalVariableInstructionObject variableInstruction : localVariableInstructions1) {
-							SimpleName simpleName = variableInstruction.getSimpleName();
+						for(Expression variableInstruction : localVariableInstructions1) {
+							SimpleName simpleName = (SimpleName)variableInstruction;
 							IBinding binding = simpleName.resolveBinding();
 							if(binding.getKind() == IBinding.VARIABLE) {
 								variableBindings1.add((IVariableBinding) binding);
 							}
 						}
-						List<LocalVariableInstructionObject> localVariableInstructions2 = expression2.getLocalVariableInstructions();
+						List<Expression> localVariableInstructions2 = expressionExtractor.getVariableInstructions(expr2);
 						Set<IVariableBinding> variableBindings2 = new LinkedHashSet<IVariableBinding>();
-						for(LocalVariableInstructionObject variableInstruction : localVariableInstructions2) {
-							SimpleName simpleName = variableInstruction.getSimpleName();
+						for(Expression variableInstruction : localVariableInstructions2) {
+							SimpleName simpleName = (SimpleName)variableInstruction;
 							IBinding binding = simpleName.resolveBinding();
 							if(binding.getKind() == IBinding.VARIABLE) {
 								variableBindings2.add((IVariableBinding) binding);

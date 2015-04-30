@@ -967,7 +967,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
-				variableBindings1.add((IVariableBinding) binding);
+				IVariableBinding variableBinding = (IVariableBinding) binding;
+				if(!variableBinding.isField())
+					variableBindings1.add(variableBinding);
 			}
 		}
 		List<Expression> localVariableInstructions2 = expressionExtractor.getVariableInstructions(expr2);
@@ -976,7 +978,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
-				variableBindings2.add((IVariableBinding) binding);
+				IVariableBinding variableBinding = (IVariableBinding) binding;
+				if(!variableBinding.isField())
+					variableBindings2.add(variableBinding);
 			}
 		}
 		Map<ITypeBinding, IVariableBinding> parameterTypeBindings = new LinkedHashMap<ITypeBinding, IVariableBinding>();
@@ -3342,7 +3346,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							SimpleName simpleName = (SimpleName)variableInstruction;
 							IBinding binding = simpleName.resolveBinding();
 							if(binding.getKind() == IBinding.VARIABLE) {
-								variableBindings1.add((IVariableBinding) binding);
+								IVariableBinding variableBinding = (IVariableBinding) binding;
+								if(!variableBinding.isField())
+									variableBindings1.add(variableBinding);
 							}
 						}
 						List<Expression> localVariableInstructions2 = expressionExtractor.getVariableInstructions(expr2);
@@ -3351,7 +3357,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							SimpleName simpleName = (SimpleName)variableInstruction;
 							IBinding binding = simpleName.resolveBinding();
 							if(binding.getKind() == IBinding.VARIABLE) {
-								variableBindings2.add((IVariableBinding) binding);
+								IVariableBinding variableBinding = (IVariableBinding) binding;
+								if(!variableBinding.isField())
+									variableBindings2.add(variableBinding);
 							}
 						}
 						if(variableBindings1.size() == variableBindings2.size()) {

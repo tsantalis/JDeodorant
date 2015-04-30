@@ -354,7 +354,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
-		if(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))
+		if(commonSuperType != null &&
+				!commonSuperType.getQualifiedName().equals("java.lang.Object") &&
+				!commonSuperType.getQualifiedName().equals("java.io.Serializable") &&
+				!commonSuperType.getQualifiedName().equals("java.lang.Runnable") &&
+				!commonSuperType.getQualifiedName().equals("java.lang.Comparable"))
 			return true;
 		return false;
 	}
@@ -822,13 +826,23 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(leftHandSide instanceof SimpleName) {
 					SimpleName simpleName = (SimpleName)leftHandSide;
 					boolean variableMatch = safeSubtreeMatch(simpleName, fragment.getName());
+					boolean variableTypeMatch = false;
+					IBinding simpleNameBinding = simpleName.resolveBinding();
+					IBinding fragmentNameBinding = fragment.getName().resolveBinding();
+					if(simpleNameBinding.getKind() == IBinding.VARIABLE && fragmentNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding simpleNameVariableBinding = (IVariableBinding)simpleNameBinding;
+						IVariableBinding fragmentNameVariableBinding = (IVariableBinding)fragmentNameBinding;
+						variableTypeMatch = simpleNameVariableBinding.getType().isEqualTo(fragmentNameVariableBinding.getType());
+					}
 					boolean initializerMatch = false;
+					boolean initializerTypeMatch = false;
 					Expression initializer = fragment.getInitializer();
 					Expression rightHandSide = assignment.getRightHandSide();
 					if(initializer != null && initializer.getNodeType() == rightHandSide.getNodeType()) {
 						initializerMatch = safeSubtreeMatch(rightHandSide, initializer);
+						initializerTypeMatch = initializer.resolveTypeBinding().isEqualTo(rightHandSide.resolveTypeBinding());
 					}
-					if(variableMatch && initializerMatch) {
+					if(variableMatch && variableTypeMatch && initializerMatch && initializerTypeMatch) {
 						VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(simpleName);
 						if(variableDeclaration != null && hasEmptyInitializer(variableDeclaration)) {
 							safeSubtreeMatch(variableDeclaration.getName(), fragment.getName());
@@ -1714,13 +1728,23 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(leftHandSide instanceof SimpleName) {
 					SimpleName simpleName = (SimpleName)leftHandSide;
 					boolean variableMatch = safeSubtreeMatch(fragment.getName(), simpleName);
+					boolean variableTypeMatch = false;
+					IBinding simpleNameBinding = simpleName.resolveBinding();
+					IBinding fragmentNameBinding = fragment.getName().resolveBinding();
+					if(simpleNameBinding.getKind() == IBinding.VARIABLE && fragmentNameBinding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding simpleNameVariableBinding = (IVariableBinding)simpleNameBinding;
+						IVariableBinding fragmentNameVariableBinding = (IVariableBinding)fragmentNameBinding;
+						variableTypeMatch = simpleNameVariableBinding.getType().isEqualTo(fragmentNameVariableBinding.getType());
+					}
 					boolean initializerMatch = false;
+					boolean initializerTypeMatch = false;
 					Expression initializer = fragment.getInitializer();
 					Expression rightHandSide = assignment.getRightHandSide();
 					if(initializer != null && initializer.getNodeType() == rightHandSide.getNodeType()) {
 						initializerMatch = safeSubtreeMatch(initializer, rightHandSide);
+						initializerTypeMatch = initializer.resolveTypeBinding().isEqualTo(rightHandSide.resolveTypeBinding());
 					}
-					if(variableMatch && initializerMatch) {
+					if(variableMatch && variableTypeMatch && initializerMatch && initializerTypeMatch) {
 						VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(simpleName);
 						if(variableDeclaration != null && hasEmptyInitializer(variableDeclaration)) {
 							safeSubtreeMatch(fragment.getName(), variableDeclaration.getName());

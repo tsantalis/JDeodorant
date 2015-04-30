@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import java.util.Set;
 
 import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jface.preference.IPreferenceStore;

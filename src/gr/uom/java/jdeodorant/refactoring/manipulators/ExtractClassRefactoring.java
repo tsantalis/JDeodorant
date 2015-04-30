@@ -56,7 +56,6 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
-import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression.Operator;
@@ -2005,7 +2004,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		AST ast = newMethodDeclaration.getAST();
 		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 		ITypeBinding typeBinding = variableBinding.getType();
-		Type fieldType = generateTypeFromTypeBinding(typeBinding, ast, targetRewriter);
+		Type fieldType = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, targetRewriter);
 		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
 		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
@@ -2014,57 +2013,6 @@ public class ExtractClassRefactoring extends Refactoring {
 		typeBindings.add(variableBinding.getType());
 		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		return parameter;
-	}
-
-	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite targetRewriter) {
-		Type fieldType = null;
-		if(typeBinding.isParameterizedType()) {
-			fieldType = createParameterizedType(ast, typeBinding, targetRewriter);
-		}
-		else if(typeBinding.isClass() || typeBinding.isInterface()) {
-			fieldType = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
-		}
-		else if(typeBinding.isPrimitive()) {
-			String primitiveType = typeBinding.getName();
-			if(primitiveType.equals("int"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.INT);
-			else if(primitiveType.equals("double"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.DOUBLE);
-			else if(primitiveType.equals("byte"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.BYTE);
-			else if(primitiveType.equals("short"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.SHORT);
-			else if(primitiveType.equals("char"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.CHAR);
-			else if(primitiveType.equals("long"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.LONG);
-			else if(primitiveType.equals("float"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.FLOAT);
-			else if(primitiveType.equals("boolean"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.BOOLEAN);
-		}
-		else if(typeBinding.isArray()) {
-			ITypeBinding elementTypeBinding = typeBinding.getElementType();
-			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, targetRewriter);
-			fieldType = ast.newArrayType(elementType, typeBinding.getDimensions());
-		}
-		return fieldType;
-	}
-
-	private ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite targetRewriter) {
-		ITypeBinding erasure = typeBinding.getErasure();
-		ITypeBinding[] typeArguments = typeBinding.getTypeArguments();
-		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(ast.newSimpleName(erasure.getName())));
-		ListRewrite typeArgumentsRewrite = targetRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
-		for(ITypeBinding typeArgument : typeArguments) {
-			if(typeArgument.isParameterizedType()) {
-				typeArgumentsRewrite.insertLast(createParameterizedType(ast, typeArgument, targetRewriter), null);
-			}
-			else if(typeArgument.isClass() || typeArgument.isInterface()) {
-				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
-			}
-		}
-		return parameterizedType;
 	}
 
 	private void setPublicModifierToSourceMethod(MethodDeclaration methodDeclaration) {

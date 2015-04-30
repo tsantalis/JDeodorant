@@ -405,9 +405,9 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			abstractMethodParametersRewrite.insertLast(parameter, null);
 		}
 		
-		ListRewrite abstractMethodThrownExceptionsRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		ListRewrite abstractMethodThrownExceptionsRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 		for(ITypeBinding typeBinding : thrownExceptions) {
-			abstractMethodThrownExceptionsRewrite.insertLast(abstractAST.newSimpleName(typeBinding.getName()), null);
+			abstractMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, abstractAST, abstractRewriter), null);
 		}
 		
 		abstractBodyRewrite.insertLast(abstractMethodDeclaration, null);
@@ -597,9 +597,9 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				concreteMethodParametersRewrite.insertLast(parameter, null);
 			}
 			
-			ListRewrite concreteMethodThrownExceptionsRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+			ListRewrite concreteMethodThrownExceptionsRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 			for(ITypeBinding typeBinding : thrownExceptions) {
-				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
+				concreteMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, subclassAST, subclassRewriter), null);
 			}
 
 			Block concreteMethodBody = subclassAST.newBlock();

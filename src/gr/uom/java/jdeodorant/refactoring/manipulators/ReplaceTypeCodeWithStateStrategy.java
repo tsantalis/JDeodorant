@@ -1117,9 +1117,9 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			abstractMethodParametersRewrite.insertLast(parameter, null);
 		}
 		
-		ListRewrite abstractMethodThrownExceptionsRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		ListRewrite abstractMethodThrownExceptionsRewrite = stateStrategyRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 		for(ITypeBinding typeBinding : thrownExceptions) {
-			abstractMethodThrownExceptionsRewrite.insertLast(stateStrategyAST.newSimpleName(typeBinding.getName()), null);
+			abstractMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, stateStrategyAST, stateStrategyRewriter), null);
 		}
 		
 		stateStrategyBodyRewrite.insertLast(abstractMethodDeclaration, null);
@@ -1499,9 +1499,9 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				concreteMethodParametersRewrite.insertLast(parameter, null);
 			}
 			
-			ListRewrite concreteMethodThrownExceptionsRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+			ListRewrite concreteMethodThrownExceptionsRewrite = subclassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 			for(ITypeBinding typeBinding : thrownExceptions) {
-				concreteMethodThrownExceptionsRewrite.insertLast(subclassAST.newSimpleName(typeBinding.getName()), null);
+				concreteMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, subclassAST, subclassRewriter), null);
 			}
 			
 			Block concreteMethodBody = subclassAST.newBlock();
@@ -1798,9 +1798,9 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			concreteMethodParametersRewrite.insertLast(parameter, null);
 		}
 		
-		ListRewrite concreteMethodThrownExceptionsRewrite = intermediateClassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+		ListRewrite concreteMethodThrownExceptionsRewrite = intermediateClassRewriter.getListRewrite(concreteMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 		for(ITypeBinding typeBinding : thrownExceptions) {
-			concreteMethodThrownExceptionsRewrite.insertLast(intermediateClassAST.newSimpleName(typeBinding.getName()), null);
+			concreteMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, intermediateClassAST, intermediateClassRewriter), null);
 		}
 		
 		Block concreteMethodBody = intermediateClassAST.newBlock();

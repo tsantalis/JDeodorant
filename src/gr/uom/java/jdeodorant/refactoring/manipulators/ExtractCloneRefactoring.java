@@ -1043,100 +1043,107 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(IVariableBinding variableBinding2 : smallerSet) {
 				ITypeBinding typeBinding2 = variableBinding2.getType();
 				if(typeBinding1.isEqualTo(typeBinding2)) {
-					if(condition)
-						pair = new VariableBindingPair(variableBinding1, variableBinding2);
-					else
-						pair = new VariableBindingPair(variableBinding2, variableBinding1);
-					matchedVariableBinding = variableBinding2;
-					break;
-				}
-			}
-			if(matchedVariableBinding == null) {
-				for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
-					PDGNode node1 = mapping.getNodeG1();
-					PDGNode node2 = mapping.getNodeG2();
-					if(condition) {
-						Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
-						while(declaredVariableIterator1.hasNext()) {
-							AbstractVariable variable1 = declaredVariableIterator1.next();
-							if(variable1 instanceof PlainVariable) {
-								PlainVariable plainVariable1 = (PlainVariable)variable1;
-								if(plainVariable1.getVariableBindingKey().equals(variableBinding1.getKey())) {
-									Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
-									while(declaredVariableIterator2.hasNext()) {
-										AbstractVariable variable2 = declaredVariableIterator2.next();
-										if(variable2 instanceof PlainVariable) {
-											PlainVariable plainVariable2 = (PlainVariable)variable2;
-											if(plainVariable1.getVariableType().equals(plainVariable2.getVariableType())) {
-												List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node2.getASTStatement());
-												for(Expression expression : variableInstructions) {
-													SimpleName simpleName = (SimpleName)expression;
-													IBinding variableBinding = simpleName.resolveBinding();
-													if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey())) {
-														pair = new VariableBindingPair(variableBinding1, (IVariableBinding)variableBinding);
-														break;
-													}
-												}
-												if(pair != null) {
-													break;
-												}
-											}
-										}
-									}
-									if(pair != null) {
-										break;
-									}
-								}
-							}
-						}
-					}
-					else {
-						Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
-						while(declaredVariableIterator2.hasNext()) {
-							AbstractVariable variable2 = declaredVariableIterator2.next();
-							if(variable2 instanceof PlainVariable) {
-								PlainVariable plainVariable2 = (PlainVariable)variable2;
-								if(plainVariable2.getVariableBindingKey().equals(variableBinding1.getKey())) {
-									Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
-									while(declaredVariableIterator1.hasNext()) {
-										AbstractVariable variable1 = declaredVariableIterator1.next();
-										if(variable1 instanceof PlainVariable) {
-											PlainVariable plainVariable1 = (PlainVariable)variable1;
-											if(plainVariable2.getVariableType().equals(plainVariable1.getVariableType())) {
-												List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node1.getASTStatement());
-												for(Expression expression : variableInstructions) {
-													SimpleName simpleName = (SimpleName)expression;
-													IBinding variableBinding = simpleName.resolveBinding();
-													if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey())) {
-														pair = new VariableBindingPair((IVariableBinding)variableBinding, variableBinding1);
-														break;
-													}
-												}
-												if(pair != null) {
-													break;
-												}
-											}
-										}
-									}
-									if(pair != null) {
-										break;
-									}
-								}
-							}
-						}
-					}
+					pair = findVariableBindingPair(variableBinding1, condition);
 					if(pair != null) {
+						matchedVariableBinding = variableBinding2;
 						break;
 					}
 				}
 			}
+			if(matchedVariableBinding == null) {
+				pair = findVariableBindingPair(variableBinding1, condition);
+			}
 			else {
 				smallerSet.remove(matchedVariableBinding);
 			}
-			if(pair != null)
+			if(pair != null) {
 				parameterTypeBindings.put(typeBinding1, pair);
+			}
 		}
 		return parameterTypeBindings;
+	}
+
+	private VariableBindingPair findVariableBindingPair(IVariableBinding binding, boolean condition) {
+		VariableBindingPair pair = null;
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+			PDGNode node1 = mapping.getNodeG1();
+			PDGNode node2 = mapping.getNodeG2();
+			if(condition) {
+				Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
+				while(declaredVariableIterator1.hasNext()) {
+					AbstractVariable variable1 = declaredVariableIterator1.next();
+					if(variable1 instanceof PlainVariable) {
+						PlainVariable plainVariable1 = (PlainVariable)variable1;
+						if(plainVariable1.getVariableBindingKey().equals(binding.getKey())) {
+							Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
+							while(declaredVariableIterator2.hasNext()) {
+								AbstractVariable variable2 = declaredVariableIterator2.next();
+								if(variable2 instanceof PlainVariable) {
+									PlainVariable plainVariable2 = (PlainVariable)variable2;
+									if(plainVariable1.getVariableType().equals(plainVariable2.getVariableType())) {
+										List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node2.getASTStatement());
+										for(Expression expression : variableInstructions) {
+											SimpleName simpleName = (SimpleName)expression;
+											IBinding variableBinding = simpleName.resolveBinding();
+											if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey())) {
+												pair = new VariableBindingPair(binding, (IVariableBinding)variableBinding);
+												break;
+											}
+										}
+										if(pair != null) {
+											break;
+										}
+									}
+								}
+							}
+							if(pair != null) {
+								break;
+							}
+						}
+					}
+				}
+			}
+			else {
+				Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
+				while(declaredVariableIterator2.hasNext()) {
+					AbstractVariable variable2 = declaredVariableIterator2.next();
+					if(variable2 instanceof PlainVariable) {
+						PlainVariable plainVariable2 = (PlainVariable)variable2;
+						if(plainVariable2.getVariableBindingKey().equals(binding.getKey())) {
+							Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
+							while(declaredVariableIterator1.hasNext()) {
+								AbstractVariable variable1 = declaredVariableIterator1.next();
+								if(variable1 instanceof PlainVariable) {
+									PlainVariable plainVariable1 = (PlainVariable)variable1;
+									if(plainVariable2.getVariableType().equals(plainVariable1.getVariableType())) {
+										List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node1.getASTStatement());
+										for(Expression expression : variableInstructions) {
+											SimpleName simpleName = (SimpleName)expression;
+											IBinding variableBinding = simpleName.resolveBinding();
+											if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey())) {
+												pair = new VariableBindingPair((IVariableBinding)variableBinding, binding);
+												break;
+											}
+										}
+										if(pair != null) {
+											break;
+										}
+									}
+								}
+							}
+							if(pair != null) {
+								break;
+							}
+						}
+					}
+				}
+			}
+			if(pair != null) {
+				break;
+			}
+		}
+		return pair;
 	}
 	
 	private boolean differenceBelongsToPreconditionViolations(ASTNodeDifference difference) {

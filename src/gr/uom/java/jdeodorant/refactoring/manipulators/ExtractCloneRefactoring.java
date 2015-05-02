@@ -142,7 +142,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private static final String FUNCTIONAL_INTERFACE_METHOD_NAME = "test";
 	private List<PDGSubTreeMapper> mappers;
 	private PDGSubTreeMapper mapper;
-	private Map<ASTNodeDifference, Map<ITypeBinding, VariableBindingPair>> lambdaExpressionInfoMap;
+	private Map<ASTNodeDifference, Set<VariableBindingPair>> lambdaExpressionInfoMap;
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
@@ -940,7 +940,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 				if(differenceBelongsToPreconditionViolations(difference)) {
 					//find required parameters
-					Map<ITypeBinding, VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
+					Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
 					//introduce functional interface
 					TypeDeclaration interfaceTypeDeclaration = ast.newTypeDeclaration();
 					sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.INTERFACE_PROPERTY, true, null);
@@ -951,15 +951,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
 					sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, type, null);
 					ListRewrite interfaceMethodDeclarationParameterRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-					for(ITypeBinding parameterTypeBinding : parameterTypeBindings.keySet()) {
-						Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(parameterTypeBinding, ast, sourceRewriter);
+					for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+						IVariableBinding variableBinding = variableBindingPair.getBinding1();
+						Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
 						Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
-						typeBindings2.add(parameterTypeBinding);
+						typeBindings2.add(variableBinding.getType());
 						getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
 						SingleVariableDeclaration parameterDeclaration = ast.newSingleVariableDeclaration();
 						sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-						VariableBindingPair variableBindingPair = parameterTypeBindings.get(parameterTypeBinding);
-						IVariableBinding variableBinding = variableBindingPair.getBinding1();
 						sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
 						interfaceMethodDeclarationParameterRewrite.insertLast(parameterDeclaration, null);
 					}
@@ -1000,7 +999,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.parameterRewrite = parameterRewrite;
 	}
 	
-	private Map<ITypeBinding, VariableBindingPair> findParametersForLambdaExpression(ASTNodeDifference difference) {
+	private Set<VariableBindingPair> findParametersForLambdaExpression(ASTNodeDifference difference) {
 		if(lambdaExpressionInfoMap != null && lambdaExpressionInfoMap.containsKey(difference)) {
 			return lambdaExpressionInfoMap.get(difference);
 		}
@@ -1032,50 +1031,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					variableBindings2.add(variableBinding);
 			}
 		}
-		boolean condition = variableBindings1.size() >= variableBindings2.size();
-		Set<IVariableBinding> largerSet = condition ? new LinkedHashSet<IVariableBinding>(variableBindings1) : new LinkedHashSet<IVariableBinding>(variableBindings2);
-		Set<IVariableBinding> smallerSet = condition ? new LinkedHashSet<IVariableBinding>(variableBindings2) : new LinkedHashSet<IVariableBinding>(variableBindings1);
-		Map<ITypeBinding, VariableBindingPair> parameterTypeBindings = new LinkedHashMap<ITypeBinding, VariableBindingPair>();
-		for(IVariableBinding variableBinding1 : largerSet) {
+		Set<VariableBindingPair> parameterTypeBindings = new LinkedHashSet<VariableBindingPair>();
+		for(IVariableBinding variableBinding1 : variableBindings1) {
 			VariableBindingPair pair = null;
-			ITypeBinding typeBinding1 = variableBinding1.getType();
-			IVariableBinding matchedVariableBinding = null;
-			for(IVariableBinding variableBinding2 : smallerSet) {
-				ITypeBinding typeBinding2 = variableBinding2.getType();
-				if(typeBinding1.isEqualTo(typeBinding2)) {
-					pair = findVariableBindingPair(variableBinding1, condition);
-					if(pair != null) {
-						matchedVariableBinding = variableBinding2;
-						break;
-					}
-				}
-			}
-			if(matchedVariableBinding == null) {
-				pair = findVariableBindingPair(variableBinding1, condition);
-			}
-			else {
-				smallerSet.remove(matchedVariableBinding);
-			}
-			if(pair != null) {
-				parameterTypeBindings.put(typeBinding1, pair);
-			}
-		}
-		return parameterTypeBindings;
-	}
-
-	private VariableBindingPair findVariableBindingPair(IVariableBinding binding, boolean condition) {
-		VariableBindingPair pair = null;
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-		for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
-			PDGNode node1 = mapping.getNodeG1();
-			PDGNode node2 = mapping.getNodeG2();
-			if(condition) {
+			for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+				PDGNode node1 = mapping.getNodeG1();
+				PDGNode node2 = mapping.getNodeG2();
 				Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
 				while(declaredVariableIterator1.hasNext()) {
 					AbstractVariable variable1 = declaredVariableIterator1.next();
 					if(variable1 instanceof PlainVariable) {
 						PlainVariable plainVariable1 = (PlainVariable)variable1;
-						if(plainVariable1.getVariableBindingKey().equals(binding.getKey())) {
+						if(plainVariable1.getVariableBindingKey().equals(variableBinding1.getKey())) {
 							Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
 							while(declaredVariableIterator2.hasNext()) {
 								AbstractVariable variable2 = declaredVariableIterator2.next();
@@ -1086,8 +1053,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										for(Expression expression : variableInstructions) {
 											SimpleName simpleName = (SimpleName)expression;
 											IBinding variableBinding = simpleName.resolveBinding();
-											if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey())) {
-												pair = new VariableBindingPair(binding, (IVariableBinding)variableBinding);
+											if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
+													!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, (IVariableBinding)variableBinding)) {
+												pair = new VariableBindingPair(variableBinding1, (IVariableBinding)variableBinding);
 												break;
 											}
 										}
@@ -1103,14 +1071,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 					}
 				}
+				if(pair != null) {
+					break;
+				}
 			}
-			else {
+			if(pair != null) {
+				parameterTypeBindings.add(pair);
+			}
+		}
+		for(IVariableBinding variableBinding2 : variableBindings2) {
+			VariableBindingPair pair = null;
+			for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+				PDGNode node1 = mapping.getNodeG1();
+				PDGNode node2 = mapping.getNodeG2();
 				Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
 				while(declaredVariableIterator2.hasNext()) {
 					AbstractVariable variable2 = declaredVariableIterator2.next();
 					if(variable2 instanceof PlainVariable) {
 						PlainVariable plainVariable2 = (PlainVariable)variable2;
-						if(plainVariable2.getVariableBindingKey().equals(binding.getKey())) {
+						if(plainVariable2.getVariableBindingKey().equals(variableBinding2.getKey())) {
 							Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
 							while(declaredVariableIterator1.hasNext()) {
 								AbstractVariable variable1 = declaredVariableIterator1.next();
@@ -1121,8 +1100,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										for(Expression expression : variableInstructions) {
 											SimpleName simpleName = (SimpleName)expression;
 											IBinding variableBinding = simpleName.resolveBinding();
-											if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey())) {
-												pair = new VariableBindingPair((IVariableBinding)variableBinding, binding);
+											if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
+													!alreadyMatchedLambdaParameter(parameterTypeBindings, (IVariableBinding)variableBinding, variableBinding2)) {
+												pair = new VariableBindingPair((IVariableBinding)variableBinding, variableBinding2);
 												break;
 											}
 										}
@@ -1138,14 +1118,26 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 					}
 				}
+				if(pair != null) {
+					break;
+				}
 			}
 			if(pair != null) {
-				break;
+				parameterTypeBindings.add(pair);
 			}
 		}
-		return pair;
+		return parameterTypeBindings;
 	}
-	
+
+	private boolean alreadyMatchedLambdaParameter(Set<VariableBindingPair> parameterTypeBindings,
+			IVariableBinding binding1, IVariableBinding binding2) {
+		for(VariableBindingPair pair : parameterTypeBindings) {
+			if(pair.getBinding1().isEqualTo(binding1) || pair.getBinding2().isEqualTo(binding2))
+				return true;
+		}
+		return false;
+	}
+
 	private boolean differenceBelongsToPreconditionViolations(ASTNodeDifference difference) {
 		for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
 			if(violation instanceof ExpressionPreconditionViolation) {
@@ -2735,9 +2727,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			MethodInvocation interfaceMethodInvocation = ast.newMethodInvocation();
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
 			ListRewrite argumentRewrite = sourceRewriter.getListRewrite(interfaceMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-			Map<ITypeBinding, VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(argumentDifference);
-			for(ITypeBinding parameterTypeBinding : parameterTypeBindings.keySet()) {
-				VariableBindingPair variableBindingPair = parameterTypeBindings.get(parameterTypeBinding);
+			Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(argumentDifference);
+			for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 				IVariableBinding variableBinding = variableBindingPair.getBinding1();
 				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
 			}
@@ -3101,11 +3092,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						if(differenceBelongsToPreconditionViolations(difference)) {
 							LambdaExpression lambdaExpression = ast.newLambdaExpression();
 							ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
-							Map<ITypeBinding, VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
-							for(ITypeBinding parameterTypeBinding : parameterTypeBindings.keySet()) {
-								VariableBindingPair variableBindingPair = parameterTypeBindings.get(parameterTypeBinding);
+							Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
+							for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 								IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
-								Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(parameterTypeBinding, ast, methodBodyRewriter);
+								Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
 								SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
 								methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
 								methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
@@ -3462,7 +3452,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		final RefactoringStatus status= new RefactoringStatus();
 		try {
 			pm.beginTask("Checking preconditions...", 2);
-			this.lambdaExpressionInfoMap = new LinkedHashMap<ASTNodeDifference, Map<ITypeBinding, VariableBindingPair>>();
+			this.lambdaExpressionInfoMap = new LinkedHashMap<ASTNodeDifference, Set<VariableBindingPair>>();
 			for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
 				if(violation instanceof StatementPreconditionViolation) {
 					StatementPreconditionViolation statementViolation = (StatementPreconditionViolation)violation;
@@ -3503,8 +3493,36 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									variableBindings2.add(variableBinding);
 							}
 						}
-						Map<ITypeBinding, VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
-						if(parameterTypeBindings.size() == Math.max(variableBindings1.size(), variableBindings2.size())) {
+						Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
+						boolean allVariableBindings1Found = true;
+						for(IVariableBinding variableBinding1 : variableBindings1) {
+							boolean found = false;
+							for(VariableBindingPair pair : parameterTypeBindings) {
+								if(pair.getBinding1().isEqualTo(variableBinding1)) {
+									found = true;
+									break;
+								}
+							}
+							if(!found) {
+								allVariableBindings1Found = false;
+								break;
+							}
+						}
+						boolean allVariableBindings2Found = true;
+						for(IVariableBinding variableBinding2 : variableBindings2) {
+							boolean found = false;
+							for(VariableBindingPair pair : parameterTypeBindings) {
+								if(pair.getBinding2().isEqualTo(variableBinding2)) {
+									found = true;
+									break;
+								}
+							}
+							if(!found) {
+								allVariableBindings2Found = false;
+								break;
+							}
+						}
+						if(allVariableBindings1Found && allVariableBindings2Found) {
 							if(!lambdaExpressionInfoMap.containsKey(difference)) {
 								lambdaExpressionInfoMap.put(difference, parameterTypeBindings);
 							}

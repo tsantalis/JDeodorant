@@ -106,7 +106,6 @@ import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SwitchStatement;
@@ -338,8 +337,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	public void apply() {
 		initialize();
 		extractClone();
+		boolean singleSourceCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
+		if(singleSourceCompilationUnit) {
+			modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0));
+		}
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
 			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
+			if(!singleSourceCompilationUnit) {
+				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i));
+			}
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
 		}
@@ -2950,6 +2956,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
 			removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
 		}
+	}
+
+	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit) {
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);

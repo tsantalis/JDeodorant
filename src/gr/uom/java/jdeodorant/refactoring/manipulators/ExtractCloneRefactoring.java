@@ -93,11 +93,13 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.dom.MarkerAnnotation;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -139,7 +141,7 @@ import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
-	private static final String FUNCTIONAL_INTERFACE_METHOD_NAME = "test";
+	private static final String FUNCTIONAL_INTERFACE_METHOD_NAME = "apply";
 	private List<PDGSubTreeMapper> mappers;
 	private PDGSubTreeMapper mapper;
 	private Map<ASTNodeDifference, Set<VariableBindingPair>> lambdaExpressionInfoMap;
@@ -638,7 +640,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(commonSuperTypeOfSourceTypeDeclarations != null) {
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
-			getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 		}
 		Set<VariableDeclaration> accessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
 		Set<VariableDeclaration> accessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
@@ -750,7 +752,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 							}
 						}
-						getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+						RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						break;
 					}
 				}
@@ -777,7 +779,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(returnTypeBinding != null) {
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(returnTypeBinding);
-			getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 			Type returnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 		}
@@ -841,7 +843,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					Type variableType = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 					typeBindings.add(typeBinding);
-					getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+					RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 					SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 					sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration1.getName(), null);
 					sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
@@ -858,13 +860,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Statement statement1 = pdgNode1.getASTStatement();
 			TypeVisitor typeVisitor1 = new TypeVisitor();
 			statement1.accept(typeVisitor1);
-			getSimpleTypeBindings(typeVisitor1.getTypeBindings(), requiredImportTypeBindings);
+			RefactoringUtility.getSimpleTypeBindings(typeVisitor1.getTypeBindings(), requiredImportTypeBindings);
 			
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
 			Statement statement2 = pdgNode2.getASTStatement();
 			TypeVisitor typeVisitor2 = new TypeVisitor();
 			statement2.accept(typeVisitor2);
-			getSimpleTypeBindings(typeVisitor2.getTypeBindings(), requiredImportTypeBindings);
+			RefactoringUtility.getSimpleTypeBindings(typeVisitor2.getTypeBindings(), requiredImportTypeBindings);
 		}
 		
 		CloneStructureNode root = mapper.getCloneStructureRoot();
@@ -937,36 +939,73 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 				typeBindings.add(typeBinding);
-				getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+				RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 				if(differenceBelongsToPreconditionViolations(difference)) {
 					//find required parameters
 					Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
-					//introduce functional interface
-					TypeDeclaration interfaceTypeDeclaration = ast.newTypeDeclaration();
-					sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.INTERFACE_PROPERTY, true, null);
-					SimpleName interfaceName = ast.newSimpleName("Interface" + i);
-					sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.NAME_PROPERTY, interfaceName, null);
-					ListRewrite interfaceBodyDeclarationRewrite = sourceRewriter.getListRewrite(interfaceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-					MethodDeclaration interfaceMethodDeclaration = ast.newMethodDeclaration();
-					sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
-					sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, type, null);
-					ListRewrite interfaceMethodDeclarationParameterRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-					for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-						IVariableBinding variableBinding = variableBindingPair.getBinding1();
-						Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
-						Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
-						typeBindings2.add(variableBinding.getType());
-						getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
-						SingleVariableDeclaration parameterDeclaration = ast.newSingleVariableDeclaration();
-						sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-						sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
-						interfaceMethodDeclarationParameterRewrite.insertLast(parameterDeclaration, null);
+					Type interfaceType = null;
+					if(parameterTypeBindings.size() == 1) {
+						//introduce functional interface Function
+						SimpleName interfaceName = ast.newSimpleName("Function");
+						ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(interfaceName));
+						ListRewrite typeArgumentsRewrite = sourceRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+						//add first the type of the input to the function
+						for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+							IVariableBinding variableBinding = variableBindingPair.getBinding1();
+							Type parameterType = null;
+							if(variableBinding.getType().isPrimitive()) {
+								parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
+							}
+							else {
+								parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+							}
+							Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
+							typeBindings2.add(variableBinding.getType());
+							RefactoringUtility.getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
+							typeArgumentsRewrite.insertLast(parameterType, null);
+						}
+						//add second the type of the result of the function
+						if(typeBinding.isPrimitive()) {
+							typeArgumentsRewrite.insertLast(RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(typeBinding, ast), null);
+						}
+						else {
+							typeArgumentsRewrite.insertLast(type, null);
+						}
+						interfaceType = parameterizedType;
 					}
-					interfaceBodyDeclarationRewrite.insertLast(interfaceMethodDeclaration, null);
-					bodyDeclarationsRewrite.insertLast(interfaceTypeDeclaration, null);
+					else {
+						//introduce a new functional interface
+						TypeDeclaration interfaceTypeDeclaration = ast.newTypeDeclaration();
+						sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.INTERFACE_PROPERTY, true, null);
+						SimpleName interfaceName = ast.newSimpleName("Interface" + i);
+						sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.NAME_PROPERTY, interfaceName, null);
+						ListRewrite interfaceTypeDeclarationModifiersRewrite = sourceRewriter.getListRewrite(interfaceTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+						MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
+						sourceRewriter.set(markerAnnotation, MarkerAnnotation.TYPE_NAME_PROPERTY, ast.newSimpleName("FunctionalInterface"), null);
+						interfaceTypeDeclarationModifiersRewrite.insertLast(markerAnnotation, null);
+						interfaceTypeDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+						ListRewrite interfaceBodyDeclarationRewrite = sourceRewriter.getListRewrite(interfaceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+						MethodDeclaration interfaceMethodDeclaration = ast.newMethodDeclaration();
+						sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
+						sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, type, null);
+						ListRewrite interfaceMethodDeclarationParameterRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+						for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+							IVariableBinding variableBinding = variableBindingPair.getBinding1();
+							Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+							Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
+							typeBindings2.add(variableBinding.getType());
+							RefactoringUtility.getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
+							SingleVariableDeclaration parameterDeclaration = ast.newSingleVariableDeclaration();
+							sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+							sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+							interfaceMethodDeclarationParameterRewrite.insertLast(parameterDeclaration, null);
+						}
+						interfaceBodyDeclarationRewrite.insertLast(interfaceMethodDeclaration, null);
+						bodyDeclarationsRewrite.insertLast(interfaceTypeDeclaration, null);
+						interfaceType = ast.newSimpleType(interfaceName);
+					}
 					
 					//introduce parameter for the functional interface
-					SimpleType interfaceType = ast.newSimpleType(interfaceName);
 					SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 					sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
 					i++;
@@ -1580,7 +1619,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									sourceRewriter.set(innerTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, innerType1.getSuperclassType(), null);
 									Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 									typeBindings.add(innerType1.getSuperclassType().resolveBinding());
-									getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+									RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 									
 									ListRewrite innerTypeBodyRewrite = sourceRewriter.getListRewrite(innerTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 									for(MethodDeclaration method1 : methods1) {
@@ -1629,7 +1668,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 								typeBindings.add(localFieldG1.resolveBinding().getType());
-								getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 								VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
 								sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
 								if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
@@ -1683,7 +1722,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 							typeBindings.add(localFieldG1.resolveBinding().getType());
-							getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						break;
 					}
@@ -2920,7 +2959,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					importRewrite.addImport(cloneInfo.intermediateClassPackageBinding.getName() +
 							"." + cloneInfo.intermediateClassName);
 				}
-			}		
+			}
+			for(ASTNodeDifference diff : lambdaExpressionInfoMap.keySet()) {
+				Set<VariableBindingPair> parameters = lambdaExpressionInfoMap.get(diff);
+				if(parameters.size() == 1) {
+					importRewrite.addImport("java.util.function.Function");
+					break;
+				}
+			}
 			TextEdit importEdit = importRewrite.rewriteImports(null);
 			if(importRewrite.getCreatedImports().length > 0) {
 				change.getEdit().addChild(importEdit);
@@ -3313,49 +3359,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(returnedVariable.resolveBinding().isEqualTo(binding)) {
 				return true;
 			}
-		}
-		return false;
-	}
-
-	private void getSimpleTypeBindings(Set<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
-		for(ITypeBinding typeBinding : typeBindings) {
-			if(typeBinding.isPrimitive()) {
-
-			}
-			else if(typeBinding.isArray()) {
-				ITypeBinding elementTypeBinding = typeBinding.getElementType();
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(elementTypeBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isParameterizedType()) {
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(typeBinding.getTypeDeclaration());
-				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
-				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
-					typeBindingList.add(typeArgumentBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isWildcardType()) {
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(typeBinding.getBound());
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else {
-				if(typeBinding.isNested()) {
-					if(!containsTypeBinding(typeBinding.getDeclaringClass(), finalTypeBindings))
-						finalTypeBindings.add(typeBinding.getDeclaringClass());
-				}
-				if(!containsTypeBinding(typeBinding, finalTypeBindings))
-					finalTypeBindings.add(typeBinding);
-			}
-		}
-	}
-
-	private boolean containsTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> typeBindings) {
-		for(ITypeBinding typeBinding2 : typeBindings) {
-			if(typeBinding2.getKey().equals(typeBinding.getKey()))
-				return true;
 		}
 		return false;
 	}

@@ -2020,38 +2020,61 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				boolean symmetricalIfElse = nodeMapping.isSymmetricalIfElse();
 				for(CloneStructureNode child : node.getChildren()) {
 					if(processableNode(child)) {
-						PDGNodeMapping childMapping = (PDGNodeMapping) child.getMapping();
-						PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
-						if(symmetrical != null) {
-							if(symmetrical.equals(nodeMapping)) {
-								falseControlDependentChildren.add(child);
-							}
-							else {
-								trueControlDependentChildren.add(child);
-							}
-						}
-						else {
-							PDGNode childNodeG1 = child.getMapping().getNodeG1();
-							PDGNode childNodeG2 = child.getMapping().getNodeG2();
-							PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-							PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-							if(controlDependence1 != null && controlDependence2 != null) {
-								if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
-										(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
+						if(child.getMapping() instanceof PDGNodeMapping) {
+							PDGNodeMapping childMapping = (PDGNodeMapping) child.getMapping();
+							PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
+							if(symmetrical != null) {
+								if(symmetrical.equals(nodeMapping)) {
+									falseControlDependentChildren.add(child);
+								}
+								else {
 									trueControlDependentChildren.add(child);
 								}
-								else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
-										(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+							}
+							else {
+								PDGNode childNodeG1 = child.getMapping().getNodeG1();
+								PDGNode childNodeG2 = child.getMapping().getNodeG2();
+								PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+								PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+								if(controlDependence1 != null && controlDependence2 != null) {
+									if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
+											(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
+										trueControlDependentChildren.add(child);
+									}
+									else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
+											(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+										falseControlDependentChildren.add(child);
+									}
+								}
+								else {
+									if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
+											isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+										falseControlDependentChildren.add(child);
+									}
+									else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
+											!isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+										trueControlDependentChildren.add(child);
+									}
+								}
+							}
+						}
+						else if(child.getMapping() instanceof PDGNodeGap) {
+							//special handling for an if/else matched with a ternary operator
+							PDGNode childNodeG1 = child.getMapping().getNodeG1();
+							PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+							if(controlDependence1 != null) {
+								if(controlDependence1.isTrueControlDependence()) {
+									trueControlDependentChildren.add(child);
+								}
+								else if(controlDependence1.isFalseControlDependence()) {
 									falseControlDependentChildren.add(child);
 								}
 							}
 							else {
-								if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
-										isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+								if(isNestedUnderElse(childNodeG1)) {
 									falseControlDependentChildren.add(child);
 								}
-								else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
-										!isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
+								else if(!isNestedUnderElse(childNodeG1)) {
 									trueControlDependentChildren.add(child);
 								}
 							}
@@ -2092,6 +2115,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										}
 										else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
 												(!isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
+											trueControlDependentChildren.add(child2);
+										}
+									}
+								}
+							}
+						}
+					}
+					else if(child.getMapping() instanceof PDGElseGap) {
+						//special handling for an if/else matched with a ternary operator
+						for(CloneStructureNode child2 : child.getChildren()) {
+							if(processableNode(child2)) {
+								if(child2.getMapping() instanceof PDGNodeGap) {
+									PDGNodeGap childMapping = (PDGNodeGap) child2.getMapping();
+									PDGNode childNode = childMapping.getNodeG1();
+									PDGControlDependence controlDependence = childNode.getIncomingControlDependence();
+									if(controlDependence != null) {
+										if(controlDependence.isTrueControlDependence()) {
+											trueControlDependentChildren.add(child2);
+										}
+										else if(controlDependence.isFalseControlDependence()) {
+											falseControlDependentChildren.add(child2);
+										}
+									}
+									else {
+										if(isNestedUnderElse(childNode)) {
+											falseControlDependentChildren.add(child2);
+										}
+										else if(!isNestedUnderElse(childNode)) {
 											trueControlDependentChildren.add(child2);
 										}
 									}
@@ -3150,7 +3201,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
 							for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 								IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
-								Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+								Type parameterType = null;
+								if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive()) {
+									parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
+								}
+								else {
+									parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+								}
 								SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
 								methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
 								methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);

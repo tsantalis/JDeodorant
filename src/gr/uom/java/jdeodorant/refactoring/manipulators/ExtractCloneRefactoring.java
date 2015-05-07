@@ -1077,47 +1077,57 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		Set<VariableBindingPair> parameterTypeBindings = new LinkedHashSet<VariableBindingPair>();
+		Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
 		for(IVariableBinding variableBinding1 : variableBindings1) {
 			VariableBindingPair pair = null;
-			for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
-				PDGNode node1 = mapping.getNodeG1();
-				PDGNode node2 = mapping.getNodeG2();
-				Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
-				while(declaredVariableIterator1.hasNext()) {
-					AbstractVariable variable1 = declaredVariableIterator1.next();
-					if(variable1 instanceof PlainVariable) {
-						PlainVariable plainVariable1 = (PlainVariable)variable1;
-						if(plainVariable1.getVariableBindingKey().equals(variableBinding1.getKey())) {
-							Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
-							while(declaredVariableIterator2.hasNext()) {
-								AbstractVariable variable2 = declaredVariableIterator2.next();
-								if(variable2 instanceof PlainVariable) {
-									PlainVariable plainVariable2 = (PlainVariable)variable2;
-									if(plainVariable1.getVariableType().equals(plainVariable2.getVariableType())) {
-										List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node2.getASTStatement());
-										for(Expression expression : variableInstructions) {
-											SimpleName simpleName = (SimpleName)expression;
-											IBinding variableBinding = simpleName.resolveBinding();
-											if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
-													!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, (IVariableBinding)variableBinding)) {
-												pair = new VariableBindingPair(variableBinding1, (IVariableBinding)variableBinding);
+			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
+				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
+				if(variableBinding1.isEqualTo(variableDeclarations.get(0).resolveBinding())) {
+					pair = new VariableBindingPair(variableBinding1, variableDeclarations.get(1).resolveBinding());
+					break;
+				}
+			}
+			if(pair == null) {
+				for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+					PDGNode node1 = mapping.getNodeG1();
+					PDGNode node2 = mapping.getNodeG2();
+					Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
+					while(declaredVariableIterator1.hasNext()) {
+						AbstractVariable variable1 = declaredVariableIterator1.next();
+						if(variable1 instanceof PlainVariable) {
+							PlainVariable plainVariable1 = (PlainVariable)variable1;
+							if(plainVariable1.getVariableBindingKey().equals(variableBinding1.getKey())) {
+								Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
+								while(declaredVariableIterator2.hasNext()) {
+									AbstractVariable variable2 = declaredVariableIterator2.next();
+									if(variable2 instanceof PlainVariable) {
+										PlainVariable plainVariable2 = (PlainVariable)variable2;
+										if(plainVariable1.getVariableType().equals(plainVariable2.getVariableType())) {
+											List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node2.getASTStatement());
+											for(Expression expression : variableInstructions) {
+												SimpleName simpleName = (SimpleName)expression;
+												IBinding variableBinding = simpleName.resolveBinding();
+												if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
+														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, (IVariableBinding)variableBinding)) {
+													pair = new VariableBindingPair(variableBinding1, (IVariableBinding)variableBinding);
+													break;
+												}
+											}
+											if(pair != null) {
 												break;
 											}
 										}
-										if(pair != null) {
-											break;
-										}
 									}
 								}
-							}
-							if(pair != null) {
-								break;
+								if(pair != null) {
+									break;
+								}
 							}
 						}
 					}
-				}
-				if(pair != null) {
-					break;
+					if(pair != null) {
+						break;
+					}
 				}
 			}
 			if(pair != null) {
@@ -1126,45 +1136,54 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(IVariableBinding variableBinding2 : variableBindings2) {
 			VariableBindingPair pair = null;
-			for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
-				PDGNode node1 = mapping.getNodeG1();
-				PDGNode node2 = mapping.getNodeG2();
-				Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
-				while(declaredVariableIterator2.hasNext()) {
-					AbstractVariable variable2 = declaredVariableIterator2.next();
-					if(variable2 instanceof PlainVariable) {
-						PlainVariable plainVariable2 = (PlainVariable)variable2;
-						if(plainVariable2.getVariableBindingKey().equals(variableBinding2.getKey())) {
-							Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
-							while(declaredVariableIterator1.hasNext()) {
-								AbstractVariable variable1 = declaredVariableIterator1.next();
-								if(variable1 instanceof PlainVariable) {
-									PlainVariable plainVariable1 = (PlainVariable)variable1;
-									if(plainVariable2.getVariableType().equals(plainVariable1.getVariableType())) {
-										List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node1.getASTStatement());
-										for(Expression expression : variableInstructions) {
-											SimpleName simpleName = (SimpleName)expression;
-											IBinding variableBinding = simpleName.resolveBinding();
-											if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
-													!alreadyMatchedLambdaParameter(parameterTypeBindings, (IVariableBinding)variableBinding, variableBinding2)) {
-												pair = new VariableBindingPair((IVariableBinding)variableBinding, variableBinding2);
+			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
+				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
+				if(variableBinding2.isEqualTo(variableDeclarations.get(1).resolveBinding())) {
+					pair = new VariableBindingPair(variableDeclarations.get(0).resolveBinding(), variableBinding2);
+					break;
+				}
+			}
+			if(pair == null) {
+				for(PDGNodeMapping mapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+					PDGNode node1 = mapping.getNodeG1();
+					PDGNode node2 = mapping.getNodeG2();
+					Iterator<AbstractVariable> declaredVariableIterator2 = node2.getDeclaredVariableIterator();
+					while(declaredVariableIterator2.hasNext()) {
+						AbstractVariable variable2 = declaredVariableIterator2.next();
+						if(variable2 instanceof PlainVariable) {
+							PlainVariable plainVariable2 = (PlainVariable)variable2;
+							if(plainVariable2.getVariableBindingKey().equals(variableBinding2.getKey())) {
+								Iterator<AbstractVariable> declaredVariableIterator1 = node1.getDeclaredVariableIterator();
+								while(declaredVariableIterator1.hasNext()) {
+									AbstractVariable variable1 = declaredVariableIterator1.next();
+									if(variable1 instanceof PlainVariable) {
+										PlainVariable plainVariable1 = (PlainVariable)variable1;
+										if(plainVariable2.getVariableType().equals(plainVariable1.getVariableType())) {
+											List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node1.getASTStatement());
+											for(Expression expression : variableInstructions) {
+												SimpleName simpleName = (SimpleName)expression;
+												IBinding variableBinding = simpleName.resolveBinding();
+												if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
+														!alreadyMatchedLambdaParameter(parameterTypeBindings, (IVariableBinding)variableBinding, variableBinding2)) {
+													pair = new VariableBindingPair((IVariableBinding)variableBinding, variableBinding2);
+													break;
+												}
+											}
+											if(pair != null) {
 												break;
 											}
 										}
-										if(pair != null) {
-											break;
-										}
 									}
 								}
-							}
-							if(pair != null) {
-								break;
+								if(pair != null) {
+									break;
+								}
 							}
 						}
 					}
-				}
-				if(pair != null) {
-					break;
+					if(pair != null) {
+						break;
+					}
 				}
 			}
 			if(pair != null) {

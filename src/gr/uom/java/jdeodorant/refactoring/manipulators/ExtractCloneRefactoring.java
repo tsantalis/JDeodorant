@@ -1102,20 +1102,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									AbstractVariable variable2 = declaredVariableIterator2.next();
 									if(variable2 instanceof PlainVariable) {
 										PlainVariable plainVariable2 = (PlainVariable)variable2;
-										if(plainVariable1.getVariableType().equals(plainVariable2.getVariableType())) {
-											List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node2.getASTStatement());
-											for(Expression expression : variableInstructions) {
-												SimpleName simpleName = (SimpleName)expression;
-												IBinding variableBinding = simpleName.resolveBinding();
-												if(variableBinding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
-														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, (IVariableBinding)variableBinding)) {
-													pair = new VariableBindingPair(variableBinding1, (IVariableBinding)variableBinding);
+										List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node2.getASTStatement());
+										for(Expression expression : variableInstructions) {
+											SimpleName simpleName = (SimpleName)expression;
+											IBinding binding = simpleName.resolveBinding();
+											if(binding.getKind() == IBinding.VARIABLE) {
+												IVariableBinding variableBinding = (IVariableBinding)binding;
+												if(binding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
+														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, variableBinding) &&
+														(variableBinding1.getType().isEqualTo(variableBinding.getType()) ||
+														ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding.getType()) != null)) {
+													pair = new VariableBindingPair(variableBinding1, variableBinding);
 													break;
 												}
 											}
-											if(pair != null) {
-												break;
-											}
+										}
+										if(pair != null) {
+											break;
 										}
 									}
 								}
@@ -1158,20 +1161,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									AbstractVariable variable1 = declaredVariableIterator1.next();
 									if(variable1 instanceof PlainVariable) {
 										PlainVariable plainVariable1 = (PlainVariable)variable1;
-										if(plainVariable2.getVariableType().equals(plainVariable1.getVariableType())) {
-											List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node1.getASTStatement());
-											for(Expression expression : variableInstructions) {
-												SimpleName simpleName = (SimpleName)expression;
-												IBinding variableBinding = simpleName.resolveBinding();
-												if(variableBinding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
-														!alreadyMatchedLambdaParameter(parameterTypeBindings, (IVariableBinding)variableBinding, variableBinding2)) {
-													pair = new VariableBindingPair((IVariableBinding)variableBinding, variableBinding2);
+										List<Expression> variableInstructions = expressionExtractor.getVariableInstructions(node1.getASTStatement());
+										for(Expression expression : variableInstructions) {
+											SimpleName simpleName = (SimpleName)expression;
+											IBinding binding = simpleName.resolveBinding();
+											if(binding.getKind() == IBinding.VARIABLE) {
+												IVariableBinding variableBinding = (IVariableBinding)binding;
+												if(binding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
+														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding, variableBinding2) &&
+														(variableBinding.getType().isEqualTo(variableBinding2.getType()) ||
+														ASTNodeMatcher.commonSuperType(variableBinding.getType(), variableBinding2.getType()) != null)) {
+													pair = new VariableBindingPair(variableBinding, variableBinding2);
 													break;
 												}
 											}
-											if(pair != null) {
-												break;
-											}
+										}
+										if(pair != null) {
+											break;
 										}
 									}
 								}

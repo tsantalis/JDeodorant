@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
-import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.DivideAndConquerMatcher;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
@@ -49,8 +49,8 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 	private static final Font CONSOLAS_NORMAL_FONT = new Font(null, new FontData("consolas", 9, SWT.NORMAL));
 	private static final Font CONSOLAS_BOLD_FONT = new Font(null, new FontData("consolas", 9, SWT.BOLD));
 	private ExtractCloneRefactoring refactoring;
-	private List<PDGSubTreeMapper> mappers;
-	private PDGSubTreeMapper mapper;
+	private List<? extends DivideAndConquerMatcher> mappers;
+	private DivideAndConquerMatcher mapper;
 	private CloneStructureNode cloneStructureRoot;
 	private TreeViewer treeViewerLeft;
 	private TreeViewer treeViewerRight;
@@ -107,8 +107,8 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		comboViewer.setLabelProvider(new LabelProvider() {
 			@Override
 			public String getText(Object element) {
-				if(element instanceof PDGSubTreeMapper) {
-					PDGSubTreeMapper mapper = (PDGSubTreeMapper)element;
+				if(element instanceof DivideAndConquerMatcher) {
+					DivideAndConquerMatcher mapper = (DivideAndConquerMatcher)element;
 					int index = mappers.indexOf(mapper);
 					return "Subtree " + (index+1);
 				}
@@ -167,7 +167,7 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		comboViewer.addSelectionChangedListener(new ISelectionChangedListener() {
 			public void selectionChanged(SelectionChangedEvent event) {
 				IStructuredSelection selection = (IStructuredSelection)event.getSelection();
-				PDGSubTreeMapper selectedMapper = (PDGSubTreeMapper)selection.getFirstElement();
+				DivideAndConquerMatcher selectedMapper = (DivideAndConquerMatcher)selection.getFirstElement();
 				CloneStructureNode selectedCloneStructureRoot = selectedMapper.getCloneStructureRoot();
 				if(cloneStructureRoot != selectedCloneStructureRoot) {
 					mapper = selectedMapper;

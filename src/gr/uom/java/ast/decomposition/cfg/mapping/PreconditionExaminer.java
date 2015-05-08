@@ -139,7 +139,7 @@ public class PreconditionExaminer {
 		this.cloneStructureRoot = cloneStructureRoot;
 		this.finalState = finalState;
 		this.allNodesInSubTreePDG1 = allNodesInSubTreePDG1;
-		this.allNodesInSubTreePDG2 = allNodesInSubTreePDG1;
+		this.allNodesInSubTreePDG2 = allNodesInSubTreePDG2;
 		this.nonMappedNodesG1 = new TreeSet<PDGNode>();
 		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();

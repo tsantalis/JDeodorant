@@ -1,7 +1,9 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchSwitchNode;
@@ -11,8 +13,10 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
@@ -29,6 +33,7 @@ import java.util.TreeSet;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.SwitchStatement;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class DivideAndConquerMatcher {
 
@@ -45,6 +50,7 @@ public abstract class DivideAndConquerMatcher {
 	private TreeSet<PDGNode> allNodesInSubTreePDG2;
 	private CloneStructureNode root;
 	private MappingState finalState;
+	private PreconditionExaminer preconditionExaminer;
 	
 	public DivideAndConquerMatcher(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -60,6 +66,149 @@ public abstract class DivideAndConquerMatcher {
 		this.monitor = monitor;
 		this.allNodesInSubTreePDG1 = new TreeSet<PDGNode>();
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
+		//creates CloneStructureRoot
+		matchBasedOnControlDependenceTreeStructure();
+		this.preconditionExaminer = new PreconditionExaminer(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, root, finalState, allNodesInSubTreePDG1, allNodesInSubTreePDG2);
+	}
+
+	public PDG getPDG1() {
+		return pdg1;
+	}
+
+	public PDG getPDG2() {
+		return pdg2;
+	}
+
+	public String getMethodName1() {
+		return pdg1.getMethod().getName();
+	}
+
+	public String getMethodName2() {
+		return pdg2.getMethod().getName();
+	}
+
+	public TreeSet<PDGNode> getRemovableNodesG1() {
+		return preconditionExaminer.getRemovableNodesG1();
+	}
+
+	public TreeSet<PDGNode> getRemovableNodesG2() {
+		return preconditionExaminer.getRemovableNodesG2();
+	}
+
+	public TreeSet<PDGNode> getRemainingNodesG1() {
+		return preconditionExaminer.getRemainingNodesG1();
+	}
+
+	public TreeSet<PDGNode> getRemainingNodesG2() {
+		return preconditionExaminer.getRemainingNodesG2();
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG1MovableBefore() {
+		return preconditionExaminer.getNonMappedPDGNodesG1MovableBefore();
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG1MovableAfter() {
+		return preconditionExaminer.getNonMappedPDGNodesG1MovableAfter();
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG2MovableBefore() {
+		return preconditionExaminer.getNonMappedPDGNodesG2MovableBefore();
+	}
+
+	public TreeSet<PDGNode> getNonMappedPDGNodesG2MovableAfter() {
+		return preconditionExaminer.getNonMappedPDGNodesG2MovableAfter();
+	}
+
+	public TreeSet<PDGNode> getAdditionallyMatchedNodesG1() {
+		return preconditionExaminer.getAdditionallyMatchedNodesG1();
+	}
+
+	public TreeSet<PDGNode> getAdditionallyMatchedNodesG2() {
+		return preconditionExaminer.getAdditionallyMatchedNodesG2();
+	}
+
+	public Set<AbstractVariable> getDirectlyAccessedLocalFieldsG1() {
+		return preconditionExaminer.getDirectlyAccessedLocalFieldsG1();
+	}
+
+	public Set<AbstractVariable> getDirectlyAccessedLocalFieldsG2() {
+		return preconditionExaminer.getDirectlyAccessedLocalFieldsG2();
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
+		return preconditionExaminer.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1();
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2() {
+		return preconditionExaminer.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2();
+	}
+
+	public Set<AbstractVariable> getIndirectlyAccessedLocalFieldsG1() {
+		return preconditionExaminer.getIndirectlyAccessedLocalFieldsG1();
+	}
+
+	public Set<AbstractVariable> getIndirectlyAccessedLocalFieldsG2() {
+		return preconditionExaminer.getIndirectlyAccessedLocalFieldsG2();
+	}
+
+	public Set<MethodObject> getAccessedLocalMethodsG1() {
+		return preconditionExaminer.getAccessedLocalMethodsG1();
+	}
+
+	public Set<MethodObject> getAccessedLocalMethodsG2() {
+		return preconditionExaminer.getAccessedLocalMethodsG2();
+	}
+
+	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getDeclaredLocalVariablesInMappedNodes() {
+		return preconditionExaminer.getDeclaredLocalVariablesInMappedNodes();
+	}
+	
+	public Set<VariableDeclaration> getDeclaredLocalVariablesInAdditionallyMatchedNodesG1() {
+		return preconditionExaminer.getDeclaredLocalVariablesInAdditionallyMatchedNodesG1();
+	}
+
+	public Set<String> getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1() {
+		return preconditionExaminer.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
+	}
+
+	public Set<VariableDeclaration> getDeclaredLocalVariablesInAdditionallyMatchedNodesG2() {
+		return preconditionExaminer.getDeclaredLocalVariablesInAdditionallyMatchedNodesG2();
+	}
+
+	public Set<String> getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2() {
+		return preconditionExaminer.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
+	}
+
+	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getCommonPassedParameters() {
+		return preconditionExaminer.getCommonPassedParameters();
+	}
+
+	public List<ASTNodeDifference> getNodeDifferences() {
+		return preconditionExaminer.getNodeDifferences();
+	}
+
+	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
+		return preconditionExaminer.getNonOverlappingNodeDifferences();
+	}
+
+	public List<PreconditionViolation> getPreconditionViolations() {
+		return preconditionExaminer.getPreconditionViolations();
+	}
+
+	public Set<BindingSignaturePair> getRenamedVariables() {
+		return preconditionExaminer.getRenamedVariables();
+	}
+
+	public Set<PlainVariable> getVariablesToBeReturnedG1() {
+		return preconditionExaminer.getVariablesToBeReturnedG1();
+	}
+
+	public Set<PlainVariable> getVariablesToBeReturnedG2() {
+		return preconditionExaminer.getVariablesToBeReturnedG2();
+	}
+	
+	public CloneType getCloneType() {
+		return preconditionExaminer.getCloneType();
 	}
 
 	protected abstract Set<PDGNode> getNodesInRegion1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
@@ -84,14 +233,6 @@ public abstract class DivideAndConquerMatcher {
 	
 	public MappingState getMaximumStateWithMinimumDifferences() {
 		return finalState;
-	}
-
-	public TreeSet<PDGNode> getAllNodesInSubTreePDG1() {
-		return allNodesInSubTreePDG1;
-	}
-
-	public TreeSet<PDGNode> getAllNodesInSubTreePDG2() {
-		return allNodesInSubTreePDG2;
 	}
 
 	private MappingState findMaximumStateWithMinimumDifferences(List<MappingState> states) {

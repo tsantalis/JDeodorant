@@ -26,6 +26,10 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			ControlDependenceTreeNode controlDependenceSubTreePDG2,
 			boolean fullTreeMatch, IProgressMonitor monitor) {
 		super(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, fullTreeMatch, monitor);
+		//creates CloneStructureRoot
+		matchBasedOnControlDependenceTreeStructure();
+		this.preconditionExaminer = new PreconditionExaminer(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2,
+				getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getAllNodesInSubTreePDG1(), getAllNodesInSubTreePDG2());
 	}
 
 	protected Set<PDGNode> getNodesInRegion1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,

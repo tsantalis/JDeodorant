@@ -50,7 +50,7 @@ public abstract class DivideAndConquerMatcher {
 	private TreeSet<PDGNode> allNodesInSubTreePDG2;
 	private CloneStructureNode root;
 	private MappingState finalState;
-	private PreconditionExaminer preconditionExaminer;
+	protected PreconditionExaminer preconditionExaminer;
 	
 	public DivideAndConquerMatcher(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -66,9 +66,6 @@ public abstract class DivideAndConquerMatcher {
 		this.monitor = monitor;
 		this.allNodesInSubTreePDG1 = new TreeSet<PDGNode>();
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
-		//creates CloneStructureRoot
-		matchBasedOnControlDependenceTreeStructure();
-		this.preconditionExaminer = new PreconditionExaminer(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, root, finalState, allNodesInSubTreePDG1, allNodesInSubTreePDG2);
 	}
 
 	public PDG getPDG1() {
@@ -233,6 +230,14 @@ public abstract class DivideAndConquerMatcher {
 	
 	public MappingState getMaximumStateWithMinimumDifferences() {
 		return finalState;
+	}
+
+	public TreeSet<PDGNode> getAllNodesInSubTreePDG1() {
+		return allNodesInSubTreePDG1;
+	}
+
+	public TreeSet<PDGNode> getAllNodesInSubTreePDG2() {
+		return allNodesInSubTreePDG2;
 	}
 
 	private MappingState findMaximumStateWithMinimumDifferences(List<MappingState> states) {

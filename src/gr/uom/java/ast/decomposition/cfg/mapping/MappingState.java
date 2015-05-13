@@ -89,7 +89,7 @@ public class MappingState {
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
 				for(Difference diff : difference.getDifferences()) {
-					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH))
+					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH))
 						differences.add(diff);
 				}
 			}
@@ -102,7 +102,7 @@ public class MappingState {
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
 				for(Difference diff : difference.getDifferences()) {
-					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH))
+					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH))
 						differences.add(diff);
 				}
 			}

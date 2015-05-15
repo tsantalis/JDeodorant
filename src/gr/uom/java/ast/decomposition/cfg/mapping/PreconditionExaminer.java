@@ -127,6 +127,7 @@ public class PreconditionExaminer {
 	private MappingState finalState;
 	private TreeSet<PDGNode> allNodesInSubTreePDG1;
 	private TreeSet<PDGNode> allNodesInSubTreePDG2;
+	private LambdaExpressionPreconditionExaminer lambdaExpressionPreconditionExaminer;
 	
 	public PreconditionExaminer(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -291,7 +292,12 @@ public class PreconditionExaminer {
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkPreconditionsAboutReturnedVariables();
 			checkIfAllPossibleExecutionFlowsEndInReturn();
+			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters());
 		}
+	}
+
+	public List<PDGNodeBlockGap> getRefactorableBlockGaps() {
+		return lambdaExpressionPreconditionExaminer.getRefactorableBlockGaps();
 	}
 
 	private CloneStructureNode getCloneStructureRoot() {

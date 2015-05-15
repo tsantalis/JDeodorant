@@ -3,7 +3,9 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -22,6 +24,30 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	public void setParent(CloneStructureNode parent) {
 		this.parent = parent;
 		parent.children.add(this);
+	}
+
+	public List<PDGNodeBlockGap> getSequentialBlockGaps() {
+		List<PDGNodeBlockGap> blockGaps = new ArrayList<PDGNodeBlockGap>();
+		PDGNodeBlockGap blockGap = new PDGNodeBlockGap(this);
+		for(CloneStructureNode child : children) {
+			if(child.getMapping() instanceof PDGNodeGap) {
+				if(!child.getMapping().getPreconditionViolations().isEmpty()) {
+					PDGNodeGap gap = (PDGNodeGap)child.getMapping();
+					blockGap.add(gap);
+				}
+			}
+			else if(child.getMapping() instanceof PDGNodeMapping) {
+				if(!blockGap.isEmpty()) {
+					blockGaps.add(blockGap);
+				}
+				//reset the blockGap
+				blockGap = new PDGNodeBlockGap(this);
+			}
+		}
+		if(!blockGap.isEmpty()) {
+			blockGaps.add(blockGap);
+		}
+		return blockGaps;
 	}
 
 	public boolean isElseIf() {

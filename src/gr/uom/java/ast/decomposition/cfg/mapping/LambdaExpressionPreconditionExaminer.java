@@ -23,29 +23,77 @@ public class LambdaExpressionPreconditionExaminer {
 
 	private MappingState finalState;
 	private Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters;
+	private List<PDGExpressionGap> refactorableExpressionGaps;
 	private List<PDGNodeBlockGap> refactorableBlockGaps;
 
 	public LambdaExpressionPreconditionExaminer(CloneStructureNode cloneStructureRoot, MappingState finalState, 
 			Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters) {
 		this.finalState = finalState;
 		this.commonPassedParameters = commonPassedParameters;
+		this.refactorableExpressionGaps = new ArrayList<PDGExpressionGap>();
 		this.refactorableBlockGaps = new ArrayList<PDGNodeBlockGap>();
-		checkCloneStructureNodeForBlockGaps(cloneStructureRoot);
+		checkCloneStructureNodeForGaps(cloneStructureRoot);
+	}
+
+	public List<PDGExpressionGap> getRefactorableExpressionGaps() {
+		return refactorableExpressionGaps;
 	}
 
 	public List<PDGNodeBlockGap> getRefactorableBlockGaps() {
 		return refactorableBlockGaps;
 	}
 
-	private void checkCloneStructureNodeForBlockGaps(CloneStructureNode node) {
+	private void checkCloneStructureNodeForGaps(CloneStructureNode node) {
 		if(node.getMapping() != null) {
+			List<PDGExpressionGap> expressionGaps = node.getExpressionGaps();
+			for(PDGExpressionGap expressionGap : expressionGaps) {
+				checkRefactorableExpressionGap(expressionGap);
+			}
 			List<PDGNodeBlockGap> blockGaps = node.getSequentialBlockGaps();
 			for(PDGNodeBlockGap blockGap : blockGaps) {
 				checkRefactorableBlockGap(blockGap);
 			}
 		}
 		for(CloneStructureNode child : node.getChildren()) {
-			checkCloneStructureNodeForBlockGaps(child);
+			checkCloneStructureNodeForGaps(child);
+		}
+	}
+
+	private void checkRefactorableExpressionGap(PDGExpressionGap expressionGap) {
+		Set<IVariableBinding> variableBindings1 = expressionGap.getUsedVariableBindingsG1();
+		Set<IVariableBinding> variableBindings2 = expressionGap.getUsedVariableBindingsG2();
+		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
+		boolean allVariableBindings1Found = true;
+		for(IVariableBinding variableBinding1 : variableBindings1) {
+			boolean found = false;
+			for(VariableBindingPair pair : parameterTypeBindings) {
+				if(pair.getBinding1().isEqualTo(variableBinding1)) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				allVariableBindings1Found = false;
+				break;
+			}
+		}
+		boolean allVariableBindings2Found = true;
+		for(IVariableBinding variableBinding2 : variableBindings2) {
+			boolean found = false;
+			for(VariableBindingPair pair : parameterTypeBindings) {
+				if(pair.getBinding2().isEqualTo(variableBinding2)) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				allVariableBindings2Found = false;
+				break;
+			}
+		}
+		if(allVariableBindings1Found && allVariableBindings2Found) {
+			expressionGap.setParameterBindings(parameterTypeBindings);
+			refactorableExpressionGaps.add(expressionGap);
 		}
 	}
 

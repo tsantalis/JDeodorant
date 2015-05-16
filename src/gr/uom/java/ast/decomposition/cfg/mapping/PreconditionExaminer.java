@@ -296,6 +296,10 @@ public class PreconditionExaminer {
 		}
 	}
 
+	public List<PDGExpressionGap> getRefactorableExpressionGaps() {
+		return lambdaExpressionPreconditionExaminer.getRefactorableExpressionGaps();
+	}
+
 	public List<PDGNodeBlockGap> getRefactorableBlockGaps() {
 		return lambdaExpressionPreconditionExaminer.getRefactorableBlockGaps();
 	}

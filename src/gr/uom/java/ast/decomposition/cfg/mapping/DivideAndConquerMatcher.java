@@ -208,6 +208,10 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getCloneType();
 	}
 
+	public List<PDGExpressionGap> getRefactorableExpressionGaps() {
+		return preconditionExaminer.getRefactorableExpressionGaps();
+	}
+
 	public List<PDGNodeBlockGap> getRefactorableBlockGaps() {
 		return preconditionExaminer.getRefactorableBlockGaps();
 	}

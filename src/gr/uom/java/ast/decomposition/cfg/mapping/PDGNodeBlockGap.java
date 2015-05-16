@@ -39,6 +39,14 @@ public class PDGNodeBlockGap {
 		this.nodesG2 = new TreeSet<PDGNode>();
 	}
 
+	public TreeSet<PDGNode> getNodesG1() {
+		return nodesG1;
+	}
+
+	public TreeSet<PDGNode> getNodesG2() {
+		return nodesG2;
+	}
+
 	public Set<VariableBindingPair> getParameterBindings() {
 		return parameterBindings;
 	}

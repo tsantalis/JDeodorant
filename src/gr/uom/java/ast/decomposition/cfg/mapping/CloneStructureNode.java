@@ -2,10 +2,16 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -24,6 +30,33 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	public void setParent(CloneStructureNode parent) {
 		this.parent = parent;
 		parent.children.add(this);
+	}
+
+	public List<PDGExpressionGap> getExpressionGaps() {
+		Map<ASTNodeDifference, PDGExpressionGap> expressionGapMap = new LinkedHashMap<ASTNodeDifference, PDGExpressionGap>();
+		for(PreconditionViolation violation : mapping.getPreconditionViolations()) {
+			if(violation instanceof ExpressionPreconditionViolation) {
+				ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
+				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
+				if(difference != null && ! difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
+					PDGExpressionGap expressionGap = new PDGExpressionGap(difference);
+					if(!expressionGapMap.containsKey(difference)) {
+						expressionGapMap.put(difference, expressionGap);
+					}
+				}
+			}
+		}
+		return new ArrayList<PDGExpressionGap>(expressionGapMap.values());
+	}
+
+	private ASTNodeDifference findDifferenceCorrespondingToPreconditionViolation(ExpressionPreconditionViolation expressionViolation) {
+		for(ASTNodeDifference difference : mapping.getNodeDifferences()) {
+			if(expressionViolation.getExpression().equals(difference.getExpression1()) ||
+					expressionViolation.getExpression().equals(difference.getExpression2())) {
+				return difference;
+			}
+		}
+		return null;
 	}
 
 	public List<PDGNodeBlockGap> getSequentialBlockGaps() {

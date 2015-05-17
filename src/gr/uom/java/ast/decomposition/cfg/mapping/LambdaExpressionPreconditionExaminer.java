@@ -63,35 +63,7 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<IVariableBinding> variableBindings1 = expressionGap.getUsedVariableBindingsG1();
 		Set<IVariableBinding> variableBindings2 = expressionGap.getUsedVariableBindingsG2();
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
-		boolean allVariableBindings1Found = true;
-		for(IVariableBinding variableBinding1 : variableBindings1) {
-			boolean found = false;
-			for(VariableBindingPair pair : parameterTypeBindings) {
-				if(pair.getBinding1().isEqualTo(variableBinding1)) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				allVariableBindings1Found = false;
-				break;
-			}
-		}
-		boolean allVariableBindings2Found = true;
-		for(IVariableBinding variableBinding2 : variableBindings2) {
-			boolean found = false;
-			for(VariableBindingPair pair : parameterTypeBindings) {
-				if(pair.getBinding2().isEqualTo(variableBinding2)) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				allVariableBindings2Found = false;
-				break;
-			}
-		}
-		if(allVariableBindings1Found && allVariableBindings2Found) {
+		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
 			expressionGap.setParameterBindings(parameterTypeBindings);
 			refactorableExpressionGaps.add(expressionGap);
 		}
@@ -101,35 +73,7 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<IVariableBinding> variableBindings1 = blockGap.getUsedVariableBindingsG1();
 		Set<IVariableBinding> variableBindings2 = blockGap.getUsedVariableBindingsG2();
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
-		boolean allVariableBindings1Found = true;
-		for(IVariableBinding variableBinding1 : variableBindings1) {
-			boolean found = false;
-			for(VariableBindingPair pair : parameterTypeBindings) {
-				if(pair.getBinding1().isEqualTo(variableBinding1)) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				allVariableBindings1Found = false;
-				break;
-			}
-		}
-		boolean allVariableBindings2Found = true;
-		for(IVariableBinding variableBinding2 : variableBindings2) {
-			boolean found = false;
-			for(VariableBindingPair pair : parameterTypeBindings) {
-				if(pair.getBinding2().isEqualTo(variableBinding2)) {
-					found = true;
-					break;
-				}
-			}
-			if(!found) {
-				allVariableBindings2Found = false;
-				break;
-			}
-		}
-		if(allVariableBindings1Found && allVariableBindings2Found) {
+		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
 			Set<IVariableBinding> variablesToBeReturnedG1 = blockGap.getVariablesToBeReturnedG1();
 			Set<IVariableBinding> variablesToBeReturnedG2 = blockGap.getVariablesToBeReturnedG2();
 			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2)) {
@@ -146,6 +90,39 @@ public class LambdaExpressionPreconditionExaminer {
 				checkRefactorableBlockGap(blockGap);
 			}
 		}
+	}
+
+	private boolean allVariableBindingsFound(Set<IVariableBinding> variableBindings1, Set<IVariableBinding> variableBindings2,
+			Set<VariableBindingPair> parameterTypeBindings) {
+		boolean allVariableBindings1Found = true;
+		for(IVariableBinding variableBinding1 : variableBindings1) {
+			boolean found = false;
+			for(VariableBindingPair pair : parameterTypeBindings) {
+				if(pair.getBinding1().isEqualTo(variableBinding1)) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				allVariableBindings1Found = false;
+				break;
+			}
+		}
+		boolean allVariableBindings2Found = true;
+		for(IVariableBinding variableBinding2 : variableBindings2) {
+			boolean found = false;
+			for(VariableBindingPair pair : parameterTypeBindings) {
+				if(pair.getBinding2().isEqualTo(variableBinding2)) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) {
+				allVariableBindings2Found = false;
+				break;
+			}
+		}
+		return allVariableBindings1Found && allVariableBindings2Found;
 	}
 
 	private boolean validReturnedVariables(Set<IVariableBinding> variablesToBeReturnedG1, Set<IVariableBinding> variablesToBeReturnedG2) {

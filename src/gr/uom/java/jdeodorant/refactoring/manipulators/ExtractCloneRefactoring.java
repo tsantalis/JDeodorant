@@ -297,12 +297,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		extractClone();
 		boolean singleSourceCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
 		if(singleSourceCompilationUnit) {
-			modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0));
+			modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
 		}
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
 			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
 			if(!singleSourceCompilationUnit) {
-				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i));
+				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
 			}
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
@@ -904,7 +904,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 				typeBindings.add(typeBinding);
 				RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-				if(differenceBelongsToExpressionGaps(difference)) {
+				if(differenceBelongsToExpressionGaps(difference) && !differenceBelongsToBlockGaps(difference)) {
 					//find required parameters
 					Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
 					Type interfaceType = null;
@@ -988,6 +988,86 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+			if(returnedVariableBindingPair != null) {
+				ITypeBinding typeBinding = returnedVariableBindingPair.getBinding1().getType();
+				Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
+				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+				typeBindings.add(typeBinding);
+				RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+				
+				Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
+				Type interfaceType = null;
+				if(parameterTypeBindings.size() == 1) {
+					//introduce functional interface Function
+					SimpleName interfaceName = ast.newSimpleName("Function");
+					ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(interfaceName));
+					ListRewrite typeArgumentsRewrite = sourceRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+					//add first the type of the input to the function
+					for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+						IVariableBinding variableBinding = variableBindingPair.getBinding1();
+						Type parameterType = null;
+						if(variableBinding.getType().isPrimitive()) {
+							parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
+						}
+						else {
+							parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+						}
+						Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
+						typeBindings2.add(variableBinding.getType());
+						RefactoringUtility.getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
+						typeArgumentsRewrite.insertLast(parameterType, null);
+					}
+					//add second the type of the result of the function
+					if(typeBinding.isPrimitive()) {
+						typeArgumentsRewrite.insertLast(RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(typeBinding, ast), null);
+					}
+					else {
+						typeArgumentsRewrite.insertLast(type, null);
+					}
+					interfaceType = parameterizedType;
+				}
+				else {
+					//introduce a new functional interface
+					TypeDeclaration interfaceTypeDeclaration = ast.newTypeDeclaration();
+					sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.INTERFACE_PROPERTY, true, null);
+					SimpleName interfaceName = ast.newSimpleName("Interface" + i);
+					sourceRewriter.set(interfaceTypeDeclaration, TypeDeclaration.NAME_PROPERTY, interfaceName, null);
+					ListRewrite interfaceTypeDeclarationModifiersRewrite = sourceRewriter.getListRewrite(interfaceTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+					MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
+					sourceRewriter.set(markerAnnotation, MarkerAnnotation.TYPE_NAME_PROPERTY, ast.newSimpleName("FunctionalInterface"), null);
+					interfaceTypeDeclarationModifiersRewrite.insertLast(markerAnnotation, null);
+					interfaceTypeDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+					ListRewrite interfaceBodyDeclarationRewrite = sourceRewriter.getListRewrite(interfaceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+					MethodDeclaration interfaceMethodDeclaration = ast.newMethodDeclaration();
+					sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
+					sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, type, null);
+					ListRewrite interfaceMethodDeclarationParameterRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+					for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+						IVariableBinding variableBinding = variableBindingPair.getBinding1();
+						Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+						Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
+						typeBindings2.add(variableBinding.getType());
+						RefactoringUtility.getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
+						SingleVariableDeclaration parameterDeclaration = ast.newSingleVariableDeclaration();
+						sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+						sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+						interfaceMethodDeclarationParameterRewrite.insertLast(parameterDeclaration, null);
+					}
+					interfaceBodyDeclarationRewrite.insertLast(interfaceMethodDeclaration, null);
+					bodyDeclarationsRewrite.insertLast(interfaceTypeDeclaration, null);
+					interfaceType = ast.newSimpleType(interfaceName);
+				}
+				
+				//introduce parameter for the functional interface
+				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
+				i++;
+				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, interfaceType, null);
+				parameterRewrite.insertLast(parameter, null);
+			}
+		}
 		//add parameters for the fields that should be parameterized instead of being pulled up
 		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 			if(accessedLocalFieldsG1.contains(variableDeclaration)) {
@@ -1036,9 +1116,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Expression expr2 = difference.getExpression2().getExpression();
 		Statement statement1 = findParentStatement(expr1);
 		Statement statement2 = findParentStatement(expr2);
-		boolean statement1Found = false;
-		boolean statement2Found = false;
 		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			boolean statement1Found = false;
+			boolean statement2Found = false;
 			for(PDGNode node : blockGap.getNodesG1()) {
 				if(node.getASTStatement().equals(statement1)) {
 					statement1Found = true;
@@ -1049,8 +1129,36 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					statement2Found = true;
 				}
 			}
+			if(statement1Found && statement2Found) {
+				return true;
+			}
 		}
-		return statement1Found && statement2Found;
+		return false;
+	}
+
+	private PDGNodeBlockGap findBlockGapContainingDifference(ASTNodeDifference difference) {
+		Expression expr1 = difference.getExpression1().getExpression();
+		Expression expr2 = difference.getExpression2().getExpression();
+		Statement statement1 = findParentStatement(expr1);
+		Statement statement2 = findParentStatement(expr2);
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			boolean statement1Found = false;
+			boolean statement2Found = false;
+			for(PDGNode node : blockGap.getNodesG1()) {
+				if(node.getASTStatement().equals(statement1)) {
+					statement1Found = true;
+				}
+			}
+			for(PDGNode node : blockGap.getNodesG2()) {
+				if(node.getASTStatement().equals(statement2)) {
+					statement2Found = true;
+				}
+			}
+			if(statement1Found && statement2Found) {
+				return blockGap;
+			}
+		}
+		return null;
 	}
 
 	private boolean differenceBelongsToExpressionGaps(ASTNodeDifference difference) {
@@ -1772,6 +1880,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					if(!typeBinding.isNested())
 						importRewrite.addImport(typeBinding);
 				}
+				if(requiresFunctionImport()) {
+					importRewrite.addImport("java.util.function.Function");
+				}
 				
 				TextEdit importEdit = importRewrite.rewriteImports(null);
 				if(importRewrite.getCreatedImports().length > 0) {
@@ -1786,6 +1897,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(cloneInfo.document != null) {
 				for(ITypeBinding typeBinding : cloneInfo.requiredImportTypeBindings) {
 					addImportDeclaration(typeBinding, cloneInfo.sourceCompilationUnit, cloneInfo.sourceRewriter);
+				}
+				if(requiresFunctionImport()) {
+					AST ast = cloneInfo.sourceCompilationUnit.getAST();
+					ImportDeclaration importDeclaration = ast.newImportDeclaration();
+					cloneInfo.sourceRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName("java.util.function.Function"), null);
+					ListRewrite importRewrite = cloneInfo.sourceRewriter.getListRewrite(cloneInfo.sourceCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
+					importRewrite.insertLast(importDeclaration, null);
 				}
 				TextEdit intermediateEdit = cloneInfo.sourceRewriter.rewriteAST(cloneInfo.document, null);
 				intermediateEdit.apply(cloneInfo.document);
@@ -2628,7 +2746,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							boolean expressionIsFieldToBePulledUp = expression1IsFieldToBePulledUp && expression2IsFieldToBePulledUp;
 							if(!expressionIsFieldToBePulledUp) {
 								if(differenceBelongsToBlockGaps(difference)) {
-									//do nothing
+									//TODO check if the difference corresponds to the last statements of a BlockGap
+									Expression argument = createArgument(ast, sourceRewriter, difference);
+									if(oldASTNode.equals(oldExpression)) {
+										return argument;
+									}
+									else {
+										replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
+									}
 								}
 								else {
 									Expression argument = createArgument(ast, sourceRewriter, difference);
@@ -2690,11 +2815,24 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
 			parameterizedDifferenceMap.put(argumentDifference.getBindingSignaturePair(), argumentDifference);
 		}
-		if(differenceBelongsToExpressionGaps(argumentDifference)) {
+		if(differenceBelongsToExpressionGaps(argumentDifference) && !differenceBelongsToBlockGaps(argumentDifference)) {
 			MethodInvocation interfaceMethodInvocation = ast.newMethodInvocation();
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
 			ListRewrite argumentRewrite = sourceRewriter.getListRewrite(interfaceMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 			Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(argumentDifference);
+			for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+				IVariableBinding variableBinding = variableBindingPair.getBinding1();
+				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
+			}
+			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+			return interfaceMethodInvocation;
+		}
+		else if(differenceBelongsToBlockGaps(argumentDifference)) {
+			MethodInvocation interfaceMethodInvocation = ast.newMethodInvocation();
+			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
+			ListRewrite argumentRewrite = sourceRewriter.getListRewrite(interfaceMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+			PDGNodeBlockGap blockGap = findBlockGapContainingDifference(argumentDifference);
+			Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
 			for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 				IVariableBinding variableBinding = variableBindingPair.getBinding1();
 				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
@@ -2880,7 +3018,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit) {
+	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean checkFunctionImport) {
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
@@ -2891,12 +3029,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							"." + cloneInfo.intermediateClassName);
 				}
 			}
-			for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
-				Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
-				if(parameters.size() == 1) {
-					importRewrite.addImport("java.util.function.Function");
-					break;
-				}
+			if(checkFunctionImport && requiresFunctionImport()) {
+				importRewrite.addImport("java.util.function.Function");
 			}
 			TextEdit importEdit = importRewrite.rewriteImports(null);
 			if(importRewrite.getCreatedImports().length > 0) {
@@ -2906,6 +3040,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		} catch (CoreException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private boolean requiresFunctionImport() {
+		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
+			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
+			if(parameters.size() == 1) {
+				return true;
+			}
+		}
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
+			if(parameters.size() == 1) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void removeFieldDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
@@ -3077,7 +3227,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						argumentsRewrite.insertLast(prefixExpression, null);
 					}
 					else {
-						if(differenceBelongsToExpressionGaps(difference)) {
+						if(differenceBelongsToExpressionGaps(difference) && !differenceBelongsToBlockGaps(difference)) {
 							LambdaExpression lambdaExpression = ast.newLambdaExpression();
 							ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
 							Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
@@ -3110,6 +3260,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					argumentsRewrite.insertLast(ast.newThisExpression(), null);
 				}
 			}
+		}
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			Set<PDGNode> statements = index == 0 ? blockGap.getNodesG1() : blockGap.getNodesG2();
+			LambdaExpression lambdaExpression = ast.newLambdaExpression();
+			ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
+			Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
+			for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+				IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+				Type parameterType = null;
+				if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive()) {
+					parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
+				}
+				else {
+					parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+				}
+				SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
+				methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+				methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+				lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
+			}
+			Block lambdaBody = ast.newBlock();
+			ListRewrite lambdaBodyRewrite = methodBodyRewriter.getListRewrite(lambdaBody, Block.STATEMENTS_PROPERTY);
+			for(PDGNode node : statements) {
+				Statement statement = node.getASTStatement();
+				lambdaBodyRewrite.insertLast(statement, null);
+			}
+			methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, lambdaBody, null);
+			argumentsRewrite.insertLast(lambdaExpression, null);
 		}
 		Set<VariableDeclaration> accessedLocalFields = null;
 		if(index == 0)

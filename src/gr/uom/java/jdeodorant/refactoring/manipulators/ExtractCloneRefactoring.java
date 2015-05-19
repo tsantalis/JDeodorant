@@ -25,6 +25,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.NodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGExpressionGap;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeBlockGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.StatementCollector;
@@ -903,7 +904,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 				typeBindings.add(typeBinding);
 				RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-				if(differenceBelongsToPreconditionViolations(difference)) {
+				if(differenceBelongsToExpressionGaps(difference)) {
 					//find required parameters
 					Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
 					Type interfaceType = null;
@@ -975,6 +976,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, interfaceType, null);
 					parameterRewrite.insertLast(parameter, null);
 				}
+				else if(differenceBelongsToBlockGaps(difference)) {
+					//do nothing
+				}
 				else {
 					SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 					sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName("arg" + i), null);
@@ -1011,14 +1015,48 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return null;
 	}
 
-	private boolean differenceBelongsToPreconditionViolations(ASTNodeDifference difference) {
-		for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
-			if(violation instanceof ExpressionPreconditionViolation) {
-				ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
-				if(expressionViolation.getExpression().equals(difference.getExpression1()) ||
-						expressionViolation.getExpression().equals(difference.getExpression2())) {
+	private boolean statementBelongsToBlockGaps(AbstractStatement statement) {
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			for(PDGNode node : blockGap.getNodesG1()) {
+				if(node.getStatement().equals(statement)) {
 					return true;
 				}
+			}
+			for(PDGNode node : blockGap.getNodesG2()) {
+				if(node.getStatement().equals(statement)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean differenceBelongsToBlockGaps(ASTNodeDifference difference) {
+		Expression expr1 = difference.getExpression1().getExpression();
+		Expression expr2 = difference.getExpression2().getExpression();
+		Statement statement1 = findParentStatement(expr1);
+		Statement statement2 = findParentStatement(expr2);
+		boolean statement1Found = false;
+		boolean statement2Found = false;
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			for(PDGNode node : blockGap.getNodesG1()) {
+				if(node.getASTStatement().equals(statement1)) {
+					statement1Found = true;
+				}
+			}
+			for(PDGNode node : blockGap.getNodesG2()) {
+				if(node.getASTStatement().equals(statement2)) {
+					statement2Found = true;
+				}
+			}
+		}
+		return statement1Found && statement2Found;
+	}
+
+	private boolean differenceBelongsToExpressionGaps(ASTNodeDifference difference) {
+		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
+			if(expressionGap.getASTNodeDifference().equals(difference)) {
+				return true;
 			}
 		}
 		return false;
@@ -2589,12 +2627,17 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 							boolean expressionIsFieldToBePulledUp = expression1IsFieldToBePulledUp && expression2IsFieldToBePulledUp;
 							if(!expressionIsFieldToBePulledUp) {
-								Expression argument = createArgument(ast, sourceRewriter, difference);
-								if(oldASTNode.equals(oldExpression)) {
-									return argument;
+								if(differenceBelongsToBlockGaps(difference)) {
+									//do nothing
 								}
 								else {
-									replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
+									Expression argument = createArgument(ast, sourceRewriter, difference);
+									if(oldASTNode.equals(oldExpression)) {
+										return argument;
+									}
+									else {
+										replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
+									}
 								}
 							}
 						}
@@ -2647,7 +2690,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
 			parameterizedDifferenceMap.put(argumentDifference.getBindingSignaturePair(), argumentDifference);
 		}
-		if(differenceBelongsToPreconditionViolations(argumentDifference)) {
+		if(differenceBelongsToExpressionGaps(argumentDifference)) {
 			MethodInvocation interfaceMethodInvocation = ast.newMethodInvocation();
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
 			ListRewrite argumentRewrite = sourceRewriter.getListRewrite(interfaceMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -2907,6 +2950,17 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 	
+	private Statement findParentStatement(Expression expression) {
+		ASTNode parent = expression.getParent();
+		while(parent != null) {
+			if(parent instanceof Statement) {
+				return (Statement)parent;
+			}
+			parent = parent.getParent();
+		}
+		return null;
+	}
+
 	private TypeDeclaration findTypeDeclaration(ASTNode node) {
 		ASTNode parent = node.getParent();
 		while(parent != null) {
@@ -3023,7 +3077,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						argumentsRewrite.insertLast(prefixExpression, null);
 					}
 					else {
-						if(differenceBelongsToPreconditionViolations(difference)) {
+						if(differenceBelongsToExpressionGaps(difference)) {
 							LambdaExpression lambdaExpression = ast.newLambdaExpression();
 							ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
 							Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
@@ -3043,6 +3097,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 							methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, expression, null);
 							argumentsRewrite.insertLast(lambdaExpression, null);
+						}
+						else if(differenceBelongsToBlockGaps(difference)) {
+							//do nothing
 						}
 						else {
 							argumentsRewrite.insertLast(expression, null);
@@ -3352,7 +3409,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
 				if(violation instanceof StatementPreconditionViolation) {
 					StatementPreconditionViolation statementViolation = (StatementPreconditionViolation)violation;
-					Statement statement = statementViolation.getStatement().getStatement();
+					AbstractStatement abstractStatement = statementViolation.getStatement();
+					if(statementBelongsToBlockGaps(abstractStatement)) {
+						continue;
+					}
+					Statement statement = abstractStatement.getStatement();
 					CompilationUnit cu = (CompilationUnit)statement.getRoot();
 					RefactoringStatusContext context = JavaStatusContext.create(cu.getTypeRoot(), statement);
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context));
@@ -3361,14 +3422,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
 					ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
 					if(difference != null && ! difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
-						boolean found = false;
-						for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
-							if(expressionGap.getASTNodeDifference().equals(difference)) {
-								found = true;
-								break;
-							}
-						}
-						if(found) {
+						if(differenceBelongsToExpressionGaps(difference) || differenceBelongsToBlockGaps(difference)) {
 							continue;
 						}
 					}

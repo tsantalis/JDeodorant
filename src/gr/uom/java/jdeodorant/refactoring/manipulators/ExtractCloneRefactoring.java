@@ -824,16 +824,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
-			Statement statement1 = pdgNode1.getASTStatement();
-			TypeVisitor typeVisitor1 = new TypeVisitor();
-			statement1.accept(typeVisitor1);
-			RefactoringUtility.getSimpleTypeBindings(typeVisitor1.getTypeBindings(), requiredImportTypeBindings);
+			AbstractStatement statement1 = pdgNode1.getStatement();
+			if(!statementBelongsToBlockGaps(statement1)) {
+				RefactoringUtility.getSimpleTypeBindings(extractTypeBindings(statement1), requiredImportTypeBindings);
+			}
 			
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
-			Statement statement2 = pdgNode2.getASTStatement();
-			TypeVisitor typeVisitor2 = new TypeVisitor();
-			statement2.accept(typeVisitor2);
-			RefactoringUtility.getSimpleTypeBindings(typeVisitor2.getTypeBindings(), requiredImportTypeBindings);
+			AbstractStatement statement2 = pdgNode2.getStatement();
+			if(!statementBelongsToBlockGaps(statement2)) {
+				RefactoringUtility.getSimpleTypeBindings(extractTypeBindings(statement2), requiredImportTypeBindings);
+			}
 		}
 		
 		CloneStructureNode root = mapper.getCloneStructureRoot();
@@ -1422,6 +1422,39 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			return false;
 	}
 	
+	private Set<ITypeBinding> extractTypeBindings(AbstractStatement abstractStatement) {
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+		if(abstractStatement instanceof StatementObject) {
+			StatementObject statement = (StatementObject)abstractStatement;
+			TypeVisitor typeVisitor = new TypeVisitor();
+			statement.getStatement().accept(typeVisitor);
+			typeBindings.addAll(typeVisitor.getTypeBindings());
+		}
+		else if(abstractStatement instanceof CompositeStatementObject) {
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			for(AbstractExpression expression : composite.getExpressions()) {
+				TypeVisitor typeVisitor = new TypeVisitor();
+				expression.getExpression().accept(typeVisitor);
+				typeBindings.addAll(typeVisitor.getTypeBindings());
+			}
+			if(composite instanceof TryStatementObject) {
+				TryStatementObject tryStatement = (TryStatementObject)composite;
+				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+				for(CatchClauseObject catchClause : catchClauses) {
+					TypeVisitor typeVisitor = new TypeVisitor();
+					catchClause.getBody().getStatement().accept(typeVisitor);
+					typeBindings.addAll(typeVisitor.getTypeBindings());
+				}
+				if(tryStatement.getFinallyClause() != null) {
+					TypeVisitor typeVisitor = new TypeVisitor();
+					tryStatement.getFinallyClause().getStatement().accept(typeVisitor);
+					typeBindings.addAll(typeVisitor.getTypeBindings());
+				}
+			}
+		}
+		return typeBindings;
+	}
+
 	private Set<Expression> extractSimpleNames(Set<PDGNode> mappedNodes) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<Expression> allSimpleNames = new LinkedHashSet<Expression>();

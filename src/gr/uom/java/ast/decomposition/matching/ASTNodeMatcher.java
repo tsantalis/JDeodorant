@@ -364,7 +364,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 				!commonSuperType.getQualifiedName().equals("java.lang.Object") &&
 				!commonSuperType.getQualifiedName().equals("java.io.Serializable") &&
 				!commonSuperType.getQualifiedName().equals("java.lang.Runnable") &&
-				!commonSuperType.getQualifiedName().equals("java.lang.Comparable"))
+				!commonSuperType.getQualifiedName().equals("java.lang.Comparable") &&
+				!commonSuperType.getQualifiedName().equals("java.lang.Cloneable"))
 			return true;
 		return false;
 	}

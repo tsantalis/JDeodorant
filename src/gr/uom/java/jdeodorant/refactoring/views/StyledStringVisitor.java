@@ -266,7 +266,7 @@ public class StyledStringVisitor extends ASTVisitor {
 		 */
 		activateDiffStyle(type);
 		handleType(type.getElementType());
-		appendSpace();
+		//appendSpace();
 		for (int i = 0; i < type.getDimensions(); i++) {
 			visit((Dimension) type.dimensions().get(i));
 		}

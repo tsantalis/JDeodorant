@@ -284,11 +284,8 @@ public class PreconditionExaminer {
 					expressions1, fieldAccessReplacedWithGetterExpressions1);
 			findLocallyAccessedFields(pdg2, mappedNodesG2, commonSuperclass, directlyAccessedLocalFieldsG2, indirectlyAccessedLocalFieldsG2, accessedLocalMethodsG2,
 					expressions2, fieldAccessReplacedWithGetterExpressions2);
-			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
-			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
-			checkPreconditionsAboutReturnedVariables();
 			checkIfAllPossibleExecutionFlowsEndInReturn();
 			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters());
 			Set<PDGNode> nodesInBlockGapsG1 = new TreeSet<PDGNode>();
@@ -307,6 +304,9 @@ public class PreconditionExaminer {
 			allNonMappedNodesG2.removeAll(nodesInBlockGapsG2);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, allMappedNodesG1, allNonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
 			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, allMappedNodesG2, allNonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
+			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, allMappedNodesG1);
+			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, allMappedNodesG2);
+			checkPreconditionsAboutReturnedVariables();
 		}
 	}
 
@@ -1457,11 +1457,11 @@ public class PreconditionExaminer {
 		if(nodeMapping instanceof PDGNodeGap) {
 			if(nodeMapping.getNodeG1() != null && !nodeMapping.isAdvancedMatch()) {
 				processNonMappedNode(pdg1, nodeMapping, nodeMapping.getNodeG1(), removableNodesG1, nonMappedPDGNodesG1MovableBeforeAndAfter,
-						nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter, variablesToBeReturnedG1);
+						nonMappedPDGNodesG1MovableBefore, nonMappedPDGNodesG1MovableAfter);
 			}
 			if(nodeMapping.getNodeG2() != null && !nodeMapping.isAdvancedMatch()) {
 				processNonMappedNode(pdg2, nodeMapping, nodeMapping.getNodeG2(), removableNodesG2, nonMappedPDGNodesG2MovableBeforeAndAfter,
-						nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter, variablesToBeReturnedG2);
+						nonMappedPDGNodesG2MovableBefore, nonMappedPDGNodesG2MovableAfter);
 			}
 		}
 		if(nodeMapping instanceof PDGNodeMapping) {
@@ -1544,9 +1544,9 @@ public class PreconditionExaminer {
 	}
 
 	private void processNonMappedNode(PDG pdg, NodeMapping nodeMapping, PDGNode node, TreeSet<PDGNode> removableNodes,
-			TreeSet<PDGNode> movableBeforeAndAfter, TreeSet<PDGNode> movableBefore, TreeSet<PDGNode> movableAfter, Set<PlainVariable> returnedVariables) {
+			TreeSet<PDGNode> movableBeforeAndAfter, TreeSet<PDGNode> movableBefore, TreeSet<PDGNode> movableAfter) {
 		boolean movableNonMappedNodeBeforeFirstMappedNode = movableNonMappedNodeBeforeFirstMappedNode(removableNodes, node);
-		boolean movableNonMappedNodeAfterLastMappedNode = movableNonMappedNodeAfterLastMappedNode(removableNodes, node, returnedVariables);
+		boolean movableNonMappedNodeAfterLastMappedNode = movableNonMappedNodeAfterLastMappedNode(removableNodes, node);
 		if(!movableNonMappedNodeBeforeFirstMappedNode && !movableNonMappedNodeAfterLastMappedNode) {
 			PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 					PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_OR_AFTER_THE_EXTRACTED_CODE);
@@ -1838,7 +1838,7 @@ public class PreconditionExaminer {
 		return true;
 	}
 	//precondition: non-mapped statement can be moved after the last mapped statement
-	private boolean movableNonMappedNodeAfterLastMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode, Set<PlainVariable> returnedVariables) {
+	private boolean movableNonMappedNodeAfterLastMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
 		Iterator<GraphEdge> outgoingDependenceIterator = nonMappedNode.getOutgoingDependenceIterator();
 		while(outgoingDependenceIterator.hasNext()) {
 			PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();
@@ -1866,14 +1866,14 @@ public class PreconditionExaminer {
 					AbstractVariable data = dataDependence.getData();
 					if(data instanceof PlainVariable) {
 						PlainVariable plainVariable = (PlainVariable)data;
-						if(!plainVariable.isField() && !returnedVariables.contains(plainVariable)) {
+						if(!plainVariable.isField()) {
 							return false;
 						}
 					}
 					else if(data instanceof CompositeVariable) {
 						CompositeVariable composite = (CompositeVariable)data;
 						PlainVariable initial = composite.getInitialVariable();
-						if(!initial.isField() && !returnedVariables.contains(initial)) {
+						if(!initial.isField()) {
 							return false;
 						}
 					}

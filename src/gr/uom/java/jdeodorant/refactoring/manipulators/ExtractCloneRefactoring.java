@@ -111,6 +111,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
@@ -453,6 +454,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private void extractClone() {
 		this.cloneInfo = new CloneInformation();
+		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = null;
 		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
 			cloneInfo.sourceCompilationUnit = sourceCompilationUnits.get(0);
@@ -583,6 +585,49 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 							intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 									intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+							//copy the constructors declared in the subclasses that contain a super-constructor call
+							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+							for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
+								List<SingleVariableDeclaration> parameters1 = methodDeclaration1.parameters();
+								if(methodDeclaration1.isConstructor()) {
+									for(MethodDeclaration methodDeclaration2 : sourceTypeDeclarations.get(1).getMethods()) {
+										List<SingleVariableDeclaration> parameters2 = methodDeclaration2.parameters();
+										if(methodDeclaration2.isConstructor()) {
+											if(matchingParameterTypes(parameters1, parameters2)) {
+												SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
+												SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
+												if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
+													if(compareStatements(sourceCompilationUnits.get(0).getTypeRoot(), sourceCompilationUnits.get(1).getTypeRoot(),
+															superConstructorInvocation1, superConstructorInvocation2)) {
+														MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
+														intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
+														intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
+														ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
+														List<IExtendedModifier> modifiers = methodDeclaration1.modifiers();
+														for(IExtendedModifier modifier : modifiers) {
+															if(modifier instanceof Modifier) {
+																constructorModifierRewriter.insertLast((Modifier)modifier, null);
+															}
+														}
+														ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
+														for(SingleVariableDeclaration parameter : parameters1) {
+															Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+															typeBindings.add(parameter.getType().resolveBinding());
+															RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+															parameterRewriter.insertLast(parameter, null);
+														}
+														Block constructorBody = intermediateAST.newBlock();
+														ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
+														constructorBodyRewriter.insertLast(superConstructorInvocation1, null);
+														intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
+														bodyDeclarationsRewrite.insertLast(constructor, null);
+													}
+												}
+											}
+										}
+									}
+								}
+							}
 						}
 						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
 					}
@@ -599,7 +644,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		AST ast = cloneInfo.ast;
 		TypeDeclaration sourceTypeDeclaration = cloneInfo.sourceTypeDeclaration;
 		MethodDeclaration sourceMethodDeclaration = sourceMethodDeclarations.get(0);
-		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 		ListRewrite bodyDeclarationsRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		if(commonSuperTypeOfSourceTypeDeclarations != null) {
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -1219,6 +1263,36 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private SuperConstructorInvocation firstStatementIsSuperConstructorInvocation(MethodDeclaration methodDeclaration) {
+		Block body = methodDeclaration.getBody();
+		if(methodDeclaration.isConstructor() && body != null) {
+			List<Statement> statements = body.statements();
+			if(statements.size() > 0) {
+				Statement firstStatement = statements.get(0);
+				if(firstStatement instanceof SuperConstructorInvocation) {
+					return (SuperConstructorInvocation)firstStatement;
+				}
+			}
+		}
+		return null;
+	}
+
+	private boolean matchingParameterTypes(List<SingleVariableDeclaration> parameters1, List<SingleVariableDeclaration> parameters2) {
+		if(parameters1.size() != parameters2.size()) {
+			return false;
+		}
+		else {
+			for(int i=0; i<parameters1.size(); i++) {
+				SingleVariableDeclaration parameter1 = parameters1.get(i);
+				SingleVariableDeclaration parameter2 = parameters2.get(i);
+				if(!parameter1.getType().resolveBinding().isEqualTo(parameter2.getType().resolveBinding())) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	private boolean type2Clones(MethodDeclaration methodDeclaration1, MethodDeclaration methodDeclaration2) {

@@ -779,6 +779,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(Type thrownException2 : thrownExceptions2) {
 				if(thrownException1.resolveBinding().isEqualTo(thrownException2.resolveBinding())) {
 					thrownExceptionRewrite.insertLast(thrownException1, null);
+					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+					typeBindings.add(thrownException1.resolveBinding());
+					RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 					break;
 				}
 			}

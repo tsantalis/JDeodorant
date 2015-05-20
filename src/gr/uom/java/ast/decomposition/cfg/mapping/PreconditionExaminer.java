@@ -248,8 +248,6 @@ public class PreconditionExaminer {
 			}
 			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
 			mappedNodesG2.addAll(additionallyMatchedNodesG2);
-			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, mappedNodesG1, nonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
-			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, mappedNodesG2, nonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 			this.renamedVariables = findRenamedVariables();
 			findPassedParameters();
 			List<Expression> expressions1 = new ArrayList<Expression>();
@@ -293,6 +291,22 @@ public class PreconditionExaminer {
 			checkPreconditionsAboutReturnedVariables();
 			checkIfAllPossibleExecutionFlowsEndInReturn();
 			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters());
+			Set<PDGNode> nodesInBlockGapsG1 = new TreeSet<PDGNode>();
+			Set<PDGNode> nodesInBlockGapsG2 = new TreeSet<PDGNode>();
+			for(PDGNodeBlockGap blockGap : getRefactorableBlockGaps()) {
+				nodesInBlockGapsG1.addAll(blockGap.getNodesG1());
+				nodesInBlockGapsG2.addAll(blockGap.getNodesG2());
+			}
+			Set<PDGNode> allMappedNodesG1 = new TreeSet<PDGNode>(mappedNodesG1);
+			allMappedNodesG1.addAll(nodesInBlockGapsG1);
+			Set<PDGNode> allMappedNodesG2 = new TreeSet<PDGNode>(mappedNodesG2);
+			allMappedNodesG2.addAll(nodesInBlockGapsG2);
+			Set<PDGNode> allNonMappedNodesG1 = new TreeSet<PDGNode>(nonMappedNodesG1);
+			allNonMappedNodesG1.removeAll(nodesInBlockGapsG1);
+			Set<PDGNode> allNonMappedNodesG2 = new TreeSet<PDGNode>(nonMappedNodesG2);
+			allNonMappedNodesG2.removeAll(nodesInBlockGapsG2);
+			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg1, allMappedNodesG1, allNonMappedNodesG1, declaredVariablesInMappedNodesUsedByNonMappedNodesG1);
+			findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(pdg2, allMappedNodesG2, allNonMappedNodesG2, declaredVariablesInMappedNodesUsedByNonMappedNodesG2);
 		}
 	}
 

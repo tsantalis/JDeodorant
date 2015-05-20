@@ -3194,6 +3194,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
 			argumentsRewrite.insertLast(variableDeclarations.get(index).getName(), null);
 		}
+		List<ASTNodeDifference> differencesInBlockGaps = new ArrayList<ASTNodeDifference>();
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			List<Expression> expressions = new ArrayList<Expression>();
 			if(difference.getExpression1() != null) {
@@ -3249,7 +3250,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							argumentsRewrite.insertLast(lambdaExpression, null);
 						}
 						else if(differenceBelongsToBlockGaps(difference)) {
-							//do nothing
+							differencesInBlockGaps.add(difference);
 						}
 						else {
 							argumentsRewrite.insertLast(expression, null);
@@ -3282,9 +3283,66 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			Block lambdaBody = ast.newBlock();
 			ListRewrite lambdaBodyRewrite = methodBodyRewriter.getListRewrite(lambdaBody, Block.STATEMENTS_PROPERTY);
+			int statementIndex = 0;
 			for(PDGNode node : statements) {
 				Statement statement = node.getASTStatement();
-				lambdaBodyRewrite.insertLast(statement, null);
+				boolean statementChanged = false;
+				if(statementIndex == statements.size() - 1) {
+					ASTNodeDifference difference = findDifferenceCorrespondingToStatement(statement, differencesInBlockGaps);
+					if(difference != null) {
+						Expression expression = index == 0 ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
+						if(statement instanceof ExpressionStatement) {
+							ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+							if(expressionStatement.getExpression() instanceof Assignment) {
+								Assignment assignment = (Assignment)expressionStatement.getExpression();
+								if(assignment.getRightHandSide().equals(expression) && assignment.getLeftHandSide() instanceof SimpleName) {
+									SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
+									IBinding binding = leftHandSide.resolveBinding();
+									if(binding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding variableBinding = (IVariableBinding)binding;
+										VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+										IVariableBinding returnedVariableBinding = index == 0 ? returnedVariableBindingPair.getBinding1() : returnedVariableBindingPair.getBinding2();
+										if(variableBinding.isEqualTo(returnedVariableBinding)) {
+											//introduce a return statement in the body of the lambda expression
+											ReturnStatement returnStatement = ast.newReturnStatement();
+											methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, expression, null);
+											lambdaBodyRewrite.insertLast(returnStatement, null);
+											statementChanged = true;
+										}
+									}
+								}
+							}
+						}
+					}
+					else {
+						if(statement instanceof ExpressionStatement) {
+							ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+							if(expressionStatement.getExpression() instanceof Assignment) {
+								Assignment assignment = (Assignment)expressionStatement.getExpression();
+								if(assignment.getLeftHandSide() instanceof SimpleName) {
+									SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
+									IBinding binding = leftHandSide.resolveBinding();
+									if(binding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding variableBinding = (IVariableBinding)binding;
+										VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+										IVariableBinding returnedVariableBinding = index == 0 ? returnedVariableBindingPair.getBinding1() : returnedVariableBindingPair.getBinding2();
+										if(variableBinding.isEqualTo(returnedVariableBinding)) {
+											//introduce a return statement in the body of the lambda expression
+											ReturnStatement returnStatement = ast.newReturnStatement();
+											methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, assignment.getRightHandSide(), null);
+											lambdaBodyRewrite.insertLast(returnStatement, null);
+											statementChanged = true;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				if(!statementChanged) {
+					lambdaBodyRewrite.insertLast(statement, null);
+				}
+				statementIndex++;
 			}
 			methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, lambdaBody, null);
 			argumentsRewrite.insertLast(lambdaExpression, null);
@@ -3464,6 +3522,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			methodBodyRewriter.remove(labeled, null);
 		}
 		cloneInfo.originalMethodBodyRewriteList.add(index, methodBodyRewriter);
+	}
+
+	private ASTNodeDifference findDifferenceCorrespondingToStatement(Statement statement, List<ASTNodeDifference> differences) {
+		for(ASTNodeDifference difference : differences) {
+			Expression expression1 = difference.getExpression1().getExpression();
+			if(statement.equals(findParentStatement(expression1))) {
+				return difference;
+			}
+			Expression expression2 = difference.getExpression2().getExpression();
+			if(statement.equals(findParentStatement(expression2))) {
+				return difference;
+			}
+		}
+		return null;
 	}
 
 	private void finalizeOriginalMethod(CompilationUnit compilationUnit, ASTRewrite methodBodyRewriter) {

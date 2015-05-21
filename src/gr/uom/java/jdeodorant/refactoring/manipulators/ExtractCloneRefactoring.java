@@ -730,6 +730,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PUBLIC_KEYWORD);
 											}
 										}
+										else if(modifier.isPrivate()) {
+											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+											//change modifiers to protected in the subclasses
+											updateAccessModifier(methodDeclaration1, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+											if((methodDeclaration2.getModifiers() & Modifier.PROTECTED) == 0) {
+												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+											}
+										}
 									}
 								}
 								if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {

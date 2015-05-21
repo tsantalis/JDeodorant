@@ -149,6 +149,14 @@ public class CompositeStatementObject extends AbstractStatement {
 		return usedFieldsThroughThisReference;
 	}
 
+	public Set<PlainVariable> getDefinedFieldsThroughThisReferenceInExpressions() {
+		Set<PlainVariable> definedFieldsThroughThisReference = new LinkedHashSet<PlainVariable>();
+		for(AbstractExpression expression : expressionList) {
+			definedFieldsThroughThisReference.addAll(expression.getDefinedFieldsThroughThisReference());
+		}
+		return definedFieldsThroughThisReference;
+	}
+
 	public Set<MethodInvocationObject> getInvokedMethodsThroughThisReferenceInExpressions() {
 		Set<MethodInvocationObject> invokedMethodsThroughThisReference = new LinkedHashSet<MethodInvocationObject>();
 		for(AbstractExpression expression : expressionList) {

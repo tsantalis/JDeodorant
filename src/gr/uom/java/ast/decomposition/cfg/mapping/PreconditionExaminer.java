@@ -601,12 +601,14 @@ public class PreconditionExaminer {
 			if(abstractStatement instanceof StatementObject) {
 				StatementObject statement = (StatementObject)abstractStatement;
 				usedLocalFields.addAll(statement.getUsedFieldsThroughThisReference());
+				usedLocalFields.addAll(statement.getDefinedFieldsThroughThisReference());
 				accessedLocalMethods.addAll(statement.getInvokedMethodsThroughThisReference());
 				accessedLocalMethods.addAll(statement.getInvokedStaticMethods());
 			}
 			else if(abstractStatement instanceof CompositeStatementObject) {
 				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
 				usedLocalFields.addAll(composite.getUsedFieldsThroughThisReferenceInExpressions());
+				usedLocalFields.addAll(composite.getDefinedFieldsThroughThisReferenceInExpressions());
 				accessedLocalMethods.addAll(composite.getInvokedMethodsThroughThisReferenceInExpressions());
 				accessedLocalMethods.addAll(composite.getInvokedStaticMethodsInExpressions());
 				if(composite instanceof TryStatementObject) {
@@ -614,11 +616,13 @@ public class PreconditionExaminer {
 					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
 					for(CatchClauseObject catchClause : catchClauses) {
 						usedLocalFields.addAll(catchClause.getBody().getUsedFieldsThroughThisReference());
+						usedLocalFields.addAll(catchClause.getBody().getDefinedFieldsThroughThisReference());
 						accessedLocalMethods.addAll(catchClause.getBody().getInvokedMethodsThroughThisReference());
 						accessedLocalMethods.addAll(catchClause.getBody().getInvokedStaticMethods());
 					}
 					if(tryStatement.getFinallyClause() != null) {
 						usedLocalFields.addAll(tryStatement.getFinallyClause().getUsedFieldsThroughThisReference());
+						usedLocalFields.addAll(tryStatement.getFinallyClause().getDefinedFieldsThroughThisReference());
 						accessedLocalMethods.addAll(tryStatement.getFinallyClause().getInvokedMethodsThroughThisReference());
 						accessedLocalMethods.addAll(tryStatement.getFinallyClause().getInvokedStaticMethods());
 					}
@@ -721,6 +725,7 @@ public class PreconditionExaminer {
 		Set<PlainVariable> usedLocalFields = new LinkedHashSet<PlainVariable>();
 		Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
 		usedLocalFields.addAll(calledMethod.getUsedFieldsThroughThisReference());
+		usedLocalFields.addAll(calledMethod.getDefinedFieldsThroughThisReference());
 		accessedLocalMethods.addAll(calledMethod.getInvokedMethodsThroughThisReference());
 		accessedLocalMethods.addAll(calledMethod.getInvokedStaticMethods());
 		ITypeBinding declaringClassTypeBinding = calledMethod.getMethodDeclaration().resolveBinding().getDeclaringClass();

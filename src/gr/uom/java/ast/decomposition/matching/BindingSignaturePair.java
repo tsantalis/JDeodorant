@@ -1,6 +1,9 @@
 package gr.uom.java.ast.decomposition.matching;
 
+import java.util.Set;
+
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 public class BindingSignaturePair {
 
@@ -10,6 +13,11 @@ public class BindingSignaturePair {
 	public BindingSignaturePair(AbstractExpression expression1, AbstractExpression expression2) {
 		this.signature1 = new BindingSignature(expression1);
 		this.signature2 = new BindingSignature(expression2);
+	}
+	
+	public BindingSignaturePair(Set<PDGNode> statements1, Set<PDGNode> statements2) {
+		this.signature1 = new BindingSignature(statements1);
+		this.signature2 = new BindingSignature(statements2);
 	}
 
 	public BindingSignature getSignature1() {

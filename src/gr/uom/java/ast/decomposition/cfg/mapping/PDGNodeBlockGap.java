@@ -11,6 +11,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ public class PDGNodeBlockGap {
 	private CloneStructureNode parent;
 	private TreeSet<PDGNode> nodesG1;
 	private TreeSet<PDGNode> nodesG2;
+	private List<ASTNodeDifference> nodeDifferences;
 	private Set<VariableBindingPair> parameterBindings;
 	private VariableBindingPair returnedVariableBinding;
 	
@@ -37,6 +39,7 @@ public class PDGNodeBlockGap {
 		this.parent = parent;
 		this.nodesG1 = new TreeSet<PDGNode>();
 		this.nodesG2 = new TreeSet<PDGNode>();
+		this.nodeDifferences = new ArrayList<ASTNodeDifference>();
 	}
 
 	public TreeSet<PDGNode> getNodesG1() {
@@ -61,6 +64,10 @@ public class PDGNodeBlockGap {
 
 	public void setReturnedVariableBinding(VariableBindingPair returnedVariableBinding) {
 		this.returnedVariableBinding = returnedVariableBinding;
+	}
+
+	public List<ASTNodeDifference> getNodeDifferences() {
+		return nodeDifferences;
 	}
 
 	public void add(PDGNodeGap nodeGap) {
@@ -101,6 +108,7 @@ public class PDGNodeBlockGap {
 				PDGNode nodeG1 = nodeMapping.getNodeG1();
 				PDGNode nodeG2 = nodeMapping.getNodeG2();
 				if(lastNodeG1Found && lastNodeG2Found && !nodeMapping.getPreconditionViolations().isEmpty()) {
+					nodeDifferences.addAll(nodeMapping.getNodeDifferences());
 					nodesG1.add(nodeG1);
 					nodesG2.add(nodeG2);
 					return true;

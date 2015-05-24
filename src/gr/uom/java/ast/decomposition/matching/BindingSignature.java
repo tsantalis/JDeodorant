@@ -1,11 +1,14 @@
 package gr.uom.java.ast.decomposition.matching;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.Statement;
 
 public class BindingSignature {
 
@@ -24,6 +27,16 @@ public class BindingSignature {
 		else {
 			this.bindingKeys = new ArrayList<String>();
 			bindingKeys.add("this");
+		}
+	}
+
+	public BindingSignature(Set<PDGNode> statements) {
+		this.bindingKeys = new ArrayList<String>();
+		for(PDGNode node : statements) {
+			Statement statement = node.getASTStatement();
+			BindingSignatureVisitor visitor = new BindingSignatureVisitor();
+			statement.accept(visitor);
+			this.bindingKeys.addAll(visitor.getBindingKeys());
 		}
 	}
 

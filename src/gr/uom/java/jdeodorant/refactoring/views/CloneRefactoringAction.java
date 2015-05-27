@@ -98,9 +98,9 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 									"At least one of the selected methods is abstract.");
 						if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
 							try {
-								for(PDGSubTreeMapper mapper : mapper.getSubTreeMappers()) {
-									JavaUI.openInEditor(((CompilationUnit)mapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
-									JavaUI.openInEditor(((CompilationUnit)mapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+								for(PDGSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
+									JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+									JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
 								}
 							} catch (PartInitException e) {
 								e.printStackTrace();

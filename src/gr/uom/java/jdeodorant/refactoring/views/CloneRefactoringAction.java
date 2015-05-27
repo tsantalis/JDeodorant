@@ -8,6 +8,7 @@ import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import java.lang.reflect.InvocationTargetException;
@@ -18,6 +19,9 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
@@ -28,6 +32,7 @@ import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.progress.IProgressService;
 
@@ -92,6 +97,16 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 							MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
 									"At least one of the selected methods is abstract.");
 						if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
+							try {
+								for(PDGSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
+									JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+									JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+								}
+							} catch (PartInitException e) {
+								e.printStackTrace();
+							} catch (JavaModelException e) {
+								e.printStackTrace();
+							}
 							Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
 							MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
 							RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);

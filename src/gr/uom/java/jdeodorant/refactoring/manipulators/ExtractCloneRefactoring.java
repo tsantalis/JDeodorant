@@ -967,8 +967,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						//find required parameters
 						Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
 						Type interfaceType = null;
-						if(parameterTypeBindings.size() == 1) {
+						if(parameterTypeBindings.size() == 1 && !typeBinding.getName().equals("void")) {
 							interfaceType = createFunction(sourceRewriter, ast, parameterTypeBindings, type, typeBinding, requiredImportTypeBindings);
+						}
+						else if(parameterTypeBindings.size() == 1 && typeBinding.getName().equals("void")) {
+							interfaceType = createConsumer(sourceRewriter, ast, parameterTypeBindings, requiredImportTypeBindings);
 						}
 						else {
 							interfaceType = createFunctionalInterface(sourceRewriter, ast, parameterTypeBindings, type, bodyDeclarationsRewrite, requiredImportTypeBindings, i);
@@ -3296,7 +3299,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private boolean requiresFunctionImport() {
 		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
 			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
-			if(parameters.size() == 1) {
+			Expression expression = expressionGap.getASTNodeDifference().getExpression1().getExpression();
+			if(parameters.size() == 1 && !expression.resolveTypeBinding().getName().equals("void")) {
 				return true;
 			}
 		}
@@ -3311,6 +3315,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private boolean requiresConsumerImport() {
+		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
+			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
+			Expression expression = expressionGap.getASTNodeDifference().getExpression1().getExpression();
+			if(parameters.size() == 1 && expression.resolveTypeBinding().getName().equals("void")) {
+				return true;
+			}
+		}
 		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
 			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();

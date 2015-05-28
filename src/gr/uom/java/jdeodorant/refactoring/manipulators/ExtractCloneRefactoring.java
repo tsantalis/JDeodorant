@@ -3046,9 +3046,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(differenceBelongsToExpressionGaps(argumentDifference) && !differenceBelongsToBlockGaps(argumentDifference)) {
 			Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(argumentDifference);
 			String methodName = null;
+			Expression expression = argumentDifference.getExpression1().getExpression();
 			if(parameterTypeBindings.size() == 1) {
-				//there is always a return type, and thus a Function will be created with 1 parameter
-				methodName = "apply";
+				if(!expression.resolveTypeBinding().getName().equals("void")) {
+					//the expression has a type that is not void, and thus a Function will be created with 1 parameter
+					methodName = "apply";
+				}
+				else {
+					//the expression has a void type, and thus a Consumer will be created with 1 parameter
+					methodName = "accept";
+				}
 			}
 			else {
 				methodName = FUNCTIONAL_INTERFACE_METHOD_NAME;

@@ -1719,7 +1719,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			FieldDeclaration originalFieldDeclarationG1 = (FieldDeclaration)localFieldG1.getParent();
 			for(VariableDeclaration localFieldG2 : accessedLocalFieldsG2) {
 				FieldDeclaration originalFieldDeclarationG2 = (FieldDeclaration)localFieldG2.getParent();
-				if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier())) {
+				if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier()) &&
+						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1))) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
 					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) /*||
 							(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))*/) {
@@ -3367,10 +3368,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
-			removeMethodDeclaration(methodDeclaration, findTypeDeclaration(methodDeclaration), findCompilationUnit(methodDeclaration));
+			if(methodDeclaration.getRoot().equals(compilationUnit)) {
+				removeMethodDeclaration(methodDeclaration, findTypeDeclaration(methodDeclaration), findCompilationUnit(methodDeclaration));
+			}
 		}
 		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
-			removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
+			if(variableDeclaration.getRoot().equals(compilationUnit)) {
+				removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
+			}
 		}
 	}
 

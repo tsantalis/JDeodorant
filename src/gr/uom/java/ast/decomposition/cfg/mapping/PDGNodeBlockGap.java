@@ -40,6 +40,7 @@ public class PDGNodeBlockGap {
 		this.nodesG1 = new TreeSet<PDGNode>();
 		this.nodesG2 = new TreeSet<PDGNode>();
 		this.nodeDifferences = new ArrayList<ASTNodeDifference>();
+		this.parameterBindings = new LinkedHashSet<VariableBindingPair>();
 	}
 
 	public TreeSet<PDGNode> getNodesG1() {
@@ -54,8 +55,8 @@ public class PDGNodeBlockGap {
 		return parameterBindings;
 	}
 
-	public void setParameterBindings(Set<VariableBindingPair> parameterBindings) {
-		this.parameterBindings = parameterBindings;
+	public void addParameterBinding(VariableBindingPair parameterBinding) {
+		this.parameterBindings.add(parameterBinding);
 	}
 
 	public VariableBindingPair getReturnedVariableBinding() {
@@ -81,7 +82,54 @@ public class PDGNodeBlockGap {
 		}
 	}
 
-	public boolean isExpandable() {
+	public void add(PDGNodeMapping nodeMapping) {
+		nodesG1.add(nodeMapping.getNodeG1());
+		nodesG2.add(nodeMapping.getNodeG2());
+	}
+
+	public boolean isBackwardsExpandable() {
+		//find the previous nodeMapping with precondition violations and add it
+		PDGNode firstNodeG1 = nodesG1.isEmpty() ? null : nodesG1.first();
+		PDGNode firstNodeG2 = nodesG2.isEmpty() ? null : nodesG2.first();
+		List<PDGNodeMapping> mappingsBeforeFirst = new ArrayList<PDGNodeMapping>();
+		for(CloneStructureNode child : parent.getChildren()) {
+			if(child.getMapping() instanceof PDGNodeGap) {
+				PDGNodeGap nodeGap = (PDGNodeGap)child.getMapping();
+				if(!nodeGap.isAdvancedMatch()) {
+					PDGNode nodeG1 = nodeGap.getNodeG1();
+					PDGNode nodeG2 = nodeGap.getNodeG2();
+					if(nodeG1 != null && nodeG2 == null) {
+						if(nodeG1.equals(firstNodeG1))
+							break;
+					}
+					else if(nodeG1 == null && nodeG2 != null) {
+						if(nodeG2.equals(firstNodeG2))
+							break;
+					}
+				}
+			}
+			else if(child.getMapping() instanceof PDGNodeMapping) {
+				PDGNodeMapping nodeMapping = (PDGNodeMapping)child.getMapping();
+				PDGNode nodeG1 = nodeMapping.getNodeG1();
+				PDGNode nodeG2 = nodeMapping.getNodeG2();
+				if(nodeG1.equals(firstNodeG1))
+					break;
+				if(nodeG2.equals(firstNodeG2))
+					break;
+				mappingsBeforeFirst.add(nodeMapping);
+			}
+		}
+		if(!mappingsBeforeFirst.isEmpty()) {
+			PDGNodeMapping last = mappingsBeforeFirst.get(mappingsBeforeFirst.size()-1);
+			nodeDifferences.addAll(last.getNodeDifferences());
+			nodesG1.add(last.getNodeG1());
+			nodesG2.add(last.getNodeG2());
+			return true;
+		}
+		return false;
+	}
+
+	public boolean isForwardsExpandable() {
 		//find the next nodeMapping with precondition violations and add it
 		boolean lastNodeG1Found = false;
 		boolean lastNodeG2Found = false;

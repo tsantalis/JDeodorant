@@ -34,11 +34,16 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 
 	public List<PDGExpressionGap> getExpressionGaps() {
 		Map<ASTNodeDifference, PDGExpressionGap> expressionGapMap = new LinkedHashMap<ASTNodeDifference, PDGExpressionGap>();
+		boolean isVoidMethodCallDifferenceCoveringEntireStatement = false;
+		if(mapping instanceof PDGNodeMapping) {
+			isVoidMethodCallDifferenceCoveringEntireStatement = ((PDGNodeMapping)mapping).isVoidMethodCallDifferenceCoveringEntireStatement();
+		}
 		for(PreconditionViolation violation : mapping.getPreconditionViolations()) {
 			if(violation instanceof ExpressionPreconditionViolation) {
 				ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
 				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
-				if(difference != null && ! difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
+				if(difference != null && !difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) &&
+						!isVoidMethodCallDifferenceCoveringEntireStatement) {
 					PDGExpressionGap expressionGap = new PDGExpressionGap(difference);
 					if(!expressionGapMap.containsKey(difference)) {
 						expressionGapMap.put(difference, expressionGap);
@@ -70,11 +75,18 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				}
 			}
 			else if(child.getMapping() instanceof PDGNodeMapping) {
-				if(!blockGap.isEmpty()) {
-					blockGaps.add(blockGap);
+				PDGNodeMapping nodeMapping = (PDGNodeMapping)child.getMapping();
+				boolean isVoidMethodCallDifferenceCoveringEntireStatement = nodeMapping.isVoidMethodCallDifferenceCoveringEntireStatement();
+				if(isVoidMethodCallDifferenceCoveringEntireStatement) {
+					blockGap.add(nodeMapping);
 				}
-				//reset the blockGap
-				blockGap = new PDGNodeBlockGap(this);
+				else {
+					if(!blockGap.isEmpty()) {
+						blockGaps.add(blockGap);
+					}
+					//reset the blockGap
+					blockGap = new PDGNodeBlockGap(this);
+				}
 			}
 		}
 		if(!blockGap.isEmpty()) {

@@ -146,6 +146,7 @@ import org.eclipse.text.edits.TextEditGroup;
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private static final String CONSUMER_QUALIFIED_TYPE = "java.util.function.Consumer";
 	private static final String FUNCTION_QUALIFIED_TYPE = "java.util.function.Function";
+	private static final String SUPPLIER_QUALIFIED_TYPE = "java.util.function.Supplier";
 	private static final String FUNCTIONAL_INTERFACE_METHOD_NAME = "apply";
 	private List<? extends DivideAndConquerMatcher> mappers;
 	private DivideAndConquerMatcher mapper;
@@ -973,6 +974,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						else if(parameterTypeBindings.size() == 1 && typeBinding.getName().equals("void")) {
 							interfaceType = createConsumer(sourceRewriter, ast, parameterTypeBindings, requiredImportTypeBindings);
 						}
+						else if(parameterTypeBindings.size() == 0 && !typeBinding.getName().equals("void")) {
+							interfaceType = createSupplier(sourceRewriter, ast, type, typeBinding, requiredImportTypeBindings);
+						}
 						else {
 							interfaceType = createFunctionalInterface(sourceRewriter, ast, parameterTypeBindings, type, bodyDeclarationsRewrite, requiredImportTypeBindings, i);
 						}
@@ -1042,16 +1046,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Type interfaceType = null;
 		if(returnedVariableBindingPair != null) {
 			//introduce java.util.function.Function or a custom FunctionalInterface
-			ITypeBinding typeBinding = returnedVariableBindingPair.getBinding1().getType();
-			Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
-			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-			typeBindings.add(typeBinding);
-			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-			if(parameterTypeBindings.size() == 1) {
-				interfaceType = createFunction(sourceRewriter, ast, parameterTypeBindings, type, typeBinding, requiredImportTypeBindings);
+			IVariableBinding variableBinding1 = returnedVariableBindingPair.getBinding1();
+			IVariableBinding variableBinding2 = returnedVariableBindingPair.getBinding2();
+			Type returnType = null;
+			ITypeBinding returnTypeBinding = null;
+			if(variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
+				returnTypeBinding = variableBinding1.getType();
 			}
 			else {
-				interfaceType = createFunctionalInterface(sourceRewriter, ast, parameterTypeBindings, type, bodyDeclarationsRewrite, requiredImportTypeBindings, i);
+				returnTypeBinding = ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType());
+			}
+			returnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
+			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+			typeBindings.add(returnTypeBinding);
+			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+			if(parameterTypeBindings.size() == 1) {
+				interfaceType = createFunction(sourceRewriter, ast, parameterTypeBindings, returnType, returnTypeBinding, requiredImportTypeBindings);
+			}
+			else if(parameterTypeBindings.size() == 0) {
+				interfaceType = createSupplier(sourceRewriter, ast, returnType, returnTypeBinding, requiredImportTypeBindings);
+			}
+			else {
+				interfaceType = createFunctionalInterface(sourceRewriter, ast, parameterTypeBindings, returnType, bodyDeclarationsRewrite, requiredImportTypeBindings, i);
 			}
 		}
 		else {
@@ -1097,8 +1113,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return parameterizedType;
 	}
 
+	private Type createSupplier(ASTRewrite sourceRewriter, AST ast, Type type, ITypeBinding typeBinding, Set<ITypeBinding> requiredImportTypeBindings) {
+		//introduce java.util.function.Supplier
+		SimpleName interfaceName = ast.newSimpleName("Supplier");
+		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(interfaceName));
+		ListRewrite typeArgumentsRewrite = sourceRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+		//add the type of the result of the function
+		if(typeBinding.isPrimitive()) {
+			typeArgumentsRewrite.insertLast(RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(typeBinding, ast), null);
+		}
+		else {
+			typeArgumentsRewrite.insertLast(type, null);
+		}
+		return parameterizedType;
+	}
+
 	private Type createConsumer(ASTRewrite sourceRewriter, AST ast, Set<VariableBindingPair> parameterTypeBindings, Set<ITypeBinding> requiredImportTypeBindings) {
-		//introduce java.util.function.Function
+		//introduce java.util.function.Consumer
 		SimpleName interfaceName = ast.newSimpleName("Consumer");
 		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(interfaceName));
 		ListRewrite typeArgumentsRewrite = sourceRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
@@ -2032,6 +2063,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(requiresConsumerImport()) {
 					importRewrite.addImport(CONSUMER_QUALIFIED_TYPE);
 				}
+				if(requiresSupplierImport()) {
+					importRewrite.addImport(SUPPLIER_QUALIFIED_TYPE);
+				}
 				
 				TextEdit importEdit = importRewrite.rewriteImports(null);
 				if(importRewrite.getCreatedImports().length > 0) {
@@ -2058,6 +2092,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					AST ast = cloneInfo.sourceCompilationUnit.getAST();
 					ImportDeclaration importDeclaration = ast.newImportDeclaration();
 					cloneInfo.sourceRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(CONSUMER_QUALIFIED_TYPE), null);
+					ListRewrite importRewrite = cloneInfo.sourceRewriter.getListRewrite(cloneInfo.sourceCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
+					importRewrite.insertLast(importDeclaration, null);
+				}
+				if(requiresSupplierImport()) {
+					AST ast = cloneInfo.sourceCompilationUnit.getAST();
+					ImportDeclaration importDeclaration = ast.newImportDeclaration();
+					cloneInfo.sourceRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, ast.newName(SUPPLIER_QUALIFIED_TYPE), null);
 					ListRewrite importRewrite = cloneInfo.sourceRewriter.getListRewrite(cloneInfo.sourceCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
 					importRewrite.insertLast(importDeclaration, null);
 				}
@@ -2476,65 +2517,146 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				newStatement = newLabeledStatement;
 			}
 		}
+		else if(nodeMappingIsLastInsideBlockGap(node) != null) {
+			PDGNodeBlockGap blockGap = nodeMappingIsLastInsideBlockGap(node);
+			PDGNodeMapping nodeMapping = (PDGNodeMapping) node.getMapping();
+			PDGNode nodeG1 = nodeMapping.getNodeG1();
+			Statement oldStatement = nodeG1.getASTStatement();
+			boolean differenceIsRightHandSideOfAssignmentStatementInBlockGap = false;
+			if(oldStatement instanceof ExpressionStatement) {
+				ExpressionStatement expressionStatement = (ExpressionStatement)oldStatement;
+				if(expressionStatement.getExpression() instanceof Assignment) {
+					Assignment assignment = (Assignment)expressionStatement.getExpression();
+					boolean nodeDifferenceFound = false;
+					for(ASTNodeDifference nodeDifference : nodeMapping.getNodeDifferences()) {
+						if(assignment.getRightHandSide().equals(nodeDifference.getExpression1().getExpression())) {
+							nodeDifferenceFound = true;
+							break;
+						}
+					}
+					if(nodeDifferenceFound && assignment.getLeftHandSide() instanceof SimpleName) {
+						SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
+						IBinding binding = leftHandSide.resolveBinding();
+						if(binding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)binding;
+							VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+							IVariableBinding returnedVariableBinding = returnedVariableBindingPair.getBinding1();
+							if(variableBinding.isEqualTo(returnedVariableBinding)) {
+								differenceIsRightHandSideOfAssignmentStatementInBlockGap = true;
+							}
+						}
+					}
+				}
+			}
+			if(differenceIsRightHandSideOfAssignmentStatementInBlockGap) {
+				newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeMapping);
+			}
+			else {
+				newStatement = createStatementReplacingBlockGap(sourceRewriter, ast, blockGap);
+			}
+		}
 		else if(processableGapNode(node)) {
 			PDGNodeGap nodeGap = (PDGNodeGap) node.getMapping();
 			PDGNode nodeG1 = nodeGap.getNodeG1();
 			Statement oldStatement = nodeG1.getASTStatement();
 			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeGap);
 		}
-		else if(nodeIsLastInsideBlockGap(node) != null) {
-			PDGNodeBlockGap blockGap = nodeIsLastInsideBlockGap(node);
-			Expression argument;
-			int existingArgValue = findExistingParametersWithArgName();
-			int i = 0;
-			if(existingArgValue > 0) {
-				i = existingArgValue + 1;
-			}
-			argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
-			BindingSignaturePair signaturePair = new BindingSignaturePair(blockGap.getNodesG1(), blockGap.getNodesG2());
-			parameterizedDifferenceMap.put(signaturePair, null);
-			Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
-			String methodName = null;
-			if(parameterTypeBindings.size() == 1) {
-				if(blockGap.getReturnedVariableBinding() != null) {
-					//a return type exists, and thus a Function will be created with 1 parameter
-					methodName = "apply";
-				}
-				else {
-					//a return type does not exist, and thus a Consumer will be created with 1 parameter
-					methodName = "accept";
-				}
-			}
-			else {
-				methodName = FUNCTIONAL_INTERFACE_METHOD_NAME;
-			}
-			MethodInvocation interfaceMethodInvocation = ast.newMethodInvocation();
-			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(methodName), null);
-			ListRewrite argumentRewrite = sourceRewriter.getListRewrite(interfaceMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-			for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-				IVariableBinding variableBinding = variableBindingPair.getBinding1();
-				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
-			}
-			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
-			newStatement = ast.newExpressionStatement(interfaceMethodInvocation);
+		else if(nodeGapIsLastInsideBlockGap(node) != null) {
+			PDGNodeBlockGap blockGap = nodeGapIsLastInsideBlockGap(node);
+			newStatement = createStatementReplacingBlockGap(sourceRewriter, ast, blockGap);
 		}
 		return newStatement;
 	}
 
+	private Statement createStatementReplacingBlockGap(ASTRewrite sourceRewriter, AST ast, PDGNodeBlockGap blockGap) {
+		Expression argument;
+		int existingArgValue = findExistingParametersWithArgName();
+		int i = 0;
+		if(existingArgValue > 0) {
+			i = existingArgValue + 1;
+		}
+		argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
+		BindingSignaturePair signaturePair = new BindingSignaturePair(blockGap.getNodesG1(), blockGap.getNodesG2());
+		parameterizedDifferenceMap.put(signaturePair, null);
+		Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
+		String methodName = null;
+		if(parameterTypeBindings.size() == 1) {
+			if(blockGap.getReturnedVariableBinding() != null) {
+				//a return type exists, and thus a Function will be created with 1 parameter
+				methodName = "apply";
+			}
+			else {
+				//a return type does not exist, and thus a Consumer will be created with 1 parameter
+				methodName = "accept";
+			}
+		}
+		else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null) {
+			//a return type exists, and thus a Supplier will be created with 0 parameters
+			methodName = "get";
+		}
+		else {
+			methodName = FUNCTIONAL_INTERFACE_METHOD_NAME;
+		}
+		MethodInvocation interfaceMethodInvocation = ast.newMethodInvocation();
+		sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(methodName), null);
+		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(interfaceMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+			IVariableBinding variableBinding = variableBindingPair.getBinding1();
+			argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
+		}
+		sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+		if(blockGap.getReturnedVariableBinding() != null) {
+			IVariableBinding variableBinding1 = blockGap.getReturnedVariableBinding().getBinding1();
+			IVariableBinding variableBinding2 = blockGap.getReturnedVariableBinding().getBinding2();
+			Type returnType = null;
+			if(variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
+				returnType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding1.getType(), ast, sourceRewriter);
+			}
+			else {
+				returnType = RefactoringUtility.generateTypeFromTypeBinding(ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()), ast, sourceRewriter);
+			}
+			VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+			sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
+			sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, interfaceMethodInvocation, null);
+			VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragment);
+			sourceRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnType, null);
+			return variableDeclarationStatement;
+		}
+		else {
+			return ast.newExpressionStatement(interfaceMethodInvocation);
+		}
+	}
+
 	private boolean processableNode(CloneStructureNode child) {
-		return processableMappedNode(child)  || processableGapNode(child) || nodeIsLastInsideBlockGap(child) != null;
+		return processableMappedNode(child) || nodeMappingIsLastInsideBlockGap(child) != null || processableGapNode(child) || nodeGapIsLastInsideBlockGap(child) != null;
 	}
 
 	private boolean processableMappedNode(CloneStructureNode child) {
-		return child.getMapping() instanceof PDGNodeMapping;
+		return child.getMapping() instanceof PDGNodeMapping && !statementBelongsToBlockGaps(((PDGNodeMapping)child.getMapping()).getNodeG1().getStatement());
 	}
 
 	private boolean processableGapNode(CloneStructureNode child) {
 		return child.getMapping() instanceof PDGNodeGap && child.getMapping().isAdvancedMatch() && child.getMapping().getNodeG1() != null;
 	}
 
-	private PDGNodeBlockGap nodeIsLastInsideBlockGap(CloneStructureNode child) {
+	private PDGNodeBlockGap nodeGapIsLastInsideBlockGap(CloneStructureNode child) {
 		if(child.getMapping() instanceof PDGNodeGap && child.getMapping().getNodeG1() != null && !child.getMapping().isAdvancedMatch()) {
+			PDGNode nodeG1 = child.getMapping().getNodeG1();
+			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+				TreeSet<PDGNode> nodesG1 = blockGap.getNodesG1();
+				if(nodesG1.size() > 0) {
+					PDGNode lastNode = nodesG1.last();
+					if(lastNode.getStatement().equals(nodeG1.getStatement())) {
+						return blockGap;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private PDGNodeBlockGap nodeMappingIsLastInsideBlockGap(CloneStructureNode child) {
+		if(child.getMapping() instanceof PDGNodeMapping) {
 			PDGNode nodeG1 = child.getMapping().getNodeG1();
 			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 				TreeSet<PDGNode> nodesG1 = blockGap.getNodesG1();
@@ -2953,44 +3075,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 							boolean expressionIsFieldToBePulledUp = expression1IsFieldToBePulledUp && expression2IsFieldToBePulledUp;
 							if(!expressionIsFieldToBePulledUp) {
-								Statement oldStatement = findParentStatement(oldExpression);
-								PDGNodeBlockGap blockGap = findBlockGapContainingDifference(difference);
-								boolean differenceIsRightHandSideOfAssignmentStatementInBlockGap = false;
-								if(blockGap != null && oldStatement instanceof ExpressionStatement) {
-									ExpressionStatement expressionStatement = (ExpressionStatement)oldStatement;
-									if(expressionStatement.getExpression() instanceof Assignment) {
-										Assignment assignment = (Assignment)expressionStatement.getExpression();
-										if(assignment.getRightHandSide().equals(oldExpression) && assignment.getLeftHandSide() instanceof SimpleName) {
-											SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
-											IBinding binding = leftHandSide.resolveBinding();
-											if(binding.getKind() == IBinding.VARIABLE) {
-												IVariableBinding variableBinding = (IVariableBinding)binding;
-												VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
-												IVariableBinding returnedVariableBinding = returnedVariableBindingPair.getBinding1();
-												if(variableBinding.isEqualTo(returnedVariableBinding)) {
-													differenceIsRightHandSideOfAssignmentStatementInBlockGap = true;
-												}
-											}
-										}
-									}
-								}
-								if(differenceIsRightHandSideOfAssignmentStatementInBlockGap) {
-									Expression argument = createArgument(ast, sourceRewriter, difference);
-									if(oldASTNode.equals(oldExpression)) {
-										return argument;
-									}
-									else {
-										replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
-									}
+								Expression argument = createArgument(ast, sourceRewriter, difference);
+								if(oldASTNode.equals(oldExpression)) {
+									return argument;
 								}
 								else {
-									Expression argument = createArgument(ast, sourceRewriter, difference);
-									if(oldASTNode.equals(oldExpression)) {
-										return argument;
-									}
-									else {
-										replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
-									}
+									replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, argument);
 								}
 							}
 						}
@@ -3057,6 +3147,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					methodName = "accept";
 				}
 			}
+			else if(parameterTypeBindings.size() == 0 && !expression.resolveTypeBinding().getName().equals("void")) {
+				//the expression has a type that is not void, and thus a Supplier will be created with 0 parameters
+				methodName = "get";
+			}
 			else {
 				methodName = FUNCTIONAL_INTERFACE_METHOD_NAME;
 			}
@@ -3084,6 +3178,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					//a return type does not exist, and thus a Consumer will be created with 1 parameter
 					methodName = "accept";
 				}
+			}
+			else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null) {
+				//a return type exists, and thus a Supplier will be created with 0 parameters
+				methodName = "get";
 			}
 			else {
 				methodName = FUNCTIONAL_INTERFACE_METHOD_NAME;
@@ -3293,6 +3391,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(checkFunctionImport && requiresConsumerImport()) {
 				importRewrite.addImport(CONSUMER_QUALIFIED_TYPE);
 			}
+			if(checkFunctionImport && requiresSupplierImport()) {
+				importRewrite.addImport(SUPPLIER_QUALIFIED_TYPE);
+			}
 			TextEdit importEdit = importRewrite.rewriteImports(null);
 			if(importRewrite.getCreatedImports().length > 0) {
 				change.getEdit().addChild(importEdit);
@@ -3315,6 +3416,24 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
 			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();
 			if(parameters.size() == 1 && returnedVariableBinding != null) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean requiresSupplierImport() {
+		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
+			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
+			Expression expression = expressionGap.getASTNodeDifference().getExpression1().getExpression();
+			if(parameters.size() == 0 && !expression.resolveTypeBinding().getName().equals("void")) {
+				return true;
+			}
+		}
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
+			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();
+			if(parameters.size() == 0 && returnedVariableBinding != null) {
 				return true;
 			}
 		}
@@ -3750,6 +3869,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Block lambdaBody = ast.newBlock();
 		ListRewrite lambdaBodyRewrite = methodBodyRewriter.getListRewrite(lambdaBody, Block.STATEMENTS_PROPERTY);
 		int statementIndex = 0;
+		boolean returnStatementAdded = false;
 		for(PDGNode node : statements) {
 			Statement statement = node.getASTStatement();
 			boolean statementChanged = false;
@@ -3774,6 +3894,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, expression, null);
 										lambdaBodyRewrite.insertLast(returnStatement, null);
 										statementChanged = true;
+										returnStatementAdded = true;
 									}
 								}
 							}
@@ -3798,6 +3919,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, assignment.getRightHandSide(), null);
 										lambdaBodyRewrite.insertLast(returnStatement, null);
 										statementChanged = true;
+										returnStatementAdded = true;
 									}
 								}
 							}
@@ -3809,6 +3931,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				lambdaBodyRewrite.insertLast(statement, null);
 			}
 			statementIndex++;
+		}
+		if(!returnStatementAdded && blockGap.getReturnedVariableBinding() != null) {
+			ReturnStatement returnStatement = ast.newReturnStatement();
+			IVariableBinding variableBinding1 = blockGap.getReturnedVariableBinding().getBinding1();
+			IVariableBinding variableBinding2 = blockGap.getReturnedVariableBinding().getBinding2();
+			String returnedVariableName = index == 0 ? variableBinding1.getName() : variableBinding2.getName();
+			methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, ast.newSimpleName(returnedVariableName), null);
+			lambdaBodyRewrite.insertLast(returnStatement, null);
 		}
 		methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, lambdaBody, null);
 		argumentsRewrite.insertLast(lambdaExpression, null);

@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.Statement;
 
@@ -14,6 +16,9 @@ import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.Difference;
@@ -186,6 +191,32 @@ public class PDGNodeMapping extends IdBasedMapping {
 			}
 		}
 		return false;
+	}
+
+	public boolean isVoidMethodCallDifferenceCoveringEntireStatement() {
+		boolean expression1IsVoidMethodCallDifference = false;
+		boolean expression2IsVoidMethodCallDifference = false;
+		for(ASTNodeDifference difference : nodeDifferences) {
+			Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+			Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+			for(PreconditionViolation violation : getPreconditionViolations()) {
+				if(violation instanceof ExpressionPreconditionViolation && violation.getType().equals(PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL)) {
+					ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
+					Expression expression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expressionViolation.getExpression().getExpression());
+					if(expression.equals(expr1)) {
+						if(expr1.getParent() instanceof ExpressionStatement) {
+							expression1IsVoidMethodCallDifference = true;
+						}
+					}
+					if(expression.equals(expr2)) {
+						if(expr1.getParent() instanceof ExpressionStatement) {
+							expression2IsVoidMethodCallDifference = true;
+						}
+					}
+				}
+			}
+		}
+		return expression1IsVoidMethodCallDifference && expression2IsVoidMethodCallDifference;
 	}
 
 	public boolean equals(Object o) {

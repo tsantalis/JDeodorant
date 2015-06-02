@@ -49,10 +49,10 @@ public class LambdaExpressionPreconditionExaminer {
 			for(PDGExpressionGap expressionGap : expressionGaps) {
 				checkRefactorableExpressionGap(expressionGap);
 			}
-			List<PDGNodeBlockGap> blockGaps = node.getSequentialBlockGaps();
-			for(PDGNodeBlockGap blockGap : blockGaps) {
-				checkRefactorableBlockGap(blockGap);
-			}
+		}
+		List<PDGNodeBlockGap> blockGaps = node.getSequentialBlockGaps();
+		for(PDGNodeBlockGap blockGap : blockGaps) {
+			checkRefactorableBlockGap(blockGap);
 		}
 		for(CloneStructureNode child : node.getChildren()) {
 			checkCloneStructureNodeForGaps(child);
@@ -77,7 +77,11 @@ public class LambdaExpressionPreconditionExaminer {
 			Set<IVariableBinding> variablesToBeReturnedG1 = blockGap.getVariablesToBeReturnedG1();
 			Set<IVariableBinding> variablesToBeReturnedG2 = blockGap.getVariablesToBeReturnedG2();
 			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2)) {
-				blockGap.setParameterBindings(parameterTypeBindings);
+				for(VariableBindingPair pair : parameterTypeBindings) {
+					if(!pair.getBinding1().isParameter() && !pair.getBinding2().isParameter()) {
+						blockGap.addParameterBinding(pair);
+					}
+				}
 				if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
 					IVariableBinding returnedVariable1 = variablesToBeReturnedG1.iterator().next();
 					IVariableBinding returnedVariable2 = variablesToBeReturnedG2.iterator().next();
@@ -86,9 +90,12 @@ public class LambdaExpressionPreconditionExaminer {
 				}
 				refactorableBlockGaps.add(blockGap);
 			}
-			else if(blockGap.isExpandable()) {
+			else if(blockGap.isForwardsExpandable()) {
 				checkRefactorableBlockGap(blockGap);
 			}
+		}
+		else if(blockGap.isBackwardsExpandable()){
+			checkRefactorableBlockGap(blockGap);
 		}
 	}
 
@@ -122,7 +129,14 @@ public class LambdaExpressionPreconditionExaminer {
 				break;
 			}
 		}
-		return allVariableBindings1Found && allVariableBindings2Found;
+		boolean allPairsHaveSameType = true;
+		for(VariableBindingPair pair : parameterTypeBindings) {
+			if(!pair.getBinding1().getType().isEqualTo(pair.getBinding2().getType())) {
+				allPairsHaveSameType = false;
+				break;
+			}
+		}
+		return allVariableBindings1Found && allVariableBindings2Found && allPairsHaveSameType;
 	}
 
 	private boolean validReturnedVariables(Set<IVariableBinding> variablesToBeReturnedG1, Set<IVariableBinding> variablesToBeReturnedG2) {
@@ -132,7 +146,8 @@ public class LambdaExpressionPreconditionExaminer {
 		else if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
 			IVariableBinding returnedVariable1 = variablesToBeReturnedG1.iterator().next();
 			IVariableBinding returnedVariable2 = variablesToBeReturnedG2.iterator().next();
-			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType())) {
+			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType()) ||
+					ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType()) != null) {
 				return true;
 			}
 		}

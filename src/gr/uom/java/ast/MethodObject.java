@@ -29,6 +29,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
@@ -426,7 +427,8 @@ public class MethodObject implements AbstractMethodDeclaration {
     		else {
     			IMethodBinding[] superClassMethodBindings = typeBinding.getDeclaredMethods();
     	    	for(IMethodBinding superClassMethodBinding : superClassMethodBindings) {
-    	    		if(methodBinding.overrides(superClassMethodBinding) || methodBinding.toString().equals(superClassMethodBinding.toString()))
+    	    		if(methodBinding.overrides(superClassMethodBinding) || (methodBinding.toString().equals(superClassMethodBinding.toString())
+    	    				&& (superClassMethodBinding.getModifiers() & Modifier.PRIVATE) == 0) )
     	    			return true;
     	    	}
     		}

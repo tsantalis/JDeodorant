@@ -45,6 +45,10 @@ public abstract class ClassDeclarationObject {
 		return commentList.addAll(comments);
 	}
 
+	public List<MethodObject> getMethodList() {
+		return methodList;
+	}
+
 	public ListIterator<MethodObject> getMethodIterator() {
 		return methodList.listIterator();
 	}

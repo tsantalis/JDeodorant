@@ -75,8 +75,6 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
-import org.eclipse.jdt.core.dom.InfixExpression;
-import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PostfixExpression;
@@ -1650,9 +1648,9 @@ public class PreconditionExaminer {
 				CFGBranchIfNode ifNode = (CFGBranchIfNode)controlParent.getCFGNode();
 				CompositeStatementObject composite = (CompositeStatementObject)ifNode.getStatement();
 				List<AbstractExpression> expressions = composite.getExpressions();
-				List<Expression> allSimpleNamesInLeftOperands = new ArrayList<Expression>();
 				Expression conditionalExpression = expressions.get(0).getExpression();
-				List<Expression> infixExpressions = expressionExtractor.getInfixExpressions(conditionalExpression);
+				List<Expression> allSimpleNamesInConditionalExpression = expressionExtractor.getVariableInstructions(conditionalExpression);
+				/*List<Expression> infixExpressions = expressionExtractor.getInfixExpressions(conditionalExpression);
 				for(Expression expression : infixExpressions) {
 					InfixExpression infixExpression = (InfixExpression)expression;
 					allSimpleNamesInLeftOperands.addAll(expressionExtractor.getVariableInstructions(infixExpression.getLeftOperand()));
@@ -1661,8 +1659,8 @@ public class PreconditionExaminer {
 				for(Expression expression : instanceofExpressions) {
 					InstanceofExpression instanceofExpression = (InstanceofExpression)expression;
 					allSimpleNamesInLeftOperands.addAll(expressionExtractor.getVariableInstructions(instanceofExpression.getLeftOperand()));
-				}
-				for(Expression expression : allSimpleNamesInLeftOperands) {
+				}*/
+				for(Expression expression : allSimpleNamesInConditionalExpression) {
 					SimpleName simpleName = (SimpleName)expression;
 					boolean foundInDifferences = false;
 					for(ASTNodeDifference difference : differences) {

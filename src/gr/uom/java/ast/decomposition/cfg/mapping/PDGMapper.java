@@ -47,8 +47,24 @@ public class PDGMapper {
 					subTreeMappers.add(mapper);
 			}
 			else {
-				ControlDependenceTreeNode controlDependenceSubTreePDG1 = generateControlDependenceSubTree(controlDependenceTreePDG1, subTreeMatch.getControlDependenceTreeNodes1());
-				ControlDependenceTreeNode controlDependenceSubTreePDG2 = generateControlDependenceSubTree(controlDependenceTreePDG2, subTreeMatch.getControlDependenceTreeNodes2());
+				List<ControlDependenceTreeNode> matchedControlDependenceTreeNodes1 = subTreeMatch.getControlDependenceTreeNodes1();
+				ControlDependenceTreeNode controlDependenceSubTreePDG1 = generateControlDependenceSubTree(controlDependenceTreePDG1, matchedControlDependenceTreeNodes1);
+				//insert unmatched CDT nodes under matched ones
+				for(ControlDependenceTreeNode node : controlDependenceTreePDG1.getNodesInBreadthFirstOrder()) {
+					if(!matchedControlDependenceTreeNodes1.contains(node) && matchedControlDependenceTreeNodes1.contains(node.getParent())) {
+						insertCDTNodeInTree(node, controlDependenceSubTreePDG1);
+						matchedControlDependenceTreeNodes1.add(node);
+					}
+				}
+				List<ControlDependenceTreeNode> matchedControlDependenceTreeNodes2 = subTreeMatch.getControlDependenceTreeNodes2();
+				ControlDependenceTreeNode controlDependenceSubTreePDG2 = generateControlDependenceSubTree(controlDependenceTreePDG2, matchedControlDependenceTreeNodes2);
+				//insert unmatched CDT nodes under matched ones
+				for(ControlDependenceTreeNode node : controlDependenceTreePDG2.getNodesInBreadthFirstOrder()) {
+					if(!matchedControlDependenceTreeNodes2.contains(node) && matchedControlDependenceTreeNodes2.contains(node.getParent())) {
+						insertCDTNodeInTree(node, controlDependenceSubTreePDG2);
+						matchedControlDependenceTreeNodes2.add(node);
+					}
+				}
 				TreeSet<ControlDependenceTreeNodeMatchPair> matchPairs = subTreeMatch.getMatchPairs();
 				boolean fullTreeMatch = matchPairs.size() == Math.min(treeSize1, treeSize2);
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, fullTreeMatch, monitor);
@@ -75,26 +91,30 @@ public class PDGMapper {
 			root.setIfParent(oldCDTNode.getParent().getIfParent());
 		}
 		for(ControlDependenceTreeNode cdtNode : subTreeNodes) {
-			ControlDependenceTreeNode parent;
-			if(cdtNode.getParent().isElseNode()) {
-				parent = root.getElseNode(cdtNode.getParent().getIfParent().getNode());
-			}
-			else {
-				parent = root.getNode(cdtNode.getParent().getNode());
-			}
-			ControlDependenceTreeNode newNode = new ControlDependenceTreeNode(parent, cdtNode.getNode());
-			if(cdtNode.isElseNode()) {
-				newNode.setElseNode(true);
-				newNode.setIfParent(root.getNode(cdtNode.getIfParent().getNode()));
-			}
-			else if(cdtNode.getIfParent() != null) {
-				ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
-				if(newIfParent != null) {
-					newNode.setIfParentAndElseIfChild(newIfParent);
-				}
-			}
+			insertCDTNodeInTree(cdtNode, root);
 		}
 		return root;
+	}
+
+	private void insertCDTNodeInTree(ControlDependenceTreeNode cdtNode, ControlDependenceTreeNode root) {
+		ControlDependenceTreeNode parent;
+		if(cdtNode.getParent().isElseNode()) {
+			parent = root.getElseNode(cdtNode.getParent().getIfParent().getNode());
+		}
+		else {
+			parent = root.getNode(cdtNode.getParent().getNode());
+		}
+		ControlDependenceTreeNode newNode = new ControlDependenceTreeNode(parent, cdtNode.getNode());
+		if(cdtNode.isElseNode()) {
+			newNode.setElseNode(true);
+			newNode.setIfParent(root.getNode(cdtNode.getIfParent().getNode()));
+		}
+		else if(cdtNode.getIfParent() != null) {
+			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
+			if(newIfParent != null) {
+				newNode.setIfParentAndElseIfChild(newIfParent);
+			}
+		}
 	}
 
 	public List<CompleteSubTreeMatch> getBottomUpSubTreeMatches() {

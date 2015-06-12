@@ -3727,25 +3727,27 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		List<Statement> statementsToBeMovedBefore = new ArrayList<Statement>();
 		List<Statement> statementsToBeMovedAfter = new ArrayList<Statement>();
 		for(PDGNode remainingNode : remainingNodes) {
-			CloneStructureNode remainingCloneStructureNode = null;
-			if(index == 0)
-				remainingCloneStructureNode = root.findNodeG1(remainingNode);
-			else
-				remainingCloneStructureNode = root.findNodeG2(remainingNode);
-			if(!processedCloneStructureGapNodes.contains(remainingCloneStructureNode.getParent())) {
-				Statement statement = processCloneStructureGapNode(remainingCloneStructureNode, ast, methodBodyRewriter, index);
-				if(remainingNodesMovableBefore.contains(remainingNode)) {
-					statementsToBeMovedBefore.add(statement);
+			if(!statementBelongsToBlockGaps(remainingNode.getStatement())) {
+				CloneStructureNode remainingCloneStructureNode = null;
+				if(index == 0)
+					remainingCloneStructureNode = root.findNodeG1(remainingNode);
+				else
+					remainingCloneStructureNode = root.findNodeG2(remainingNode);
+				if(!processedCloneStructureGapNodes.contains(remainingCloneStructureNode.getParent())) {
+					Statement statement = processCloneStructureGapNode(remainingCloneStructureNode, ast, methodBodyRewriter, index);
+					if(remainingNodesMovableBefore.contains(remainingNode)) {
+						statementsToBeMovedBefore.add(statement);
+					}
+					else if(remainingNodesMovableAfter.contains(remainingNode)) {
+						statementsToBeMovedAfter.add(statement);
+					}
+					methodBodyRewriter.remove(remainingNode.getASTStatement(), null);
 				}
-				else if(remainingNodesMovableAfter.contains(remainingNode)) {
-					statementsToBeMovedAfter.add(statement);
+				processedCloneStructureGapNodes.add(remainingCloneStructureNode);
+				for(CloneStructureNode child : remainingCloneStructureNode.getChildren()) {
+					if(child.getMapping() instanceof PDGElseGap)
+						processedCloneStructureGapNodes.add(child);
 				}
-				methodBodyRewriter.remove(remainingNode.getASTStatement(), null);
-			}
-			processedCloneStructureGapNodes.add(remainingCloneStructureNode);
-			for(CloneStructureNode child : remainingCloneStructureNode.getChildren()) {
-				if(child.getMapping() instanceof PDGElseGap)
-					processedCloneStructureGapNodes.add(child);
 			}
 		}
 		Statement extractedMethodInvocationStatement = null;

@@ -165,6 +165,22 @@ public class CompositeStatementObject extends AbstractStatement {
 		return invokedMethodsThroughThisReference;
 	}
 
+	public List<MethodInvocationObject> getNonDistinctInvokedMethodsThroughThisReferenceInExpressions() {
+		List<MethodInvocationObject> invokedMethodsThroughThisReference = new ArrayList<MethodInvocationObject>();
+		for(AbstractExpression expression : expressionList) {
+			invokedMethodsThroughThisReference.addAll(expression.getNonDistinctInvokedMethodsThroughThisReference());
+		}
+		return invokedMethodsThroughThisReference;
+	}
+
+	public List<MethodInvocationObject> getNonDistinctInvokedStaticMethodsInExpressions() {
+		List<MethodInvocationObject> staticMethodInvocations = new ArrayList<MethodInvocationObject>();
+		for(AbstractExpression expression : expressionList) {
+			staticMethodInvocations.addAll(expression.getNonDistinctInvokedStaticMethods());
+		}
+		return staticMethodInvocations;
+	}
+
 	public List<String> stringRepresentation() {
 		List<String> stringRepresentation = new ArrayList<String>();
 		stringRepresentation.add(this.toString());

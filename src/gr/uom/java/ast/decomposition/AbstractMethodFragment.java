@@ -78,7 +78,7 @@ public abstract class AbstractMethodFragment {
 	private Map<AbstractVariable, ArrayList<MethodInvocationObject>> nonDistinctInvokedMethodsThroughLocalVariables;
 	//private Set<MethodInvocationObject> invokedMethodsThroughThisReference;
 	private List<MethodInvocationObject> nonDistinctInvokedMethodsThroughThisReference;
-	private Set<MethodInvocationObject> invokedStaticMethods;
+	private List<MethodInvocationObject> nonDistinctInvokedStaticMethods;
 	
 	//private Set<AbstractVariable> definedFieldsThroughFields;
 	private List<AbstractVariable> nonDistinctDefinedFieldsThroughFields;
@@ -123,7 +123,7 @@ public abstract class AbstractMethodFragment {
 		this.nonDistinctInvokedMethodsThroughLocalVariables = new LinkedHashMap<AbstractVariable, ArrayList<MethodInvocationObject>>();
 		//this.invokedMethodsThroughThisReference = new LinkedHashSet<MethodInvocationObject>();
 		this.nonDistinctInvokedMethodsThroughThisReference = new ArrayList<MethodInvocationObject>();
-		this.invokedStaticMethods = new LinkedHashSet<MethodInvocationObject>();
+		this.nonDistinctInvokedStaticMethods = new ArrayList<MethodInvocationObject>();
 		
 		//this.definedFieldsThroughFields = new LinkedHashSet<AbstractVariable>();
 		this.nonDistinctDefinedFieldsThroughFields = new ArrayList<AbstractVariable>();
@@ -732,7 +732,7 @@ public abstract class AbstractMethodFragment {
 	}
 
 	private void addStaticallyInvokedMethod(MethodInvocationObject methodInvocation) {
-		invokedStaticMethods.add(methodInvocation);
+		nonDistinctInvokedStaticMethods.add(methodInvocation);
 		if(parent != null) {
 			parent.addStaticallyInvokedMethod(methodInvocation);
 		}
@@ -988,7 +988,11 @@ public abstract class AbstractMethodFragment {
 	}
 
 	public Set<MethodInvocationObject> getInvokedStaticMethods() {
-		return invokedStaticMethods;
+		return new LinkedHashSet<MethodInvocationObject>(nonDistinctInvokedStaticMethods);
+	}
+
+	public List<MethodInvocationObject> getNonDistinctInvokedStaticMethods() {
+		return nonDistinctInvokedStaticMethods;
 	}
 
 	public Set<AbstractVariable> getDefinedFieldsThroughFields() {

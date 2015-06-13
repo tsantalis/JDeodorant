@@ -1371,8 +1371,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Difference diff = new Difference(node.getName().toString(),o.getName().toString(),DifferenceType.VARIABLE_NAME_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
+					ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
+					ITypeBinding otherTypeBinding = o.resolveTypeBinding();
+					if(!nodeTypeBinding.isEqualTo(otherTypeBinding) && typeMatch) {
+						Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
 					if(!typeMatch) {
-						Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+						Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
 					safeSubtreeMatch(node.getQualifier(), o.getQualifier());

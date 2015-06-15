@@ -19,6 +19,7 @@ public class PDGExpressionGap {
 	
 	public PDGExpressionGap(ASTNodeDifference difference) {
 		this.difference = difference;
+		this.parameterBindings = new LinkedHashSet<VariableBindingPair>();
 	}
 
 	public ASTNodeDifference getASTNodeDifference() {
@@ -29,8 +30,8 @@ public class PDGExpressionGap {
 		return parameterBindings;
 	}
 
-	public void setParameterBindings(Set<VariableBindingPair> parameterBindings) {
-		this.parameterBindings = parameterBindings;
+	public void addParameterBinding(VariableBindingPair parameterBinding) {
+		this.parameterBindings.add(parameterBinding);
 	}
 
 	public Set<IVariableBinding> getUsedVariableBindingsG1() {

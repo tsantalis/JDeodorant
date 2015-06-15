@@ -64,7 +64,11 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<IVariableBinding> variableBindings2 = expressionGap.getUsedVariableBindingsG2();
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
 		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
-			expressionGap.setParameterBindings(parameterTypeBindings);
+			for(VariableBindingPair pair : parameterTypeBindings) {
+				if(!pair.getBinding1().isParameter() && !pair.getBinding2().isParameter()) {
+					expressionGap.addParameterBinding(pair);
+				}
+			}
 			refactorableExpressionGaps.add(expressionGap);
 		}
 	}

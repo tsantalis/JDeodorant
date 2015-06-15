@@ -311,7 +311,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
 		}
-		finalizeCloneExtraction();
+		finalizeCloneExtraction(!singleSourceCompilationUnit);
 	}
 
 	private boolean mappedNodesContainStatementReturningVariable(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
@@ -1973,7 +1973,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return declaredVariables;
 	}*/
 
-	private void finalizeCloneExtraction() {
+	private void finalizeCloneExtraction(boolean checkFunctionalInterfaceImport) {
 		/*TreeSet<PDGNode> nodesToBePreservedInTheOriginalMethod1 = nodesToBePreservedInTheOriginalMethod.get(0);
 		ArrayList<PDGNode> nodesToBePreservedInTheOriginalMethod2 = new ArrayList<PDGNode>(nodesToBePreservedInTheOriginalMethod.get(1));
 		LinkedHashMap<VariableBindingKeyPair, ArrayList<PlainVariable>> declaredLocalVariables =
@@ -2058,13 +2058,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					if(!typeBinding.isNested())
 						importRewrite.addImport(typeBinding);
 				}
-				if(requiresFunctionImport()) {
+				if(checkFunctionalInterfaceImport && requiresFunctionImport()) {
 					importRewrite.addImport(FUNCTION_QUALIFIED_TYPE);
 				}
-				if(requiresConsumerImport()) {
+				if(checkFunctionalInterfaceImport && requiresConsumerImport()) {
 					importRewrite.addImport(CONSUMER_QUALIFIED_TYPE);
 				}
-				if(requiresSupplierImport()) {
+				if(checkFunctionalInterfaceImport && requiresSupplierImport()) {
 					importRewrite.addImport(SUPPLIER_QUALIFIED_TYPE);
 				}
 				
@@ -3379,7 +3379,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean checkFunctionImport) {
+	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean checkFunctionalInterfaceImport) {
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
@@ -3390,13 +3390,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							"." + cloneInfo.intermediateClassName);
 				}
 			}
-			if(checkFunctionImport && requiresFunctionImport()) {
+			if(checkFunctionalInterfaceImport && requiresFunctionImport()) {
 				importRewrite.addImport(FUNCTION_QUALIFIED_TYPE);
 			}
-			if(checkFunctionImport && requiresConsumerImport()) {
+			if(checkFunctionalInterfaceImport && requiresConsumerImport()) {
 				importRewrite.addImport(CONSUMER_QUALIFIED_TYPE);
 			}
-			if(checkFunctionImport && requiresSupplierImport()) {
+			if(checkFunctionalInterfaceImport && requiresSupplierImport()) {
 				importRewrite.addImport(SUPPLIER_QUALIFIED_TYPE);
 			}
 			TextEdit importEdit = importRewrite.rewriteImports(null);

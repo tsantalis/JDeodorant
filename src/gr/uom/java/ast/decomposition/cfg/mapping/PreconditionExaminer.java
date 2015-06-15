@@ -109,6 +109,7 @@ public class PreconditionExaminer {
 	private Set<AbstractVariable> declaredVariablesInMappedNodesUsedByNonMappedNodesG2;
 	private List<PreconditionViolation> preconditionViolations;
 	private Set<BindingSignaturePair> renamedVariables;
+	private Set<BindingSignaturePair> renamedFields;
 	private Set<PlainVariable> variablesToBeReturnedG1;
 	private Set<PlainVariable> variablesToBeReturnedG2;
 	private TreeSet<PDGNode> nonMappedPDGNodesG1MovableBefore;
@@ -155,6 +156,7 @@ public class PreconditionExaminer {
 		this.declaredVariablesInMappedNodesUsedByNonMappedNodesG2 = new LinkedHashSet<AbstractVariable>();
 		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 		this.renamedVariables = new LinkedHashSet<BindingSignaturePair>();
+		this.renamedFields = new LinkedHashSet<BindingSignaturePair>();
 		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableBeforeAndAfter = new TreeSet<PDGNode>();
@@ -246,7 +248,7 @@ public class PreconditionExaminer {
 			}
 			nonMappedNodesG2.removeAll(additionallyMatchedNodesG2);
 			mappedNodesG2.addAll(additionallyMatchedNodesG2);
-			this.renamedVariables = findRenamedVariables();
+			findRenamedVariables(renamedVariables, renamedFields);
 			findPassedParameters();
 			List<Expression> expressions1 = new ArrayList<Expression>();
 			List<Expression> expressions2 = new ArrayList<Expression>();
@@ -999,8 +1001,9 @@ public class PreconditionExaminer {
 		return getMaximumStateWithMinimumDifferences().getNonOverlappingNodeDifferences();
 	}
 
-	private Set<BindingSignaturePair> findRenamedVariables() {
+	private void findRenamedVariables(Set<BindingSignaturePair> renamedVariables, Set<BindingSignaturePair> renamedFields) {
 		Set<BindingSignaturePair> variableNameMismatches = new LinkedHashSet<BindingSignaturePair>();
+		Set<BindingSignaturePair> fieldNameMismatches = new LinkedHashSet<BindingSignaturePair>();
 		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
 			List<Difference> diffs = nodeDifference.getDifferences();
 			for(Difference diff : diffs) {
@@ -1023,11 +1026,17 @@ public class PreconditionExaminer {
 									declaringMethod2 != null && declaringMethod2.isEqualTo(method2)) {
 								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
 							}
+							else if(variableBinding1.isField() && variableBinding2.isField()) {
+								fieldNameMismatches.add(nodeDifference.getBindingSignaturePair());
+							}
 						}
 					}
 				}
 			}
 		}
+		Set<BindingSignaturePair> allNameMismatches = new LinkedHashSet<BindingSignaturePair>();
+		allNameMismatches.addAll(variableNameMismatches);
+		allNameMismatches.addAll(fieldNameMismatches);
 		Set<BindingSignaturePair> inconsistentRenames = new LinkedHashSet<BindingSignaturePair>();
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
 			List<ASTNodeDifference> nodeDifferences = nodeMapping.getNodeDifferences();
@@ -1058,11 +1067,11 @@ public class PreconditionExaminer {
 			Set<PlainVariable> variables1 = getVariables(nodeG1, additionallyMatchedFragments1, expressions1);
 			Set<PlainVariable> variables2 = getVariables(nodeG2, additionallyMatchedFragments2, expressions2);
 			for(PlainVariable plainVariable1 : variables1) {
-				BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
+				BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, allNameMismatches);
 				if(pair1 != null) {
 					boolean matchingPairFound = false;
 					for(PlainVariable plainVariable2 : variables2) {
-						BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, variableNameMismatches);
+						BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, allNameMismatches);
 						if(pair2 != null && pair2.equals(pair1) && localVariableNameMismatches.contains(pair1)) {
 							matchingPairFound = true;
 							break;
@@ -1074,11 +1083,11 @@ public class PreconditionExaminer {
 				}
 			}
 			for(PlainVariable plainVariable2 : variables2) {
-				BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, variableNameMismatches);
+				BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, allNameMismatches);
 				if(pair2 != null) {
 					boolean matchingPairFound = false;
 					for(PlainVariable plainVariable1 : variables1) {
-						BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, variableNameMismatches);
+						BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, allNameMismatches);
 						if(pair1 != null && pair1.equals(pair2) && localVariableNameMismatches.contains(pair2)) {
 							matchingPairFound = true;
 							break;
@@ -1090,10 +1099,10 @@ public class PreconditionExaminer {
 				}
 			}
 		}
-		Set<BindingSignaturePair> variables = new LinkedHashSet<BindingSignaturePair>();
-		variables.addAll(variableNameMismatches);
-		variables.removeAll(inconsistentRenames);
-		return variables;
+		renamedVariables.addAll(variableNameMismatches);
+		renamedVariables.removeAll(inconsistentRenames);
+		renamedFields.addAll(fieldNameMismatches);
+		renamedFields.removeAll(inconsistentRenames);
 	}
 
 	private List<AbstractMethodFragment> getAdditionallyMatchedFragmentsNotBeingUnderMappedStatement(
@@ -1381,7 +1390,8 @@ public class PreconditionExaminer {
 			Expression expression1 = abstractExpression1.getExpression();
 			AbstractExpression abstractExpression2 = difference.getExpression2();
 			Expression expression2 = abstractExpression2.getExpression();
-			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !isVariableWithTypeMismatchDifference(expression1, expression2, difference) &&
+			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !renamedFields.contains(difference.getBindingSignaturePair()) && 
+					!isVariableWithTypeMismatchDifference(expression1, expression2, difference) &&
 					!isDifferenceInConditionalExpressionOfAdvancedLoopMatch) {
 				PreconditionViolationType violationType1 = isParameterizableExpression(pdg1, removableNodesG1, abstractExpression1, iCompilationUnit1);
 				if(violationType1 != null) {

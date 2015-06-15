@@ -3164,6 +3164,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
 			}
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+			boolean castToPrimitive = expression.resolveTypeBinding().isPrimitive() && !expression.resolveTypeBinding().getName().equals("void") && parameterTypeBindings.size() <= 1;
+			if(castToPrimitive) {
+				CastExpression castExpression = ast.newCastExpression();
+				sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, interfaceMethodInvocation, null);
+				Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(expression.resolveTypeBinding(), ast, sourceRewriter);
+				sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, primitiveType, null);
+				return castExpression;
+			}
 			return interfaceMethodInvocation;
 		}
 		else if(differenceBelongsToBlockGaps(argumentDifference)) {
@@ -3195,6 +3203,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
 			}
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
+			boolean castToPrimitive = blockGap.getReturnedVariableBinding() != null && blockGap.getReturnedVariableBinding().getBinding1().getType().isPrimitive() && parameterTypeBindings.size() <= 1;
+			if(castToPrimitive) {
+				CastExpression castExpression = ast.newCastExpression();
+				sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, interfaceMethodInvocation, null);
+				Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(blockGap.getReturnedVariableBinding().getBinding1().getType(), ast, sourceRewriter);
+				sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, primitiveType, null);
+				return castExpression;
+			}
 			return interfaceMethodInvocation;
 		}
 		return argument;

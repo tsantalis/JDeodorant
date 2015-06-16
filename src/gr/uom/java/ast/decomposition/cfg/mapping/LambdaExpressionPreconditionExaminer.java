@@ -65,7 +65,7 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
 		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
 			for(VariableBindingPair pair : parameterTypeBindings) {
-				if(!pair.getBinding1().isParameter() && !pair.getBinding2().isParameter()) {
+				if(introduceParameter(pair)) {
 					expressionGap.addParameterBinding(pair);
 				}
 			}
@@ -82,7 +82,7 @@ public class LambdaExpressionPreconditionExaminer {
 			Set<IVariableBinding> variablesToBeReturnedG2 = blockGap.getVariablesToBeReturnedG2();
 			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2)) {
 				for(VariableBindingPair pair : parameterTypeBindings) {
-					if(!pair.getBinding1().isParameter() && !pair.getBinding2().isParameter()) {
+					if(introduceParameter(pair)) {
 						blockGap.addParameterBinding(pair);
 					}
 				}
@@ -101,6 +101,21 @@ public class LambdaExpressionPreconditionExaminer {
 		else if(blockGap.isBackwardsExpandable()){
 			checkRefactorableBlockGap(blockGap);
 		}
+	}
+
+	private boolean introduceParameter(VariableBindingPair pair) {
+		if(!pair.getBinding1().isParameter() && !pair.getBinding2().isParameter()) {
+			boolean foundInCommonPassedParameters = false;
+			for(VariableBindingKeyPair keyPair : commonPassedParameters.keySet()) {
+				if(pair.getBinding1().getKey().equals(keyPair.getKey1()) && pair.getBinding2().getKey().equals(keyPair.getKey2())) {
+					foundInCommonPassedParameters = true;
+					break;
+				}
+			}
+			if(!foundInCommonPassedParameters)
+				return true;
+		}
+		return false;
 	}
 
 	private boolean allVariableBindingsFound(Set<IVariableBinding> variableBindings1, Set<IVariableBinding> variableBindings2,

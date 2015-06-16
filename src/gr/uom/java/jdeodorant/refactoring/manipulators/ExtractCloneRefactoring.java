@@ -444,7 +444,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.cloneInfo = new CloneInformation();
 		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = null;
-		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) &&
+				sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
 			cloneInfo.sourceCompilationUnit = sourceCompilationUnits.get(0);
 			cloneInfo.sourceICompilationUnit = (ICompilationUnit)cloneInfo.sourceCompilationUnit.getJavaElement();
 			cloneInfo.sourceTypeDeclaration = sourceTypeDeclarations.get(0);
@@ -1118,7 +1119,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {
-		return cloneFragmentsDoNotAccessFieldsOrMethods() && commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object");
+		return cloneFragmentsDoNotAccessFieldsOrMethods() && ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations);
 	}
 
 	private boolean cloneFragmentsDoNotAccessFieldsOrMethods() {

@@ -319,4 +319,18 @@ public class PDGNodeBlockGap {
 		}
 		return variablesToBeReturned;
 	}
+
+	public boolean subsumes(PDGNodeBlockGap other) {
+		return this.nodesG1.containsAll(other.nodesG1) && this.nodesG2.containsAll(other.nodesG2) &&
+				this.nodesG1.size() >= other.nodesG1.size() && this.nodesG2.size() >= other.nodesG2.size();
+	}
+
+	public boolean isSubsumed(List<PDGNodeBlockGap> blockGaps) {
+		for(PDGNodeBlockGap blockGap : blockGaps) {
+			if(blockGap.subsumes(this)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

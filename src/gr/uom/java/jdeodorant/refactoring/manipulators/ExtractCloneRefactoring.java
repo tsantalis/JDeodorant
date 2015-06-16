@@ -1446,7 +1446,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {
-		return cloneFragmentsDoNotAccessFieldsOrMethods() && commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object");
+		return cloneFragmentsDoNotAccessFieldsOrMethods() && ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations);
 	}
 
 	private boolean cloneFragmentsDoNotAccessFieldsOrMethods() {

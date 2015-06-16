@@ -360,14 +360,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
-		if(commonSuperType != null &&
-				!commonSuperType.getQualifiedName().equals("java.lang.Object") &&
-				!commonSuperType.getQualifiedName().equals("java.io.Serializable") &&
-				!commonSuperType.getQualifiedName().equals("java.lang.Runnable") &&
-				!commonSuperType.getQualifiedName().equals("java.lang.Comparable") &&
-				!commonSuperType.getQualifiedName().equals("java.lang.Cloneable"))
+		if(commonSuperType != null && !isTaggingInterface(commonSuperType))
 			return true;
 		return false;
+	}
+
+	public static boolean isTaggingInterface(ITypeBinding typeBinding) {
+		return typeBinding.getQualifiedName().equals("java.lang.Object") ||
+				typeBinding.getQualifiedName().equals("java.io.Serializable") ||
+				typeBinding.getQualifiedName().equals("java.lang.Runnable") ||
+				typeBinding.getQualifiedName().equals("java.lang.Comparable") ||
+				typeBinding.getQualifiedName().equals("java.lang.Cloneable") ||
+				typeBinding.getQualifiedName().equals("java.util.EventListener");
 	}
 
 	public static ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {

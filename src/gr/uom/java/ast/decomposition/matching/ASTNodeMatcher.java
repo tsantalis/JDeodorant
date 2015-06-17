@@ -1426,7 +1426,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 					ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 					ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-					if(!nodeTypeBinding.isEqualTo(otherTypeBinding) && typeMatch) {
+					if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName())) && typeMatch) {
 						Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
@@ -1514,7 +1514,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					else if(nodeBinding.getKind() == IBinding.TYPE && otherBinding.getKind() == IBinding.TYPE) {
 						ITypeBinding nodeTypeBinding = (ITypeBinding)nodeBinding;
 						ITypeBinding otherTypeBinding = (ITypeBinding)otherBinding;
-						if(!nodeTypeBinding.isEqualTo(otherTypeBinding) && typeMatch) {
+						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName())) && typeMatch) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),
 									otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
@@ -1537,7 +1537,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						IVariableBinding otherVariableBinding = (IVariableBinding)otherBinding;
 						ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
 						ITypeBinding otherTypeBinding = otherVariableBinding.getType();
-						if(nodeTypeBinding != null && otherTypeBinding != null && !nodeTypeBinding.isEqualTo(otherTypeBinding)) {
+						if(nodeTypeBinding != null && otherTypeBinding != null && (!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}

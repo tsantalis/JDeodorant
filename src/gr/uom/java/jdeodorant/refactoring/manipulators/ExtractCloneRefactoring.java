@@ -589,6 +589,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 							intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 									intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+							//add the implemented interfaces being common in both subclasses
+							ListRewrite interfaceRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
+							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
+							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
+							for(Type interfaceType1 : superInterfaceTypes1) {
+								for(Type interfaceType2 : superInterfaceTypes2) {
+									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding())) {
+										interfaceRewrite.insertLast(interfaceType1, null);
+										Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+										typeBindings.add(interfaceType1.resolveBinding());
+										RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+										break;
+									}
+								}
+							}
 							//copy the constructors declared in the subclasses that contain a super-constructor call
 							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 							for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
@@ -656,7 +671,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		Set<VariableDeclaration> accessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
 		Set<VariableDeclaration> accessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
-		if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
+		if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) ||
+				!sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
 			pullUpLocallyAccessedFields(accessedLocalFieldsG1, accessedLocalFieldsG2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 
 			Set<VariableDeclaration> indirectlyAccessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getIndirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
@@ -665,8 +681,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<MethodObject> accessedLocalMethodsG2 = mapper.getAccessedLocalMethodsG2();
 			for(MethodObject localMethodG1 : accessedLocalMethodsG1) {
 				for(MethodObject localMethodG2 : accessedLocalMethodsG2) {
+					ITypeBinding returnTypesCommonSuperType = ASTNodeMatcher.commonSuperType(localMethodG1.getMethodDeclaration().getReturnType2().resolveBinding(), localMethodG2.getMethodDeclaration().getReturnType2().resolveBinding());
 					if(localMethodG1.getName().equals(localMethodG2.getName()) &&
-							localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) &&
+							(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || (returnTypesCommonSuperType != null && !ASTNodeMatcher.isTaggingInterface(returnTypesCommonSuperType)) ) &&
 							localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList())) {
 						MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
 						MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
@@ -683,7 +700,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							//check if the common superclass is one of the source classes
 							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
 									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-								bodyDeclarationsRewrite.insertLast(methodDeclaration1, null);
+								MethodDeclaration copiedMethodDeclaration = (MethodDeclaration) ASTNode.copySubtree(ast, methodDeclaration1);
+								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(copiedMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+								List<IExtendedModifier> originalModifiers = copiedMethodDeclaration.modifiers();
+								for(IExtendedModifier extendedModifier : originalModifiers) {
+									if(extendedModifier.isModifier()) {
+										Modifier modifier = (Modifier)extendedModifier;
+										if(modifier.isPrivate()) {
+											modifiersRewrite.replace(modifier, ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+										}
+									}
+								}
+								if(!localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) && returnTypesCommonSuperType != null && !ASTNodeMatcher.isTaggingInterface(returnTypesCommonSuperType)) {
+									Type newReturnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypesCommonSuperType, ast, sourceRewriter);
+									sourceRewriter.set(copiedMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
+									typeBindings.add(returnTypesCommonSuperType);
+								}
+								bodyDeclarationsRewrite.insertLast(copiedMethodDeclaration, null);
 								/*typeBindings.add(returnType.resolveBinding());
 								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
 								for(SingleVariableDeclaration parameter : parameters) {
@@ -713,8 +746,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
-								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
-								typeBindings.add(returnType.resolveBinding());
+								if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
+									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+									typeBindings.add(returnType.resolveBinding());
+								}
+								else if(returnTypesCommonSuperType != null && !ASTNodeMatcher.isTaggingInterface(returnTypesCommonSuperType)) {
+									Type newReturnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypesCommonSuperType, ast, sourceRewriter);
+									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
+									typeBindings.add(returnTypesCommonSuperType);
+								}
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
 								for(IExtendedModifier extendedModifier : originalModifiers) {
@@ -1458,7 +1498,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		//accessedLocalFields2.addAll(mapper.getIndirectlyAccessedLocalFieldsG2());
 		Set<Expression> allSimpleNames1 = extractSimpleNames(mapper.getRemovableNodesG1());
 		Set<Expression> allSimpleNames2 = extractSimpleNames(mapper.getRemovableNodesG2());
-		int counter = 0;
+		int fieldCounter1 = 0;
 		for(AbstractVariable variable1 : accessedLocalFields1) {
 			if(variable1 instanceof PlainVariable) {
 				for(Expression expression : allSimpleNames1) {
@@ -1478,12 +1518,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 						}
 						if(!foundInDifferences && !isStaticField) {
-							counter++;
+							fieldCounter1++;
 						}
 					}
 				}
 			}
 		}
+		int fieldCounter2 = 0;
 		for(AbstractVariable variable2 : accessedLocalFields2) {
 			if(variable2 instanceof PlainVariable) {
 				for(Expression expression : allSimpleNames2) {
@@ -1503,7 +1544,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 						}
 						if(!foundInDifferences && !isStaticField) {
-							counter++;
+							fieldCounter2++;
 						}
 					}
 				}
@@ -1511,6 +1552,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		Set<Expression> allMethodInvocations1 = extractMethodInvocations(mapper.getRemovableNodesG1());
 		Set<Expression> allMethodInvocations2 = extractMethodInvocations(mapper.getRemovableNodesG2());
+		int methodCounter1 = 0;
 		for(MethodObject m : mapper.getAccessedLocalMethodsG1()) {
 			for(Expression expression : allMethodInvocations1) {
 				if(expression instanceof MethodInvocation) {
@@ -1525,12 +1567,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 						}
 						if(!foundInDifferences && !m.isStatic()) {
-							counter++;
+							methodCounter1++;
 						}
 					}
 				}
 			}
 		}
+		int methodCounter2 = 0;
 		for(MethodObject m : mapper.getAccessedLocalMethodsG2()) {
 			for(Expression expression : allMethodInvocations2) {
 				if(expression instanceof MethodInvocation) {
@@ -1545,13 +1588,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 						}
 						if(!foundInDifferences && !m.isStatic()) {
-							counter++;
+							methodCounter2++;
 						}
 					}
 				}
 			}
 		}
-		return counter == 0;
+		//allowing non-static method calls in only one of the clone fragments
+		return fieldCounter1 == 0 && fieldCounter2 == 0 && (methodCounter1 == 0 || methodCounter2 == 0);
 	}
 
 	private boolean isExpressionWithinExpression(ASTNode expression, Expression parentExpression) {

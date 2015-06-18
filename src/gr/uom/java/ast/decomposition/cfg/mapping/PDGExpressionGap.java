@@ -6,32 +6,24 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
-public class PDGExpressionGap {
+public class PDGExpressionGap extends Gap {
 	private ASTNodeDifference difference;
-	private Set<VariableBindingPair> parameterBindings;
 	
 	public PDGExpressionGap(ASTNodeDifference difference) {
 		this.difference = difference;
-		this.parameterBindings = new LinkedHashSet<VariableBindingPair>();
 	}
 
 	public ASTNodeDifference getASTNodeDifference() {
 		return difference;
-	}
-
-	public Set<VariableBindingPair> getParameterBindings() {
-		return parameterBindings;
-	}
-
-	public void addParameterBinding(VariableBindingPair parameterBinding) {
-		this.parameterBindings.add(parameterBinding);
 	}
 
 	public Set<IVariableBinding> getUsedVariableBindingsG1() {
@@ -57,5 +49,17 @@ public class PDGExpressionGap {
 			}
 		}
 		return usedVariableBindings;
+	}
+
+	public ITypeBinding getReturnType() {
+		ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
+		ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
+		if(typeBinding1.isEqualTo(typeBinding2)) {
+			return typeBinding1;
+		}
+		else {
+			ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+			return typeBinding;
+		}
 	}
 }

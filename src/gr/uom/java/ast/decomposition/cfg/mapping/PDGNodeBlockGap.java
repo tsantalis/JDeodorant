@@ -12,6 +12,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
@@ -23,16 +24,16 @@ import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 
-public class PDGNodeBlockGap {
+public class PDGNodeBlockGap extends Gap {
 	private CloneStructureNode parent;
 	private TreeSet<PDGNode> nodesG1;
 	private TreeSet<PDGNode> nodesG2;
 	private List<ASTNodeDifference> nodeDifferences;
-	private Set<VariableBindingPair> parameterBindings;
 	private VariableBindingPair returnedVariableBinding;
 	
 	public PDGNodeBlockGap(CloneStructureNode parent) {
@@ -40,7 +41,6 @@ public class PDGNodeBlockGap {
 		this.nodesG1 = new TreeSet<PDGNode>();
 		this.nodesG2 = new TreeSet<PDGNode>();
 		this.nodeDifferences = new ArrayList<ASTNodeDifference>();
-		this.parameterBindings = new LinkedHashSet<VariableBindingPair>();
 	}
 
 	public TreeSet<PDGNode> getNodesG1() {
@@ -49,14 +49,6 @@ public class PDGNodeBlockGap {
 
 	public TreeSet<PDGNode> getNodesG2() {
 		return nodesG2;
-	}
-
-	public Set<VariableBindingPair> getParameterBindings() {
-		return parameterBindings;
-	}
-
-	public void addParameterBinding(VariableBindingPair parameterBinding) {
-		this.parameterBindings.add(parameterBinding);
 	}
 
 	public VariableBindingPair getReturnedVariableBinding() {
@@ -332,5 +324,20 @@ public class PDGNodeBlockGap {
 			}
 		}
 		return false;
+	}
+
+	public ITypeBinding getReturnType() {
+		if(returnedVariableBinding != null) {
+			IVariableBinding returnedVariable1 = returnedVariableBinding.getBinding1();
+			IVariableBinding returnedVariable2 = returnedVariableBinding.getBinding2();
+			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType())) {
+				return returnedVariable1.getType();
+			}
+			else {
+				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType());
+				return typeBinding;
+			}
+		}
+		return null;
 	}
 }

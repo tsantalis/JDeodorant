@@ -353,10 +353,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		if(binding1.isEqualTo(binding2))
 			return true;
-		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {
+		if(binding1.getName().equals("null")) {
 			return true;
 		}
-		if(binding2.getName().equals("null") && !binding1.isPrimitive()) {
+		if(binding2.getName().equals("null")) {
 			return true;
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);

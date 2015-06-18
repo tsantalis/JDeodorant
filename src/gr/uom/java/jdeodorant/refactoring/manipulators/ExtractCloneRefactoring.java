@@ -15,9 +15,11 @@ import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.DivideAndConquerMatcher;
@@ -44,6 +46,7 @@ import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.decomposition.matching.FieldAccessReplacedWithGetterInvocationDifference;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.ThrownExceptionVisitor;
 import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
@@ -716,6 +719,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									sourceRewriter.set(copiedMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
 									typeBindings.add(returnTypesCommonSuperType);
 								}
+								if(!localMethodG1.isStatic() && localMethodG2.isStatic()) {
+									modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+								}
 								bodyDeclarationsRewrite.insertLast(copiedMethodDeclaration, null);
 								/*typeBindings.add(returnType.resolveBinding());
 								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
@@ -867,22 +873,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Modifier staticModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD);
 			modifierRewrite.insertLast(staticModifier, null);
 		}
-		
-		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
-		List<Type> thrownExceptions1 = sourceMethodDeclarations.get(0).thrownExceptionTypes();
-		List<Type> thrownExceptions2 = sourceMethodDeclarations.get(1).thrownExceptionTypes();
-		for(Type thrownException1 : thrownExceptions1) {
-			for(Type thrownException2 : thrownExceptions2) {
-				if(thrownException1.resolveBinding().isEqualTo(thrownException2.resolveBinding())) {
-					thrownExceptionRewrite.insertLast(thrownException1, null);
-					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-					typeBindings.add(thrownException1.resolveBinding());
-					RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-					break;
-				}
-			}
-		}
-		
+	
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters = mapper.getCommonPassedParameters();
 		for(VariableBindingKeyPair parameterName : commonPassedParameters.keySet()) {
@@ -918,18 +909,61 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
+		Set<ITypeBinding> thrownExceptionTypeBindings = new LinkedHashSet<ITypeBinding>();
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
 			AbstractStatement statement1 = pdgNode1.getStatement();
 			if(!statementBelongsToBlockGaps(statement1)) {
+				PDGBlockNode blockNode = mapper.getPDG1().isNestedWithinBlockNode(pdgNode1);
+				if(blockNode != null && blockNode instanceof PDGTryNode && mapper.getRemovableNodesG1().contains(blockNode)) {
+					//do nothing
+				}
+				else {
+					ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+					statement1.getStatement().accept(thrownExceptionVisitor);
+					thrownExceptionTypeBindings.addAll(thrownExceptionVisitor.getTypeBindings());
+				}
 				RefactoringUtility.getSimpleTypeBindings(extractTypeBindings(statement1), requiredImportTypeBindings);
 			}
 			
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
 			AbstractStatement statement2 = pdgNode2.getStatement();
 			if(!statementBelongsToBlockGaps(statement2)) {
+				PDGBlockNode blockNode = mapper.getPDG2().isNestedWithinBlockNode(pdgNode2);
+				if(blockNode != null && blockNode instanceof PDGTryNode && mapper.getRemovableNodesG2().contains(blockNode)) {
+					//do nothing
+				}
+				else {
+					ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+					statement2.getStatement().accept(thrownExceptionVisitor);
+					thrownExceptionTypeBindings.addAll(thrownExceptionVisitor.getTypeBindings());
+				}
 				RefactoringUtility.getSimpleTypeBindings(extractTypeBindings(statement2), requiredImportTypeBindings);
 			}
+		}
+		
+		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
+		List<Type> thrownExceptions1 = sourceMethodDeclarations.get(0).thrownExceptionTypes();
+		List<Type> thrownExceptions2 = sourceMethodDeclarations.get(1).thrownExceptionTypes();
+		for(Type thrownException1 : thrownExceptions1) {
+			for(Type thrownException2 : thrownExceptions2) {
+				if(thrownException1.resolveBinding().isEqualTo(thrownException2.resolveBinding()) && thrownExceptionTypeBindings.contains(thrownException1.resolveBinding())) {
+					thrownExceptionRewrite.insertLast(thrownException1, null);
+					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+					typeBindings.add(thrownException1.resolveBinding());
+					RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+					thrownExceptionTypeBindings.remove(thrownException1.resolveBinding());
+					break;
+				}
+			}
+		}
+		//add remaining thrown exception types that have not been found in the signatures of the method declarations
+		for(ITypeBinding thrownExceptionTypeBinding : thrownExceptionTypeBindings) {
+			Type thrownExceptionType = RefactoringUtility.generateTypeFromTypeBinding(thrownExceptionTypeBinding, ast, sourceRewriter);
+			thrownExceptionRewrite.insertLast(thrownExceptionType, null);
+			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+			typeBindings.add(thrownExceptionTypeBinding);
+			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 		}
 		
 		CloneStructureNode root = mapper.getCloneStructureRoot();

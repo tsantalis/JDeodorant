@@ -1433,7 +1433,7 @@ public class PreconditionExaminer {
 					ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
 					findMethodsCalledFromType(typeBinding2, pdgNodeMapping.getNodeG2(), methods2);
 					
-					if(!typeBinding1.isEqualTo(typeBinding2)) {
+					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 						if(commonSuperType != null) {
 							Set<String> commonSuperTypeMembers = new LinkedHashSet<String>();

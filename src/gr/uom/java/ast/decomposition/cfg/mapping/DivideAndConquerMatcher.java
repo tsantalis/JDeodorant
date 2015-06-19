@@ -132,14 +132,6 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getDirectlyAccessedLocalFieldsG2();
 	}
 
-	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
-		return preconditionExaminer.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1();
-	}
-
-	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2() {
-		return preconditionExaminer.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2();
-	}
-
 	public Set<AbstractVariable> getIndirectlyAccessedLocalFieldsG1() {
 		return preconditionExaminer.getIndirectlyAccessedLocalFieldsG1();
 	}
@@ -196,11 +188,11 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getRenamedVariables();
 	}
 
-	public Set<PlainVariable> getVariablesToBeReturnedG1() {
+	public Set<VariableDeclaration> getVariablesToBeReturnedG1() {
 		return preconditionExaminer.getVariablesToBeReturnedG1();
 	}
 
-	public Set<PlainVariable> getVariablesToBeReturnedG2() {
+	public Set<VariableDeclaration> getVariablesToBeReturnedG2() {
 		return preconditionExaminer.getVariablesToBeReturnedG2();
 	}
 	
@@ -375,11 +367,11 @@ public abstract class DivideAndConquerMatcher {
 				Set<PDGNode> nodesG1 = getNodesInRegion1(pdg1, predicate1, controlPredicateNodesG1, controlPredicateNodesInNextLevelG1, controlDependenceTreePDG1);
 				//special handling in level 0 for sub tree match
 				if(level1 == 0 && !fullTreeMatch) {
-					int minId = allNodesInSubTreePDG1.first().getId();
+					//int minId = allNodesInSubTreePDG1.first().getId();
 					int maxId = allNodesInSubTreePDG1.last().getId();
 					Set<PDGNode> nodesG1ToBeRemoved = new LinkedHashSet<PDGNode>();
 					for(PDGNode nodeG1 : nodesG1) {
-						if(nodeG1.getId() > maxId || nodeG1.getId() < minId) {
+						if(nodeG1.getId() > maxId/* || nodeG1.getId() < minId*/) {
 							nodesG1ToBeRemoved.add(nodeG1);
 						}
 						if(controlDependenceTreePDG1.isElseNode()) {
@@ -409,11 +401,11 @@ public abstract class DivideAndConquerMatcher {
 						}
 					}
 					if(level2 == 0 && !fullTreeMatch) {
-						int minId = allNodesInSubTreePDG2.first().getId();
+						//int minId = allNodesInSubTreePDG2.first().getId();
 						int maxId = allNodesInSubTreePDG2.last().getId();
 						Set<PDGNode> nodesG2ToBeRemoved = new LinkedHashSet<PDGNode>();
 						for(PDGNode nodeG2 : nodesG2) {
-							if(nodeG2.getId() > maxId || nodeG2.getId() < minId) {
+							if(nodeG2.getId() > maxId/* || nodeG2.getId() < minId*/) {
 								nodesG2ToBeRemoved.add(nodeG2);
 							}
 							if(controlDependenceTreePDG2.isElseNode()) {

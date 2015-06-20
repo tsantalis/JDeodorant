@@ -132,14 +132,6 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getDirectlyAccessedLocalFieldsG2();
 	}
 
-	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1() {
-		return preconditionExaminer.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1();
-	}
-
-	public Set<VariableDeclaration> getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2() {
-		return preconditionExaminer.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2();
-	}
-
 	public Set<AbstractVariable> getIndirectlyAccessedLocalFieldsG1() {
 		return preconditionExaminer.getIndirectlyAccessedLocalFieldsG1();
 	}
@@ -196,11 +188,11 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getRenamedVariables();
 	}
 
-	public Set<PlainVariable> getVariablesToBeReturnedG1() {
+	public Set<VariableDeclaration> getVariablesToBeReturnedG1() {
 		return preconditionExaminer.getVariablesToBeReturnedG1();
 	}
 
-	public Set<PlainVariable> getVariablesToBeReturnedG2() {
+	public Set<VariableDeclaration> getVariablesToBeReturnedG2() {
 		return preconditionExaminer.getVariablesToBeReturnedG2();
 	}
 	

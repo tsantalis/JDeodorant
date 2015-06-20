@@ -220,8 +220,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		remainingStatementsMovableAfter.add(this.mapper.getNonMappedPDGNodesG1MovableAfter());
 		remainingStatementsMovableAfter.add(this.mapper.getNonMappedPDGNodesG2MovableAfter());
 		this.returnedVariables = new ArrayList<ArrayList<VariableDeclaration>>();
-		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG1()));
-		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getDeclaredVariablesInMappedNodesUsedByNonMappedNodesG2()));
+		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getVariablesToBeReturnedG1()));
+		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getVariablesToBeReturnedG2()));
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
 		this.fieldDeclarationsToBeParameterized = new ArrayList<Set<VariableDeclaration>>();
 		this.methodDeclarationsToBePulledUp = new ArrayList<Set<MethodDeclaration>>();
@@ -359,6 +359,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(VariableBindingKeyPair pair : mapper.getCommonPassedParameters().keySet()) {
 			if(pair.getKey1().equals(variableDeclaration1.resolveBinding().getKey()) &&
 					pair.getKey2().equals(variableDeclaration2.resolveBinding().getKey())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean variableIsPassedAsCommonParameter(VariableDeclaration variableDeclaration) {
+		for(VariableBindingKeyPair pair : mapper.getCommonPassedParameters().keySet()) {
+			if(pair.getKey1().equals(variableDeclaration.resolveBinding().getKey()) ||
+					pair.getKey2().equals(variableDeclaration.resolveBinding().getKey())) {
 				return true;
 			}
 		}
@@ -905,7 +915,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
 				statement1.getStatement().accept(thrownExceptionVisitor);
-				thrownExceptionTypeBindings.addAll(thrownExceptionVisitor.getTypeBindings());
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						thrownExceptionTypeBindings.add(thrownException);
+					}
+				}
 			}
 			getSimpleTypeBindings(extractTypeBindings(statement1), requiredImportTypeBindings);
 			
@@ -918,7 +932,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
 				statement2.getStatement().accept(thrownExceptionVisitor);
-				thrownExceptionTypeBindings.addAll(thrownExceptionVisitor.getTypeBindings());
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						thrownExceptionTypeBindings.add(thrownException);
+					}
+				}
 			}
 			getSimpleTypeBindings(extractTypeBindings(statement2), requiredImportTypeBindings);
 		}
@@ -3218,7 +3236,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Statement methodInvocationStatement = null;
 			VariableDeclaration variableDeclaration = returnedVariables.get(0);
 			if(variableDeclaration.resolveBinding().isParameter() || variableDeclaration.resolveBinding().isField()
-					|| statementsToBeMovedBefore.contains(variableDeclaration.getParent())) {
+					|| statementsToBeMovedBefore.contains(variableDeclaration.getParent()) || variableIsPassedAsCommonParameter(variableDeclaration)) {
 				//create an assignment statement
 				Type variableType = extractType(variableDeclaration);
 				Assignment assignment = ast.newAssignment();

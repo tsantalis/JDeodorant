@@ -77,6 +77,10 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return cfgNode;
 	}
 
+	public Set<String> getThrownExceptionTypes() {
+		return thrownExceptionTypes;
+	}
+
 	public Iterator<GraphEdge> getDependenceIterator() {
 		Set<GraphEdge> allEdges = new LinkedHashSet<GraphEdge>();
 		allEdges.addAll(incomingEdges);

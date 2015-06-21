@@ -71,6 +71,21 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			if(child.getMapping() instanceof PDGNodeGap) {
 				PDGNodeGap gap = (PDGNodeGap)child.getMapping();
 				blockGap.add(gap);
+				Set<CloneStructureNode> descendants = child.getDescendants();
+				int numberOfGapDescendants = 0;
+				for(CloneStructureNode descendant : descendants) {
+					if(descendant.getMapping() instanceof PDGNodeGap || descendant.getMapping() instanceof PDGElseGap) {
+						numberOfGapDescendants++;
+					}
+				}
+				if(descendants.size() == numberOfGapDescendants) {
+					for(CloneStructureNode descendant : descendants) {
+						if(descendant.getMapping() instanceof PDGNodeGap) {
+							PDGNodeGap descendantGap = (PDGNodeGap)descendant.getMapping();
+							blockGap.add(descendantGap);
+						}
+					}
+				}
 			}
 			else if(child.getMapping() instanceof PDGNodeMapping) {
 				PDGNodeMapping nodeMapping = (PDGNodeMapping)child.getMapping();

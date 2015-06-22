@@ -426,8 +426,8 @@ public class PreconditionExaminer {
 						declaredVariableG2.getVariableBindingKey());
 				declaredLocalVariablesInMappedNodes.put(keyPair, declaredVariables);
 			}
-			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringVariables();
-			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringVariables();
+			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
+			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
 			dataDependences1.retainAll(passedParametersG1);
 			dataDependences2.retainAll(passedParametersG2);
 			List<AbstractVariable> variables1 = new ArrayList<AbstractVariable>(dataDependences1);
@@ -575,6 +575,12 @@ public class PreconditionExaminer {
 				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
 				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode)) {
 					passedParameters.add(dataDependence.getData());
+				}
+			}
+			else if(dependence instanceof PDGOutputDependence) {
+				PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode)) {
+					passedParameters.add(outputDependence.getData());
 				}
 			}
 		}

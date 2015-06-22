@@ -14,6 +14,7 @@ import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.ThrownExceptionVisitor;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -339,5 +340,28 @@ public class PDGNodeBlockGap extends Gap {
 			}
 		}
 		return null;
+	}
+
+	public Set<ITypeBinding> getThrownExceptions() {
+		Set<ITypeBinding> thrownExceptionTypeBindings = new LinkedHashSet<ITypeBinding>();
+		for(PDGNode nodeG1 : nodesG1) {
+			ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+			nodeG1.getASTStatement().accept(thrownExceptionVisitor);
+			for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+				if(nodeG1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+					addTypeBinding(thrownException, thrownExceptionTypeBindings);
+				}
+			}
+		}
+		for(PDGNode nodeG2 : nodesG2) {
+			ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+			nodeG2.getASTStatement().accept(thrownExceptionVisitor);
+			for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+				if(nodeG2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+					addTypeBinding(thrownException, thrownExceptionTypeBindings);
+				}
+			}
+		}
+		return thrownExceptionTypeBindings;
 	}
 }

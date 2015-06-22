@@ -52,6 +52,10 @@ public class LambdaExpressionPreconditionExaminer {
 		return refactorableBlockGaps;
 	}
 
+	public void discardBlockGaps(List<PDGNodeBlockGap> blockGaps) {
+		refactorableBlockGaps.removeAll(blockGaps);
+	}
+
 	private void checkCloneStructureNodeForGaps(CloneStructureNode node) {
 		if(node.getMapping() != null) {
 			List<PDGExpressionGap> expressionGaps = node.getExpressionGaps();

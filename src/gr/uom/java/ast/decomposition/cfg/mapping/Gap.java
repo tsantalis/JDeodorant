@@ -20,5 +20,19 @@ public abstract class Gap {
 		this.parameterBindings.add(parameterBinding);
 	}
 
+	protected void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
+		boolean found = false;
+		for(ITypeBinding thrownExceptionTypeBinding : thrownExceptionTypeBindings) {
+			if(typeBinding.isEqualTo(thrownExceptionTypeBinding)) {
+				found = true;
+				break;
+			}
+		}
+		if(!found) {
+			thrownExceptionTypeBindings.add(typeBinding);
+		}
+	}
+
 	public abstract ITypeBinding getReturnType();
+	public abstract Set<ITypeBinding> getThrownExceptions();
 }

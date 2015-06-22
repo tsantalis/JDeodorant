@@ -290,6 +290,23 @@ public class PreconditionExaminer {
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkIfAllPossibleExecutionFlowsEndInReturn();
 			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters());
+			Set<PDGNode> remainingMovableNodesG1 = new TreeSet<PDGNode>();
+			remainingMovableNodesG1.addAll(nonMappedPDGNodesG1MovableBefore);
+			remainingMovableNodesG1.addAll(nonMappedPDGNodesG1MovableAfter);
+			remainingMovableNodesG1.addAll(nonMappedPDGNodesG1MovableBeforeAndAfter);
+			
+			Set<PDGNode> remainingMovableNodesG2 = new TreeSet<PDGNode>();
+			remainingMovableNodesG2.addAll(nonMappedPDGNodesG2MovableBefore);
+			remainingMovableNodesG2.addAll(nonMappedPDGNodesG2MovableAfter);
+			remainingMovableNodesG2.addAll(nonMappedPDGNodesG2MovableBeforeAndAfter);
+			//discard the block gaps in which all nodes can be moved before or after the clone fragments
+			List<PDGNodeBlockGap> discardedBlockGaps = new ArrayList<PDGNodeBlockGap>();
+			for(PDGNodeBlockGap blockGap : lambdaExpressionPreconditionExaminer.getRefactorableBlockGaps()) {
+				if(remainingMovableNodesG1.containsAll(blockGap.getNodesG1()) && remainingMovableNodesG2.containsAll(blockGap.getNodesG2())) {
+					discardedBlockGaps.add(blockGap);
+				}
+			}
+			lambdaExpressionPreconditionExaminer.discardBlockGaps(discardedBlockGaps);
 			Set<PDGNode> nodesInBlockGapsG1 = new TreeSet<PDGNode>();
 			Set<PDGNode> nodesInBlockGapsG2 = new TreeSet<PDGNode>();
 			for(PDGNodeBlockGap blockGap : getRefactorableBlockGaps()) {

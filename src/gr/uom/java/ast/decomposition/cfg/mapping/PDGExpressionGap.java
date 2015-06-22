@@ -14,6 +14,7 @@ import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.ThrownExceptionVisitor;
 
 public class PDGExpressionGap extends Gap {
 	private ASTNodeDifference difference;
@@ -52,8 +53,8 @@ public class PDGExpressionGap extends Gap {
 	}
 
 	public ITypeBinding getReturnType() {
-		ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
-		ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
+		ITypeBinding typeBinding1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression()).resolveTypeBinding();
+		ITypeBinding typeBinding2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression()).resolveTypeBinding();
 		if(typeBinding1.isEqualTo(typeBinding2)) {
 			return typeBinding1;
 		}
@@ -61,5 +62,22 @@ public class PDGExpressionGap extends Gap {
 			ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 			return typeBinding;
 		}
+	}
+
+	public Set<ITypeBinding> getThrownExceptions() {
+		Set<ITypeBinding> thrownExceptionTypeBindings = new LinkedHashSet<ITypeBinding>();
+		Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+		Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+		ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+		expr1.accept(thrownExceptionVisitor);
+		for(ITypeBinding typeBinding : thrownExceptionVisitor.getTypeBindings()) {
+			addTypeBinding(typeBinding, thrownExceptionTypeBindings);
+		}
+		thrownExceptionVisitor = new ThrownExceptionVisitor();
+		expr2.accept(thrownExceptionVisitor);
+		for(ITypeBinding typeBinding : thrownExceptionVisitor.getTypeBindings()) {
+			addTypeBinding(typeBinding, thrownExceptionTypeBindings);
+		}
+		return thrownExceptionTypeBindings;
 	}
 }

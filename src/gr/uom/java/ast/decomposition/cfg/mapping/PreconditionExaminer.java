@@ -200,6 +200,9 @@ public class PreconditionExaminer {
 					if(cloneStructureTry != null) {
 						node.setParent(cloneStructureTry);
 					}
+					else {
+						getCloneStructureRoot().addGapChild(node);
+					}
 				}
 				else {
 					getCloneStructureRoot().addGapChild(node);
@@ -236,6 +239,9 @@ public class PreconditionExaminer {
 					CloneStructureNode cloneStructureTry = getCloneStructureRoot().findNodeG2(tryNode);
 					if(cloneStructureTry != null) {
 						node.setParent(cloneStructureTry);
+					}
+					else {
+						getCloneStructureRoot().addGapChild(node);
 					}
 				}
 				else {

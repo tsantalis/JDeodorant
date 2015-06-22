@@ -844,7 +844,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1) {
 			Type returnType1 = extractType(returnedVariables1.get(0));
 			Type returnType2 = extractType(returnedVariables2.get(0));
-			if(returnType1.resolveBinding().isEqualTo(returnType2.resolveBinding()))
+			if(returnType1.resolveBinding().isEqualTo(returnType2.resolveBinding()) && returnType1.resolveBinding().getQualifiedName().equals(returnType2.resolveBinding().getQualifiedName()))
 				returnTypeBinding = returnType1.resolveBinding();
 			else
 				returnTypeBinding = ASTNodeMatcher.commonSuperType(returnType1.resolveBinding(), returnType2.resolveBinding());
@@ -895,7 +895,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					ITypeBinding typeBinding1 = extractType(variableDeclaration1).resolveBinding();
 					ITypeBinding typeBinding2 = extractType(variableDeclaration2).resolveBinding();
 					ITypeBinding typeBinding = null;
-					if(!typeBinding1.isEqualTo(typeBinding2)) {
+					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 						if(commonSuperTypeBinding != null) {
 							typeBinding = commonSuperTypeBinding;
@@ -1035,7 +1035,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					ITypeBinding typeBinding = null;
 					if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) ||
 							differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
-						if(!typeBinding1.isEqualTo(typeBinding2)) {
+						if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 							if(commonSuperTypeBinding != null) {
 								typeBinding = commonSuperTypeBinding;

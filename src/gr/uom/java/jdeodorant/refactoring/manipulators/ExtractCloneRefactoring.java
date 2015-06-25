@@ -183,6 +183,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		private ASTRewrite sourceRewriter;
 		private Document document;
 		private Set<ITypeBinding> requiredImportTypeBindings;
+		private ImportRewrite importRewrite;
 		private ListRewrite methodBodyRewrite;
 		private ListRewrite parameterRewrite;
 		private List<ListRewrite> argumentRewriteList = new ArrayList<ListRewrite>();
@@ -314,7 +315,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
 		}
-		finalizeCloneExtraction(!singleSourceCompilationUnit);
+		finalizeCloneExtraction();
 	}
 
 	private boolean mappedNodesContainStatementReturningVariable(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
@@ -2087,7 +2088,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return declaredVariables;
 	}*/
 
-	private void finalizeCloneExtraction(boolean checkFunctionalInterfaceImport) {
+	private void finalizeCloneExtraction() {
 		/*TreeSet<PDGNode> nodesToBePreservedInTheOriginalMethod1 = nodesToBePreservedInTheOriginalMethod.get(0);
 		ArrayList<PDGNode> nodesToBePreservedInTheOriginalMethod2 = new ArrayList<PDGNode>(nodesToBePreservedInTheOriginalMethod.get(1));
 		LinkedHashMap<VariableBindingKeyPair, ArrayList<PlainVariable>> declaredLocalVariables =
@@ -2167,18 +2168,24 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		try {
 			CompilationUnitChange change = compilationUnitChanges.get(cloneInfo.sourceICompilationUnit);
 			if(change != null) {
-				ImportRewrite importRewrite = ImportRewrite.create(cloneInfo.sourceCompilationUnit, true);
+				ImportRewrite importRewrite = null;
+				if(cloneInfo.importRewrite != null) {
+					importRewrite = cloneInfo.importRewrite;
+				}
+				else {
+					importRewrite = ImportRewrite.create(cloneInfo.sourceCompilationUnit, true);
+				}
 				for(ITypeBinding typeBinding : cloneInfo.requiredImportTypeBindings) {
 					if(!typeBinding.isNested())
 						importRewrite.addImport(typeBinding);
 				}
-				if(checkFunctionalInterfaceImport && requiresFunctionImport()) {
+				if(requiresFunctionImport()) {
 					importRewrite.addImport(FUNCTION_QUALIFIED_TYPE);
 				}
-				if(checkFunctionalInterfaceImport && requiresConsumerImport()) {
+				if(requiresConsumerImport()) {
 					importRewrite.addImport(CONSUMER_QUALIFIED_TYPE);
 				}
-				if(checkFunctionalInterfaceImport && requiresSupplierImport()) {
+				if(requiresSupplierImport()) {
 					importRewrite.addImport(SUPPLIER_QUALIFIED_TYPE);
 				}
 				
@@ -3512,7 +3519,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean checkFunctionalInterfaceImport) {
+	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean singleSourceCompilationUnit) {
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
@@ -3523,19 +3530,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							"." + cloneInfo.intermediateClassName);
 				}
 			}
-			if(checkFunctionalInterfaceImport && requiresFunctionImport()) {
-				importRewrite.addImport(FUNCTION_QUALIFIED_TYPE);
+			
+			if(singleSourceCompilationUnit) {
+				cloneInfo.importRewrite = importRewrite;
 			}
-			if(checkFunctionalInterfaceImport && requiresConsumerImport()) {
-				importRewrite.addImport(CONSUMER_QUALIFIED_TYPE);
-			}
-			if(checkFunctionalInterfaceImport && requiresSupplierImport()) {
-				importRewrite.addImport(SUPPLIER_QUALIFIED_TYPE);
-			}
-			TextEdit importEdit = importRewrite.rewriteImports(null);
-			if(importRewrite.getCreatedImports().length > 0) {
-				change.getEdit().addChild(importEdit);
-				change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
+			else {
+				TextEdit importEdit = importRewrite.rewriteImports(null);
+				if(importRewrite.getCreatedImports().length > 0) {
+					change.getEdit().addChild(importEdit);
+					change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
+				}
 			}
 		} catch (CoreException e) {
 			e.printStackTrace();

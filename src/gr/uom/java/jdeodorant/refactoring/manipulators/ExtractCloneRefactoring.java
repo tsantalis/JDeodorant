@@ -681,7 +681,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				for(MethodObject localMethodG2 : accessedLocalMethodsG2) {
 					ITypeBinding returnTypesCommonSuperType = ASTNodeMatcher.commonSuperType(localMethodG1.getMethodDeclaration().getReturnType2().resolveBinding(), localMethodG2.getMethodDeclaration().getReturnType2().resolveBinding());
 					if(localMethodG1.getName().equals(localMethodG2.getName()) &&
-							(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || (returnTypesCommonSuperType != null && !ASTNodeMatcher.isTaggingInterface(returnTypesCommonSuperType)) ) &&
+							(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) &&
 							localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList())) {
 						MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
 						MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
@@ -709,7 +709,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										}
 									}
 								}
-								if(!localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) && returnTypesCommonSuperType != null && !ASTNodeMatcher.isTaggingInterface(returnTypesCommonSuperType)) {
+								if(!localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) && ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) {
 									Type newReturnType = generateTypeFromTypeBinding(returnTypesCommonSuperType, ast, sourceRewriter);
 									sourceRewriter.set(copiedMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
 									typeBindings.add(returnTypesCommonSuperType);
@@ -751,7 +751,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 									typeBindings.add(returnType.resolveBinding());
 								}
-								else if(returnTypesCommonSuperType != null && !ASTNodeMatcher.isTaggingInterface(returnTypesCommonSuperType)) {
+								else if(ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) {
 									Type newReturnType = generateTypeFromTypeBinding(returnTypesCommonSuperType, ast, sourceRewriter);
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
 									typeBindings.add(returnTypesCommonSuperType);

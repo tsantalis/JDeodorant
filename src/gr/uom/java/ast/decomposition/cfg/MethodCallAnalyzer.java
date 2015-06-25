@@ -11,6 +11,7 @@ import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
@@ -818,6 +819,30 @@ public class MethodCallAnalyzer {
 			for(ITypeBinding typeBinding1 : parameterTypes1) {
 				ITypeBinding typeBinding2 = parameterTypes2[i];
 				if(!equalType(typeBinding1, typeBinding2))
+					return false;
+				i++;
+			}
+		}
+		else return false;
+		return true;
+	}
+
+	public static boolean equalSignatureIgnoringSubclassTypeDifferences(IMethodBinding methodBinding1, IMethodBinding methodBinding2) {
+		if(!methodBinding1.getName().equals(methodBinding2.getName()))
+			return false;
+		ITypeBinding returnType1 = methodBinding1.getReturnType();
+		ITypeBinding returnType2 = methodBinding2.getReturnType();
+		ITypeBinding returnCommonSuperType = ASTNodeMatcher.commonSuperType(returnType1, returnType2);
+		if(!equalType(returnType1, returnType2) && !ASTNodeMatcher.validCommonSuperType(returnCommonSuperType))
+			return false;
+		ITypeBinding[] parameterTypes1 = methodBinding1.getParameterTypes();
+		ITypeBinding[] parameterTypes2 = methodBinding2.getParameterTypes();
+		if(parameterTypes1.length == parameterTypes2.length) {
+			int i = 0;
+			for(ITypeBinding typeBinding1 : parameterTypes1) {
+				ITypeBinding typeBinding2 = parameterTypes2[i];
+				ITypeBinding parameterCommonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				if(!equalType(typeBinding1, typeBinding2) && !ASTNodeMatcher.validCommonSuperType(parameterCommonSuperType))
 					return false;
 				i++;
 			}

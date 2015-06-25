@@ -354,6 +354,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
+		return validCommonSuperType(commonSuperType);
+	}
+
+	public static boolean validCommonSuperType(ITypeBinding commonSuperType) {
 		if(commonSuperType != null && !isTaggingInterface(commonSuperType))
 			return true;
 		return false;

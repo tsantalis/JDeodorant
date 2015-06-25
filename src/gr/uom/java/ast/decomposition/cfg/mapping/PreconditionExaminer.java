@@ -1437,17 +1437,25 @@ public class PreconditionExaminer {
 							Set<String> commonSuperTypeMembers = new LinkedHashSet<String>();
 							for(IMethodBinding methodBinding1 : methods1) {
 								for(IMethodBinding methodBinding2 : methods2) {
-									if(MethodCallAnalyzer.equalSignature(methodBinding1, methodBinding2)) {
+									if(MethodCallAnalyzer.equalSignature(methodBinding1, methodBinding2) ||
+											MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodBinding1, methodBinding2)) {
 										Set<IMethodBinding> declaredMethods = getDeclaredMethods(commonSuperType);
 										boolean commonSuperTypeMethodFound = false;
 										for(IMethodBinding commonSuperTypeMethod : declaredMethods) {
-											if(MethodCallAnalyzer.equalSignature(methodBinding1, commonSuperTypeMethod)) {
+											if(MethodCallAnalyzer.equalSignature(methodBinding1, commonSuperTypeMethod) ||
+													MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodBinding1, commonSuperTypeMethod)) {
 												commonSuperTypeMethodFound = true;
 												break;
 											}
 										}
 										if(!commonSuperTypeMethodFound) {
-											commonSuperTypeMembers.add(methodBinding1.toString());
+											if(MethodCallAnalyzer.equalSignature(methodBinding1, methodBinding2)) {
+												commonSuperTypeMembers.add(methodBinding1.toString());
+											}
+											else {
+												commonSuperTypeMembers.add(methodBinding1.toString());
+												commonSuperTypeMembers.add(methodBinding2.toString());
+											}
 										}
 										break;
 									}

@@ -3249,14 +3249,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(existingArgValue > 0) {
 			i = existingArgValue + 1;
 		}
-		if(parameterizedDifferenceMap.containsKey(argumentDifference.getBindingSignaturePair())) {
+		BindingSignaturePair bindingSignaturePair = argumentDifference.getBindingSignaturePair();
+		if(differenceBelongsToExpressionGaps(argumentDifference)) {
+			bindingSignaturePair.setGap(true);
+		}
+		if(parameterizedDifferenceMap.containsKey(bindingSignaturePair)) {
 			List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
-			int index = list.indexOf(argumentDifference.getBindingSignaturePair());
+			int index = list.indexOf(bindingSignaturePair);
 			argument = ast.newSimpleName("arg" + (i + index));
 		}
 		else {
 			argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
-			parameterizedDifferenceMap.put(argumentDifference.getBindingSignaturePair(), argumentDifference);
+			parameterizedDifferenceMap.put(bindingSignaturePair, argumentDifference);
 		}
 		if(differenceBelongsToExpressionGaps(argumentDifference) && !differenceBelongsToBlockGaps(argumentDifference)) {
 			Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(argumentDifference);

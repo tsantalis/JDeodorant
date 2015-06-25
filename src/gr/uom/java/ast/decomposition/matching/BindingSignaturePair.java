@@ -9,6 +9,7 @@ public class BindingSignaturePair {
 
 	private BindingSignature signature1;
 	private BindingSignature signature2;
+	private boolean isGap = false;
 	
 	public BindingSignaturePair(AbstractExpression expression1, AbstractExpression expression2) {
 		this.signature1 = new BindingSignature(expression1);
@@ -18,6 +19,7 @@ public class BindingSignaturePair {
 	public BindingSignaturePair(Set<PDGNode> statements1, Set<PDGNode> statements2) {
 		this.signature1 = new BindingSignature(statements1);
 		this.signature2 = new BindingSignature(statements2);
+		this.isGap = true;
 	}
 
 	public BindingSignature getSignature1() {
@@ -28,13 +30,18 @@ public class BindingSignaturePair {
 		return signature2;
 	}
 
+	public void setGap(boolean isGap) {
+		this.isGap = isGap;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;
 		if(o instanceof BindingSignaturePair) {
 			BindingSignaturePair signaturePair = (BindingSignaturePair)o;
 			return this.signature1.equals(signaturePair.signature1) &&
-					this.signature2.equals(signaturePair.signature2);
+					this.signature2.equals(signaturePair.signature2) &&
+					this.isGap == signaturePair.isGap;
 		}
 		return false;
 	}
@@ -43,6 +50,7 @@ public class BindingSignaturePair {
 		int result = 17;
 		result = 37*result + signature1.hashCode();
 		result = 37*result + signature2.hashCode();
+		result = 37*result + (isGap ? 0 : 1);
 		return result;
 	}
 

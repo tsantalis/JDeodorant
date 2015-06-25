@@ -153,6 +153,8 @@ public class PreconditionExaminer {
 		this.preconditionViolations = new ArrayList<PreconditionViolation>();
 		this.renamedVariables = new LinkedHashSet<BindingSignaturePair>();
 		this.renamedFields = new LinkedHashSet<BindingSignaturePair>();
+		this.variablesToBeReturnedG1 = new LinkedHashSet<PlainVariable>();
+		this.variablesToBeReturnedG2 = new LinkedHashSet<PlainVariable>();
 		this.nonMappedPDGNodesG1MovableBefore = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableAfter = new TreeSet<PDGNode>();
 		this.nonMappedPDGNodesG1MovableBeforeAndAfter = new TreeSet<PDGNode>();

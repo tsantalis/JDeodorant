@@ -1215,6 +1215,15 @@ public class PreconditionExaminer {
 							variablesToBeReturned.add(variable);
 					}
 				}
+				else if(dependence instanceof PDGOutputDependence) {
+					PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
+					PDGNode srcNode = (PDGNode)outputDependence.getSrc();
+					if(mappedNodes.contains(srcNode) && outputDependence.getData() instanceof PlainVariable) {
+						PlainVariable variable = (PlainVariable)outputDependence.getData();
+						if(!variable.isField())
+							variablesToBeReturned.add(variable);
+					}
+				}
 			}
 		}
 		for(PDGNode mappedNode : mappedNodes) {

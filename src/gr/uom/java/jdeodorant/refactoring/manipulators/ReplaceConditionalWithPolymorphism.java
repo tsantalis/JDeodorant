@@ -23,6 +23,8 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
@@ -262,14 +264,55 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		String abstractClassFullyQualifiedName = typeCheckElimination.getAbstractClassName();
 		IFile abstractClassFile = getFile(rootContainer, abstractClassFullyQualifiedName);
 		
-		IJavaElement abstractJavaElement = JavaCore.create(abstractClassFile);
-		javaElementsToOpenInEditor.add(abstractJavaElement);
-		ICompilationUnit abstractICompilationUnit = (ICompilationUnit)abstractJavaElement;
-        ASTParser abstractParser = ASTParser.newParser(ASTReader.JLS);
-        abstractParser.setKind(ASTParser.K_COMPILATION_UNIT);
-        abstractParser.setSource(abstractICompilationUnit);
-        abstractParser.setResolveBindings(true); // we need bindings later on
-        CompilationUnit abstractCompilationUnit = (CompilationUnit)abstractParser.createAST(null);
+		ICompilationUnit abstractICompilationUnit = null;
+		CompilationUnit abstractCompilationUnit = null;
+		if(abstractClassFile != null) {
+			IJavaElement abstractJavaElement = JavaCore.create(abstractClassFile);
+			javaElementsToOpenInEditor.add(abstractJavaElement);
+			abstractICompilationUnit = (ICompilationUnit)abstractJavaElement;
+			ASTParser abstractParser = ASTParser.newParser(ASTReader.JLS);
+			abstractParser.setKind(ASTParser.K_COMPILATION_UNIT);
+			abstractParser.setSource(abstractICompilationUnit);
+			abstractParser.setResolveBindings(true); // we need bindings later on
+			abstractCompilationUnit = (CompilationUnit)abstractParser.createAST(null);
+		}
+		else {
+			IJavaElement javaElement = JavaCore.create(contextContainer);
+			if(javaElement != null && javaElement instanceof IPackageFragment) {
+				IPackageFragment packageFragment = (IPackageFragment)javaElement;
+				try {
+					IJavaElement[] children = packageFragment.getChildren();
+					for(IJavaElement child : children) {
+						if(child instanceof ICompilationUnit) {
+							ICompilationUnit childCompilationUnit = (ICompilationUnit)child;
+							IType[] types = childCompilationUnit.getTypes();
+							for(IType type : types) {
+								String qualifiedName = packageFragment.getElementName() + "." + type.getElementName();
+								if(qualifiedName.equals(abstractClassFullyQualifiedName)) {
+									abstractICompilationUnit = childCompilationUnit;
+									break;
+								}
+							}
+							if(abstractICompilationUnit != null) {
+								if(abstractICompilationUnit.equals(sourceCompilationUnit.getJavaElement())) {
+									abstractCompilationUnit = sourceCompilationUnit;
+								}
+								else {
+									ASTParser abstractParser = ASTParser.newParser(ASTReader.JLS);
+									abstractParser.setKind(ASTParser.K_COMPILATION_UNIT);
+									abstractParser.setSource(abstractICompilationUnit);
+									abstractParser.setResolveBindings(true); // we need bindings later on
+									abstractCompilationUnit = (CompilationUnit)abstractParser.createAST(null);
+								}
+								break;
+							}
+						}
+					}
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
+			}
+		}
         
         AST abstractAST = abstractCompilationUnit.getAST();
         ASTRewrite abstractRewriter = ASTRewrite.create(abstractAST);
@@ -285,91 +328,73 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				}
 			}
 		}
-		int abstractClassModifiers = abstractClassTypeDeclaration.getModifiers();
-		if((abstractClassModifiers & Modifier.ABSTRACT) == 0 && !abstractClassTypeDeclaration.isInterface()) {
-			ListRewrite abstractModifiersRewrite = abstractRewriter.getListRewrite(abstractClassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
-			abstractModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-		}
 		
-		ListRewrite abstractBodyRewrite = abstractRewriter.getListRewrite(abstractClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		Set<VariableDeclarationFragment> accessedFields = typeCheckElimination.getAccessedFields();
+		Set<VariableDeclarationFragment> assignedFields = typeCheckElimination.getAssignedFields();
+		Set<MethodDeclaration> accessedMethods = typeCheckElimination.getAccessedMethods();
+		Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
+		Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
+		Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
+		Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature = getRequiredImportDeclarationsBasedOnSignature();
+		MultiTextEdit abstractMultiTextEdit = new MultiTextEdit();
+		CompilationUnitChange abstractCompilationUnitChange = new CompilationUnitChange("", abstractICompilationUnit);
+		abstractCompilationUnitChange.setEdit(abstractMultiTextEdit);
+		compilationUnitChanges.put(abstractICompilationUnit, abstractCompilationUnitChange);
 		
-		MethodDeclaration abstractMethodDeclaration = abstractAST.newMethodDeclaration();
-		abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.NAME_PROPERTY, abstractAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
-		if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
-			abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, abstractAST.newPrimitiveType(PrimitiveType.VOID), null);
-		}
-		else {
-			if(returnedVariable != null) {
-				Type returnType = null;
-				if(returnedVariable instanceof SingleVariableDeclaration) {
-					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
-					returnType = singleVariableDeclaration.getType();
-				}
-				else if(returnedVariable instanceof VariableDeclarationFragment) {
-					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
-						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-						returnType = variableDeclarationStatement.getType();
-					}
-					else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
-						VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
-						returnType = variableDeclarationExpression.getType();
-					}
-					else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
-						FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
-						returnType = fieldDeclaration.getType();
-					}
-				}
-				abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+		if(!typeCheckElimination.getSubclassNames().contains(abstractClassFullyQualifiedName)) {
+			int abstractClassModifiers = abstractClassTypeDeclaration.getModifiers();
+			if((abstractClassModifiers & Modifier.ABSTRACT) == 0 && !abstractClassTypeDeclaration.isInterface()) {
+				ListRewrite abstractModifiersRewrite = abstractRewriter.getListRewrite(abstractClassTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
+				abstractModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+			}
+
+			ListRewrite abstractBodyRewrite = abstractRewriter.getListRewrite(abstractClassTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+
+			MethodDeclaration abstractMethodDeclaration = abstractAST.newMethodDeclaration();
+			abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.NAME_PROPERTY, abstractAST.newSimpleName(typeCheckElimination.getAbstractMethodName()), null);
+			if(returnedVariable == null && !typeCheckElimination.typeCheckCodeFragmentContainsReturnStatement()) {
+				abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, abstractAST.newPrimitiveType(PrimitiveType.VOID), null);
 			}
 			else {
-				abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
-			}
-		}
-		ListRewrite abstractMethodModifiersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-		abstractMethodModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-		abstractMethodModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-		ListRewrite abstractMethodParametersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-		if(returnedVariable != null) {
-			if(returnedVariable instanceof SingleVariableDeclaration) {
-				SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
-				abstractMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
-			}
-			else if(returnedVariable instanceof VariableDeclarationFragment) {
-				SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
-				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
-				Type type = null;
-				if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
-					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
-					type = variableDeclarationStatement.getType();
+				if(returnedVariable != null) {
+					Type returnType = null;
+					if(returnedVariable instanceof SingleVariableDeclaration) {
+						SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
+						returnType = singleVariableDeclaration.getType();
+					}
+					else if(returnedVariable instanceof VariableDeclarationFragment) {
+						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+						if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+							returnType = variableDeclarationStatement.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+							returnType = variableDeclarationExpression.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+							returnType = fieldDeclaration.getType();
+						}
+					}
+					abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 				}
-				else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
-					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
-					type = variableDeclarationExpression.getType();
+				else {
+					abstractRewriter.set(abstractMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, typeCheckElimination.getTypeCheckMethodReturnType(), null);
 				}
-				else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
-					FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
-					type = fieldDeclaration.getType();
-				}
-				abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
-				abstractRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
-				abstractMethodParametersRewrite.insertLast(parameter, null);
 			}
-		}
-		for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {		
-			if(!abstractMethodParameter.equals(returnedVariable) && !abstractMethodParameter.equals(typeVariable)) {
-				abstractMethodParametersRewrite.insertLast(abstractMethodParameter, null);
-			}
-		}
-		for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
-			if(!fragment.equals(returnedVariable) && !fragment.equals(typeVariable)) {
-				if(fragment instanceof SingleVariableDeclaration) {
-					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)fragment;
+			ListRewrite abstractMethodModifiersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+			abstractMethodModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			abstractMethodModifiersRewrite.insertLast(abstractAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+			ListRewrite abstractMethodParametersRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+			if(returnedVariable != null) {
+				if(returnedVariable instanceof SingleVariableDeclaration) {
+					SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)returnedVariable;
 					abstractMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
 				}
-				else if(fragment instanceof VariableDeclarationFragment) {
+				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
-					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
+					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
 					Type type = null;
 					if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
 						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
@@ -388,43 +413,64 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 					abstractMethodParametersRewrite.insertLast(parameter, null);
 				}
 			}
-		}
-		Set<VariableDeclarationFragment> accessedFields = typeCheckElimination.getAccessedFields();
-		Set<VariableDeclarationFragment> assignedFields = typeCheckElimination.getAssignedFields();
-		Set<MethodDeclaration> accessedMethods = typeCheckElimination.getAccessedMethods();
-		Set<IMethodBinding> superAccessedMethods = typeCheckElimination.getSuperAccessedMethods();
-		Set<IVariableBinding> superAccessedFields = typeCheckElimination.getSuperAccessedFieldBindings();
-		Set<IVariableBinding> superAssignedFields = typeCheckElimination.getSuperAssignedFieldBindings();
-		if(sourceTypeRequiredForExtraction()) {
-			SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
-			SimpleName parameterType = abstractAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
-			abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, abstractAST.newSimpleType(parameterType), null);
-			String parameterName = sourceTypeDeclaration.getName().getIdentifier();
-			parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
-			abstractRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, abstractAST.newSimpleName(parameterName), null);
-			abstractMethodParametersRewrite.insertLast(parameter, null);
-		}
-		
-		ListRewrite abstractMethodThrownExceptionsRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
-		for(ITypeBinding typeBinding : thrownExceptions) {
-			abstractMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, abstractAST, abstractRewriter), null);
-		}
-		
-		abstractBodyRewrite.insertLast(abstractMethodDeclaration, null);
-		
-		MultiTextEdit abstractMultiTextEdit = new MultiTextEdit();
-		CompilationUnitChange abstractCompilationUnitChange = new CompilationUnitChange("", abstractICompilationUnit);
-		abstractCompilationUnitChange.setEdit(abstractMultiTextEdit);
-		compilationUnitChanges.put(abstractICompilationUnit, abstractCompilationUnitChange);
-		
-		Set<ITypeBinding> requiredImportDeclarationsBasedOnSignature = getRequiredImportDeclarationsBasedOnSignature();
-		
-		try {
-			TextEdit abstractEdit = abstractRewriter.rewriteAST();
-			abstractMultiTextEdit.addChild(abstractEdit);
-			abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add abstract method", new TextEdit[] {abstractEdit}));
-		} catch(JavaModelException e) {
-			e.printStackTrace();
+			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {		
+				if(!abstractMethodParameter.equals(returnedVariable) && !abstractMethodParameter.equals(typeVariable)) {
+					abstractMethodParametersRewrite.insertLast(abstractMethodParameter, null);
+				}
+			}
+			for(VariableDeclaration fragment : typeCheckElimination.getAccessedLocalVariables()) {
+				if(!fragment.equals(returnedVariable) && !fragment.equals(typeVariable)) {
+					if(fragment instanceof SingleVariableDeclaration) {
+						SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)fragment;
+						abstractMethodParametersRewrite.insertLast(singleVariableDeclaration, null);
+					}
+					else if(fragment instanceof VariableDeclarationFragment) {
+						SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
+						VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)fragment;
+						Type type = null;
+						if(variableDeclarationFragment.getParent() instanceof VariableDeclarationStatement) {
+							VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclarationFragment.getParent();
+							type = variableDeclarationStatement.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof VariableDeclarationExpression) {
+							VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)variableDeclarationFragment.getParent();
+							type = variableDeclarationExpression.getType();
+						}
+						else if(variableDeclarationFragment.getParent() instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclarationFragment.getParent();
+							type = fieldDeclaration.getType();
+						}
+						abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
+						abstractRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclarationFragment.getName(), null);
+						abstractMethodParametersRewrite.insertLast(parameter, null);
+					}
+				}
+			}
+			
+			if(sourceTypeRequiredForExtraction()) {
+				SingleVariableDeclaration parameter = abstractAST.newSingleVariableDeclaration();
+				SimpleName parameterType = abstractAST.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
+				abstractRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, abstractAST.newSimpleType(parameterType), null);
+				String parameterName = sourceTypeDeclaration.getName().getIdentifier();
+				parameterName = parameterName.substring(0,1).toLowerCase() + parameterName.substring(1,parameterName.length());
+				abstractRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, abstractAST.newSimpleName(parameterName), null);
+				abstractMethodParametersRewrite.insertLast(parameter, null);
+			}
+
+			ListRewrite abstractMethodThrownExceptionsRewrite = abstractRewriter.getListRewrite(abstractMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
+			for(ITypeBinding typeBinding : thrownExceptions) {
+				abstractMethodThrownExceptionsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeBinding, abstractAST, abstractRewriter), null);
+			}
+
+			abstractBodyRewrite.insertLast(abstractMethodDeclaration, null);
+
+			try {
+				TextEdit abstractEdit = abstractRewriter.rewriteAST();
+				abstractMultiTextEdit.addChild(abstractEdit);
+				abstractCompilationUnitChange.addTextEditGroup(new TextEditGroup("Add abstract method", new TextEdit[] {abstractEdit}));
+			} catch(JavaModelException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
@@ -453,26 +499,61 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			CompilationUnit subclassCompilationUnit = null;
 			AST subclassAST = null;
 			ASTRewrite subclassRewriter = null;
-			if(subclassFile.equals(abstractClassFile)) {
-				subclassICompilationUnit = abstractICompilationUnit;
-				subclassCompilationUnit = abstractCompilationUnit;
-				subclassAST = abstractAST;
-				subclassRewriter = ASTRewrite.create(subclassAST);
+			if(subclassFile != null) {
+				if(subclassFile.equals(abstractClassFile)) {
+					subclassICompilationUnit = abstractICompilationUnit;
+					subclassCompilationUnit = abstractCompilationUnit;
+				}
+				else {
+					IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
+					javaElementsToOpenInEditor.add(subclassJavaElement);
+					subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
+					ASTParser subclassParser = ASTParser.newParser(ASTReader.JLS);
+					subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
+					subclassParser.setSource(subclassICompilationUnit);
+					subclassParser.setResolveBindings(true); // we need bindings later on
+					subclassCompilationUnit = (CompilationUnit)subclassParser.createAST(null);
+				}
 			}
 			else {
-				IJavaElement subclassJavaElement = JavaCore.create(subclassFile);
-				javaElementsToOpenInEditor.add(subclassJavaElement);
-				subclassICompilationUnit = (ICompilationUnit)subclassJavaElement;
-				ASTParser subclassParser = ASTParser.newParser(ASTReader.JLS);
-				subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
-				subclassParser.setSource(subclassICompilationUnit);
-				subclassParser.setResolveBindings(true); // we need bindings later on
-				subclassCompilationUnit = (CompilationUnit)subclassParser.createAST(null);
-
-				subclassAST = subclassCompilationUnit.getAST();
-				subclassRewriter = ASTRewrite.create(subclassAST);
+				IJavaElement javaElement = JavaCore.create(contextContainer);
+				if(javaElement != null && javaElement instanceof IPackageFragment) {
+					IPackageFragment packageFragment = (IPackageFragment)javaElement;
+					try {
+						IJavaElement[] children = packageFragment.getChildren();
+						for(IJavaElement child : children) {
+							if(child instanceof ICompilationUnit) {
+								ICompilationUnit childCompilationUnit = (ICompilationUnit)child;
+								IType[] types = childCompilationUnit.getTypes();
+								for(IType type : types) {
+									String qualifiedName = packageFragment.getElementName() + "." + type.getElementName();
+									if(qualifiedName.equals(subclassNames.get(i))) {
+										subclassICompilationUnit = childCompilationUnit;
+										break;
+									}
+								}
+								if(subclassICompilationUnit != null) {
+									if(subclassICompilationUnit.equals(sourceCompilationUnit.getJavaElement())) {
+										subclassCompilationUnit = sourceCompilationUnit;
+									}
+									else {
+										ASTParser subclassParser = ASTParser.newParser(ASTReader.JLS);
+										subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
+										subclassParser.setSource(subclassICompilationUnit);
+										subclassParser.setResolveBindings(true); // we need bindings later on
+										subclassCompilationUnit = (CompilationUnit)subclassParser.createAST(null);
+									}
+									break;
+								}
+							}
+						}
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
+				}
 			}
-			
+			subclassAST = subclassCompilationUnit.getAST();
+			subclassRewriter = ASTRewrite.create(subclassAST);
 			TypeDeclaration subclassTypeDeclaration = null;
 			List<AbstractTypeDeclaration> subclassAbstractTypeDeclarations = subclassCompilationUnit.types();
 			for(AbstractTypeDeclaration abstractTypeDeclaration : subclassAbstractTypeDeclarations) {

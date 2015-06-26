@@ -1220,7 +1220,7 @@ public class PreconditionExaminer {
 					PDGNode srcNode = (PDGNode)outputDependence.getSrc();
 					if(mappedNodes.contains(srcNode) && outputDependence.getData() instanceof PlainVariable) {
 						PlainVariable variable = (PlainVariable)outputDependence.getData();
-						if(!variable.isField())
+						if(!variable.isField() && mappedNodeDeclaresVariable(variable, mappedNodes))
 							variablesToBeReturned.add(variable);
 					}
 				}
@@ -1244,6 +1244,14 @@ public class PreconditionExaminer {
 			}
 		}
 		return variablesToBeReturned;
+	}
+
+	private boolean mappedNodeDeclaresVariable(PlainVariable variable, Set<PDGNode> mappedNodes) {
+		for(PDGNode node : mappedNodes) {
+			if(node.declaresLocalVariable(variable))
+				return true;
+		}
+		return false;
 	}
 
 	private void checkPreconditionsAboutReturnedVariables() {

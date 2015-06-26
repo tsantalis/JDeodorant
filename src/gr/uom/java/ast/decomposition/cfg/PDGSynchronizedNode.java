@@ -2,11 +2,12 @@ package gr.uom.java.ast.decomposition.cfg;
 
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
+import gr.uom.java.ast.FieldObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 
 public class PDGSynchronizedNode extends PDGBlockNode {
-	public PDGSynchronizedNode(CFGSynchronizedNode cfgSynchronizedNode, Set<VariableDeclaration> variableDeclarationsInMethod,
-			Set<VariableDeclaration> fieldsAccessedInMethod) {
+	public PDGSynchronizedNode(CFGSynchronizedNode cfgSynchronizedNode, Set<VariableDeclarationObject> variableDeclarationsInMethod,
+			Set<FieldObject> fieldsAccessedInMethod) {
 		super(cfgSynchronizedNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 		this.controlParent = cfgSynchronizedNode.getControlParent();
 		determineDefinedAndUsedVariables();

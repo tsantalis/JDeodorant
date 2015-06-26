@@ -4,6 +4,7 @@ import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.ParameterObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
 import gr.uom.java.jdeodorant.refactoring.Activator;
 
@@ -29,8 +30,8 @@ public class PDG extends Graph {
 	private CFG cfg;
 	private PDGMethodEntryNode entryNode;
 	private Map<CFGBranchNode, Set<CFGNode>> nestingMap;
-	private Set<VariableDeclaration> variableDeclarationsInMethod;
-	private Set<VariableDeclaration> fieldsAccessedInMethod;
+	private Set<VariableDeclarationObject> variableDeclarationsInMethod;
+	private Set<FieldObject> fieldsAccessedInMethod;
 	private Map<PDGNode, Set<BasicBlock>> dominatedBlockMap;
 	private IFile iFile;
 	private IProgressMonitor monitor;
@@ -50,18 +51,18 @@ public class PDG extends Graph {
 				nestingMap.put(branchNode, branchNode.getImmediatelyNestedNodesFromAST());
 			}
 		}
-		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclaration>();
-		this.fieldsAccessedInMethod = new LinkedHashSet<VariableDeclaration>();
+		this.variableDeclarationsInMethod = new LinkedHashSet<VariableDeclarationObject>();
+		this.fieldsAccessedInMethod = new LinkedHashSet<FieldObject>();
 		for(FieldObject field : accessedFields) {
-			this.fieldsAccessedInMethod.add(field.getVariableDeclaration());
+			this.fieldsAccessedInMethod.add(field);
 		}
 		ListIterator<ParameterObject> parameterIterator = cfg.getMethod().getParameterListIterator();
 		while(parameterIterator.hasNext()) {
 			ParameterObject parameter = parameterIterator.next();
-			variableDeclarationsInMethod.add(parameter.getSingleVariableDeclaration());
+			variableDeclarationsInMethod.add(parameter);
 		}
 		for(LocalVariableDeclarationObject localVariableDeclaration : cfg.getMethod().getLocalVariableDeclarations()) {
-			variableDeclarationsInMethod.add(localVariableDeclaration.getVariableDeclaration());
+			variableDeclarationsInMethod.add(localVariableDeclaration);
 		}
 		createControlDependenciesFromEntryNode();
 		if(!nodes.isEmpty()) {
@@ -92,12 +93,24 @@ public class PDG extends Graph {
 		return iFile;
 	}
 
-	public Set<VariableDeclaration> getVariableDeclarationsInMethod() {
+	public Set<VariableDeclarationObject> getVariableDeclarationObjectsInMethod() {
 		return variableDeclarationsInMethod;
 	}
 
+	public Set<VariableDeclaration> getVariableDeclarationsInMethod() {
+		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		for(VariableDeclarationObject variableDeclaration : variableDeclarationsInMethod) {
+			variableDeclarations.add(variableDeclaration.getVariableDeclaration());
+		}
+		return variableDeclarations;
+	}
+
 	public Set<VariableDeclaration> getFieldsAccessedInMethod() {
-		return fieldsAccessedInMethod;
+		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		for(FieldObject field : fieldsAccessedInMethod) {
+			variableDeclarations.add(field.getVariableDeclaration());
+		}
+		return variableDeclarations;
 	}
 
 	public PDGBlockNode isDirectlyNestedWithinBlockNode(PDGNode node) {
@@ -137,8 +150,8 @@ public class PDG extends Graph {
 
 	public Set<VariableDeclaration> getVariableDeclarationsAndAccessedFieldsInMethod() {
 		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
-		variableDeclarations.addAll(variableDeclarationsInMethod);
-		variableDeclarations.addAll(fieldsAccessedInMethod);
+		variableDeclarations.addAll(getVariableDeclarationsInMethod());
+		variableDeclarations.addAll(getFieldsAccessedInMethod());
 		return variableDeclarations;
 	}
 

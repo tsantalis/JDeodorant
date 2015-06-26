@@ -1,7 +1,9 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.TypeObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.util.ExpressionExtractor;
 
@@ -30,8 +32,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<AbstractVariable> usedVariables;
 	protected Set<TypeObject> createdTypes;
 	protected Set<String> thrownExceptionTypes;
-	protected Set<VariableDeclaration> variableDeclarationsInMethod;
-	protected Set<VariableDeclaration> fieldsAccessedInMethod;
+	protected Set<VariableDeclarationObject> variableDeclarationsInMethod;
+	protected Set<FieldObject> fieldsAccessedInMethod;
 	private Set<AbstractVariable> originalDefinedVariables;
 	private Set<AbstractVariable> originalUsedVariables;
 	private MethodCallAnalyzer methodCallAnalyzer;
@@ -45,8 +47,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.thrownExceptionTypes = new LinkedHashSet<String>();
 	}
 	
-	public PDGNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod,
-			Set<VariableDeclaration> fieldsAccessedInMethod) {
+	public PDGNode(CFGNode cfgNode, Set<VariableDeclarationObject> variableDeclarationsInMethod,
+			Set<FieldObject> fieldsAccessedInMethod) {
 		super();
 		this.cfgNode = cfgNode;
 		this.variableDeclarationsInMethod = variableDeclarationsInMethod;
@@ -260,7 +262,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	public void updateReachingAliasSet(ReachingAliasSet reachingAliasSet) {
-		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclarationObject> variableDeclarations = new LinkedHashSet<VariableDeclarationObject>();
 		variableDeclarations.addAll(variableDeclarationsInMethod);
 		variableDeclarations.addAll(fieldsAccessedInMethod);
 		Statement statement = getASTStatement();
@@ -282,7 +284,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					}
 					if(initializerSimpleName != null) {
 						VariableDeclaration initializerVariableDeclaration = null;
-						for(VariableDeclaration declaration : variableDeclarations) {
+						for(VariableDeclarationObject declarationObject : variableDeclarations) {
+							VariableDeclaration declaration = declarationObject.getVariableDeclaration();
 							if(declaration.resolveBinding().isEqualTo(initializerSimpleName.resolveBinding())) {
 								initializerVariableDeclaration = declaration;
 								break;
@@ -306,7 +309,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	private void processAssignment(ReachingAliasSet reachingAliasSet,
-			Set<VariableDeclaration> variableDeclarations, Assignment assignment) {
+			Set<VariableDeclarationObject> variableDeclarations, Assignment assignment) {
 		Expression leftHandSideExpression = assignment.getLeftHandSide();
 		Expression rightHandSideExpression = assignment.getRightHandSide();
 		SimpleName leftHandSideSimpleName = null;
@@ -319,7 +322,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		}
 		if(leftHandSideSimpleName != null && !leftHandSideSimpleName.resolveTypeBinding().isPrimitive()) {
 			VariableDeclaration leftHandSideVariableDeclaration = null;
-			for(VariableDeclaration declaration : variableDeclarations) {
+			for(VariableDeclarationObject declarationObject : variableDeclarations) {
+				VariableDeclaration declaration = declarationObject.getVariableDeclaration();
 				if(declaration.resolveBinding().isEqualTo(leftHandSideSimpleName.resolveBinding())) {
 					leftHandSideVariableDeclaration = declaration;
 					break;
@@ -351,7 +355,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			}
 			if(rightHandSideSimpleName != null) {
 				VariableDeclaration rightHandSideVariableDeclaration = null;
-				for(VariableDeclaration declaration : variableDeclarations) {
+				for(VariableDeclarationObject declarationObject : variableDeclarations) {
+					VariableDeclaration declaration = declarationObject.getVariableDeclaration();
 					if(declaration.resolveBinding().isEqualTo(rightHandSideSimpleName.resolveBinding())) {
 						rightHandSideVariableDeclaration = declaration;
 						break;
@@ -406,7 +411,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	public Map<VariableDeclaration, ClassInstanceCreation> getClassInstantiations() {
 		Map<VariableDeclaration, ClassInstanceCreation> classInstantiationMap = new LinkedHashMap<VariableDeclaration, ClassInstanceCreation>();
-		Set<VariableDeclaration> variableDeclarations = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclarationObject> variableDeclarations = new LinkedHashSet<VariableDeclarationObject>();
 		variableDeclarations.addAll(variableDeclarationsInMethod);
 		variableDeclarations.addAll(fieldsAccessedInMethod);
 		Statement statement = getASTStatement();
@@ -442,7 +447,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 					}
 					if(leftHandSideSimpleName != null) {
 						VariableDeclaration leftHandSideVariableDeclaration = null;
-						for(VariableDeclaration declaration : variableDeclarations) {
+						for(VariableDeclarationObject declarationObject : variableDeclarations) {
+							VariableDeclaration declaration = declarationObject.getVariableDeclaration();
 							if(declaration.resolveBinding().isEqualTo(leftHandSideSimpleName.resolveBinding())) {
 								leftHandSideVariableDeclaration = declaration;
 								break;

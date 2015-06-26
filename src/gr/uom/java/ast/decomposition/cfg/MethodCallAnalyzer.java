@@ -10,6 +10,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -49,13 +50,13 @@ public class MethodCallAnalyzer {
 	private Set<AbstractVariable> definedVariables;
 	private Set<AbstractVariable> usedVariables;
 	private Set<String> thrownExceptionTypes;
-	private Set<VariableDeclaration> variableDeclarationsInMethod;
+	private Set<VariableDeclarationObject> variableDeclarationsInMethod;
 	private int maximumCallGraphAnalysisDepth;
 	
 	public MethodCallAnalyzer(Set<AbstractVariable> definedVariables,
 			Set<AbstractVariable> usedVariables,
 			Set<String> thrownExceptionTypes,
-			Set<VariableDeclaration> variableDeclarationsInMethod) {
+			Set<VariableDeclarationObject> variableDeclarationsInMethod) {
 		this.definedVariables = definedVariables;
 		this.usedVariables = usedVariables;
 		this.thrownExceptionTypes = thrownExceptionTypes;
@@ -142,7 +143,8 @@ public class MethodCallAnalyzer {
 					if(argument instanceof SimpleName) {
 						SimpleName argumentName = (SimpleName)argument;
 						VariableDeclaration argumentDeclaration = null;
-						for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod) {
+						for(VariableDeclarationObject variableDeclarationObject : variableDeclarationsInMethod) {
+							VariableDeclaration variableDeclaration = variableDeclarationObject.getVariableDeclaration();
 							if(variableDeclaration.resolveBinding().isEqualTo(argumentName.resolveBinding())) {
 								argumentDeclaration = variableDeclaration;
 								break;

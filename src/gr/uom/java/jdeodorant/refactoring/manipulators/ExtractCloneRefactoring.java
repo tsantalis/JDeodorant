@@ -803,7 +803,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									Block methodBody = ast.newBlock();
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
 									//create a default return statement
-									Expression returnedExpression = generateDefaultValue(sourceRewriter, ast, returnType);
+									Expression returnedExpression = generateDefaultValue(sourceRewriter, ast, returnType.resolveBinding());
 									if(returnedExpression != null) {
 										ReturnStatement returnStatement = ast.newReturnStatement();
 										sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedExpression, null);
@@ -843,12 +843,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		List<VariableDeclaration> returnedVariables2 = this.returnedVariables.get(1);
 		ITypeBinding returnTypeBinding = null;
 		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1) {
-			Type returnType1 = extractType(returnedVariables1.get(0));
-			Type returnType2 = extractType(returnedVariables2.get(0));
-			if(returnType1.resolveBinding().isEqualTo(returnType2.resolveBinding()) && returnType1.resolveBinding().getQualifiedName().equals(returnType2.resolveBinding().getQualifiedName()))
-				returnTypeBinding = returnType1.resolveBinding();
+			ITypeBinding returnTypeBinding1 = extractTypeBinding(returnedVariables1.get(0));
+			ITypeBinding returnTypeBinding2 = extractTypeBinding(returnedVariables2.get(0));
+			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName()))
+				returnTypeBinding = returnTypeBinding1;
 			else
-				returnTypeBinding = ASTNodeMatcher.commonSuperType(returnType1.resolveBinding(), returnType2.resolveBinding());
+				returnTypeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
 		}
 		else {
 			returnTypeBinding = findReturnTypeBinding();
@@ -893,8 +893,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 			if(parameterIsUsedByNodesWithoutDifferences(variableDeclaration1, variableDeclaration2)) {
 				if(!variableDeclaration1.resolveBinding().isField() && !variableDeclaration2.resolveBinding().isField()) {
-					ITypeBinding typeBinding1 = extractType(variableDeclaration1).resolveBinding();
-					ITypeBinding typeBinding2 = extractType(variableDeclaration2).resolveBinding();
+					ITypeBinding typeBinding1 = extractTypeBinding(variableDeclaration1);
+					ITypeBinding typeBinding2 = extractTypeBinding(variableDeclaration2);
 					ITypeBinding typeBinding = null;
 					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
@@ -999,12 +999,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			methodBodyRewrite.insertLast(returnStatement, null);
 			if(!mappedNodesContainStatementDeclaringVariable(returnedVariables1.get(0), returnedVariables2.get(0)) &&
 					!variableIsPassedAsCommonParameter(returnedVariables1.get(0), returnedVariables2.get(0))) {
-				Type returnedType = extractType(returnedVariables1.get(0));
-				Expression initializer = generateDefaultValue(sourceRewriter, ast, returnedType);
+				ITypeBinding returnedTypeBinding = extractTypeBinding(returnedVariables1.get(0));
+				Expression initializer = generateDefaultValue(sourceRewriter, ast, returnedTypeBinding);
 				VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
 				sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariables1.get(0).getName(), null);
 				sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
 				VariableDeclarationStatement declarationStatement = ast.newVariableDeclarationStatement(fragment);
+				Type returnedType = RefactoringUtility.generateTypeFromTypeBinding(returnedTypeBinding, ast, sourceRewriter);
 				sourceRewriter.set(declarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedType, null);
 				methodBodyRewrite.insertFirst(declarationStatement, null);
 			}
@@ -3921,13 +3922,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(variableDeclaration.resolveBinding().isParameter() || variableDeclaration.resolveBinding().isField()
 					|| statementsToBeMovedBefore.contains(variableDeclaration.getParent()) || variableIsPassedAsCommonParameter(variableDeclaration)) {
 				//create an assignment statement
-				Type variableType = extractType(variableDeclaration);
+				ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
 				Assignment assignment = ast.newAssignment();
 				methodBodyRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, variableDeclaration.getName(), null);
 				ITypeBinding returnTypeBinding = findReturnTypeBinding();
-				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableType.resolveBinding())) {
+				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableTypeBinding)) {
 					CastExpression castExpression = ast.newCastExpression();
 					methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
+					Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
 					methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, variableType, null);
 					methodBodyRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, castExpression, null);
 				}
@@ -3938,16 +3940,17 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodInvocationStatement = expressionStatement;
 				if(statementsToBeMovedBefore.contains(variableDeclaration.getParent()) && variableDeclaration.getInitializer() == null) {
 					methodBodyRewriter.set(variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY,
-							generateDefaultValue(methodBodyRewriter, ast, variableType), null);
+							generateDefaultValue(methodBodyRewriter, ast, variableTypeBinding), null);
 				}
 			}
 			else {
 				//create a variable declaration statement
-				Type variableType = extractType(variableDeclaration);
+				ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
+				Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
 				VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
 				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclaration.getName(), null);
 				ITypeBinding returnTypeBinding = findReturnTypeBinding();
-				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableType.resolveBinding())) {
+				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableTypeBinding)) {
 					CastExpression castExpression = ast.newCastExpression();
 					methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
 					methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, variableType, null);

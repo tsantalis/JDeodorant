@@ -30,15 +30,14 @@ import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
-import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -53,7 +52,6 @@ import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.UnionType;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.WhileStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
@@ -520,7 +518,11 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 		return false;
 	}
 
-	protected Type extractType(VariableDeclaration variableDeclaration) {
+	protected ITypeBinding extractTypeBinding(VariableDeclaration variableDeclaration) {
+		IVariableBinding variableBinding = variableDeclaration.resolveBinding();
+		return variableBinding.getType();
+	}
+	/*protected Type extractType(VariableDeclaration variableDeclaration) {
 		Type returnedVariableType = null;
 		if(variableDeclaration instanceof SingleVariableDeclaration) {
 			SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
@@ -542,35 +544,34 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 			}
 		}
 		return returnedVariableType;
-	}
+	}*/
 
-	protected Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, Type returnType) {
+	protected Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, ITypeBinding returnTypeBinding) {
 		Expression returnedExpression = null;
-		if(returnType.isPrimitiveType()) {
-			PrimitiveType primitiveType = (PrimitiveType)returnType;
-			if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BOOLEAN)) {
+		if(returnTypeBinding.isPrimitive()) {
+			if(returnTypeBinding.getQualifiedName().equals("boolean")) {
 				returnedExpression = ast.newBooleanLiteral(false);
 			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.CHAR)) {
+			else if(returnTypeBinding.getQualifiedName().equals("char")) {
 				CharacterLiteral characterLiteral = ast.newCharacterLiteral();
 				sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
 				returnedExpression = characterLiteral;
 			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.INT) ||
-					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.SHORT) ||
-					primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.BYTE)) {
+			else if(returnTypeBinding.getQualifiedName().equals("int") ||
+					returnTypeBinding.getQualifiedName().equals("short") ||
+					returnTypeBinding.getQualifiedName().equals("byte")) {
 				returnedExpression = ast.newNumberLiteral("0");
 			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.LONG)) {
+			else if(returnTypeBinding.getQualifiedName().equals("long")) {
 				returnedExpression = ast.newNumberLiteral("0L");
 			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.FLOAT)) {
+			else if(returnTypeBinding.getQualifiedName().equals("float")) {
 				returnedExpression = ast.newNumberLiteral("0.0f");
 			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.DOUBLE)) {
+			else if(returnTypeBinding.getQualifiedName().equals("double")) {
 				returnedExpression = ast.newNumberLiteral("0.0d");
 			}
-			else if(primitiveType.getPrimitiveTypeCode().equals(PrimitiveType.VOID)) {
+			else if(returnTypeBinding.getQualifiedName().equals("void")) {
 				returnedExpression = null;
 			}
 		}

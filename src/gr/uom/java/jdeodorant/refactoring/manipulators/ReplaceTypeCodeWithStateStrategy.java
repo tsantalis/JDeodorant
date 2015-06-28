@@ -2612,7 +2612,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				typeBindings.add(typeBinding);
 		}
 		
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsBasedOnSignature);
 	}
 
 	private Set<ITypeBinding> getRequiredImportDeclarationsBasedOnBranch(ArrayList<Statement> statements) {
@@ -2623,51 +2623,8 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			typeBindings.addAll(typeVisitor.getTypeBindings());
 		}
 		Set<ITypeBinding> finalTypeBindings = new LinkedHashSet<ITypeBinding>();
-        getSimpleTypeBindings(typeBindings, finalTypeBindings);
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, finalTypeBindings);
         return finalTypeBindings;
-	}
-	
-	private void getSimpleTypeBindings(Set<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
-		for(ITypeBinding typeBinding : typeBindings) {
-			if(typeBinding.isPrimitive()) {
-
-			}
-			else if(typeBinding.isArray()) {
-				ITypeBinding elementTypeBinding = typeBinding.getElementType();
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(elementTypeBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isParameterizedType()) {
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(typeBinding.getTypeDeclaration());
-				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
-				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
-					typeBindingList.add(typeArgumentBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isWildcardType()) {
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(typeBinding.getBound());
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else {
-				if(typeBinding.isNested()) {
-					if(!containsTypeBinding(typeBinding.getDeclaringClass(), finalTypeBindings))
-						finalTypeBindings.add(typeBinding.getDeclaringClass());
-				}
-				if(!containsTypeBinding(typeBinding, finalTypeBindings))
-					finalTypeBindings.add(typeBinding);
-			}
-		}
-	}
-
-	private boolean containsTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> typeBindings) {
-		for(ITypeBinding typeBinding2 : typeBindings) {
-			if(typeBinding2.getKey().equals(typeBinding.getKey()))
-				return true;
-		}
-		return false;
 	}
 
 	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {

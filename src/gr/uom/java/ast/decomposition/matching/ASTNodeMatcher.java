@@ -1725,9 +1725,41 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public boolean match(TypeLiteral node, Object other) {
-		if(isTypeHolder(other)) {
-			return typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
+		AbstractExpression exp1 = new AbstractExpression(node);
+		ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
+		AbstractExpression exp2 = new AbstractExpression((Expression)other);
+		if(isInfixExpressionWithCompositeParent((ASTNode)other)) {
+			return super.match(node, other);
 		}
+		ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+		if(isTypeHolder(other)) {
+			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
+			if (!(other instanceof TypeLiteral)) {
+				if(typeMatch) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
+			}
+			else {
+				TypeLiteral o = (TypeLiteral) other;
+				if(!node.getType().resolveBinding().isEqualTo(o.getType().resolveBinding())) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
+			}
+			return typeMatch;
+		}
+		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+		astNodeDifference.addDifference(diff);
+		addDifference(astNodeDifference);
 		return false;
 	}
 

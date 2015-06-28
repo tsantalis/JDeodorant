@@ -55,7 +55,6 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
-import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression.Operator;
@@ -203,7 +202,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				typeBindings.add(typeBinding);
 			}
 		}
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		
 		createExtractedClass();
 		modifyExtractedMethodInvocationsInSourceClass();
@@ -1972,7 +1971,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		parametersRewrite.insertLast(parameter, null);
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		typeBindings.add(sourceTypeDeclaration.resolveBinding());
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		return parameter;
 	}
 
@@ -1996,7 +1995,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		parametersRewrite.insertLast(parameter, null);
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		typeBindings.add(fieldType.resolveBinding());
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		return parameter;
 	}
 
@@ -2004,66 +2003,15 @@ public class ExtractClassRefactoring extends Refactoring {
 		AST ast = newMethodDeclaration.getAST();
 		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 		ITypeBinding typeBinding = variableBinding.getType();
-		Type fieldType = generateTypeFromTypeBinding(typeBinding, ast, targetRewriter);
+		Type fieldType = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, targetRewriter);
 		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
 		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		typeBindings.add(variableBinding.getType());
-		getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		return parameter;
-	}
-
-	private Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite targetRewriter) {
-		Type fieldType = null;
-		if(typeBinding.isParameterizedType()) {
-			fieldType = createParameterizedType(ast, typeBinding, targetRewriter);
-		}
-		else if(typeBinding.isClass() || typeBinding.isInterface()) {
-			fieldType = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
-		}
-		else if(typeBinding.isPrimitive()) {
-			String primitiveType = typeBinding.getName();
-			if(primitiveType.equals("int"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.INT);
-			else if(primitiveType.equals("double"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.DOUBLE);
-			else if(primitiveType.equals("byte"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.BYTE);
-			else if(primitiveType.equals("short"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.SHORT);
-			else if(primitiveType.equals("char"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.CHAR);
-			else if(primitiveType.equals("long"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.LONG);
-			else if(primitiveType.equals("float"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.FLOAT);
-			else if(primitiveType.equals("boolean"))
-				fieldType = ast.newPrimitiveType(PrimitiveType.BOOLEAN);
-		}
-		else if(typeBinding.isArray()) {
-			ITypeBinding elementTypeBinding = typeBinding.getElementType();
-			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, targetRewriter);
-			fieldType = ast.newArrayType(elementType, typeBinding.getDimensions());
-		}
-		return fieldType;
-	}
-
-	private ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite targetRewriter) {
-		ITypeBinding erasure = typeBinding.getErasure();
-		ITypeBinding[] typeArguments = typeBinding.getTypeArguments();
-		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(ast.newSimpleName(erasure.getName())));
-		ListRewrite typeArgumentsRewrite = targetRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
-		for(ITypeBinding typeArgument : typeArguments) {
-			if(typeArgument.isParameterizedType()) {
-				typeArgumentsRewrite.insertLast(createParameterizedType(ast, typeArgument, targetRewriter), null);
-			}
-			else if(typeArgument.isClass() || typeArgument.isInterface()) {
-				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
-			}
-		}
-		return parameterizedType;
 	}
 
 	private void setPublicModifierToSourceMethod(MethodDeclaration methodDeclaration) {
@@ -2145,7 +2093,7 @@ public class ExtractClassRefactoring extends Refactoring {
 							qualifier = ast.newSimpleName(variableBinding.getDeclaringClass().getName());
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 							typeBindings.add(variableBinding.getDeclaringClass());
-							getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 						}
 						else {
 							qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
@@ -2288,49 +2236,6 @@ public class ExtractClassRefactoring extends Refactoring {
 		getterMethodBodyRewrite.insertLast(returnStatement, null);
 		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, getterMethodBody, null);
 		return getterMethodDeclaration;
-	}
-
-	private void getSimpleTypeBindings(Set<ITypeBinding> typeBindings, Set<ITypeBinding> finalTypeBindings) {
-		for(ITypeBinding typeBinding : typeBindings) {
-			if(typeBinding.isPrimitive()) {
-
-			}
-			else if(typeBinding.isArray()) {
-				ITypeBinding elementTypeBinding = typeBinding.getElementType();
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(elementTypeBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isParameterizedType()) {
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(typeBinding.getTypeDeclaration());
-				ITypeBinding[] typeArgumentBindings = typeBinding.getTypeArguments();
-				for(ITypeBinding typeArgumentBinding : typeArgumentBindings)
-					typeBindingList.add(typeArgumentBinding);
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else if(typeBinding.isWildcardType()) {
-				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
-				typeBindingList.add(typeBinding.getBound());
-				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
-			}
-			else {
-				if(typeBinding.isNested()) {
-					if(!containsTypeBinding(typeBinding.getDeclaringClass(), finalTypeBindings))
-						finalTypeBindings.add(typeBinding.getDeclaringClass());
-				}
-				if(!containsTypeBinding(typeBinding, finalTypeBindings))
-					finalTypeBindings.add(typeBinding);
-			}
-		}
-	}
-
-	private boolean containsTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> typeBindings) {
-		for(ITypeBinding typeBinding2 : typeBindings) {
-			if(typeBinding2.getKey().equals(typeBinding.getKey()))
-				return true;
-		}
-		return false;
 	}
 
 	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {

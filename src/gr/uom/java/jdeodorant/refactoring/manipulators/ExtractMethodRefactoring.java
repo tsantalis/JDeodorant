@@ -197,7 +197,8 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
 			VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
-			Type returnedVariableType = extractType(returnedVariableDeclaration);
+			ITypeBinding returnedVariableTypeBinding = extractTypeBinding(returnedVariableDeclaration);
+			Type returnedVariableType = RefactoringUtility.generateTypeFromTypeBinding(returnedVariableTypeBinding, ast, sourceRewriter);
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
 			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
 			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
@@ -235,7 +236,8 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 			//but is nested in deeper level compared to the insertion point of the extracted method invocation
 			if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
 					variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
-				Type returnedVariableType = extractType(returnedVariableDeclaration);
+				ITypeBinding returnedVariableTypeBinding = extractTypeBinding(returnedVariableDeclaration);
+				Type returnedVariableType = RefactoringUtility.generateTypeFromTypeBinding(returnedVariableTypeBinding, ast, sourceRewriter);
 				VariableDeclarationFragment newInitializationFragment = ast.newVariableDeclarationFragment();
 				sourceRewriter.set(newInitializationFragment,  VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
 				sourceRewriter.set(newInitializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
@@ -287,7 +289,8 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
 		SimpleName returnedVariableSimpleName = returnedVariableDeclaration.getName();
-		Type returnedVariableType = extractType(returnedVariableDeclaration);
+		ITypeBinding returnedVariableTypeBinding = extractTypeBinding(returnedVariableDeclaration);
+		Type returnedVariableType = RefactoringUtility.generateTypeFromTypeBinding(returnedVariableTypeBinding, ast, sourceRewriter);
 		
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(slice.getExtractedMethodName()), null);
 		IVariableBinding returnedVariableBinding = returnedVariableDeclaration.resolveBinding();
@@ -307,7 +310,8 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
-			Type variableType = extractType(variableDeclaration);
+			ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
+			Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, sourceRewriter);
 			if(!variableDeclaration.resolveBinding().isField()) {
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
@@ -326,7 +330,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 				variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
-			Expression defaultValue = generateDefaultValue(sourceRewriter, ast, returnedVariableType);
+			Expression defaultValue = generateDefaultValue(sourceRewriter, ast, returnedVariableTypeBinding);
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, defaultValue, null);
 			VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);

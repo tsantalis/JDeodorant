@@ -3080,7 +3080,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(differences.isEmpty()) {
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
 				ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
+				if(oldASTNode instanceof FieldAccess) {
+					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (FieldAccess)oldASTNode);
+					if(node != null) {
+						newASTNode = node;
+					}
+				}
+				else {
+					replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
+				}
 				return newASTNode;
 			}
 			else {
@@ -3240,6 +3248,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			j++;
 		}
+	}
+
+	private ASTNode createReplacementForFieldAccessOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, FieldAccess oldASTNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> oldFieldAccesses = new ArrayList<Expression>();
+		oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses(oldASTNode));
+		for(Expression oldExpression : oldFieldAccesses) {
+			FieldAccess oldFieldAccess = (FieldAccess)oldExpression;
+			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
+				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					return ast.newSimpleName(variableDeclaration.getName().getIdentifier());
+				}
+			}
+		}
+		return null;
 	}
 
 	private Expression createArgument(AST ast, ASTRewrite sourceRewriter, ASTNodeDifference argumentDifference) {

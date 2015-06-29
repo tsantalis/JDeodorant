@@ -1257,7 +1257,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		MarkerAnnotation markerAnnotation = ast.newMarkerAnnotation();
 		sourceRewriter.set(markerAnnotation, MarkerAnnotation.TYPE_NAME_PROPERTY, ast.newSimpleName("FunctionalInterface"), null);
 		interfaceTypeDeclarationModifiersRewrite.insertLast(markerAnnotation, null);
-		interfaceTypeDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) &&
+				sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
+			interfaceTypeDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+		}
+		else if(cloneInfo.extractUtilityClass) {
+			interfaceTypeDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+		}
+		else {
+			interfaceTypeDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+		}
 		ListRewrite interfaceBodyDeclarationRewrite = sourceRewriter.getListRewrite(interfaceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		MethodDeclaration interfaceMethodDeclaration = ast.newMethodDeclaration();
 		sourceRewriter.set(interfaceMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(FUNCTIONAL_INTERFACE_METHOD_NAME), null);
@@ -1955,16 +1964,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
 								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
 								/*if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
-							}
-							else if(innerTypeName != null) {
-								Name typeName = ast.newName(innerTypeName);
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
-							}
-							else {
-								Name typeName = ast.newName(commonSuperType.getQualifiedName());
-								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
-							}*/
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
+								}
+								else if(innerTypeName != null) {
+									Name typeName = ast.newName(innerTypeName);
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
+								}
+								else {
+									Name typeName = ast.newName(commonSuperType.getQualifiedName());
+									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, ast.newSimpleType(typeName), null);
+								}*/
 								if(originalFieldDeclarationG1.getJavadoc() != null) {
 									sourceRewriter.set(newFieldDeclaration, FieldDeclaration.JAVADOC_PROPERTY, originalFieldDeclarationG1.getJavadoc(), null);
 								}

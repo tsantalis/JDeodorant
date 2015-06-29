@@ -364,4 +364,16 @@ public class PDGNodeBlockGap extends Gap {
 		}
 		return thrownExceptionTypeBindings;
 	}
+
+	public PDGNode getFirstNodeInGap1() {
+		if(!nodesG1.isEmpty())
+			return nodesG1.first();
+		return null;
+	}
+
+	public PDGNode getFirstNodeInGap2() {
+		if(!nodesG2.isEmpty())
+			return nodesG2.first();
+		return null;
+	}
 }

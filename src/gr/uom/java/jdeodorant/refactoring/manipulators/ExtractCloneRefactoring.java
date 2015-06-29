@@ -2719,8 +2719,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		BindingSignaturePair signaturePair = new BindingSignaturePair(blockGap.getNodesG1(), blockGap.getNodesG2());
 		parameterizedDifferenceMap.put(signaturePair, null);
 		Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
+		Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 		String methodName = null;
-		if(parameterTypeBindings.size() == 1) {
+		if(parameterTypeBindings.size() == 1 && thrownExceptionTypeBindings.isEmpty()) {
 			if(blockGap.getReturnedVariableBinding() != null) {
 				//a return type exists, and thus a Function will be created with 1 parameter
 				methodName = "apply";
@@ -2730,7 +2731,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodName = "accept";
 			}
 		}
-		else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null) {
+		else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null && thrownExceptionTypeBindings.isEmpty()) {
 			//a return type exists, and thus a Supplier will be created with 0 parameters
 			methodName = "get";
 		}
@@ -3305,9 +3306,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		if(differenceBelongsToExpressionGaps(argumentDifference) && !differenceBelongsToBlockGaps(argumentDifference)) {
 			Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(argumentDifference);
+			PDGExpressionGap expressionGap = findExpressionGapContainingDifference(argumentDifference);
+			Set<ITypeBinding> thrownExceptionTypeBindings = expressionGap.getThrownExceptions();
 			String methodName = null;
 			Expression expression = argumentDifference.getExpression1().getExpression();
-			if(parameterTypeBindings.size() == 1) {
+			if(parameterTypeBindings.size() == 1 && thrownExceptionTypeBindings.isEmpty()) {
 				if(!expression.resolveTypeBinding().getName().equals("void")) {
 					//the expression has a type that is not void, and thus a Function will be created with 1 parameter
 					methodName = "apply";
@@ -3317,7 +3320,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					methodName = "accept";
 				}
 			}
-			else if(parameterTypeBindings.size() == 0 && !expression.resolveTypeBinding().getName().equals("void")) {
+			else if(parameterTypeBindings.size() == 0 && !expression.resolveTypeBinding().getName().equals("void") && thrownExceptionTypeBindings.isEmpty()) {
 				//the expression has a type that is not void, and thus a Supplier will be created with 0 parameters
 				methodName = "get";
 			}
@@ -3346,8 +3349,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else if(differenceBelongsToBlockGaps(argumentDifference)) {
 			PDGNodeBlockGap blockGap = findBlockGapContainingDifference(argumentDifference);
 			Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
+			Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 			String methodName = null;
-			if(parameterTypeBindings.size() == 1) {
+			if(parameterTypeBindings.size() == 1 && thrownExceptionTypeBindings.isEmpty()) {
 				if(blockGap.getReturnedVariableBinding() != null) {
 					//a return type exists, and thus a Function will be created with 1 parameter
 					methodName = "apply";
@@ -3357,7 +3361,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					methodName = "accept";
 				}
 			}
-			else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null) {
+			else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null && thrownExceptionTypeBindings.isEmpty()) {
 				//a return type exists, and thus a Supplier will be created with 0 parameters
 				methodName = "get";
 			}

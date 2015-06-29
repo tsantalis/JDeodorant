@@ -9,6 +9,8 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Type;
@@ -168,6 +170,19 @@ public class ASTNodeDifference {
 						Type type = (Type)expression.getParent();
 						if(type.getParent() instanceof Expression) {
 							return (Expression)type.getParent();
+						}
+					}
+				}
+				if(binding.getKind() == ITypeBinding.VARIABLE) {
+					if(expression.getParent() instanceof QualifiedName) {
+						QualifiedName fieldAccess = (QualifiedName)expression.getParent();
+						SimpleName fieldName = fieldAccess.getName();
+						IBinding fieldNameBinding = fieldName.resolveBinding();
+						if(fieldNameBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding fieldNameVariableBinding = (IVariableBinding)fieldNameBinding;
+							if(fieldAccess.getQualifier().equals(expression) && fieldNameVariableBinding.isField()) {
+								return fieldAccess;
+							}
 						}
 					}
 				}

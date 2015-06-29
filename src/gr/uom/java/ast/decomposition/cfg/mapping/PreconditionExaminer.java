@@ -1443,12 +1443,14 @@ public class PreconditionExaminer {
 				if(nodeMapping instanceof PDGNodeMapping) {
 					PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)nodeMapping;
 					Set<IMethodBinding> methods1 = new LinkedHashSet<IMethodBinding>();
+					Set<IVariableBinding> fields1 = new LinkedHashSet<IVariableBinding>();
 					ITypeBinding typeBinding1 = difference.getExpression1().getExpression().resolveTypeBinding();
-					findMethodsCalledFromType(typeBinding1, pdgNodeMapping.getNodeG1(), methods1);
+					findMethodsCalledFromType(typeBinding1, pdgNodeMapping.getNodeG1(), methods1, fields1);
 					
 					Set<IMethodBinding> methods2 = new LinkedHashSet<IMethodBinding>();
+					Set<IVariableBinding> fields2 = new LinkedHashSet<IVariableBinding>();
 					ITypeBinding typeBinding2 = difference.getExpression2().getExpression().resolveTypeBinding();
-					findMethodsCalledFromType(typeBinding2, pdgNodeMapping.getNodeG2(), methods2);
+					findMethodsCalledFromType(typeBinding2, pdgNodeMapping.getNodeG2(), methods2, fields2);
 					
 					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
@@ -1475,6 +1477,24 @@ public class PreconditionExaminer {
 												commonSuperTypeMembers.add(methodBinding1.toString());
 												commonSuperTypeMembers.add(methodBinding2.toString());
 											}
+										}
+										break;
+									}
+								}
+							}
+							for(IVariableBinding fieldBinding1 : fields1) {
+								for(IVariableBinding fieldBinding2 : fields2) {
+									if(fieldBinding1.getName().equals(fieldBinding2.getName()) && fieldBinding1.getType().isEqualTo(fieldBinding2.getType())) {
+										Set<IVariableBinding> declaredFields = getDeclaredFields(commonSuperType);
+										boolean commonSuperTypeFieldFound = false;
+										for(IVariableBinding commonSuperTypeField : declaredFields) {
+											if(fieldBinding1.getName().equals(commonSuperTypeField.getName()) && fieldBinding1.getType().isEqualTo(commonSuperTypeField.getType())) {
+												commonSuperTypeFieldFound = true;
+												break;
+											}
+										}
+										if(!commonSuperTypeFieldFound) {
+											commonSuperTypeMembers.add(fieldBinding1.toString());
 										}
 										break;
 									}
@@ -1544,6 +1564,23 @@ public class PreconditionExaminer {
 		return declaredMethods;
 	}
 
+	private Set<IVariableBinding> getDeclaredFields(ITypeBinding typeBinding) {
+		Set<IVariableBinding> declaredFields = new LinkedHashSet<IVariableBinding>();
+		//first add the directly declared methods
+		for(IVariableBinding variableBinding : typeBinding.getDeclaredFields()) {
+			declaredFields.add(variableBinding);
+		}
+		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
+		if(superclassTypeBinding != null) {
+			declaredFields.addAll(getDeclaredFields(superclassTypeBinding));
+		}
+		ITypeBinding[] interfaces = typeBinding.getInterfaces();
+		for(ITypeBinding interfaceTypeBinding : interfaces) {
+			declaredFields.addAll(getDeclaredFields(interfaceTypeBinding));
+		}
+		return declaredFields;
+	}
+
 	private boolean isVariableWithTypeMismatchDifference(Expression expression1, Expression expression2, ASTNodeDifference difference) {
 		if(expression1 instanceof SimpleName && expression2 instanceof SimpleName) {
 			SimpleName simpleName1 = (SimpleName)expression1;
@@ -1564,24 +1601,29 @@ public class PreconditionExaminer {
 		return false;
 	}
 
-	private void findMethodsCalledFromType(ITypeBinding typeBinding, PDGNode pdgNode, Set<IMethodBinding> methods) {
+	private void findMethodsCalledFromType(ITypeBinding typeBinding, PDGNode pdgNode, Set<IMethodBinding> methods, Set<IVariableBinding> fields) {
 		Set<MethodInvocationObject> accessedMethods = new LinkedHashSet<MethodInvocationObject>();
+		Set<FieldInstructionObject> accessedFields = new LinkedHashSet<FieldInstructionObject>();
 		AbstractStatement abstractStatement = pdgNode.getStatement();
 		if(abstractStatement instanceof StatementObject) {
 			StatementObject statement = (StatementObject)abstractStatement;
 			accessedMethods.addAll(statement.getMethodInvocations());
+			accessedFields.addAll(statement.getFieldInstructions());
 		}
 		else if(abstractStatement instanceof CompositeStatementObject) {
 			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
 			accessedMethods.addAll(composite.getMethodInvocationsInExpressions());
+			accessedFields.addAll(composite.getFieldInstructionsInExpressions());
 			if(composite instanceof TryStatementObject) {
 				TryStatementObject tryStatement = (TryStatementObject)composite;
 				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
 				for(CatchClauseObject catchClause : catchClauses) {
 					accessedMethods.addAll(catchClause.getBody().getMethodInvocations());
+					accessedFields.addAll(catchClause.getBody().getFieldInstructions());
 				}
 				if(tryStatement.getFinallyClause() != null) {
 					accessedMethods.addAll(tryStatement.getFinallyClause().getMethodInvocations());
+					accessedFields.addAll(tryStatement.getFinallyClause().getFieldInstructions());
 				}
 			}
 		}
@@ -1589,6 +1631,15 @@ public class PreconditionExaminer {
 			IMethodBinding methodBinding = invocation.getMethodInvocation().resolveMethodBinding();
 			if(methodBinding.getDeclaringClass().isEqualTo(typeBinding)) {
 				methods.add(methodBinding);
+			}
+		}
+		for(FieldInstructionObject fieldAccess : accessedFields) {
+			IBinding binding = fieldAccess.getSimpleName().resolveBinding();
+			if(binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.getDeclaringClass().isEqualTo(typeBinding)) {
+					fields.add(variableBinding);
+				}
 			}
 		}
 	}

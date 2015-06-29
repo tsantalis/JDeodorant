@@ -2,6 +2,8 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionWithCommonSuperTypePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
@@ -50,6 +52,17 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 					}
 				}
 			}
+			else if(violation instanceof DualExpressionWithCommonSuperTypePreconditionViolation) {
+				DualExpressionWithCommonSuperTypePreconditionViolation expressionViolation = (DualExpressionWithCommonSuperTypePreconditionViolation)violation;
+				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
+				if(difference != null && !difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) &&
+						!isVoidMethodCallDifferenceCoveringEntireStatement) {
+					PDGExpressionGap expressionGap = new PDGExpressionGap(difference);
+					if(!expressionGapMap.containsKey(difference)) {
+						expressionGapMap.put(difference, expressionGap);
+					}
+				}
+			}
 		}
 		return new ArrayList<PDGExpressionGap>(expressionGapMap.values());
 	}
@@ -58,6 +71,16 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		for(ASTNodeDifference difference : mapping.getNodeDifferences()) {
 			if(expressionViolation.getExpression().equals(difference.getExpression1()) ||
 					expressionViolation.getExpression().equals(difference.getExpression2())) {
+				return difference;
+			}
+		}
+		return null;
+	}
+
+	private ASTNodeDifference findDifferenceCorrespondingToPreconditionViolation(DualExpressionPreconditionViolation expressionViolation) {
+		for(ASTNodeDifference difference : mapping.getNodeDifferences()) {
+			if(expressionViolation.getExpression1().equals(difference.getExpression1()) &&
+					expressionViolation.getExpression2().equals(difference.getExpression2())) {
 				return difference;
 			}
 		}

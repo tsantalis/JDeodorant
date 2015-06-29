@@ -173,6 +173,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private String extractedMethodName;
 	//private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
 	private CloneInformation cloneInfo;
+	private Set<VariableBindingPair> nonEffectivelyFinalLocalVariables;
 	
 	private class CloneInformation {
 		private ICompilationUnit sourceICompilationUnit;
@@ -276,6 +277,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			CompilationUnitChange sourceCompilationUnitChange = new CompilationUnitChange("", sourceICompilationUnit);
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
+		}
+		this.nonEffectivelyFinalLocalVariables = new LinkedHashSet<VariableBindingPair>();
+		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
+			nonEffectivelyFinalLocalVariables.addAll(expressionGap.getNonEffectivelyFinalLocalVariableBindings());
+		}
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			nonEffectivelyFinalLocalVariables.addAll(blockGap.getNonEffectivelyFinalLocalVariableBindings());
 		}
 		this.cloneInfo = null;
 	}
@@ -3826,6 +3834,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 									lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
 								}
+								//replace the non-effectively final variables in the lambda expression body
+								for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
+									IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+									ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+									List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expression);
+									for(Expression expr : simpleNames) {
+										SimpleName simpleName = (SimpleName)expr;
+										if(simpleName.resolveBinding().isEqualTo(variableBinding)) {
+											methodBodyRewriter.replace(simpleName, ast.newSimpleName(variableBinding.getName() + "Final"), null);
+										}
+									}
+								}
 								methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, expression, null);
 								argumentsRewrite.insertLast(lambdaExpression, null);
 							}
@@ -4011,6 +4031,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}*/
 			extractedMethodInvocationStatement = methodInvocationStatement;
 		}
+		//create final variables for the non-effectively final variables used in the lambda expressions
+		for(VariableBindingPair pair : nonEffectivelyFinalLocalVariables) {
+			IVariableBinding variableBinding = index == 0 ? pair.getBinding1() : pair.getBinding2();
+			VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+			methodBodyRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName() + "Final"), null);
+			methodBodyRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+			VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragment);
+			Type finalVariableType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+			methodBodyRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, finalVariableType, null);
+			ListRewrite modifierRewrite = methodBodyRewriter.getListRewrite(variableDeclarationStatement, VariableDeclarationStatement.MODIFIERS2_PROPERTY);
+			modifierRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
+			blockRewrite.insertBefore(variableDeclarationStatement, extractedMethodInvocationStatement, null);
+		}
 		for(Statement movedBefore : statementsToBeMovedBefore) {
 			blockRewrite.insertBefore(movedBefore, extractedMethodInvocationStatement, null);
 		}
@@ -4112,8 +4145,26 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			if(!statementChanged) {
 				PDGNode controlParent = node.getControlDependenceParent();
-				if(!statements.contains(controlParent))
-					lambdaBodyRewrite.insertLast(ASTNode.copySubtree(ast, statement), null);
+				if(!statements.contains(controlParent)) {
+					Statement newStatement = (Statement)ASTNode.copySubtree(ast, statement);
+					//replace the non-effectively final variables in the lambda expression body
+					for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
+						IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+						List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(statement);
+						List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newStatement);
+						int j = 0;
+						for(Expression oldExpression : oldSimpleNames) {
+							SimpleName oldSimpleName = (SimpleName)oldExpression;
+							SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
+							if(oldSimpleName.resolveBinding().isEqualTo(variableBinding)) {
+								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(variableBinding.getName() + "Final"), null);
+							}
+							j++;
+						}
+					}
+					lambdaBodyRewrite.insertLast(newStatement, null);
+				}
 			}
 			methodBodyRewriter.remove(statement, null);
 			statementIndex++;

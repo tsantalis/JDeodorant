@@ -148,11 +148,13 @@ public class LambdaExpressionPreconditionExaminer {
 		int defCounter2 = 0;
 		IVariableBinding variableBinding1 = pair.getBinding1();
 		IVariableBinding variableBinding2 = pair.getBinding2();
+		Set<PDGNode> mappedNodesG1 = finalState.getMappedNodesG1();
+		Set<PDGNode> mappedNodesG2 = finalState.getMappedNodesG2();
 		int firstNodeIdInGap1 = gap.getFirstNodeInGap1() != null ? gap.getFirstNodeInGap1().getId() : pdg1.getTotalNumberOfStatements();
 		int firstNodeIdInGap2 = gap.getFirstNodeInGap2() != null ? gap.getFirstNodeInGap2().getId() : pdg2.getTotalNumberOfStatements();
 		for(GraphNode node : pdg1.getNodes()) {
 			PDGNode pdgNode1 = (PDGNode)node;
-			if(pdgNode1.getId() < firstNodeIdInGap1) {
+			if(pdgNode1.getId() < firstNodeIdInGap1 && !mappedNodesG1.contains(pdgNode1)) {
 				Iterator<AbstractVariable> definedVariableIterator1 = pdgNode1.getDefinedVariableIterator();
 				while(definedVariableIterator1.hasNext()) {
 					AbstractVariable variable1 = definedVariableIterator1.next();
@@ -168,7 +170,7 @@ public class LambdaExpressionPreconditionExaminer {
 		}
 		for(GraphNode node : pdg2.getNodes()) {
 			PDGNode pdgNode2 = (PDGNode)node;
-			if(pdgNode2.getId() < firstNodeIdInGap2) {
+			if(pdgNode2.getId() < firstNodeIdInGap2 && !mappedNodesG2.contains(pdgNode2)) {
 				Iterator<AbstractVariable> definedVariableIterator2 = pdgNode2.getDefinedVariableIterator();
 				while(definedVariableIterator2.hasNext()) {
 					AbstractVariable variable2 = definedVariableIterator2.next();

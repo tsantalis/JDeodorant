@@ -638,6 +638,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 												SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
 												SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
 												if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
+													List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
+													List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
 													if(compareStatements(sourceCompilationUnits.get(0).getTypeRoot(), sourceCompilationUnits.get(1).getTypeRoot(),
 															superConstructorInvocation1, superConstructorInvocation2)) {
 														MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
@@ -660,6 +662,41 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 														Block constructorBody = intermediateAST.newBlock();
 														ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
 														constructorBodyRewriter.insertLast(superConstructorInvocation1, null);
+														intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
+														bodyDeclarationsRewrite.insertLast(constructor, null);
+													}
+													else if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
+														MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
+														intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
+														intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
+														ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
+														List<IExtendedModifier> modifiers = methodDeclaration1.modifiers();
+														for(IExtendedModifier modifier : modifiers) {
+															if(modifier instanceof Modifier) {
+																constructorModifierRewriter.insertLast((Modifier)modifier, null);
+															}
+														}
+														ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
+														SuperConstructorInvocation superConstructorInvocation = intermediateAST.newSuperConstructorInvocation();
+														ListRewrite argumentRewriter = intermediateRewriter.getListRewrite(superConstructorInvocation, SuperConstructorInvocation.ARGUMENTS_PROPERTY);
+														for(Expression argument : superConstructorArguments1) {
+															SingleVariableDeclaration parameter = intermediateAST.newSingleVariableDeclaration();
+															ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
+															Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+															typeBindings.add(argumentTypeBinding);
+															RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+															Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
+															intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+															String typeName = argumentTypeBinding.getName();
+															String parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
+															SimpleName parameterSimpleName = intermediateAST.newSimpleName(parameterName);
+															intermediateRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterSimpleName, null);
+															parameterRewriter.insertLast(parameter, null);
+															argumentRewriter.insertLast(parameterSimpleName, null);
+														}
+														Block constructorBody = intermediateAST.newBlock();
+														ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
+														constructorBodyRewriter.insertLast(superConstructorInvocation, null);
 														intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
 														bodyDeclarationsRewrite.insertLast(constructor, null);
 													}
@@ -1484,6 +1521,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				SingleVariableDeclaration parameter1 = parameters1.get(i);
 				SingleVariableDeclaration parameter2 = parameters2.get(i);
 				if(!parameter1.getType().resolveBinding().isEqualTo(parameter2.getType().resolveBinding())) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
+	private boolean matchingArgumentTypes(List<Expression> arguments1, List<Expression> arguments2) {
+		if(arguments1.size() != arguments2.size()) {
+			return false;
+		}
+		else {
+			for(int i=0; i<arguments1.size(); i++) {
+				Expression argument1 = arguments1.get(i);
+				Expression argument2 = arguments2.get(i);
+				if(!argument1.resolveTypeBinding().isEqualTo(argument2.resolveTypeBinding())) {
 					return false;
 				}
 			}

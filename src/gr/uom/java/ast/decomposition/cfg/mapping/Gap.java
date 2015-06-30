@@ -40,7 +40,8 @@ public abstract class Gap {
 				break;
 			}
 		}
-		if(!found) {
+		//unchecked exceptions are ignored
+		if(!found && !typeBinding.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
 			thrownExceptionTypeBindings.add(typeBinding);
 		}
 	}

@@ -946,7 +946,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				statement1.getStatement().accept(thrownExceptionVisitor);
 				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
 					if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
-						thrownExceptionTypeBindings.add(thrownException);
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
 					}
 				}
 			}
@@ -963,7 +963,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				statement2.getStatement().accept(thrownExceptionVisitor);
 				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
 					if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
-						thrownExceptionTypeBindings.add(thrownException);
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
 					}
 				}
 			}
@@ -1087,6 +1087,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
+		boolean found = false;
+		for(ITypeBinding thrownExceptionTypeBinding : thrownExceptionTypeBindings) {
+			if(typeBinding.isEqualTo(thrownExceptionTypeBinding)) {
+				found = true;
+				break;
+			}
+		}
+		if(!found) {
+			thrownExceptionTypeBindings.add(typeBinding);
+		}
 	}
 
 	private MethodDeclaration copyConstructor(MethodDeclaration constructorDeclaration, AST intermediateAST, ASTRewrite intermediateRewriter, SimpleName intermediateName,

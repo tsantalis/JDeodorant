@@ -321,7 +321,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
 		}
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i), i);
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
+					constructorsToBeCopiedInSubclasses.get(i));
 			if(!singleSourceCompilationUnit) {
 				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
 			}
@@ -3627,11 +3628,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
-			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp, int index) {
+			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp, Set<MethodDeclaration> constructorsToBeCopied) {
 		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
 		}
-		Set<MethodDeclaration> constructorsToBeCopied = constructorsToBeCopiedInSubclasses.get(index);
 		for(MethodDeclaration constructor : constructorsToBeCopied) {
 			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit);
 		}

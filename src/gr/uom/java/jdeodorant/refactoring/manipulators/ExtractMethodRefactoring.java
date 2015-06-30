@@ -37,6 +37,7 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
@@ -200,8 +201,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 			ITypeBinding returnedVariableTypeBinding = extractTypeBinding(returnedVariableDeclaration);
 			Type returnedVariableType = RefactoringUtility.generateTypeFromTypeBinding(returnedVariableTypeBinding, ast, sourceRewriter);
 			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
-			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-			ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+			ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
 			blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
 		}
 		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
@@ -243,8 +243,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 				sourceRewriter.set(newInitializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
 				VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(newInitializationFragment);
 				sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
-				Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-				ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+				ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
 				blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
 			}
 			else {
@@ -254,14 +253,12 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 					sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
 					sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
 					ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
-					Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-					ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+					ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
 					blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
 				}
 				else {
 					ExpressionStatement expressionStatement = ast.newExpressionStatement(extractedMethodInvocation);
-					Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
-					ListRewrite blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+					ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
 					blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
 				}
 			}
@@ -280,6 +277,19 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public ListRewrite getBlockRewrite(Statement extractedMethodInvocationInsertionStatement, ASTRewrite sourceRewriter) {
+		ListRewrite blockRewrite = null;
+		if(extractedMethodInvocationInsertionStatement.getParent() instanceof Block) {
+			Block parentStatement = (Block)extractedMethodInvocationInsertionStatement.getParent();
+			blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+		}
+		else if(extractedMethodInvocationInsertionStatement.getParent() instanceof SwitchStatement) {
+			SwitchStatement parentStatement = (SwitchStatement)extractedMethodInvocationInsertionStatement.getParent();
+			blockRewrite = sourceRewriter.getListRewrite(parentStatement, Block.STATEMENTS_PROPERTY);
+		}
+		return blockRewrite;
 	}
 
 	private void extractMethod(MultiTextEdit root) {

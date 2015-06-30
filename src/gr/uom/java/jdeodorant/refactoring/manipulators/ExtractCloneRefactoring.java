@@ -3915,8 +3915,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}*/
 		//place the code in the parent block of the first removable node
 		Statement firstStatement = /*nodesToBeRemoved*/removableNodes.first().getASTStatement();
-		Block parentBlock = (Block)firstStatement.getParent();
-		ListRewrite blockRewrite = methodBodyRewriter.getListRewrite(parentBlock, Block.STATEMENTS_PROPERTY);
+		ListRewrite blockRewrite = null;
+		if(firstStatement.getParent() instanceof Block) {
+			Block parentBlock = (Block)firstStatement.getParent();
+			blockRewrite = methodBodyRewriter.getListRewrite(parentBlock, Block.STATEMENTS_PROPERTY);
+		}
+		else if(firstStatement.getParent() instanceof SwitchStatement) {
+			SwitchStatement parentSwitch = (SwitchStatement)firstStatement.getParent();
+			blockRewrite = methodBodyRewriter.getListRewrite(parentSwitch, SwitchStatement.STATEMENTS_PROPERTY);
+		}
 		CloneStructureNode root = mapper.getCloneStructureRoot();
 		List<CloneStructureNode> processedCloneStructureGapNodes = new ArrayList<CloneStructureNode>();
 		Set<PDGNode> remainingMovableNodes = new TreeSet<PDGNode>();

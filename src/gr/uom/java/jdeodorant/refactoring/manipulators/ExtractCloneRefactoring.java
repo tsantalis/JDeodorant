@@ -164,6 +164,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private String extractedMethodName;
 	//private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
 	private CloneInformation cloneInfo;
+	private List<Set<MethodDeclaration>> constructorsToBeCopiedInSubclasses;
 	
 	private class CloneInformation {
 		private ICompilationUnit sourceICompilationUnit;
@@ -267,6 +268,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		}
+		this.constructorsToBeCopiedInSubclasses = new ArrayList<Set<MethodDeclaration>>();
+		for(int i=0; i<2; i++) {
+			constructorsToBeCopiedInSubclasses.add(new LinkedHashSet<MethodDeclaration>());
+		}
 		this.cloneInfo = null;
 	}
 
@@ -294,7 +299,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		initialize();
 		extractClone();
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
+					constructorsToBeCopiedInSubclasses.get(i));
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
 		}
@@ -606,10 +612,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
 								List<SingleVariableDeclaration> parameters1 = methodDeclaration1.parameters();
 								if(methodDeclaration1.isConstructor()) {
+									boolean matchingConstructorFound = false;
 									for(MethodDeclaration methodDeclaration2 : sourceTypeDeclarations.get(1).getMethods()) {
 										List<SingleVariableDeclaration> parameters2 = methodDeclaration2.parameters();
 										if(methodDeclaration2.isConstructor()) {
 											if(matchingParameterTypes(parameters1, parameters2)) {
+												matchingConstructorFound = true;
 												SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
 												SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
 												if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
@@ -617,27 +625,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 													List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
 													if(compareStatements(sourceCompilationUnits.get(0).getTypeRoot(), sourceCompilationUnits.get(1).getTypeRoot(),
 															superConstructorInvocation1, superConstructorInvocation2)) {
-														MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
-														intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
-														intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
-														ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
-														List<IExtendedModifier> modifiers = methodDeclaration1.modifiers();
-														for(IExtendedModifier modifier : modifiers) {
-															if(modifier instanceof Modifier) {
-																constructorModifierRewriter.insertLast((Modifier)modifier, null);
-															}
-														}
-														ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
-														for(SingleVariableDeclaration parameter : parameters1) {
-															Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-															typeBindings.add(parameter.getType().resolveBinding());
-															RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-															parameterRewriter.insertLast(parameter, null);
-														}
-														Block constructorBody = intermediateAST.newBlock();
-														ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
-														constructorBodyRewriter.insertLast(superConstructorInvocation1, null);
-														intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
+														MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
 														bodyDeclarationsRewrite.insertLast(constructor, null);
 													}
 													else if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
@@ -678,6 +666,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 												}
 											}
 										}
+									}
+									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration1) != null) {
+										MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
+										bodyDeclarationsRewrite.insertLast(constructor, null);
+										constructorsToBeCopiedInSubclasses.get(1).add(methodDeclaration1);
 									}
 								}
 							}
@@ -1094,6 +1087,36 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private MethodDeclaration copyConstructor(MethodDeclaration constructorDeclaration, AST intermediateAST, ASTRewrite intermediateRewriter, SimpleName intermediateName,
+			Set<ITypeBinding> requiredImportTypeBindings) {
+		List<SingleVariableDeclaration> parameters = constructorDeclaration.parameters();
+		SuperConstructorInvocation superConstructorInvocation = firstStatementIsSuperConstructorInvocation(constructorDeclaration);
+		MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
+		intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
+		intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
+		ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
+		List<IExtendedModifier> modifiers = constructorDeclaration.modifiers();
+		for(IExtendedModifier modifier : modifiers) {
+			if(modifier instanceof Modifier) {
+				constructorModifierRewriter.insertLast((Modifier)modifier, null);
+			}
+		}
+		ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
+		for(SingleVariableDeclaration parameter : parameters) {
+			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+			typeBindings.add(parameter.getType().resolveBinding());
+			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+			parameterRewriter.insertLast(parameter, null);
+		}
+		Block constructorBody = intermediateAST.newBlock();
+		if(superConstructorInvocation != null) {
+			ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
+			constructorBodyRewriter.insertLast(superConstructorInvocation, null);
+		}
+		intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
+		return constructor;
 	}
 
 	private void updateAccessModifier(MethodDeclaration methodDeclaration, Modifier.ModifierKeyword modifierKeyword) {
@@ -2985,9 +3008,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
-			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
+			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp, Set<MethodDeclaration> constructorsToBeCopied) {
 		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
+		}
+		for(MethodDeclaration constructor : constructorsToBeCopied) {
+			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
 			if(methodDeclaration.getRoot().equals(compilationUnit)) {
@@ -3015,6 +3041,31 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
 			}
 		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void addConstructorDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+		AST ast = typeDeclaration.getAST();
+		ASTRewrite rewriter = ASTRewrite.create(ast);
+		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
+		MethodDeclaration constructor = copyConstructor(methodDeclaration, ast, rewriter, typeDeclaration.getName(), requiredImportTypeBindings);
+		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+		bodyRewrite.insertFirst(constructor, null);
+		try {
+			TextEdit sourceEdit = rewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			if(change == null) {
+				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+				change = new CompilationUnitChange("", sourceICompilationUnit);
+				change.setEdit(sourceMultiTextEdit);
+				compilationUnitChanges.put(sourceICompilationUnit, change);
+			}
+			change.getEdit().addChild(sourceEdit);
+			String message = "Create constructor in subclass";
+			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
 	}

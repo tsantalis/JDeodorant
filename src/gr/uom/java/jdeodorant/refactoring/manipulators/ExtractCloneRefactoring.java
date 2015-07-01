@@ -615,15 +615,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 						if(!cloneInfo.extractUtilityClass) {
 							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-							intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
-									intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+							if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
+								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+							}
 							//add the implemented interfaces being common in both subclasses
 							ListRewrite interfaceRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
+							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
+								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
+								interfaceRewrite.insertLast(interfaceType, null);
+							}
 							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
 							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
 							for(Type interfaceType1 : superInterfaceTypes1) {
 								for(Type interfaceType2 : superInterfaceTypes2) {
-									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding())) {
+									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding()) &&
+											!interfaceType1.resolveBinding().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
 										interfaceRewrite.insertLast(interfaceType1, null);
 										Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 										typeBindings.add(interfaceType1.resolveBinding());
@@ -1899,6 +1906,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private boolean pullUpToCommonSuperclass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
 			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
 		return ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null &&
+				commonSuperTypeOfSourceTypeDeclarations.isClass() &&
 				(cloneFragmentsDoNotAccessFieldsOrMethods() ||
 				superclassInheritedOnlyByRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
 				superclassIsOneOfRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||

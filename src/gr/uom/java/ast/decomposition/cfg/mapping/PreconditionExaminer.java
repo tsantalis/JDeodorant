@@ -69,6 +69,7 @@ import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -1493,6 +1494,7 @@ public class PreconditionExaminer {
 			}
 			if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
 				if(nodeMapping instanceof PDGNodeMapping) {
+					checkDifferenceForMethodArgumentPassing(difference, nodeMapping);
 					PDGNodeMapping pdgNodeMapping = (PDGNodeMapping)nodeMapping;
 					Set<IMethodBinding> methods1 = new LinkedHashSet<IMethodBinding>();
 					Set<IVariableBinding> fields1 = new LinkedHashSet<IVariableBinding>();
@@ -1691,6 +1693,91 @@ public class PreconditionExaminer {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.getDeclaringClass().isEqualTo(typeBinding)) {
 					fields.add(variableBinding);
+				}
+			}
+		}
+	}
+
+	private void checkDifferenceForMethodArgumentPassing(ASTNodeDifference difference, NodeMapping nodeMapping) {
+		Expression expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+		ITypeBinding typeBinding1 = expression1.resolveTypeBinding();
+		IMethodBinding methodBinding1 = null;
+		int argumentIndex1 = -1;
+		if(expression1.getParent() instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)expression1.getParent();
+			methodBinding1 = methodInvocation.resolveMethodBinding();
+			List<Expression> arguments = methodInvocation.arguments();
+			int argumentIndex = 0;
+			for(Expression argument : arguments) {
+				if(argument.equals(expression1)) {
+					argumentIndex1 = argumentIndex;
+					break;
+				}
+				argumentIndex++;
+			}
+		}
+		if(expression1.getParent() instanceof ClassInstanceCreation) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression1.getParent();
+			methodBinding1 = classInstanceCreation.resolveConstructorBinding();
+			List<Expression> arguments = classInstanceCreation.arguments();
+			int argumentIndex = 0;
+			for(Expression argument : arguments) {
+				if(argument.equals(expression1)) {
+					argumentIndex1 = argumentIndex;
+					break;
+				}
+				argumentIndex++;
+			}
+		}
+		Expression expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+		ITypeBinding typeBinding2 = expression2.resolveTypeBinding();
+		IMethodBinding methodBinding2 = null;
+		int argumentIndex2 = -1;
+		if(expression2.getParent() instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)expression2.getParent();
+			methodBinding2 = methodInvocation.resolveMethodBinding();
+			List<Expression> arguments = methodInvocation.arguments();
+			int argumentIndex = 0;
+			for(Expression argument : arguments) {
+				if(argument.equals(expression2)) {
+					argumentIndex2 = argumentIndex;
+					break;
+				}
+				argumentIndex++;
+			}
+		}
+		if(expression2.getParent() instanceof ClassInstanceCreation) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression2.getParent();
+			methodBinding2 = classInstanceCreation.resolveConstructorBinding();
+			List<Expression> arguments = classInstanceCreation.arguments();
+			int argumentIndex = 0;
+			for(Expression argument : arguments) {
+				if(argument.equals(expression2)) {
+					argumentIndex2 = argumentIndex;
+					break;
+				}
+				argumentIndex++;
+			}
+		}
+		if(methodBinding1 != null && methodBinding2 != null && methodBinding1.isEqualTo(methodBinding2) &&
+				argumentIndex1 > -1 && argumentIndex2 > -1 && argumentIndex1 == argumentIndex2) {
+			ITypeBinding parameterTypeBinding = methodBinding1.getParameterTypes()[argumentIndex1];
+			if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
+				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				if(commonSuperType != null) {
+					ITypeBinding commonSuperType2 = ASTNodeMatcher.commonSuperType(commonSuperType, parameterTypeBinding);
+					if(commonSuperType.isEqualTo(parameterTypeBinding) || (commonSuperType2 != null && commonSuperType2.isEqualTo(parameterTypeBinding))) {
+						//do nothing
+					}
+					else {
+						Set<String> methodSignatures = new LinkedHashSet<String>();
+						methodSignatures.add(methodBinding1.toString());
+						PreconditionViolation violation = new DualExpressionWithCommonSuperTypePreconditionViolation(difference.getExpression1(), difference.getExpression2(),
+								PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_PASSED_ARGUMENT_TYPE_MISMATCH,
+								commonSuperType.getQualifiedName(), methodSignatures);
+						nodeMapping.addPreconditionViolation(violation);
+						preconditionViolations.add(violation);
+					}
 				}
 			}
 		}

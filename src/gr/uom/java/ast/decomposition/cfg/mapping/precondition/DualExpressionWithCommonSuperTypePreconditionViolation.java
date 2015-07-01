@@ -37,6 +37,21 @@ public class DualExpressionWithCommonSuperTypePreconditionViolation extends Dual
 			sb.append(" does not declare member(s) ");
 			sb.append(commonSuperTypeMembers);
 		}
+		else if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_PASSED_ARGUMENT_TYPE_MISMATCH)) {
+			Expression expression1 = this.getExpression1().getExpression();
+			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
+			Expression expression2 = this.getExpression2().getExpression();
+			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
+			sb.append("Expression ");
+			sb.append(expression1.toString());
+			sb.append(" cannot be unified with ");
+			sb.append("expression ");
+			sb.append(expression2.toString());
+			sb.append(" , because common superclass type ");
+			sb.append(commonSuperType);
+			sb.append(" cannot be passed as an argument to ");
+			sb.append(commonSuperTypeMembers);
+		}
 		return sb.toString();
 	}
 
@@ -57,6 +72,27 @@ public class DualExpressionWithCommonSuperTypePreconditionViolation extends Dual
 			styledString.append(" , because common superclass ", normalStyler);
 			styledString.append(commonSuperType, boldStyler);
 			styledString.append(" does not declare member(s) ", normalStyler);
+			int counter = 1;
+			for(String commonSuperTypeMember : commonSuperTypeMembers) {
+				styledString.append(commonSuperTypeMember, boldStyler);
+				if(counter < commonSuperTypeMembers.size())
+					styledString.append(", ", normalStyler);
+				counter++;
+			}
+		}
+		else if(type.equals(PreconditionViolationType.INFEASIBLE_UNIFICATION_DUE_TO_PASSED_ARGUMENT_TYPE_MISMATCH)) {
+			Expression expression1 = this.getExpression1().getExpression();
+			expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
+			Expression expression2 = this.getExpression2().getExpression();
+			expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
+			styledString.append("Expression ", normalStyler);
+			styledString.append(expression1.toString(), boldStyler);
+			styledString.append(" cannot be unified with ", normalStyler);
+			styledString.append("expression ", normalStyler);
+			styledString.append(expression2.toString(), boldStyler);
+			styledString.append(" , because common superclass type ", normalStyler);
+			styledString.append(commonSuperType, boldStyler);
+			styledString.append(" cannot be passed as an argument to ", normalStyler);
 			int counter = 1;
 			for(String commonSuperTypeMember : commonSuperTypeMembers) {
 				styledString.append(commonSuperTypeMember, boldStyler);

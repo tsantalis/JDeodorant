@@ -699,6 +699,26 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 							}
+							//handle constructors existing only in the second subclass
+							for(MethodDeclaration methodDeclaration2 : sourceTypeDeclarations.get(1).getMethods()) {
+								List<SingleVariableDeclaration> parameters2 = methodDeclaration2.parameters();
+								if(methodDeclaration2.isConstructor()) {
+									boolean matchingConstructorFound = false;
+									for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
+										List<SingleVariableDeclaration> parameters1 = methodDeclaration1.parameters();
+										if(methodDeclaration1.isConstructor()) {
+											if(matchingParameterTypes(parameters1, parameters2)) {
+												matchingConstructorFound = true;
+											}
+										}
+									}
+									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration2) != null) {
+										MethodDeclaration constructor = copyConstructor(methodDeclaration2, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
+										bodyDeclarationsRewrite.insertLast(constructor, null);
+										constructorsToBeCopiedInSubclasses.get(0).add(methodDeclaration2);
+									}
+								}
+							}
 						}
 						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
 					}
@@ -1172,7 +1192,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.parameterRewrite = parameterRewrite;
 	}
 
-	protected void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
+	private void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
 		boolean found = false;
 		for(ITypeBinding thrownExceptionTypeBinding : thrownExceptionTypeBindings) {
 			if(typeBinding.isEqualTo(thrownExceptionTypeBinding)) {

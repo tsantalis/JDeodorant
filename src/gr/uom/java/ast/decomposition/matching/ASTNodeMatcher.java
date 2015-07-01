@@ -376,18 +376,21 @@ public class ASTNodeMatcher extends ASTMatcher{
 		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
 		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
 		for(ITypeBinding superType2 : superTypes2) {
-			if(superType2.isEqualTo(typeBinding1) || implementsInterface(superType2, typeBinding1))
+			if(superType2.getQualifiedName().equals(typeBinding1.getQualifiedName()) ||
+					implementsInterface(superType2, typeBinding1))
 				return typeBinding1;
 		}
 		for(ITypeBinding superType1 : superTypes1) {
-			if(superType1.isEqualTo(typeBinding2) || implementsInterface(superType1, typeBinding2))
+			if(superType1.getQualifiedName().equals(typeBinding2.getQualifiedName()) ||
+					implementsInterface(superType1, typeBinding2))
 				return typeBinding2;
 		}
 		boolean found = false;
 		ITypeBinding commonSuperType = null;
 		for(ITypeBinding superType1 : superTypes1) {
 			for(ITypeBinding superType2 : superTypes2) {
-				if(superType1.isEqualTo(superType2) && !superType1.getQualifiedName().equals("java.lang.Object")) {
+				if(superType1.getQualifiedName().equals(superType2.getQualifiedName()) &&
+						!superType1.getQualifiedName().equals("java.lang.Object")) {
 					commonSuperType = superType1;
 					found = true;
 					break;
@@ -402,7 +405,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	private static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
 		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
 		for(ITypeBinding implementedInterface : implementedInterfaces) {
-			if(implementedInterface.isEqualTo(interfaceType))
+			if(implementedInterface.getQualifiedName().equals(interfaceType.getQualifiedName()))
 				return true;
 		}
 		return false;

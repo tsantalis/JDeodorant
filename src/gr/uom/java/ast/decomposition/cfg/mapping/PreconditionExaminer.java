@@ -1427,13 +1427,13 @@ public class PreconditionExaminer {
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 				}
-				if(isVoidMethodCall(abstractExpression1) && !(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference)) {
+				if((isVoidMethodCall(abstractExpression1) || isMethodCallDifferenceCoveringEntireStatement(difference)) && !(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 				}
-				if(isVoidMethodCall(abstractExpression2) && !(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference)) {
+				if((isVoidMethodCall(abstractExpression2) || isMethodCallDifferenceCoveringEntireStatement(difference)) && !(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference)) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(),
 							PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
 					nodeMapping.addPreconditionViolation(violation);
@@ -2089,6 +2089,20 @@ public class PreconditionExaminer {
 			}
 		}
 		return false;
+	}
+
+	private boolean isMethodCallDifferenceCoveringEntireStatement(ASTNodeDifference difference) {
+		boolean expression1IsMethodCallDifference = false;
+		boolean expression2IsMethodCallDifference = false;
+		Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+		Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+		if(expr1.getParent() instanceof ExpressionStatement) {
+			expression1IsMethodCallDifference = true;
+		}
+		if(expr2.getParent() instanceof ExpressionStatement) {
+			expression2IsMethodCallDifference = true;
+		}
+		return expression1IsMethodCallDifference && expression2IsMethodCallDifference;
 	}
 
 	private boolean isFieldUpdate(AbstractExpression expression) {

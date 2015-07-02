@@ -209,7 +209,7 @@ public class PDGNodeMapping extends IdBasedMapping {
 						}
 					}
 					if(expression.equals(expr2)) {
-						if(expr1.getParent() instanceof ExpressionStatement) {
+						if(expr2.getParent() instanceof ExpressionStatement) {
 							expression2IsVoidMethodCallDifference = true;
 						}
 					}

@@ -62,6 +62,7 @@ import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
@@ -1230,6 +1231,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				MethodInvocation o = (MethodInvocation) other;
+				IMethodBinding nodeMethodBinding = node.resolveMethodBinding();
+				IMethodBinding otherMethodBinding = o.resolveMethodBinding();
+				boolean isNodeMethodBindingStatic = (nodeMethodBinding.getModifiers() & Modifier.STATIC) != 0;
+				boolean isOtherMethodBindingStatic = (otherMethodBinding.getModifiers() & Modifier.STATIC) != 0;
+				if(isNodeMethodBindingStatic != isOtherMethodBindingStatic) {
+					return false;
+				}
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
 					astNodeDifference.addDifference(diff);

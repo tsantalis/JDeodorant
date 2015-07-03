@@ -37,6 +37,8 @@ public class CompilationUnitCache extends Indexer {
 	private Map<String, LinkedHashSet<AbstractVariable>> usedFieldsForMethodExpressionMap;
 	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
 	private Map<String, LinkedHashSet<AbstractVariable>> definedFieldsForMethodExpressionMap;
+	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, LinkedHashSet<String>> thrownExceptionTypesForMethodExpressionMap;
 
 	public void addUsedFieldForMethodArgument(AbstractVariable field, MethodObject mo, int argPosition) {
 		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
@@ -185,6 +187,11 @@ public class CompilationUnitCache extends Indexer {
 		definedFieldsForMethodExpressionMap.put(methodBindingKey, usedFields);
 	}
 
+	public void setThrownExceptionTypesForMethodExpression(MethodObject mo, LinkedHashSet<String> thrownExceptionTypes) {
+		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
+		thrownExceptionTypesForMethodExpressionMap.put(methodBindingKey, thrownExceptionTypes);
+	}
+
 	public boolean containsMethodExpression(MethodObject mo) {
 		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
 		if(usedFieldsForMethodExpressionMap.containsKey(methodBindingKey))
@@ -204,6 +211,11 @@ public class CompilationUnitCache extends Indexer {
 		return definedFieldsForMethodExpressionMap.get(methodBindingKey);
 	}
 
+	public Set<String> getThrownExceptionTypesForMethodExpression(MethodObject mo) {
+		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
+		return thrownExceptionTypesForMethodExpressionMap.get(methodBindingKey);
+	}
+
 	private CompilationUnitCache() {
 		super();
 		this.iTypeRootList = new LinkedList<ITypeRoot>();
@@ -216,6 +228,7 @@ public class CompilationUnitCache extends Indexer {
 		this.definedFieldsForMethodArgumentsMap = new HashMap<String, HashMap<Integer, LinkedHashSet<AbstractVariable>>>();
 		this.usedFieldsForMethodExpressionMap = new HashMap<String, LinkedHashSet<AbstractVariable>>();
 		this.definedFieldsForMethodExpressionMap = new HashMap<String, LinkedHashSet<AbstractVariable>>();
+		this.thrownExceptionTypesForMethodExpressionMap = new HashMap<String, LinkedHashSet<String>>();
 	}
 
 	public static CompilationUnitCache getInstance() {

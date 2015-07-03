@@ -89,6 +89,7 @@ public class MethodCallAnalyzer {
 							field = definedField;
 						definedVariables.add(field);
 					}
+					thrownExceptionTypes.addAll(cache.getThrownExceptionTypesForMethodExpression(methodObject));
 				}
 				else {
 					Set<AbstractVariable> usedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.usedVariables);
@@ -135,6 +136,7 @@ public class MethodCallAnalyzer {
 					if(definedFieldCount == 0) {
 						cache.setEmptyDefinedFieldsForMethodExpression(methodObject);
 					}
+					cache.setThrownExceptionTypesForMethodExpression(methodObject, new LinkedHashSet<String>(this.thrownExceptionTypes));
 				}
 				List<Expression> arguments = methodInvocation.arguments();
 				int argumentPosition = 0;

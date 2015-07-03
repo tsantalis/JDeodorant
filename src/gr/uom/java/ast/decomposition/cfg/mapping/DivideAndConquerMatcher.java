@@ -1248,11 +1248,13 @@ public abstract class DivideAndConquerMatcher {
 					boolean match = astNodeMatcher.match(node1, node2);
 					if(match && astNodeMatcher.isParameterizable()) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						MappingState state = new MappingState(finalState, mapping);
-						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-						for(MappingState temp : maxStates) {
-							if(!currentStates.contains(temp)) {
-								currentStates.add(temp);
+						if(!finalState.containsAtLeastOneNodeInMappings(mapping)) {
+							MappingState state = new MappingState(finalState, mapping);
+							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+							for(MappingState temp : maxStates) {
+								if(!currentStates.contains(temp)) {
+									currentStates.add(temp);
+								}
 							}
 						}
 					}
@@ -1269,11 +1271,13 @@ public abstract class DivideAndConquerMatcher {
 					boolean match = astNodeMatcher.match(node1, node2);
 					if(match && astNodeMatcher.isParameterizable()) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						MappingState state = new MappingState(finalState, mapping);
-						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-						for(MappingState temp : maxStates) {
-							if(!currentStates.contains(temp)) {
-								currentStates.add(temp);
+						if(!finalState.containsAtLeastOneNodeInMappings(mapping)) {
+							MappingState state = new MappingState(finalState, mapping);
+							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+							for(MappingState temp : maxStates) {
+								if(!currentStates.contains(temp)) {
+									currentStates.add(temp);
+								}
 							}
 						}
 					}

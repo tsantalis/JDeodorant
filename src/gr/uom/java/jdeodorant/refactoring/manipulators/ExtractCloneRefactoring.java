@@ -624,6 +624,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
 								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
 								interfaceRewrite.insertLast(interfaceType, null);
+								if(typeBinding1.getSuperclass() != null && typeBinding1.getSuperclass().isClass() &&
+										ASTNodeMatcher.implementsInterface(typeBinding1.getSuperclass(), commonSuperTypeOfSourceTypeDeclarations)) {
+									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+											intermediateAST.newSimpleType(intermediateAST.newSimpleName(typeBinding1.getSuperclass().getName())), null);
+								}
+								else if(typeBinding2.getSuperclass() != null && typeBinding2.getSuperclass().isClass() &&
+										ASTNodeMatcher.implementsInterface(typeBinding2.getSuperclass(), commonSuperTypeOfSourceTypeDeclarations)) {
+									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+											intermediateAST.newSimpleType(intermediateAST.newSimpleName(typeBinding2.getSuperclass().getName())), null);
+								}
 							}
 							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
 							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();

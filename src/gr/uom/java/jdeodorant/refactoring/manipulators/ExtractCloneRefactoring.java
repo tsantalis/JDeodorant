@@ -615,6 +615,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 						if(!cloneInfo.extractUtilityClass) {
 							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+							typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
 							if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
 								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
@@ -628,11 +630,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										ASTNodeMatcher.implementsInterface(typeBinding1.getSuperclass(), commonSuperTypeOfSourceTypeDeclarations)) {
 									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 											intermediateAST.newSimpleType(intermediateAST.newSimpleName(typeBinding1.getSuperclass().getName())), null);
+									typeBindings.add(typeBinding1.getSuperclass());
 								}
 								else if(typeBinding2.getSuperclass() != null && typeBinding2.getSuperclass().isClass() &&
 										ASTNodeMatcher.implementsInterface(typeBinding2.getSuperclass(), commonSuperTypeOfSourceTypeDeclarations)) {
 									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 											intermediateAST.newSimpleType(intermediateAST.newSimpleName(typeBinding2.getSuperclass().getName())), null);
+									typeBindings.add(typeBinding2.getSuperclass());
 								}
 							}
 							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
@@ -642,9 +646,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding()) &&
 											!interfaceType1.resolveBinding().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
 										interfaceRewrite.insertLast(interfaceType1, null);
-										Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 										typeBindings.add(interfaceType1.resolveBinding());
-										RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 										break;
 									}
 								}
@@ -687,9 +689,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 														for(Expression argument : superConstructorArguments1) {
 															SingleVariableDeclaration parameter = intermediateAST.newSingleVariableDeclaration();
 															ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
-															Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 															typeBindings.add(argumentTypeBinding);
-															RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 															Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
 															intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 															String typeName = argumentTypeBinding.getName();
@@ -736,6 +736,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 							}
+							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
 					}

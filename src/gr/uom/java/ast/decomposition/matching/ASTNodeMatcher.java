@@ -21,6 +21,8 @@ import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoopASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.loop.ControlVariable;
 import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
+import gr.uom.java.ast.inheritance.InheritanceTree;
+import gr.uom.java.ast.inheritance.TypeBindingInheritanceDetection;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
@@ -392,21 +394,44 @@ public class ASTNodeMatcher extends ASTMatcher{
 					implementsInterface(superType1, typeBinding2))
 				return typeBinding2;
 		}
-		boolean found = false;
-		ITypeBinding commonSuperType = null;
+		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
 		for(ITypeBinding superType1 : superTypes1) {
 			for(ITypeBinding superType2 : superTypes2) {
 				if(superType1.getQualifiedName().equals(superType2.getQualifiedName()) &&
 						!superType1.getQualifiedName().equals("java.lang.Object")) {
-					commonSuperType = superType1;
-					found = true;
-					break;
+					addTypeBinding(superType1, typeBindings);
 				}
 			}
-			if(found)
-				break;
 		}
-		return commonSuperType;
+		if(typeBindings.size() > 1) {
+			TypeBindingInheritanceDetection inheritanceDetection = new TypeBindingInheritanceDetection(typeBindings);
+			List<InheritanceTree> trees = inheritanceDetection.getInheritanceTreeList();
+			Set<String> leaves = new LinkedHashSet<String>();
+			for(InheritanceTree tree : trees) {
+				leaves.addAll(tree.getLeaves());
+			}
+			if(leaves.isEmpty()) {
+				return typeBindings.get(0);
+			}
+			else {
+				List<ITypeBinding> leafTypeBindings = new ArrayList<ITypeBinding>();
+				for(String leaf : leaves) {
+					for(ITypeBinding typeBinding : typeBindings) {
+						if(leaf.equals(typeBinding.getQualifiedName())) {
+							leafTypeBindings.add(typeBinding);
+							break;
+						}
+					}
+				}
+				return leafTypeBindings.get(0);
+			}
+		}
+		else if(typeBindings.size() == 1) {
+			return typeBindings.get(0);
+		}
+		else {
+			return null;
+		}
 	}
 
 	public static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
@@ -416,6 +441,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 				return true;
 		}
 		return false;
+	}
+
+	private static void addTypeBinding(ITypeBinding typeBinding, List<ITypeBinding> typeBindings) {
+		boolean found = false;
+		for(ITypeBinding typeBinding2 : typeBindings) {
+			if(typeBinding.isEqualTo(typeBinding2)) {
+				found = true;
+				break;
+			}
+		}
+		if(!found) {
+			typeBindings.add(typeBinding);
+		}
 	}
 
 	private static Set<ITypeBinding> getAllSuperTypes(ITypeBinding typeBinding) {

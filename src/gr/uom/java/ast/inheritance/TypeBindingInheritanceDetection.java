@@ -41,6 +41,9 @@ public class TypeBindingInheritanceDetection {
 					inheritanceTreeList.remove(childTree);
 				}
 			}
+			else if(getTree(typeBinding.getQualifiedName()) == null) {
+				inheritanceTreeList.add(new InheritanceTree(typeBinding.getQualifiedName()));
+			}
 		}
 	}
 

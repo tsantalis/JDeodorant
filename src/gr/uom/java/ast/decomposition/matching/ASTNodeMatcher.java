@@ -434,7 +434,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 	}
 
-	public static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
+	private static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
 		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
 		for(ITypeBinding implementedInterface : implementedInterfaces) {
 			if(implementedInterface.getQualifiedName().equals(interfaceType.getQualifiedName()))

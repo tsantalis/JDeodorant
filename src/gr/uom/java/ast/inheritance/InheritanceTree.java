@@ -13,6 +13,10 @@ public class InheritanceTree {
         this.rootNode = null;
     }
 
+    public InheritanceTree(String nodeName) {
+        this.rootNode = new DefaultMutableTreeNode(nodeName);
+    }
+
     public DefaultMutableTreeNode getRootNode() {
         return rootNode;
     }

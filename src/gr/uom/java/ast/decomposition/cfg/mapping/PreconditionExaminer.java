@@ -369,6 +369,8 @@ public class PreconditionExaminer {
 	private void findPassedParameters() {
 		Set<AbstractVariable> passedParametersG1 = extractPassedParameters(pdg1, mappedNodesG1);
 		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, mappedNodesG2);
+		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
+		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
 		Set<AbstractVariable> parametersToBeRemovedG1 = new LinkedHashSet<AbstractVariable>();
 		Set<AbstractVariable> parametersToBeRemovedG2 = new LinkedHashSet<AbstractVariable>();
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
@@ -379,9 +381,13 @@ public class PreconditionExaminer {
 			while(declaredVariableIteratorG1.hasNext()) {
 				AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
 				String key1 = declaredVariableG1.getVariableBindingKey();
-				String declaringType1 = key1.substring(0, key1.indexOf(";"));
-				if(!declaringType1.contains("$")) {
-					nonAnonymousDeclaredVariablesG1.add(declaredVariableG1);
+				for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod1) {
+					IVariableBinding declaredVariableBinding = variableDeclaration.resolveBinding();
+					if(declaredVariableBinding.getKey().equals(key1)) {
+						if(!declaredVariableBinding.getDeclaringMethod().getDeclaringClass().isAnonymous()) {
+							nonAnonymousDeclaredVariablesG1.add(declaredVariableG1);
+						}
+					}
 				}
 			}
 			List<AbstractVariable> nonAnonymousDeclaredVariablesG2 = new ArrayList<AbstractVariable>();
@@ -389,9 +395,13 @@ public class PreconditionExaminer {
 			while(declaredVariableIteratorG2.hasNext()) {
 				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
 				String key2 = declaredVariableG2.getVariableBindingKey();
-				String declaringType2 = key2.substring(0, key2.indexOf(";"));
-				if(!declaringType2.contains("$")) {
-					nonAnonymousDeclaredVariablesG2.add(declaredVariableG2);
+				for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod2) {
+					IVariableBinding declaredVariableBinding = variableDeclaration.resolveBinding();
+					if(declaredVariableBinding.getKey().equals(key2)) {
+						if(!declaredVariableBinding.getDeclaringMethod().getDeclaringClass().isAnonymous()) {
+							nonAnonymousDeclaredVariablesG2.add(declaredVariableG2);
+						}
+					}
 				}
 			}
 			int min = Math.min(nonAnonymousDeclaredVariablesG1.size(), nonAnonymousDeclaredVariablesG2.size());

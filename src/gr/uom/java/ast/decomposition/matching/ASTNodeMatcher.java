@@ -170,6 +170,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		int variableTypeMismatchCount = 0;
 		int variableNameMismatchCount = 0;
 		int methodInvocationNameMismatchCount = 0;
+		int literalValueMismatchCount = 0;
 		for(ASTNodeDifference difference : differences) {
 			for(Difference diff : difference.getDifferences()) {
 				diffCount++;
@@ -182,10 +183,16 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(diff.getType().equals(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH)) {
 					methodInvocationNameMismatchCount++;
 				}
+				if(diff.getType().equals(DifferenceType.LITERAL_VALUE_MISMATCH)) {
+					literalValueMismatchCount++;
+				}
 			}
 		}
 		if(diffCount > 0 && (diffCount == (variableTypeMismatchCount + variableNameMismatchCount) ||
-				diffCount == (variableTypeMismatchCount + methodInvocationNameMismatchCount)))
+				diffCount == (variableTypeMismatchCount + methodInvocationNameMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + literalValueMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + literalValueMismatchCount + methodInvocationNameMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + literalValueMismatchCount + variableNameMismatchCount) ))
 			return true;
 		return false;
 	}
@@ -742,11 +749,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 				ClassInstanceCreation o = (ClassInstanceCreation) other;
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					diff.setWeight(node.arguments().size() * o.arguments().size());
 					astNodeDifference.addDifference(diff);
+				}
+				else {
+					List<Expression> nodeArguments = node.arguments();
+					List<Expression> otherArguments = o.arguments();
+					for(int i=0; i<nodeArguments.size(); i++) {
+						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+					}
 				}
 				boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
 				safeSubtreeMatch(node.getType(), o.getType());
-				safeSubtreeListMatch(node.arguments(), o.arguments());
+				//safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getExpression(), o.getExpression());
 				if(node.getExpression()==null && o.getExpression()!=null) {
 					Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
@@ -1166,6 +1181,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(node.parameters().size() != o.parameters().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
 					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
 				}
 				if(node.getBody().getNodeType() != o.getBody().getNodeType()) {
 					return false;
@@ -1273,10 +1289,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					diff.setWeight(node.arguments().size() * o.arguments().size());
 					astNodeDifference.addDifference(diff);
 				}
+				else {
+					List<Expression> nodeArguments = node.arguments();
+					List<Expression> otherArguments = o.arguments();
+					for(int i=0; i<nodeArguments.size(); i++) {
+						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+					}
+				}
 				safeSubtreeMatch(node.getName(), o.getName());
-				safeSubtreeListMatch(node.arguments(), o.arguments());
+				//safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getExpression(), o.getExpression());
 				if(node.getExpression()==null && o.getExpression()!=null) {
 					Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
@@ -1341,12 +1365,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(typeMatch) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
-					addDifference(astNodeDifference);
 				}
 				else {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					addDifference(astNodeDifference);
 				}
 			}
 			else 
@@ -1356,9 +1378,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 				{
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
 					astNodeDifference.addDifference(diff);
-					addDifference(astNodeDifference);
+				}
+				if(!typeMatch) {
+					Difference diff = new Difference(node.resolveTypeBinding().getQualifiedName(),o.resolveTypeBinding().getQualifiedName(),DifferenceType.VARIABLE_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
 				}
 			}
+			if(!astNodeDifference.isEmpty())
+				addDifference(astNodeDifference);
 			return typeMatch;
 		}
 		Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
@@ -1722,11 +1749,19 @@ public class ASTNodeMatcher extends ASTMatcher{
 				SuperMethodInvocation o = (SuperMethodInvocation) other;
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+					diff.setWeight(node.arguments().size() * o.arguments().size());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
+				else {
+					List<Expression> nodeArguments = node.arguments();
+					List<Expression> otherArguments = o.arguments();
+					for(int i=0; i<nodeArguments.size(); i++) {
+						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+					}
+				}
 				safeSubtreeMatch(node.getName(), o.getName());
-				safeSubtreeListMatch(node.arguments(), o.arguments());
+				//safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getQualifier(), o.getQualifier());
 			}
 			return typeMatch;

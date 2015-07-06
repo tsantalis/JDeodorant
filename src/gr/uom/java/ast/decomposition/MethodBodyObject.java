@@ -547,10 +547,10 @@ public class MethodBodyObject {
 				else {
 					catchClauseObject.addExceptionType(variableDeclarationType.resolveBinding().getQualifiedName());
 				}
-				AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName(), null);
+				AbstractExpression variableDeclarationName = new AbstractExpression(variableDeclaration.getName(), child);
 				catchClauseObject.addExpression(variableDeclarationName);
 				if(variableDeclaration.getInitializer() != null) {
-					AbstractExpression variableDeclarationInitializer = new AbstractExpression(variableDeclaration.getInitializer(), null);
+					AbstractExpression variableDeclarationInitializer = new AbstractExpression(variableDeclaration.getInitializer(), child);
 					catchClauseObject.addExpression(variableDeclarationInitializer);
 				}
 				List<Statement> blockStatements = catchClauseBody.statements();

@@ -4,6 +4,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class InheritanceTree {
     private DefaultMutableTreeNode rootNode;
@@ -67,16 +68,24 @@ public class InheritanceTree {
 		pNode.add(childRootNode);
 	}
 
-    public Set<String> getLeaves() {
-    	Set<String> leaves = new LinkedHashSet<String>();
+    public TreeMap<Integer, Set<String>> getLeavesByLevel() {
+    	TreeMap<Integer, Set<String>> levelMap = new TreeMap<Integer, Set<String>>();
     	Enumeration<DefaultMutableTreeNode> e = rootNode.breadthFirstEnumeration();
     	while(e.hasMoreElements()) {
             DefaultMutableTreeNode node = e.nextElement();
             if(node.isLeaf()) {
-            	leaves.add((String) node.getUserObject());
+            	int level = node.getLevel();
+            	if(levelMap.containsKey(level)) {
+            		levelMap.get(level).add((String) node.getUserObject());
+            	}
+            	else {
+            		Set<String> leaves = new LinkedHashSet<String>();
+            		leaves.add((String) node.getUserObject());
+            		levelMap.put(level, leaves);
+            	}
             }
     	}
-    	return leaves;
+    	return levelMap;
     }
 
     public boolean equals(Object o) {

@@ -2,6 +2,8 @@ package gr.uom.java.ast.inheritance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.eclipse.jdt.core.dom.ITypeBinding;
 
@@ -71,5 +73,19 @@ public class TypeBindingInheritanceDetection {
 				return tree;
 		}
 		return null;
+	}
+
+	public Set<String> getLeavesInDeepestLevel() {
+		Set<String> leavesInDeepestLevel = null;
+		int deepestLevel = -1;
+		for(InheritanceTree tree : inheritanceTreeList) {
+			TreeMap<Integer, Set<String>> levelMap = tree.getLeavesByLevel();
+			Integer lastLevel = levelMap.lastKey();
+			if(lastLevel > deepestLevel) {
+				deepestLevel = lastLevel;
+				leavesInDeepestLevel = levelMap.get(lastLevel);
+			}
+		}
+		return leavesInDeepestLevel;
 	}
 }

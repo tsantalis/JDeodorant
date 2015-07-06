@@ -21,7 +21,6 @@ import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoop;
 import gr.uom.java.ast.decomposition.matching.loop.ConditionalLoopASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.loop.ControlVariable;
 import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
-import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.inheritance.TypeBindingInheritanceDetection;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
@@ -405,11 +404,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		if(typeBindings.size() > 1) {
 			TypeBindingInheritanceDetection inheritanceDetection = new TypeBindingInheritanceDetection(typeBindings);
-			List<InheritanceTree> trees = inheritanceDetection.getInheritanceTreeList();
-			Set<String> leaves = new LinkedHashSet<String>();
-			for(InheritanceTree tree : trees) {
-				leaves.addAll(tree.getLeaves());
-			}
+			Set<String> leaves = inheritanceDetection.getLeavesInDeepestLevel();
 			if(leaves.isEmpty()) {
 				return typeBindings.get(0);
 			}

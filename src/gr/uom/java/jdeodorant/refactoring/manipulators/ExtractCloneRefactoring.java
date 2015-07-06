@@ -4096,7 +4096,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									for(Expression expr : simpleNames) {
 										SimpleName simpleName = (SimpleName)expr;
 										if(simpleName.resolveBinding().isEqualTo(variableBinding)) {
-											methodBodyRewriter.replace(simpleName, ast.newSimpleName(variableBinding.getName() + "Final"), null);
+											String identifier = variableBinding.getName() + "Final";
+											if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+												identifier = identifier + index;
+											}
+											methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
 										}
 									}
 								}
@@ -4296,7 +4300,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(VariableBindingPair pair : nonEffectivelyFinalLocalVariables) {
 			IVariableBinding variableBinding = index == 0 ? pair.getBinding1() : pair.getBinding2();
 			VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-			methodBodyRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName() + "Final"), null);
+			String identifier = variableBinding.getName() + "Final";
+			if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+				identifier = identifier + index;
+			}
+			methodBodyRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(identifier), null);
 			methodBodyRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
 			VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragment);
 			Type finalVariableType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
@@ -4419,7 +4427,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							SimpleName oldSimpleName = (SimpleName)oldExpression;
 							SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
 							if(oldSimpleName.resolveBinding().isEqualTo(variableBinding)) {
-								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(variableBinding.getName() + "Final"), null);
+								String identifier = variableBinding.getName() + "Final";
+								if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+									identifier = identifier + index;
+								}
+								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
 							}
 							j++;
 						}

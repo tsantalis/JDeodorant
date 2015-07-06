@@ -86,28 +86,33 @@ public class MappingState {
 
 	public int getDistinctDifferenceCount() {
 		Set<Difference> differences = new LinkedHashSet<Difference>();
+		int count = 0;
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
 				for(Difference diff : difference.getDifferences()) {
-					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH))
-						differences.add(diff);
+					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
+						if(!differences.contains(diff)) {
+							differences.add(diff);
+							count += diff.getWeight();
+						}
+					}
 				}
 			}
 		}
-		return differences.size();
+		return count;
 	}
 
 	public int getNonDistinctDifferenceCount() {
-		List<Difference> differences = new ArrayList<Difference>();
+		int count = 0;
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
 				for(Difference diff : difference.getDifferences()) {
 					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH))
-						differences.add(diff);
+						count += diff.getWeight();
 				}
 			}
 		}
-		return differences.size();
+		return count;
 	}
 
 	//returns the sum of the differences in the node Ids of the mapped nodes

@@ -4,6 +4,7 @@ public class Difference {
 	private String firstValue;
 	private String secondValue;
 	private DifferenceType type;
+	private int weight = 1;
 	private volatile int hashCode = 0;
 	
 	public Difference(String firstValue, String secondValue, DifferenceType type) {
@@ -24,6 +25,14 @@ public class Difference {
 		return secondValue;
 	}
 	
+	public int getWeight() {
+		return weight;
+	}
+
+	public void setWeight(int weight) {
+		this.weight = weight;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

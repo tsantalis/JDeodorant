@@ -35,6 +35,15 @@ public class TryStatementObject extends CompositeStatementObject {
 		return finallyClause;
 	}
 
+	public List<AbstractExpression> getExpressions() {
+		List<AbstractExpression> expressions = new ArrayList<AbstractExpression>();
+		expressions.addAll(super.getExpressions());
+		for(CatchClauseObject catchClause : catchClauses) {
+			expressions.addAll(catchClause.getExpressions());
+		}
+		return expressions;
+	}
+
 	public List<String> stringRepresentation() {
 		List<String> stringRepresentation = new ArrayList<String>();
 		stringRepresentation.addAll(super.stringRepresentation());

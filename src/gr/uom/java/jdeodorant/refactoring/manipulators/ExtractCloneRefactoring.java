@@ -110,6 +110,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
+import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.SynchronizedStatement;
 import org.eclipse.jdt.core.dom.ThisExpression;
@@ -590,6 +591,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 						if(!cloneInfo.extractUtilityClass) {
 							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+							typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
 							if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
 								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
@@ -599,6 +602,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
 								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
 								interfaceRewrite.insertLast(interfaceType, null);
+								//check if only one of the subclasses extends a superclass
+								ITypeBinding superclass1 = typeBinding1.getSuperclass();
+								ITypeBinding superclass2 = typeBinding2.getSuperclass();
+								if(superclass1 != null && superclass1.isClass() && !superclass1.getQualifiedName().equals("java.lang.Object") &&
+										implementsInterface(superclass1, commonSuperTypeOfSourceTypeDeclarations)) {
+									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+											intermediateAST.newSimpleType(intermediateAST.newSimpleName(superclass1.getName())), null);
+									typeBindings.add(superclass1);
+								}
+								else if(superclass2 != null && superclass2.isClass() && !superclass2.getQualifiedName().equals("java.lang.Object") &&
+										implementsInterface(superclass2, commonSuperTypeOfSourceTypeDeclarations)) {
+									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
+											intermediateAST.newSimpleType(intermediateAST.newSimpleName(superclass2.getName())), null);
+									typeBindings.add(superclass2);
+								}
 							}
 							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
 							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
@@ -607,9 +625,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding()) &&
 											!interfaceType1.resolveBinding().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
 										interfaceRewrite.insertLast(interfaceType1, null);
-										Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 										typeBindings.add(interfaceType1.resolveBinding());
-										RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 										break;
 									}
 								}
@@ -652,9 +668,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 														for(Expression argument : superConstructorArguments1) {
 															SingleVariableDeclaration parameter = intermediateAST.newSingleVariableDeclaration();
 															ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
-															Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 															typeBindings.add(argumentTypeBinding);
-															RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 															Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
 															intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 															String typeName = argumentTypeBinding.getName();
@@ -701,6 +715,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 							}
+							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
 					}
@@ -1114,6 +1129,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
+		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
+		for(ITypeBinding implementedInterface : implementedInterfaces) {
+			if(implementedInterface.getQualifiedName().equals(interfaceType.getQualifiedName())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
@@ -2680,22 +2705,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private ASTNode processASTNodeWithDifferences(AST ast, ASTRewrite sourceRewriter, ASTNode oldASTNode, NodeMapping nodeMapping) {
 		List<ASTNodeDifference> differences = nodeMapping.getNonOverlappingNodeDifferences();
 		if(differences.isEmpty()) {
+			boolean replacement = false;
+			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 				if(oldASTNode instanceof FieldAccess) {
 					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (FieldAccess)oldASTNode);
 					if(node != null) {
 						newASTNode = node;
+						replacement = true;
 					}
 				}
 				else {
-					replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
+					replacement = replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
 				}
-				return newASTNode;
+			}
+			if(oldASTNode instanceof SuperMethodInvocation) {
+				ASTNode node = createReplacementForSuperMethodCall(sourceRewriter, ast, (SuperMethodInvocation)oldASTNode);
+				if(node != null) {
+					newASTNode = node;
+					replacement = true;
+				}
 			}
 			else {
-				return oldASTNode;
+				replacement = replacement || replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
 			}
+			if(replacement)
+				return newASTNode;
+			else
+				return oldASTNode;
 		}
 		else {
 			Set<VariableBindingKeyPair> parameterBindingKeys = originalPassedParameters.keySet();
@@ -2707,6 +2744,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
 				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
 			}
+			replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
 			for(ASTNodeDifference difference : differences) {
 				if(!nodeMapping.isDifferenceInConditionalExpressionOfAdvancedLoopMatch(difference)) {
 					Expression oldExpression = difference.getExpression1().getExpression();
@@ -2826,7 +2864,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void replaceFieldAccessesOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, ASTNode oldASTNode, ASTNode newASTNode) {
+	private boolean replaceFieldAccessesOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, ASTNode oldASTNode, ASTNode newASTNode) {
+		boolean replacement = false;
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> oldFieldAccesses = new ArrayList<Expression>();
 		List<Expression> newFieldAccesses = new ArrayList<Expression>();
@@ -2845,11 +2884,52 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
 					sourceRewriter.replace(newFieldAccess, ast.newSimpleName(variableDeclaration.getName().getIdentifier()), null);
+					replacement = true;
 					break;
 				}
 			}
 			j++;
 		}
+		return replacement;
+	}
+
+	private boolean replaceSuperMethodCallsWithRegularMethodCalls(ASTRewrite sourceRewriter, AST ast, ASTNode oldASTNode, ASTNode newASTNode) {
+		boolean replacement = false;
+		ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
+		ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
+		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+		if(commonSuperTypeOfSourceTypeDeclarations != null && cloneInfo.intermediateClassName == null && !cloneInfo.extractUtilityClass) {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> oldSuperMethodInvocations = new ArrayList<Expression>();
+			List<Expression> newSuperMethodInvocations = new ArrayList<Expression>();
+			if(oldASTNode instanceof Expression) {
+				oldSuperMethodInvocations.addAll(expressionExtractor.getSuperMethodInvocations((Expression)oldASTNode));
+				newSuperMethodInvocations.addAll(expressionExtractor.getSuperMethodInvocations((Expression)newASTNode));
+			}
+			else if(oldASTNode instanceof Statement) {
+				oldSuperMethodInvocations.addAll(expressionExtractor.getSuperMethodInvocations((Statement)oldASTNode));
+				newSuperMethodInvocations.addAll(expressionExtractor.getSuperMethodInvocations((Statement)newASTNode));
+			}
+			int j = 0;
+			for(Expression oldExpression : oldSuperMethodInvocations) {
+				SuperMethodInvocation oldSuperMethodInvocation = (SuperMethodInvocation)oldExpression;
+				SuperMethodInvocation newSuperMethodInvocation = (SuperMethodInvocation)newSuperMethodInvocations.get(j);
+				if(oldSuperMethodInvocation.resolveMethodBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
+					MethodInvocation newMethodInvocation = ast.newMethodInvocation();
+					sourceRewriter.set(newMethodInvocation, MethodInvocation.NAME_PROPERTY, oldSuperMethodInvocation.getName(), null);
+					ListRewrite argumentRewrite = sourceRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+					List<Expression> oldArguments = oldSuperMethodInvocation.arguments();
+					for(Expression oldArgument : oldArguments) {
+						argumentRewrite.insertLast(oldArgument, null);
+					}
+					sourceRewriter.replace(newSuperMethodInvocation, newMethodInvocation, null);
+					replacement = true;
+					break;
+				}
+				j++;
+			}
+		}
+		return replacement;
 	}
 
 	private ASTNode createReplacementForFieldAccessOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, FieldAccess oldASTNode) {
@@ -2861,6 +2941,31 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
 					return ast.newSimpleName(variableDeclaration.getName().getIdentifier());
+				}
+			}
+		}
+		return null;
+	}
+
+	private ASTNode createReplacementForSuperMethodCall(ASTRewrite sourceRewriter, AST ast, SuperMethodInvocation oldASTNode) {
+		ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
+		ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
+		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+		if(commonSuperTypeOfSourceTypeDeclarations != null && cloneInfo.intermediateClassName == null && !cloneInfo.extractUtilityClass) {
+			ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+			List<Expression> oldSuperMethodInvocations = new ArrayList<Expression>();
+			oldSuperMethodInvocations.addAll(expressionExtractor.getSuperMethodInvocations(oldASTNode));
+			for(Expression oldExpression : oldSuperMethodInvocations) {
+				SuperMethodInvocation oldSuperMethodInvocation = (SuperMethodInvocation)oldExpression;
+				if(oldSuperMethodInvocation.resolveMethodBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
+					MethodInvocation newMethodInvocation = ast.newMethodInvocation();
+					sourceRewriter.set(newMethodInvocation, MethodInvocation.NAME_PROPERTY, oldSuperMethodInvocation.getName(), null);
+					ListRewrite argumentRewrite = sourceRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+					List<Expression> oldArguments = oldSuperMethodInvocation.arguments();
+					for(Expression oldArgument : oldArguments) {
+						argumentRewrite.insertLast(oldArgument, null);
+					}
+					return newMethodInvocation;
 				}
 			}
 		}

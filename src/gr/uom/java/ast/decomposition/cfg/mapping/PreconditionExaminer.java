@@ -1717,7 +1717,7 @@ public class PreconditionExaminer {
 				argumentIndex++;
 			}
 		}
-		if(methodBinding1 != null && methodBinding2 != null && methodBinding1.isEqualTo(methodBinding2) &&
+		if(methodBinding1 != null && methodBinding2 != null && methodBinding1.getName().equals(methodBinding2.getName()) &&
 				argumentIndex1 > -1 && argumentIndex2 > -1 && argumentIndex1 == argumentIndex2) {
 			ITypeBinding parameterTypeBinding = methodBinding1.getParameterTypes()[argumentIndex1];
 			if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {

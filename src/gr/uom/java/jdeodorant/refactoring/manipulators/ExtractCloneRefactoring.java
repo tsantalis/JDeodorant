@@ -630,14 +630,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								ITypeBinding superclass1 = typeBinding1.getSuperclass();
 								ITypeBinding superclass2 = typeBinding2.getSuperclass();
 								if(superclass1 != null && superclass1.isClass() && !superclass1.getQualifiedName().equals("java.lang.Object") &&
-										(superclass2 == null || (superclass2 != null && superclass2.getQualifiedName().equals("java.lang.Object"))) &&
 										implementsInterface(superclass1, commonSuperTypeOfSourceTypeDeclarations)) {
 									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 											intermediateAST.newSimpleType(intermediateAST.newSimpleName(superclass1.getName())), null);
 									typeBindings.add(superclass1);
 								}
 								else if(superclass2 != null && superclass2.isClass() && !superclass2.getQualifiedName().equals("java.lang.Object") &&
-										(superclass1 == null || (superclass1 != null && superclass1.getQualifiedName().equals("java.lang.Object"))) &&
 										implementsInterface(superclass2, commonSuperTypeOfSourceTypeDeclarations)) {
 									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 											intermediateAST.newSimpleType(intermediateAST.newSimpleName(superclass2.getName())), null);
@@ -1116,7 +1114,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						: expression1.getExpression().resolveTypeBinding();
 				if(!isReturnedVariable) {
 					ITypeBinding typeBinding = null;
-					if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) ||
+					if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) || difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||
 							differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
 						if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
@@ -1219,9 +1217,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
 		for(ITypeBinding implementedInterface : implementedInterfaces) {
 			if(implementedInterface.getQualifiedName().equals(interfaceType.getQualifiedName())) {
-				return true;
-			}
-			if(implementsInterface(implementedInterface, interfaceType)) {
 				return true;
 			}
 		}

@@ -1115,14 +1115,30 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		//add parameters for the fields that should be parameterized instead of being pulled up
-		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
-			if(accessedLocalFieldsG1.contains(variableDeclaration)) {
+		int j=0;
+		List<VariableDeclaration> fieldDeclarationsToBeParameterizedG2 = new ArrayList<VariableDeclaration>(fieldDeclarationsToBeParameterized.get(1));
+		for(VariableDeclaration variableDeclaration1 : fieldDeclarationsToBeParameterized.get(0)) {
+			if(accessedLocalFieldsG1.contains(variableDeclaration1)) {
+				VariableDeclaration variableDeclaration2 = fieldDeclarationsToBeParameterizedG2.get(j);
+				ITypeBinding typeBinding1 = variableDeclaration1.resolveBinding().getType();
+				ITypeBinding typeBinding2 = variableDeclaration2.resolveBinding().getType();
+				ITypeBinding typeBinding = null;
+				if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
+					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+					if(commonSuperTypeBinding != null) {
+						typeBinding = commonSuperTypeBinding;
+					}
+				}
+				else {
+					typeBinding = typeBinding1;
+				}
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-				Type type = RefactoringUtility.generateTypeFromTypeBinding(variableDeclaration.resolveBinding().getType(), ast, sourceRewriter);
+				Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
-				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration1.getName(), null);
 				parameterRewrite.insertLast(parameter, null);
 			}
+			j++;
 		}
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, newMethodBody, null);
 		bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
@@ -1493,6 +1509,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
 				for(CatchClauseObject catchClause : catchClauses) {
 					TypeVisitor typeVisitor = new TypeVisitor();
+					for(AbstractExpression expression : catchClause.getExpressions()) {
+						Expression expr = expression.getExpression();
+						if(expr instanceof SimpleName)
+							expr.getParent().accept(typeVisitor);
+						else
+							expr.accept(typeVisitor);
+					}
 					catchClause.getBody().getStatement().accept(typeVisitor);
 					typeBindings.addAll(typeVisitor.getTypeBindings());
 				}
@@ -1794,6 +1817,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						break;
+					}
+					else {
+						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
+						if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
+							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
+							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
+							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+							typeBindings.add(commonSuperType);
+							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+						}
 					}
 				}
 			}

@@ -4117,7 +4117,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
 									}
 									SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
-									methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+									String parameterName = null;
+									if(isReturnedVariable(variableBinding, returnedVariables)) {
+										parameterName = variableBinding.getName() + index;
+									}
+									else {
+										parameterName = variableBinding.getName();
+									}
+									methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
 									methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 									lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
 								}
@@ -4137,12 +4144,25 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										}
 									}
 								}
+								//replace accesses to the returned variable in the lambda expression body
+								ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+								List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expression);
+								for(Expression expr : simpleNames) {
+									SimpleName simpleName = (SimpleName)expr;
+									if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+										IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+										if(isReturnedVariable(variableBinding, returnedVariables)) {
+											String identifier = variableBinding.getName() + index;
+											methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
+										}
+									}
+								}
 								methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, expression, null);
 								argumentsRewrite.insertLast(lambdaExpression, null);
 							}
 							else if(differenceBelongsToBlockGaps(difference)) {
 								PDGNodeBlockGap blockGap = findBlockGapContainingDifference(difference);
-								createLambdaExpressionForBlockGap(blockGap, methodBodyRewriter, ast, argumentsRewrite, index);
+								createLambdaExpressionForBlockGap(blockGap, methodBodyRewriter, ast, argumentsRewrite, returnedVariables, index);
 							}
 							else {
 								argumentsRewrite.insertLast(expression, null);
@@ -4156,7 +4176,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			else {
 				PDGNodeBlockGap blockGap = findBlockGapCorrespondingToBindingSignaturePair(pair);
-				createLambdaExpressionForBlockGap(blockGap, methodBodyRewriter, ast, argumentsRewrite, index);
+				createLambdaExpressionForBlockGap(blockGap, methodBodyRewriter, ast, argumentsRewrite, returnedVariables, index);
 			}
 		}
 		Set<VariableDeclaration> accessedLocalFields = null;
@@ -4365,7 +4385,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void createLambdaExpressionForBlockGap(PDGNodeBlockGap blockGap, ASTRewrite methodBodyRewriter, AST ast,
-			ListRewrite argumentsRewrite, int index) {
+			ListRewrite argumentsRewrite, List<VariableDeclaration> returnedVariables, int index) {
 		Set<PDGNode> statements = index == 0 ? blockGap.getNodesG1() : blockGap.getNodesG2();
 		LambdaExpression lambdaExpression = ast.newLambdaExpression();
 		ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
@@ -4380,7 +4400,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
 			}
 			SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
-			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+			String parameterName = null;
+			if(isReturnedVariable(variableBinding, returnedVariables)) {
+				parameterName = variableBinding.getName() + index;
+			}
+			else {
+				parameterName = variableBinding.getName();
+			}
+			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
 			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 			lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
 		}
@@ -4469,6 +4496,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							j++;
 						}
 					}
+					//replace accesses to the returned variable in the lambda expression body
+					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+					List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(statement);
+					List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newStatement);
+					int j = 0;
+					for(Expression oldExpression : oldSimpleNames) {
+						SimpleName oldSimpleName = (SimpleName)oldExpression;
+						SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
+						if(oldSimpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)oldSimpleName.resolveBinding();
+							if(isReturnedVariable(variableBinding, returnedVariables)) {
+								String identifier = variableBinding.getName() + index;
+								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
+							}
+						}
+						j++;
+					}
 					lambdaBodyRewrite.insertLast(newStatement, null);
 				}
 			}
@@ -4485,6 +4529,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, lambdaBody, null);
 		argumentsRewrite.insertLast(lambdaExpression, null);
+	}
+
+	private boolean isReturnedVariable(IVariableBinding variableBinding, List<VariableDeclaration> returnedVariables) {
+		for(VariableDeclaration variableDeclaration : returnedVariables) {
+			if(variableDeclaration.resolveBinding().isEqualTo(variableBinding))
+				return true;
+		}
+		return false;
 	}
 
 	private ASTNodeDifference findDifferenceCorrespondingToStatement(Statement statement, List<ASTNodeDifference> differences) {

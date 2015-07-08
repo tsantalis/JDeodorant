@@ -411,7 +411,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		if(typeBindings.size() > 1) {
 			TypeBindingInheritanceDetection inheritanceDetection = new TypeBindingInheritanceDetection(typeBindings);
-			Set<String> leaves = inheritanceDetection.getLeavesInDeepestLevel();
+			Set<String> leaves = inheritanceDetection.getLeavesInDeepestLevels();
 			if(leaves.isEmpty()) {
 				return typeBindings.get(0);
 			}
@@ -423,6 +423,17 @@ public class ASTNodeMatcher extends ASTMatcher{
 							leafTypeBindings.add(typeBinding);
 							break;
 						}
+					}
+				}
+				//return the first leaf that is a system class, if no system class is found return the first leaf that is a system interface
+				for(ITypeBinding leafTypeBinding : leafTypeBindings) {
+					if(leafTypeBinding.isClass() && ASTReader.getSystemObject().getClassObject(leafTypeBinding.getQualifiedName()) != null) {
+						return leafTypeBinding;
+					}
+				}
+				for(ITypeBinding leafTypeBinding : leafTypeBindings) {
+					if(leafTypeBinding.isInterface() && ASTReader.getSystemObject().getClassObject(leafTypeBinding.getQualifiedName()) != null) {
+						return leafTypeBinding;
 					}
 				}
 				return leafTypeBindings.get(0);

@@ -1,6 +1,7 @@
 package gr.uom.java.ast.inheritance;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
@@ -75,17 +76,15 @@ public class TypeBindingInheritanceDetection {
 		return null;
 	}
 
-	public Set<String> getLeavesInDeepestLevel() {
-		Set<String> leavesInDeepestLevel = null;
-		int deepestLevel = -1;
+	public Set<String> getLeavesInDeepestLevels() {
+		Set<String> leavesInDeepestLevels = new LinkedHashSet<String>();
 		for(InheritanceTree tree : inheritanceTreeList) {
 			TreeMap<Integer, Set<String>> levelMap = tree.getLeavesByLevel();
 			Integer lastLevel = levelMap.lastKey();
-			if(lastLevel > deepestLevel) {
-				deepestLevel = lastLevel;
-				leavesInDeepestLevel = levelMap.get(lastLevel);
+			if(lastLevel > 0) {
+				leavesInDeepestLevels.addAll(levelMap.get(lastLevel));
 			}
 		}
-		return leavesInDeepestLevel;
+		return leavesInDeepestLevels;
 	}
 }

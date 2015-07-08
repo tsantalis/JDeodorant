@@ -464,6 +464,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 				}
 			}
+			if(superTypes1.size() == 1) {
+				for(ITypeBinding superType1 : superTypes1) {
+					if(superType1.getQualifiedName().equals("java.lang.Object"))
+						return superType1;
+				}
+			}
+			if(superTypes2.size() == 1) {
+				for(ITypeBinding superType2 : superTypes2) {
+					if(superType2.getQualifiedName().equals("java.lang.Object"))
+						return superType2;
+				}
+			}
 			return null;
 		}
 	}

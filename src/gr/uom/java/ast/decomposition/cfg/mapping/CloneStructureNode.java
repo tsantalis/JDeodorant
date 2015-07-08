@@ -6,6 +6,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPrec
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionWithCommonSuperTypePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
@@ -41,7 +42,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			isVoidMethodCallDifferenceCoveringEntireStatement = ((PDGNodeMapping)mapping).isVoidMethodCallDifferenceCoveringEntireStatement();
 		}
 		for(PreconditionViolation violation : mapping.getPreconditionViolations()) {
-			if(violation instanceof ExpressionPreconditionViolation) {
+			if(violation instanceof ExpressionPreconditionViolation && !violation.getType().equals(PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_FIELD_UPDATE)) {
 				ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
 				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
 				if(difference != null && !difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) &&

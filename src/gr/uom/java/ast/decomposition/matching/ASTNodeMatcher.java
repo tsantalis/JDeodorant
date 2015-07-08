@@ -362,6 +362,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		if(binding1.isEqualTo(binding2))
 			return true;
+		if(binding1.getQualifiedName().equals("java.lang.Number") && isNumberPrimitiveType(binding2))
+			return true;
+		if(isNumberPrimitiveType(binding1) && binding2.getQualifiedName().equals("java.lang.Number"))
+			return true;
 		if(binding1.getName().equals("null")) {
 			return true;
 		}
@@ -370,6 +374,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
 		return validCommonSuperType(commonSuperType);
+	}
+
+	private static boolean isNumberPrimitiveType(ITypeBinding typeBinding) {
+		if(typeBinding.isPrimitive()) {
+			String name = typeBinding.getQualifiedName();
+			if(name.equals("byte") || name.equals("double") || name.equals("float") || name.equals("int") || name.equals("long") || name.equals("short"))
+				return true;
+		}
+		return false;
 	}
 
 	public static boolean validCommonSuperType(ITypeBinding commonSuperType) {
@@ -388,6 +401,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	public static ITypeBinding commonSuperType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		if(typeBinding1.getQualifiedName().equals("java.lang.Number") && isNumberPrimitiveType(typeBinding2))
+			return typeBinding1;
+		if(isNumberPrimitiveType(typeBinding1) && typeBinding2.getQualifiedName().equals("java.lang.Number"))
+			return typeBinding2;
 		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
 		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
 		for(ITypeBinding superType2 : superTypes2) {

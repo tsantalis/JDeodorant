@@ -200,6 +200,10 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getCloneType();
 	}
 
+	public CloneRefactoringType getCloneRefactoringType() {
+		return preconditionExaminer.getCloneRefactoringType();
+	}
+
 	protected abstract Set<PDGNode> getNodesInRegion1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
 			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot);
 

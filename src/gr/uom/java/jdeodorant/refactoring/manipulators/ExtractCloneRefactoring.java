@@ -38,6 +38,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPrecondi
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.UncommonSuperclassPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignature;
@@ -4499,9 +4500,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				else if(violation instanceof ReturnedVariablePreconditionViolation) {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
-			}
-			if(mapper.getCloneRefactoringType().equals(CloneRefactoringType.INFEASIBLE)) {
-				status.merge(RefactoringStatus.createErrorStatus("The refactoring of the clones is infeasible, because there is no common superclass to place the duplicated code"));
+				else if(violation instanceof UncommonSuperclassPreconditionViolation) {
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
+				}
 			}
 			if(status.getEntries().length == 0) {
 				apply();

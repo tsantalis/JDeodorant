@@ -49,6 +49,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolat
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.UncommonSuperclassPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
@@ -2487,6 +2488,8 @@ public class PreconditionExaminer {
 				return CloneRefactoringType.EXTRACT_STATIC_METHOD_TO_NEW_UTILITY_CLASS;
 			}
 			else if(infeasibleRefactoring(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
+				PreconditionViolation violation = new UncommonSuperclassPreconditionViolation(typeBinding1.getQualifiedName(), typeBinding2.getQualifiedName());
+				preconditionViolations.add(violation);
 				return CloneRefactoringType.INFEASIBLE;
 			}
 			else {
@@ -2494,6 +2497,8 @@ public class PreconditionExaminer {
 			}
 		}
 		else {
+			PreconditionViolation violation = new UncommonSuperclassPreconditionViolation(typeBinding1.getQualifiedName(), typeBinding2.getQualifiedName());
+			preconditionViolations.add(violation);
 			return CloneRefactoringType.INFEASIBLE;
 		}
 	}
@@ -2507,7 +2512,8 @@ public class PreconditionExaminer {
 	private boolean pullUpToCommonSuperclass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
 		return ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null &&
 				commonSuperTypeOfSourceTypeDeclarations.isClass() &&
-				(superclassInheritedOnlyByRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
+				(cloneFragmentsDoNotAccessFieldsOrMethods() ||
+				superclassInheritedOnlyByRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
 				superclassIsOneOfRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
 				!superclassDirectlyInheritedFromRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2));
 	}

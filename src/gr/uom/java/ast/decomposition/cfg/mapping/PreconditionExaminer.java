@@ -768,7 +768,7 @@ public class PreconditionExaminer {
 					break;
 				}
 			}
-			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodFoundInSuperType) &&
+			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodDeclaringClassTypeBinding.isEqualTo(commonSuperclass) || invokedMethodFoundInSuperType) &&
 					!methodInvocationsToBeExcluded.contains(invocation.getMethodInvocation())) {
 				//exclude recursive method calls
 				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
@@ -2504,9 +2504,10 @@ public class PreconditionExaminer {
 	}
 
 	private boolean infeasibleRefactoring(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		//common super type is an interface and at least one of the subclasses does not have java.lang.Object as a superclass
 		return commonSuperTypeOfSourceTypeDeclarations.isInterface() &&
-				!typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") &&
-				!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object");
+				(!typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") ||
+				!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object"));
 	}
 
 	private boolean pullUpToCommonSuperclass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {

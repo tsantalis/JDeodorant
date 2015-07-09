@@ -792,7 +792,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
 							//check if the common superclass is one of the source classes
 							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+									!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
 								MethodDeclaration copiedMethodDeclaration = (MethodDeclaration) ASTNode.copySubtree(ast, methodDeclaration1);
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(copiedMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								List<IExtendedModifier> originalModifiers = copiedMethodDeclaration.modifiers();
@@ -839,7 +841,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 						else {
 							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+									!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+									!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
 								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
 								if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
@@ -2259,8 +2263,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				int occurrencesInDifferences2 = 0;
 				for(ASTNodeDifference difference : differences) {
 					BindingSignaturePair signaturePair = difference.getBindingSignaturePair();
-					occurrencesInDifferences1 += signaturePair.getSignature1().getOccurrences(variableDeclaration1.resolveBinding().getKey());
-					occurrencesInDifferences2 += signaturePair.getSignature2().getOccurrences(variableDeclaration2.resolveBinding().getKey());
+					if(!mapper.getRenamedVariables().contains(signaturePair)) {
+						occurrencesInDifferences1 += signaturePair.getSignature1().getOccurrences(variableDeclaration1.resolveBinding().getKey());
+						occurrencesInDifferences2 += signaturePair.getSignature2().getOccurrences(variableDeclaration2.resolveBinding().getKey());
+					}
 				}
 				List<Expression> simpleNames1 = expressionExtractor.getVariableInstructions(node1.getASTStatement());
 				List<Expression> simpleNames2 = expressionExtractor.getVariableInstructions(node2.getASTStatement());
@@ -2278,7 +2284,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						occurrencesInStatement2++;
 					}
 				}
-				if(occurrencesInStatement1 >= occurrencesInDifferences1 || occurrencesInStatement2 >= occurrencesInDifferences2) {
+				if(occurrencesInStatement1 > occurrencesInDifferences1 || occurrencesInStatement2 > occurrencesInDifferences2) {
 					return true;
 				}
 			}

@@ -776,7 +776,7 @@ public class PreconditionExaminer {
 					MethodObject calledMethod = system.getMethod(invocation);
 					if(calledMethod != null) {
 						accessedMethods.add(calledMethod);
-						FieldInstructionObject getterFieldInstruction = calledMethod.isGetter();
+						/*FieldInstructionObject getterFieldInstruction = calledMethod.isGetter();
 						if(getterFieldInstruction != null) {
 							Set<PlainVariable> usedFields = calledMethod.getUsedFieldsThroughThisReference();
 							for(PlainVariable plainVariable : usedFields) {
@@ -785,7 +785,7 @@ public class PreconditionExaminer {
 									break;
 								}
 							}
-						}
+						}*/
 						ClassObject calledClass = system.getClassObject(calledMethod.getClassName());
 						getAdditionalLocallyAccessedFieldsAndMethods(calledMethod, calledClass, indirectlyAccessedFields, accessedMethods);
 					}

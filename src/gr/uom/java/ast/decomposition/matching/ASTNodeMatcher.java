@@ -444,7 +444,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				//return the first leaf that is a system class, if no system class is found return the first leaf that is a system interface
 				for(ITypeBinding leafTypeBinding : leafTypeBindings) {
-					if(leafTypeBinding.isClass() && ASTReader.getSystemObject().getClassObject(leafTypeBinding.getQualifiedName()) != null) {
+					if(leafTypeBinding.isClass()) {
 						return leafTypeBinding;
 					}
 				}

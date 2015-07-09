@@ -200,6 +200,10 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getCloneType();
 	}
 
+	public CloneRefactoringType getCloneRefactoringType() {
+		return preconditionExaminer.getCloneRefactoringType();
+	}
+
 	public List<PDGExpressionGap> getRefactorableExpressionGaps() {
 		return preconditionExaminer.getRefactorableExpressionGaps();
 	}

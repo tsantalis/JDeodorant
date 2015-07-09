@@ -2,7 +2,9 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
@@ -66,6 +68,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
@@ -77,6 +80,7 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PostfixExpression;
@@ -86,6 +90,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.ThisExpression;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PreconditionExaminer {
@@ -127,6 +132,7 @@ public class PreconditionExaminer {
 	private TreeSet<PDGNode> allNodesInSubTreePDG1;
 	private TreeSet<PDGNode> allNodesInSubTreePDG2;
 	private LambdaExpressionPreconditionExaminer lambdaExpressionPreconditionExaminer;
+	private CloneRefactoringType cloneRefactoringType;
 	
 	public PreconditionExaminer(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -328,6 +334,7 @@ public class PreconditionExaminer {
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, allMappedNodesG1);
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, allMappedNodesG2);
 			checkPreconditionsAboutReturnedVariables();
+			this.cloneRefactoringType = computeRefactoringType();
 		}
 	}
 
@@ -2449,5 +2456,258 @@ public class PreconditionExaminer {
 			}
 		}
 		return false;
+	}
+
+	public CloneRefactoringType getCloneRefactoringType() {
+		return cloneRefactoringType;
+	}
+
+	private CloneRefactoringType computeRefactoringType() {
+		AbstractMethodDeclaration methodObject1 = getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = getPDG2().getMethod();
+		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
+		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
+		
+		List<TypeDeclaration> sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
+		sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration1.getParent());
+		sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
+		
+		ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
+		ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
+		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) &&
+				sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
+			return CloneRefactoringType.EXTRACT_LOCAL_METHOD;
+		}
+		else if(commonSuperTypeOfSourceTypeDeclarations != null) {
+			if(pullUpToCommonSuperclass(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
+				return CloneRefactoringType.PULL_UP_TO_EXISTING_SUPERCLASS;
+			}
+			else if(extractToUtilityClass(commonSuperTypeOfSourceTypeDeclarations)) {
+				return CloneRefactoringType.EXTRACT_STATIC_METHOD_TO_NEW_UTILITY_CLASS;
+			}
+			else if(infeasibleRefactoring(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
+				return CloneRefactoringType.INFEASIBLE;
+			}
+			else {
+				return CloneRefactoringType.PULL_UP_TO_NEW_SUPERCLASS;
+			}
+		}
+		else {
+			return CloneRefactoringType.INFEASIBLE;
+		}
+	}
+
+	private boolean infeasibleRefactoring(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		return commonSuperTypeOfSourceTypeDeclarations.isInterface() &&
+				!typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") &&
+				!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object");
+	}
+
+	private boolean pullUpToCommonSuperclass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		return ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName()) != null &&
+				commonSuperTypeOfSourceTypeDeclarations.isClass() &&
+				(superclassInheritedOnlyByRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
+				superclassIsOneOfRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) ||
+				!superclassDirectlyInheritedFromRefactoredSubclasses(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2));
+	}
+
+	private boolean superclassDirectlyInheritedFromRefactoredSubclasses(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		return typeBinding1.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+				typeBinding2.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations);
+	}
+
+	private boolean superclassIsOneOfRefactoredSubclasses(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		if(typeBinding1.isEqualTo(commonSuperTypeOfSourceTypeDeclarations) ||
+				typeBinding2.isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
+			return true;
+		}
+		return false;
+	}
+
+	private boolean superclassInheritedOnlyByRefactoredSubclasses(ITypeBinding commonSuperTypeOfSourceTypeDeclarations,
+			ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		if(!commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
+			CompilationUnitCache cache = CompilationUnitCache.getInstance();
+			Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
+			if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
+					subTypes.contains((IType)typeBinding2.getJavaElement())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {
+		return cloneFragmentsDoNotAccessFieldsOrMethods() && (ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations) || commonSuperTypeOfSourceTypeDeclarations.isInterface());
+	}
+
+	private boolean cloneFragmentsDoNotAccessFieldsOrMethods() {
+		Set<AbstractVariable> accessedLocalFields1 = new LinkedHashSet<AbstractVariable>();
+		accessedLocalFields1.addAll(getDirectlyAccessedLocalFieldsG1());
+		//accessedLocalFields1.addAll(mapper.getIndirectlyAccessedLocalFieldsG1());
+		Set<AbstractVariable> accessedLocalFields2 = new LinkedHashSet<AbstractVariable>();
+		accessedLocalFields2.addAll(getDirectlyAccessedLocalFieldsG2());
+		//accessedLocalFields2.addAll(mapper.getIndirectlyAccessedLocalFieldsG2());
+		Set<Expression> allSimpleNames1 = extractSimpleNames(getRemovableNodesG1());
+		Set<Expression> allSimpleNames2 = extractSimpleNames(getRemovableNodesG2());
+		int fieldCounter1 = 0;
+		for(AbstractVariable variable1 : accessedLocalFields1) {
+			if(variable1 instanceof PlainVariable) {
+				for(Expression expression : allSimpleNames1) {
+					SimpleName simpleName = (SimpleName)expression;
+					if(simpleName.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
+						IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+						boolean isStaticField = false;
+						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+							isStaticField = true;
+						}
+						boolean foundInDifferences = false;
+						for(ASTNodeDifference difference : getNodeDifferences()) {
+							Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+							if(isExpressionWithinExpression(simpleName, expr1)) {
+								foundInDifferences = true;
+								break;
+							}
+						}
+						if(!foundInDifferences && !isStaticField) {
+							fieldCounter1++;
+						}
+					}
+				}
+			}
+		}
+		int fieldCounter2 = 0;
+		for(AbstractVariable variable2 : accessedLocalFields2) {
+			if(variable2 instanceof PlainVariable) {
+				for(Expression expression : allSimpleNames2) {
+					SimpleName simpleName = (SimpleName)expression;
+					if(simpleName.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
+						IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+						boolean isStaticField = false;
+						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+							isStaticField = true;
+						}
+						boolean foundInDifferences = false;
+						for(ASTNodeDifference difference : getNodeDifferences()) {
+							Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+							if(isExpressionWithinExpression(simpleName, expr2)) {
+								foundInDifferences = true;
+								break;
+							}
+						}
+						if(!foundInDifferences && !isStaticField) {
+							fieldCounter2++;
+						}
+					}
+				}
+			}
+		}
+		Set<Expression> allMethodInvocations1 = extractMethodInvocations(getRemovableNodesG1());
+		Set<Expression> allMethodInvocations2 = extractMethodInvocations(getRemovableNodesG2());
+		int methodCounter1 = 0;
+		for(MethodObject m : getAccessedLocalMethodsG1()) {
+			for(Expression expression : allMethodInvocations1) {
+				if(expression instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation)expression;
+					if(methodInvocation.resolveMethodBinding().isEqualTo(m.getMethodDeclaration().resolveBinding())) {
+						boolean foundInDifferences = false;
+						for(ASTNodeDifference difference : getNodeDifferences()) {
+							Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+							if(isExpressionWithinExpression(methodInvocation, expr1)) {
+								foundInDifferences = true;
+								break;
+							}
+						}
+						if(!foundInDifferences && !m.isStatic()) {
+							methodCounter1++;
+						}
+					}
+				}
+			}
+		}
+		int methodCounter2 = 0;
+		for(MethodObject m : getAccessedLocalMethodsG2()) {
+			for(Expression expression : allMethodInvocations2) {
+				if(expression instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation)expression;
+					if(methodInvocation.resolveMethodBinding().isEqualTo(m.getMethodDeclaration().resolveBinding())) {
+						boolean foundInDifferences = false;
+						for(ASTNodeDifference difference : getNodeDifferences()) {
+							Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+							if(isExpressionWithinExpression(methodInvocation, expr2)) {
+								foundInDifferences = true;
+								break;
+							}
+						}
+						if(!foundInDifferences && !m.isStatic()) {
+							methodCounter2++;
+						}
+					}
+				}
+			}
+		}
+		//allowing non-static method calls in only one of the clone fragments
+		return fieldCounter1 == 0 && fieldCounter2 == 0 && (methodCounter1 == 0 || methodCounter2 == 0);
+	}
+
+	private Set<Expression> extractSimpleNames(Set<PDGNode> mappedNodes) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<Expression> allSimpleNames = new LinkedHashSet<Expression>();
+		for(PDGNode pdgNode : mappedNodes) {
+			AbstractStatement abstractStatement = pdgNode.getStatement();
+			if(abstractStatement instanceof StatementObject) {
+				StatementObject statement = (StatementObject)abstractStatement;
+				allSimpleNames.addAll(expressionExtractor.getVariableInstructions(statement.getStatement()));
+			}
+			else if(abstractStatement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+				for(AbstractExpression expression : composite.getExpressions()) {
+					allSimpleNames.addAll(expressionExtractor.getVariableInstructions(expression.getExpression()));
+				}
+				if(composite instanceof TryStatementObject) {
+					TryStatementObject tryStatement = (TryStatementObject)composite;
+					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+					for(CatchClauseObject catchClause : catchClauses) {
+						allSimpleNames.addAll(expressionExtractor.getVariableInstructions(catchClause.getBody().getStatement()));
+					}
+					if(tryStatement.getFinallyClause() != null) {
+						allSimpleNames.addAll(expressionExtractor.getVariableInstructions(tryStatement.getFinallyClause().getStatement()));
+					}
+				}
+			}
+		}
+		return allSimpleNames;
+	}
+
+	private Set<Expression> extractMethodInvocations(Set<PDGNode> mappedNodes) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<Expression> allMethodInvocations = new LinkedHashSet<Expression>();
+		for(PDGNode pdgNode : mappedNodes) {
+			AbstractStatement abstractStatement = pdgNode.getStatement();
+			if(abstractStatement instanceof StatementObject) {
+				StatementObject statement = (StatementObject)abstractStatement;
+				allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(statement.getStatement()));
+			}
+			else if(abstractStatement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+				for(AbstractExpression expression : composite.getExpressions()) {
+					allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(expression.getExpression()));
+				}
+				if(composite instanceof TryStatementObject) {
+					TryStatementObject tryStatement = (TryStatementObject)composite;
+					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+					for(CatchClauseObject catchClause : catchClauses) {
+						allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(catchClause.getBody().getStatement()));
+					}
+					if(tryStatement.getFinallyClause() != null) {
+						allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(tryStatement.getFinallyClause().getStatement()));
+					}
+				}
+			}
+		}
+		return allMethodInvocations;
 	}
 }

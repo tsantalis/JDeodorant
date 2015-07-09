@@ -4017,6 +4017,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			SwitchStatement parentSwitch = (SwitchStatement)firstStatement.getParent();
 			blockRewrite = methodBodyRewriter.getListRewrite(parentSwitch, SwitchStatement.STATEMENTS_PROPERTY);
 		}
+		else if(firstStatement.getParent() instanceof IfStatement) {
+			//first statement is directly nested under an else or an if clause
+			IfStatement ifStatement = (IfStatement)firstStatement.getParent();
+			if(ifStatement.getThenStatement().equals(firstStatement)) {
+				Block thenBlock = ast.newBlock();
+				methodBodyRewriter.replace(firstStatement, thenBlock, null);
+				blockRewrite = methodBodyRewriter.getListRewrite(thenBlock, Block.STATEMENTS_PROPERTY);
+			}
+			else if(ifStatement.getElseStatement().equals(firstStatement)) {
+				Block elseBlock = ast.newBlock();
+				methodBodyRewriter.replace(firstStatement, elseBlock, null);
+				blockRewrite = methodBodyRewriter.getListRewrite(elseBlock, Block.STATEMENTS_PROPERTY);
+			}
+		}
 		CloneStructureNode root = mapper.getCloneStructureRoot();
 		List<CloneStructureNode> processedCloneStructureGapNodes = new ArrayList<CloneStructureNode>();
 		Set<PDGNode> remainingMovableNodes = new TreeSet<PDGNode>();
@@ -4096,7 +4110,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodBodyRewriter.set(newVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, variableType, null);
 				methodInvocationStatement = newVariableDeclarationStatement;
 			}
-			blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
+			if(firstStatement.getParent() instanceof IfStatement) {
+				blockRewrite.insertFirst(methodInvocationStatement, null);
+			}
+			else {
+				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
+			}
 			/*if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
 				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
 			}
@@ -4125,7 +4144,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				methodInvocationStatement = ast.newExpressionStatement(methodInvocation);
 			}
-			blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
+			if(firstStatement.getParent() instanceof IfStatement) {
+				blockRewrite.insertFirst(methodInvocationStatement, null);
+			}
+			else {
+				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
+			}
 			/*if(nodesToBePreservedInTheOriginalMethod.get(index).isEmpty()) {
 				blockRewrite.insertBefore(methodInvocationStatement, firstStatement, null);
 			}
@@ -4161,6 +4185,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(PDGNode pdgNode : /*nodesToBeRemoved*/removableNodes) {
 			Statement statement = pdgNode.getASTStatement();
+			if(statement.equals(firstStatement) && statement.getParent() instanceof IfStatement) {
+				continue;
+			}
 			methodBodyRewriter.remove(statement, null);
 		}
 		Set<LabeledStatement> labeledStatements = labeledStatementsToBeRemoved.get(index);

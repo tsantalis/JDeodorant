@@ -655,25 +655,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							//copy the constructors declared in the subclasses that contain a super-constructor call
 							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 							for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
-								List<SingleVariableDeclaration> parameters1 = methodDeclaration1.parameters();
 								if(methodDeclaration1.isConstructor()) {
 									boolean matchingConstructorFound = false;
+									SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
 									for(MethodDeclaration methodDeclaration2 : sourceTypeDeclarations.get(1).getMethods()) {
-										List<SingleVariableDeclaration> parameters2 = methodDeclaration2.parameters();
 										if(methodDeclaration2.isConstructor()) {
-											if(matchingParameterTypes(parameters1, parameters2)) {
-												matchingConstructorFound = true;
-												SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
-												SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
-												if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
-													List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
-													List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
+											SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
+											if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
+												List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
+												List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
+												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
+													matchingConstructorFound = true;
 													if(compareStatements(sourceCompilationUnits.get(0).getTypeRoot(), sourceCompilationUnits.get(1).getTypeRoot(),
 															superConstructorInvocation1, superConstructorInvocation2)) {
 														MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
 														bodyDeclarationsRewrite.insertLast(constructor, null);
 													}
-													else if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
+													else {
 														MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
 														intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
 														intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);

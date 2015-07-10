@@ -172,7 +172,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Map<BindingSignaturePair, ASTNodeDifference> parameterizedDifferenceMap;
 	private List<ArrayList<VariableDeclaration>> returnedVariables;
 	private String extractedMethodName;
-	//private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
+	private List<Set<MethodDeclaration>> constructorsToBeCopiedInSubclasses;
 	private CloneInformation cloneInfo;
 	private Set<VariableBindingPair> nonEffectivelyFinalLocalVariables;
 	
@@ -287,6 +287,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			nonEffectivelyFinalLocalVariables.addAll(blockGap.getNonEffectivelyFinalLocalVariableBindings());
 		}
 		this.cloneInfo = null;
+		this.constructorsToBeCopiedInSubclasses = new ArrayList<Set<MethodDeclaration>>();
+		for(int i=0; i<2; i++) {
+			constructorsToBeCopiedInSubclasses.add(new LinkedHashSet<MethodDeclaration>());
+		}
 	}
 
 	public Set<IJavaElement> getJavaElementsToOpenInEditor() {
@@ -317,7 +321,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
 		}
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i), constructorsToBeCopiedInSubclasses.get(i));
 			if(!singleSourceCompilationUnit) {
 				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
 			}
@@ -709,6 +713,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration1) != null) {
 										MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
 										bodyDeclarationsRewrite.insertLast(constructor, null);
+										constructorsToBeCopiedInSubclasses.get(1).add(methodDeclaration1);
 									}
 								}
 							}
@@ -728,6 +733,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration2) != null) {
 										MethodDeclaration constructor = copyConstructor(methodDeclaration2, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
 										bodyDeclarationsRewrite.insertLast(constructor, null);
+										constructorsToBeCopiedInSubclasses.get(0).add(methodDeclaration2);
 									}
 								}
 							}
@@ -1658,6 +1664,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return true;
 	}
 
+	private boolean matchingParameterTypesWithArgumentTypes(List<SingleVariableDeclaration> parameters1, List<Expression> arguments2) {
+		if(parameters1.size() != arguments2.size()) {
+			return false;
+		}
+		else {
+			for(int i=0; i<parameters1.size(); i++) {
+				SingleVariableDeclaration parameter1 = parameters1.get(i);
+				Expression argument2 = arguments2.get(i);
+				if(!parameter1.getType().resolveBinding().isEqualTo(argument2.resolveTypeBinding())) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
 	private boolean type2Clones(MethodDeclaration methodDeclaration1, MethodDeclaration methodDeclaration2) {
 		if(methodDeclaration1.getBody() != null && methodDeclaration2.getBody() != null) {
 			StatementCollector collector1 = new StatementCollector();
@@ -3618,10 +3640,53 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
+	private void addConstructorDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+		//check if there is already a constructor declared with the same signature as the super constructor call
+		SuperConstructorInvocation superConstructorInvocation = firstStatementIsSuperConstructorInvocation(methodDeclaration);
+		boolean constructorFound = false;
+		for(MethodDeclaration method : typeDeclaration.getMethods()) {
+			if(method.isConstructor()) {
+				List<SingleVariableDeclaration> parameters = method.parameters();
+				List<Expression> arguments = superConstructorInvocation.arguments();
+				if(matchingParameterTypesWithArgumentTypes(parameters, arguments)) {
+					constructorFound = true;
+					break;
+				}
+			}
+		}
+		if(!constructorFound) {
+			AST ast = typeDeclaration.getAST();
+			ASTRewrite rewriter = ASTRewrite.create(ast);
+			Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
+			MethodDeclaration constructor = copyConstructor(methodDeclaration, ast, rewriter, typeDeclaration.getName(), requiredImportTypeBindings);
+			ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			bodyRewrite.insertFirst(constructor, null);
+			try {
+				TextEdit sourceEdit = rewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				if(change == null) {
+					MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+					change = new CompilationUnitChange("", sourceICompilationUnit);
+					change.setEdit(sourceMultiTextEdit);
+					compilationUnitChanges.put(sourceICompilationUnit, change);
+				}
+				change.getEdit().addChild(sourceEdit);
+				String message = "Create constructor in subclass";
+				change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
-			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
+			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp, Set<MethodDeclaration> constructorsToBeCopied) {
 		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
+		}
+		for(MethodDeclaration constructor : constructorsToBeCopied) {
+			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
 			if(methodDeclaration.getRoot().equals(compilationUnit)) {

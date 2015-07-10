@@ -140,6 +140,22 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getIndirectlyAccessedLocalFieldsG2();
 	}
 
+	public Set<AbstractVariable> getDirectlyModifiedLocalFieldsG1() {
+		return preconditionExaminer.getDirectlyModifiedLocalFieldsG1();
+	}
+
+	public Set<AbstractVariable> getDirectlyModifiedLocalFieldsG2() {
+		return preconditionExaminer.getDirectlyModifiedLocalFieldsG2();
+	}
+
+	public Set<AbstractVariable> getIndirectlyModifiedLocalFieldsG1() {
+		return preconditionExaminer.getIndirectlyModifiedLocalFieldsG1();
+	}
+
+	public Set<AbstractVariable> getIndirectlyModifiedLocalFieldsG2() {
+		return preconditionExaminer.getIndirectlyModifiedLocalFieldsG2();
+	}
+
 	public Set<MethodObject> getAccessedLocalMethodsG1() {
 		return preconditionExaminer.getAccessedLocalMethodsG1();
 	}

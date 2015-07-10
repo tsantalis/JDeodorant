@@ -1114,10 +1114,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				else if(expression2 != null) {
 					isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
 				}
-				ITypeBinding typeBinding1 = expression1 != null ? expression1.getExpression().resolveTypeBinding()
-						: expression2.getExpression().resolveTypeBinding();
-				ITypeBinding typeBinding2 = expression2 != null ? expression2.getExpression().resolveTypeBinding()
-						: expression1.getExpression().resolveTypeBinding();
+				ITypeBinding typeBinding1 = expression1 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression()).resolveTypeBinding()
+						: ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding();
+				ITypeBinding typeBinding2 = expression2 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding()
+						: ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression()).resolveTypeBinding();
 				if(!isReturnedVariable) {
 					ITypeBinding typeBinding = null;
 					if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) || difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||

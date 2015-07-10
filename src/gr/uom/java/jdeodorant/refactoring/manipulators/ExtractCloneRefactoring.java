@@ -165,7 +165,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private String extractedMethodName;
 	//private List<TreeSet<PDGNode>> nodesToBePreservedInTheOriginalMethod;
 	private CloneInformation cloneInfo;
-	private List<Set<MethodDeclaration>> constructorsToBeCopiedInSubclasses;
 	
 	private class CloneInformation {
 		private ICompilationUnit sourceICompilationUnit;
@@ -269,10 +268,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 			compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		}
-		this.constructorsToBeCopiedInSubclasses = new ArrayList<Set<MethodDeclaration>>();
-		for(int i=0; i<2; i++) {
-			constructorsToBeCopiedInSubclasses.add(new LinkedHashSet<MethodDeclaration>());
-		}
 		this.cloneInfo = null;
 	}
 
@@ -300,8 +295,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		initialize();
 		extractClone();
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
-					constructorsToBeCopiedInSubclasses.get(i));
+			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i));
 			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
 		}
@@ -690,7 +684,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration1) != null) {
 										MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
 										bodyDeclarationsRewrite.insertLast(constructor, null);
-										constructorsToBeCopiedInSubclasses.get(1).add(methodDeclaration1);
 									}
 								}
 							}
@@ -710,7 +703,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration2) != null) {
 										MethodDeclaration constructor = copyConstructor(methodDeclaration2, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
 										bodyDeclarationsRewrite.insertLast(constructor, null);
-										constructorsToBeCopiedInSubclasses.get(0).add(methodDeclaration2);
 									}
 								}
 							}
@@ -739,12 +731,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		Set<VariableDeclaration> accessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
 		Set<VariableDeclaration> accessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
+		Set<VariableDeclaration> modifiedLocalFieldsG1 = getLocallyAccessedFields(mapper.getDirectlyModifiedLocalFieldsG1(), sourceTypeDeclarations.get(0));
+		Set<VariableDeclaration> modifiedLocalFieldsG2 = getLocallyAccessedFields(mapper.getDirectlyModifiedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 		if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) ||
 				!sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
-			pullUpLocallyAccessedFields(accessedLocalFieldsG1, accessedLocalFieldsG2, bodyDeclarationsRewrite, requiredImportTypeBindings);
+			pullUpLocallyAccessedFields(accessedLocalFieldsG1, accessedLocalFieldsG2, modifiedLocalFieldsG1, modifiedLocalFieldsG2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 
 			Set<VariableDeclaration> indirectlyAccessedLocalFieldsG1 = getLocallyAccessedFields(mapper.getIndirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
 			Set<VariableDeclaration> indirectlyAccessedLocalFieldsG2 = getLocallyAccessedFields(mapper.getIndirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
+			Set<VariableDeclaration> indirectlyModifiedLocalFieldsG1 = getLocallyAccessedFields(mapper.getIndirectlyModifiedLocalFieldsG1(), sourceTypeDeclarations.get(0));
+			Set<VariableDeclaration> indirectlyModifiedLocalFieldsG2 = getLocallyAccessedFields(mapper.getIndirectlyModifiedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 			Set<MethodObject> accessedLocalMethodsG1 = mapper.getAccessedLocalMethodsG1();
 			Set<MethodObject> accessedLocalMethodsG2 = mapper.getAccessedLocalMethodsG2();
 			for(MethodObject localMethodG1 : accessedLocalMethodsG1) {
@@ -762,6 +758,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						TypeDeclaration typeDeclaration2 = findTypeDeclaration(methodDeclaration2);
 						Set<VariableDeclaration> fieldsAccessedInMethod1 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG1, methodDeclaration1);
 						Set<VariableDeclaration> fieldsAccessedInMethod2 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG2, methodDeclaration2);
+						Set<VariableDeclaration> fieldsModifiedInMethod1 = getFieldsAccessedInMethod(indirectlyModifiedLocalFieldsG1, methodDeclaration1);
+						Set<VariableDeclaration> fieldsModifiedInMethod2 = getFieldsAccessedInMethod(indirectlyModifiedLocalFieldsG2, methodDeclaration2);
 						boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
 						boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
 						if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
@@ -805,7 +803,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								//check if the pulled up method is using fields that should be also pulled up, remove fields that have been already pulled up
 								fieldsAccessedInMethod1.removeAll(accessedLocalFieldsG1);
 								fieldsAccessedInMethod2.removeAll(accessedLocalFieldsG2);
-								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
+								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, fieldsModifiedInMethod1, fieldsModifiedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 							}
 							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
@@ -1188,11 +1186,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
-		for(SingleVariableDeclaration parameter : parameters) {
-			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-			typeBindings.add(parameter.getType().resolveBinding());
-			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-			parameterRewriter.insertLast(parameter, null);
+		List<Expression> superConstructorArguments = superConstructorInvocation.arguments();
+		for(Expression argument : superConstructorArguments) {
+			if(argument instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)argument;	
+				for(SingleVariableDeclaration parameter : parameters) {
+					if(parameter.resolveBinding().isEqualTo(simpleName.resolveBinding())) {
+						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+						typeBindings.add(parameter.getType().resolveBinding());
+						RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+						parameterRewriter.insertLast(parameter, null);
+						break;
+					}
+				}
+			}
 		}
 		Block constructorBody = intermediateAST.newBlock();
 		if(superConstructorInvocation != null) {
@@ -1435,6 +1442,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void pullUpLocallyAccessedFields(Set<VariableDeclaration> accessedLocalFieldsG1, Set<VariableDeclaration> accessedLocalFieldsG2,
+			Set<VariableDeclaration> modifiedLocalFieldsG1, Set<VariableDeclaration> modifiedLocalFieldsG2,
 			ListRewrite bodyDeclarationsRewrite, Set<ITypeBinding> requiredImportTypeBindings) {
 		ASTRewrite sourceRewriter = cloneInfo.sourceRewriter;
 		AST ast = cloneInfo.ast;
@@ -1538,7 +1546,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}*/
 						boolean avoidPullUpDueToSerialization1 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(0), localFieldG1);
 						boolean avoidPullUpDueToSerialization2 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(1), localFieldG2);
-						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
+						//TODO consider creating abstract setter/getter methods in the common superclass for the modified fields that need to be serialized
+						if((!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) || (modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2))) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
@@ -2990,12 +2999,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
-			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp, Set<MethodDeclaration> constructorsToBeCopied) {
+			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
 		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
-		}
-		for(MethodDeclaration constructor : constructorsToBeCopied) {
-			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
 			if(methodDeclaration.getRoot().equals(compilationUnit)) {
@@ -3023,31 +3029,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				change.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
 			}
 		} catch (CoreException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void addConstructorDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
-		AST ast = typeDeclaration.getAST();
-		ASTRewrite rewriter = ASTRewrite.create(ast);
-		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
-		MethodDeclaration constructor = copyConstructor(methodDeclaration, ast, rewriter, typeDeclaration.getName(), requiredImportTypeBindings);
-		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		bodyRewrite.insertFirst(constructor, null);
-		try {
-			TextEdit sourceEdit = rewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-			if(change == null) {
-				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
-				change = new CompilationUnitChange("", sourceICompilationUnit);
-				change.setEdit(sourceMultiTextEdit);
-				compilationUnitChanges.put(sourceICompilationUnit, change);
-			}
-			change.getEdit().addChild(sourceEdit);
-			String message = "Create constructor in subclass";
-			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
-		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
 	}

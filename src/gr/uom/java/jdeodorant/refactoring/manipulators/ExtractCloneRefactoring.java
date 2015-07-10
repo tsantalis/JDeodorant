@@ -2261,11 +2261,17 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					return true;
 				int occurrencesInDifferences1 = 0;
 				int occurrencesInDifferences2 = 0;
+				boolean isRenamedVariable = false;
 				for(ASTNodeDifference difference : differences) {
 					BindingSignaturePair signaturePair = difference.getBindingSignaturePair();
-					if(!mapper.getRenamedVariables().contains(signaturePair)) {
-						occurrencesInDifferences1 += signaturePair.getSignature1().getOccurrences(variableDeclaration1.resolveBinding().getKey());
-						occurrencesInDifferences2 += signaturePair.getSignature2().getOccurrences(variableDeclaration2.resolveBinding().getKey());
+					if(!difference.containsOnlyDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) && !difference.containsOnlyDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
+						int occurrences1 = signaturePair.getSignature1().getOccurrences(variableDeclaration1.resolveBinding().getKey());
+						int occurrences2 = signaturePair.getSignature2().getOccurrences(variableDeclaration2.resolveBinding().getKey());
+						if(occurrences1 > 0 && occurrences2 > 0 && mapper.getRenamedVariables().contains(signaturePair)) {
+							isRenamedVariable = true;
+						}
+						occurrencesInDifferences1 += occurrences1;
+						occurrencesInDifferences2 += occurrences2;
 					}
 				}
 				List<Expression> simpleNames1 = expressionExtractor.getVariableInstructions(node1.getASTStatement());
@@ -2284,8 +2290,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						occurrencesInStatement2++;
 					}
 				}
-				if(occurrencesInStatement1 > occurrencesInDifferences1 || occurrencesInStatement2 > occurrencesInDifferences2) {
-					return true;
+				if(isRenamedVariable) {
+					if(occurrencesInStatement1 >= occurrencesInDifferences1 || occurrencesInStatement2 >= occurrencesInDifferences2)
+						return true;
+				}
+				else {
+					if(occurrencesInStatement1 > occurrencesInDifferences1 || occurrencesInStatement2 > occurrencesInDifferences2)
+						return true;
 				}
 			}
 		}

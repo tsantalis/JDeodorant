@@ -614,10 +614,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 							//copy the constructors declared in the subclasses that contain a super-constructor call
 							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+							Set<String> processedSuperConstructorBindingKeys = new LinkedHashSet<String>();
 							for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
 								if(methodDeclaration1.isConstructor()) {
-									boolean matchingConstructorFound = false;
+									boolean matchingSuperConstructorCallFound = false;
 									SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
+									String superConstructorBindingKey1 = superConstructorInvocation1 != null ? superConstructorInvocation1.resolveConstructorBinding().getKey() : null;
 									for(MethodDeclaration methodDeclaration2 : sourceTypeDeclarations.get(1).getMethods()) {
 										if(methodDeclaration2.isConstructor()) {
 											SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
@@ -625,73 +627,87 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 												List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
 												List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
 												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
-													matchingConstructorFound = true;
-													if(compareStatements(sourceCompilationUnits.get(0).getTypeRoot(), sourceCompilationUnits.get(1).getTypeRoot(),
-															superConstructorInvocation1, superConstructorInvocation2)) {
-														MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
-														bodyDeclarationsRewrite.insertLast(constructor, null);
-													}
-													else {
-														MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
-														intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
-														intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
-														ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
-														List<IExtendedModifier> modifiers = methodDeclaration1.modifiers();
-														for(IExtendedModifier modifier : modifiers) {
-															if(modifier instanceof Modifier) {
-																constructorModifierRewriter.insertLast((Modifier)modifier, null);
+													matchingSuperConstructorCallFound = true;
+													if(!processedSuperConstructorBindingKeys.contains(superConstructorBindingKey1)) {
+														processedSuperConstructorBindingKeys.add(superConstructorBindingKey1);
+														if(compareStatements(sourceCompilationUnits.get(0).getTypeRoot(), sourceCompilationUnits.get(1).getTypeRoot(),
+																superConstructorInvocation1, superConstructorInvocation2)) {
+															MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
+															bodyDeclarationsRewrite.insertLast(constructor, null);
+														}
+														else {
+															MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
+															intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
+															intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
+															ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
+															List<IExtendedModifier> modifiers = methodDeclaration1.modifiers();
+															for(IExtendedModifier modifier : modifiers) {
+																if(modifier instanceof Modifier) {
+																	constructorModifierRewriter.insertLast((Modifier)modifier, null);
+																}
 															}
+															ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
+															SuperConstructorInvocation superConstructorInvocation = intermediateAST.newSuperConstructorInvocation();
+															ListRewrite argumentRewriter = intermediateRewriter.getListRewrite(superConstructorInvocation, SuperConstructorInvocation.ARGUMENTS_PROPERTY);
+															for(Expression argument : superConstructorArguments1) {
+																SingleVariableDeclaration parameter = intermediateAST.newSingleVariableDeclaration();
+																ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
+																typeBindings.add(argumentTypeBinding);
+																Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
+																intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+																String typeName = argumentTypeBinding.getName();
+																String parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
+																SimpleName parameterSimpleName = intermediateAST.newSimpleName(parameterName);
+																intermediateRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterSimpleName, null);
+																parameterRewriter.insertLast(parameter, null);
+																argumentRewriter.insertLast(parameterSimpleName, null);
+															}
+															Block constructorBody = intermediateAST.newBlock();
+															ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
+															constructorBodyRewriter.insertLast(superConstructorInvocation, null);
+															intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
+															bodyDeclarationsRewrite.insertLast(constructor, null);
 														}
-														ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
-														SuperConstructorInvocation superConstructorInvocation = intermediateAST.newSuperConstructorInvocation();
-														ListRewrite argumentRewriter = intermediateRewriter.getListRewrite(superConstructorInvocation, SuperConstructorInvocation.ARGUMENTS_PROPERTY);
-														for(Expression argument : superConstructorArguments1) {
-															SingleVariableDeclaration parameter = intermediateAST.newSingleVariableDeclaration();
-															ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
-															typeBindings.add(argumentTypeBinding);
-															Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
-															intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-															String typeName = argumentTypeBinding.getName();
-															String parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
-															SimpleName parameterSimpleName = intermediateAST.newSimpleName(parameterName);
-															intermediateRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterSimpleName, null);
-															parameterRewriter.insertLast(parameter, null);
-															argumentRewriter.insertLast(parameterSimpleName, null);
-														}
-														Block constructorBody = intermediateAST.newBlock();
-														ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
-														constructorBodyRewriter.insertLast(superConstructorInvocation, null);
-														intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
-														bodyDeclarationsRewrite.insertLast(constructor, null);
 													}
 												}
 											}
 										}
 									}
-									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration1) != null) {
-										MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
-										bodyDeclarationsRewrite.insertLast(constructor, null);
-										constructorsToBeCopiedInSubclasses.get(1).add(methodDeclaration1);
+									if(!matchingSuperConstructorCallFound && superConstructorInvocation1 != null) {
+										if(!processedSuperConstructorBindingKeys.contains(superConstructorBindingKey1)) {
+											processedSuperConstructorBindingKeys.add(superConstructorBindingKey1);
+											MethodDeclaration constructor = copyConstructor(methodDeclaration1, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
+											bodyDeclarationsRewrite.insertLast(constructor, null);
+											constructorsToBeCopiedInSubclasses.get(1).add(methodDeclaration1);
+										}
 									}
 								}
 							}
 							//handle constructors existing only in the second subclass
 							for(MethodDeclaration methodDeclaration2 : sourceTypeDeclarations.get(1).getMethods()) {
-								List<SingleVariableDeclaration> parameters2 = methodDeclaration2.parameters();
 								if(methodDeclaration2.isConstructor()) {
-									boolean matchingConstructorFound = false;
+									boolean matchingSuperConstructorCallFound = false;
+									SuperConstructorInvocation superConstructorInvocation2 = firstStatementIsSuperConstructorInvocation(methodDeclaration2);
+									String superConstructorBindingKey2 = superConstructorInvocation2 != null ? superConstructorInvocation2.resolveConstructorBinding().getKey() : null;
 									for(MethodDeclaration methodDeclaration1 : sourceTypeDeclarations.get(0).getMethods()) {
-										List<SingleVariableDeclaration> parameters1 = methodDeclaration1.parameters();
 										if(methodDeclaration1.isConstructor()) {
-											if(matchingParameterTypes(parameters1, parameters2)) {
-												matchingConstructorFound = true;
+											SuperConstructorInvocation superConstructorInvocation1 = firstStatementIsSuperConstructorInvocation(methodDeclaration1);
+											if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
+												List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
+												List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
+												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
+													matchingSuperConstructorCallFound = true;
+												}
 											}
 										}
 									}
-									if(!matchingConstructorFound && firstStatementIsSuperConstructorInvocation(methodDeclaration2) != null) {
-										MethodDeclaration constructor = copyConstructor(methodDeclaration2, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
-										bodyDeclarationsRewrite.insertLast(constructor, null);
-										constructorsToBeCopiedInSubclasses.get(0).add(methodDeclaration2);
+									if(!matchingSuperConstructorCallFound && superConstructorInvocation2 != null) {
+										if(!processedSuperConstructorBindingKeys.contains(superConstructorBindingKey2)) {
+											processedSuperConstructorBindingKeys.add(superConstructorBindingKey2);
+											MethodDeclaration constructor = copyConstructor(methodDeclaration2, intermediateAST, intermediateRewriter, intermediateName, requiredImportTypeBindings);
+											bodyDeclarationsRewrite.insertLast(constructor, null);
+											constructorsToBeCopiedInSubclasses.get(0).add(methodDeclaration2);
+										}
 									}
 								}
 							}

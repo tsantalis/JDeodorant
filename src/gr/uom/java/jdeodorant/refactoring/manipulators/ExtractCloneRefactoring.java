@@ -599,21 +599,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
 								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
 								interfaceRewrite.insertLast(interfaceType, null);
-								//check if only one of the subclasses extends a superclass
-								ITypeBinding superclass1 = typeBinding1.getSuperclass();
-								ITypeBinding superclass2 = typeBinding2.getSuperclass();
-								if(superclass1 != null && superclass1.isClass() && !superclass1.getQualifiedName().equals("java.lang.Object") &&
-										implementsInterface(superclass1, commonSuperTypeOfSourceTypeDeclarations)) {
-									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
-											intermediateAST.newSimpleType(intermediateAST.newSimpleName(superclass1.getName())), null);
-									typeBindings.add(superclass1);
-								}
-								else if(superclass2 != null && superclass2.isClass() && !superclass2.getQualifiedName().equals("java.lang.Object") &&
-										implementsInterface(superclass2, commonSuperTypeOfSourceTypeDeclarations)) {
-									intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
-											intermediateAST.newSimpleType(intermediateAST.newSimpleName(superclass2.getName())), null);
-									typeBindings.add(superclass2);
-								}
 							}
 							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
 							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
@@ -3506,10 +3491,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		String qualifiedPackageName = "";
 		if(qualifiedName.contains("."))
 			qualifiedPackageName = qualifiedName.substring(0,qualifiedName.lastIndexOf("."));
-		PackageDeclaration sourcePackageDeclaration = sourceCompilationUnits.get(0).getPackage();
 		String sourcePackageDeclarationName = "";
-		if(sourcePackageDeclaration != null)
-			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();     
+		if(cloneInfo.intermediateClassPackageBinding != null) {
+			sourcePackageDeclarationName = cloneInfo.intermediateClassPackageBinding.getName();
+		}
+		else {
+			PackageDeclaration sourcePackageDeclaration = sourceCompilationUnits.get(0).getPackage();
+			if(sourcePackageDeclaration != null)
+				sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();
+		}
 		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") &&
 				!qualifiedPackageName.equals(sourcePackageDeclarationName) && !typeBinding.isNested()) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();

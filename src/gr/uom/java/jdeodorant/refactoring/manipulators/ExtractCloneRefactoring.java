@@ -619,23 +619,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
 							}
-							//add the implemented interfaces being common in both subclasses
 							ListRewrite interfaceRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
 							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
 								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
 								interfaceRewrite.insertLast(interfaceType, null);
-							}
-							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
-							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
-							for(Type interfaceType1 : superInterfaceTypes1) {
-								for(Type interfaceType2 : superInterfaceTypes2) {
-									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding()) &&
-											!interfaceType1.resolveBinding().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
-										interfaceRewrite.insertLast(interfaceType1, null);
-										typeBindings.add(interfaceType1.resolveBinding());
-										break;
-									}
-								}
 							}
 							//copy the constructors declared in the subclasses that contain a super-constructor call
 							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);

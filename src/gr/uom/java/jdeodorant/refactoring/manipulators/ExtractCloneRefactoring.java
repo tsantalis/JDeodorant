@@ -594,23 +594,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
 							}
-							//add the implemented interfaces being common in both subclasses
 							ListRewrite interfaceRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
 							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
 								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
 								interfaceRewrite.insertLast(interfaceType, null);
-							}
-							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
-							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
-							for(Type interfaceType1 : superInterfaceTypes1) {
-								for(Type interfaceType2 : superInterfaceTypes2) {
-									if(interfaceType1.resolveBinding().isEqualTo(interfaceType2.resolveBinding()) &&
-											!interfaceType1.resolveBinding().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
-										interfaceRewrite.insertLast(interfaceType1, null);
-										typeBindings.add(interfaceType1.resolveBinding());
-										break;
-									}
-								}
 							}
 							//copy the constructors declared in the subclasses that contain a super-constructor call
 							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
@@ -1153,16 +1140,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.parameterRewrite = parameterRewrite;
 	}
 
-	private static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
-		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
-		for(ITypeBinding implementedInterface : implementedInterfaces) {
-			if(implementedInterface.getQualifiedName().equals(interfaceType.getQualifiedName())) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
 		boolean found = false;
 		for(ITypeBinding thrownExceptionTypeBinding : thrownExceptionTypeBindings) {
@@ -1265,22 +1242,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		return null;
-	}
-
-	private boolean matchingParameterTypes(List<SingleVariableDeclaration> parameters1, List<SingleVariableDeclaration> parameters2) {
-		if(parameters1.size() != parameters2.size()) {
-			return false;
-		}
-		else {
-			for(int i=0; i<parameters1.size(); i++) {
-				SingleVariableDeclaration parameter1 = parameters1.get(i);
-				SingleVariableDeclaration parameter2 = parameters2.get(i);
-				if(!parameter1.getType().resolveBinding().isEqualTo(parameter2.getType().resolveBinding())) {
-					return false;
-				}
-			}
-		}
-		return true;
 	}
 	
 	private boolean matchingArgumentTypes(List<Expression> arguments1, List<Expression> arguments2) {

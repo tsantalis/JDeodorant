@@ -14,6 +14,7 @@ import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
+import gr.uom.java.ast.decomposition.cfg.MethodCallAnalyzer;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
@@ -752,14 +753,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						Set<VariableDeclaration> fieldsAccessedInMethod2 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG2, methodDeclaration2);
 						Set<VariableDeclaration> fieldsModifiedInMethod1 = getFieldsAccessedInMethod(indirectlyModifiedLocalFieldsG1, methodDeclaration1);
 						Set<VariableDeclaration> fieldsModifiedInMethod2 = getFieldsAccessedInMethod(indirectlyModifiedLocalFieldsG2, methodDeclaration2);
-						boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
-						boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
-						if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
-							//check if the common superclass is one of the source classes
-							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
-									!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
+						if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+								!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+								!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+								!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
+								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration1) &&
+								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration2)) {
+							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
+							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
+							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {	
 								MethodDeclaration copiedMethodDeclaration = (MethodDeclaration) ASTNode.copySubtree(ast, methodDeclaration1);
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(copiedMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								List<IExtendedModifier> originalModifiers = copiedMethodDeclaration.modifiers();
@@ -796,19 +798,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								fieldsAccessedInMethod1.removeAll(accessedLocalFieldsG1);
 								fieldsAccessedInMethod2.removeAll(accessedLocalFieldsG2);
 								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, fieldsModifiedInMethod1, fieldsModifiedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
+								if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
+								}
+								if(!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
+								}
 							}
-							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-								methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
-							}
-							if(!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-								methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
-							}
-						}
-						else {
-							if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
-									!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
-									!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
+							else {
 								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
 								if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
@@ -1138,6 +1135,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private boolean commonSuperTypeDeclaresMethodWithIdenticalSignature(MethodDeclaration method) {
+		for(MethodDeclaration methodDeclaration : cloneInfo.sourceTypeDeclaration.getMethods()) {
+			if(MethodCallAnalyzer.equalSignature(methodDeclaration.resolveBinding(), method.resolveBinding())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {

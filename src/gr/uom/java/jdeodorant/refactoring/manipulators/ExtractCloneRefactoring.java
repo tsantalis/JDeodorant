@@ -1236,16 +1236,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.parameterRewrite = parameterRewrite;
 	}
 
-	private static boolean implementsInterface(ITypeBinding typeBinding, ITypeBinding interfaceType) {
-		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
-		for(ITypeBinding implementedInterface : implementedInterfaces) {
-			if(implementedInterface.getQualifiedName().equals(interfaceType.getQualifiedName())) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private void addTypeBinding(ITypeBinding typeBinding, Set<ITypeBinding> thrownExceptionTypeBindings) {
 		boolean found = false;
 		for(ITypeBinding thrownExceptionTypeBinding : thrownExceptionTypeBindings) {
@@ -1629,22 +1619,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		return null;
-	}
-
-	private boolean matchingParameterTypes(List<SingleVariableDeclaration> parameters1, List<SingleVariableDeclaration> parameters2) {
-		if(parameters1.size() != parameters2.size()) {
-			return false;
-		}
-		else {
-			for(int i=0; i<parameters1.size(); i++) {
-				SingleVariableDeclaration parameter1 = parameters1.get(i);
-				SingleVariableDeclaration parameter2 = parameters2.get(i);
-				if(!parameter1.getType().resolveBinding().isEqualTo(parameter2.getType().resolveBinding())) {
-					return false;
-				}
-			}
-		}
-		return true;
 	}
 	
 	private boolean matchingArgumentTypes(List<Expression> arguments1, List<Expression> arguments2) {
@@ -2723,9 +2697,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(existingArgValue > 0) {
 			i = existingArgValue + 1;
 		}
-		argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
-		BindingSignaturePair signaturePair = new BindingSignaturePair(blockGap.getNodesG1(), blockGap.getNodesG2());
-		parameterizedDifferenceMap.put(signaturePair, null);
+		BindingSignaturePair bindingSignaturePair = new BindingSignaturePair(blockGap.getNodesG1(), blockGap.getNodesG2());
+		if(parameterizedDifferenceMap.containsKey(bindingSignaturePair)) {
+			List<BindingSignaturePair> list = new ArrayList<BindingSignaturePair>(parameterizedDifferenceMap.keySet());
+			int index = list.indexOf(bindingSignaturePair);
+			argument = ast.newSimpleName("arg" + (i + index));
+		}
+		else {
+			argument = ast.newSimpleName("arg" + (i + parameterizedDifferenceMap.size()));
+			parameterizedDifferenceMap.put(bindingSignaturePair, null);
+		}
 		Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
 		Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 		String methodName = null;

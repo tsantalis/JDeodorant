@@ -204,6 +204,10 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getRenamedVariables();
 	}
 
+	public Set<VariableBindingPair> getRenamedVariableBindings() {
+		return preconditionExaminer.getRenamedVariableBindings();
+	}
+
 	public Set<VariableDeclaration> getVariablesToBeReturnedG1() {
 		return preconditionExaminer.getVariablesToBeReturnedG1();
 	}

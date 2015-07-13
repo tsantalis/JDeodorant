@@ -632,13 +632,13 @@ public class PreconditionExaminer {
 			PDGNode dstPDGNode = (PDGNode)dependence.getDst();
 			if(dependence instanceof PDGDataDependence) {
 				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode)) {
+				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode) && dataDependence.getData() instanceof PlainVariable) {
 					passedParameters.add(dataDependence.getData());
 				}
 			}
 			else if(dependence instanceof PDGOutputDependence) {
 				PDGOutputDependence outputDependence = (PDGOutputDependence)dependence;
-				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode)) {
+				if(!mappedNodes.contains(srcPDGNode) && mappedNodes.contains(dstPDGNode) && outputDependence.getData() instanceof PlainVariable) {
 					passedParameters.add(outputDependence.getData());
 				}
 			}

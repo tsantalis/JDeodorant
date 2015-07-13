@@ -188,6 +188,20 @@ public class ASTNodeDifference {
 				}
 			}
 		}
+		else if(expression instanceof QualifiedName) {
+			QualifiedName qualifiedName = (QualifiedName)expression;
+			IBinding binding = qualifiedName.resolveBinding();
+			if(binding != null) {
+				if(binding.getKind() == IBinding.TYPE) {
+					if(qualifiedName.getParent() instanceof Type) {
+						Type type = (Type)qualifiedName.getParent();
+						if(type.getParent() instanceof Expression) {
+							return (Expression)type.getParent();
+						}
+					}
+				}
+			}
+		}
 		return expression;
 	}
 

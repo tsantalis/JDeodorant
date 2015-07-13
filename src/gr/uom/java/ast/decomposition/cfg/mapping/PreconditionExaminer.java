@@ -2637,7 +2637,7 @@ public class PreconditionExaminer {
 			if(variable1 instanceof PlainVariable) {
 				for(Expression expression : allSimpleNames1) {
 					SimpleName simpleName = (SimpleName)expression;
-					if(simpleName.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
+					if(simpleName.resolveBinding() != null && simpleName.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
 						IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
 						boolean isStaticField = false;
 						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
@@ -2663,7 +2663,7 @@ public class PreconditionExaminer {
 			if(variable2 instanceof PlainVariable) {
 				for(Expression expression : allSimpleNames2) {
 					SimpleName simpleName = (SimpleName)expression;
-					if(simpleName.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
+					if(simpleName.resolveBinding() != null && simpleName.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
 						IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
 						boolean isStaticField = false;
 						if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {

@@ -222,7 +222,8 @@ public class LambdaExpressionPreconditionExaminer {
 		}
 		boolean allPairsHaveSameType = true;
 		for(VariableBindingPair pair : parameterTypeBindings) {
-			if(!pair.getBinding1().getType().isEqualTo(pair.getBinding2().getType())) {
+			if(!pair.getBinding1().getType().isEqualTo(pair.getBinding2().getType()) ||
+					!pair.getBinding1().getType().getQualifiedName().equals(pair.getBinding2().getType().getQualifiedName())) {
 				allPairsHaveSameType = false;
 				break;
 			}

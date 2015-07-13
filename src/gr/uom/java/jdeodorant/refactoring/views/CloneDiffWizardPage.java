@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.DivideAndConquerMatcher;
+import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingPair;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
-import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -334,14 +334,12 @@ public class CloneDiffWizardPage extends UserInputWizardPage {
 		for(Control child : children) {
 			child.dispose();
 		}
-		Set<BindingSignaturePair> renamedVariableBindingSignaturePairs = mapper.getRenamedVariables();
-		if(renamedVariableBindingSignaturePairs.size() > 0) {
-			for(BindingSignaturePair bindingSignaturePair : renamedVariableBindingSignaturePairs) {
+		Set<VariableBindingPair> renamedVariableBindingPairs = mapper.getRenamedVariableBindings();
+		if(renamedVariableBindingPairs.size() > 0) {
+			for(VariableBindingPair bindingPair : renamedVariableBindingPairs) {
 				CLabel renamedVariableLabel = new CLabel(renamedVariables, SWT.NONE);
-				String signature1 = bindingSignaturePair.getSignature1().toString();
-				String variable1 = signature1.substring(signature1.lastIndexOf("#")+1, signature1.length()-1);
-				String signature2 = bindingSignaturePair.getSignature2().toString();
-				String variable2 = signature2.substring(signature2.lastIndexOf("#")+1, signature2.length()-1);
+				String variable1 = bindingPair.getBinding1().getName();
+				String variable2 = bindingPair.getBinding2().getName();
 				renamedVariableLabel.setText(variable1 + " -> " + variable2);
 				renamedVariableLabel.setFont(CONSOLAS_BOLD_FONT);
 			}

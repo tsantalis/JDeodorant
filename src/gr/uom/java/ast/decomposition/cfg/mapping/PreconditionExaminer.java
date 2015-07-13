@@ -1335,6 +1335,33 @@ public class PreconditionExaminer {
 		return renamedVariables;
 	}
 
+	public Set<VariableBindingPair> getRenamedVariableBindings() {
+		Set<VariableBindingPair> renamedVariableBindings = new LinkedHashSet<VariableBindingPair>();
+		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
+		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
+		for(BindingSignaturePair pair : renamedVariables) {
+			VariableDeclaration v1 = null;
+			for(VariableDeclaration variable : variableDeclarationsInMethod1) {
+				if(pair.getSignature1().containsOnlyBinding(variable.resolveBinding().getKey())) {
+					v1 = variable;
+					break;
+				}
+			}
+			VariableDeclaration v2 = null;
+			for(VariableDeclaration variable : variableDeclarationsInMethod2) {
+				if(pair.getSignature2().containsOnlyBinding(variable.resolveBinding().getKey())) {
+					v2 = variable;
+					break;
+				}
+			}
+			if(v1 != null && v2 != null) {
+				VariableBindingPair bindingPair = new VariableBindingPair(v1.resolveBinding(), v2.resolveBinding());
+				renamedVariableBindings.add(bindingPair);
+			}
+		}
+		return renamedVariableBindings;
+	}
+
 	private Set<PlainVariable> variablesToBeReturned(PDG pdg, Set<PDGNode> mappedNodes) {
 		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
 		Iterator<GraphNode> iterator = pdg.getNodeIterator();

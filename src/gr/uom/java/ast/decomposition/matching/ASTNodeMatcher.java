@@ -1033,6 +1033,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				if(typeMatch) {
+					if(other instanceof SimpleName) {
+						SimpleName o = (SimpleName)other;
+						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
+						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
+						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+					}
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
 				}
@@ -1627,6 +1636,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				if(typeMatch) {
+					if(other instanceof FieldAccess) {
+						FieldAccess o = (FieldAccess)other;
+						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
+						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
+						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+					}
 					Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
 					astNodeDifference.addDifference(diff);
 				}

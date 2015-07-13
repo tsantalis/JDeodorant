@@ -25,6 +25,7 @@ public class PDGStatementNode extends PDGNode {
 		CFGNode cfgNode = getCFGNode();
 		if(cfgNode.getStatement() instanceof StatementObject) {
 			StatementObject statement = (StatementObject)cfgNode.getStatement();
+			thrownExceptionTypes.addAll(statement.getExceptionsInThrowStatements());
 			List<CreationObject> creations = statement.getCreations();
 			for(CreationObject creation : creations) {
 				createdTypes.add(creation.getType());

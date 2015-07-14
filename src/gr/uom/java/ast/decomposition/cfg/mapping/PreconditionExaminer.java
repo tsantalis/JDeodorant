@@ -2615,10 +2615,17 @@ public class PreconditionExaminer {
 	}
 
 	private boolean infeasibleRefactoring(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
-		//common super type is an interface and at least one of the subclasses does not have java.lang.Object as a superclass
-		return commonSuperTypeOfSourceTypeDeclarations.isInterface() &&
-				(!typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") ||
-				!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object"));
+		if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
+			//common super type is an interface and at least one of the subclasses does not have java.lang.Object as a superclass
+			return !typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") ||
+					!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object");
+		}
+		else if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
+			//common super type is a class and at least one of the subclasses does not have the common super type as a direct superclass
+			return !typeBinding1.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) ||
+					!typeBinding2.getSuperclass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations);
+		}
+		return false;
 	}
 
 	private boolean pullUpToCommonSuperclass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, ITypeBinding typeBinding1, ITypeBinding typeBinding2) {

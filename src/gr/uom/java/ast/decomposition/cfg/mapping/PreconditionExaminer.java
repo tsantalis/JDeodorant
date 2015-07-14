@@ -389,6 +389,8 @@ public class PreconditionExaminer {
 		Set<AbstractVariable> passedParametersG2 = extractPassedParameters(pdg2, mappedNodesG2);
 		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
 		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
+		Set<VariableDeclaration> variableDeclarationsAndFieldAccessedInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
+		Set<VariableDeclaration> variableDeclarationsAndFieldAccessedInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<AbstractVariable> parametersToBeRemovedG1 = new LinkedHashSet<AbstractVariable>();
 		Set<AbstractVariable> parametersToBeRemovedG2 = new LinkedHashSet<AbstractVariable>();
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
@@ -458,11 +460,11 @@ public class PreconditionExaminer {
 					List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
 					for(int i=0; i<variables1.size(); i++) {
 						AbstractVariable variable1 = variables1.get(i);
-						IVariableBinding variableBinding1 = getVariableBinding(variable1, variableDeclarationsInMethod1);
+						IVariableBinding variableBinding1 = getVariableBinding(variable1, variableDeclarationsAndFieldAccessedInMethod1);
 						sortedVariables1.add(variable1);
 						for(int j=0; j<variables2.size(); j++) {
 							AbstractVariable variable2 = variables2.get(j);
-							IVariableBinding variableBinding2 = getVariableBinding(variable2, variableDeclarationsInMethod2);
+							IVariableBinding variableBinding2 = getVariableBinding(variable2, variableDeclarationsAndFieldAccessedInMethod2);
 							String renamedVariableName = findRenamedVariableName(variable2);
 							if((variable2.getVariableName().equals(variable1.getVariableName()) ||
 									variable1.getVariableName().equals(renamedVariableName)) &&

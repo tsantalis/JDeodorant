@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
+import gr.uom.java.ast.decomposition.cfg.CFGThrowNode;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
@@ -442,9 +443,37 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return false;
 	}
 
+	public boolean containsMappedThrowStatementInDirectChildren() {
+		for(CloneStructureNode child : children) {
+			NodeMapping mapping = child.getMapping();
+			if(mapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
+				PDGNode nodeG1 = pdgMapping.getNodeG1();
+				PDGNode nodeG2 = pdgMapping.getNodeG2();
+				if(nodeG1.getCFGNode() instanceof CFGThrowNode && nodeG2.getCFGNode() instanceof CFGThrowNode) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean hasElseDescendant() {
+		for(CloneStructureNode child : getDescendants()) {
+			NodeMapping mapping = child.getMapping();
+			if(mapping instanceof PDGElseMapping) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public boolean allConditionalMappedChildrenContainReturnStatement() {
-		int numberOfConditionals = 0;
+		int numberOfIfConditionals = 0;
+		int numberOfIfConditionalsWithFinalElseClause = 0;
+		int numberOfElseConditionals = 0;
 		int numberOfConditionalsContainingReturnStatement = 0;
+		int numberOfConditionalsContainingThrowStatement = 0;
 		for(CloneStructureNode child : getDescendants()) {
 			NodeMapping mapping = child.getMapping();
 			if(mapping instanceof PDGNodeMapping) {
@@ -452,18 +481,30 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				PDGNode nodeG1 = pdgMapping.getNodeG1();
 				PDGNode nodeG2 = pdgMapping.getNodeG2();
 				if(nodeG1.getStatement().getType().equals(StatementType.IF) && nodeG2.getStatement().getType().equals(StatementType.IF)) {
-					numberOfConditionals++;
-					if(child.containsMappedReturnStatementInDirectChildren())
+					numberOfIfConditionals++;
+					if(child.hasElseDescendant()) {
+						numberOfIfConditionalsWithFinalElseClause++;
+					}
+					if(child.containsMappedReturnStatementInDirectChildren()) {
 						numberOfConditionalsContainingReturnStatement++;
+					}
+					if(child.containsMappedThrowStatementInDirectChildren()) {
+						numberOfConditionalsContainingThrowStatement++;
+					}
 				}
 			}
 			else if(mapping instanceof PDGElseMapping) {
-				numberOfConditionals++;
-				if(child.containsMappedReturnStatementInDirectChildren())
+				numberOfElseConditionals++;
+				if(child.containsMappedReturnStatementInDirectChildren()) {
 					numberOfConditionalsContainingReturnStatement++;
+				}
+				if(child.containsMappedThrowStatementInDirectChildren()) {
+					numberOfConditionalsContainingThrowStatement++;
+				}
 			}
 		}
-		return numberOfConditionals == numberOfConditionalsContainingReturnStatement;
+		return (numberOfIfConditionals + numberOfElseConditionals) == (numberOfConditionalsContainingReturnStatement + numberOfConditionalsContainingThrowStatement) &&
+				numberOfIfConditionals == numberOfIfConditionalsWithFinalElseClause;
 	}
 
 	public CloneStructureNode getParent() {

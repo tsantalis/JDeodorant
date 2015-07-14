@@ -1050,6 +1050,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodBodyRewrite.insertFirst(declarationStatement, null);
 			}
 		}
+		else {
+			if(returnTypeBinding != null && !mapper.getCloneStructureRoot().containsMappedReturnStatementInDirectChildren()) {
+				//create a default return statement at the end of the method
+				ReturnStatement returnStatement = ast.newReturnStatement();
+				Expression expression = generateDefaultValue(sourceRewriter, ast, returnTypeBinding);
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, expression, null);
+				methodBodyRewrite.insertLast(returnStatement, null);
+			}
+		}
 		
 		//add parameters for the differences between the clones
 		int existingArgValue = findExistingParametersWithArgName();
@@ -1087,7 +1096,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 				else {
 					if(expression1 != null && !typeBinding1.getQualifiedName().equals("null")) {
-						typeBinding = typeBinding1;
+						if(typeBinding1.getErasure().getQualifiedName().equals("java.lang.Class") && typeBinding2.getErasure().getQualifiedName().equals("java.lang.Class") &&
+								(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) ) {
+							typeBinding = typeBinding1.getErasure();
+						}
+						else {
+							typeBinding = typeBinding1;
+						}
 					}
 					else {
 						typeBinding = typeBinding2;

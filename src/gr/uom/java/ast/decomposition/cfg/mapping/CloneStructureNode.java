@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
+import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 
 import java.util.LinkedHashSet;
@@ -315,6 +316,21 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			}
 		}
 		return null;
+	}
+
+	public boolean containsMappedReturnStatementInDirectChildren() {
+		for(CloneStructureNode child : children) {
+			NodeMapping mapping = child.getMapping();
+			if(mapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
+				PDGNode nodeG1 = pdgMapping.getNodeG1();
+				PDGNode nodeG2 = pdgMapping.getNodeG2();
+				if(nodeG1 instanceof PDGExitNode && nodeG2 instanceof PDGExitNode) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public CloneStructureNode getParent() {

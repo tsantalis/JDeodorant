@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -331,6 +332,30 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			}
 		}
 		return false;
+	}
+
+	public boolean allConditionalMappedChildrenContainReturnStatement() {
+		int numberOfConditionals = 0;
+		int numberOfConditionalsContainingReturnStatement = 0;
+		for(CloneStructureNode child : getDescendants()) {
+			NodeMapping mapping = child.getMapping();
+			if(mapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
+				PDGNode nodeG1 = pdgMapping.getNodeG1();
+				PDGNode nodeG2 = pdgMapping.getNodeG2();
+				if(nodeG1.getStatement().getType().equals(StatementType.IF) && nodeG2.getStatement().getType().equals(StatementType.IF)) {
+					numberOfConditionals++;
+					if(child.containsMappedReturnStatementInDirectChildren())
+						numberOfConditionalsContainingReturnStatement++;
+				}
+			}
+			else if(mapping instanceof PDGElseMapping) {
+				numberOfConditionals++;
+				if(child.containsMappedReturnStatementInDirectChildren())
+					numberOfConditionalsContainingReturnStatement++;
+			}
+		}
+		return numberOfConditionals == numberOfConditionalsContainingReturnStatement;
 	}
 
 	public CloneStructureNode getParent() {

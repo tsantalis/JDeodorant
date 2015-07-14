@@ -1081,7 +1081,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		else {
-			if(returnTypeBinding != null && !mapper.getCloneStructureRoot().containsMappedReturnStatementInDirectChildren()) {
+			if(returnTypeBinding != null && !root.containsMappedReturnStatementInDirectChildren() && !root.allConditionalMappedChildrenContainReturnStatement()) {
 				//create a default return statement at the end of the method
 				ReturnStatement returnStatement = ast.newReturnStatement();
 				Expression expression = generateDefaultValue(sourceRewriter, ast, returnTypeBinding);

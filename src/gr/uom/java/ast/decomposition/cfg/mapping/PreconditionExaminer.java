@@ -458,13 +458,16 @@ public class PreconditionExaminer {
 					List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
 					for(int i=0; i<variables1.size(); i++) {
 						AbstractVariable variable1 = variables1.get(i);
+						IVariableBinding variableBinding1 = getVariableBinding(variable1, variableDeclarationsInMethod1);
 						sortedVariables1.add(variable1);
 						for(int j=0; j<variables2.size(); j++) {
 							AbstractVariable variable2 = variables2.get(j);
+							IVariableBinding variableBinding2 = getVariableBinding(variable2, variableDeclarationsInMethod2);
 							String renamedVariableName = findRenamedVariableName(variable2);
 							if((variable2.getVariableName().equals(variable1.getVariableName()) ||
 									variable1.getVariableName().equals(renamedVariableName)) &&
-									variable2.getVariableType().equals(variable1.getVariableType())) {
+									(variable2.getVariableType().equals(variable1.getVariableType()) ||
+											ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()) != null)) {
 								sortedVariables2.add(variable2);
 								break;
 							}
@@ -559,13 +562,11 @@ public class PreconditionExaminer {
 	}
 
 	private String findRenamedVariableName(AbstractVariable variable) {
-		Set<BindingSignaturePair> renamedVariables = getRenamedVariables();
+		Set<VariableBindingPair> renamedVariables = getRenamedVariableBindings();
 		String renamedVariableName = null;
-		for(BindingSignaturePair pair : renamedVariables) {
-			if(pair.getSignature2().containsOnlyBinding(variable.getVariableBindingKey())) {
-				String signature1 = pair.getSignature1().toString();
-				renamedVariableName = signature1.substring(signature1.lastIndexOf("#") + 1,
-						signature1.lastIndexOf("]"));
+		for(VariableBindingPair pair : renamedVariables) {
+			if(pair.getBinding2().getKey().equals(variable.getVariableBindingKey())) {
+				renamedVariableName = pair.getBinding1().getName();
 				break;
 			}
 		}
@@ -592,6 +593,15 @@ public class PreconditionExaminer {
 			}
 		}
 		return passedParameters;
+	}
+
+	private IVariableBinding getVariableBinding(AbstractVariable variable, Set<VariableDeclaration> variableDeclarations) {
+		for(VariableDeclaration variableDeclaration : variableDeclarations) {
+			if(variableDeclaration.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+				return variableDeclaration.resolveBinding();
+			}
+		}
+		return null;
 	}
 
 	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, ITypeBinding commonSuperclass,

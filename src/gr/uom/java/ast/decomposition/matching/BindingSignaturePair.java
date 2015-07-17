@@ -21,7 +21,12 @@ public class BindingSignaturePair {
 		this.signature2 = new BindingSignature(statements2);
 		this.isGap = true;
 	}
-
+	
+	public BindingSignaturePair(BindingSignature signature1, BindingSignature signature2) {
+		this.signature1 = signature1;
+		this.signature2 = signature2;
+	}
+	
 	public BindingSignature getSignature1() {
 		return signature1;
 	}

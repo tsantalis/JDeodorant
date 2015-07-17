@@ -3166,6 +3166,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
 							isCommonParameter = true;
+						if(oldQualifiedName.getQualifier().equals(difference.getExpression1().getExpression()) &&
+								oldQualifiedName2.getQualifier().equals(difference.getExpression2().getExpression())) {
+							if(oldQualifiedName.getQualifier() instanceof SimpleName && oldQualifiedName2.getQualifier() instanceof SimpleName) {
+							oldSimpleName = (SimpleName)oldQualifiedName.getQualifier();
+							oldSimpleName2 = (SimpleName)oldQualifiedName2.getQualifier();
+							binding = oldSimpleName.resolveBinding();
+							binding2 = oldSimpleName2.resolveBinding();
+							keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
+							if(parameterBindingKeys.contains(keyPair) || commonPassedParameterBindingKeys.contains(keyPair) ||
+									declaredLocalVariableBindingKeys.contains(keyPair) ||
+									declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
+									declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
+								isCommonParameter = true;
+							}
+						}
 					}
 					if(!isCommonParameter) {
 						if(difference instanceof FieldAccessReplacedWithGetterInvocationDifference) {

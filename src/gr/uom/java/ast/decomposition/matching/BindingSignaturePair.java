@@ -11,7 +11,12 @@ public class BindingSignaturePair {
 		this.signature1 = new BindingSignature(expression1);
 		this.signature2 = new BindingSignature(expression2);
 	}
-
+	
+	public BindingSignaturePair(BindingSignature signature1, BindingSignature signature2) {
+		this.signature1 = signature1;
+		this.signature2 = signature2;
+	}
+	
 	public BindingSignature getSignature1() {
 		return signature1;
 	}

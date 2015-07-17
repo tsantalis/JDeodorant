@@ -51,6 +51,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPrecondit
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.UncommonSuperclassPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.BindingSignature;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
@@ -85,6 +86,7 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
@@ -1131,12 +1133,38 @@ public class PreconditionExaminer {
 			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
 			List<AbstractExpression> expressions2 = new ArrayList<AbstractExpression>();
 			for(ASTNodeDifference nodeDifference : nodeDifferences) {
+				AbstractExpression expression1 = nodeDifference.getExpression1();
+				AbstractExpression expression2 = nodeDifference.getExpression2();
 				if(!nodeDifference.containsDifferenceType(DifferenceType.VARIABLE_NAME_MISMATCH)) {
-					expressions1.add(nodeDifference.getExpression1());
-					expressions2.add(nodeDifference.getExpression2());
+					expressions1.add(expression1);
+					expressions2.add(expression2);
 				}
 				else {
-					localVariableNameMismatches.add(nodeDifference.getBindingSignaturePair());
+					Expression expr1 = expression1.getExpression();
+					Expression expr2 = expression2.getExpression();
+					if(expr1.getParent() instanceof QualifiedName && expr2.getParent() instanceof QualifiedName &&
+							((QualifiedName)expr1.getParent()).getQualifier().equals(expr1) &&
+							((QualifiedName)expr2.getParent()).getQualifier().equals(expr2)) {
+						//special handing for renamed variables that are the qualifiers of qualified names
+						if(expr1 instanceof SimpleName && expr2 instanceof SimpleName) {
+							IBinding binding1 = ((SimpleName)expr1).resolveBinding();
+							IBinding binding2 = ((SimpleName)expr2).resolveBinding();
+							if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+								String bindingKey1 = ((IVariableBinding)binding1).getKey();
+								String bindingKey2 = ((IVariableBinding)binding2).getKey();
+								ArrayList<String> bindingKeys1 = new ArrayList<String>();
+								bindingKeys1.add(bindingKey1);
+								BindingSignature signature1 = new BindingSignature(bindingKeys1);
+								ArrayList<String> bindingKeys2 = new ArrayList<String>();
+								bindingKeys2.add(bindingKey2);
+								BindingSignature signature2 = new BindingSignature(bindingKeys2);
+								localVariableNameMismatches.add(new BindingSignaturePair(signature1, signature2));
+							}
+						}
+					}
+					else {
+						localVariableNameMismatches.add(nodeDifference.getBindingSignaturePair());
+					}
 				}
 			}
 			PDGNode nodeG1 = nodeMapping.getNodeG1();

@@ -27,6 +27,10 @@ public class BindingSignature {
 		}
 	}
 
+	public BindingSignature(List<String> bindingKeys) {
+		this.bindingKeys = bindingKeys;
+	}
+
 	public int getOccurrences(String key) {
 		int counter = 0;
 		for(String bindingKey : bindingKeys) {

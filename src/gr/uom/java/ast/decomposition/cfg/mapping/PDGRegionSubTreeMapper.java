@@ -78,7 +78,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinBlockNode((PDGBlockNode)controlPredicate);
 			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
 				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode)) {
-					if(!(nestedNode instanceof PDGControlPredicateNode) && cloneFragmentContainsPDGNode(cloneFragmentNodes,nestedNode))
+					if(!(nestedNode instanceof PDGControlPredicateNode) && !(nestedNode instanceof PDGBlockNode) && cloneFragmentContainsPDGNode(cloneFragmentNodes,nestedNode))
 						nodesInRegion.add(nestedNode);
 				}
 			}
@@ -91,7 +91,7 @@ public class PDGRegionSubTreeMapper extends DivideAndConquerMatcher {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
 					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
 					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
-						if(!(pdgNode instanceof PDGControlPredicateNode) && cloneFragmentContainsPDGNode(cloneFragmentNodes,pdgNode))
+						if(!(pdgNode instanceof PDGControlPredicateNode) && !(pdgNode instanceof PDGBlockNode) && cloneFragmentContainsPDGNode(cloneFragmentNodes,pdgNode))
 							nodesInRegion.add(pdgNode);
 					}
 				}

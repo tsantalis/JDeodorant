@@ -70,7 +70,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 			Set<PDGNode> nestedNodesWithinTryNode = pdg.getNestedNodesWithinBlockNode((PDGBlockNode)controlPredicate);
 			for(PDGNode nestedNode : nestedNodesWithinTryNode) {
 				if(!controlPredicateNodesInNextLevel.contains(nestedNode) && !controlPredicateNodesInCurrentLevel.contains(nestedNode)) {
-					if(!(nestedNode instanceof PDGControlPredicateNode))
+					if(!(nestedNode instanceof PDGControlPredicateNode) && !(nestedNode instanceof PDGBlockNode))
 						nodesInRegion.add(nestedNode);
 				}
 			}
@@ -83,7 +83,7 @@ public class PDGSubTreeMapper extends DivideAndConquerMatcher {
 					PDGNode pdgNode = (PDGNode)dependence.getDst();
 					PDGBlockNode tryNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
 					if(!controlPredicateNodesInNextLevel.contains(pdgNode) && !controlPredicateNodesInCurrentLevel.contains(pdgNode) && tryNode == null) {
-						if(!(pdgNode instanceof PDGControlPredicateNode))
+						if(!(pdgNode instanceof PDGControlPredicateNode) && !(pdgNode instanceof PDGBlockNode))
 							nodesInRegion.add(pdgNode);
 					}
 				}

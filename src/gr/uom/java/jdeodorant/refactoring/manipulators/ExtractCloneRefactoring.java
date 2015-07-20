@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
@@ -41,6 +42,7 @@ import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignature;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
+import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.decomposition.matching.FieldAccessReplacedWithGetterInvocationDifference;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
@@ -90,6 +92,7 @@ import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -737,13 +740,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<MethodObject> accessedLocalMethodsG1 = mapper.getAccessedLocalMethodsG1();
 			Set<MethodObject> accessedLocalMethodsG2 = mapper.getAccessedLocalMethodsG2();
 			for(MethodObject localMethodG1 : accessedLocalMethodsG1) {
+				MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
 				for(MethodObject localMethodG2 : accessedLocalMethodsG2) {
+					MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
 					ITypeBinding returnTypesCommonSuperType = ASTNodeMatcher.commonSuperType(localMethodG1.getMethodDeclaration().getReturnType2().resolveBinding(), localMethodG2.getMethodDeclaration().getReturnType2().resolveBinding());
 					if(localMethodG1.getName().equals(localMethodG2.getName()) &&
 							(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) &&
-							localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList())) {
-						MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
-						MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
+							(localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList()) || MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding())) ) {
 						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 						boolean clones = type2Clones(methodDeclaration1, methodDeclaration2);
 						Type returnType = methodDeclaration1.getReturnType2();
@@ -761,7 +764,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration2)) {
 							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
 							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
-							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {	
+							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
 								MethodDeclaration copiedMethodDeclaration = (MethodDeclaration) ASTNode.copySubtree(ast, methodDeclaration1);
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(copiedMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								List<IExtendedModifier> originalModifiers = copiedMethodDeclaration.modifiers();
@@ -806,72 +809,78 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 							else {
-								MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
-								sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
-								if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
-									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
-									typeBindings.add(returnType.resolveBinding());
-								}
-								else if(ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) {
-									Type newReturnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypesCommonSuperType, ast, sourceRewriter);
-									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
-									typeBindings.add(returnTypesCommonSuperType);
-								}
-								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-								List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
-								for(IExtendedModifier extendedModifier : originalModifiers) {
-									if(extendedModifier.isModifier()) {
-										Modifier modifier = (Modifier)extendedModifier;
-										if(modifier.isProtected()) {
-											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-											if((methodDeclaration2.getModifiers() & Modifier.PROTECTED) == 0) {
-												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
-											}
-										}
-										else if(modifier.isPublic()) {
-											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-											if((methodDeclaration2.getModifiers() & Modifier.PUBLIC) == 0) {
-												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PUBLIC_KEYWORD);
-											}
-										}
-										else if(modifier.isPrivate()) {
-											modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
-											//change modifiers to protected in the subclasses
-											updateAccessModifier(methodDeclaration1, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
-											if((methodDeclaration2.getModifiers() & Modifier.PROTECTED) == 0) {
-												updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
-											}
-										}
-									}
-								}
-								if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
-									Block methodBody = ast.newBlock();
-									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
-									//create a default return statement
-									Expression returnedExpression = generateDefaultValue(sourceRewriter, ast, returnType.resolveBinding());
-									if(returnedExpression != null) {
-										ReturnStatement returnStatement = ast.newReturnStatement();
-										sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedExpression, null);
-										ListRewrite statementsRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
-										statementsRewrite.insertLast(returnStatement, null);
-									}
+								if(mapper.getCloneRefactoringType().equals(CloneRefactoringType.EXTRACT_STATIC_METHOD_TO_NEW_UTILITY_CLASS)) {
+									//static methods with the same signature, but different bodies are called. A parameter should be introduced in the extracted method
+									createDifferencesForStaticMethodCalls(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding());
 								}
 								else {
-									modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+									MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
+									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
+									if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
+										sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
+										typeBindings.add(returnType.resolveBinding());
+									}
+									else if(ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) {
+										Type newReturnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypesCommonSuperType, ast, sourceRewriter);
+										sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, newReturnType, null);
+										typeBindings.add(returnTypesCommonSuperType);
+									}
+									ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+									List<IExtendedModifier> originalModifiers = methodDeclaration1.modifiers();
+									for(IExtendedModifier extendedModifier : originalModifiers) {
+										if(extendedModifier.isModifier()) {
+											Modifier modifier = (Modifier)extendedModifier;
+											if(modifier.isProtected()) {
+												modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+												if((methodDeclaration2.getModifiers() & Modifier.PROTECTED) == 0) {
+													updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+												}
+											}
+											else if(modifier.isPublic()) {
+												modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+												if((methodDeclaration2.getModifiers() & Modifier.PUBLIC) == 0) {
+													updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+												}
+											}
+											else if(modifier.isPrivate()) {
+												modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PROTECTED_KEYWORD), null);
+												//change modifiers to protected in the subclasses
+												updateAccessModifier(methodDeclaration1, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+												if((methodDeclaration2.getModifiers() & Modifier.PROTECTED) == 0) {
+													updateAccessModifier(methodDeclaration2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+												}
+											}
+										}
+									}
+									if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
+										Block methodBody = ast.newBlock();
+										sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
+										//create a default return statement
+										Expression returnedExpression = generateDefaultValue(sourceRewriter, ast, returnType.resolveBinding());
+										if(returnedExpression != null) {
+											ReturnStatement returnStatement = ast.newReturnStatement();
+											sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedExpression, null);
+											ListRewrite statementsRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+											statementsRewrite.insertLast(returnStatement, null);
+										}
+									}
+									else {
+										modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+									}
+									ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+									List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
+									for(SingleVariableDeclaration parameter : parameters) {
+										parametersRewrite.insertLast(parameter, null);
+										typeBindings.add(parameter.getType().resolveBinding());
+									}
+									ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+									List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
+									for(Name thrownException : thrownExceptions) {
+										thrownExceptionsRewrite.insertLast(thrownException, null);
+										typeBindings.add(thrownException.resolveTypeBinding());
+									}
+									bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 								}
-								ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-								List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
-								for(SingleVariableDeclaration parameter : parameters) {
-									parametersRewrite.insertLast(parameter, null);
-									typeBindings.add(parameter.getType().resolveBinding());
-								}
-								ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
-								List<Name> thrownExceptions = methodDeclaration1.thrownExceptions();
-								for(Name thrownException : thrownExceptions) {
-									thrownExceptionsRewrite.insertLast(thrownException, null);
-									typeBindings.add(thrownException.resolveTypeBinding());
-								}
-								bodyDeclarationsRewrite.insertLast(newMethodDeclaration, null);
 							}
 						}
 						RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
@@ -1171,6 +1180,69 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		if(!found) {
 			thrownExceptionTypeBindings.add(typeBinding);
+		}
+	}
+
+	private Set<Expression> extractMethodInvocations(PDGNode pdgNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<Expression> allMethodInvocations = new LinkedHashSet<Expression>();
+		AbstractStatement abstractStatement = pdgNode.getStatement();
+		if(abstractStatement instanceof StatementObject) {
+			StatementObject statement = (StatementObject)abstractStatement;
+			allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(statement.getStatement()));
+		}
+		else if(abstractStatement instanceof CompositeStatementObject) {
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			for(AbstractExpression expression : composite.getExpressions()) {
+				allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(expression.getExpression()));
+			}
+			if(composite instanceof TryStatementObject) {
+				TryStatementObject tryStatement = (TryStatementObject)composite;
+				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+				for(CatchClauseObject catchClause : catchClauses) {
+					allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(catchClause.getBody().getStatement()));
+				}
+				if(tryStatement.getFinallyClause() != null) {
+					allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(tryStatement.getFinallyClause().getStatement()));
+				}
+			}
+		}
+		return allMethodInvocations;
+	}
+
+	private void createDifferencesForStaticMethodCalls(IMethodBinding binding1, IMethodBinding binding2) {
+		for(PDGNodeMapping nodeMapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+			PDGNode nodeG1 = nodeMapping.getNodeG1();
+			PDGNode nodeG2 = nodeMapping.getNodeG2();
+			Set<Expression> allMethodInvocations1 = extractMethodInvocations(nodeG1);
+			Set<Expression> allMethodInvocations2 = extractMethodInvocations(nodeG2);
+			for(Expression expr1 : allMethodInvocations1) {
+				if(expr1 instanceof MethodInvocation) {
+					MethodInvocation methodInvocation1 = (MethodInvocation)expr1;
+					IMethodBinding methodBinding1 = methodInvocation1.resolveMethodBinding();
+					if(methodBinding1.isEqualTo(binding1) && (methodBinding1.getModifiers() & Modifier.STATIC) != 0 && methodBinding1.getDeclaringClass().isEqualTo(sourceTypeDeclarations.get(0).resolveBinding())) {
+						for(Expression expr2 : allMethodInvocations2) {
+							if(expr2 instanceof MethodInvocation) {
+								MethodInvocation methodInvocation2 = (MethodInvocation)expr2;
+								IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
+								if(methodBinding2.isEqualTo(binding2) && (methodBinding2.getModifiers() & Modifier.STATIC) != 0 && methodBinding2.getDeclaringClass().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding())) {
+									if(MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodBinding1, methodBinding2)) {
+										ASTInformationGenerator.setCurrentITypeRoot(sourceCompilationUnits.get(0).getTypeRoot());
+										AbstractExpression exp1 = new AbstractExpression(methodInvocation1);
+										ASTInformationGenerator.setCurrentITypeRoot(sourceCompilationUnits.get(1).getTypeRoot());
+										AbstractExpression exp2 = new AbstractExpression(methodInvocation2);
+										ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+										Difference diff = new Difference(methodInvocation1.getName().getIdentifier(),methodInvocation2.getName().getIdentifier(),DifferenceType.METHOD_INVOCATION_NAME_MISMATCH);
+										astNodeDifference.addDifference(diff);
+										nodeMapping.getNodeDifferences().add(astNodeDifference);
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -3555,7 +3627,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}
 					}
 					catch(NumberFormatException e) {
-						e.printStackTrace();
 					}
 				}
 			}

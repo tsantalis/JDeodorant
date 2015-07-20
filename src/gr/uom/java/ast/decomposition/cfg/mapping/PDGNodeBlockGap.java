@@ -27,6 +27,7 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 
@@ -183,6 +184,14 @@ public class PDGNodeBlockGap extends Gap {
 		return variablesToBeReturned(nodesG2);
 	}
 
+	public ITypeBinding getReturnTypeBindingFromReturnStatementG1() {
+		return getReturnTypeBindingFromReturnStatement(nodesG1);
+	}
+
+	public ITypeBinding getReturnTypeBindingFromReturnStatementG2() {
+		return getReturnTypeBindingFromReturnStatement(nodesG2);
+	}
+
 	private Set<IVariableBinding> getUsedVariableBindings(Set<PDGNode> nodes) {
 		Set<IVariableBinding> usedVariableBindings = new LinkedHashSet<IVariableBinding>();
 		List<Expression> localVariableInstructions = getVariableInstructions(nodes);
@@ -313,6 +322,19 @@ public class PDGNodeBlockGap extends Gap {
 		return variablesToBeReturned;
 	}
 
+	private ITypeBinding getReturnTypeBindingFromReturnStatement(Set<PDGNode> nodes) {
+		for(PDGNode node : nodes) {
+			Statement statement = node.getASTStatement();
+			if(statement instanceof ReturnStatement) {
+				ReturnStatement returnStatement = (ReturnStatement)statement;
+				if(returnStatement.getExpression() != null) {
+					return returnStatement.getExpression().resolveTypeBinding();
+				}
+			}
+		}
+		return null;
+	}
+
 	public boolean subsumes(PDGNodeBlockGap other) {
 		return this.nodesG1.containsAll(other.nodesG1) && this.nodesG2.containsAll(other.nodesG2) &&
 				this.nodesG1.size() >= other.nodesG1.size() && this.nodesG2.size() >= other.nodesG2.size();
@@ -336,6 +358,17 @@ public class PDGNodeBlockGap extends Gap {
 			}
 			else {
 				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType());
+				return typeBinding;
+			}
+		}
+		ITypeBinding returnTypeBinding1 = getReturnTypeBindingFromReturnStatementG1();
+		ITypeBinding returnTypeBinding2 = getReturnTypeBindingFromReturnStatementG2();
+		if(returnTypeBinding1 != null && returnTypeBinding2 != null) {
+			if(returnTypeBinding1.isEqualTo(returnTypeBinding2)) {
+				return returnTypeBinding1;
+			}
+			else {
+				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
 				return typeBinding;
 			}
 		}

@@ -17,6 +17,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -102,7 +103,9 @@ public class LambdaExpressionPreconditionExaminer {
 		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
 			Set<IVariableBinding> variablesToBeReturnedG1 = blockGap.getVariablesToBeReturnedG1();
 			Set<IVariableBinding> variablesToBeReturnedG2 = blockGap.getVariablesToBeReturnedG2();
-			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2)) {
+			ITypeBinding returnTypeBinding1 = blockGap.getReturnTypeBindingFromReturnStatementG1();
+			ITypeBinding returnTypeBinding2 = blockGap.getReturnTypeBindingFromReturnStatementG2();
+			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2) && validReturnTypeBinding(returnTypeBinding1, returnTypeBinding2)) {
 				for(VariableBindingPair pair : parameterTypeBindings) {
 					if(introduceParameter(pair)) {
 						blockGap.addParameterBinding(pair);
@@ -238,8 +241,23 @@ public class LambdaExpressionPreconditionExaminer {
 		else if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
 			IVariableBinding returnedVariable1 = variablesToBeReturnedG1.iterator().next();
 			IVariableBinding returnedVariable2 = variablesToBeReturnedG2.iterator().next();
+			ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType());
 			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType()) ||
-					ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType()) != null) {
+					ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean validReturnTypeBinding(ITypeBinding returnTypeBinding1, ITypeBinding returnTypeBinding2) {
+		if(returnTypeBinding1 == null && returnTypeBinding2 == null) {
+			return true;
+		}
+		else {
+			ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
+			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) ||
+					ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
 				return true;
 			}
 		}

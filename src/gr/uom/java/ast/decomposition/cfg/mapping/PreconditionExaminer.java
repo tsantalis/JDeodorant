@@ -2836,28 +2836,34 @@ public class PreconditionExaminer {
 	}
 
 	private Set<Expression> extractMethodInvocations(Set<PDGNode> mappedNodes) {
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<Expression> allMethodInvocations = new LinkedHashSet<Expression>();
 		for(PDGNode pdgNode : mappedNodes) {
-			AbstractStatement abstractStatement = pdgNode.getStatement();
-			if(abstractStatement instanceof StatementObject) {
-				StatementObject statement = (StatementObject)abstractStatement;
-				allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(statement.getStatement()));
+			allMethodInvocations.addAll(extractMethodInvocations(pdgNode));
+		}
+		return allMethodInvocations;
+	}
+
+	private Set<Expression> extractMethodInvocations(PDGNode pdgNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<Expression> allMethodInvocations = new LinkedHashSet<Expression>();
+		AbstractStatement abstractStatement = pdgNode.getStatement();
+		if(abstractStatement instanceof StatementObject) {
+			StatementObject statement = (StatementObject)abstractStatement;
+			allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(statement.getStatement()));
+		}
+		else if(abstractStatement instanceof CompositeStatementObject) {
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			for(AbstractExpression expression : composite.getExpressions()) {
+				allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(expression.getExpression()));
 			}
-			else if(abstractStatement instanceof CompositeStatementObject) {
-				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
-				for(AbstractExpression expression : composite.getExpressions()) {
-					allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(expression.getExpression()));
+			if(composite instanceof TryStatementObject) {
+				TryStatementObject tryStatement = (TryStatementObject)composite;
+				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+				for(CatchClauseObject catchClause : catchClauses) {
+					allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(catchClause.getBody().getStatement()));
 				}
-				if(composite instanceof TryStatementObject) {
-					TryStatementObject tryStatement = (TryStatementObject)composite;
-					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
-					for(CatchClauseObject catchClause : catchClauses) {
-						allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(catchClause.getBody().getStatement()));
-					}
-					if(tryStatement.getFinallyClause() != null) {
-						allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(tryStatement.getFinallyClause().getStatement()));
-					}
+				if(tryStatement.getFinallyClause() != null) {
+					allMethodInvocations.addAll(expressionExtractor.getMethodInvocations(tryStatement.getFinallyClause().getStatement()));
 				}
 			}
 		}

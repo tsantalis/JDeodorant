@@ -2685,8 +2685,10 @@ public class PreconditionExaminer {
 		if(!commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
 			CompilationUnitCache cache = CompilationUnitCache.getInstance();
 			Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
-			if(subTypes.size() == 2 && subTypes.contains((IType)typeBinding1.getJavaElement()) &&
-					subTypes.contains((IType)typeBinding2.getJavaElement())) {
+			IType type1 = (IType)typeBinding1.getJavaElement();
+			IType type2 = (IType)typeBinding2.getJavaElement();
+			if(subTypes.size() == 2 && subTypes.contains(type1) && subTypes.contains(type2) &&
+					cache.getSubTypes(type1).isEmpty() && cache.getSubTypes(type2).isEmpty()) {
 				return true;
 			}
 		}

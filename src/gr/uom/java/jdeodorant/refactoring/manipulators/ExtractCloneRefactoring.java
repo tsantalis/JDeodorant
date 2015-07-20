@@ -642,7 +642,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 											if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
 												List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
 												List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
-												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
+												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2) ||
+														superConstructorInvocation1.resolveConstructorBinding().isEqualTo(superConstructorInvocation2.resolveConstructorBinding())) {
 													matchingSuperConstructorCallFound = true;
 													if(!processedSuperConstructorBindingKeys.contains(superConstructorBindingKey1)) {
 														processedSuperConstructorBindingKeys.add(superConstructorBindingKey1);
@@ -665,14 +666,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 															ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
 															SuperConstructorInvocation superConstructorInvocation = intermediateAST.newSuperConstructorInvocation();
 															ListRewrite argumentRewriter = intermediateRewriter.getListRewrite(superConstructorInvocation, SuperConstructorInvocation.ARGUMENTS_PROPERTY);
-															for(Expression argument : superConstructorArguments1) {
+															Map<String, Integer> parameterTypeCounterMap = new LinkedHashMap<String, Integer>();
+															for(ITypeBinding argumentTypeBinding : superConstructorInvocation1.resolveConstructorBinding().getParameterTypes()) {
 																SingleVariableDeclaration parameter = intermediateAST.newSingleVariableDeclaration();
-																ITypeBinding argumentTypeBinding = argument.resolveTypeBinding();
 																typeBindings.add(argumentTypeBinding);
 																Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
 																intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 																String typeName = argumentTypeBinding.getName();
 																String parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
+																if(parameterTypeCounterMap.containsKey(argumentTypeBinding.getKey())) {
+																	int previousCounter = parameterTypeCounterMap.get(argumentTypeBinding.getKey());
+																	parameterName += previousCounter;
+																	int currentCounter = previousCounter + 1;
+																	parameterTypeCounterMap.put(argumentTypeBinding.getKey(), currentCounter);
+																}
+																else {
+																	parameterTypeCounterMap.put(argumentTypeBinding.getKey(), 1);
+																}
 																SimpleName parameterSimpleName = intermediateAST.newSimpleName(parameterName);
 																intermediateRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterSimpleName, null);
 																parameterRewriter.insertLast(parameter, null);
@@ -711,7 +721,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 											if(superConstructorInvocation1 != null && superConstructorInvocation2 != null) {
 												List<Expression> superConstructorArguments1 = superConstructorInvocation1.arguments();
 												List<Expression> superConstructorArguments2 = superConstructorInvocation2.arguments();
-												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2)) {
+												if(matchingArgumentTypes(superConstructorArguments1, superConstructorArguments2) ||
+														superConstructorInvocation1.resolveConstructorBinding().isEqualTo(superConstructorInvocation2.resolveConstructorBinding())) {
 													matchingSuperConstructorCallFound = true;
 												}
 											}
@@ -1345,20 +1356,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		ListRewrite parameterRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.PARAMETERS_PROPERTY);
 		List<Expression> superConstructorArguments = superConstructorInvocation.arguments();
+		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		for(Expression argument : superConstructorArguments) {
 			if(argument instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)argument;	
 				for(SingleVariableDeclaration parameter : parameters) {
 					if(parameter.resolveBinding().isEqualTo(simpleName.resolveBinding())) {
-						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 						typeBindings.add(parameter.getType().resolveBinding());
-						RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						parameterRewriter.insertLast(parameter, null);
 						break;
 					}
 				}
 			}
 		}
+		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 		Block constructorBody = intermediateAST.newBlock();
 		if(superConstructorInvocation != null) {
 			ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);

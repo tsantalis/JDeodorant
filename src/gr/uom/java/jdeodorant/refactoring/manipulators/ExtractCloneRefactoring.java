@@ -4001,7 +4001,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ListRewrite argumentsRewrite = methodBodyRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
 			List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
-			argumentsRewrite.insertLast(variableDeclarations.get(index).getName(), null);
+			VariableDeclaration variableDeclaration = variableDeclarations.get(index);
+			argumentsRewrite.insertLast(variableDeclaration.getName(), null);
+			//create initializer for passed parameter
+			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
+				Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
+				methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+			}
 		}
 		for(BindingSignaturePair pair : parameterizedDifferenceMap.keySet()) {
 			ASTNodeDifference difference = parameterizedDifferenceMap.get(pair);

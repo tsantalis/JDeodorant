@@ -254,7 +254,7 @@ public class LambdaExpressionPreconditionExaminer {
 		if(returnTypeBinding1 == null && returnTypeBinding2 == null) {
 			return true;
 		}
-		else {
+		else if(returnTypeBinding1 != null && returnTypeBinding2 != null) {
 			ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
 			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) ||
 					ASTNodeMatcher.validCommonSuperType(commonSuperType)) {

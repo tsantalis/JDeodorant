@@ -782,7 +782,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					ITypeBinding returnTypesCommonSuperType = ASTNodeMatcher.commonSuperType(localMethodG1.getMethodDeclaration().getReturnType2().resolveBinding(), localMethodG2.getMethodDeclaration().getReturnType2().resolveBinding());
 					if(localMethodG1.getName().equals(localMethodG2.getName()) &&
 							(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) &&
-							(localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList()) || MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding())) ) {
+							localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList()) ) {
 						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 						boolean clones = type2Clones(methodDeclaration1, methodDeclaration2);
 						Type returnType = methodDeclaration1.getReturnType2();

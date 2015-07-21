@@ -4006,7 +4006,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			//create initializer for passed parameter
 			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
 				Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
-				methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+					//create the initializer only once
+					if(index == 0) {
+						methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+					}
+				}
+				else {
+					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				}
 			}
 		}
 		for(BindingSignaturePair pair : parameterizedDifferenceMap.keySet()) {

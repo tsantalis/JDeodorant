@@ -1879,6 +1879,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}*/
 		finalizeOriginalMethod(sourceCompilationUnits.get(0), cloneInfo.originalMethodBodyRewriteList.get(0));
 		finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
+		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+			AST ast = sourceMethodDeclarations.get(0).getAST();
+			ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
+			for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
+				List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
+				VariableDeclaration variableDeclaration = variableDeclarations.get(0);
+				//create initializer for passed parameter
+				if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
+					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
+					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				}
+			}
+			try {
+				TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Initialize variable(s) passed as parameter(s) to the extracted method", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+		}
 		try {
 			CompilationUnitChange change = compilationUnitChanges.get(cloneInfo.sourceICompilationUnit);
 			if(change != null) {
@@ -3300,7 +3322,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ListRewrite argumentsRewrite = methodBodyRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 		for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
 			List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
-			argumentsRewrite.insertLast(variableDeclarations.get(index).getName(), null);
+			VariableDeclaration variableDeclaration = variableDeclarations.get(index);
+			argumentsRewrite.insertLast(variableDeclaration.getName(), null);
+			//create initializer for passed parameter
+			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
+				if(!sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
+					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				}
+			}
 		}
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			List<Expression> expressions = new ArrayList<Expression>();

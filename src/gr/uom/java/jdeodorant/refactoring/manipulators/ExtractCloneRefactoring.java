@@ -1014,40 +1014,64 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
 			AbstractStatement statement1 = pdgNode1.getStatement();
-			if(!statementBelongsToBlockGaps(statement1)) {
-				PDGBlockNode blockNode = mapper.getPDG1().isNestedWithinBlockNode(pdgNode1);
-				if(blockNode != null && blockNode instanceof PDGTryNode && mapper.getRemovableNodesG1().contains(blockNode)) {
-					//do nothing
-				}
-				else {
-					ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
-					statement1.getStatement().accept(thrownExceptionVisitor);
-					for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
-						if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
-							addTypeBinding(thrownException, thrownExceptionTypeBindings);
-						}
+			PDGBlockNode blockNode1 = mapper.getPDG1().isNestedWithinBlockNode(pdgNode1);
+			if(blockNode1 != null && blockNode1 instanceof PDGTryNode && mapper.getRemovableNodesG1().contains(blockNode1)) {
+				//do nothing
+			}
+			else {
+				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+				statement1.getStatement().accept(thrownExceptionVisitor);
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
 					}
 				}
+			}
+			if(!statementBelongsToBlockGaps(statement1)) {
 				RefactoringUtility.getSimpleTypeBindings(extractTypeBindings(statement1), requiredImportTypeBindings);
 			}
 			
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
 			AbstractStatement statement2 = pdgNode2.getStatement();
-			if(!statementBelongsToBlockGaps(statement2)) {
-				PDGBlockNode blockNode = mapper.getPDG2().isNestedWithinBlockNode(pdgNode2);
-				if(blockNode != null && blockNode instanceof PDGTryNode && mapper.getRemovableNodesG2().contains(blockNode)) {
-					//do nothing
-				}
-				else {
-					ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
-					statement2.getStatement().accept(thrownExceptionVisitor);
-					for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
-						if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
-							addTypeBinding(thrownException, thrownExceptionTypeBindings);
-						}
+			PDGBlockNode blockNode2 = mapper.getPDG2().isNestedWithinBlockNode(pdgNode2);
+			if(blockNode2 != null && blockNode2 instanceof PDGTryNode && mapper.getRemovableNodesG2().contains(blockNode2)) {
+				//do nothing
+			}
+			else {
+				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+				statement2.getStatement().accept(thrownExceptionVisitor);
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
 					}
 				}
+			}
+			if(!statementBelongsToBlockGaps(statement2)) {
 				RefactoringUtility.getSimpleTypeBindings(extractTypeBindings(statement2), requiredImportTypeBindings);
+			}
+		}
+		for(PDGNode pdgNode1 : mapper.getRemainingNodesG1()) {
+			AbstractStatement statement1 = pdgNode1.getStatement();
+			if(statementBelongsToBlockGaps(statement1)) {
+				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+				statement1.getStatement().accept(thrownExceptionVisitor);
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
+					}
+				}
+			}
+		}
+		for(PDGNode pdgNode2 : mapper.getRemainingNodesG2()) {
+			AbstractStatement statement2 = pdgNode2.getStatement();
+			if(statementBelongsToBlockGaps(statement2)) {
+				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+				statement2.getStatement().accept(thrownExceptionVisitor);
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
+					}
+				}
 			}
 		}
 		

@@ -4072,10 +4072,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								LambdaExpression lambdaExpression = ast.newLambdaExpression();
 								ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
 								Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
+								PDGExpressionGap expressionGap = findExpressionGapContainingDifference(difference);
+								Set<ITypeBinding> thrownExceptionTypeBindings = expressionGap.getThrownExceptions();
 								for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 									IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
 									Type parameterType = null;
-									if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive()) {
+									if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
 										parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
 									}
 									else {
@@ -4382,10 +4384,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		LambdaExpression lambdaExpression = ast.newLambdaExpression();
 		ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
 		Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
+		Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 			IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
 			Type parameterType = null;
-			if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive()) {
+			if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
 				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
 			}
 			else {

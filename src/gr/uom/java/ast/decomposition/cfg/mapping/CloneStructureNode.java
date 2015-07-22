@@ -360,14 +360,30 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return false;
 	}
 
-	public boolean allConditionalMappedChildrenContainReturnStatement() {
+	public boolean lastIfElseIfChainContainsReturnOrThrowStatements() {
+		Set<CloneStructureNode> nodesToBeExamined = new LinkedHashSet<CloneStructureNode>();
+		Set<CloneStructureNode> descendants = new TreeSet<CloneStructureNode>(getDescendants());
+		for(CloneStructureNode child : descendants) {
+			NodeMapping mapping = child.getMapping();
+			if(mapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
+				PDGNode nodeG1 = pdgMapping.getNodeG1();
+				PDGNode nodeG2 = pdgMapping.getNodeG2();
+				if(nodeG1.getStatement().getType().equals(StatementType.IF) && nodeG2.getStatement().getType().equals(StatementType.IF) && !child.isElseIf()) {
+					nodesToBeExamined.clear();
+				}
+				nodesToBeExamined.add(child);
+			}
+			else if(mapping instanceof PDGElseMapping) {
+				nodesToBeExamined.add(child);
+			}
+		}
 		int numberOfIfConditionals = 0;
 		int numberOfIfConditionalsWithFinalElseClause = 0;
 		int numberOfElseConditionals = 0;
 		int numberOfConditionalsContainingReturnStatement = 0;
 		int numberOfConditionalsContainingThrowStatement = 0;
-		boolean lastIfConditionalHasFinalElseClause = false;
-		for(CloneStructureNode child : getDescendants()) {
+		for(CloneStructureNode child : nodesToBeExamined) {
 			NodeMapping mapping = child.getMapping();
 			if(mapping instanceof PDGNodeMapping) {
 				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
@@ -375,7 +391,6 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				PDGNode nodeG2 = pdgMapping.getNodeG2();
 				if(nodeG1.getStatement().getType().equals(StatementType.IF) && nodeG2.getStatement().getType().equals(StatementType.IF)) {
 					numberOfIfConditionals++;
-					lastIfConditionalHasFinalElseClause = child.hasElseDescendant();
 					if(child.hasElseDescendant()) {
 						numberOfIfConditionalsWithFinalElseClause++;
 					}
@@ -398,7 +413,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			}
 		}
 		return (numberOfIfConditionals + numberOfElseConditionals) == (numberOfConditionalsContainingReturnStatement + numberOfConditionalsContainingThrowStatement) &&
-				(numberOfIfConditionals == numberOfIfConditionalsWithFinalElseClause || lastIfConditionalHasFinalElseClause);
+				numberOfIfConditionals == numberOfIfConditionalsWithFinalElseClause;
 	}
 
 	public CloneStructureNode getParent() {

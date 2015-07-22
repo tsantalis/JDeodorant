@@ -366,6 +366,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		int numberOfElseConditionals = 0;
 		int numberOfConditionalsContainingReturnStatement = 0;
 		int numberOfConditionalsContainingThrowStatement = 0;
+		boolean lastIfConditionalHasFinalElseClause = false;
 		for(CloneStructureNode child : getDescendants()) {
 			NodeMapping mapping = child.getMapping();
 			if(mapping instanceof PDGNodeMapping) {
@@ -374,6 +375,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				PDGNode nodeG2 = pdgMapping.getNodeG2();
 				if(nodeG1.getStatement().getType().equals(StatementType.IF) && nodeG2.getStatement().getType().equals(StatementType.IF)) {
 					numberOfIfConditionals++;
+					lastIfConditionalHasFinalElseClause = child.hasElseDescendant();
 					if(child.hasElseDescendant()) {
 						numberOfIfConditionalsWithFinalElseClause++;
 					}
@@ -396,7 +398,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 			}
 		}
 		return (numberOfIfConditionals + numberOfElseConditionals) == (numberOfConditionalsContainingReturnStatement + numberOfConditionalsContainingThrowStatement) &&
-				numberOfIfConditionals == numberOfIfConditionalsWithFinalElseClause;
+				(numberOfIfConditionals == numberOfIfConditionalsWithFinalElseClause || lastIfConditionalHasFinalElseClause);
 	}
 
 	public CloneStructureNode getParent() {

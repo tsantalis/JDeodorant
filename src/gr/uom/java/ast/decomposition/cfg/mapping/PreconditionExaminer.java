@@ -2752,33 +2752,69 @@ public class PreconditionExaminer {
 				}
 			}
 		}
+		Set<Expression> allThisExpressions1 = extractThisExpressions(getRemovableNodesG1());
+		Set<Expression> allThisExpressions2 = extractThisExpressions(getRemovableNodesG2());
+		int thisCounter1 = 0;
+		for(Expression expression : allThisExpressions1) {
+			boolean foundInDifferences = false;
+			for(ASTNodeDifference difference : getNodeDifferences()) {
+				Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+				if(isExpressionWithinExpression(expression, expr1)) {
+					foundInDifferences = true;
+					break;
+				}
+			}
+			if(!foundInDifferences) {
+				thisCounter1++;
+			}
+		}
+		int thisCounter2 = 0;
+		for(Expression expression : allThisExpressions2) {
+			boolean foundInDifferences = false;
+			for(ASTNodeDifference difference : getNodeDifferences()) {
+				Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+				if(isExpressionWithinExpression(expression, expr2)) {
+					foundInDifferences = true;
+					break;
+				}
+			}
+			if(!foundInDifferences) {
+				thisCounter2++;
+			}
+		}
 		//allowing non-static method calls in only one of the clone fragments
-		return fieldCounter1 == 0 && fieldCounter2 == 0 && (methodCounter1 == 0 || methodCounter2 == 0);
+		return thisCounter1 == 0 && thisCounter2 == 0 && fieldCounter1 == 0 && fieldCounter2 == 0 && (methodCounter1 == 0 || methodCounter2 == 0);
 	}
 
 	private Set<Expression> extractSimpleNames(Set<PDGNode> mappedNodes) {
-		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<Expression> allSimpleNames = new LinkedHashSet<Expression>();
 		for(PDGNode pdgNode : mappedNodes) {
-			AbstractStatement abstractStatement = pdgNode.getStatement();
-			if(abstractStatement instanceof StatementObject) {
-				StatementObject statement = (StatementObject)abstractStatement;
-				allSimpleNames.addAll(expressionExtractor.getVariableInstructions(statement.getStatement()));
+			allSimpleNames.addAll(extractSimpleNames(pdgNode));
+		}
+		return allSimpleNames;
+	}
+
+	private Set<Expression> extractSimpleNames(PDGNode pdgNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<Expression> allSimpleNames = new LinkedHashSet<Expression>();
+		AbstractStatement abstractStatement = pdgNode.getStatement();
+		if(abstractStatement instanceof StatementObject) {
+			StatementObject statement = (StatementObject)abstractStatement;
+			allSimpleNames.addAll(expressionExtractor.getVariableInstructions(statement.getStatement()));
+		}
+		else if(abstractStatement instanceof CompositeStatementObject) {
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			for(AbstractExpression expression : composite.getExpressions()) {
+				allSimpleNames.addAll(expressionExtractor.getVariableInstructions(expression.getExpression()));
 			}
-			else if(abstractStatement instanceof CompositeStatementObject) {
-				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
-				for(AbstractExpression expression : composite.getExpressions()) {
-					allSimpleNames.addAll(expressionExtractor.getVariableInstructions(expression.getExpression()));
+			if(composite instanceof TryStatementObject) {
+				TryStatementObject tryStatement = (TryStatementObject)composite;
+				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+				for(CatchClauseObject catchClause : catchClauses) {
+					allSimpleNames.addAll(expressionExtractor.getVariableInstructions(catchClause.getBody().getStatement()));
 				}
-				if(composite instanceof TryStatementObject) {
-					TryStatementObject tryStatement = (TryStatementObject)composite;
-					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
-					for(CatchClauseObject catchClause : catchClauses) {
-						allSimpleNames.addAll(expressionExtractor.getVariableInstructions(catchClause.getBody().getStatement()));
-					}
-					if(tryStatement.getFinallyClause() != null) {
-						allSimpleNames.addAll(expressionExtractor.getVariableInstructions(tryStatement.getFinallyClause().getStatement()));
-					}
+				if(tryStatement.getFinallyClause() != null) {
+					allSimpleNames.addAll(expressionExtractor.getVariableInstructions(tryStatement.getFinallyClause().getStatement()));
 				}
 			}
 		}
@@ -2818,5 +2854,40 @@ public class PreconditionExaminer {
 			}
 		}
 		return allMethodInvocations;
+	}
+
+	private Set<Expression> extractThisExpressions(Set<PDGNode> mappedNodes) {
+		Set<Expression> allThisExpressions = new LinkedHashSet<Expression>();
+		for(PDGNode pdgNode : mappedNodes) {
+			allThisExpressions.addAll(extractThisExpressions(pdgNode));
+		}
+		return allThisExpressions;
+	}
+
+	private Set<Expression> extractThisExpressions(PDGNode pdgNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		Set<Expression> allThisExpressions = new LinkedHashSet<Expression>();
+		AbstractStatement abstractStatement = pdgNode.getStatement();
+		if(abstractStatement instanceof StatementObject) {
+			StatementObject statement = (StatementObject)abstractStatement;
+			allThisExpressions.addAll(expressionExtractor.getThisExpressions(statement.getStatement()));
+		}
+		else if(abstractStatement instanceof CompositeStatementObject) {
+			CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+			for(AbstractExpression expression : composite.getExpressions()) {
+				allThisExpressions.addAll(expressionExtractor.getThisExpressions(expression.getExpression()));
+			}
+			if(composite instanceof TryStatementObject) {
+				TryStatementObject tryStatement = (TryStatementObject)composite;
+				List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
+				for(CatchClauseObject catchClause : catchClauses) {
+					allThisExpressions.addAll(expressionExtractor.getThisExpressions(catchClause.getBody().getStatement()));
+				}
+				if(tryStatement.getFinallyClause() != null) {
+					allThisExpressions.addAll(expressionExtractor.getThisExpressions(tryStatement.getFinallyClause().getStatement()));
+				}
+			}
+		}
+		return allThisExpressions;
 	}
 }

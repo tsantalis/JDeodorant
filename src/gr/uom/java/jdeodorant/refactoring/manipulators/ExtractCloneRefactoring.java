@@ -2044,34 +2044,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									falseControlDependentChildren.add(child);
 								}
 								else {
-									trueControlDependentChildren.add(child);
+									processIfStatementChild(child, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
 								}
 							}
 							else {
-								PDGNode childNodeG1 = child.getMapping().getNodeG1();
-								PDGNode childNodeG2 = child.getMapping().getNodeG2();
-								PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-								PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-								if(controlDependence1 != null && controlDependence2 != null) {
-									if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
-											(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
-										trueControlDependentChildren.add(child);
-									}
-									else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
-											(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
-										falseControlDependentChildren.add(child);
-									}
-								}
-								else {
-									if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
-											isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
-										falseControlDependentChildren.add(child);
-									}
-									else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
-											!isNestedUnderElse(childNodeG1) && symmetricalIfElse) {
-										trueControlDependentChildren.add(child);
-									}
-								}
+								processIfStatementChild(child, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
 							}
 						}
 						else if(child.getMapping() instanceof PDGNodeGap) {
@@ -2106,34 +2083,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										falseControlDependentChildren.add(child2);
 									}
 									else {
-										trueControlDependentChildren.add(child2);
+										processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
 									}
 								}
 								else {
-									PDGNode childNodeG1 = child2.getMapping().getNodeG1();
-									PDGNode childNodeG2 = child2.getMapping().getNodeG2();
-									PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-									PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
-									if(controlDependence1 != null && controlDependence2 != null) {
-										if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
-												(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
-											trueControlDependentChildren.add(child2);
-										}
-										else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
-												(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
-											falseControlDependentChildren.add(child2);
-										}
-									}
-									else {
-										if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
-												(isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
-											falseControlDependentChildren.add(child2);
-										}
-										else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
-												(!isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
-											trueControlDependentChildren.add(child2);
-										}
-									}
+									processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
 								}
 							}
 						}
@@ -2359,6 +2313,35 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			newStatement = (Statement)processASTNodeWithDifferences(ast, sourceRewriter, oldStatement, nodeGap);
 		}
 		return newStatement;
+	}
+
+	private void processIfStatementChild(CloneStructureNode child,
+			List<CloneStructureNode> trueControlDependentChildren,
+			List<CloneStructureNode> falseControlDependentChildren, boolean symmetricalIfElse) {
+		PDGNode childNodeG1 = child.getMapping().getNodeG1();
+		PDGNode childNodeG2 = child.getMapping().getNodeG2();
+		PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+		PDGControlDependence controlDependence2 = childNodeG2.getIncomingControlDependence();
+		if(controlDependence1 != null && controlDependence2 != null) {
+			if((controlDependence1.isTrueControlDependence() && controlDependence2.isTrueControlDependence()) ||
+					(controlDependence1.isTrueControlDependence() && symmetricalIfElse)) {
+				trueControlDependentChildren.add(child);
+			}
+			else if((controlDependence1.isFalseControlDependence() && controlDependence2.isFalseControlDependence()) ||
+					(controlDependence1.isFalseControlDependence() && symmetricalIfElse)) {
+				falseControlDependentChildren.add(child);
+			}
+		}
+		else {
+			if((isNestedUnderElse(childNodeG1) && isNestedUnderElse(childNodeG2)) ||
+					(isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
+				falseControlDependentChildren.add(child);
+			}
+			else if((!isNestedUnderElse(childNodeG1) && !isNestedUnderElse(childNodeG2)) ||
+					(!isNestedUnderElse(childNodeG1) && symmetricalIfElse)) {
+				trueControlDependentChildren.add(child);
+			}
+		}
 	}
 
 	private boolean processableNode(CloneStructureNode child) {

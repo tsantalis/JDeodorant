@@ -1840,7 +1840,7 @@ public class PreconditionExaminer {
 		}
 		for(MethodInvocationObject invocation : accessedMethods) {
 			IMethodBinding methodBinding = invocation.getMethodInvocation().resolveMethodBinding();
-			if(methodBinding.getDeclaringClass().isEqualTo(typeBinding)) {
+			if(methodBinding.getDeclaringClass().isEqualTo(typeBinding) || methodBinding.getDeclaringClass().isEqualTo(typeBinding.getSuperclass())) {
 				methods.add(methodBinding);
 			}
 		}
@@ -1848,7 +1848,7 @@ public class PreconditionExaminer {
 			IBinding binding = fieldAccess.getSimpleName().resolveBinding();
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
-				if(variableBinding.getDeclaringClass().isEqualTo(typeBinding)) {
+				if(variableBinding.getDeclaringClass().isEqualTo(typeBinding) || variableBinding.getDeclaringClass().isEqualTo(typeBinding.getSuperclass())) {
 					fields.add(variableBinding);
 				}
 			}

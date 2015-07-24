@@ -981,7 +981,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(parameterName);
 			VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
 			VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
-			if(parameterIsUsedByNodesWithoutDifferences(variableDeclaration1, variableDeclaration2)) {
+			if(parameterIsUsedByNodesWithoutDifferences(variableDeclaration1, variableDeclaration2) && !parameterIsDeclaredInBlockGap(variableDeclaration1, variableDeclaration2)) {
 				if(!variableDeclaration1.resolveBinding().isField() && !variableDeclaration2.resolveBinding().isField()) {
 					ITypeBinding typeBinding1 = extractTypeBinding(variableDeclaration1);
 					ITypeBinding typeBinding2 = extractTypeBinding(variableDeclaration2);
@@ -2442,6 +2442,30 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		return false;
+	}
+
+	private boolean parameterIsDeclaredInBlockGap(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+		PlainVariable variable1 = new PlainVariable(variableDeclaration1);
+		PlainVariable variable2 = new PlainVariable(variableDeclaration2);
+		boolean variable1DeclaredInBlockGap = false;
+		boolean variable2DeclaredInBlockGap = false;
+		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+			Set<PDGNode> nodesG1 = blockGap.getNodesG1();
+			for(PDGNode nodeG1 : nodesG1) {
+				if(nodeG1.declaresLocalVariable(variable1)) {
+					variable1DeclaredInBlockGap = true;
+					break;
+				}
+			}
+			Set<PDGNode> nodesG2 = blockGap.getNodesG2();
+			for(PDGNode nodeG2 : nodesG2) {
+				if(nodeG2.declaresLocalVariable(variable2)) {
+					variable2DeclaredInBlockGap = true;
+					break;
+				}
+			}
+		}
+		return variable1DeclaredInBlockGap && variable2DeclaredInBlockGap;
 	}
 
 	private Statement processCloneStructureNode(CloneStructureNode node, AST ast, ASTRewrite sourceRewriter) {

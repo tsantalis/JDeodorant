@@ -85,8 +85,9 @@ public class LambdaExpressionPreconditionExaminer {
 				}
 				IVariableBinding binding1 = pair.getBinding1();
 				IVariableBinding binding2 = pair.getBinding2();
-				if((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
-						(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0) ) {
+				if(((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
+						(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0)) &&
+						!variableIsDeclaredInMappedNodes(pair)) {
 					expressionGap.addNonEffectivelyFinalLocalVariableBinding(pair);
 				}
 			}
@@ -110,8 +111,9 @@ public class LambdaExpressionPreconditionExaminer {
 					}
 					IVariableBinding binding1 = pair.getBinding1();
 					IVariableBinding binding2 = pair.getBinding2();
-					if((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
-							(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0) ) {
+					if(((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
+							(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0)) &&
+							!variableIsDeclaredInMappedNodes(pair)) {
 						blockGap.addNonEffectivelyFinalLocalVariableBinding(pair);
 					}
 				}
@@ -351,4 +353,20 @@ public class LambdaExpressionPreconditionExaminer {
 		return false;
 	}
 
+	private boolean variableIsDeclaredInMappedNodes(VariableBindingPair pair) {
+		IVariableBinding binding1 = pair.getBinding1();
+		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+		IVariableBinding binding2 = pair.getBinding2();
+		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+		for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+			PDGNode node1 = mapping.getNodeG1();
+			PDGNode node2 = mapping.getNodeG2();
+			if(node1.declaresLocalVariable(variable1) && node2.declaresLocalVariable(variable2)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

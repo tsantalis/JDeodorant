@@ -1,8 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
-import gr.uom.java.ast.decomposition.cfg.GraphNode;
-import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
@@ -19,6 +17,7 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
@@ -26,17 +25,13 @@ public class LambdaExpressionPreconditionExaminer {
 
 	private MappingState finalState;
 	private Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters;
-	private PDG pdg1;
-	private PDG pdg2;
 	private List<PDGExpressionGap> refactorableExpressionGaps;
 	private List<PDGNodeBlockGap> refactorableBlockGaps;
 
 	public LambdaExpressionPreconditionExaminer(CloneStructureNode cloneStructureRoot, MappingState finalState, 
-			Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters, PDG pdg1, PDG pdg2) {
+			Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters) {
 		this.finalState = finalState;
 		this.commonPassedParameters = commonPassedParameters;
-		this.pdg1 = pdg1;
-		this.pdg2 = pdg2;
 		this.refactorableExpressionGaps = new ArrayList<PDGExpressionGap>();
 		this.refactorableBlockGaps = new ArrayList<PDGNodeBlockGap>();
 		checkCloneStructureNodeForGaps(cloneStructureRoot);
@@ -88,7 +83,10 @@ public class LambdaExpressionPreconditionExaminer {
 				if(introduceParameter(pair)) {
 					expressionGap.addParameterBinding(pair);
 				}
-				if(!isEffectivelyFinal(pair, expressionGap)) {
+				IVariableBinding binding1 = pair.getBinding1();
+				IVariableBinding binding2 = pair.getBinding2();
+				if((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
+						(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0) ) {
 					expressionGap.addNonEffectivelyFinalLocalVariableBinding(pair);
 				}
 			}
@@ -110,7 +108,10 @@ public class LambdaExpressionPreconditionExaminer {
 					if(introduceParameter(pair)) {
 						blockGap.addParameterBinding(pair);
 					}
-					if(!isEffectivelyFinal(pair, blockGap)) {
+					IVariableBinding binding1 = pair.getBinding1();
+					IVariableBinding binding2 = pair.getBinding2();
+					if((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
+							(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0) ) {
 						blockGap.addNonEffectivelyFinalLocalVariableBinding(pair);
 					}
 				}
@@ -144,53 +145,6 @@ public class LambdaExpressionPreconditionExaminer {
 				return true;
 		}
 		return false;
-	}
-
-	private boolean isEffectivelyFinal(VariableBindingPair pair, Gap gap) {
-		int defCounter1 = 0;
-		int defCounter2 = 0;
-		IVariableBinding variableBinding1 = pair.getBinding1();
-		IVariableBinding variableBinding2 = pair.getBinding2();
-		Set<PDGNode> mappedNodesG1 = finalState.getMappedNodesG1();
-		Set<PDGNode> mappedNodesG2 = finalState.getMappedNodesG2();
-		int firstNodeIdInGap1 = gap.getFirstNodeInGap1() != null ? gap.getFirstNodeInGap1().getId() : pdg1.getTotalNumberOfStatements();
-		int firstNodeIdInGap2 = gap.getFirstNodeInGap2() != null ? gap.getFirstNodeInGap2().getId() : pdg2.getTotalNumberOfStatements();
-		for(GraphNode node : pdg1.getNodes()) {
-			PDGNode pdgNode1 = (PDGNode)node;
-			if(pdgNode1.getId() < firstNodeIdInGap1 && !mappedNodesG1.contains(pdgNode1)) {
-				Iterator<AbstractVariable> definedVariableIterator1 = pdgNode1.getDefinedVariableIterator();
-				while(definedVariableIterator1.hasNext()) {
-					AbstractVariable variable1 = definedVariableIterator1.next();
-					if(variable1 instanceof PlainVariable) {
-						PlainVariable plainVariable1 = (PlainVariable)variable1;
-						if(plainVariable1.getVariableBindingKey().equals(variableBinding1.getKey())) {
-							defCounter1++;
-							break;
-						}
-					}
-				}
-			}
-		}
-		for(GraphNode node : pdg2.getNodes()) {
-			PDGNode pdgNode2 = (PDGNode)node;
-			if(pdgNode2.getId() < firstNodeIdInGap2 && !mappedNodesG2.contains(pdgNode2)) {
-				Iterator<AbstractVariable> definedVariableIterator2 = pdgNode2.getDefinedVariableIterator();
-				while(definedVariableIterator2.hasNext()) {
-					AbstractVariable variable2 = definedVariableIterator2.next();
-					if(variable2 instanceof PlainVariable) {
-						PlainVariable plainVariable2 = (PlainVariable)variable2;
-						if(plainVariable2.getVariableBindingKey().equals(variableBinding2.getKey())) {
-							defCounter2++;
-							break;
-						}
-					}
-				}
-			}
-		}
-		if(defCounter1 > 1 || defCounter2 > 1) {
-			return false;
-		}
-		return true;
 	}
 
 	private boolean allVariableBindingsFound(Set<IVariableBinding> variableBindings1, Set<IVariableBinding> variableBindings2,

@@ -11,7 +11,6 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
-import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -19,11 +18,9 @@ import gr.uom.java.ast.util.ThrownExceptionVisitor;
 
 public class PDGExpressionGap extends Gap {
 	private ASTNodeDifference difference;
-	private NodeMapping mapping;
 	
-	public PDGExpressionGap(ASTNodeDifference difference, NodeMapping mapping) {
+	public PDGExpressionGap(ASTNodeDifference difference) {
 		this.difference = difference;
-		this.mapping = mapping;
 	}
 
 	public ASTNodeDifference getASTNodeDifference() {
@@ -82,15 +79,5 @@ public class PDGExpressionGap extends Gap {
 			addTypeBinding(typeBinding, thrownExceptionTypeBindings);
 		}
 		return thrownExceptionTypeBindings;
-	}
-
-	@Override
-	public PDGNode getFirstNodeInGap1() {
-		return mapping.getNodeG1();
-	}
-
-	@Override
-	public PDGNode getFirstNodeInGap2() {
-		return mapping.getNodeG2();
 	}
 }

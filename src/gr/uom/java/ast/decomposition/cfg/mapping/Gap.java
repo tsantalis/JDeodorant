@@ -5,8 +5,6 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ITypeBinding;
 
-import gr.uom.java.ast.decomposition.cfg.PDGNode;
-
 public abstract class Gap {
 	private Set<VariableBindingPair> parameterBindings;
 	private Set<VariableBindingPair> nonEffectivelyFinalLocalVariableBindings;
@@ -48,6 +46,4 @@ public abstract class Gap {
 
 	public abstract ITypeBinding getReturnType();
 	public abstract Set<ITypeBinding> getThrownExceptions();
-	public abstract PDGNode getFirstNodeInGap1();
-	public abstract PDGNode getFirstNodeInGap2();
 }

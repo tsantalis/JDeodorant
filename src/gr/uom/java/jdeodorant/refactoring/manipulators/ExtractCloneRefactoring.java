@@ -4116,7 +4116,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 									SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
 									String parameterName = null;
-									if(isReturnedVariable(variableBinding, returnedVariables)) {
+									if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
 										parameterName = variableBinding.getName() + index;
 									}
 									else {
@@ -4149,7 +4149,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									SimpleName simpleName = (SimpleName)expr;
 									if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
 										IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
-										if(isReturnedVariable(variableBinding, returnedVariables)) {
+										if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
 											String identifier = variableBinding.getName() + index;
 											methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
 										}
@@ -4427,7 +4427,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
 			String parameterName = null;
-			if(isReturnedVariable(variableBinding, returnedVariables)) {
+			if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
 				parameterName = variableBinding.getName() + index;
 			}
 			else {
@@ -4532,7 +4532,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
 						if(oldSimpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)oldSimpleName.resolveBinding();
-							if(isReturnedVariable(variableBinding, returnedVariables)) {
+							if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
 								String identifier = variableBinding.getName() + index;
 								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
 							}
@@ -4557,9 +4557,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		argumentsRewrite.insertLast(lambdaExpression, null);
 	}
 
-	private boolean isReturnedVariable(IVariableBinding variableBinding, List<VariableDeclaration> returnedVariables) {
+	private boolean isReturnedVariableAndNotPassedAsCommonParameter(IVariableBinding variableBinding, List<VariableDeclaration> returnedVariables) {
 		for(VariableDeclaration variableDeclaration : returnedVariables) {
-			if(variableDeclaration.resolveBinding().isEqualTo(variableBinding))
+			if(variableDeclaration.resolveBinding().isEqualTo(variableBinding) && !variableIsPassedAsCommonParameter(variableDeclaration))
 				return true;
 		}
 		return false;

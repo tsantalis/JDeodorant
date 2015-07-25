@@ -50,7 +50,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
 				if(difference != null && !difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) &&
 						!isVoidMethodCallDifferenceCoveringEntireStatement) {
-					PDGExpressionGap expressionGap = new PDGExpressionGap(difference, mapping);
+					PDGExpressionGap expressionGap = new PDGExpressionGap(difference);
 					if(!expressionGapMap.containsKey(difference)) {
 						expressionGapMap.put(difference, expressionGap);
 					}
@@ -61,7 +61,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
 				if(difference != null && !difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) &&
 						!isVoidMethodCallDifferenceCoveringEntireStatement) {
-					PDGExpressionGap expressionGap = new PDGExpressionGap(difference, mapping);
+					PDGExpressionGap expressionGap = new PDGExpressionGap(difference);
 					if(!expressionGapMap.containsKey(difference)) {
 						expressionGapMap.put(difference, expressionGap);
 					}

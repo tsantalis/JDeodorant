@@ -312,7 +312,7 @@ public class PreconditionExaminer {
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
 			checkIfAllPossibleExecutionFlowsEndInReturn();
-			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters(), pdg1, pdg2);
+			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters());
 			Set<PDGNode> remainingMovableNodesG1 = new TreeSet<PDGNode>();
 			remainingMovableNodesG1.addAll(nonMappedPDGNodesG1MovableBefore);
 			remainingMovableNodesG1.addAll(nonMappedPDGNodesG1MovableAfter);

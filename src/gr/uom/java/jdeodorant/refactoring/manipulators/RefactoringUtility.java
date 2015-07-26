@@ -19,7 +19,14 @@ public class RefactoringUtility {
 			type = createParameterizedType(ast, typeBinding, rewriter);
 		}
 		else if(typeBinding.isClass() || typeBinding.isInterface()) {
-			type = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
+			if(typeBinding.isMember()) {
+				ITypeBinding declaringClassTypeBinding = typeBinding.getDeclaringClass();
+				Type declaringClassType = generateTypeFromTypeBinding(declaringClassTypeBinding, ast, rewriter);
+				type = ast.newQualifiedType(declaringClassType, ast.newSimpleName(typeBinding.getName()));
+			}
+			else {
+				type = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
+			}
 		}
 		else if(typeBinding.isPrimitive()) {
 			String primitiveType = typeBinding.getName();

@@ -400,6 +400,27 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else
 				return ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 		}
+		else if(returnedTypeBindings1.size() == returnedTypeBindings2.size()) {
+			ITypeBinding returnTypeBinding = null;
+			for(int i=0; i<returnedTypeBindings1.size(); i++) {
+				ITypeBinding typeBinding1 = returnedTypeBindings1.get(i);
+				ITypeBinding typeBinding2 = returnedTypeBindings2.get(i);
+				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				if(returnTypeBinding == null) {
+					if(typeBinding1.isEqualTo(typeBinding2))
+						returnTypeBinding = typeBinding1;
+					else
+						returnTypeBinding = commonSuperType;
+				}
+				else {
+					if(typeBinding1.isEqualTo(typeBinding2))
+						returnTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, returnTypeBinding);
+					else
+						returnTypeBinding = ASTNodeMatcher.commonSuperType(commonSuperType, returnTypeBinding);
+				}
+			}
+			return returnTypeBinding;
+		}
 		return null;
 	}
 

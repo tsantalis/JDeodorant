@@ -2293,11 +2293,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 			for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
 				List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
-				VariableDeclaration variableDeclaration = variableDeclarations.get(0);
+				VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
 				//create initializer for passed parameter
-				if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
-					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
-					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() && variableDeclaration1 instanceof VariableDeclarationFragment) {
+					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration1.resolveBinding().getType());
+					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration1, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+				}
+				VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
+				if(!variableDeclaration2.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
+					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() && variableDeclaration2 instanceof VariableDeclarationFragment) {
+						Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration2.resolveBinding().getType());
+						methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration2, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+					}
 				}
 			}
 			try {

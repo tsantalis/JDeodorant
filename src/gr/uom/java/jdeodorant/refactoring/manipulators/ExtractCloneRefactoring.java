@@ -3807,7 +3807,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void addConstructorDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+	private void addConstructorDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit, Set<ITypeBinding> requiredImportTypeBindings) {
 		//check if there is already a constructor declared with the same signature as the super constructor call
 		SuperConstructorInvocation superConstructorInvocation = firstStatementIsSuperConstructorInvocation(methodDeclaration);
 		boolean constructorFound = false;
@@ -3824,7 +3824,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(!constructorFound) {
 			AST ast = typeDeclaration.getAST();
 			ASTRewrite rewriter = ASTRewrite.create(ast);
-			Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 			MethodDeclaration constructor = copyConstructor(methodDeclaration, ast, rewriter, typeDeclaration.getName(), requiredImportTypeBindings);
 			ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 			bodyRewrite.insertFirst(constructor, null);
@@ -3853,7 +3852,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
 		}
 		for(MethodDeclaration constructor : constructorsToBeCopied) {
-			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit);
+			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit, cloneInfo.requiredImportTypeBindings);
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
 			if(methodDeclaration.getRoot().equals(compilationUnit)) {
@@ -3877,6 +3876,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					importRewrite.addImport(cloneInfo.intermediateClassPackageBinding.getName() +
 							"." + cloneInfo.intermediateClassName);
 				}
+			}
+			for(ITypeBinding typeBinding : cloneInfo.requiredImportTypeBindings) {
+				if(!typeBinding.isNested())
+					importRewrite.addImport(typeBinding);
 			}
 			
 			if(singleSourceCompilationUnit) {

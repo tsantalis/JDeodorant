@@ -4,7 +4,9 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.loop.AbstractLoopUtilities;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.jdeodorant.refactoring.manipulators.RefactoringUtility;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -230,7 +232,7 @@ public class LambdaExpressionPreconditionExaminer {
 			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
 				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
 				if(variableBinding1.isEqualTo(variableDeclarations.get(0).resolveBinding())) {
-					pair = new VariableBindingPair(variableBinding1, variableDeclarations.get(1).resolveBinding());
+					pair = new VariableBindingPair(variableBinding1, variableDeclarations.get(1).resolveBinding(), RefactoringUtility.extractType(variableDeclarations.get(1)));
 					break;
 				}
 			}
@@ -259,7 +261,8 @@ public class LambdaExpressionPreconditionExaminer {
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, variableBinding) &&
 														(variableBinding1.getType().isEqualTo(variableBinding.getType()) ||
 														ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding.getType()) != null)) {
-													pair = new VariableBindingPair(variableBinding1, variableBinding);
+													pair = new VariableBindingPair(variableBinding1, variableBinding,
+															RefactoringUtility.extractType(AbstractLoopUtilities.getVariableDeclaration(simpleName)));
 													break;
 												}
 											}
@@ -289,7 +292,7 @@ public class LambdaExpressionPreconditionExaminer {
 			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
 				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
 				if(variableBinding2.isEqualTo(variableDeclarations.get(1).resolveBinding())) {
-					pair = new VariableBindingPair(variableDeclarations.get(0).resolveBinding(), variableBinding2);
+					pair = new VariableBindingPair(variableDeclarations.get(0).resolveBinding(), variableBinding2, RefactoringUtility.extractType(variableDeclarations.get(0)));
 					break;
 				}
 			}
@@ -318,7 +321,8 @@ public class LambdaExpressionPreconditionExaminer {
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding, variableBinding2) &&
 														(variableBinding.getType().isEqualTo(variableBinding2.getType()) ||
 														ASTNodeMatcher.commonSuperType(variableBinding.getType(), variableBinding2.getType()) != null)) {
-													pair = new VariableBindingPair(variableBinding, variableBinding2);
+													pair = new VariableBindingPair(variableBinding, variableBinding2,
+															RefactoringUtility.extractType(AbstractLoopUtilities.getVariableDeclaration(simpleName)));
 													break;
 												}
 											}
@@ -373,13 +377,14 @@ public class LambdaExpressionPreconditionExaminer {
 	}
 
 	private boolean variableIsInitialized(VariableBindingPair pair) {
-		if(!pair.getBinding1().isParameter() && !pair.getBinding2().isParameter()) {
-			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
-				if(pair.getBinding1().getKey().equals(keyPair.getKey1()) && pair.getBinding2().getKey().equals(keyPair.getKey2())) {
-					ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
-					if(variableDeclarations.get(0).getInitializer() != null && variableDeclarations.get(1).getInitializer() != null) {
-						return true;
-					}
+		if(pair.getBinding1().isParameter() && pair.getBinding2().isParameter()) {
+			return true;
+		}
+		for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
+			if(pair.getBinding1().getKey().equals(keyPair.getKey1()) && pair.getBinding2().getKey().equals(keyPair.getKey2())) {
+				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
+				if(variableDeclarations.get(0).getInitializer() != null && variableDeclarations.get(1).getInitializer() != null) {
+					return true;
 				}
 			}
 		}

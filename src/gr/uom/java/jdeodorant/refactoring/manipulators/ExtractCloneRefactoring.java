@@ -1481,7 +1481,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
 			}
 			else {
-				parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
 			}
 			Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
 			typeBindings2.add(variableBinding.getType());
@@ -1526,7 +1527,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
 			}
 			else {
-				parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
 			}
 			Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
 			typeBindings2.add(variableBinding.getType());
@@ -1569,7 +1571,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		ListRewrite interfaceMethodDeclarationParameterRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
 			IVariableBinding variableBinding = variableBindingPair.getBinding1();
-			Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+			Type parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter) :
+				RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(variableBinding.getType());
 			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);	
@@ -4143,7 +4146,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
 									}
 									else {
-										parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+										parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter) :
+											RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
 									}
 									SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
 									String parameterName = null;
@@ -4454,7 +4458,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
 			}
 			else {
-				parameterType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
 			}
 			SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
 			String parameterName = null;

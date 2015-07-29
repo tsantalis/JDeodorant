@@ -11,6 +11,7 @@ import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.AbstractStatement;
@@ -2308,7 +2309,7 @@ public class PreconditionExaminer {
 	}
 	//precondition: differences in expressions should be parameterizable
 	private PreconditionViolationType isParameterizableExpression(PDG pdg, TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression, ICompilationUnit iCompilationUnit) {
-		Set<VariableDeclaration> variableDeclarationsInMethod = pdg.getVariableDeclarationsInMethod();
+		Set<VariableDeclarationObject> variableDeclarationsInMethod = pdg.getVariableDeclarationObjectsInMethod();
 		Expression initialExpression = initialAbstractExpression.getExpression();
 		Expression expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(initialExpression);
 		PDGExpression pdgExpression;

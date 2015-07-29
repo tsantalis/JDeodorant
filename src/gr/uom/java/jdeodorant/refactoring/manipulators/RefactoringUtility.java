@@ -4,14 +4,54 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 
 public class RefactoringUtility {
+
+	public static Type generateQualifiedTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite rewriter) {
+		Type type = null;
+		if(typeBinding.isParameterizedType()) {
+			type = createQualifiedParameterizedType(ast, typeBinding, rewriter);
+		}
+		else if(typeBinding.isClass() || typeBinding.isInterface()) {
+			if(typeBinding.isMember()) {
+				ITypeBinding declaringClassTypeBinding = typeBinding.getDeclaringClass();
+				Type declaringClassType = generateQualifiedTypeFromTypeBinding(declaringClassTypeBinding, ast, rewriter);
+				type = ast.newQualifiedType(declaringClassType, ast.newSimpleName(typeBinding.getName()));
+			}
+			else {
+				type = ast.newSimpleType(ast.newQualifiedName(ast.newName(typeBinding.getPackage().getName()), ast.newSimpleName(typeBinding.getName())));
+			}
+		}
+		else if(typeBinding.isArray()) {
+			ITypeBinding elementTypeBinding = typeBinding.getElementType();
+			Type elementType = generateQualifiedTypeFromTypeBinding(elementTypeBinding, ast, rewriter);
+			type = ast.newArrayType(elementType, typeBinding.getDimensions());
+		}
+		return type;
+	}
+
+	private static ParameterizedType createQualifiedParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite rewriter) {
+		ITypeBinding erasure = typeBinding.getErasure();
+		ITypeBinding[] typeArguments = typeBinding.getTypeArguments();
+		ParameterizedType parameterizedType = ast.newParameterizedType(generateQualifiedTypeFromTypeBinding(erasure, ast, rewriter));
+		ListRewrite typeArgumentsRewrite = rewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+		for(ITypeBinding typeArgument : typeArguments) {
+			typeArgumentsRewrite.insertLast(generateQualifiedTypeFromTypeBinding(typeArgument, ast, rewriter), null);
+		}
+		return parameterizedType;
+	}
 
 	public static Type generateTypeFromTypeBinding(ITypeBinding typeBinding, AST ast, ASTRewrite rewriter) {
 		Type type = null;
@@ -58,15 +98,10 @@ public class RefactoringUtility {
 	private static ParameterizedType createParameterizedType(AST ast, ITypeBinding typeBinding, ASTRewrite rewriter) {
 		ITypeBinding erasure = typeBinding.getErasure();
 		ITypeBinding[] typeArguments = typeBinding.getTypeArguments();
-		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(ast.newSimpleName(erasure.getName())));
+		ParameterizedType parameterizedType = ast.newParameterizedType(generateTypeFromTypeBinding(erasure, ast, rewriter));
 		ListRewrite typeArgumentsRewrite = rewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
 		for(ITypeBinding typeArgument : typeArguments) {
-			if(typeArgument.isParameterizedType()) {
-				typeArgumentsRewrite.insertLast(createParameterizedType(ast, typeArgument, rewriter), null);
-			}
-			else if(typeArgument.isClass() || typeArgument.isInterface()) {
-				typeArgumentsRewrite.insertLast(ast.newSimpleType(ast.newSimpleName(typeArgument.getName())), null);
-			}
+			typeArgumentsRewrite.insertLast(generateTypeFromTypeBinding(typeArgument, ast, rewriter), null);
 		}
 		return parameterizedType;
 	}
@@ -138,4 +173,27 @@ public class RefactoringUtility {
 		return false;
 	}
 
+	public static Type extractType(VariableDeclaration variableDeclaration) {
+		Type returnedVariableType = null;
+		if(variableDeclaration instanceof SingleVariableDeclaration) {
+			SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
+			returnedVariableType = singleVariableDeclaration.getType();
+		}
+		else if(variableDeclaration instanceof VariableDeclarationFragment) {
+			VariableDeclarationFragment fragment = (VariableDeclarationFragment)variableDeclaration;
+			if(fragment.getParent() instanceof VariableDeclarationStatement) {
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
+				returnedVariableType = variableDeclarationStatement.getType();
+			}
+			else if(fragment.getParent() instanceof VariableDeclarationExpression) {
+				VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
+				returnedVariableType = variableDeclarationExpression.getType();
+			}
+			else if(fragment.getParent() instanceof FieldDeclaration) {
+				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+				returnedVariableType = fieldDeclaration.getType();
+			}
+		}
+		return returnedVariableType;
+	}
 }

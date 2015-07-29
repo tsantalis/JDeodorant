@@ -522,29 +522,6 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 		IVariableBinding variableBinding = variableDeclaration.resolveBinding();
 		return variableBinding.getType();
 	}
-	/*protected Type extractType(VariableDeclaration variableDeclaration) {
-		Type returnedVariableType = null;
-		if(variableDeclaration instanceof SingleVariableDeclaration) {
-			SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
-			returnedVariableType = singleVariableDeclaration.getType();
-		}
-		else if(variableDeclaration instanceof VariableDeclarationFragment) {
-			VariableDeclarationFragment fragment = (VariableDeclarationFragment)variableDeclaration;
-			if(fragment.getParent() instanceof VariableDeclarationStatement) {
-				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)fragment.getParent();
-				returnedVariableType = variableDeclarationStatement.getType();
-			}
-			else if(fragment.getParent() instanceof VariableDeclarationExpression) {
-				VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)fragment.getParent();
-				returnedVariableType = variableDeclarationExpression.getType();
-			}
-			else if(fragment.getParent() instanceof FieldDeclaration) {
-				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
-				returnedVariableType = fieldDeclaration.getType();
-			}
-		}
-		return returnedVariableType;
-	}*/
 
 	protected Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, ITypeBinding returnTypeBinding) {
 		Expression returnedExpression = null;

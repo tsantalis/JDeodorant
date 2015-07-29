@@ -4,6 +4,7 @@ import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.TypeObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 
 import java.util.Iterator;
@@ -11,8 +12,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PDGExpression {
 	private Set<AbstractVariable> declaredVariables;
@@ -22,7 +21,7 @@ public class PDGExpression {
 	private Set<String> thrownExceptionTypes;
 	private MethodCallAnalyzer methodCallAnalyzer;
 	
-	public PDGExpression(AbstractExpression expression, Set<VariableDeclaration> variableDeclarationsInMethod) {
+	public PDGExpression(AbstractExpression expression, Set<VariableDeclarationObject> variableDeclarationsInMethod) {
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();

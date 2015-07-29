@@ -5,18 +5,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.jdt.core.dom.VariableDeclaration;
-
 import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
+import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
+import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 
 public class PDGStatementNode extends PDGNode {
 	
-	public PDGStatementNode(CFGNode cfgNode, Set<VariableDeclaration> variableDeclarationsInMethod,
-			Set<VariableDeclaration> fieldsAccessedInMethod) {
+	public PDGStatementNode(CFGNode cfgNode, Set<VariableDeclarationObject> variableDeclarationsInMethod,
+			Set<FieldObject> fieldsAccessedInMethod) {
 		super(cfgNode, variableDeclarationsInMethod, fieldsAccessedInMethod);
 		determineDefinedAndUsedVariables();
 	}

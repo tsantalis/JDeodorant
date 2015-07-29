@@ -291,6 +291,15 @@ public class ControlDependenceTreeNode {
 		return children;
 	}
 
+	public Set<ControlDependenceTreeNode> getDescendants() {
+		Set<ControlDependenceTreeNode> descendants = new LinkedHashSet<ControlDependenceTreeNode>();
+		descendants.addAll(children);
+		for(ControlDependenceTreeNode child : this.children) {
+			descendants.addAll(child.getDescendants());
+		}
+		return descendants;
+	}
+
 	public int getNodeCount() {
 		// count 1 for "this" node
 		int count = 1;

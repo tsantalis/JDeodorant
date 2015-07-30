@@ -2921,19 +2921,50 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(blockGap.getReturnedVariableBinding() != null) {
 			IVariableBinding variableBinding1 = blockGap.getReturnedVariableBinding().getBinding1();
 			IVariableBinding variableBinding2 = blockGap.getReturnedVariableBinding().getBinding2();
-			Type returnType = null;
-			if(variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
-				returnType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding1.getType(), ast, sourceRewriter);
+			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG1 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG1();
+			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG2 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG2();
+			boolean variableBinding1IsDeclaredInRemainingNodes = false;
+			for(VariableDeclaration declaration1 : declaredVariablesInRemainingNodesDefinedByMappedNodesG1) {
+				if(declaration1.resolveBinding().isEqualTo(variableBinding1)) {
+					variableBinding1IsDeclaredInRemainingNodes = true;
+					break;
+				}
+			}
+			boolean variableBinding2IsDeclaredInRemainingNodes = false;
+			for(VariableDeclaration declaration2 : declaredVariablesInRemainingNodesDefinedByMappedNodesG2) {
+				if(declaration2.resolveBinding().isEqualTo(variableBinding2)) {
+					variableBinding2IsDeclaredInRemainingNodes = true;
+					break;
+				}
+			}
+			boolean variablesPassedAsCommonParameter = false;
+			for(VariableBindingKeyPair pair : mapper.getCommonPassedParameters().keySet()) {
+				if(variableBinding1.getKey().equals(pair.getKey1()) && variableBinding2.getKey().equals(pair.getKey2())) {
+					variablesPassedAsCommonParameter = true;
+					break;
+				}
+			}
+			if(variableBinding1IsDeclaredInRemainingNodes && variableBinding2IsDeclaredInRemainingNodes && variablesPassedAsCommonParameter) {
+				Assignment assignment = ast.newAssignment();
+				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
+				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, interfaceMethodInvocation, null);
+				return ast.newExpressionStatement(assignment);
 			}
 			else {
-				returnType = RefactoringUtility.generateTypeFromTypeBinding(ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()), ast, sourceRewriter);
+				Type returnType = null;
+				if(variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
+					returnType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding1.getType(), ast, sourceRewriter);
+				}
+				else {
+					returnType = RefactoringUtility.generateTypeFromTypeBinding(ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()), ast, sourceRewriter);
+				}
+				VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
+				sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
+				sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, interfaceMethodInvocation, null);
+				VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragment);
+				sourceRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnType, null);
+				return variableDeclarationStatement;
 			}
-			VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
-			sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
-			sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, interfaceMethodInvocation, null);
-			VariableDeclarationStatement variableDeclarationStatement = ast.newVariableDeclarationStatement(fragment);
-			sourceRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnType, null);
-			return variableDeclarationStatement;
 		}
 		else {
 			return ast.newExpressionStatement(interfaceMethodInvocation);

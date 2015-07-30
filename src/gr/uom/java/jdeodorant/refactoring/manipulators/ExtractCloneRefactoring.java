@@ -991,7 +991,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					else {
 						typeBinding = typeBinding1;
 					}
-					Type variableType = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
+					boolean makeQualifiedType = RefactoringUtility.hasQualifiedType(variableDeclaration1) && RefactoringUtility.hasQualifiedType(variableDeclaration2);
+					Type variableType = makeQualifiedType ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(typeBinding, ast, sourceRewriter) :
+						RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 					Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 					typeBindings.add(typeBinding);
 					RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);

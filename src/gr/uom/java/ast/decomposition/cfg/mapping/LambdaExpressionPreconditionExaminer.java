@@ -88,8 +88,7 @@ public class LambdaExpressionPreconditionExaminer {
 				IVariableBinding binding1 = pair.getBinding1();
 				IVariableBinding binding2 = pair.getBinding2();
 				if(((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
-						(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0) ||
-						!variableIsInitialized(pair)) &&
+						(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0)) &&
 						!variableIsDeclaredInMappedNodes(pair)) {
 					expressionGap.addNonEffectivelyFinalLocalVariableBinding(pair);
 				}
@@ -115,8 +114,7 @@ public class LambdaExpressionPreconditionExaminer {
 					IVariableBinding binding1 = pair.getBinding1();
 					IVariableBinding binding2 = pair.getBinding2();
 					if(((!binding1.isEffectivelyFinal() && (binding1.getModifiers() & Modifier.FINAL) == 0) ||
-							(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0) ||
-							!variableIsInitialized(pair)) &&
+							(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0)) &&
 							!variableIsDeclaredInMappedNodes(pair)) {
 						blockGap.addNonEffectivelyFinalLocalVariableBinding(pair);
 					}
@@ -371,21 +369,6 @@ public class LambdaExpressionPreconditionExaminer {
 			PDGNode node2 = mapping.getNodeG2();
 			if(node1.declaresLocalVariable(variable1) && node2.declaresLocalVariable(variable2)) {
 				return true;
-			}
-		}
-		return false;
-	}
-
-	private boolean variableIsInitialized(VariableBindingPair pair) {
-		if(pair.getBinding1().isParameter() && pair.getBinding2().isParameter()) {
-			return true;
-		}
-		for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
-			if(pair.getBinding1().getKey().equals(keyPair.getKey1()) && pair.getBinding2().getKey().equals(keyPair.getKey2())) {
-				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
-				if(variableDeclarations.get(0).getInitializer() != null && variableDeclarations.get(1).getInitializer() != null) {
-					return true;
-				}
 			}
 		}
 		return false;

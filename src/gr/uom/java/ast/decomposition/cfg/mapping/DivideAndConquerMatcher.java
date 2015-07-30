@@ -215,7 +215,15 @@ public abstract class DivideAndConquerMatcher {
 	public Set<VariableDeclaration> getVariablesToBeReturnedG2() {
 		return preconditionExaminer.getVariablesToBeReturnedG2();
 	}
-	
+
+	public Set<VariableDeclaration> getDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1() {
+		return preconditionExaminer.getDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1();
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2() {
+		return preconditionExaminer.getDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2();
+	}
+
 	public CloneType getCloneType() {
 		return preconditionExaminer.getCloneType();
 	}

@@ -142,6 +142,8 @@ public class PreconditionExaminer {
 	private TreeSet<PDGNode> allNodesInSubTreePDG2;
 	private LambdaExpressionPreconditionExaminer lambdaExpressionPreconditionExaminer;
 	private CloneRefactoringType cloneRefactoringType;
+	private Set<PlainVariable> declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1;
+	private Set<PlainVariable> declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2;
 	
 	public PreconditionExaminer(PDG pdg1, PDG pdg2,
 			ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
@@ -188,6 +190,8 @@ public class PreconditionExaminer {
 		this.additionallyMatchedNodesG2 = new TreeSet<PDGNode>();
 		this.declaredLocalVariablesInAdditionallyMatchedNodesG1 = new LinkedHashSet<AbstractVariable>();
 		this.declaredLocalVariablesInAdditionallyMatchedNodesG2 = new LinkedHashSet<AbstractVariable>();
+		this.declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1 = new LinkedHashSet<PlainVariable>();
+		this.declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2 = new LinkedHashSet<PlainVariable>();
 		if(getMaximumStateWithMinimumDifferences() != null) {
 			this.mappedNodesG1 = getMaximumStateWithMinimumDifferences().getMappedNodesG1();
 			this.mappedNodesG2 = getMaximumStateWithMinimumDifferences().getMappedNodesG2();
@@ -348,6 +352,8 @@ public class PreconditionExaminer {
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, allMappedNodesG2);
 			checkPreconditionsAboutReturnedVariables();
 			this.cloneRefactoringType = computeRefactoringType();
+			this.declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1 = findDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodes(pdg1, allMappedNodesG1);
+			this.declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2 = findDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodes(pdg2, allMappedNodesG2);
 		}
 	}
 
@@ -391,6 +397,46 @@ public class PreconditionExaminer {
 				nonMappedNodes.add(pdgNode);
 			}
 		}
+	}
+
+	private Set<PlainVariable> findDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodes(PDG pdg, Set<PDGNode> mappedNodes) {
+		Set<PDGNode> remainingNodes = new TreeSet<PDGNode>();
+		Iterator<GraphNode> iterator = pdg.getNodeIterator();
+		while(iterator.hasNext()) {
+			PDGNode pdgNode = (PDGNode)iterator.next();
+			if(!mappedNodes.contains(pdgNode)) {
+				remainingNodes.add(pdgNode);
+			}
+		}
+		Set<PlainVariable> declaredVariablesInRemainingNodes = new LinkedHashSet<PlainVariable>();
+		for(PDGNode remainingNode : remainingNodes) {
+			Iterator<AbstractVariable> declaredVariableIterator = remainingNode.getDeclaredVariableIterator();
+			while(declaredVariableIterator.hasNext()) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable instanceof PlainVariable) {
+					declaredVariablesInRemainingNodes.add((PlainVariable)declaredVariable);
+				}
+			}
+		}
+		Set<PlainVariable> declaredVariablesInRemainingNodesDefinedOnlyByMappedNodes = new LinkedHashSet<PlainVariable>();
+		for(PlainVariable variable : declaredVariablesInRemainingNodes) {
+			int definedInMappedNodesCounter = 0;
+			for(PDGNode mappedNode : mappedNodes) {
+				if(mappedNode.definesLocalVariable(variable)) {
+					definedInMappedNodesCounter++;
+				}
+			}
+			int definedInRemainingNodesCounter = 0;
+			for(PDGNode remainingNode : remainingNodes) {
+				if(remainingNode.definesLocalVariable(variable) && !remainingNode.declaresLocalVariable(variable)) {
+					definedInRemainingNodesCounter++;
+				}
+			}
+			if(definedInMappedNodesCounter > 0 && definedInRemainingNodesCounter == 0) {
+				declaredVariablesInRemainingNodesDefinedOnlyByMappedNodes.add(variable);
+			}
+		}
+		return declaredVariablesInRemainingNodesDefinedOnlyByMappedNodes;
 	}
 
 	private void findDeclaredVariablesInMappedNodesUsedByNonMappedNodes(PDG pdg, Set<PDGNode> mappedNodes, Set<PDGNode> unmappedNodes, Set<AbstractVariable> variables) {
@@ -988,6 +1034,34 @@ public class PreconditionExaminer {
 		Set<VariableDeclaration> declaredVariablesG2 = new LinkedHashSet<VariableDeclaration>();
 		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
 		for(AbstractVariable variable2 : this.variablesToBeReturnedG2) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod2) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
+					declaredVariablesG2.add(variableDeclaration);
+					break;
+				}
+			}
+		}
+		return declaredVariablesG2;
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1() {
+		Set<VariableDeclaration> declaredVariablesG1 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsInMethod1 = pdg1.getVariableDeclarationsInMethod();
+		for(PlainVariable variable1 : this.declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG1) {
+			for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod1) {
+				if(variableDeclaration.resolveBinding().getKey().equals(variable1.getVariableBindingKey())) {
+					declaredVariablesG1.add(variableDeclaration);
+					break;
+				}
+			}
+		}
+		return declaredVariablesG1;
+	}
+
+	public Set<VariableDeclaration> getDeclaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2() {
+		Set<VariableDeclaration> declaredVariablesG2 = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
+		for(AbstractVariable variable2 : this.declaredVariablesInRemainingNodesDefinedOnlyByMappedNodesG2) {
 			for(VariableDeclaration variableDeclaration : variableDeclarationsInMethod2) {
 				if(variableDeclaration.resolveBinding().getKey().equals(variable2.getVariableBindingKey())) {
 					declaredVariablesG2.add(variableDeclaration);

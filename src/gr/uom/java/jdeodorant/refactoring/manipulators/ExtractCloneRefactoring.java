@@ -1903,17 +1903,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 			AST ast = sourceMethodDeclarations.get(0).getAST();
 			ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
+			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG1 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG1();
+			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG2 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG2();
 			for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
 				List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
 				VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
 				//create initializer for passed parameter
-				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() && variableDeclaration1 instanceof VariableDeclarationFragment) {
+				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() &&
+						declaredVariablesInRemainingNodesDefinedByMappedNodesG1.contains(variableDeclaration1) &&
+						variableDeclaration1 instanceof VariableDeclarationFragment) {
 					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration1.resolveBinding().getType());
 					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration1, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
 				}
 				VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 				if(!variableDeclaration2.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
-					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() && variableDeclaration2 instanceof VariableDeclarationFragment) {
+					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() &&
+							declaredVariablesInRemainingNodesDefinedByMappedNodesG2.contains(variableDeclaration2) &&
+							variableDeclaration2 instanceof VariableDeclarationFragment) {
 						Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration2.resolveBinding().getType());
 						methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration2, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
 					}
@@ -3340,7 +3346,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			VariableDeclaration variableDeclaration = variableDeclarations.get(index);
 			argumentsRewrite.insertLast(variableDeclaration.getName(), null);
 			//create initializer for passed parameter
-			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
+			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodes = index == 0 ? mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG1() :
+				mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG2();
+			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() &&
+					declaredVariablesInRemainingNodesDefinedByMappedNodes.contains(variableDeclaration) &&
+					variableDeclaration instanceof VariableDeclarationFragment) {
 				if(!sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
 					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);

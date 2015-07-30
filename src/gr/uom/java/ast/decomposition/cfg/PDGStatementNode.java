@@ -105,6 +105,10 @@ public class PDGStatementNode extends PDGNode {
 			for(SuperMethodInvocationObject superMethodInvocationObject : superMethodInvocations) {
 				thrownExceptionTypes.addAll(superMethodInvocationObject.getThrownExceptions());
 			}
+			List<MethodInvocationObject> methodInvocations = statement.getMethodInvocations();
+			for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+				thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
+			}
 		}
 	}
 }

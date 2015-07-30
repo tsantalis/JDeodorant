@@ -2298,13 +2298,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				List<VariableDeclaration> variableDeclarations = originalPassedParameters.get(parameterName);
 				VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
 				//create initializer for passed parameter
-				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() && variableDeclaration1 instanceof VariableDeclarationFragment) {
+				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() &&
+						!variableDeclaration1.resolveBinding().isEffectivelyFinal() && variableDeclaration1 instanceof VariableDeclarationFragment) {
 					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration1.resolveBinding().getType());
 					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration1, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
 				}
 				VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 				if(!variableDeclaration2.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
-					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() && variableDeclaration2 instanceof VariableDeclarationFragment) {
+					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() &&
+							!variableDeclaration2.resolveBinding().isEffectivelyFinal() && variableDeclaration2 instanceof VariableDeclarationFragment) {
 						Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration2.resolveBinding().getType());
 						methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration2, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
 					}
@@ -4091,7 +4093,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			VariableDeclaration variableDeclaration = variableDeclarations.get(index);
 			argumentsRewrite.insertLast(variableDeclaration.getName(), null);
 			//create initializer for passed parameter
-			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() && variableDeclaration instanceof VariableDeclarationFragment) {
+			if(variableDeclaration.getInitializer() == null && !variableDeclaration.resolveBinding().isParameter() && !variableDeclaration.resolveBinding().isField() &&
+					!variableDeclaration.resolveBinding().isEffectivelyFinal() && variableDeclaration instanceof VariableDeclarationFragment) {
 				if(!sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration.resolveBinding().getType());
 					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);

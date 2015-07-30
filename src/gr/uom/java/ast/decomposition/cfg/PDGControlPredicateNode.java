@@ -107,6 +107,10 @@ public class PDGControlPredicateNode extends PDGNode {
 				for(SuperMethodInvocationObject superMethodInvocationObject : superMethodInvocations) {
 					thrownExceptionTypes.addAll(superMethodInvocationObject.getThrownExceptions());
 				}
+				List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
+				for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+					thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
+				}
 			}
 		}
 	}

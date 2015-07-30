@@ -4,10 +4,15 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.QualifiedType;
+import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -173,7 +178,11 @@ public class RefactoringUtility {
 		return false;
 	}
 
-	public static Type extractType(VariableDeclaration variableDeclaration) {
+	public static boolean hasQualifiedType(VariableDeclaration variableDeclaration) {
+		return isQualifiedType(extractType(variableDeclaration));
+	}
+
+	private static Type extractType(VariableDeclaration variableDeclaration) {
 		Type returnedVariableType = null;
 		if(variableDeclaration instanceof SingleVariableDeclaration) {
 			SingleVariableDeclaration singleVariableDeclaration = (SingleVariableDeclaration)variableDeclaration;
@@ -195,5 +204,31 @@ public class RefactoringUtility {
 			}
 		}
 		return returnedVariableType;
+	}
+
+	private static boolean isQualifiedType(Type type) {
+		if(type instanceof SimpleType) {
+			SimpleType simpleType = (SimpleType)type;
+			Name name = simpleType.getName();
+			if(name instanceof QualifiedName) {
+				return true;
+			}
+		}
+		else if(type instanceof QualifiedType) {
+			QualifiedType qualifiedType = (QualifiedType)type;
+			Type qualifier = qualifiedType.getQualifier();
+			return isQualifiedType(qualifier);
+		}
+		else if(type instanceof ArrayType) {
+			ArrayType arrayType = (ArrayType)type;
+			Type elementType = arrayType.getElementType();
+			return isQualifiedType(elementType);
+		}
+		else if(type instanceof ParameterizedType) {
+			ParameterizedType parameterizedType = (ParameterizedType)type;
+			Type erasureType = parameterizedType.getType();
+			return isQualifiedType(erasureType);
+		}
+		return false;
 	}
 }

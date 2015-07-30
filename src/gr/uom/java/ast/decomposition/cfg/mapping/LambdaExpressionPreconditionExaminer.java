@@ -6,7 +6,6 @@ import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.loop.AbstractLoopUtilities;
 import gr.uom.java.ast.util.ExpressionExtractor;
-import gr.uom.java.jdeodorant.refactoring.manipulators.RefactoringUtility;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -230,7 +229,7 @@ public class LambdaExpressionPreconditionExaminer {
 			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
 				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
 				if(variableBinding1.isEqualTo(variableDeclarations.get(0).resolveBinding())) {
-					pair = new VariableBindingPair(variableBinding1, variableDeclarations.get(1).resolveBinding(), RefactoringUtility.extractType(variableDeclarations.get(1)));
+					pair = new VariableBindingPair(variableBinding1, variableDeclarations.get(1).resolveBinding(), variableDeclarations.get(1));
 					break;
 				}
 			}
@@ -259,8 +258,7 @@ public class LambdaExpressionPreconditionExaminer {
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, variableBinding) &&
 														(variableBinding1.getType().isEqualTo(variableBinding.getType()) ||
 														ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding.getType()) != null)) {
-													pair = new VariableBindingPair(variableBinding1, variableBinding,
-															RefactoringUtility.extractType(AbstractLoopUtilities.getVariableDeclaration(simpleName)));
+													pair = new VariableBindingPair(variableBinding1, variableBinding, AbstractLoopUtilities.getVariableDeclaration(simpleName));
 													break;
 												}
 											}
@@ -290,7 +288,7 @@ public class LambdaExpressionPreconditionExaminer {
 			for(VariableBindingKeyPair keyPair: commonPassedParameters.keySet()) {
 				ArrayList<VariableDeclaration> variableDeclarations = commonPassedParameters.get(keyPair);
 				if(variableBinding2.isEqualTo(variableDeclarations.get(1).resolveBinding())) {
-					pair = new VariableBindingPair(variableDeclarations.get(0).resolveBinding(), variableBinding2, RefactoringUtility.extractType(variableDeclarations.get(0)));
+					pair = new VariableBindingPair(variableDeclarations.get(0).resolveBinding(), variableBinding2, variableDeclarations.get(0));
 					break;
 				}
 			}
@@ -319,8 +317,7 @@ public class LambdaExpressionPreconditionExaminer {
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding, variableBinding2) &&
 														(variableBinding.getType().isEqualTo(variableBinding2.getType()) ||
 														ASTNodeMatcher.commonSuperType(variableBinding.getType(), variableBinding2.getType()) != null)) {
-													pair = new VariableBindingPair(variableBinding, variableBinding2,
-															RefactoringUtility.extractType(AbstractLoopUtilities.getVariableDeclaration(simpleName)));
+													pair = new VariableBindingPair(variableBinding, variableBinding2, AbstractLoopUtilities.getVariableDeclaration(simpleName));
 													break;
 												}
 											}

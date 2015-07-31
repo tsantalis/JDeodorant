@@ -2700,7 +2700,22 @@ public class PreconditionExaminer {
 				return CloneRefactoringType.INFEASIBLE;
 			}
 			else {
-				return CloneRefactoringType.PULL_UP_TO_NEW_SUPERCLASS;
+				ClassObject superclassObject = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
+				if(superclassObject != null && commonSuperTypeOfSourceTypeDeclarations.isClass()) {
+					return CloneRefactoringType.PULL_UP_TO_NEW_INTERMEDIATE_SUPERCLASS_EXTENDING_COMMON_INTERNAL_SUPERCLASS;
+				}
+				else if(superclassObject != null && commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
+					return CloneRefactoringType.PULL_UP_TO_NEW_INTERMEDIATE_SUPERCLASS_IMPLEMENTING_COMMON_INTERNAL_INTERFACE;
+				}
+				else if(superclassObject == null && commonSuperTypeOfSourceTypeDeclarations.isClass() && !commonSuperTypeOfSourceTypeDeclarations.getQualifiedName().equals("java.lang.Object")) {
+					return CloneRefactoringType.PULL_UP_TO_NEW_SUPERCLASS_EXTENDING_COMMON_EXTERNAL_SUPERCLASS;
+				}
+				else if(superclassObject == null && commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
+					return CloneRefactoringType.PULL_UP_TO_NEW_SUPERCLASS_IMPLEMENTING_COMMON_EXTERNAL_INTERFACE;
+				}
+				else {
+					return CloneRefactoringType.PULL_UP_TO_NEW_SUPERCLASS_EXTENDING_OBJECT;
+				}
 			}
 		}
 		else {

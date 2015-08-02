@@ -387,7 +387,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		return false;
 	}
-	
+
+	private boolean mappedNodesContainDifferentStatementsDeclaringVariables(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+		boolean variable1IsDeclared = false;
+		boolean variable2IsDeclared = false;
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
+			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
+			for(Iterator<AbstractVariable> declaredVariableIterator = pdgNode1.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable.getVariableBindingKey().equals(variableDeclaration1.resolveBinding().getKey())) {
+					variable1IsDeclared = true;
+					break;
+				}
+			}
+			for(Iterator<AbstractVariable> declaredVariableIterator = pdgNode2.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable.getVariableBindingKey().equals(variableDeclaration2.resolveBinding().getKey())) {
+					variable2IsDeclared = true;
+					break;
+				}
+			}
+		}
+		if(variable1IsDeclared && variable2IsDeclared) {
+			return true;
+		}
+		return false;
+	}
+
 	private boolean variableIsPassedAsCommonParameter(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
 		for(VariableBindingKeyPair pair : mapper.getCommonPassedParameters().keySet()) {
 			if(pair.getKey1().equals(variableDeclaration1.resolveBinding().getKey()) &&
@@ -1128,7 +1155,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(CloneStructureNode child : root.getChildren()) {
 			if(processableNode(child)) {
 				Statement statement = processCloneStructureNode(child, ast, sourceRewriter);
-				methodBodyRewrite.insertLast(statement, null);
+				if(processableMappedNode(child) && ((PDGNodeMapping)child.getMapping()).declaresInconsistentlyRenamedVariable(mapper.getRenamedVariableBindings()) &&
+						mapper.movableBeforeFirstMappedNode((PDGNodeMapping)child.getMapping())) {
+					methodBodyRewrite.insertFirst(statement, null);
+				}
+				else {
+					methodBodyRewrite.insertLast(statement, null);
+				}
 			}
 		}
 		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 &&
@@ -1137,6 +1170,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariables1.get(0).getName(), null);
 			methodBodyRewrite.insertLast(returnStatement, null);
 			if(!mappedNodesContainStatementDeclaringVariable(returnedVariables1.get(0), returnedVariables2.get(0)) &&
+					!mappedNodesContainDifferentStatementsDeclaringVariables(returnedVariables1.get(0), returnedVariables2.get(0)) &&
 					!variableIsPassedAsCommonParameter(returnedVariables1.get(0), returnedVariables2.get(0))) {
 				ITypeBinding returnedTypeBinding = extractTypeBinding(returnedVariables1.get(0));
 				Expression initializer = generateDefaultValue(sourceRewriter, ast, returnedTypeBinding);

@@ -37,16 +37,16 @@ public class VariableBindingPair {
 			return true;
 		if(o instanceof VariableBindingPair) {
 			VariableBindingPair keyPair = (VariableBindingPair)o;
-			return this.binding1.equals(keyPair.binding1) &&
-					this.binding2.equals(keyPair.binding2);
+			return this.binding1.getKey().equals(keyPair.binding1.getKey()) &&
+					this.binding2.getKey().equals(keyPair.binding2.getKey());
 		}
 		return false;
 	}
 
 	public int hashCode() {
 		int result = 17;
-		result = 37*result + binding1.hashCode();
-		result = 37*result + binding2.hashCode();
+		result = 37*result + binding1.getKey().hashCode();
+		result = 37*result + binding2.getKey().hashCode();
 		return result;
 	}
 

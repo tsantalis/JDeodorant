@@ -224,6 +224,10 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG2();
 	}
 
+	public boolean movableBeforeFirstMappedNode(PDGNodeMapping nodeMapping) {
+		return preconditionExaminer.movableBeforeFirstMappedNode(nodeMapping);
+	}
+
 	public CloneType getCloneType() {
 		return preconditionExaminer.getCloneType();
 	}

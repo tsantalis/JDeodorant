@@ -2230,6 +2230,11 @@ public class PreconditionExaminer {
 		}
 		return true;
 	}
+	
+	public boolean movableBeforeFirstMappedNode(PDGNodeMapping nodeMapping) {
+		return movableNonMappedNodeBeforeFirstMappedNode(getRemovableNodesG1(), nodeMapping.getNodeG1()) &&
+				movableNonMappedNodeBeforeFirstMappedNode(getRemovableNodesG2(), nodeMapping.getNodeG2());
+	}
 	//precondition: non-mapped statement can be moved before the first mapped statement
 	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
 		Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();

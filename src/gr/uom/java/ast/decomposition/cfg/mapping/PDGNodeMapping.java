@@ -1,10 +1,16 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 
 import gr.uom.java.ast.decomposition.AbstractMethodFragment;
@@ -14,9 +20,14 @@ import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.Difference;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
 public class PDGNodeMapping extends IdBasedMapping {
 	private PDGNode nodeG1;
@@ -186,6 +197,70 @@ public class PDGNodeMapping extends IdBasedMapping {
 			}
 		}
 		return false;
+	}
+
+	public boolean isVoidMethodCallDifferenceCoveringEntireStatement() {
+		boolean expression1IsVoidMethodCallDifference = false;
+		boolean expression2IsVoidMethodCallDifference = false;
+		for(ASTNodeDifference difference : nodeDifferences) {
+			Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+			Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+			for(PreconditionViolation violation : getPreconditionViolations()) {
+				if(violation instanceof ExpressionPreconditionViolation && violation.getType().equals(PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL)) {
+					ExpressionPreconditionViolation expressionViolation = (ExpressionPreconditionViolation)violation;
+					Expression expression = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expressionViolation.getExpression().getExpression());
+					if(expression.equals(expr1)) {
+						if(expr1.getParent() instanceof ExpressionStatement) {
+							expression1IsVoidMethodCallDifference = true;
+						}
+					}
+					if(expression.equals(expr2)) {
+						if(expr2.getParent() instanceof ExpressionStatement) {
+							expression2IsVoidMethodCallDifference = true;
+						}
+					}
+				}
+			}
+		}
+		return expression1IsVoidMethodCallDifference && expression2IsVoidMethodCallDifference;
+	}
+
+	public boolean declaresInconsistentlyRenamedVariable(Set<VariableBindingPair> renamedVariables) {
+		VariableBindingPair variableBindingPair = declaresVariableWithVariableNameMismatch();
+		if(variableBindingPair != null) {
+			if(renamedVariables.contains(variableBindingPair))
+				return false;
+			else
+				return true;
+		}
+		return false;
+	}
+
+	private VariableBindingPair declaresVariableWithVariableNameMismatch() {
+		for(ASTNodeDifference difference : nodeDifferences) {
+			if(difference.containsDifferenceType(DifferenceType.VARIABLE_NAME_MISMATCH)) {
+				Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+				Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+				if(expr1 instanceof SimpleName && expr2 instanceof SimpleName) {
+					SimpleName simpleName1 = (SimpleName)expr1;
+					SimpleName simpleName2 = (SimpleName)expr2;
+					IBinding binding1 = simpleName1.resolveBinding();
+					IBinding binding2 = simpleName2.resolveBinding();
+					if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+						IVariableBinding variableBinding1 = (IVariableBinding)binding1;
+						IVariableBinding variableBinding2 = (IVariableBinding)binding2;
+						PlainVariable variable1 = new PlainVariable(variableBinding1.getKey(), variableBinding1.getName(),
+								variableBinding1.getType().getQualifiedName(), variableBinding1.isField(), variableBinding1.isParameter());
+						PlainVariable variable2 = new PlainVariable(variableBinding2.getKey(), variableBinding2.getName(),
+								variableBinding2.getType().getQualifiedName(), variableBinding2.isField(), variableBinding2.isParameter());
+						if(nodeG1.declaresLocalVariable(variable1) && nodeG2.declaresLocalVariable(variable2)) {
+							return new VariableBindingPair(variableBinding1, variableBinding2);
+						}
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	public boolean equals(Object o) {

@@ -182,7 +182,17 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				}
 			}
 			else {
-				gapNode.setParent(controlParent);
+				if(controlParent.getMapping() instanceof PDGNodeMapping && ((PDGNodeMapping)controlParent.getMapping()).isSymmetricalIfElse()) {
+					for(CloneStructureNode child : controlParent.children) {
+						if(child.getMapping() instanceof PDGElseMapping && controlParent.getMapping().equals(((PDGElseMapping)child.getMapping()).getSymmetricalIfNodePair())) {
+							gapNode.setParent(child);
+							break;
+						}
+					}
+				}
+				else {
+					gapNode.setParent(controlParent);
+				}
 			}
 		}
 		else {

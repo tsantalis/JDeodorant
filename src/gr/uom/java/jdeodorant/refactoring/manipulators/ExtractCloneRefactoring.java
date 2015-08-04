@@ -2148,18 +2148,41 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					else if(child.getMapping() instanceof PDGElseMapping) {
 						for(CloneStructureNode child2 : child.getChildren()) {
 							if(processableNode(child2)) {
-								PDGNodeMapping childMapping = (PDGNodeMapping) child2.getMapping();
-								PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
-								if(symmetrical != null) {
-									if(symmetrical.equals(nodeMapping)) {
-										falseControlDependentChildren.add(child2);
+								if(child2.getMapping() instanceof PDGNodeMapping) {
+									PDGNodeMapping childMapping = (PDGNodeMapping) child2.getMapping();
+									PDGNodeMapping symmetrical = childMapping.getSymmetricalIfNodePair();
+									if(symmetrical != null) {
+										if(symmetrical.equals(nodeMapping)) {
+											falseControlDependentChildren.add(child2);
+										}
+										else {
+											processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
+										}
 									}
 									else {
 										processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
 									}
 								}
-								else {
-									processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
+								else if(child2.getMapping() instanceof PDGNodeGap) {
+									PDGNodeGap childMapping = (PDGNodeGap) child2.getMapping();
+									PDGNode childNode = childMapping.getNodeG1();
+									PDGControlDependence controlDependence = childNode.getIncomingControlDependence();
+									if(controlDependence != null) {
+										if(controlDependence.isTrueControlDependence()) {
+											trueControlDependentChildren.add(child2);
+										}
+										else if(controlDependence.isFalseControlDependence()) {
+											falseControlDependentChildren.add(child2);
+										}
+									}
+									else {
+										if(isNestedUnderElse(childNode)) {
+											falseControlDependentChildren.add(child2);
+										}
+										else if(!isNestedUnderElse(childNode)) {
+											trueControlDependentChildren.add(child2);
+										}
+									}
 								}
 							}
 						}

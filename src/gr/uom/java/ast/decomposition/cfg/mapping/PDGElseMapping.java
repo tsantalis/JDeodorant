@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PDGElseMapping extends IdBasedMapping {
+	private PDGNodeMapping symmetricalIfNodePair;
 	private volatile int hashCode = 0;
 	
 	public PDGElseMapping(double id1, double id2) {
@@ -27,6 +28,14 @@ public class PDGElseMapping extends IdBasedMapping {
 
 	public boolean isAdvancedMatch() {
 		return false;
+	}
+
+	public PDGNodeMapping getSymmetricalIfNodePair() {
+		return symmetricalIfNodePair;
+	}
+
+	public void setSymmetricalIfNodePair(PDGNodeMapping symmetricalIfNodePair) {
+		this.symmetricalIfNodePair = symmetricalIfNodePair;
 	}
 
 	public boolean equals(Object o) {

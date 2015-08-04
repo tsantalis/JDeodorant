@@ -819,6 +819,9 @@ public abstract class DivideAndConquerMatcher {
 										boolean parentChildRelationship2 = controlDependenceTreePDG2.parentChildRelationship(elseNodeG2.getId(), previousParentId2);
 										if((parentChildRelationship1 && parentChildRelationship2) || (parentChildRelationship1 && isNode1FalseControlDependent)) {
 											PDGElseMapping elseMapping = new PDGElseMapping(elseNodeG1.getId(), elseNodeG2.getId());
+											if(parentNodeMapping.isSymmetricalIfElse()) {
+												elseMapping.setSymmetricalIfNodePair(parentNodeMapping);
+											}
 											newElseParent = new CloneStructureNode(elseMapping);
 											parent.addChild(newElseParent);
 											newElseParent.addChild(previousParent);

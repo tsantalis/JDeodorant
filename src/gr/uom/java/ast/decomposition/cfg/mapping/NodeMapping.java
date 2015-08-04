@@ -13,6 +13,7 @@ import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
 public abstract class NodeMapping implements Comparable<NodeMapping> {
 	private List<PreconditionViolation> preconditionViolations = new ArrayList<PreconditionViolation>();
@@ -49,7 +50,7 @@ public abstract class NodeMapping implements Comparable<NodeMapping> {
 	}
 
 	public boolean isDifferenceInConditionalExpressionOfAdvancedLoopMatch(ASTNodeDifference difference) {
-		if(isAdvancedMatch() && getNodeG1() != null && getNodeG2() != null) {
+		if(isAdvancedMatch() && getNodeG1() != null && getNodeG2() != null && !difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH)) {
 			AbstractStatement statement1 = getNodeG1().getStatement();
 			AbstractStatement statement2 = getNodeG2().getStatement();
 			if(statement1 instanceof CompositeStatementObject && statement2 instanceof CompositeStatementObject) {

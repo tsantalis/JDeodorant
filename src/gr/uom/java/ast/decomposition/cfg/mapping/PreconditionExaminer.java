@@ -1511,17 +1511,24 @@ public class PreconditionExaminer {
 		Set<PDGNode> allConditionalReturnStatements2 = extractConditionalReturnStatements(pdg2.getNodes());
 		Set<PDGNode> mappedConditionalReturnStatements1 = extractConditionalReturnStatements(mappedNodesG1);
 		Set<PDGNode> mappedConditionalReturnStatements2 = extractConditionalReturnStatements(mappedNodesG2);
-		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() &&
-				allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size()) {
+		Set<PDGNode> returnStatementsAfterMappedNodes1 = extractReturnStatementsAfterId(pdg1.getNodes(), mappedNodesG1.last().getId());
+		Set<PDGNode> returnStatementsAfterMappedNodes2 = extractReturnStatementsAfterId(pdg2.getNodes(), mappedNodesG2.last().getId());
+		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
+				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0)) {
 			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
 				PDGNode node1 = nodeMapping.getNodeG1();
-				PDGNode node2 = nodeMapping.getNodeG2();
 				if(mappedConditionalReturnStatements1.contains(node1)) {
 					PreconditionViolation violation = new StatementPreconditionViolation(node1.getStatement(),
 							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
 					nodeMapping.addPreconditionViolation(violation);
 					preconditionViolations.add(violation);
 				}
+			}
+		}
+		if(allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size() ||
+				(mappedConditionalReturnStatements2.size() > 0 && returnStatementsAfterMappedNodes2.size() > 0)) {
+			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+				PDGNode node2 = nodeMapping.getNodeG2();
 				if(mappedConditionalReturnStatements2.contains(node2)) {
 					PreconditionViolation violation = new StatementPreconditionViolation(node2.getStatement(),
 							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
@@ -1549,6 +1556,18 @@ public class PreconditionExaminer {
 			}
 		}
 		return conditionalReturnStatements;
+	}
+
+	private Set<PDGNode> extractReturnStatementsAfterId(Set<? extends GraphNode> nodes, int id) {
+		Set<PDGNode> returnStatements = new TreeSet<PDGNode>();
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			CFGNode cfgNode = pdgNode.getCFGNode();
+			if(pdgNode.getId() > id && cfgNode instanceof CFGExitNode) {
+				returnStatements.add(pdgNode);
+			}
+		}
+		return returnStatements;
 	}
 
 	private void conditionalReturnStatement(NodeMapping nodeMapping, PDGNode node) {
@@ -2646,6 +2665,8 @@ public class PreconditionExaminer {
 			typeBinding2 = ((AnonymousClassDeclaration)methodDeclaration2.getParent()).resolveBinding();
 		}
 		if(typeBinding1.isAnonymous() || typeBinding2.isAnonymous()) {
+			PreconditionViolation violation = new UncommonSuperclassPreconditionViolation(typeBinding1.getQualifiedName(), typeBinding2.getQualifiedName());
+			preconditionViolations.add(violation);
 			return CloneRefactoringType.INFEASIBLE;
 		}
 		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);

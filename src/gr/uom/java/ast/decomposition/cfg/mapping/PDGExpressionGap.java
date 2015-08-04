@@ -55,13 +55,22 @@ public class PDGExpressionGap extends Gap {
 	public ITypeBinding getReturnType() {
 		ITypeBinding typeBinding1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression()).resolveTypeBinding();
 		ITypeBinding typeBinding2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression()).resolveTypeBinding();
-		if(typeBinding1.isEqualTo(typeBinding2)) {
+		if(typeBinding1 != null && typeBinding2 != null) {
+			if(typeBinding1.isEqualTo(typeBinding2)) {
+				return typeBinding1;
+			}
+			else {
+				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				return typeBinding;
+			}
+		}
+		else if(typeBinding1 == null && typeBinding2 != null) {
+			return typeBinding2;
+		}
+		else if(typeBinding2 == null && typeBinding1 != null) {
 			return typeBinding1;
 		}
-		else {
-			ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-			return typeBinding;
-		}
+		return null;
 	}
 
 	public Set<ITypeBinding> getThrownExceptions() {

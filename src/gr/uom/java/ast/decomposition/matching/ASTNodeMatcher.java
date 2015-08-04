@@ -1436,7 +1436,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				ParenthesizedExpression o = (ParenthesizedExpression) other;
-				safeSubtreeMatch(node.getExpression(), o.getExpression());
+				boolean expressionMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
+				if(!expressionMatch && typeMatch && differences.isEmpty()) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
 			}
 			return typeMatch;
 		}

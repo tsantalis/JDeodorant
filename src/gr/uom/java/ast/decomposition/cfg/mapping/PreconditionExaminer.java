@@ -72,6 +72,8 @@ import java.util.TreeSet;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
@@ -93,7 +95,6 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.ThisExpression;
-import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PreconditionExaminer {
@@ -2681,15 +2682,25 @@ public class PreconditionExaminer {
 		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
 		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
 		
-		List<TypeDeclaration> sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
-		sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration1.getParent());
-		sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
-		
-		ITypeBinding typeBinding1 = sourceTypeDeclarations.get(0).resolveBinding();
-		ITypeBinding typeBinding2 = sourceTypeDeclarations.get(1).resolveBinding();
+		ITypeBinding typeBinding1 = null;
+		if(methodDeclaration1.getParent() instanceof AbstractTypeDeclaration) {
+			typeBinding1 = ((AbstractTypeDeclaration)methodDeclaration1.getParent()).resolveBinding();
+		}
+		else if(methodDeclaration1.getParent() instanceof AnonymousClassDeclaration) {
+			typeBinding1 = ((AnonymousClassDeclaration)methodDeclaration1.getParent()).resolveBinding();
+		}
+		ITypeBinding typeBinding2 = null;
+		if(methodDeclaration2.getParent() instanceof AbstractTypeDeclaration) {
+			typeBinding2 = ((AbstractTypeDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		else if(methodDeclaration2.getParent() instanceof AnonymousClassDeclaration) {
+			typeBinding2 = ((AnonymousClassDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		if(typeBinding1.isAnonymous() || typeBinding2.isAnonymous()) {
+			return CloneRefactoringType.INFEASIBLE;
+		}
 		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) &&
-				sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
+		if(typeBinding1.isEqualTo(typeBinding2) && typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 			return CloneRefactoringType.EXTRACT_LOCAL_METHOD;
 		}
 		else if(commonSuperTypeOfSourceTypeDeclarations != null) {

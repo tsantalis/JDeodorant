@@ -312,7 +312,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				for(int i=0; i<interfaces1.length; i++) {
 					ITypeBinding interface1 = interfaces1[i];
 					ITypeBinding interface2 = interfaces2[i];
-					if(!interface1.isEqualTo(interface2)) {
+					if(!interface1.isEqualTo(interface2) || !interface1.getQualifiedName().equals(interface2.getQualifiedName())) {
 						return false;
 					}
 				}
@@ -327,7 +327,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(binding1.isCapture() && binding2.isCapture()) {
 			ITypeBinding wildcardTypeBinding1 = binding1.getWildcard();
 			ITypeBinding wildcardTypeBinding2 = binding2.getWildcard();
-			if(wildcardTypeBinding1.isEqualTo(wildcardTypeBinding2))
+			if(wildcardTypeBinding1.isEqualTo(wildcardTypeBinding2) && wildcardTypeBinding1.getQualifiedName().equals(wildcardTypeBinding2.getQualifiedName()))
 				return true;
 		}
 		if(binding1.isParameterizedType() && binding2.isParameterizedType()) {
@@ -354,7 +354,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			if(declarationTypeMatch && allTypeArgumentsMatch)
 				return true;
 		}
-		if(binding1.isEqualTo(binding2))
+		if(binding1.isEqualTo(binding2) && binding1.getQualifiedName().equals(binding2.getQualifiedName()))
 			return true;
 		if(binding1.getQualifiedName().equals("java.lang.Number") && isNumberPrimitiveType(binding2))
 			return true;
@@ -492,7 +492,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	private static void addTypeBinding(ITypeBinding typeBinding, List<ITypeBinding> typeBindings) {
 		boolean found = false;
 		for(ITypeBinding typeBinding2 : typeBindings) {
-			if(typeBinding.isEqualTo(typeBinding2)) {
+			if(typeBinding.isEqualTo(typeBinding2) && typeBinding.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 				found = true;
 				break;
 			}
@@ -943,7 +943,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 					if(simpleNameBinding.getKind() == IBinding.VARIABLE && fragmentNameBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding simpleNameVariableBinding = (IVariableBinding)simpleNameBinding;
 						IVariableBinding fragmentNameVariableBinding = (IVariableBinding)fragmentNameBinding;
-						variableTypeMatch = simpleNameVariableBinding.getType().isEqualTo(fragmentNameVariableBinding.getType());
+						variableTypeMatch = simpleNameVariableBinding.getType().isEqualTo(fragmentNameVariableBinding.getType()) &&
+								simpleNameVariableBinding.getType().getQualifiedName().equals(fragmentNameVariableBinding.getType().getQualifiedName());
 					}
 					boolean initializerMatch = false;
 					boolean initializerTypeMatch = false;
@@ -951,7 +952,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Expression rightHandSide = assignment.getRightHandSide();
 					if(initializer != null && initializer.getNodeType() == rightHandSide.getNodeType()) {
 						initializerMatch = safeSubtreeMatch(rightHandSide, initializer);
-						initializerTypeMatch = initializer.resolveTypeBinding().isEqualTo(rightHandSide.resolveTypeBinding());
+						initializerTypeMatch = initializer.resolveTypeBinding().isEqualTo(rightHandSide.resolveTypeBinding()) &&
+								initializer.resolveTypeBinding().getQualifiedName().equals(rightHandSide.resolveTypeBinding().getQualifiedName());
 					}
 					if(variableMatch && variableTypeMatch && initializerMatch && initializerTypeMatch) {
 						VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(simpleName);
@@ -1925,7 +1927,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				TypeLiteral o = (TypeLiteral) other;
-				if(!node.getType().resolveBinding().isEqualTo(o.getType().resolveBinding())) {
+				if(!node.getType().resolveBinding().isEqualTo(o.getType().resolveBinding()) || !node.getType().resolveBinding().getQualifiedName().equals(o.getType().resolveBinding().getQualifiedName())) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.LITERAL_VALUE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
@@ -1957,7 +1959,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 					if(simpleNameBinding.getKind() == IBinding.VARIABLE && fragmentNameBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding simpleNameVariableBinding = (IVariableBinding)simpleNameBinding;
 						IVariableBinding fragmentNameVariableBinding = (IVariableBinding)fragmentNameBinding;
-						variableTypeMatch = simpleNameVariableBinding.getType().isEqualTo(fragmentNameVariableBinding.getType());
+						variableTypeMatch = simpleNameVariableBinding.getType().isEqualTo(fragmentNameVariableBinding.getType()) &&
+								simpleNameVariableBinding.getType().getQualifiedName().equals(fragmentNameVariableBinding.getType().getQualifiedName());;
 					}
 					boolean initializerMatch = false;
 					boolean initializerTypeMatch = false;
@@ -1965,7 +1968,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Expression rightHandSide = assignment.getRightHandSide();
 					if(initializer != null && initializer.getNodeType() == rightHandSide.getNodeType()) {
 						initializerMatch = safeSubtreeMatch(initializer, rightHandSide);
-						initializerTypeMatch = initializer.resolveTypeBinding().isEqualTo(rightHandSide.resolveTypeBinding());
+						initializerTypeMatch = initializer.resolveTypeBinding().isEqualTo(rightHandSide.resolveTypeBinding()) &&
+								initializer.resolveTypeBinding().getQualifiedName().equals(rightHandSide.resolveTypeBinding().getQualifiedName());
 					}
 					if(variableMatch && variableTypeMatch && initializerMatch && initializerTypeMatch) {
 						VariableDeclaration variableDeclaration = AbstractLoopUtilities.getVariableDeclaration(simpleName);
@@ -2158,7 +2162,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							IVariableBinding fieldNameBinding = (IVariableBinding)fieldName.resolveBinding();
 							if(getFieldBinding.isEqualTo(fieldNameBinding) ||
 									(getField.getIdentifier().equals(fieldName.getIdentifier()) &&
-									getFieldBinding.getType().isEqualTo(fieldNameBinding.getType()))) {
+									getFieldBinding.getType().isEqualTo(fieldNameBinding.getType()) && getFieldBinding.getType().getQualifiedName().equals(fieldNameBinding.getType().getQualifiedName()))) {
 								return true;
 							}
 						}
@@ -2187,7 +2191,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							IVariableBinding fieldNameBinding = (IVariableBinding)fieldName.resolveBinding();
 							if(setFieldBinding.isEqualTo(fieldNameBinding) ||
 									(setField.getIdentifier().equals(fieldName.getIdentifier()) &&
-									setFieldBinding.getType().isEqualTo(fieldNameBinding.getType()))) {
+									setFieldBinding.getType().isEqualTo(fieldNameBinding.getType()) && setFieldBinding.getType().getQualifiedName().equals(fieldNameBinding.getType().getQualifiedName()))) {
 								return true;
 							}
 						}

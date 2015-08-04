@@ -139,7 +139,7 @@ public class ConditionalLoopASTNodeMatcher extends ASTNodeMatcher {
 					}
 					ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
 					ITypeBinding otherTypeBinding = otherVariableBinding.getType();
-					if(nodeTypeBinding != null && otherTypeBinding != null && !nodeTypeBinding.isEqualTo(otherTypeBinding)) {
+					if(nodeTypeBinding != null && otherTypeBinding != null && (!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
 						Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}

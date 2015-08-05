@@ -1319,7 +1319,17 @@ public class ASTNodeMatcher extends ASTMatcher{
 				boolean isNodeMethodBindingStatic = (nodeMethodBinding.getModifiers() & Modifier.STATIC) != 0;
 				boolean isOtherMethodBindingStatic = (otherMethodBinding.getModifiers() & Modifier.STATIC) != 0;
 				if(isNodeMethodBindingStatic != isOtherMethodBindingStatic) {
-					return false;
+					if(typeMatch) {
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+						astNodeDifference.addDifference(diff);
+					}
+					else {
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+						astNodeDifference.addDifference(diff);
+					}
+					if(!astNodeDifference.isEmpty())
+						addDifference(astNodeDifference);
+					return typeMatch;
 				}
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);

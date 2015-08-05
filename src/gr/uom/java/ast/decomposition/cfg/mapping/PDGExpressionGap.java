@@ -56,7 +56,13 @@ public class PDGExpressionGap extends Gap {
 		ITypeBinding typeBinding1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression()).resolveTypeBinding();
 		ITypeBinding typeBinding2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression()).resolveTypeBinding();
 		if(typeBinding1 != null && typeBinding2 != null) {
-			if(typeBinding1.isEqualTo(typeBinding2)) {
+			if(typeBinding1.getQualifiedName().equals("null") && !typeBinding2.getQualifiedName().equals("null")) {
+				return typeBinding2;
+			}
+			else if(typeBinding2.getQualifiedName().equals("null") && !typeBinding1.getQualifiedName().equals("null")) {
+				return typeBinding1;
+			}
+			else if(typeBinding1.isEqualTo(typeBinding2)) {
 				return typeBinding1;
 			}
 			else {

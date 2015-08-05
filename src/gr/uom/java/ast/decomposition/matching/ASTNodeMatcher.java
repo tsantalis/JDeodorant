@@ -155,6 +155,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 	public boolean isParameterizable() {
 		if(onlyVariableTypeMismatchDifferences() || additionallyMatchedFragments1.size() > 0 || additionallyMatchedFragments2.size() > 0)
 			return true;
+		else if(methodInvocationMatchWithMissingExpressionAndDifferentNameAndDifferentArguments())
+			return false;
 		else {
 			for(ASTNodeDifference diff : differences) {
 				if(!diff.isParameterizable())
@@ -163,7 +165,22 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		}
 	}
-	
+
+	private boolean methodInvocationMatchWithMissingExpressionAndDifferentNameAndDifferentArguments() {
+		boolean missingExpression = false;
+		boolean differentMethodName = false;
+		boolean differentArguments = false;
+		for(ASTNodeDifference difference : differences) {
+			if(difference.containsDifferenceType(DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION))
+				missingExpression = true;
+			if(difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH))
+				differentMethodName = true;
+			if(difference.containsDifferenceType(DifferenceType.ARGUMENT_NUMBER_MISMATCH) || difference.containsDifferenceType(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT))
+				differentArguments = true;
+		}
+		return missingExpression && differentMethodName && differentArguments;
+	}
+
 	private boolean onlyVariableTypeMismatchDifferences() {
 		int diffCount = 0;
 		int variableTypeMismatchCount = 0;

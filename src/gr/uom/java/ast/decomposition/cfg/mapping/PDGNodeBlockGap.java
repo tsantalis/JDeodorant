@@ -45,6 +45,10 @@ public class PDGNodeBlockGap extends Gap {
 		this.nodeDifferences = new ArrayList<ASTNodeDifference>();
 	}
 
+	public CloneStructureNode getParent() {
+		return parent;
+	}
+
 	public TreeSet<PDGNode> getNodesG1() {
 		return nodesG1;
 	}

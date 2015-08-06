@@ -327,10 +327,10 @@ public class PreconditionExaminer {
 			remainingMovableNodesG2.addAll(nonMappedPDGNodesG2MovableBefore);
 			remainingMovableNodesG2.addAll(nonMappedPDGNodesG2MovableAfter);
 			remainingMovableNodesG2.addAll(nonMappedPDGNodesG2MovableBeforeAndAfter);
-			//discard the block gaps in which all nodes can be moved before or after the clone fragments
+			//discard the block gaps in which all nodes can be moved before or after the clone fragments, and are directly nested under cloneStructureRoot
 			List<PDGNodeBlockGap> discardedBlockGaps = new ArrayList<PDGNodeBlockGap>();
 			for(PDGNodeBlockGap blockGap : lambdaExpressionPreconditionExaminer.getRefactorableBlockGaps()) {
-				if(remainingMovableNodesG1.containsAll(blockGap.getNodesG1()) && remainingMovableNodesG2.containsAll(blockGap.getNodesG2())) {
+				if(remainingMovableNodesG1.containsAll(blockGap.getNodesG1()) && remainingMovableNodesG2.containsAll(blockGap.getNodesG2()) && blockGap.getParent().equals(cloneStructureRoot)) {
 					discardedBlockGaps.add(blockGap);
 				}
 			}

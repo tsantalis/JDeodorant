@@ -1377,9 +1377,6 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
-					if(!astNodeDifference.isEmpty())
-						addDifference(astNodeDifference);
-					return typeMatch;
 				}
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);

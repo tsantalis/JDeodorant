@@ -1,8 +1,10 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.ArrayCreationObject;
+import gr.uom.java.ast.ClassInstanceCreationObject;
+import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
-import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -19,6 +21,7 @@ import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -30,7 +33,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	protected Set<AbstractVariable> declaredVariables;
 	protected Set<AbstractVariable> definedVariables;
 	protected Set<AbstractVariable> usedVariables;
-	protected Set<TypeObject> createdTypes;
+	protected Set<CreationObject> createdTypes;
 	protected Set<String> thrownExceptionTypes;
 	protected Set<VariableDeclarationObject> variableDeclarationsInMethod;
 	protected Set<FieldObject> fieldsAccessedInMethod;
@@ -43,7 +46,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
-		this.createdTypes = new LinkedHashSet<TypeObject>();
+		this.createdTypes = new LinkedHashSet<CreationObject>();
 		this.thrownExceptionTypes = new LinkedHashSet<String>();
 	}
 	
@@ -58,7 +61,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
-		this.createdTypes = new LinkedHashSet<TypeObject>();
+		this.createdTypes = new LinkedHashSet<CreationObject>();
 		this.thrownExceptionTypes = new LinkedHashSet<String>();
 		this.methodCallAnalyzer = new MethodCallAnalyzer(definedVariables, usedVariables, thrownExceptionTypes, this.variableDeclarationsInMethod);
 	}
@@ -193,8 +196,25 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		if(variable instanceof PlainVariable && this.definesLocalVariable(variable)) {
 			PlainVariable plainVariable = (PlainVariable)variable;
 			String variableType = plainVariable.getVariableType();
-			for(TypeObject type : createdTypes) {
-				if(variableType.equals(type.getClassType()))
+			for(CreationObject creation : createdTypes) {
+				ITypeBinding createdTypeBinding = null;
+				String superclassName = null;
+				Set<String> implementedInterfaces = new LinkedHashSet<String>();
+				if(creation instanceof ClassInstanceCreationObject) {
+					createdTypeBinding = ((ClassInstanceCreationObject)creation).getClassInstanceCreation().resolveTypeBinding();
+					superclassName = createdTypeBinding.getSuperclass().getQualifiedName();
+					for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
+						implementedInterfaces.add(implementedInterface.getQualifiedName());
+					}
+				}
+				else if(creation instanceof ArrayCreationObject) {
+					createdTypeBinding = ((ArrayCreationObject)creation).getArrayCreation().resolveTypeBinding();
+					superclassName = createdTypeBinding.getSuperclass().getQualifiedName();
+					for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
+						implementedInterfaces.add(implementedInterface.getQualifiedName());
+					}
+				}
+				if(createdTypeBinding != null && (variableType.equals(createdTypeBinding.getQualifiedName()) || variableType.equals(superclassName) || implementedInterfaces.contains(variableType)))
 					return true;
 			}
 		}

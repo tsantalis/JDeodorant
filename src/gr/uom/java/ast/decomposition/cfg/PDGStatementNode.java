@@ -28,7 +28,7 @@ public class PDGStatementNode extends PDGNode {
 			thrownExceptionTypes.addAll(statement.getExceptionsInThrowStatements());
 			List<CreationObject> creations = statement.getCreations();
 			for(CreationObject creation : creations) {
-				createdTypes.add(creation.getType());
+				createdTypes.add(creation);
 				if(creation instanceof ClassInstanceCreationObject) {
 					ClassInstanceCreationObject classInstanceCreation = (ClassInstanceCreationObject)creation;
 					thrownExceptionTypes.addAll(classInstanceCreation.getThrownExceptions());

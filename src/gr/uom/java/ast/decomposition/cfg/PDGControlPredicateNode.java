@@ -30,7 +30,7 @@ public class PDGControlPredicateNode extends PDGNode {
 			for(AbstractExpression expression : expressions) {
 				List<CreationObject> creations = expression.getCreations();
 				for(CreationObject creation : creations) {
-					createdTypes.add(creation.getType());
+					createdTypes.add(creation);
 					if(creation instanceof ClassInstanceCreationObject) {
 						ClassInstanceCreationObject classInstanceCreation = (ClassInstanceCreationObject)creation;
 						thrownExceptionTypes.addAll(classInstanceCreation.getThrownExceptions());

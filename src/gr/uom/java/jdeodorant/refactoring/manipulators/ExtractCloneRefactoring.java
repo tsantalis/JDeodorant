@@ -255,8 +255,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		this.sourceMethodDeclarations.add(methodDeclaration1);
 		this.sourceMethodDeclarations.add(methodDeclaration2);
-		this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration1.getParent());
-		this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
+		if(methodDeclaration1.getParent() instanceof TypeDeclaration && methodDeclaration2.getParent() instanceof TypeDeclaration) { 
+			this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration1.getParent());
+			this.sourceTypeDeclarations.add((TypeDeclaration)methodDeclaration2.getParent());
+		}
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration1.getRoot());
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration2.getRoot());
 		this.originalPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<VariableDeclaration>>();

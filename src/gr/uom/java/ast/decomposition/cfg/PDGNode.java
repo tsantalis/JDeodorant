@@ -198,21 +198,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			String variableType = plainVariable.getVariableType();
 			for(CreationObject creation : createdTypes) {
 				ITypeBinding createdTypeBinding = null;
-				String superclassName = null;
-				Set<String> implementedInterfaces = new LinkedHashSet<String>();
 				if(creation instanceof ClassInstanceCreationObject) {
 					createdTypeBinding = ((ClassInstanceCreationObject)creation).getClassInstanceCreation().resolveTypeBinding();
-					superclassName = createdTypeBinding.getSuperclass().getQualifiedName();
-					for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
-						implementedInterfaces.add(implementedInterface.getQualifiedName());
-					}
 				}
 				else if(creation instanceof ArrayCreationObject) {
 					createdTypeBinding = ((ArrayCreationObject)creation).getArrayCreation().resolveTypeBinding();
-					superclassName = createdTypeBinding.getSuperclass().getQualifiedName();
-					for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
-						implementedInterfaces.add(implementedInterface.getQualifiedName());
-					}
+				}
+				String superclassName = createdTypeBinding.getSuperclass() != null ? createdTypeBinding.getSuperclass().getQualifiedName() : null;
+				Set<String> implementedInterfaces = new LinkedHashSet<String>();
+				for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
+					implementedInterfaces.add(implementedInterface.getQualifiedName());
 				}
 				if(createdTypeBinding != null && (variableType.equals(createdTypeBinding.getQualifiedName()) || variableType.equals(superclassName) || implementedInterfaces.contains(variableType)))
 					return true;

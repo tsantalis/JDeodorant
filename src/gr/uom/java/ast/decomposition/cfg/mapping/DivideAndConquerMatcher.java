@@ -647,7 +647,17 @@ public abstract class DivideAndConquerMatcher {
 							}
 						}
 						else {
-							maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+							if(cdtNode1 != null && cdtNode2 != null && (cdtNode1.ifStatementInsideElseIfChain() || cdtNode2.ifStatementInsideElseIfChain())) {
+								if(cdtNode1.getLengthOfElseIfChain() == cdtNode2.getLengthOfElseIfChain()) {
+									maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+								}
+								else {
+									maxStates = new ArrayList<MappingState>();
+								}
+							}
+							else {
+								maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+							}
 						}
 					}
 					for(MappingState temp : maxStates) {

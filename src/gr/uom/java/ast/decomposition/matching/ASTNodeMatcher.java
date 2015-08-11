@@ -563,7 +563,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ArrayAccess)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -599,7 +599,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ArrayCreation)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -675,7 +675,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof BooleanLiteral)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -716,7 +716,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof CastExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -763,7 +763,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof CharacterLiteral)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -804,7 +804,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ClassInstanceCreation)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -881,7 +881,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ConditionalExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1067,7 +1067,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							astNodeDifference.addDifference(diff);
 						}
 					}
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1150,7 +1150,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof InfixExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1179,14 +1179,21 @@ public class ASTNodeMatcher extends ASTMatcher{
 					Difference diff = new Difference(node.getOperator().toString(),o.getOperator().toString(),DifferenceType.OPERATOR_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
+				int differenceCountBefore = differences.size();
 				boolean leftOperandMatch = safeSubtreeMatch(node.getLeftOperand(), o.getLeftOperand());
+				int differenceCountAfterLeftOperandMatch = differences.size();
 				boolean rightOperandMatch = safeSubtreeMatch(node.getRightOperand(), o.getRightOperand());
+				int differenceCountAfterRightOperandMatch = differences.size();
 				if(!leftOperandMatch && !rightOperandMatch) {
 					//if both left and right operands do not match, then the entire infix expression should be parameterized
-					Difference leftDiff = new Difference(node.getLeftOperand().toString(),o.getLeftOperand().toString(),DifferenceType.INFIX_LEFT_OPERAND_MISMATCH);
-					astNodeDifference.addDifference(leftDiff);
-					Difference rightDiff = new Difference(node.getRightOperand().toString(),o.getRightOperand().toString(),DifferenceType.INFIX_RIGHT_OPERAND_MISMATCH);
-					astNodeDifference.addDifference(rightDiff);
+					if(differenceCountAfterLeftOperandMatch == differenceCountBefore) {
+						Difference leftDiff = new Difference(node.getLeftOperand().toString(),o.getLeftOperand().toString(),DifferenceType.INFIX_LEFT_OPERAND_MISMATCH);
+						astNodeDifference.addDifference(leftDiff);
+					}
+					if(differenceCountAfterRightOperandMatch == differenceCountAfterLeftOperandMatch) {
+						Difference rightDiff = new Difference(node.getRightOperand().toString(),o.getRightOperand().toString(),DifferenceType.INFIX_RIGHT_OPERAND_MISMATCH);
+						astNodeDifference.addDifference(rightDiff);
+					}
 				}
 				else if(!leftOperandMatch && rightOperandMatch) {
 					//if only the left operand does not match, then the left operand should be parameterized
@@ -1250,7 +1257,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof LambdaExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1354,7 +1361,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
 			if (!(other instanceof MethodInvocation)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1370,7 +1377,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				boolean isOtherMethodBindingStatic = (otherMethodBinding.getModifiers() & Modifier.STATIC) != 0;
 				if(isNodeMethodBindingStatic != isOtherMethodBindingStatic) {
 					if(typeMatch) {
-						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 						astNodeDifference.addDifference(diff);
 					}
 					else {
@@ -1425,7 +1432,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof NullLiteral)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1454,7 +1461,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof NumberLiteral)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1498,7 +1505,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ParenthesizedExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1510,9 +1517,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				ParenthesizedExpression o = (ParenthesizedExpression) other;
+				int differenceCountBefore = differences.size();
 				boolean expressionMatch = safeSubtreeMatch(node.getExpression(), o.getExpression());
-				if(!expressionMatch && typeMatch && differences.isEmpty()) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+				int differenceCountAfter = differences.size();
+				if(!expressionMatch && typeMatch && differenceCountAfter == differenceCountBefore) {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1538,7 +1547,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof PrefixExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1618,7 +1627,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 								astNodeDifference.addDifference(diff);
 							}
 						}
-						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 						astNodeDifference.addDifference(diff);
 					}
 					else {
@@ -1744,7 +1753,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							astNodeDifference.addDifference(diff);
 						}
 					}
-					Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.getIdentifier(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1775,7 +1784,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof StringLiteral)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1833,7 +1842,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1864,7 +1873,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveMethodBinding().getReturnType(), getTypeBinding(other));
 			if (!(other instanceof SuperMethodInvocation)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1939,7 +1948,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof ThisExpression)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
@@ -1994,7 +2003,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof TypeLiteral)) {
 				if(typeMatch) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT);
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}

@@ -12,7 +12,12 @@ public class Difference {
 		this.secondValue = secondValue;
 		this.type = type;
 	}
-	
+
+	public Difference(String firstValue, String secondValue, DifferenceType type, int weight) {
+		this(firstValue, secondValue, type);
+		this.weight = weight;
+	}
+
 	public DifferenceType getType() {
 		return type;
 	}

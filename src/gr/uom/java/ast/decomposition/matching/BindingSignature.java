@@ -62,6 +62,10 @@ public class BindingSignature {
 		return bindingKeys.size() == 1 && bindingKeys.contains(key);
 	}
 
+	public int getSize() {
+		return bindingKeys.size();
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

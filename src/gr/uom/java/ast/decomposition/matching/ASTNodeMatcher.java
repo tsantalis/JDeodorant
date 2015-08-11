@@ -817,7 +817,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					List<Expression> nodeArguments = node.arguments();
 					List<Expression> otherArguments = o.arguments();
 					for(int i=0; i<nodeArguments.size(); i++) {
+						int differenceCountBefore = differences.size();
 						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+						reduceWeightOfReversedArguments(differenceCountBefore);
 					}
 				}
 				boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
@@ -860,6 +862,30 @@ public class ASTNodeMatcher extends ASTMatcher{
 		astNodeDifference.addDifference(diff);
 		addDifference(astNodeDifference);
 		return false;
+	}
+
+	private void reduceWeightOfReversedArguments(int differenceCountBefore) {
+		//find if a new TYPE_COMPATIBLE_REPLACEMENT difference was added
+		ASTNodeDifference typeCompatibleReplacementDifference = null;
+		for(int j=differenceCountBefore; j<differences.size(); j++) {
+			ASTNodeDifference difference = differences.get(j);
+			if(difference.containsOnlyDifferenceType(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT)) {
+				typeCompatibleReplacementDifference = difference;
+				break;
+			}
+		}
+		if(typeCompatibleReplacementDifference != null) {
+			//check if there is a reverse difference in the previously recorded differences
+			for(int j=0; j<differenceCountBefore; j++) {
+				ASTNodeDifference difference = differences.get(j);
+				if(difference.containsOnlyDifferenceType(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT) &&
+						difference.getBindingSignaturePair().isReverse(typeCompatibleReplacementDifference.getBindingSignaturePair())) {
+					Difference diff = typeCompatibleReplacementDifference.getDifferences().get(0);
+					diff.setWeight(1);
+					break;
+				}
+			}
+		}
 	}
 
 	public boolean match(ConditionalExpression node, Object other) {
@@ -1344,7 +1370,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					List<Expression> nodeArguments = node.arguments();
 					List<Expression> otherArguments = o.arguments();
 					for(int i=0; i<nodeArguments.size(); i++) {
+						int differenceCountBefore = differences.size();
 						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+						reduceWeightOfReversedArguments(differenceCountBefore);
 					}
 				}
 				safeSubtreeMatch(node.getName(), o.getName());
@@ -1845,7 +1873,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 					List<Expression> nodeArguments = node.arguments();
 					List<Expression> otherArguments = o.arguments();
 					for(int i=0; i<nodeArguments.size(); i++) {
+						int differenceCountBefore = differences.size();
 						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+						reduceWeightOfReversedArguments(differenceCountBefore);
 					}
 				}
 				safeSubtreeMatch(node.getName(), o.getName());

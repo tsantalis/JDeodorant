@@ -49,6 +49,19 @@ public class BindingSignature {
 		return bindingKeys.size() == 1 && bindingKeys.contains(key);
 	}
 
+	public List<String> signatureWithoutMethods() {
+		List<String> keys = new ArrayList<String>();
+		for(String key : bindingKeys) {
+			if(key.contains("[L")) {
+				keys.add(key.substring(key.indexOf("[L"), key.length()));
+			}
+			else {
+				keys.add(key);
+			}
+		}
+		return keys;
+	}
+
 	public int getSize() {
 		return bindingKeys.size();
 	}

@@ -25,6 +25,13 @@ public class BindingSignaturePair {
 		return signature2;
 	}
 
+	public boolean isReverse(BindingSignaturePair other) {
+		if(this.signature1.signatureWithoutMethods().equals(other.signature2.signatureWithoutMethods()) &&
+				this.signature2.signatureWithoutMethods().equals(other.signature1.signatureWithoutMethods()))
+			return true;
+		return false;
+	}
+
 	public int getWeight() {
 		return signature1.getSize() + signature2.getSize();
 	}

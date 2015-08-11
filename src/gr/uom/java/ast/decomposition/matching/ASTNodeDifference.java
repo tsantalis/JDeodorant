@@ -205,6 +205,10 @@ public class ASTNodeDifference {
 		return expression;
 	}
 
+	public int getWeight() {
+		return bindingSignaturePair.getWeight();
+	}
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;

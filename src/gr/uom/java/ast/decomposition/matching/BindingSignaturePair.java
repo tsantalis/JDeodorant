@@ -25,6 +25,10 @@ public class BindingSignaturePair {
 		return signature2;
 	}
 
+	public int getWeight() {
+		return signature1.getSize() + signature2.getSize();
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

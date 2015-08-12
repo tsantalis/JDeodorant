@@ -159,7 +159,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return false;
 		else {
 			for(ASTNodeDifference diff : differences) {
-				if(!diff.isParameterizable())
+				boolean expression1NestedUnderCatchClause = isNestedUnderAnonymousClassDeclaration(diff.getExpression1().getExpression());
+				boolean expression2NestedUnderCatchClause = isNestedUnderAnonymousClassDeclaration(diff.getExpression2().getExpression());
+				if(!diff.isParameterizable() && !expression1NestedUnderCatchClause && !expression2NestedUnderCatchClause)
 					return false;
 			}
 			return true;
@@ -170,6 +172,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 		boolean missingExpression = false;
 		boolean differentMethodName = false;
 		boolean differentArguments = false;
+		boolean expression1NestedUnderCatchClause = false;
+		boolean expression2NestedUnderCatchClause = false;
 		for(ASTNodeDifference difference : differences) {
 			if(difference.containsDifferenceType(DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION))
 				missingExpression = true;
@@ -177,8 +181,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				differentMethodName = true;
 			if(difference.containsDifferenceType(DifferenceType.ARGUMENT_NUMBER_MISMATCH) || difference.containsDifferenceType(DifferenceType.TYPE_COMPATIBLE_REPLACEMENT))
 				differentArguments = true;
+			if(isNestedUnderAnonymousClassDeclaration(difference.getExpression1().getExpression()))
+				expression1NestedUnderCatchClause = true;
+			if(isNestedUnderAnonymousClassDeclaration(difference.getExpression2().getExpression()))
+				expression2NestedUnderCatchClause = true;
 		}
-		return missingExpression && differentMethodName && differentArguments;
+		return missingExpression && differentMethodName && differentArguments && !expression1NestedUnderCatchClause && !expression2NestedUnderCatchClause;
 	}
 
 	private boolean onlyVariableTypeMismatchDifferences() {

@@ -1783,11 +1783,13 @@ public class PreconditionExaminer {
 							}
 							for(IVariableBinding fieldBinding1 : fields1) {
 								for(IVariableBinding fieldBinding2 : fields2) {
-									if(fieldBinding1.getName().equals(fieldBinding2.getName()) && fieldBinding1.getType().isEqualTo(fieldBinding2.getType())) {
+									if(fieldBinding1.getName().equals(fieldBinding2.getName()) && fieldBinding1.getType().isEqualTo(fieldBinding2.getType()) &&
+											fieldBinding1.getType().getQualifiedName().equals(fieldBinding2.getType().getQualifiedName())) {
 										Set<IVariableBinding> declaredFields = getDeclaredFields(commonSuperType);
 										boolean commonSuperTypeFieldFound = false;
 										for(IVariableBinding commonSuperTypeField : declaredFields) {
-											if(fieldBinding1.getName().equals(commonSuperTypeField.getName()) && fieldBinding1.getType().isEqualTo(commonSuperTypeField.getType())) {
+											if(fieldBinding1.getName().equals(commonSuperTypeField.getName()) && fieldBinding1.getType().isEqualTo(commonSuperTypeField.getType()) &&
+													fieldBinding1.getType().getQualifiedName().equals(commonSuperTypeField.getType().getQualifiedName())) {
 												commonSuperTypeFieldFound = true;
 												break;
 											}

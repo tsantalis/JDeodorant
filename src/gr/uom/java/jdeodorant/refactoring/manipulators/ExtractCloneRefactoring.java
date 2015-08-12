@@ -1475,7 +1475,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			IVariableBinding variableBinding2 = returnedVariableBindingPair.getBinding2();
 			Type returnType = null;
 			ITypeBinding returnTypeBinding = null;
-			if(variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
+			if(variableBinding1.getType().isEqualTo(variableBinding2.getType()) && variableBinding1.getType().getQualifiedName().equals(variableBinding2.getType().getQualifiedName())) {
 				returnTypeBinding = variableBinding1.getType();
 			}
 			else {
@@ -3013,7 +3013,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			else {
 				Type returnType = null;
-				if(variableBinding1.getType().isEqualTo(variableBinding2.getType())) {
+				if(variableBinding1.getType().isEqualTo(variableBinding2.getType()) && variableBinding1.getType().getQualifiedName().equals(variableBinding2.getType().getQualifiedName())) {
 					returnType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding1.getType(), ast, sourceRewriter);
 				}
 				else {

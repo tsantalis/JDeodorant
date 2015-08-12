@@ -357,7 +357,7 @@ public class PDGNodeBlockGap extends Gap {
 		if(returnedVariableBinding != null) {
 			IVariableBinding returnedVariable1 = returnedVariableBinding.getBinding1();
 			IVariableBinding returnedVariable2 = returnedVariableBinding.getBinding2();
-			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType())) {
+			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType()) && returnedVariable1.getType().getQualifiedName().equals(returnedVariable2.getType().getQualifiedName())) {
 				return returnedVariable1.getType();
 			}
 			else {

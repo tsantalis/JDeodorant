@@ -199,7 +199,7 @@ public class LambdaExpressionPreconditionExaminer {
 			IVariableBinding returnedVariable1 = variablesToBeReturnedG1.iterator().next();
 			IVariableBinding returnedVariable2 = variablesToBeReturnedG2.iterator().next();
 			ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType());
-			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType()) ||
+			if((returnedVariable1.getType().isEqualTo(returnedVariable2.getType()) && returnedVariable1.getType().getQualifiedName().equals(returnedVariable2.getType().getQualifiedName())) ||
 					ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
 				return true;
 			}
@@ -213,7 +213,7 @@ public class LambdaExpressionPreconditionExaminer {
 		}
 		else if(returnTypeBinding1 != null && returnTypeBinding2 != null) {
 			ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
-			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) ||
+			if((returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName())) ||
 					ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
 				return true;
 			}
@@ -256,7 +256,8 @@ public class LambdaExpressionPreconditionExaminer {
 												IVariableBinding variableBinding = (IVariableBinding)binding;
 												if(binding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, variableBinding) &&
-														(variableBinding1.getType().isEqualTo(variableBinding.getType()) ||
+														((variableBinding1.getType().isEqualTo(variableBinding.getType()) &&
+														variableBinding1.getType().getQualifiedName().equals(variableBinding.getType().getQualifiedName())) ||
 														ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding.getType()) != null)) {
 													pair = new VariableBindingPair(variableBinding1, variableBinding, AbstractLoopUtilities.getVariableDeclaration(simpleName));
 													break;
@@ -315,7 +316,8 @@ public class LambdaExpressionPreconditionExaminer {
 												IVariableBinding variableBinding = (IVariableBinding)binding;
 												if(binding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding, variableBinding2) &&
-														(variableBinding.getType().isEqualTo(variableBinding2.getType()) ||
+														((variableBinding.getType().isEqualTo(variableBinding2.getType()) &&
+														variableBinding.getType().getQualifiedName().equals(variableBinding2.getType().getQualifiedName())) ||
 														ASTNodeMatcher.commonSuperType(variableBinding.getType(), variableBinding2.getType()) != null)) {
 													pair = new VariableBindingPair(variableBinding, variableBinding2, AbstractLoopUtilities.getVariableDeclaration(simpleName));
 													break;

@@ -1730,7 +1730,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				if(typeMatch) {
-					if(other instanceof Expression) {
+					if(other instanceof Expression && !(other instanceof NullLiteral)) {
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();

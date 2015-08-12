@@ -1189,7 +1189,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						typeBinding = typeBinding2;
 					}
 				}
-				Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
+				Type type = null;
+				if(typeBinding.isPrimitive() && (typeBinding1.getQualifiedName().equals("null") || typeBinding2.getQualifiedName().equals("null"))) {
+					type = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(typeBinding, ast);
+				}
+				else {
+					type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
+				}
 				Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 				typeBindings.add(typeBinding);
 				RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);

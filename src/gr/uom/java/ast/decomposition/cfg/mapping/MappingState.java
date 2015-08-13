@@ -116,10 +116,10 @@ public class MappingState {
 	}
 
 	//returns the sum of the differences in the node Ids of the mapped nodes
-	public int getNodeMappingIdDiff() {
+	public int getNodeMappingRelativeIdDiff(int minId1, int minId2) {
 		int sum = 0;
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
-			sum += Math.abs(nodeMapping.getNodeG1().getId() - nodeMapping.getNodeG2().getId());
+			sum += Math.abs((nodeMapping.getNodeG1().getId()-minId1) - (nodeMapping.getNodeG2().getId()-minId2));
 		}
 		return sum;
 	}

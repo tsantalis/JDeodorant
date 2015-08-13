@@ -327,16 +327,18 @@ public abstract class DivideAndConquerMatcher {
 			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
 		}
 		else {
-			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingIdDiff();
+			int minId1 = allNodesInSubTreePDG1.isEmpty() ? 0 : allNodesInSubTreePDG1.first().getId();
+			int minId2 = allNodesInSubTreePDG2.isEmpty() ? 0 : allNodesInSubTreePDG2.first().getId();
+			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingRelativeIdDiff(minId1, minId2);
 			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
 			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferences.size(); i++) {
 				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferences.get(i);
-				if(currentState.getNodeMappingIdDiff() < minimum) {
-					minimum = currentState.getNodeMappingIdDiff();
+				if(currentState.getNodeMappingRelativeIdDiff(minId1, minId2) < minimum) {
+					minimum = currentState.getNodeMappingRelativeIdDiff(minId1, minId2);
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.clear();
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
 				}
-				else if(currentState.getNodeMappingIdDiff() == minimum) {
+				else if(currentState.getNodeMappingRelativeIdDiff(minId1, minId2) == minimum) {
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
 				}
 			}
@@ -987,39 +989,78 @@ public abstract class DivideAndConquerMatcher {
 			return currentStates;
 		}
 		else {
-			for(PlainVariable variable1 : map1.keySet()) {
-				Set<PDGNode> variableNodesG1 = map1.get(variable1);
-				Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
-				Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
+			if(map1.keySet().size() <= map2.keySet().size()) {
+				for(PlainVariable variable1 : map1.keySet()) {
+					Set<PDGNode> variableNodesG1 = map1.get(variable1);
+					Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
+					Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
+					for(PlainVariable variable2 : map2.keySet()) {
+						Set<PDGNode> variableNodesG2 = map2.get(variable2);
+						Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
+						if(finalState != null) {
+							for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+								if(tempNodesG1.contains(mapping.getNodeG1()))
+									tempNodesG1.remove(mapping.getNodeG1());
+								if(tempNodesG2.contains(mapping.getNodeG2()))
+									tempNodesG2.remove(mapping.getNodeG2());
+							}
+						}
+						List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+						currentStateMap.put(variable2, maxStates);
+					}
+					List<MappingState> currentStates = new ArrayList<MappingState>();
+					for(PlainVariable variable2 : currentStateMap.keySet()) {
+						currentStates.addAll(currentStateMap.get(variable2));
+					}
+					if(!currentStates.isEmpty()) {
+						MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
+						PlainVariable variableToRemove = null;
+						for(PlainVariable variable2 : currentStateMap.keySet()) {
+							if(currentStateMap.get(variable2).contains(best)) {
+								variableToRemove = variable2;
+								break;
+							}
+						}
+						map2.remove(variableToRemove);
+						finalState = best;
+					}
+				}
+			}
+			else {
 				for(PlainVariable variable2 : map2.keySet()) {
 					Set<PDGNode> variableNodesG2 = map2.get(variable2);
 					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
-					if(finalState != null) {
-						for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
-							if(tempNodesG1.contains(mapping.getNodeG1()))
-								tempNodesG1.remove(mapping.getNodeG1());
-							if(tempNodesG2.contains(mapping.getNodeG2()))
-								tempNodesG2.remove(mapping.getNodeG2());
+					Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
+					for(PlainVariable variable1 : map1.keySet()) {
+						Set<PDGNode> variableNodesG1 = map1.get(variable1);
+						Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
+						if(finalState != null) {
+							for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+								if(tempNodesG1.contains(mapping.getNodeG1()))
+									tempNodesG1.remove(mapping.getNodeG1());
+								if(tempNodesG2.contains(mapping.getNodeG2()))
+									tempNodesG2.remove(mapping.getNodeG2());
+							}
 						}
+						List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
+						currentStateMap.put(variable1, maxStates);
 					}
-					List<MappingState> maxStates = processPDGNodes(finalState, tempNodesG1, tempNodesG2);
-					currentStateMap.put(variable2, maxStates);
-				}
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PlainVariable variable2 : currentStateMap.keySet()) {
-					currentStates.addAll(currentStateMap.get(variable2));
-				}
-				if(!currentStates.isEmpty()) {
-					MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
-					PlainVariable variableToRemove = null;
-					for(PlainVariable variable2 : currentStateMap.keySet()) {
-						if(currentStateMap.get(variable2).contains(best)) {
-							variableToRemove = variable2;
-							break;
+					List<MappingState> currentStates = new ArrayList<MappingState>();
+					for(PlainVariable variable1 : currentStateMap.keySet()) {
+						currentStates.addAll(currentStateMap.get(variable1));
+					}
+					if(!currentStates.isEmpty()) {
+						MappingState best = findMaximumStateWithMinimumDifferences(currentStates);
+						PlainVariable variableToRemove = null;
+						for(PlainVariable variable1 : currentStateMap.keySet()) {
+							if(currentStateMap.get(variable1).contains(best)) {
+								variableToRemove = variable1;
+								break;
+							}
 						}
+						map1.remove(variableToRemove);
+						finalState = best;
 					}
-					map2.remove(variableToRemove);
-					finalState = best;
 				}
 			}
 			List<MappingState> currentStates = new ArrayList<MappingState>();

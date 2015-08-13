@@ -105,8 +105,10 @@ public class PDGMapper {
 		if(cdtNode.isElseNode()) {
 			newNode.setElseNode(true);
 			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
-			newIfParent.setElseIfChild(newNode);
-			newNode.setIfParent(newIfParent);
+			if(newIfParent != null) {
+				newIfParent.setElseIfChild(newNode);
+				newNode.setIfParent(newIfParent);
+			}
 		}
 		else if(cdtNode.getIfParent() != null) {
 			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());

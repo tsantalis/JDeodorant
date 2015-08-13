@@ -339,16 +339,18 @@ public abstract class DivideAndConquerMatcher {
 			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
 		}
 		else {
-			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingIdDiff();
+			int minId1 = allNodesInSubTreePDG1.isEmpty() ? 0 : allNodesInSubTreePDG1.first().getId();
+			int minId2 = allNodesInSubTreePDG2.isEmpty() ? 0 : allNodesInSubTreePDG2.first().getId();
+			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingRelativeIdDiff(minId1, minId2);
 			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
 			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferences.size(); i++) {
 				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferences.get(i);
-				if(currentState.getNodeMappingIdDiff() < minimum) {
-					minimum = currentState.getNodeMappingIdDiff();
+				if(currentState.getNodeMappingRelativeIdDiff(minId1, minId2) < minimum) {
+					minimum = currentState.getNodeMappingRelativeIdDiff(minId1, minId2);
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.clear();
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
 				}
-				else if(currentState.getNodeMappingIdDiff() == minimum) {
+				else if(currentState.getNodeMappingRelativeIdDiff(minId1, minId2) == minimum) {
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(currentState);
 				}
 			}

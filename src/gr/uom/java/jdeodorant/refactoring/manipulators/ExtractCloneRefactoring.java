@@ -3400,6 +3400,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<VariableBindingKeyPair> parameterBindingKeys = originalPassedParameters.keySet();
 			Set<VariableBindingKeyPair> commonPassedParameterBindingKeys = mapper.getCommonPassedParameters().keySet();
 			Set<VariableBindingKeyPair> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
+			Set<VariableBindingKeyPair> localVariableBindingKeysReturnedByBlockGaps = mapper.getLocalVariablesReturnedByBlockGaps();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
@@ -3422,6 +3423,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						VariableBindingKeyPair keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
 						if(parameterBindingKeys.contains(keyPair) || commonPassedParameterBindingKeys.contains(keyPair) ||
 								declaredLocalVariableBindingKeys.contains(keyPair) ||
+								localVariableBindingKeysReturnedByBlockGaps.contains(keyPair) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
 							isCommonParameter = true;
@@ -3436,6 +3438,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						VariableBindingKeyPair keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
 						if(parameterBindingKeys.contains(keyPair) || commonPassedParameterBindingKeys.contains(keyPair) ||
 								declaredLocalVariableBindingKeys.contains(keyPair) ||
+								localVariableBindingKeysReturnedByBlockGaps.contains(keyPair) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
 							isCommonParameter = true;

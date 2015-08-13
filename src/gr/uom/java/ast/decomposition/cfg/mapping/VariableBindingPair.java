@@ -32,6 +32,10 @@ public class VariableBindingPair {
 		return hasQualifiedType;
 	}
 
+	public VariableBindingKeyPair getVariableBindingKeyPair() {
+		return new VariableBindingKeyPair(binding1.getKey(), binding2.getKey());
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

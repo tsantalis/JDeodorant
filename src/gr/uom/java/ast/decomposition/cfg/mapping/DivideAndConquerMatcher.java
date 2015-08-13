@@ -244,6 +244,10 @@ public abstract class DivideAndConquerMatcher {
 		return preconditionExaminer.getRefactorableBlockGaps();
 	}
 
+	public Set<VariableBindingKeyPair> getLocalVariablesReturnedByBlockGaps() {
+		return preconditionExaminer.getLocalVariablesReturnedByBlockGaps();
+	}
+
 	protected abstract Set<PDGNode> getNodesInRegion1(PDG pdg, PDGNode controlPredicate, Set<PDGNode> controlPredicateNodesInCurrentLevel,
 			Set<PDGNode> controlPredicateNodesInNextLevel, ControlDependenceTreeNode controlDependenceTreeRoot);
 

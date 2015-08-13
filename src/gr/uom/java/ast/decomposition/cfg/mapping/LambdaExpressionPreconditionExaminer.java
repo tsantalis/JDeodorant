@@ -59,6 +59,17 @@ public class LambdaExpressionPreconditionExaminer {
 		refactorableBlockGaps.removeAll(blockGaps);
 	}
 
+	public Set<VariableBindingKeyPair> getLocalVariablesReturnedByBlockGaps() {
+		Set<VariableBindingKeyPair> variablesReturnedByBlockGaps = new LinkedHashSet<VariableBindingKeyPair>();
+		for(PDGNodeBlockGap blockGap : refactorableBlockGaps) {
+			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();
+			if(returnedVariableBinding != null) {
+				variablesReturnedByBlockGaps.add(returnedVariableBinding.getVariableBindingKeyPair());
+			}
+		}
+		return variablesReturnedByBlockGaps;
+	}
+
 	private void checkCloneStructureNodeForGaps(CloneStructureNode node) {
 		if(node.getMapping() != null) {
 			List<PDGExpressionGap> expressionGaps = node.getExpressionGaps();

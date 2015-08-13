@@ -376,6 +376,15 @@ public class PreconditionExaminer {
 		}
 	}
 
+	public Set<VariableBindingKeyPair> getLocalVariablesReturnedByBlockGaps() {
+		if(lambdaExpressionPreconditionExaminer != null) {
+			return lambdaExpressionPreconditionExaminer.getLocalVariablesReturnedByBlockGaps();
+		}
+		else {
+			return new LinkedHashSet<VariableBindingKeyPair>();
+		}
+	}
+
 	private CloneStructureNode getCloneStructureRoot() {
 		return cloneStructureRoot;
 	}

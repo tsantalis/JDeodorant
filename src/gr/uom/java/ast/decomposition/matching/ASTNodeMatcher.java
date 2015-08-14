@@ -830,49 +830,53 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else {
 				ClassInstanceCreation o = (ClassInstanceCreation) other;
-				if(node.arguments().size() != o.arguments().size()) {
-					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
-					diff.setWeight(node.arguments().size() * o.arguments().size());
-					astNodeDifference.addDifference(diff);
-				}
-				else {
-					List<Expression> nodeArguments = node.arguments();
-					List<Expression> otherArguments = o.arguments();
-					for(int i=0; i<nodeArguments.size(); i++) {
-						int differenceCountBefore = differences.size();
-						safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
-						reduceWeightOfReversedArguments(differenceCountBefore);
-					}
-				}
-				boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
-				safeSubtreeMatch(node.getType(), o.getType());
-				//safeSubtreeListMatch(node.arguments(), o.arguments());
-				safeSubtreeMatch(node.getExpression(), o.getExpression());
-				if(node.getExpression()==null && o.getExpression()!=null) {
-					Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
-					astNodeDifference.addDifference(diff);
-				}
-				else if(node.getExpression()!=null && o.getExpression()==null) {
-					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
-					astNodeDifference.addDifference(diff);
-				}
-				if(!anonymousClassDeclarationMatch) {
-					AnonymousClassDeclaration anounymousClassDeclaration1 = node.getAnonymousClassDeclaration();
-					AnonymousClassDeclaration anounymousClassDeclaration2 = o.getAnonymousClassDeclaration();
-					if(anounymousClassDeclaration1 == null && anounymousClassDeclaration2 != null) {
-						Difference diff = new Difference("",anounymousClassDeclaration2.toString(),
-								DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+				int differenceCount = differences.size();
+				boolean classTypeMatch = safeSubtreeMatch(node.getType(), o.getType());
+				int differenceCountAfterTypeMatch = differences.size();
+				if(classTypeMatch && differenceCountAfterTypeMatch == differenceCount) {
+					if(node.arguments().size() != o.arguments().size()) {
+						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+						diff.setWeight(node.arguments().size() * o.arguments().size());
 						astNodeDifference.addDifference(diff);
 					}
-					else if(anounymousClassDeclaration1 != null && anounymousClassDeclaration2 == null) {
-						Difference diff = new Difference(anounymousClassDeclaration1.toString(),"",
-								DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+					else {
+						List<Expression> nodeArguments = node.arguments();
+						List<Expression> otherArguments = o.arguments();
+						for(int i=0; i<nodeArguments.size(); i++) {
+							int differenceCountBefore = differences.size();
+							safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+							reduceWeightOfReversedArguments(differenceCountBefore);
+						}
+					}
+					boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
+					//safeSubtreeListMatch(node.arguments(), o.arguments());
+					safeSubtreeMatch(node.getExpression(), o.getExpression());
+					if(node.getExpression()==null && o.getExpression()!=null) {
+						Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
 						astNodeDifference.addDifference(diff);
 					}
-					else if(anounymousClassDeclaration1 != null && anounymousClassDeclaration2 != null) {
-						Difference diff = new Difference(anounymousClassDeclaration1.toString(),anounymousClassDeclaration2.toString(),
-								DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+					else if(node.getExpression()!=null && o.getExpression()==null) {
+						Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
 						astNodeDifference.addDifference(diff);
+					}
+					if(!anonymousClassDeclarationMatch) {
+						AnonymousClassDeclaration anounymousClassDeclaration1 = node.getAnonymousClassDeclaration();
+						AnonymousClassDeclaration anounymousClassDeclaration2 = o.getAnonymousClassDeclaration();
+						if(anounymousClassDeclaration1 == null && anounymousClassDeclaration2 != null) {
+							Difference diff = new Difference("",anounymousClassDeclaration2.toString(),
+									DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+						else if(anounymousClassDeclaration1 != null && anounymousClassDeclaration2 == null) {
+							Difference diff = new Difference(anounymousClassDeclaration1.toString(),"",
+									DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+						else if(anounymousClassDeclaration1 != null && anounymousClassDeclaration2 != null) {
+							Difference diff = new Difference(anounymousClassDeclaration1.toString(),anounymousClassDeclaration2.toString(),
+									DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
 					}
 				}
 			}

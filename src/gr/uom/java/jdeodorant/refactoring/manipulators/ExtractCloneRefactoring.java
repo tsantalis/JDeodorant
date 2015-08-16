@@ -3051,13 +3051,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private PDGNodeBlockGap nodeGapIsLastInsideBlockGap(CloneStructureNode child) {
-		if(child.getMapping() instanceof PDGNodeGap && child.getMapping().getNodeG1() != null && !child.getMapping().isAdvancedMatch()) {
+		if(child.getMapping() instanceof PDGNodeGap && !child.getMapping().isAdvancedMatch()) {
 			PDGNode nodeG1 = child.getMapping().getNodeG1();
+			PDGNode nodeG2 = child.getMapping().getNodeG2();
 			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 				TreeSet<PDGNode> nodesG1 = blockGap.getNodesG1();
-				if(nodesG1.size() > 0) {
+				if(nodesG1.size() > 0 && nodeG1 != null) {
 					PDGNode lastNode = nodesG1.last();
 					if(lastNode.getStatement().equals(nodeG1.getStatement())) {
+						return blockGap;
+					}
+				}
+				TreeSet<PDGNode> nodesG2 = blockGap.getNodesG2();
+				if(nodesG2.size() > 0 && nodeG2 != null) {
+					PDGNode lastNode = nodesG2.last();
+					if(lastNode.getStatement().equals(nodeG2.getStatement())) {
 						return blockGap;
 					}
 				}

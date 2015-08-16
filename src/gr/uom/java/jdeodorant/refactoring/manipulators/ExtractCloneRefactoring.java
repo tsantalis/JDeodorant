@@ -3063,7 +3063,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 				TreeSet<PDGNode> nodesG2 = blockGap.getNodesG2();
-				if(nodesG2.size() > 0 && nodeG2 != null) {
+				if(nodesG1.size() == 0 && nodesG2.size() > 0 && nodeG2 != null) {
 					PDGNode lastNode = nodesG2.last();
 					if(lastNode.getStatement().equals(nodeG2.getStatement())) {
 						return blockGap;

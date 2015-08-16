@@ -1,6 +1,5 @@
 package gr.uom.java.ast.decomposition.cfg;
 
-import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldObject;
@@ -197,20 +196,16 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 			PlainVariable plainVariable = (PlainVariable)variable;
 			String variableType = plainVariable.getVariableType();
 			for(CreationObject creation : createdTypes) {
-				ITypeBinding createdTypeBinding = null;
 				if(creation instanceof ClassInstanceCreationObject) {
-					createdTypeBinding = ((ClassInstanceCreationObject)creation).getClassInstanceCreation().resolveTypeBinding();
+					ITypeBinding createdTypeBinding = ((ClassInstanceCreationObject)creation).getClassInstanceCreation().resolveTypeBinding();
+					String superclassName = createdTypeBinding.getSuperclass() != null ? createdTypeBinding.getSuperclass().getQualifiedName() : null;
+					Set<String> implementedInterfaces = new LinkedHashSet<String>();
+					for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
+						implementedInterfaces.add(implementedInterface.getQualifiedName());
+					}
+					if(variableType.equals(createdTypeBinding.getQualifiedName()) || variableType.equals(superclassName) || implementedInterfaces.contains(variableType))
+						return true;
 				}
-				else if(creation instanceof ArrayCreationObject) {
-					createdTypeBinding = ((ArrayCreationObject)creation).getArrayCreation().resolveTypeBinding();
-				}
-				String superclassName = createdTypeBinding.getSuperclass() != null ? createdTypeBinding.getSuperclass().getQualifiedName() : null;
-				Set<String> implementedInterfaces = new LinkedHashSet<String>();
-				for(ITypeBinding implementedInterface : createdTypeBinding.getInterfaces()) {
-					implementedInterfaces.add(implementedInterface.getQualifiedName());
-				}
-				if(createdTypeBinding != null && (variableType.equals(createdTypeBinding.getQualifiedName()) || variableType.equals(superclassName) || implementedInterfaces.contains(variableType)))
-					return true;
 			}
 		}
 		return false;

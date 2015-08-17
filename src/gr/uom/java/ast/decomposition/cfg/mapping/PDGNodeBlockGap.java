@@ -79,7 +79,7 @@ public class PDGNodeBlockGap extends Gap {
 		NodeMapping lastCloneStructureParentMapping = lastNode.getParent().getMapping();
 		if(lastCloneStructureParentMapping != null) {
 			PDGNode lastCloneStructureParent = lastCloneStructureParentMapping.getNodeG1();
-			if(nodesG1.contains(lastCloneStructureParent)) {
+			if(lastCloneStructureParent != null && nodesG1.contains(lastCloneStructureParent)) {
 				return lastCloneStructureParent;
 			}
 		}
@@ -96,7 +96,7 @@ public class PDGNodeBlockGap extends Gap {
 		NodeMapping lastCloneStructureParentMapping = lastNode.getParent().getMapping();
 		if(lastCloneStructureParentMapping != null) {
 			PDGNode lastCloneStructureParent = lastCloneStructureParentMapping.getNodeG2();
-			if(nodesG2.contains(lastCloneStructureParent)) {
+			if(lastCloneStructureParent != null && nodesG2.contains(lastCloneStructureParent)) {
 				return lastCloneStructureParent;
 			}
 		}

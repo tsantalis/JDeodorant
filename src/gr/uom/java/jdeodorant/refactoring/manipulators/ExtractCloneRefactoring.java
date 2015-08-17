@@ -4245,7 +4245,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					isReturnedVariable = isReturnedVariable(expression, returnedVariables);
 				if(!isReturnedVariable) {
 					if(expression != null) {
-						if(difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH) && index == 1) {
+						if(difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH) && index == 1 && !differenceBelongsToExpressionGaps(difference)) {
 							ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
 							methodBodyRewriter.set(parenthesizedExpression, ParenthesizedExpression.EXPRESSION_PROPERTY, expression, null);
 							PrefixExpression prefixExpression = ast.newPrefixExpression();
@@ -4311,7 +4311,17 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										}
 									}
 								}
-								methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, expression, null);
+								if(difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH) && index == 1) {
+									ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
+									methodBodyRewriter.set(parenthesizedExpression, ParenthesizedExpression.EXPRESSION_PROPERTY, expression, null);
+									PrefixExpression prefixExpression = ast.newPrefixExpression();
+									methodBodyRewriter.set(prefixExpression, PrefixExpression.OPERAND_PROPERTY, parenthesizedExpression, null);
+									methodBodyRewriter.set(prefixExpression, PrefixExpression.OPERATOR_PROPERTY, PrefixExpression.Operator.NOT, null);
+									methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, prefixExpression, null);
+								}
+								else {
+									methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, expression, null);
+								}
 								argumentsRewrite.insertLast(lambdaExpression, null);
 							}
 							else if(differenceBelongsToBlockGaps(difference)) {

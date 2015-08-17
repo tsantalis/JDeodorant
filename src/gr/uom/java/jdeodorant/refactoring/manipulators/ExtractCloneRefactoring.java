@@ -4667,14 +4667,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			if(!statementChanged) {
+				PDGNode controlParent = node.getControlDependenceParent();
+				//special handling for statements nested under a try block, and are not control dependent on the try block
 				CloneStructureNode cloneStructureNode = index == 0 ? mapper.getCloneStructureRoot().findNodeG1(node) : mapper.getCloneStructureRoot().findNodeG2(node);
-				NodeMapping cloneStructureParentMapping = cloneStructureNode.getParent().getMapping();
-				PDGNode controlParent = null;
-				if(cloneStructureParentMapping != null) {
-					controlParent = index == 0 ? cloneStructureParentMapping.getNodeG1() : cloneStructureParentMapping.getNodeG2();
-				}
-				else {
-					controlParent = node.getControlDependenceParent();
+				NodeMapping cloneStructureNodeParentMapping = cloneStructureNode.getParent().getMapping();
+				if(cloneStructureNodeParentMapping != null) {
+					PDGNode cloneStructureNodeParent = index == 0 ? cloneStructureNodeParentMapping.getNodeG1() : cloneStructureNodeParentMapping.getNodeG2();
+					if(cloneStructureNodeParent != null) {
+						controlParent = cloneStructureNodeParent;
+					}
 				}
 				if(!statements.contains(controlParent)) {
 					Statement newStatement = (Statement)ASTNode.copySubtree(ast, statement);

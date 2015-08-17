@@ -3011,7 +3011,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					break;
 				}
 			}
-			if(variableBinding1IsDeclaredInRemainingNodes && variableBinding2IsDeclaredInRemainingNodes && variablesPassedAsCommonParameter) {
+			if((variableBinding1IsDeclaredInRemainingNodes && variableBinding2IsDeclaredInRemainingNodes && variablesPassedAsCommonParameter) || parameterTypeBindings.contains(blockGap.getReturnedVariableBinding())) {
 				Assignment assignment = ast.newAssignment();
 				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
 				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, interfaceMethodInvocation, null);
@@ -3057,14 +3057,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 				TreeSet<PDGNode> nodesG1 = blockGap.getNodesG1();
 				if(nodesG1.size() > 0 && nodeG1 != null) {
-					PDGNode lastNode = nodesG1.last();
+					PDGNode lastNode = blockGap.getLastNodeG1();
 					if(lastNode.getStatement().equals(nodeG1.getStatement())) {
 						return blockGap;
 					}
 				}
 				TreeSet<PDGNode> nodesG2 = blockGap.getNodesG2();
 				if(nodesG1.size() == 0 && nodesG2.size() > 0 && nodeG2 != null) {
-					PDGNode lastNode = nodesG2.last();
+					PDGNode lastNode = blockGap.getLastNodeG2();
 					if(lastNode.getStatement().equals(nodeG2.getStatement())) {
 						return blockGap;
 					}
@@ -3080,7 +3080,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 				TreeSet<PDGNode> nodesG1 = blockGap.getNodesG1();
 				if(nodesG1.size() > 0) {
-					PDGNode lastNode = nodesG1.last();
+					PDGNode lastNode = blockGap.getLastNodeG1();
 					if(lastNode.getStatement().equals(nodeG1.getStatement())) {
 						return blockGap;
 					}
@@ -4630,7 +4630,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 				else {
-					if(statement instanceof ExpressionStatement) {
+					PDGNode lastNode = index == 0 ? blockGap.getLastNodeG1() : blockGap.getLastNodeG2();
+					if(statement instanceof ExpressionStatement && statement.equals(lastNode.getASTStatement())) {
 						ExpressionStatement expressionStatement = (ExpressionStatement)statement;
 						if(expressionStatement.getExpression() instanceof Assignment) {
 							Assignment assignment = (Assignment)expressionStatement.getExpression();
@@ -4656,7 +4657,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			if(!statementChanged) {
-				PDGNode controlParent = node.getControlDependenceParent();
+				CloneStructureNode cloneStructureNode = index == 0 ? mapper.getCloneStructureRoot().findNodeG1(node) : mapper.getCloneStructureRoot().findNodeG2(node);
+				NodeMapping cloneStructureParentMapping = cloneStructureNode.getParent().getMapping();
+				PDGNode controlParent = null;
+				if(cloneStructureParentMapping != null) {
+					controlParent = index == 0 ? cloneStructureParentMapping.getNodeG1() : cloneStructureParentMapping.getNodeG2();
+				}
+				else {
+					controlParent = node.getControlDependenceParent();
+				}
 				if(!statements.contains(controlParent)) {
 					Statement newStatement = (Statement)ASTNode.copySubtree(ast, statement);
 					//replace the non-effectively final variables in the lambda expression body

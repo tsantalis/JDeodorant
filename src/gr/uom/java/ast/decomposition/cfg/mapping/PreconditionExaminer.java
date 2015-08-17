@@ -108,8 +108,6 @@ public class PreconditionExaminer {
 	private TreeSet<PDGNode> nonMappedNodesG2;
 	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> commonPassedParameters;
 	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
-	private Set<AbstractVariable> passedParametersG1;
-	private Set<AbstractVariable> passedParametersG2;
 	//includes used and modified fields
 	private Set<AbstractVariable> directlyAccessedLocalFieldsG1;
 	private Set<AbstractVariable> directlyAccessedLocalFieldsG2;
@@ -162,8 +160,6 @@ public class PreconditionExaminer {
 		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
 		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
-		this.passedParametersG1 = new LinkedHashSet<AbstractVariable>();
-		this.passedParametersG2 = new LinkedHashSet<AbstractVariable>();
 		this.directlyAccessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
 		this.directlyAccessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
 		this.indirectlyAccessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
@@ -196,8 +192,8 @@ public class PreconditionExaminer {
 		if(getMaximumStateWithMinimumDifferences() != null) {
 			this.mappedNodesG1 = getMaximumStateWithMinimumDifferences().getMappedNodesG1();
 			this.mappedNodesG2 = getMaximumStateWithMinimumDifferences().getMappedNodesG2();
-			findNonMappedNodes(getAllNodesInSubTreePDG1(), mappedNodesG1, nonMappedNodesG1);
-			findNonMappedNodes(getAllNodesInSubTreePDG2(), mappedNodesG2, nonMappedNodesG2);
+			findNonMappedNodes(pdg1, getAllNodesInSubTreePDG1(), mappedNodesG1, nonMappedNodesG1);
+			findNonMappedNodes(pdg2, getAllNodesInSubTreePDG2(), mappedNodesG2, nonMappedNodesG2);
 			for(PDGNode nodeG1 : nonMappedNodesG1) {
 				boolean advancedMatch = getCloneStructureRoot().isGapNodeG1InAdditionalMatches(nodeG1);
 				List<ASTNodeDifference> differencesForAdvancedMatch = new ArrayList<ASTNodeDifference>();
@@ -401,9 +397,14 @@ public class PreconditionExaminer {
 		return allNodesInSubTreePDG2;
 	}
 
-	private void findNonMappedNodes(TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
+	private void findNonMappedNodes(PDG pdg, TreeSet<PDGNode> allNodes, Set<PDGNode> mappedNodes, Set<PDGNode> nonMappedNodes) {
 		for(PDGNode pdgNode : allNodes) {
 			if(!mappedNodes.contains(pdgNode)) {
+				nonMappedNodes.add(pdgNode);
+			}
+			PDGBlockNode blockNode = pdg.isDirectlyNestedWithinBlockNode(pdgNode);
+			if(blockNode != null && nonMappedNodes.contains(blockNode) && mappedNodes.contains(pdgNode)) {
+				mappedNodes.remove(pdgNode);
 				nonMappedNodes.add(pdgNode);
 			}
 		}
@@ -495,8 +496,6 @@ public class PreconditionExaminer {
 		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndFieldAccessedInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndFieldAccessedInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
-		Set<AbstractVariable> parametersToBeRemovedG1 = new LinkedHashSet<AbstractVariable>();
-		Set<AbstractVariable> parametersToBeRemovedG2 = new LinkedHashSet<AbstractVariable>();
 		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
@@ -538,6 +537,9 @@ public class PreconditionExaminer {
 				VariableBindingKeyPair keyPair = new VariableBindingKeyPair(declaredVariableG1.getVariableBindingKey(),
 						declaredVariableG2.getVariableBindingKey());
 				declaredLocalVariablesInMappedNodes.put(keyPair, declaredVariables);
+				if(commonPassedParameters.containsKey(keyPair)) {
+					commonPassedParameters.remove(keyPair);
+				}
 			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
@@ -614,16 +616,12 @@ public class PreconditionExaminer {
 					variableDeclarations.add(variable2);
 					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
 							variable2.getVariableBindingKey());
-					commonPassedParameters.put(keyPair, variableDeclarations);
-					parametersToBeRemovedG1.add(variable1);
-					parametersToBeRemovedG2.add(variable2);
+					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair)) {
+						commonPassedParameters.put(keyPair, variableDeclarations);
+					}
 				}
 			}
 		}
-		passedParametersG1.removeAll(parametersToBeRemovedG1);
-		passedParametersG2.removeAll(parametersToBeRemovedG2);
-		this.passedParametersG1.addAll(passedParametersG1);
-		this.passedParametersG2.addAll(passedParametersG2);
 	}
 
 	private void sortVariables(List<AbstractVariable> variables1, List<AbstractVariable> variables2,

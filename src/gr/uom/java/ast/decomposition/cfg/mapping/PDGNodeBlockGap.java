@@ -69,6 +69,40 @@ public class PDGNodeBlockGap extends Gap {
 		return nodeDifferences;
 	}
 
+	public PDGNode getLastNodeG1() {
+		PDGNode last = nodesG1.last();
+		PDGNode lastControlParent = last.getControlDependenceParent();
+		if(nodesG1.contains(lastControlParent)) {
+			return lastControlParent;
+		}
+		CloneStructureNode lastNode = parent.findNodeG1(last);
+		NodeMapping lastCloneStructureParentMapping = lastNode.getParent().getMapping();
+		if(lastCloneStructureParentMapping != null) {
+			PDGNode lastCloneStructureParent = lastCloneStructureParentMapping.getNodeG1();
+			if(nodesG1.contains(lastCloneStructureParent)) {
+				return lastCloneStructureParent;
+			}
+		}
+		return last;
+	}
+
+	public PDGNode getLastNodeG2() {
+		PDGNode last = nodesG2.last();
+		PDGNode lastControlParent = last.getControlDependenceParent();
+		if(nodesG2.contains(lastControlParent)) {
+			return lastControlParent;
+		}
+		CloneStructureNode lastNode = parent.findNodeG2(last);
+		NodeMapping lastCloneStructureParentMapping = lastNode.getParent().getMapping();
+		if(lastCloneStructureParentMapping != null) {
+			PDGNode lastCloneStructureParent = lastCloneStructureParentMapping.getNodeG2();
+			if(nodesG2.contains(lastCloneStructureParent)) {
+				return lastCloneStructureParent;
+			}
+		}
+		return last;
+	}
+
 	public void add(PDGNodeGap nodeGap) {
 		if(!nodeGap.isAdvancedMatch()) {
 			if(nodeGap.getNodeG1() != null && nodeGap.getNodeG2() == null) {
@@ -205,7 +239,7 @@ public class PDGNodeBlockGap extends Gap {
 			if(binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding) binding;
 				if(!variableBinding.isField() && !simpleName.isDeclaration() &&
-						!variableDeclaredInNodes(nodes, variableBinding) && variableUsedInNodes(nodes, variableBinding))
+						!variableDeclaredInNodes(nodes, variableBinding) && (variableUsedInNodes(nodes, variableBinding) || variableDefinedInNodes(nodes, variableBinding)))
 					usedVariableBindings.add(variableBinding);
 			}
 		}

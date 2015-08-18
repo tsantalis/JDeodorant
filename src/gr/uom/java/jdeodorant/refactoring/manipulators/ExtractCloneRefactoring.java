@@ -2698,21 +2698,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								else if(child2.getMapping() instanceof PDGNodeGap) {
 									PDGNodeGap childMapping = (PDGNodeGap) child2.getMapping();
 									PDGNode childNode = childMapping.getNodeG1();
-									PDGControlDependence controlDependence = childNode.getIncomingControlDependence();
-									if(controlDependence != null) {
-										if(controlDependence.isTrueControlDependence()) {
-											trueControlDependentChildren.add(child2);
+									if(childNode != null) {
+										PDGControlDependence controlDependence = childNode.getIncomingControlDependence();
+										if(controlDependence != null) {
+											if(controlDependence.isTrueControlDependence()) {
+												trueControlDependentChildren.add(child2);
+											}
+											else if(controlDependence.isFalseControlDependence()) {
+												falseControlDependentChildren.add(child2);
+											}
 										}
-										else if(controlDependence.isFalseControlDependence()) {
-											falseControlDependentChildren.add(child2);
-										}
-									}
-									else {
-										if(isNestedUnderElse(childNode)) {
-											falseControlDependentChildren.add(child2);
-										}
-										else if(!isNestedUnderElse(childNode)) {
-											trueControlDependentChildren.add(child2);
+										else {
+											if(isNestedUnderElse(childNode)) {
+												falseControlDependentChildren.add(child2);
+											}
+											else if(!isNestedUnderElse(childNode)) {
+												trueControlDependentChildren.add(child2);
+											}
 										}
 									}
 								}

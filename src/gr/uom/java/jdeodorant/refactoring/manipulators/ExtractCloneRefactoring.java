@@ -2195,7 +2195,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									falseControlDependentChildren.add(child);
 								}
 								else {
-									processIfStatementChild(child, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
+									processIfStatementChild(child, trueControlDependentChildren, falseControlDependentChildren, true);
 								}
 							}
 							else {
@@ -2237,7 +2237,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 											falseControlDependentChildren.add(child2);
 										}
 										else {
-											processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, symmetricalIfElse);
+											processIfStatementChild(child2, trueControlDependentChildren, falseControlDependentChildren, true);
 										}
 									}
 									else {

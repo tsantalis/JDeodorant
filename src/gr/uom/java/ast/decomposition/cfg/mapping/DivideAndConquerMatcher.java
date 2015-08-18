@@ -645,6 +645,9 @@ public abstract class DivideAndConquerMatcher {
 								switchBodyNodes2.remove(predicate2);
 								maxStates = matchBasedOnSwitchCases(state, switchBodyNodes1, switchBodyNodes2);
 							}
+							else {
+								maxStates = new ArrayList<MappingState>();
+							}
 						}
 						else {
 							if(cdtNode1 != null && cdtNode2 != null && (cdtNode1.ifStatementInsideElseIfChain() || cdtNode2.ifStatementInsideElseIfChain())) {

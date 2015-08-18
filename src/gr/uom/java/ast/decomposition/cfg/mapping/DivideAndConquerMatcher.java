@@ -492,74 +492,72 @@ public abstract class DivideAndConquerMatcher {
 								if(!childPairFoundInFinalState) {
 									Set<ControlDependenceTreeNode> elseNodes1 = controlDependenceTreePDG1.getElseNodesInLevel(level1);
 									Set<ControlDependenceTreeNode> elseNodes2 = controlDependenceTreePDG2.getElseNodesInLevel(level2);
-									if(elseNodes1.size() == 1 && elseNodes2.size() == 1) {
-										ControlDependenceTreeNode elseNode1 = controlDependenceTreePDG1.getElseNode(predicate1);
-										ControlDependenceTreeNode elseNode2 = controlDependenceTreePDG2.getElseNode(predicate2);
-										if(elseNode1 != null && elseNode2 != null && elseNodes1.contains(elseNode1) && elseNodes2.contains(elseNode2)) {
-											List<ControlDependenceTreeNode> elseChildren1 = elseNode1.getChildren();
-											List<ControlDependenceTreeNode> elseChildren2 = elseNode2.getChildren();
-											boolean ifElseChildPairFoundInFinalState = false;
-											boolean elseIfChildPairFoundInFinalState = false;
-											for(PDGNodeMapping nodeMapping : nodeMappings) {
-												ControlDependenceTreeNode cdtChildNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
-												ControlDependenceTreeNode cdtChildNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
-												if(cdtChildNode1 != null && cdtChildNode2 != null) {
-													if(children1.contains(cdtChildNode1) && elseChildren2.contains(cdtChildNode2)) {
-														ifElseChildPairFoundInFinalState = true;
-													}
-													if(elseChildren1.contains(cdtChildNode1) && children2.contains(cdtChildNode2)) {
-														elseIfChildPairFoundInFinalState = true;
-													}
+									ControlDependenceTreeNode elseNode1 = controlDependenceTreePDG1.getElseNode(predicate1);
+									ControlDependenceTreeNode elseNode2 = controlDependenceTreePDG2.getElseNode(predicate2);
+									if(elseNode1 != null && elseNode2 != null && elseNodes1.contains(elseNode1) && elseNodes2.contains(elseNode2)) {
+										List<ControlDependenceTreeNode> elseChildren1 = elseNode1.getChildren();
+										List<ControlDependenceTreeNode> elseChildren2 = elseNode2.getChildren();
+										boolean ifElseChildPairFoundInFinalState = false;
+										boolean elseIfChildPairFoundInFinalState = false;
+										for(PDGNodeMapping nodeMapping : nodeMappings) {
+											ControlDependenceTreeNode cdtChildNode1 = controlDependenceTreePDG1.getNode(nodeMapping.getNodeG1());
+											ControlDependenceTreeNode cdtChildNode2 = controlDependenceTreePDG2.getNode(nodeMapping.getNodeG2());
+											if(cdtChildNode1 != null && cdtChildNode2 != null) {
+												if(children1.contains(cdtChildNode1) && elseChildren2.contains(cdtChildNode2)) {
+													ifElseChildPairFoundInFinalState = true;
+												}
+												if(elseChildren1.contains(cdtChildNode1) && children2.contains(cdtChildNode2)) {
+													elseIfChildPairFoundInFinalState = true;
 												}
 											}
-											if(ifElseChildPairFoundInFinalState && elseIfChildPairFoundInFinalState) {
-												//symmetrical if-else match
-												Set<PDGNode> nodesNestedUnderIf1 = new LinkedHashSet<PDGNode>();
-												Set<PDGNode> nodesNestedUnderIf2 = new LinkedHashSet<PDGNode>();
-												Set<PDGNode> nodesNestedUnderElse1 = new LinkedHashSet<PDGNode>();
-												Set<PDGNode> nodesNestedUnderElse2 = new LinkedHashSet<PDGNode>();
-												findNodesNestedUnderIfAndElse(predicate1, nodesG1, nodesNestedUnderIf1, nodesNestedUnderElse1);
-												findNodesNestedUnderIfAndElse(predicate2, nodesG2, nodesNestedUnderIf2, nodesNestedUnderElse2);
-												ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-												boolean match = astNodeMatcher.match(predicate1, predicate2);
-												if(match && astNodeMatcher.isParameterizable()) {
-													CompositeStatementObject composite1 = (CompositeStatementObject)predicate1.getStatement();
-													List<AbstractExpression> expressions1 = composite1.getExpressions();
-													CompositeStatementObject composite2 = (CompositeStatementObject)predicate2.getStatement();
-													List<AbstractExpression> expressions2 = composite2.getExpressions();
-													AbstractExpression conditional1 = expressions1.get(0);
-													AbstractExpression conditional2 = expressions2.get(0);
-													//check if there is already a difference covering the entire conditional expressions
-													boolean found = false;
-													for(ASTNodeDifference nodeDifference : astNodeMatcher.getDifferences()) {
-														if(nodeDifference.getExpression1().toString().equals(conditional1.toString()) &&
-																nodeDifference.getExpression2().toString().equals(conditional2.toString())) {
-															found = true;
-															Difference diff = new Difference(conditional1.toString(),conditional2.toString(),
-																	DifferenceType.IF_ELSE_SYMMETRICAL_MATCH);
-															nodeDifference.addDifference(diff);
-															break;
-														}
-													}
-													if(!found) {
-														ASTNodeDifference nodeDifference = new ASTNodeDifference(conditional1, conditional2);
+										}
+										if(ifElseChildPairFoundInFinalState && elseIfChildPairFoundInFinalState) {
+											//symmetrical if-else match
+											Set<PDGNode> nodesNestedUnderIf1 = new LinkedHashSet<PDGNode>();
+											Set<PDGNode> nodesNestedUnderIf2 = new LinkedHashSet<PDGNode>();
+											Set<PDGNode> nodesNestedUnderElse1 = new LinkedHashSet<PDGNode>();
+											Set<PDGNode> nodesNestedUnderElse2 = new LinkedHashSet<PDGNode>();
+											findNodesNestedUnderIfAndElse(predicate1, nodesG1, nodesNestedUnderIf1, nodesNestedUnderElse1);
+											findNodesNestedUnderIfAndElse(predicate2, nodesG2, nodesNestedUnderIf2, nodesNestedUnderElse2);
+											ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+											boolean match = astNodeMatcher.match(predicate1, predicate2);
+											if(match && astNodeMatcher.isParameterizable()) {
+												CompositeStatementObject composite1 = (CompositeStatementObject)predicate1.getStatement();
+												List<AbstractExpression> expressions1 = composite1.getExpressions();
+												CompositeStatementObject composite2 = (CompositeStatementObject)predicate2.getStatement();
+												List<AbstractExpression> expressions2 = composite2.getExpressions();
+												AbstractExpression conditional1 = expressions1.get(0);
+												AbstractExpression conditional2 = expressions2.get(0);
+												//check if there is already a difference covering the entire conditional expressions
+												boolean found = false;
+												for(ASTNodeDifference nodeDifference : astNodeMatcher.getDifferences()) {
+													if(nodeDifference.getExpression1().toString().equals(conditional1.toString()) &&
+															nodeDifference.getExpression2().toString().equals(conditional2.toString())) {
+														found = true;
 														Difference diff = new Difference(conditional1.toString(),conditional2.toString(),
 																DifferenceType.IF_ELSE_SYMMETRICAL_MATCH);
 														nodeDifference.addDifference(diff);
-														astNodeMatcher.getDifferences().add(nodeDifference);
+														break;
 													}
-													PDGNodeMapping mapping = new PDGNodeMapping(predicate1, predicate2, astNodeMatcher);
-													mapping.setSymmetricalIfElse(true);
-													MappingState state = new MappingState(finalState, mapping);
-													if(finalState != null)
-														finalState.addChild(state);
-													//match nested nodes symmetrically
-													maxStates = matchBasedOnIfElseSymmetry(state, nodesNestedUnderIf1, nodesNestedUnderIf2,
-															nodesNestedUnderElse1, nodesNestedUnderElse2);
-													for(MappingState temp : maxStates) {
-														if(!currentStates.contains(temp)) {
-															currentStates.add(temp);
-														}
+												}
+												if(!found) {
+													ASTNodeDifference nodeDifference = new ASTNodeDifference(conditional1, conditional2);
+													Difference diff = new Difference(conditional1.toString(),conditional2.toString(),
+															DifferenceType.IF_ELSE_SYMMETRICAL_MATCH);
+													nodeDifference.addDifference(diff);
+													astNodeMatcher.getDifferences().add(nodeDifference);
+												}
+												PDGNodeMapping mapping = new PDGNodeMapping(predicate1, predicate2, astNodeMatcher);
+												mapping.setSymmetricalIfElse(true);
+												MappingState state = new MappingState(finalState, mapping);
+												if(finalState != null)
+													finalState.addChild(state);
+												//match nested nodes symmetrically
+												maxStates = matchBasedOnIfElseSymmetry(state, nodesNestedUnderIf1, nodesNestedUnderIf2,
+														nodesNestedUnderElse1, nodesNestedUnderElse2);
+												for(MappingState temp : maxStates) {
+													if(!currentStates.contains(temp)) {
+														currentStates.add(temp);
 													}
 												}
 											}

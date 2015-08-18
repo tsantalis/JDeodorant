@@ -1205,7 +1205,8 @@ public class PreconditionExaminer {
 					break;
 				}
 			}
-			commonPassedParameters.put(key, variableDeclarations);
+			if(variableDeclarations.size() == 2)
+				commonPassedParameters.put(key, variableDeclarations);
 		}
 		return commonPassedParameters;
 	}

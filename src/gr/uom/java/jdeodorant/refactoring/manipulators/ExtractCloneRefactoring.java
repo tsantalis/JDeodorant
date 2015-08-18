@@ -653,6 +653,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
 								interfaceRewrite.insertLast(interfaceType, null);
 							}
+							//add the implemented interfaces being common in both subclasses
+							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();
+							List<Type> superInterfaceTypes2 = sourceTypeDeclarations.get(1).superInterfaceTypes();
+							for(Type interfaceType1 : superInterfaceTypes1) {
+								ITypeBinding interfaceTypeBinding1 = interfaceType1.resolveBinding();
+								for(Type interfaceType2 : superInterfaceTypes2) {
+									ITypeBinding interfaceTypeBinding2 = interfaceType2.resolveBinding();
+									if(interfaceTypeBinding1.isEqualTo(interfaceTypeBinding2) && interfaceTypeBinding1.getQualifiedName().equals(interfaceTypeBinding2.getQualifiedName()) &&
+											checkIfThisReferenceIsPassedAsArgumentToMethodInvocation(interfaceTypeBinding1)) {
+										interfaceRewrite.insertLast(interfaceType1, null);
+										typeBindings.add(interfaceTypeBinding1);
+										break;
+									}
+								}
+							}
 							//copy the constructors declared in the subclasses that contain a super-constructor call
 							ListRewrite bodyDeclarationsRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 							Set<String> processedSuperConstructorBindingKeys = new LinkedHashSet<String>();
@@ -1322,6 +1337,62 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+	}
+
+	private boolean checkIfThisReferenceIsPassedAsArgumentToMethodInvocation(ITypeBinding argumentTypeBinding) {
+		boolean thisReferenceIsPassedAsArgumentToMethodInvocation1 = false;
+		boolean thisReferenceIsPassedAsArgumentToMethodInvocation2 = false;
+		for(PDGNodeMapping nodeMapping : mapper.getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+			PDGNode nodeG1 = nodeMapping.getNodeG1();
+			PDGNode nodeG2 = nodeMapping.getNodeG2();
+			Set<Expression> allMethodInvocations1 = extractMethodInvocations(nodeG1);
+			Set<Expression> allMethodInvocations2 = extractMethodInvocations(nodeG2);
+			for(Expression expr1 : allMethodInvocations1) {
+				if(expr1 instanceof MethodInvocation) {
+					MethodInvocation methodInvocation1 = (MethodInvocation)expr1;
+					IMethodBinding methodBinding1 = methodInvocation1.resolveMethodBinding();
+					List<Expression> arguments = methodInvocation1.arguments();
+					int position = 0;
+					for(Expression argument : arguments) {
+						if(argument instanceof ThisExpression) {
+							ITypeBinding[] parameterTypeBindings = methodBinding1.getParameterTypes();
+							ITypeBinding parameterTypeBinding = parameterTypeBindings[position];
+							if(parameterTypeBinding.isEqualTo(argumentTypeBinding) && parameterTypeBinding.getQualifiedName().equals(argumentTypeBinding.getQualifiedName())) {
+								thisReferenceIsPassedAsArgumentToMethodInvocation1 = true;
+								break;
+							}
+						}
+						position++;
+					}
+					if(thisReferenceIsPassedAsArgumentToMethodInvocation1)
+						break;
+				}
+			}
+			for(Expression expr2 : allMethodInvocations2) {
+				if(expr2 instanceof MethodInvocation) {
+					MethodInvocation methodInvocation2 = (MethodInvocation)expr2;
+					IMethodBinding methodBinding2 = methodInvocation2.resolveMethodBinding();
+					List<Expression> arguments = methodInvocation2.arguments();
+					int position = 0;
+					for(Expression argument : arguments) {
+						if(argument instanceof ThisExpression) {
+							ITypeBinding[] parameterTypeBindings = methodBinding2.getParameterTypes();
+							ITypeBinding parameterTypeBinding = parameterTypeBindings[position];
+							if(parameterTypeBinding.isEqualTo(argumentTypeBinding) && parameterTypeBinding.getQualifiedName().equals(argumentTypeBinding.getQualifiedName())) {
+								thisReferenceIsPassedAsArgumentToMethodInvocation2 = true;
+								break;
+							}
+						}
+						position++;
+					}
+					if(thisReferenceIsPassedAsArgumentToMethodInvocation2)
+						break;
+				}
+			}
+			if(thisReferenceIsPassedAsArgumentToMethodInvocation1 && thisReferenceIsPassedAsArgumentToMethodInvocation2)
+				break;
+		}
+		return thisReferenceIsPassedAsArgumentToMethodInvocation1 && thisReferenceIsPassedAsArgumentToMethodInvocation2;
 	}
 
 	private MethodDeclaration copyConstructor(MethodDeclaration constructorDeclaration, AST intermediateAST, ASTRewrite intermediateRewriter, SimpleName intermediateName,
@@ -2134,21 +2205,23 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						else if(child.getMapping() instanceof PDGNodeGap) {
 							//special handling for an if/else matched with a ternary operator
 							PDGNode childNodeG1 = child.getMapping().getNodeG1();
-							PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
-							if(controlDependence1 != null) {
-								if(controlDependence1.isTrueControlDependence()) {
-									trueControlDependentChildren.add(child);
+							if(childNodeG1 != null) {
+								PDGControlDependence controlDependence1 = childNodeG1.getIncomingControlDependence();
+								if(controlDependence1 != null) {
+									if(controlDependence1.isTrueControlDependence()) {
+										trueControlDependentChildren.add(child);
+									}
+									else if(controlDependence1.isFalseControlDependence()) {
+										falseControlDependentChildren.add(child);
+									}
 								}
-								else if(controlDependence1.isFalseControlDependence()) {
-									falseControlDependentChildren.add(child);
-								}
-							}
-							else {
-								if(isNestedUnderElse(childNodeG1)) {
-									falseControlDependentChildren.add(child);
-								}
-								else if(!isNestedUnderElse(childNodeG1)) {
-									trueControlDependentChildren.add(child);
+								else {
+									if(isNestedUnderElse(childNodeG1)) {
+										falseControlDependentChildren.add(child);
+									}
+									else if(!isNestedUnderElse(childNodeG1)) {
+										trueControlDependentChildren.add(child);
+									}
 								}
 							}
 						}

@@ -778,6 +778,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 							}
+							if(noneOfTheConstructorsContainsSuperCall(sourceTypeDeclarations.get(0)) || noneOfTheConstructorsContainsSuperCall(sourceTypeDeclarations.get(1))) {
+								boolean commonSuperTypeDeclaresConstructorWithoutParameters = false;
+								for(IMethodBinding methodBinding : commonSuperTypeOfSourceTypeDeclarations.getDeclaredMethods()) {
+									if(methodBinding.isConstructor() && methodBinding.getParameterTypes().length == 0) {
+										commonSuperTypeDeclaresConstructorWithoutParameters = true;
+										break;
+									}
+								}
+								if(commonSuperTypeDeclaresConstructorWithoutParameters) {
+									MethodDeclaration constructor = createDefaultConstructor(intermediateAST, intermediateRewriter, intermediateName);
+									bodyDeclarationsRewrite.insertLast(constructor, null);
+								}
+							}
 							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						intermediateTypesRewrite.insertLast(intermediateTypeDeclaration, null);
@@ -1393,6 +1406,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				break;
 		}
 		return thisReferenceIsPassedAsArgumentToMethodInvocation1 && thisReferenceIsPassedAsArgumentToMethodInvocation2;
+	}
+
+	private boolean noneOfTheConstructorsContainsSuperCall(TypeDeclaration typeDeclaration) {
+		int constructorCounter = 0;
+		int constructorWithoutSuperCallCounter = 0;
+		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
+			if(methodDeclaration.isConstructor()) {
+				SuperConstructorInvocation superConstructorInvocation = firstStatementIsSuperConstructorInvocation(methodDeclaration);
+				if(superConstructorInvocation == null) {
+					constructorWithoutSuperCallCounter++;
+				}
+				constructorCounter++;
+			}
+		}
+		return constructorCounter > 0 && constructorCounter == constructorWithoutSuperCallCounter;
+	}
+
+	private MethodDeclaration createDefaultConstructor(AST intermediateAST, ASTRewrite intermediateRewriter, SimpleName intermediateName) {
+		MethodDeclaration constructor = intermediateAST.newMethodDeclaration();
+		intermediateRewriter.set(constructor, MethodDeclaration.NAME_PROPERTY, intermediateName, null);
+		intermediateRewriter.set(constructor, MethodDeclaration.CONSTRUCTOR_PROPERTY, true, null);
+		ListRewrite constructorModifierRewriter = intermediateRewriter.getListRewrite(constructor, MethodDeclaration.MODIFIERS2_PROPERTY);
+		constructorModifierRewriter.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+		Block constructorBody = intermediateAST.newBlock();
+		ListRewrite constructorBodyRewriter = intermediateRewriter.getListRewrite(constructorBody, Block.STATEMENTS_PROPERTY);
+		constructorBodyRewriter.insertLast(intermediateAST.newSuperConstructorInvocation(), null);
+		intermediateRewriter.set(constructor, MethodDeclaration.BODY_PROPERTY, constructorBody, null);
+		return constructor;
 	}
 
 	private MethodDeclaration copyConstructor(MethodDeclaration constructorDeclaration, AST intermediateAST, ASTRewrite intermediateRewriter, SimpleName intermediateName,

@@ -329,6 +329,10 @@ public class PreconditionExaminer {
 				if(remainingMovableNodesG1.containsAll(blockGap.getNodesG1()) && remainingMovableNodesG2.containsAll(blockGap.getNodesG2()) && blockGap.getParent().equals(cloneStructureRoot)) {
 					discardedBlockGaps.add(blockGap);
 				}
+				if(blockGap.getNodesG1().containsAll(allNodesInSubTreePDG1) && blockGap.getNodesG2().containsAll(allNodesInSubTreePDG2)) {
+					//the block gap contains the entire clone fragments
+					discardedBlockGaps.add(blockGap);
+				}
 			}
 			lambdaExpressionPreconditionExaminer.discardBlockGaps(discardedBlockGaps);
 			Set<PDGNode> nodesInBlockGapsG1 = new TreeSet<PDGNode>();

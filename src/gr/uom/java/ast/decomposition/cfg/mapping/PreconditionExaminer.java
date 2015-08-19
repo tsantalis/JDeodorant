@@ -18,6 +18,7 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.TryStatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
@@ -1606,6 +1607,16 @@ public class PreconditionExaminer {
 		}
 	}
 
+	private void checkIfStatementIsSuperConstructorInvocation(NodeMapping nodeMapping, PDGNode node) {
+		AbstractStatement statement = node.getStatement();
+		if(statement.getType().equals(StatementType.SUPER_CONSTRUCTOR_INVOCATION)) {
+			PreconditionViolation violation = new StatementPreconditionViolation(statement,
+					PreconditionViolationType.SUPER_CONSTRUCTOR_INVOCATION_STATEMENT);
+			nodeMapping.addPreconditionViolation(violation);
+			preconditionViolations.add(violation);
+		}
+	}
+
 	private void checkCloneStructureNodeForPreconditions(CloneStructureNode node) {
 		if(node.getMapping() != null)
 			checkPreconditions(node);
@@ -1786,6 +1797,8 @@ public class PreconditionExaminer {
 		if(nodeMapping instanceof PDGNodeMapping) {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
+			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
+			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
 			if(getAllNodesInSubTreePDG1().size() != pdg1.getNodes().size()) {
 				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());

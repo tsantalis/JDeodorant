@@ -333,18 +333,38 @@ public abstract class DivideAndConquerMatcher {
 				}
 			}
 		}
+		
+		List<MappingState> maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches = new ArrayList<MappingState>();
+		if(maximumStatesWithMinimumNonDistinctDifferences.size() == 1) {
+			maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
+		}
+		else {
+			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNonDistinctDifferenceCountIncludingTypeMismatches();
+			maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
+			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferences.size(); i++) {
+				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferences.get(i);
+				if(currentState.getNonDistinctDifferenceCountIncludingTypeMismatches() < minimum) {
+					minimum = currentState.getNonDistinctDifferenceCountIncludingTypeMismatches();
+					maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.clear();
+					maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.add(currentState);
+				}
+				else if(currentState.getNonDistinctDifferenceCountIncludingTypeMismatches() == minimum) {
+					maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.add(currentState);
+				}
+			}
+		}
 		//TODO: Introduce comparison of difference "weights" in the case of multiple maximum states with minimum differences
 		List<MappingState> maximumStatesWithMinimumDifferencesAndMinimumIdDiff = new ArrayList<MappingState>();
-		if(maximumStatesWithMinimumNonDistinctDifferences.size() == 1) {
-			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
+		if(maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.size() == 1) {
+			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.get(0));
 		}
 		else {
 			int minId1 = allNodesInSubTreePDG1.isEmpty() ? 0 : allNodesInSubTreePDG1.first().getId();
 			int minId2 = allNodesInSubTreePDG2.isEmpty() ? 0 : allNodesInSubTreePDG2.first().getId();
-			int minimum = maximumStatesWithMinimumNonDistinctDifferences.get(0).getNodeMappingRelativeIdDiff(minId1, minId2);
-			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferences.get(0));
-			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferences.size(); i++) {
-				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferences.get(i);
+			int minimum = maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.get(0).getNodeMappingRelativeIdDiff(minId1, minId2);
+			maximumStatesWithMinimumDifferencesAndMinimumIdDiff.add(maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.get(0));
+			for(int i=1; i<maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.size(); i++) {
+				MappingState currentState = maximumStatesWithMinimumNonDistinctDifferencesIncludingTypeMismatches.get(i);
 				if(currentState.getNodeMappingRelativeIdDiff(minId1, minId2) < minimum) {
 					minimum = currentState.getNodeMappingRelativeIdDiff(minId1, minId2);
 					maximumStatesWithMinimumDifferencesAndMinimumIdDiff.clear();

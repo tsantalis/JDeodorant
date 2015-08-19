@@ -102,6 +102,22 @@ public class MappingState {
 		return count;
 	}
 
+	public int getDistinctDifferenceCountIncludingTypeMismatches() {
+		Set<Difference> differences = new LinkedHashSet<Difference>();
+		int count = 0;
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
+				for(Difference diff : difference.getDifferences()) {
+					if(!differences.contains(diff)) {
+						differences.add(diff);
+						count += diff.getWeight();
+					}
+				}
+			}
+		}
+		return count;
+	}
+
 	public int getNonDistinctDifferenceCount() {
 		int count = 0;
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
@@ -109,6 +125,18 @@ public class MappingState {
 				for(Difference diff : difference.getDifferences()) {
 					if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH))
 						count += diff.getWeight();
+				}
+			}
+		}
+		return count;
+	}
+
+	public int getNonDistinctDifferenceCountIncludingTypeMismatches() {
+		int count = 0;
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
+				for(Difference diff : difference.getDifferences()) {
+					count += diff.getWeight();
 				}
 			}
 		}

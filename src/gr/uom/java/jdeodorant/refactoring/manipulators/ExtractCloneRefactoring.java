@@ -778,7 +778,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 							}
-							if(noneOfTheConstructorsContainsSuperCall(sourceTypeDeclarations.get(0)) || noneOfTheConstructorsContainsSuperCall(sourceTypeDeclarations.get(1))) {
+							if((noneOfTheConstructorsContainsSuperConstructorCall(sourceTypeDeclarations.get(0)) && !containsConstructorCallingSuperConstructorWithoutArguments(sourceTypeDeclarations.get(1))) ||
+									(noneOfTheConstructorsContainsSuperConstructorCall(sourceTypeDeclarations.get(1)) && !containsConstructorCallingSuperConstructorWithoutArguments(sourceTypeDeclarations.get(0)))) {
 								boolean commonSuperTypeDeclaresConstructorWithoutParameters = false;
 								for(IMethodBinding methodBinding : commonSuperTypeOfSourceTypeDeclarations.getDeclaredMethods()) {
 									if(methodBinding.isConstructor() && methodBinding.getParameterTypes().length == 0) {
@@ -1408,7 +1409,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return thisReferenceIsPassedAsArgumentToMethodInvocation1 && thisReferenceIsPassedAsArgumentToMethodInvocation2;
 	}
 
-	private boolean noneOfTheConstructorsContainsSuperCall(TypeDeclaration typeDeclaration) {
+	private boolean noneOfTheConstructorsContainsSuperConstructorCall(TypeDeclaration typeDeclaration) {
 		int constructorCounter = 0;
 		int constructorWithoutSuperCallCounter = 0;
 		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
@@ -1421,6 +1422,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		return constructorCounter > 0 && constructorCounter == constructorWithoutSuperCallCounter;
+	}
+
+	private boolean containsConstructorCallingSuperConstructorWithoutArguments(TypeDeclaration typeDeclaration) {
+		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
+			if(methodDeclaration.isConstructor()) {
+				SuperConstructorInvocation superConstructorInvocation = firstStatementIsSuperConstructorInvocation(methodDeclaration);
+				if(superConstructorInvocation != null && superConstructorInvocation.arguments().size() == 0) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private MethodDeclaration createDefaultConstructor(AST intermediateAST, ASTRewrite intermediateRewriter, SimpleName intermediateName) {

@@ -1334,7 +1334,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 						ITypeBinding staticFieldDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass();
 						String staticFieldDeclaringClassQualifiedName = staticFieldDeclaringClass.getQualifiedName();
 						IPackageBinding packageBinding = staticFieldDeclaringClass.getPackage();
-						if(packageBinding != null) {
+						if(packageBinding != null && !packageBinding.getName().equals("")) {
 							String packageBindingQualifiedName = packageBinding.getName();
 							staticFieldNameDeclaringClass = staticFieldDeclaringClassQualifiedName.substring(
 									packageBindingQualifiedName.length() + 1, staticFieldDeclaringClassQualifiedName.length());

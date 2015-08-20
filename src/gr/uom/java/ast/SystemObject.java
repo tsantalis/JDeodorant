@@ -373,14 +373,14 @@ public class SystemObject {
 	    				if(elimination.getTypeField() != null) {
 	    					IVariableBinding typeFieldBinding = elimination.getTypeField().resolveBinding();
 	    					ITypeBinding typeFieldTypeBinding = typeFieldBinding.getType();
-	    					if(typeFieldTypeBinding.isPrimitive() || typeFieldTypeBinding.isEnum()) {
+	    					if(validTypeBinding(typeFieldTypeBinding)) {
 	    						isValid = true;
 	    					}
 	    				}
 	    				else if(elimination.getTypeLocalVariable() != null) {
 	    					IVariableBinding typeLocalVariableBinding = elimination.getTypeLocalVariable().resolveBinding();
 	    					ITypeBinding typeLocalVariableTypeBinding = typeLocalVariableBinding.getType();
-	    					if(typeLocalVariableTypeBinding.isPrimitive() || typeLocalVariableTypeBinding.isEnum()) {
+	    					if(validTypeBinding(typeLocalVariableTypeBinding)) {
 	    						isValid = true;
 	    					}
 	    				}
@@ -390,7 +390,7 @@ public class SystemObject {
 	    					ITypeBinding typeMethodInvocationDeclaringClass = typeMethodInvocationBinding.getDeclaringClass();
 	    					ITypeBinding typeMethodInvocationReturnType = typeMethodInvocationBinding.getReturnType();
 	    					ClassObject declaringClassObject = getClassObject(typeMethodInvocationDeclaringClass.getQualifiedName());
-	    					if( (typeMethodInvocationReturnType.isPrimitive() || typeMethodInvocationReturnType.isEnum()) && declaringClassObject != null ) {
+	    					if(validTypeBinding(typeMethodInvocationReturnType) && declaringClassObject != null) {
 	    						MethodDeclaration invokedMethodDeclaration = null;
 	    						ListIterator<MethodObject> methodIterator = declaringClassObject.getMethodIterator();
 	    						while(methodIterator.hasNext()) {
@@ -577,6 +577,10 @@ public class SystemObject {
     		monitor.done();
     	return typeCheckEliminationGroups;
     }
+
+	private boolean validTypeBinding(ITypeBinding typeBinding) {
+		return typeBinding.isPrimitive() || typeBinding.isEnum() || typeBinding.getQualifiedName().equals("java.lang.String");
+	}
 
     private ITypeBinding handleTypeMethodInvocation(MethodInvocation typeMethodInvocation, TypeCheckElimination elimination) {
     	Expression typeMethodInvocationExpression = typeMethodInvocation.getExpression();

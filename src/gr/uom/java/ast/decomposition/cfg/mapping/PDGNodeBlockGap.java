@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -30,6 +31,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
+import org.eclipse.jdt.core.dom.TryStatement;
 
 public class PDGNodeBlockGap extends Gap {
 	private CloneStructureNode parent;
@@ -71,16 +73,20 @@ public class PDGNodeBlockGap extends Gap {
 
 	public PDGNode getLastNodeG1() {
 		PDGNode last = nodesG1.last();
+		return findLastNodeG1(last);
+	}
+
+	private PDGNode findLastNodeG1(PDGNode last) {
 		PDGNode lastControlParent = last.getControlDependenceParent();
 		if(nodesG1.contains(lastControlParent)) {
-			return lastControlParent;
+			return findLastNodeG1(lastControlParent);
 		}
 		CloneStructureNode lastNode = parent.findNodeG1(last);
 		NodeMapping lastCloneStructureParentMapping = lastNode.getParent().getMapping();
 		if(lastCloneStructureParentMapping != null) {
 			PDGNode lastCloneStructureParent = lastCloneStructureParentMapping.getNodeG1();
 			if(lastCloneStructureParent != null && nodesG1.contains(lastCloneStructureParent)) {
-				return lastCloneStructureParent;
+				return findLastNodeG1(lastCloneStructureParent);
 			}
 		}
 		return last;
@@ -88,16 +94,20 @@ public class PDGNodeBlockGap extends Gap {
 
 	public PDGNode getLastNodeG2() {
 		PDGNode last = nodesG2.last();
+		return findLastNodeG2(last);
+	}
+
+	private PDGNode findLastNodeG2(PDGNode last) {
 		PDGNode lastControlParent = last.getControlDependenceParent();
 		if(nodesG2.contains(lastControlParent)) {
-			return lastControlParent;
+			return findLastNodeG2(lastControlParent);
 		}
 		CloneStructureNode lastNode = parent.findNodeG2(last);
 		NodeMapping lastCloneStructureParentMapping = lastNode.getParent().getMapping();
 		if(lastCloneStructureParentMapping != null) {
 			PDGNode lastCloneStructureParent = lastCloneStructureParentMapping.getNodeG2();
 			if(lastCloneStructureParent != null && nodesG2.contains(lastCloneStructureParent)) {
-				return lastCloneStructureParent;
+				return findLastNodeG2(lastCloneStructureParent);
 			}
 		}
 		return last;
@@ -416,23 +426,62 @@ public class PDGNodeBlockGap extends Gap {
 	public Set<ITypeBinding> getThrownExceptions() {
 		Set<ITypeBinding> thrownExceptionTypeBindings = new LinkedHashSet<ITypeBinding>();
 		for(PDGNode nodeG1 : nodesG1) {
-			ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
-			nodeG1.getASTStatement().accept(thrownExceptionVisitor);
-			for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
-				if(nodeG1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
-					addTypeBinding(thrownException, thrownExceptionTypeBindings);
+			Statement statement1 = nodeG1.getASTStatement();
+			TryStatement tryStatement = isNestedUnderTryBlock(statement1);
+			if(tryStatement != null && belongsToBlockGap(tryStatement)) {
+				//do nothing
+			}
+			else {
+				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+				statement1.accept(thrownExceptionVisitor);
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(nodeG1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
+					}
 				}
 			}
 		}
 		for(PDGNode nodeG2 : nodesG2) {
-			ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
-			nodeG2.getASTStatement().accept(thrownExceptionVisitor);
-			for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
-				if(nodeG2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
-					addTypeBinding(thrownException, thrownExceptionTypeBindings);
+			Statement statement2 = nodeG2.getASTStatement();
+			TryStatement tryStatement = isNestedUnderTryBlock(statement2);
+			if(tryStatement != null && belongsToBlockGap(tryStatement)) {
+				//do nothing
+			}
+			else {
+				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
+				statement2.accept(thrownExceptionVisitor);
+				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
+					if(nodeG2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+						addTypeBinding(thrownException, thrownExceptionTypeBindings);
+					}
 				}
 			}
 		}
 		return thrownExceptionTypeBindings;
+	}
+
+	private TryStatement isNestedUnderTryBlock(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof TryStatement) {
+				return (TryStatement)parent;
+			}
+			parent = parent.getParent();
+		}
+		return null;
+	}
+
+	private boolean belongsToBlockGap(Statement statement) {
+		for(PDGNode node : getNodesG1()) {
+			if(node.getASTStatement().equals(statement)) {
+				return true;
+			}
+		}
+		for(PDGNode node : getNodesG2()) {
+			if(node.getASTStatement().equals(statement)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

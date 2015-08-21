@@ -501,7 +501,7 @@ public class PreconditionExaminer {
 		Set<VariableDeclaration> variableDeclarationsInMethod2 = pdg2.getVariableDeclarationsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndFieldAccessedInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
 		Set<VariableDeclaration> variableDeclarationsAndFieldAccessedInMethod2 = pdg2.getVariableDeclarationsAndAccessedFieldsInMethod();
-		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getSortedNodeMappings()) {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
 			List<AbstractVariable> nonAnonymousDeclaredVariablesG1 = new ArrayList<AbstractVariable>();
@@ -542,9 +542,6 @@ public class PreconditionExaminer {
 				VariableBindingKeyPair keyPair = new VariableBindingKeyPair(declaredVariableG1.getVariableBindingKey(),
 						declaredVariableG2.getVariableBindingKey());
 				declaredLocalVariablesInMappedNodes.put(keyPair, declaredVariables);
-				if(commonPassedParameters.containsKey(keyPair)) {
-					commonPassedParameters.remove(keyPair);
-				}
 			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
@@ -621,12 +618,21 @@ public class PreconditionExaminer {
 					variableDeclarations.add(variable2);
 					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
 							variable2.getVariableBindingKey());
-					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair)) {
+					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair) && !commonPassedParametersAlreadyContainOneOfTheKeys(keyPair)) {
 						commonPassedParameters.put(keyPair, variableDeclarations);
 					}
 				}
 			}
 		}
+	}
+
+	private boolean commonPassedParametersAlreadyContainOneOfTheKeys(VariableBindingKeyPair keyPair) {
+		for(VariableBindingKeyPair key : commonPassedParameters.keySet()) {
+			if(key.getKey1().equals(keyPair.getKey1()) || key.getKey2().equals(keyPair.getKey2())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void sortVariables(List<AbstractVariable> variables1, List<AbstractVariable> variables2,

@@ -412,7 +412,7 @@ public class PDGNodeBlockGap extends Gap {
 		ITypeBinding returnTypeBinding1 = getReturnTypeBindingFromReturnStatementG1();
 		ITypeBinding returnTypeBinding2 = getReturnTypeBindingFromReturnStatementG2();
 		if(returnTypeBinding1 != null && returnTypeBinding2 != null) {
-			if(returnTypeBinding1.isEqualTo(returnTypeBinding2)) {
+			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName())) {
 				return returnTypeBinding1;
 			}
 			else {

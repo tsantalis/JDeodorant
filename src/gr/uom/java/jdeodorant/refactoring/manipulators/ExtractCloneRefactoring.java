@@ -1604,23 +1604,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private Type createParameterForFunctionalInterface(PDGNodeBlockGap blockGap, ASTRewrite sourceRewriter, AST ast, ListRewrite bodyDeclarationsRewrite, Set<ITypeBinding> requiredImportTypeBindings, int i) {
-		VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+		ITypeBinding returnTypeBinding = blockGap.getReturnType();
 		Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
 		Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 		Type interfaceType = null;
-		if(returnedVariableBindingPair != null) {
+		if(returnTypeBinding != null) {
 			//introduce java.util.function.Function or a custom FunctionalInterface
-			IVariableBinding variableBinding1 = returnedVariableBindingPair.getBinding1();
-			IVariableBinding variableBinding2 = returnedVariableBindingPair.getBinding2();
-			Type returnType = null;
-			ITypeBinding returnTypeBinding = null;
-			if(variableBinding1.getType().isEqualTo(variableBinding2.getType()) && variableBinding1.getType().getQualifiedName().equals(variableBinding2.getType().getQualifiedName())) {
-				returnTypeBinding = variableBinding1.getType();
-			}
-			else {
-				returnTypeBinding = ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType());
-			}
-			returnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
+			Type returnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(returnTypeBinding);
 			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
@@ -3098,7 +3088,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 		String methodName = null;
 		if(parameterTypeBindings.size() == 1 && thrownExceptionTypeBindings.isEmpty()) {
-			if(blockGap.getReturnedVariableBinding() != null) {
+			if(blockGap.getReturnType() != null) {
 				//a return type exists, and thus a Function will be created with 1 parameter
 				methodName = "apply";
 			}
@@ -3107,7 +3097,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				methodName = "accept";
 			}
 		}
-		else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null && thrownExceptionTypeBindings.isEmpty()) {
+		else if(parameterTypeBindings.size() == 0 && blockGap.getReturnType() != null && thrownExceptionTypeBindings.isEmpty()) {
 			//a return type exists, and thus a Supplier will be created with 0 parameters
 			methodName = "get";
 		}
@@ -3155,13 +3145,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				return ast.newExpressionStatement(assignment);
 			}
 			else {
-				Type returnType = null;
-				if(variableBinding1.getType().isEqualTo(variableBinding2.getType()) && variableBinding1.getType().getQualifiedName().equals(variableBinding2.getType().getQualifiedName())) {
-					returnType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding1.getType(), ast, sourceRewriter);
-				}
-				else {
-					returnType = RefactoringUtility.generateTypeFromTypeBinding(ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()), ast, sourceRewriter);
-				}
+				Type returnType = RefactoringUtility.generateTypeFromTypeBinding(blockGap.getReturnType(), ast, sourceRewriter);
 				VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
 				sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
 				sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, interfaceMethodInvocation, null);
@@ -3169,6 +3153,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				sourceRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnType, null);
 				return variableDeclarationStatement;
 			}
+		}
+		else if(blockGap.getReturnType() != null) {
+			ReturnStatement returnStatement = ast.newReturnStatement();
+			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, interfaceMethodInvocation, null);
+			return returnStatement;
 		}
 		else {
 			return ast.newExpressionStatement(interfaceMethodInvocation);
@@ -3865,7 +3854,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
 			String methodName = null;
 			if(parameterTypeBindings.size() == 1 && thrownExceptionTypeBindings.isEmpty()) {
-				if(blockGap.getReturnedVariableBinding() != null) {
+				if(blockGap.getReturnType() != null) {
 					//a return type exists, and thus a Function will be created with 1 parameter
 					methodName = "apply";
 				}
@@ -3874,7 +3863,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					methodName = "accept";
 				}
 			}
-			else if(parameterTypeBindings.size() == 0 && blockGap.getReturnedVariableBinding() != null && thrownExceptionTypeBindings.isEmpty()) {
+			else if(parameterTypeBindings.size() == 0 && blockGap.getReturnType() != null && thrownExceptionTypeBindings.isEmpty()) {
 				//a return type exists, and thus a Supplier will be created with 0 parameters
 				methodName = "get";
 			}
@@ -3889,11 +3878,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
 			}
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
-			boolean castToPrimitive = blockGap.getReturnedVariableBinding() != null && blockGap.getReturnedVariableBinding().getBinding1().getType().isPrimitive() && parameterTypeBindings.size() <= 1;
+			boolean castToPrimitive = blockGap.getReturnType() != null && blockGap.getReturnType().isPrimitive() && parameterTypeBindings.size() <= 1;
 			if(castToPrimitive) {
 				CastExpression castExpression = ast.newCastExpression();
 				sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, interfaceMethodInvocation, null);
-				Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(blockGap.getReturnedVariableBinding().getBinding1().getType(), ast, sourceRewriter);
+				Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(blockGap.getReturnType(), ast, sourceRewriter);
 				sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, primitiveType, null);
 				return castExpression;
 			}
@@ -4164,8 +4153,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
-			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();
-			if(parameters.size() == 1 && returnedVariableBinding != null && blockGap.getThrownExceptions().isEmpty()) {
+			ITypeBinding returnType = blockGap.getReturnType();
+			if(parameters.size() == 1 && returnType != null && blockGap.getThrownExceptions().isEmpty()) {
 				return true;
 			}
 		}
@@ -4182,8 +4171,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
-			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();
-			if(parameters.size() == 0 && returnedVariableBinding != null && blockGap.getThrownExceptions().isEmpty()) {
+			ITypeBinding returnType = blockGap.getReturnType();
+			if(parameters.size() == 0 && returnType != null && blockGap.getThrownExceptions().isEmpty()) {
 				return true;
 			}
 		}
@@ -4200,8 +4189,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
 			Set<VariableBindingPair> parameters = blockGap.getParameterBindings();
-			VariableBindingPair returnedVariableBinding = blockGap.getReturnedVariableBinding();
-			if(parameters.size() == 1 && returnedVariableBinding == null && blockGap.getThrownExceptions().isEmpty()) {
+			ITypeBinding returnType = blockGap.getReturnType();
+			if(parameters.size() == 1 && returnType == null && blockGap.getThrownExceptions().isEmpty()) {
 				return true;
 			}
 		}

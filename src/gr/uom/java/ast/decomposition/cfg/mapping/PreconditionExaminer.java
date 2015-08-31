@@ -412,6 +412,11 @@ public class PreconditionExaminer {
 				mappedNodes.remove(pdgNode);
 				nonMappedNodes.add(pdgNode);
 			}
+			PDGNode controlParent = pdgNode.getControlDependenceParent();
+			if(controlParent != null && nonMappedNodes.contains(controlParent) && mappedNodes.contains(pdgNode)) {
+				mappedNodes.remove(pdgNode);
+				nonMappedNodes.add(pdgNode);
+			}
 		}
 	}
 
@@ -1581,8 +1586,8 @@ public class PreconditionExaminer {
 		Set<PDGNode> allConditionalReturnStatements2 = extractConditionalReturnStatements(pdg2.getNodes());
 		Set<PDGNode> mappedConditionalReturnStatements1 = extractConditionalReturnStatements(mappedNodesG1);
 		Set<PDGNode> mappedConditionalReturnStatements2 = extractConditionalReturnStatements(mappedNodesG2);
-		Set<PDGNode> returnStatementsAfterMappedNodes1 = extractReturnStatementsAfterId(pdg1.getNodes(), mappedNodesG1.last().getId());
-		Set<PDGNode> returnStatementsAfterMappedNodes2 = extractReturnStatementsAfterId(pdg2.getNodes(), mappedNodesG2.last().getId());
+		Set<PDGNode> returnStatementsAfterMappedNodes1 = mappedNodesG1.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(pdg1.getNodes(), mappedNodesG1.last().getId());
+		Set<PDGNode> returnStatementsAfterMappedNodes2 = mappedNodesG2.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(pdg2.getNodes(), mappedNodesG2.last().getId());
 		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
 				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0)) {
 			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {

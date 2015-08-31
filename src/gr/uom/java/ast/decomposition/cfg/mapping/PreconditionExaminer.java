@@ -1242,8 +1242,8 @@ public class PreconditionExaminer {
 			List<Difference> diffs = nodeDifference.getDifferences();
 			for(Difference diff : diffs) {
 				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
-					Expression expression1 = nodeDifference.getExpression1().getExpression();
-					Expression expression2 = nodeDifference.getExpression2().getExpression();
+					Expression expression1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(nodeDifference.getExpression1().getExpression());
+					Expression expression2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(nodeDifference.getExpression2().getExpression());
 					if(expression1 instanceof SimpleName && expression2 instanceof SimpleName) {
 						SimpleName simpleName1 = (SimpleName)expression1;
 						SimpleName simpleName2 = (SimpleName)expression2;

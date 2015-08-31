@@ -682,6 +682,7 @@ public abstract class DivideAndConquerMatcher {
 							}
 						}
 						else {
+							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 							if(cdtNode1 != null && cdtNode2 != null && (cdtNode1.ifStatementInsideElseIfChain() || cdtNode2.ifStatementInsideElseIfChain())) {
 								if(cdtNode1.getLengthOfElseIfChain() == cdtNode2.getLengthOfElseIfChain()) {
 									maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
@@ -690,8 +691,11 @@ public abstract class DivideAndConquerMatcher {
 									maxStates = new ArrayList<MappingState>();
 								}
 							}
-							else {
+							else if(cdtNode1 != null && cdtNode2 != null && astNodeMatcher.match(predicate1, predicate2) && astNodeMatcher.isParameterizable()) {
 								maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
+							}
+							else {
+								maxStates = new ArrayList<MappingState>();
 							}
 						}
 					}

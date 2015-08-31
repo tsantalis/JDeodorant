@@ -22,6 +22,7 @@ public enum PreconditionViolationType {
 	CONTINUE_STATEMENT_WITHOUT_LOOP,
 	CONDITIONAL_RETURN_STATEMENT,
 	SUPER_CONSTRUCTOR_INVOCATION_STATEMENT,
+	SUPER_METHOD_INVOCATION_STATEMENT,
 	MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE,
 	INFEASIBLE_REFACTORING_DUE_TO_UNCOMMON_SUPERCLASS;
 	
@@ -52,6 +53,9 @@ public enum PreconditionViolationType {
 		}
 		else if(name().equals(SUPER_CONSTRUCTOR_INVOCATION_STATEMENT.name())) {
 			return "cannot be extracted from constructor";
+		}
+		else if(name().equals(SUPER_METHOD_INVOCATION_STATEMENT.name())) {
+			return "cannot be extracted from method";
 		}
 		return "";
 	}

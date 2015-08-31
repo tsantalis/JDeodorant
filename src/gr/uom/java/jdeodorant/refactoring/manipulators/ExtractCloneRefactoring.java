@@ -2239,7 +2239,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 								typeBindings.add(localFieldG1.resolveBinding().getType());
-								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 								VariableDeclarationFragment fragment = ast.newVariableDeclarationFragment();
 								sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, ast.newSimpleName(localFieldG1.getName().getIdentifier()), null);
 								if(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null) {
@@ -2247,8 +2246,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									Expression initializer2 = localFieldG2.getInitializer();
 									if(initializer1.subtreeMatch(new ASTMatcher(), initializer2)) {
 										sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, ASTNode.copySubtree(ast, initializer1), null);
+										TypeVisitor typeVisitor = new TypeVisitor();
+										initializer1.accept(typeVisitor);
+										typeBindings.addAll(typeVisitor.getTypeBindings());
 									}
 								}
+								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 								FieldDeclaration newFieldDeclaration = ast.newFieldDeclaration(fragment);
 								sourceRewriter.set(newFieldDeclaration, FieldDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
 								/*if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {

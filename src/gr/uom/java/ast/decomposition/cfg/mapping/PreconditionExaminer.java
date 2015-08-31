@@ -1687,6 +1687,28 @@ public class PreconditionExaminer {
 		}
 	}
 
+	private void checkIfStatementContainsSuperMethodInvocation(NodeMapping nodeMapping, PDGNode node) {
+		AbstractStatement statement = node.getStatement();
+		if(statement instanceof StatementObject) {
+			StatementObject statementObject = (StatementObject)statement;
+			if(!statementObject.getSuperMethodInvocations().isEmpty()) {
+				PreconditionViolation violation = new StatementPreconditionViolation(statement,
+						PreconditionViolationType.SUPER_METHOD_INVOCATION_STATEMENT);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
+		}
+		else if(statement instanceof CompositeStatementObject) {
+			CompositeStatementObject composite = (CompositeStatementObject)statement;
+			if(!composite.getSuperMethodInvocationsInExpressions().isEmpty()) {
+				PreconditionViolation violation = new StatementPreconditionViolation(statement,
+						PreconditionViolationType.SUPER_METHOD_INVOCATION_STATEMENT);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
+		}
+	}
+
 	private void checkCloneStructureNodeForPreconditions(CloneStructureNode node) {
 		if(node.getMapping() != null)
 			checkPreconditions(node);
@@ -1869,6 +1891,8 @@ public class PreconditionExaminer {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
+			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG1());
+			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG2());
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
 			if(getAllNodesInSubTreePDG1().size() != pdg1.getNodes().size()) {
 				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());

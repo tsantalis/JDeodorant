@@ -668,15 +668,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						if(!cloneInfo.extractUtilityClass) {
 							intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
 							if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
 								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
 										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+								typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
 							}
 							ListRewrite interfaceRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
 							if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
-								Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
-								interfaceRewrite.insertLast(interfaceType, null);
+								ITypeBinding[] superInterfaces = commonSuperTypeOfSourceTypeDeclarations.getInterfaces();
+								int taggingSuperInterfaceCount = 0;
+								for(ITypeBinding superInterface : superInterfaces) {
+									if(ASTNodeMatcher.isTaggingInterface(superInterface)) {
+										taggingSuperInterfaceCount++;
+									}
+								}
+								boolean allSuperInterfacesAreTaggingInterfaces = superInterfaces.length > 0 && taggingSuperInterfaceCount == superInterfaces.length;
+								boolean bothSubClassesImplementCommonSuperType = ASTNodeMatcher.implementsInterface(typeBinding1, commonSuperTypeOfSourceTypeDeclarations) &&
+										ASTNodeMatcher.implementsInterface(typeBinding2, commonSuperTypeOfSourceTypeDeclarations);
+								if(!allSuperInterfacesAreTaggingInterfaces && !bothSubClassesImplementCommonSuperType) {
+									Type interfaceType = RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter);
+									interfaceRewrite.insertLast(interfaceType, null);
+									typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
+								}
 							}
 							//add the implemented interfaces being common in both subclasses
 							List<Type> superInterfaceTypes1 = sourceTypeDeclarations.get(0).superInterfaceTypes();

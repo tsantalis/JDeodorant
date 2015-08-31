@@ -252,7 +252,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.sourceCompilationUnits.add((CompilationUnit)methodDeclaration2.getRoot());
 		this.originalPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<VariableDeclaration>>();
 		this.parameterizedDifferenceMap = new LinkedHashMap<BindingSignaturePair, ASTNodeDifference>();
-		this.sortedNodeMappings = new TreeSet<PDGNodeMapping>(this.mapper.getMaximumStateWithMinimumDifferences().getNodeMappings());
+		this.sortedNodeMappings = this.mapper.getMaximumStateWithMinimumDifferences().getSortedNodeMappings();
 		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
 			PDGNode pdgNode = pdgNodeMapping.getNodeG1();
 			CFGNode cfgNode = pdgNode.getCFGNode();

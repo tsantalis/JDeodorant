@@ -356,6 +356,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	}
 
 	public boolean containsMappedReturnStatementInDirectChildren() {
+		int returnStatementsInGaps = 0;
 		for(CloneStructureNode child : children) {
 			NodeMapping mapping = child.getMapping();
 			if(mapping instanceof PDGNodeMapping) {
@@ -366,11 +367,23 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 					return true;
 				}
 			}
+			else if(mapping instanceof PDGNodeGap) {
+				PDGNodeGap pdgGap = (PDGNodeGap)mapping;
+				PDGNode nodeG1 = pdgGap.getNodeG1();
+				PDGNode nodeG2 = pdgGap.getNodeG2();
+				if(nodeG1 instanceof PDGExitNode || nodeG2 instanceof PDGExitNode) {
+					returnStatementsInGaps++;
+					if(returnStatementsInGaps == 2) {
+						return true;
+					}
+				}
+			}
 		}
 		return false;
 	}
 
 	public boolean containsMappedThrowStatementInDirectChildren() {
+		int throwStatementsInGaps = 0;
 		for(CloneStructureNode child : children) {
 			NodeMapping mapping = child.getMapping();
 			if(mapping instanceof PDGNodeMapping) {
@@ -379,6 +392,18 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				PDGNode nodeG2 = pdgMapping.getNodeG2();
 				if(nodeG1.getCFGNode() instanceof CFGThrowNode && nodeG2.getCFGNode() instanceof CFGThrowNode) {
 					return true;
+				}
+			}
+			else if(mapping instanceof PDGNodeGap) {
+				PDGNodeGap pdgGap = (PDGNodeGap)mapping;
+				PDGNode nodeG1 = pdgGap.getNodeG1();
+				PDGNode nodeG2 = pdgGap.getNodeG2();
+				if((nodeG1 != null && nodeG1.getCFGNode() instanceof CFGThrowNode) ||
+						(nodeG2 != null && nodeG2.getCFGNode() instanceof CFGThrowNode)) {
+					throwStatementsInGaps++;
+					if(throwStatementsInGaps == 2) {
+						return true;
+					}
 				}
 			}
 		}

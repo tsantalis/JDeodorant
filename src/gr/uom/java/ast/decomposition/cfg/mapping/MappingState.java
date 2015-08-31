@@ -437,6 +437,10 @@ public class MappingState {
 		return this.nodeMappings;
 	}
 
+	public TreeSet<PDGNodeMapping> getSortedNodeMappings() {
+		return new TreeSet<PDGNodeMapping>(this.nodeMappings);
+	}
+
 	private boolean sameNodeMappings(MappingState other) {
 		Set<PDGNodeMapping> thisNodeMappings = this.getNodeMappings();
 		Set<PDGNodeMapping> otherNodeMappings = other.getNodeMappings();

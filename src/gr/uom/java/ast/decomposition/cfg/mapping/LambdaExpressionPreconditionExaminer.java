@@ -36,6 +36,19 @@ public class LambdaExpressionPreconditionExaminer {
 		this.refactorableExpressionGaps = new ArrayList<PDGExpressionGap>();
 		this.refactorableBlockGaps = new ArrayList<PDGNodeBlockGap>();
 		checkCloneStructureNodeForGaps(cloneStructureRoot);
+		List<PDGNodeBlockGap> newRefactorableBlockGaps = new ArrayList<PDGNodeBlockGap>(refactorableBlockGaps);
+		for(int i=0; i<newRefactorableBlockGaps.size()-1; i++) {
+			PDGNodeBlockGap blockGap1 = newRefactorableBlockGaps.get(i);
+			for(int j=i+1; j<newRefactorableBlockGaps.size(); j++) {
+				PDGNodeBlockGap blockGap2 = newRefactorableBlockGaps.get(j);
+				if(blockGap1.sharesCommonStatements(blockGap2)) {
+					PDGNodeBlockGap merged = blockGap1.merge(blockGap2);
+					if(merged != null) {
+						checkRefactorableBlockGap(merged);
+					}
+				}
+			}
+		}
 		List<PDGNodeBlockGap> blockGapsToBeRemoved = new ArrayList<PDGNodeBlockGap>();
 		for(PDGNodeBlockGap blockGap : refactorableBlockGaps) {
 			List<PDGNodeBlockGap> otherBlockGaps = new ArrayList<PDGNodeBlockGap>(refactorableBlockGaps);

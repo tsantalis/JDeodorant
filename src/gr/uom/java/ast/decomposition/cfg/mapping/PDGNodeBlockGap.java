@@ -383,6 +383,14 @@ public class PDGNodeBlockGap extends Gap {
 		return null;
 	}
 
+	public boolean sharesCommonStatements(PDGNodeBlockGap other) {
+		Set<PDGNode> intersection1 = new TreeSet<PDGNode>(this.nodesG1);
+		intersection1.retainAll(other.nodesG1);
+		Set<PDGNode> intersection2 = new TreeSet<PDGNode>(this.nodesG2);
+		intersection2.retainAll(other.nodesG2);
+		return intersection1.size() > 0 && intersection2.size() > 0;
+	}
+
 	public boolean subsumes(PDGNodeBlockGap other) {
 		return this.nodesG1.containsAll(other.nodesG1) && this.nodesG2.containsAll(other.nodesG2) &&
 				this.nodesG1.size() >= other.nodesG1.size() && this.nodesG2.size() >= other.nodesG2.size();
@@ -395,6 +403,24 @@ public class PDGNodeBlockGap extends Gap {
 			}
 		}
 		return false;
+	}
+
+	public PDGNodeBlockGap merge(PDGNodeBlockGap other) {
+		if(this.parent.equals(other.parent)) {
+			PDGNodeBlockGap merged = new PDGNodeBlockGap(this.parent);
+			merged.nodesG1.addAll(this.nodesG1);
+			merged.nodesG1.addAll(other.nodesG1);
+			merged.nodesG2.addAll(this.nodesG2);
+			merged.nodesG2.addAll(other.nodesG2);
+			merged.nodeDifferences.addAll(this.nodeDifferences);
+			for(ASTNodeDifference difference : other.nodeDifferences) {
+				if(!merged.nodeDifferences.contains(difference)) {
+					merged.nodeDifferences.add(difference);
+				}
+			}
+			return merged;
+		}
+		return null;
 	}
 
 	public ITypeBinding getReturnType() {

@@ -1180,6 +1180,18 @@ public class PreconditionExaminer {
 				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
 					Expression expression1 = nodeDifference.getExpression1().getExpression();
 					Expression expression2 = nodeDifference.getExpression2().getExpression();
+					Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
+					Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2);
+					if(!expr1.equals(expression1) && !expr2.equals(expression2)) {
+						if(expr1 instanceof QualifiedName && expr2 instanceof QualifiedName) {
+							SimpleName name1 = ((QualifiedName)expr1).getName();
+							SimpleName name2 = ((QualifiedName)expr2).getName();
+							if(!name1.getIdentifier().equals("length") && !name2.getIdentifier().equals("length")) {
+								expression1 = expr1;
+								expression2 = expr2;
+							}
+						}
+					}
 					if(expression1 instanceof SimpleName && expression2 instanceof SimpleName) {
 						SimpleName simpleName1 = (SimpleName)expression1;
 						SimpleName simpleName2 = (SimpleName)expression2;

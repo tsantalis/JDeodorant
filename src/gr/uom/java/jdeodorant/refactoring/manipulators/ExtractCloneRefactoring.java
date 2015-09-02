@@ -4425,18 +4425,32 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
 								}
 								//replace the non-effectively final variables in the lambda expression body
+								SimpleName nonEffectivelyFinalVariableSimpleName = null;
 								for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
 									IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
-									ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-									List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expression);
-									for(Expression expr : simpleNames) {
-										SimpleName simpleName = (SimpleName)expr;
+									if(expression instanceof SimpleName) {
+										SimpleName simpleName = (SimpleName)expression;
 										if(simpleName.resolveBinding().isEqualTo(variableBinding)) {
 											String identifier = variableBinding.getName() + "Final";
 											if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 												identifier = identifier + index;
 											}
-											methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
+											nonEffectivelyFinalVariableSimpleName = ast.newSimpleName(identifier);
+											break;
+										}
+									}
+									else {
+										ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+										List<Expression> simpleNames = expressionExtractor.getVariableInstructions(expression);
+										for(Expression expr : simpleNames) {
+											SimpleName simpleName = (SimpleName)expr;
+											if(simpleName.resolveBinding().isEqualTo(variableBinding)) {
+												String identifier = variableBinding.getName() + "Final";
+												if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+													identifier = identifier + index;
+												}
+												methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
+											}
 										}
 									}
 								}
@@ -4455,14 +4469,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 								if(difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH) && index == 1) {
 									ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();
-									methodBodyRewriter.set(parenthesizedExpression, ParenthesizedExpression.EXPRESSION_PROPERTY, expression, null);
+									methodBodyRewriter.set(parenthesizedExpression, ParenthesizedExpression.EXPRESSION_PROPERTY,
+											nonEffectivelyFinalVariableSimpleName != null ? nonEffectivelyFinalVariableSimpleName : expression, null);
 									PrefixExpression prefixExpression = ast.newPrefixExpression();
 									methodBodyRewriter.set(prefixExpression, PrefixExpression.OPERAND_PROPERTY, parenthesizedExpression, null);
 									methodBodyRewriter.set(prefixExpression, PrefixExpression.OPERATOR_PROPERTY, PrefixExpression.Operator.NOT, null);
 									methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, prefixExpression, null);
 								}
 								else {
-									methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, expression, null);
+									methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY,
+											nonEffectivelyFinalVariableSimpleName != null ? nonEffectivelyFinalVariableSimpleName : expression, null);
 								}
 								argumentsRewrite.insertLast(lambdaExpression, null);
 							}

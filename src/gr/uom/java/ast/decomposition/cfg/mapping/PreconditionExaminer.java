@@ -623,21 +623,28 @@ public class PreconditionExaminer {
 					variableDeclarations.add(variable2);
 					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
 							variable2.getVariableBindingKey());
-					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair) && !commonPassedParametersAlreadyContainOneOfTheKeys(keyPair)) {
-						commonPassedParameters.put(keyPair, variableDeclarations);
+					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair)) {
+						VariableBindingKeyPair otherKeyPair = commonPassedParametersAlreadyContainOneOfTheKeys(keyPair);
+						if(otherKeyPair != null) {
+							if(!otherKeyPair.equals(keyPair))
+								commonPassedParameters.remove(otherKeyPair);
+						}
+						else {
+							commonPassedParameters.put(keyPair, variableDeclarations);
+						}
 					}
 				}
 			}
 		}
 	}
 
-	private boolean commonPassedParametersAlreadyContainOneOfTheKeys(VariableBindingKeyPair keyPair) {
+	private VariableBindingKeyPair commonPassedParametersAlreadyContainOneOfTheKeys(VariableBindingKeyPair keyPair) {
 		for(VariableBindingKeyPair key : commonPassedParameters.keySet()) {
 			if(key.getKey1().equals(keyPair.getKey1()) || key.getKey2().equals(keyPair.getKey2())) {
-				return true;
+				return key;
 			}
 		}
-		return false;
+		return null;
 	}
 
 	private void sortVariables(List<AbstractVariable> variables1, List<AbstractVariable> variables2,
@@ -667,7 +674,8 @@ public class PreconditionExaminer {
 						}
 					}
 					else if(findRenamedVariableName1(variable1) == null) {
-						if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2)) {
+						if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2) &&
+								!appearsInMultipleDifferences(variable1) && !appearsInMultipleDifferences(variable2)) {
 							sortedVariables2.add(variable2);
 							found = true;
 							break;
@@ -679,6 +687,17 @@ public class PreconditionExaminer {
 				sortedVariables1.add(variable1);
 			}
 		}
+	}
+
+	private boolean appearsInMultipleDifferences(AbstractVariable variable) {
+		int occurrences = 0;
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			BindingSignaturePair pair = difference.getBindingSignaturePair();
+			if(pair.getSignature1().containsOnlyBinding(variable.getVariableBindingKey()) || pair.getSignature2().containsOnlyBinding(variable.getVariableBindingKey())) {
+				occurrences++;
+			}
+		}
+		return occurrences > 0;
 	}
 
 	private String findRenamedVariableName1(AbstractVariable variable) {

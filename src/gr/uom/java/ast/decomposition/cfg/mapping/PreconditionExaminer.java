@@ -496,7 +496,7 @@ public class PreconditionExaminer {
 				for(int i=0; i<variables1.size(); i++) {
 					variableNames1.add(variables1.get(i).getVariableName());
 					AbstractVariable variable2 = variables2.get(i);
-					String renamedVariableName = findRenamedVariableName(variable2);
+					String renamedVariableName = findRenamedVariableName2(variable2);
 					if(renamedVariableName != null)
 						variableNames2.add(renamedVariableName);
 					else
@@ -514,7 +514,7 @@ public class PreconditionExaminer {
 						for(int j=0; j<variables2.size(); j++) {
 							AbstractVariable variable2 = variables2.get(j);
 							IVariableBinding variableBinding2 = getVariableBinding(variable2, variableDeclarationsAndFieldAccessedInMethod2);
-							String renamedVariableName = findRenamedVariableName(variable2);
+							String renamedVariableName = findRenamedVariableName2(variable2);
 							if((variable2.getVariableName().equals(variable1.getVariableName()) ||
 									variable1.getVariableName().equals(renamedVariableName)) &&
 									(variable2.getVariableType().equals(variable1.getVariableType()) ||
@@ -593,7 +593,7 @@ public class PreconditionExaminer {
 					}
 				}
 				else {
-					String renamedVariableName = findRenamedVariableName(variable2);
+					String renamedVariableName = findRenamedVariableName2(variable2);
 					if(renamedVariableName != null) {
 						if(variable2.getVariableType().equals(variable1.getVariableType()) && variable1.getVariableName().equals(renamedVariableName) &&
 								!sortedVariables2.contains(variable2)) {
@@ -602,7 +602,7 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
-					else {
+					else if(findRenamedVariableName1(variable1) == null) {
 						if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2)) {
 							sortedVariables2.add(variable2);
 							found = true;
@@ -617,7 +617,19 @@ public class PreconditionExaminer {
 		}
 	}
 
-	private String findRenamedVariableName(AbstractVariable variable) {
+	private String findRenamedVariableName1(AbstractVariable variable) {
+		Set<VariableBindingPair> renamedVariables = getRenamedVariableBindings();
+		String renamedVariableName = null;
+		for(VariableBindingPair pair : renamedVariables) {
+			if(pair.getBinding1().getKey().equals(variable.getVariableBindingKey())) {
+				renamedVariableName = pair.getBinding2().getName();
+				break;
+			}
+		}
+		return renamedVariableName;
+	}
+
+	private String findRenamedVariableName2(AbstractVariable variable) {
 		Set<VariableBindingPair> renamedVariables = getRenamedVariableBindings();
 		String renamedVariableName = null;
 		for(VariableBindingPair pair : renamedVariables) {

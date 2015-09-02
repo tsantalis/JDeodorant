@@ -1348,15 +1348,17 @@ public class PreconditionExaminer {
 	private Set<PlainVariable> getVariables(PDGNode node, List<AbstractMethodFragment> additionallyMatchedFragments,
 			List<AbstractExpression> expressionsInDifferences) {
 		Set<PlainVariable> variablesToBeExcluded = new LinkedHashSet<PlainVariable>();
+		Set<PlainVariable> definedVariablesToBeExcluded = new LinkedHashSet<PlainVariable>();
 		for(AbstractExpression expression : expressionsInDifferences) {
 			variablesToBeExcluded.addAll(expression.getDefinedLocalVariables());
 			variablesToBeExcluded.addAll(expression.getUsedLocalVariables());
+			definedVariablesToBeExcluded.addAll(expression.getDefinedLocalVariables());
 		}
 		Set<PlainVariable> variables = new LinkedHashSet<PlainVariable>();
 		Iterator<AbstractVariable> definedVariableIterator = node.getDefinedVariableIterator();
 		while(definedVariableIterator.hasNext()) {
 			AbstractVariable variable = definedVariableIterator.next();
-			if(variable instanceof PlainVariable && !variablesToBeExcluded.contains(variable)) {
+			if(variable instanceof PlainVariable && !definedVariablesToBeExcluded.contains(variable)) {
 				variables.add((PlainVariable)variable);
 			}
 		}

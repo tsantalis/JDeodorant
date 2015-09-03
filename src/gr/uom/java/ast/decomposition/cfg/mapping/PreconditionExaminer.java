@@ -667,7 +667,7 @@ public class PreconditionExaminer {
 						}
 					}
 					else if(findRenamedVariableName1(variable1) == null) {
-						if(variable2.getVariableType().equals(variable1.getVariableType()) && !sortedVariables2.contains(variable2) &&
+						if(variable2.getVariableType().equals(variable1.getVariableType()) && variable2.isField() == variable1.isField() && !sortedVariables2.contains(variable2) &&
 								!appearsInMultipleDifferences(variable1) && !appearsInMultipleDifferences(variable2)) {
 							sortedVariables2.add(variable2);
 							found = true;

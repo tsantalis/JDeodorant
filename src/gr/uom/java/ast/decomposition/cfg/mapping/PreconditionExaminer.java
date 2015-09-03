@@ -623,15 +623,8 @@ public class PreconditionExaminer {
 					variableDeclarations.add(variable2);
 					VariableBindingKeyPair keyPair = new VariableBindingKeyPair(variable1.getVariableBindingKey(),
 							variable2.getVariableBindingKey());
-					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair)) {
-						VariableBindingKeyPair otherKeyPair = commonPassedParametersAlreadyContainOneOfTheKeys(keyPair);
-						if(otherKeyPair != null) {
-							if(!otherKeyPair.equals(keyPair))
-								commonPassedParameters.remove(otherKeyPair);
-						}
-						else {
-							commonPassedParameters.put(keyPair, variableDeclarations);
-						}
+					if(!declaredLocalVariablesInMappedNodes.containsKey(keyPair) && commonPassedParametersAlreadyContainOneOfTheKeys(keyPair) == null) {
+						commonPassedParameters.put(keyPair, variableDeclarations);
 					}
 				}
 			}

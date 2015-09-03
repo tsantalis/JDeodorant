@@ -2831,7 +2831,7 @@ public class PreconditionExaminer {
 			else if(extractToUtilityClass(commonSuperTypeOfSourceTypeDeclarations)) {
 				return CloneRefactoringType.EXTRACT_STATIC_METHOD_TO_NEW_UTILITY_CLASS;
 			}
-			else if(infeasibleRefactoring(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
+			else if(infeasibleRefactoring(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2) || !allAccessedLocalMethodsHaveMatchingSignatures()) {
 				PreconditionViolation violation = new UncommonSuperclassPreconditionViolation(typeBinding1.getQualifiedName(), typeBinding2.getQualifiedName());
 				preconditionViolations.add(violation);
 				return CloneRefactoringType.INFEASIBLE;
@@ -3161,5 +3161,26 @@ public class PreconditionExaminer {
 			}
 		}
 		return allThisExpressions;
+	}
+
+	private boolean allAccessedLocalMethodsHaveMatchingSignatures() {
+		Set<MethodObject> accessedLocalMethodsG1 = getAccessedLocalMethodsG1();
+		Set<MethodObject> accessedLocalMethodsG2 = getAccessedLocalMethodsG2();
+		int matchCounter = 0;
+		for(MethodObject localMethodG1 : accessedLocalMethodsG1) {
+			MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
+			for(MethodObject localMethodG2 : accessedLocalMethodsG2) {
+				MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
+				ITypeBinding returnTypesCommonSuperType = ASTNodeMatcher.commonSuperType(localMethodG1.getMethodDeclaration().getReturnType2().resolveBinding(), localMethodG2.getMethodDeclaration().getReturnType2().resolveBinding());
+				if(localMethodG1.getName().equals(localMethodG2.getName()) &&
+						(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) &&
+						(localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList()) ||
+						//only for static method calls, we allow them having parameter types with subclass type differences
+						(MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding()) && localMethodG1.isStatic() && localMethodG2.isStatic())) ) {
+					matchCounter++;
+				}
+			}
+		}
+		return accessedLocalMethodsG1.size() == accessedLocalMethodsG2.size() && matchCounter == accessedLocalMethodsG1.size();
 	}
 }

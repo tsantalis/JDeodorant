@@ -442,10 +442,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						returnTypeBinding = commonSuperType;
 				}
 				else {
-					if(typeBinding1.isEqualTo(typeBinding2))
-						returnTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, returnTypeBinding);
-					else
-						returnTypeBinding = ASTNodeMatcher.commonSuperType(commonSuperType, returnTypeBinding);
+					if(typeBinding1.isEqualTo(typeBinding2)) {
+						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, returnTypeBinding);
+						if(typeBinding != null) {
+							returnTypeBinding = typeBinding;
+						}
+						else {
+							ITypeBinding methodReturnTypeBinding1 = sourceMethodDeclarations.get(0).getReturnType2().resolveBinding();
+							ITypeBinding methodReturnTypeBinding2 = sourceMethodDeclarations.get(1).getReturnType2().resolveBinding();
+							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
+									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
+								returnTypeBinding = methodReturnTypeBinding1;
+							}
+						}
+					}
+					else {
+						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(commonSuperType, returnTypeBinding);
+						if(typeBinding != null) {
+							returnTypeBinding = typeBinding;
+						}
+						else {
+							ITypeBinding methodReturnTypeBinding1 = sourceMethodDeclarations.get(0).getReturnType2().resolveBinding();
+							ITypeBinding methodReturnTypeBinding2 = sourceMethodDeclarations.get(1).getReturnType2().resolveBinding();
+							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
+									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
+								returnTypeBinding = methodReturnTypeBinding1;
+							}
+						}
+					}
 				}
 			}
 			return returnTypeBinding;

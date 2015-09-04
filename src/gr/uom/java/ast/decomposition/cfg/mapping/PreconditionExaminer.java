@@ -1660,7 +1660,7 @@ public class PreconditionExaminer {
 			if(cfgNode instanceof CFGExitNode) {
 				ReturnStatement returnStatement = (ReturnStatement)cfgNode.getASTStatement();
 				Expression expression = returnStatement.getExpression();
-				if(expression != null && expression instanceof BooleanLiteral) {
+				if(expression != null) {
 					PDGNode controlParentNode = pdgNode.getControlDependenceParent();
 					if(controlParentNode instanceof PDGControlPredicateNode) {
 						conditionalReturnStatements.add(pdgNode);

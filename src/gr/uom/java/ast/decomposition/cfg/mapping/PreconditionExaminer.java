@@ -1596,7 +1596,7 @@ public class PreconditionExaminer {
 			if(cfgNode instanceof CFGExitNode) {
 				ReturnStatement returnStatement = (ReturnStatement)cfgNode.getASTStatement();
 				Expression expression = returnStatement.getExpression();
-				if(expression != null && expression instanceof BooleanLiteral) {
+				if(expression != null) {
 					PDGNode controlParentNode = pdgNode.getControlDependenceParent();
 					if(controlParentNode instanceof PDGControlPredicateNode) {
 						conditionalReturnStatements.add(pdgNode);
@@ -2802,7 +2802,11 @@ public class PreconditionExaminer {
 		if(commonSuperTypeOfSourceTypeDeclarations.isInterface()) {
 			//common super type is an interface and at least one of the subclasses does not have java.lang.Object as a superclass
 			return !typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") ||
-					!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object");
+					!typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object") ||
+			//common super type is a tagging interface and both subclasses have java.lang.Object as a superclass
+					(ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations) &&
+					typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") &&
+					typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object"));
 		}
 		else if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
 			//common super type is a class and at least one of the subclasses does not have the common super type as a direct superclass

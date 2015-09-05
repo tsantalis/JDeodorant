@@ -2869,7 +2869,8 @@ public class PreconditionExaminer {
 			//common super type is a tagging interface and both subclasses have java.lang.Object as a superclass
 					(ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations) &&
 					typeBinding1.getSuperclass().getQualifiedName().equals("java.lang.Object") &&
-					typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object"));
+					typeBinding2.getSuperclass().getQualifiedName().equals("java.lang.Object") &&
+					!allAccessedLocalMethodsHaveMatchingSignatures());
 		}
 		else if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
 			//common super type is a class and at least one of the subclasses does not have the common super type as a direct superclass
@@ -3164,5 +3165,26 @@ public class PreconditionExaminer {
 			}
 		}
 		return allThisExpressions;
+	}
+
+	private boolean allAccessedLocalMethodsHaveMatchingSignatures() {
+		Set<MethodObject> accessedLocalMethodsG1 = getAccessedLocalMethodsG1();
+		Set<MethodObject> accessedLocalMethodsG2 = getAccessedLocalMethodsG2();
+		int matchCounter = 0;
+		for(MethodObject localMethodG1 : accessedLocalMethodsG1) {
+			MethodDeclaration methodDeclaration1 = localMethodG1.getMethodDeclaration();
+			for(MethodObject localMethodG2 : accessedLocalMethodsG2) {
+				MethodDeclaration methodDeclaration2 = localMethodG2.getMethodDeclaration();
+				ITypeBinding returnTypesCommonSuperType = ASTNodeMatcher.commonSuperType(localMethodG1.getMethodDeclaration().getReturnType2().resolveBinding(), localMethodG2.getMethodDeclaration().getReturnType2().resolveBinding());
+				if(localMethodG1.getName().equals(localMethodG2.getName()) &&
+						(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) &&
+						(localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList()) ||
+						//only for static method calls, we allow them having parameter types with subclass type differences
+						(MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding()) && localMethodG1.isStatic() && localMethodG2.isStatic())) ) {
+					matchCounter++;
+				}
+			}
+		}
+		return accessedLocalMethodsG1.size() == accessedLocalMethodsG2.size() && matchCounter == accessedLocalMethodsG1.size();
 	}
 }

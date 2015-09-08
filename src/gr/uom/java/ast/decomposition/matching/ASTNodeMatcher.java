@@ -726,6 +726,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 			boolean typeMatch = typeBindingMatch(node.resolveTypeBinding(), getTypeBinding(other));
 			if (!(other instanceof CastExpression)) {
 				if(typeMatch) {
+					if(other instanceof Expression && !(other instanceof NullLiteral)) {
+						Expression o = (Expression)other;
+						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
+						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
+						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
+							astNodeDifference.addDifference(diff);
+						}
+					}
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);

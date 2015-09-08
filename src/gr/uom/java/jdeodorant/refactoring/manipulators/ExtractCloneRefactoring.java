@@ -1408,7 +1408,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 				Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
-				String identifier = createNameForParameterizedFieldAccess(variableDeclaration1.getName().getIdentifier());
+				String identifier = (variableDeclaration1.resolveBinding().getModifiers() & Modifier.STATIC) != 0 ? variableDeclaration1.getName().getIdentifier() :
+						createNameForParameterizedFieldAccess(variableDeclaration1.getName().getIdentifier());
 				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(identifier), null);
 				parameterRewrite.insertLast(parameter, null);
 			}

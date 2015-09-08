@@ -396,6 +396,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		if(isNumberPrimitiveType(binding1) && binding2.getQualifiedName().equals("java.lang.Number"))
 			return true;
+		if((binding1.getQualifiedName().equals("byte") && binding2.getQualifiedName().equals("int")) ||
+				(binding2.getQualifiedName().equals("byte") && binding1.getQualifiedName().equals("int")))
+			return true;
 		if(binding1.getName().equals("null")) {
 			return true;
 		}

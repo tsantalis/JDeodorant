@@ -1408,7 +1408,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 				Type type = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, sourceRewriter);
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, type, null);
-				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration1.getName(), null);
+				String identifier = createNameForParameterizedFieldAccess(variableDeclaration1.getName().getIdentifier());
+				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(identifier), null);
 				parameterRewrite.insertLast(parameter, null);
 			}
 			j++;
@@ -3737,7 +3738,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			FieldAccess newFieldAccess = (FieldAccess)newFieldAccesses.get(j);
 			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-					sourceRewriter.replace(newFieldAccess, ast.newSimpleName(variableDeclaration.getName().getIdentifier()), null);
+					String identifier = createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
+					sourceRewriter.replace(newFieldAccess, ast.newSimpleName(identifier), null);
 					replacement = true;
 					break;
 				}
@@ -3794,11 +3796,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			FieldAccess oldFieldAccess = (FieldAccess)oldExpression;
 			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-					return ast.newSimpleName(variableDeclaration.getName().getIdentifier());
+					String identifier = createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
+					return ast.newSimpleName(identifier);
 				}
 			}
 		}
 		return null;
+	}
+
+	private String createNameForParameterizedFieldAccess(String fieldName) {
+		return "this" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1, fieldName.length());
 	}
 
 	private ASTNode createReplacementForSuperMethodCall(ASTRewrite sourceRewriter, AST ast, SuperMethodInvocation oldASTNode) {

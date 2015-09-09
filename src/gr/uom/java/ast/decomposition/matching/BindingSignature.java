@@ -79,6 +79,14 @@ public class BindingSignature {
 		return bindingKeys.size();
 	}
 
+	public int getLength() {
+		int length = 0;
+		for(String key : bindingKeys) {
+			length += key.length();
+		}
+		return length;
+	}
+
 	public boolean equals(Object o) {
 		if(this == o)
 			return true;

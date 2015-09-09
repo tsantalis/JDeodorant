@@ -1254,6 +1254,10 @@ public class PreconditionExaminer {
 		return getMaximumStateWithMinimumDifferences().getNodeDifferences();
 	}
 
+	public List<ASTNodeDifference> getSortedNodeDifferences() {
+		return getMaximumStateWithMinimumDifferences().getSortedNodeDifferences();
+	}
+
 	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
 		return getMaximumStateWithMinimumDifferences().getNonOverlappingNodeDifferences();
 	}
@@ -1261,7 +1265,7 @@ public class PreconditionExaminer {
 	private void findRenamedVariables(Set<BindingSignaturePair> renamedVariables, Set<BindingSignaturePair> renamedFields) {
 		Set<BindingSignaturePair> variableNameMismatches = new LinkedHashSet<BindingSignaturePair>();
 		Set<BindingSignaturePair> fieldNameMismatches = new LinkedHashSet<BindingSignaturePair>();
-		for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
+		for(ASTNodeDifference nodeDifference : getSortedNodeDifferences()) {
 			List<Difference> diffs = nodeDifference.getDifferences();
 			for(Difference diff : diffs) {
 				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
@@ -1292,10 +1296,12 @@ public class PreconditionExaminer {
 							IMethodBinding  method1 = pdg1.getMethod().getMethodDeclaration().resolveBinding();
 							IMethodBinding  method2 = pdg2.getMethod().getMethodDeclaration().resolveBinding();
 							if(declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
-									declaringMethod2 != null && declaringMethod2.isEqualTo(method2)) {
+									declaringMethod2 != null && declaringMethod2.isEqualTo(method2) &&
+									!alreadyContainsOneOfTheKeys(variableNameMismatches, nodeDifference.getBindingSignaturePair())) {
 								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
 							}
-							else if(variableBinding1.isField() && variableBinding2.isField()) {
+							else if(variableBinding1.isField() && variableBinding2.isField() &&
+									!alreadyContainsOneOfTheKeys(fieldNameMismatches, nodeDifference.getBindingSignaturePair())) {
 								fieldNameMismatches.add(nodeDifference.getBindingSignaturePair());
 							}
 						}
@@ -1307,7 +1313,7 @@ public class PreconditionExaminer {
 		allNameMismatches.addAll(variableNameMismatches);
 		allNameMismatches.addAll(fieldNameMismatches);
 		Set<BindingSignaturePair> inconsistentRenames = new LinkedHashSet<BindingSignaturePair>();
-		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
+		for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getSortedNodeMappings()) {
 			List<ASTNodeDifference> nodeDifferences = nodeMapping.getNodeDifferences();
 			Set<BindingSignaturePair> localVariableNameMismatches = new LinkedHashSet<BindingSignaturePair>();
 			List<AbstractExpression> expressions1 = new ArrayList<AbstractExpression>();
@@ -1398,6 +1404,15 @@ public class PreconditionExaminer {
 		renamedVariables.removeAll(inconsistentRenames);
 		renamedFields.addAll(fieldNameMismatches);
 		renamedFields.removeAll(inconsistentRenames);
+	}
+
+	private boolean alreadyContainsOneOfTheKeys(Set<BindingSignaturePair> variableNameMismatches, BindingSignaturePair keyPair) {
+		for(BindingSignaturePair key : variableNameMismatches) {
+			if(key.getSignature1().equals(keyPair.getSignature1()) || key.getSignature2().equals(keyPair.getSignature2())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private List<AbstractMethodFragment> getAdditionallyMatchedFragmentsNotBeingUnderMappedStatement(

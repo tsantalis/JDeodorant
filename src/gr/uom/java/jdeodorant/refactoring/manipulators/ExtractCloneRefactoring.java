@@ -4845,7 +4845,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									if(variableBinding.isEqualTo(returnedVariableBinding)) {
 										//introduce a return statement in the body of the lambda expression
 										ReturnStatement returnStatement = ast.newReturnStatement();
-										methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, assignment.getRightHandSide(), null);
+										Expression newRightHandSide = (Expression)ASTNode.copySubtree(ast, assignment.getRightHandSide());
+										//replace the non-effectively final variables in the lambda expression body
+										for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
+											IVariableBinding variableBinding1 = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+											ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+											List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(assignment.getRightHandSide());
+											List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newRightHandSide);
+											int j = 0;
+											for(Expression oldExpression : oldSimpleNames) {
+												SimpleName oldSimpleName = (SimpleName)oldExpression;
+												SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
+												if(oldSimpleName.resolveBinding().isEqualTo(variableBinding1)) {
+													String identifier = variableBinding1.getName() + "Final";
+													if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+														identifier = identifier + index;
+													}
+													methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
+												}
+												j++;
+											}
+										}
+										methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, newRightHandSide, null);
 										lambdaBodyRewrite.insertLast(returnStatement, null);
 										statementChanged = true;
 										returnStatementAdded = true;

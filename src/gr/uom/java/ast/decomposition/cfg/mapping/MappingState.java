@@ -76,6 +76,14 @@ public class MappingState {
 		return nodeDifferences;
 	}
 
+	public List<ASTNodeDifference> getSortedNodeDifferences() {
+		List<ASTNodeDifference> nodeDifferences = new ArrayList<ASTNodeDifference>();
+		for(PDGNodeMapping nodeMapping : getSortedNodeMappings()) {
+			nodeDifferences.addAll(nodeMapping.getNodeDifferences());
+		}
+		return nodeDifferences;
+	}
+
 	public List<ASTNodeDifference> getNonOverlappingNodeDifferences() {
 		List<ASTNodeDifference> nodeDifferences = new ArrayList<ASTNodeDifference>();
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {

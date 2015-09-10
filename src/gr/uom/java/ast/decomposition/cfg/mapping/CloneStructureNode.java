@@ -601,6 +601,48 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		return descendants;
 	}
 
+	public Set<PDGNode> getDescendantNodesG1() {
+		Set<PDGNode> nodesG1 = new TreeSet<PDGNode>();
+		Set<CloneStructureNode> descendants = getDescendants();
+		for(CloneStructureNode descendant : descendants) {
+			NodeMapping mapping = descendant.getMapping();
+			if(mapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
+				PDGNode nodeG1 = pdgMapping.getNodeG1();
+				nodesG1.add(nodeG1);
+			}
+			else if(mapping instanceof PDGNodeGap) {
+				PDGNodeGap pdgGap = (PDGNodeGap)mapping;
+				PDGNode nodeG1 = pdgGap.getNodeG1();
+				if(nodeG1 != null) {
+					nodesG1.add(nodeG1);
+				}
+			}
+		}
+		return nodesG1;
+	}
+
+	public Set<PDGNode> getDescendantNodesG2() {
+		Set<PDGNode> nodesG2 = new TreeSet<PDGNode>();
+		Set<CloneStructureNode> descendants = getDescendants();
+		for(CloneStructureNode descendant : descendants) {
+			NodeMapping mapping = descendant.getMapping();
+			if(mapping instanceof PDGNodeMapping) {
+				PDGNodeMapping pdgMapping = (PDGNodeMapping)mapping;
+				PDGNode nodeG2 = pdgMapping.getNodeG2();
+				nodesG2.add(nodeG2);
+			}
+			else if(mapping instanceof PDGNodeGap) {
+				PDGNodeGap pdgGap = (PDGNodeGap)mapping;
+				PDGNode nodeG2 = pdgGap.getNodeG2();
+				if(nodeG2 != null) {
+					nodesG2.add(nodeG2);
+				}
+			}
+		}
+		return nodesG2;
+	}
+
 	public Set<CloneStructureNode> getChildren() {
 		return children;
 	}

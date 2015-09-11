@@ -113,6 +113,21 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return nodes;
 	}
 
+	public Set<PDGNode> getTrueControlDependentNodes() {
+		Set<PDGNode> nodes = new LinkedHashSet<PDGNode>();
+		for(GraphEdge edge : outgoingEdges) {
+			PDGDependence dependence = (PDGDependence)edge;
+			if(dependence instanceof PDGControlDependence) {
+				PDGControlDependence controlDependence = (PDGControlDependence)dependence;
+				if(controlDependence.isTrueControlDependence()) {
+					PDGNode dstNode = (PDGNode)controlDependence.getDst();
+					nodes.add(dstNode);
+				}
+			}
+		}
+		return nodes;
+	}
+
 	public PDGNode getControlDependenceParent() {
 		for(GraphEdge edge : incomingEdges) {
 			PDGDependence dependence = (PDGDependence)edge;
@@ -131,6 +146,15 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 				return true;
 			}
 			parent = parent.getControlDependenceParent();
+		}
+		return false;
+	}
+
+	public boolean isControlDependentOnOneOfTheNodes(Set<PDGNode> nodes) {
+		for(PDGNode node : nodes) {
+			if(this.isControlDependentOnNode(node)) {
+				return true;
+			}
 		}
 		return false;
 	}

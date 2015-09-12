@@ -1297,7 +1297,7 @@ public abstract class DivideAndConquerMatcher {
 					}
 				}
 				if(!currentStates.isEmpty())
-					finalStates = getMinimumDifferenceStates(currentStates);
+					finalStates = getMaximumStates(currentStates);
 			}
 		}
 		else {
@@ -1336,7 +1336,7 @@ public abstract class DivideAndConquerMatcher {
 					}
 				}
 				if(!currentStates.isEmpty())
-					finalStates = getMinimumDifferenceStates(currentStates);
+					finalStates = getMaximumStates(currentStates);
 			}
 		}
 		if(finalStates.isEmpty() && parent != null)
@@ -1401,8 +1401,19 @@ public abstract class DivideAndConquerMatcher {
 		return finalStates;
 	}
 
-	private List<MappingState> getMinimumDifferenceStates(List<MappingState> currentStates) {
-		List<MappingState> maximumStates = currentStates;
+	private List<MappingState> getMaximumStates(List<MappingState> currentStates) {
+		int max = 0;
+		List<MappingState> maximumStates = new ArrayList<MappingState>();
+		for(MappingState currentState : currentStates) {
+			if(currentState.getSize() > max) {
+				max = currentState.getSize();
+				maximumStates.clear();
+				maximumStates.add(currentState);
+			}
+			else if(currentState.getSize() == max) {
+				maximumStates.add(currentState);
+			}
+		}
 		List<MappingState> maximumStatesWithMinimumDifferences = new ArrayList<MappingState>();
 		if(maximumStates.size() == 1) {
 			maximumStatesWithMinimumDifferences.add(maximumStates.get(0));

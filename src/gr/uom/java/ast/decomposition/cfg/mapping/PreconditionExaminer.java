@@ -1570,12 +1570,28 @@ public class PreconditionExaminer {
 	}
 
 	private void checkIfAllPossibleExecutionFlowsEndInReturn() {
-		Set<PDGNode> allConditionalReturnStatements1 = extractConditionalReturnStatements(pdg1.getNodes());
-		Set<PDGNode> allConditionalReturnStatements2 = extractConditionalReturnStatements(pdg2.getNodes());
+		Set<? extends GraphNode> nodesToBeExaminedInPDG1 = null;
+		Set<PDGNode> descendantNodesG1 = cloneStructureRoot.getDescendantNodesG1();
+		if(getAllNodesInCloneBlock(allNodesInSubTreePDG1, pdg1).equals(descendantNodesG1)) {
+			nodesToBeExaminedInPDG1 = descendantNodesG1;
+		}
+		else {
+			nodesToBeExaminedInPDG1 = pdg1.getNodes();
+		}
+		Set<? extends GraphNode> nodesToBeExaminedInPDG2 = null;
+		Set<PDGNode> descendantNodesG2 = cloneStructureRoot.getDescendantNodesG2();
+		if(getAllNodesInCloneBlock(allNodesInSubTreePDG2, pdg2).equals(descendantNodesG2)) {
+			nodesToBeExaminedInPDG2 = descendantNodesG2;
+		}
+		else {
+			nodesToBeExaminedInPDG2 = pdg2.getNodes();
+		}
+		Set<PDGNode> allConditionalReturnStatements1 = extractConditionalReturnStatements(nodesToBeExaminedInPDG1);
+		Set<PDGNode> allConditionalReturnStatements2 = extractConditionalReturnStatements(nodesToBeExaminedInPDG2);
 		Set<PDGNode> mappedConditionalReturnStatements1 = extractConditionalReturnStatements(mappedNodesG1);
 		Set<PDGNode> mappedConditionalReturnStatements2 = extractConditionalReturnStatements(mappedNodesG2);
-		Set<PDGNode> returnStatementsAfterMappedNodes1 = mappedNodesG1.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(pdg1.getNodes(), mappedNodesG1.last().getId());
-		Set<PDGNode> returnStatementsAfterMappedNodes2 = mappedNodesG2.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(pdg2.getNodes(), mappedNodesG2.last().getId());
+		Set<PDGNode> returnStatementsAfterMappedNodes1 = mappedNodesG1.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(nodesToBeExaminedInPDG1, mappedNodesG1.last().getId());
+		Set<PDGNode> returnStatementsAfterMappedNodes2 = mappedNodesG2.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(nodesToBeExaminedInPDG2, mappedNodesG2.last().getId());
 		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
 				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0)) {
 			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
@@ -1600,6 +1616,25 @@ public class PreconditionExaminer {
 				}
 			}
 		}
+	}
+
+	private Set<PDGNode> getAllNodesInCloneBlock(TreeSet<PDGNode> allNodesInSubTreePDG, PDG pdg) {
+		Set<PDGNode> allNodesInCloneBlock = new TreeSet<PDGNode>();
+		if(!allNodesInSubTreePDG.isEmpty()) {
+			PDGNode first = allNodesInSubTreePDG.first();
+			PDGNode controlParent = first.getControlDependenceParent();
+			if(controlParent != null) {
+				Set<PDGNode> trueControlDependentNodes = controlParent.getTrueControlDependentNodes();
+				allNodesInCloneBlock.addAll(trueControlDependentNodes);
+				for(GraphNode node : pdg.getNodes()) {
+					PDGNode pdgNode = (PDGNode)node;
+					if(pdgNode.isControlDependentOnOneOfTheNodes(trueControlDependentNodes)) {
+						allNodesInCloneBlock.add(pdgNode);
+					}
+				}
+			}
+		}
+		return allNodesInCloneBlock;
 	}
 
 	private Set<PDGNode> extractConditionalReturnStatements(Set<? extends GraphNode> nodes) {

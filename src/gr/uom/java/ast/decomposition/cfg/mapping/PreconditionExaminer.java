@@ -1571,17 +1571,17 @@ public class PreconditionExaminer {
 
 	private void checkIfAllPossibleExecutionFlowsEndInReturn() {
 		Set<? extends GraphNode> nodesToBeExaminedInPDG1 = null;
-		Set<PDGNode> descendantNodesG1 = cloneStructureRoot.getDescendantNodesG1();
-		if(getAllNodesInCloneBlock(allNodesInSubTreePDG1, pdg1).equals(descendantNodesG1)) {
-			nodesToBeExaminedInPDG1 = descendantNodesG1;
+		Set<PDGNode> allNodesInCloneBlock1 = getAllNodesInCloneBlock(allNodesInSubTreePDG1, pdg1);
+		if(allNodesInCloneBlock1.containsAll(cloneStructureRoot.getDescendantNodesG1())) {
+			nodesToBeExaminedInPDG1 = allNodesInCloneBlock1;
 		}
 		else {
 			nodesToBeExaminedInPDG1 = pdg1.getNodes();
 		}
 		Set<? extends GraphNode> nodesToBeExaminedInPDG2 = null;
-		Set<PDGNode> descendantNodesG2 = cloneStructureRoot.getDescendantNodesG2();
-		if(getAllNodesInCloneBlock(allNodesInSubTreePDG2, pdg2).equals(descendantNodesG2)) {
-			nodesToBeExaminedInPDG2 = descendantNodesG2;
+		Set<PDGNode> allNodesInCloneBlock2 = getAllNodesInCloneBlock(allNodesInSubTreePDG2, pdg2);
+		if(allNodesInCloneBlock2.containsAll(cloneStructureRoot.getDescendantNodesG2())) {
+			nodesToBeExaminedInPDG2 = allNodesInCloneBlock2;
 		}
 		else {
 			nodesToBeExaminedInPDG2 = pdg2.getNodes();
@@ -1625,7 +1625,25 @@ public class PreconditionExaminer {
 			PDGNode controlParent = first.getControlDependenceParent();
 			if(controlParent != null) {
 				Set<PDGNode> trueControlDependentNodes = controlParent.getTrueControlDependentNodes();
-				allNodesInCloneBlock.addAll(trueControlDependentNodes);
+				if(controlParent instanceof PDGControlPredicateNode && controlParent.getStatement().getType().equals(StatementType.SWITCH) && !containSwitchCase(allNodesInSubTreePDG)) {
+					PDGNode switchCaseBefore = findSwitchCaseBefore(allNodesInSubTreePDG, pdg);
+					PDGNode switchCaseAfter = findSwitchCaseAfter(allNodesInSubTreePDG, pdg);
+					int idBefore = switchCaseBefore != null ? switchCaseBefore.getId() : 0;
+					int idAfter = switchCaseAfter != null ? switchCaseAfter.getId() : pdg.getTotalNumberOfStatements()+1;
+					Set<PDGNode> trueControlDependentNodesToBeRemoved = new LinkedHashSet<PDGNode>();
+					for(PDGNode node : trueControlDependentNodes) {
+						if(node.getId() > idBefore && node.getId() < idAfter) {
+							allNodesInCloneBlock.add(node);
+						}
+						else {
+							trueControlDependentNodesToBeRemoved.add(node);
+						}
+					}
+					trueControlDependentNodes.removeAll(trueControlDependentNodesToBeRemoved);
+				}
+				else {
+					allNodesInCloneBlock.addAll(trueControlDependentNodes);
+				}
 				for(GraphNode node : pdg.getNodes()) {
 					PDGNode pdgNode = (PDGNode)node;
 					if(pdgNode.isControlDependentOnOneOfTheNodes(trueControlDependentNodes)) {
@@ -1635,6 +1653,49 @@ public class PreconditionExaminer {
 			}
 		}
 		return allNodesInCloneBlock;
+	}
+
+	private boolean containSwitchCase(TreeSet<PDGNode> allNodesInSubTreePDG) {
+		for(PDGNode node : allNodesInSubTreePDG) {
+			if(node.getStatement().getType().equals(StatementType.SWITCH_CASE)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private PDGNode findSwitchCaseBefore(TreeSet<PDGNode> allNodesInSubTreePDG, PDG pdg) {
+		PDGNode first = allNodesInSubTreePDG.first();
+		PDGNode switchCaseBefore = null;
+		for(GraphNode node : pdg.getNodes()) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.getStatement().getType().equals(StatementType.SWITCH_CASE)) {
+				switchCaseBefore = pdgNode;
+			}
+			if(pdgNode.equals(first)) {
+				return switchCaseBefore;
+			}
+		}
+		return null;
+	}
+
+	private PDGNode findSwitchCaseAfter(TreeSet<PDGNode> allNodesInSubTreePDG, PDG pdg) {
+		PDGNode last = allNodesInSubTreePDG.last();
+		PDGNode switchCaseAfter = null;
+		boolean nextSwitchCaseShouldBeReturned = false;
+		for(GraphNode node : pdg.getNodes()) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.getStatement().getType().equals(StatementType.SWITCH_CASE)) {
+				switchCaseAfter = pdgNode;
+				if(nextSwitchCaseShouldBeReturned) {
+					return switchCaseAfter;
+				}
+			}
+			if(pdgNode.equals(last)) {
+				nextSwitchCaseShouldBeReturned = true;
+			}
+		}
+		return null;
 	}
 
 	private Set<PDGNode> extractConditionalReturnStatements(Set<? extends GraphNode> nodes) {

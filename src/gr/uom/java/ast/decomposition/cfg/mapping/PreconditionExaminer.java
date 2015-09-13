@@ -1689,7 +1689,7 @@ public class PreconditionExaminer {
 			PDGNode controlParent = first.getControlDependenceParent();
 			if(controlParent != null) {
 				Set<PDGNode> trueControlDependentNodes = controlParent.getTrueControlDependentNodes();
-				if(controlParent.getStatement().getType().equals(StatementType.SWITCH) && !containSwitchCase(allNodesInSubTreePDG)) {
+				if(controlParent instanceof PDGControlPredicateNode && controlParent.getStatement().getType().equals(StatementType.SWITCH) && !containSwitchCase(allNodesInSubTreePDG)) {
 					PDGNode switchCaseBefore = findSwitchCaseBefore(allNodesInSubTreePDG, pdg);
 					PDGNode switchCaseAfter = findSwitchCaseAfter(allNodesInSubTreePDG, pdg);
 					int idBefore = switchCaseBefore != null ? switchCaseBefore.getId() : 0;

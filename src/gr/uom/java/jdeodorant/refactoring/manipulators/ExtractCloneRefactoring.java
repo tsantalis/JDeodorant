@@ -393,6 +393,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return false;
 	}
 
+	private BindingSignaturePair variableBelongsToParameterizedDifferences(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
+		for(BindingSignaturePair pair : parameterizedDifferenceMap.keySet()) {
+			if(pair.getSignature1().containsOnlyBinding(variableDeclaration1.resolveBinding().getKey()) &&
+					pair.getSignature2().containsOnlyBinding(variableDeclaration2.resolveBinding().getKey())) {
+				return pair;
+			}
+		}
+		return null;
+	}
+
 	private boolean variableIsPassedAsCommonParameter(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
 		for(VariableBindingKeyPair pair : mapper.getCommonPassedParameters().keySet()) {
 			if(pair.getKey1().equals(variableDeclaration1.resolveBinding().getKey()) &&
@@ -1182,10 +1192,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 &&
 				!mappedNodesContainStatementReturningVariable(returnedVariables1.get(0), returnedVariables2.get(0))) {
 			ReturnStatement returnStatement = ast.newReturnStatement();
-			sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariables1.get(0).getName(), null);
+			BindingSignaturePair variableBelongingToParameterizedDifferences = variableBelongsToParameterizedDifferences(returnedVariables1.get(0), returnedVariables2.get(0));
+			if(variableBelongingToParameterizedDifferences != null) {
+				int existingArgValue = findExistingParametersWithArgName();
+				int i = 0;
+				if(existingArgValue > 0) {
+					i = existingArgValue + 1;
+				}
+				for(BindingSignaturePair pair : parameterizedDifferenceMap.keySet()) {
+					if(pair.equals(variableBelongingToParameterizedDifferences)) {
+						break;
+					}
+					i++;
+				}
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, ast.newSimpleName("arg" + i), null);
+			}
+			else {
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, returnedVariables1.get(0).getName(), null);
+			}
 			methodBodyRewrite.insertLast(returnStatement, null);
 			if(!mappedNodesContainStatementDeclaringVariable(returnedVariables1.get(0), returnedVariables2.get(0)) &&
 					!mappedNodesContainDifferentStatementsDeclaringVariables(returnedVariables1.get(0), returnedVariables2.get(0)) &&
+					variableBelongingToParameterizedDifferences == null &&
 					!variableIsPassedAsCommonParameter(returnedVariables1.get(0), returnedVariables2.get(0))) {
 				ITypeBinding returnedTypeBinding = extractTypeBinding(returnedVariables1.get(0));
 				Expression initializer = generateDefaultValue(sourceRewriter, ast, returnedTypeBinding);
@@ -1228,7 +1256,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					: ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding();
 			ITypeBinding typeBinding2 = expression2 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding()
 					: ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression()).resolveTypeBinding();
-			if(!isReturnedVariable) {
+			if(!isReturnedVariable ||
+					(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 && variableBelongsToParameterizedDifferences(returnedVariables1.get(0), returnedVariables2.get(0)) != null)) {
 				ITypeBinding typeBinding = null;
 				if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) || difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||
 						differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
@@ -3638,7 +3667,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			boolean isReturnedVariable = false;
 			if(expression != null)
 				isReturnedVariable = isReturnedVariable(expression, returnedVariables);
-			if(!isReturnedVariable) {
+			List<VariableDeclaration> returnedVariables1 = this.returnedVariables.get(0);
+			List<VariableDeclaration> returnedVariables2 = this.returnedVariables.get(1);
+			if(!isReturnedVariable ||
+					(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 && variableBelongsToParameterizedDifferences(returnedVariables1.get(0), returnedVariables2.get(0)) != null)) {
 				if(expression != null) {
 					if(difference.containsDifferenceType(DifferenceType.IF_ELSE_SYMMETRICAL_MATCH) && index == 1) {
 						ParenthesizedExpression parenthesizedExpression = ast.newParenthesizedExpression();

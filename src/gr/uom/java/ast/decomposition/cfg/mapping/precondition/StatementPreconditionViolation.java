@@ -43,6 +43,12 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 			sb.append(str.substring(0, str.lastIndexOf("\n")));
 			sb.append(" without innermost loop");
 		}
+		else if(type.equals(PreconditionViolationType.SWITCH_CASE_STATEMENT_WITHOUT_SWITCH)) {
+			sb.append("Switch ");
+			String str = statement.toString();
+			sb.append(str.substring(0, str.lastIndexOf("\n")));
+			sb.append(" without corresponding switch");
+		}
 		else if(type.equals(PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT)) {
 			sb.append("Conditional ");
 			String str = statement.toString();
@@ -94,6 +100,12 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 			String str = statement.toString();
 			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
 			styledString.append(" without innermost loop", normalStyler);
+		}
+		else if(type.equals(PreconditionViolationType.SWITCH_CASE_STATEMENT_WITHOUT_SWITCH)) {
+			styledString.append("Switch ", normalStyler);
+			String str = statement.toString();
+			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
+			styledString.append(" without corresponding switch", normalStyler);
 		}
 		else if(type.equals(PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT)) {
 			styledString.append("Conditional ", normalStyler);

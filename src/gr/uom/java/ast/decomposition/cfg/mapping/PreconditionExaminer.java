@@ -1830,6 +1830,18 @@ public class PreconditionExaminer {
 		}
 	}
 
+	private void switchCaseStatementWithInnermostSwitch(NodeMapping nodeMapping, PDGNode node, Set<PDGNode> mappedNodes) {
+		if(node.getStatement().getType().equals(StatementType.SWITCH_CASE)) {
+			PDGNode controlParent = node.getControlDependenceParent();
+			if(controlParent != null && !mappedNodes.contains(controlParent)) {
+				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
+						PreconditionViolationType.SWITCH_CASE_STATEMENT_WITHOUT_SWITCH);
+				nodeMapping.addPreconditionViolation(violation);
+				preconditionViolations.add(violation);
+			}
+		}
+	}
+
 	private void checkIfStatementIsSuperConstructorInvocation(NodeMapping nodeMapping, PDGNode node) {
 		AbstractStatement statement = node.getStatement();
 		if(statement.getType().equals(StatementType.SUPER_CONSTRUCTOR_INVOCATION)) {
@@ -2042,6 +2054,8 @@ public class PreconditionExaminer {
 		if(nodeMapping instanceof PDGNodeMapping) {
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
 			branchStatementWithInnermostLoop(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
+			switchCaseStatementWithInnermostSwitch(nodeMapping, nodeMapping.getNodeG1(), removableNodesG1);
+			switchCaseStatementWithInnermostSwitch(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
 			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG1());

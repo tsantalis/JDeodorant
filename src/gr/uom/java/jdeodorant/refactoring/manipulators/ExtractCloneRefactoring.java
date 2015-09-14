@@ -47,6 +47,7 @@ import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.decomposition.matching.FieldAccessReplacedWithGetterInvocationDifference;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.SuperMethodInvocationVisitor;
 import gr.uom.java.ast.util.ThrownExceptionVisitor;
 import gr.uom.java.ast.util.TypeVisitor;
 
@@ -942,7 +943,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									//static methods with the same signature, but different bodies are called. A parameter should be introduced in the extracted method
 									createDifferencesForStaticMethodCalls(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding());
 								}
-								else {
+								else if(!containsSuperMethodCall(typeDeclaration1, methodDeclaration1.resolveBinding()) && !containsSuperMethodCall(typeDeclaration2, methodDeclaration2.resolveBinding())) {
 									MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
 									if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
@@ -1305,6 +1306,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		cloneInfo.requiredImportTypeBindings = requiredImportTypeBindings;
 		cloneInfo.methodBodyRewrite = methodBodyRewrite;
 		cloneInfo.parameterRewrite = parameterRewrite;
+	}
+
+	private boolean containsSuperMethodCall(TypeDeclaration typeDeclaration, IMethodBinding methodBinding) {
+		SuperMethodInvocationVisitor visitor = new SuperMethodInvocationVisitor();
+		typeDeclaration.accept(visitor);
+		List<SuperMethodInvocation> superMethodInvocations = visitor.getSuperMethodInvocations();
+		for(SuperMethodInvocation superMethodInvocation : superMethodInvocations) {
+			if(methodBinding.overrides(superMethodInvocation.resolveMethodBinding())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean commonSuperTypeDeclaresMethodWithIdenticalSignature(MethodDeclaration method) {

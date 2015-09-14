@@ -4772,6 +4772,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}*/
 			extractedMethodInvocationStatement = methodInvocationStatement;
 		}
+		for(Statement movedBefore : statementsToBeMovedBefore) {
+			blockRewrite.insertBefore(movedBefore, extractedMethodInvocationStatement, null);
+		}
 		//create final variables for the non-effectively final variables used in the lambda expressions
 		for(VariableBindingPair pair : nonEffectivelyFinalLocalVariables) {
 			IVariableBinding variableBinding = index == 0 ? pair.getBinding1() : pair.getBinding2();
@@ -4788,9 +4791,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			ListRewrite modifierRewrite = methodBodyRewriter.getListRewrite(variableDeclarationStatement, VariableDeclarationStatement.MODIFIERS2_PROPERTY);
 			modifierRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
 			blockRewrite.insertBefore(variableDeclarationStatement, extractedMethodInvocationStatement, null);
-		}
-		for(Statement movedBefore : statementsToBeMovedBefore) {
-			blockRewrite.insertBefore(movedBefore, extractedMethodInvocationStatement, null);
 		}
 		for(int i=statementsToBeMovedAfter.size()-1; i>=0; i--) {
 			Statement movedAfter = statementsToBeMovedAfter.get(i);

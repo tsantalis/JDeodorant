@@ -391,6 +391,33 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return false;
 	}
 
+	private boolean mappedNodesContainStatementDeclaringVariable(IVariableBinding variableBinding1, IVariableBinding variableBinding2) {
+		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
+			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
+			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
+			boolean node1DeclaresVariable = false;
+			for(Iterator<AbstractVariable> declaredVariableIterator = pdgNode1.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable.getVariableBindingKey().equals(variableBinding1.getKey())) {
+					node1DeclaresVariable = true;
+					break;
+				}
+			}
+			boolean node2DeclaresVariable = false;
+			for(Iterator<AbstractVariable> declaredVariableIterator = pdgNode2.getDeclaredVariableIterator(); declaredVariableIterator.hasNext();) {
+				AbstractVariable declaredVariable = declaredVariableIterator.next();
+				if(declaredVariable.getVariableBindingKey().equals(variableBinding2.getKey())) {
+					node2DeclaresVariable = true;
+					break;
+				}
+			}
+			if(node1DeclaresVariable && node2DeclaresVariable) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private boolean mappedNodesContainDifferentStatementsDeclaringVariables(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
 		boolean variable1IsDeclared = false;
 		boolean variable2IsDeclared = false;
@@ -3222,7 +3249,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					break;
 				}
 			}
-			if((variableBinding1IsDeclaredInRemainingNodes && variableBinding2IsDeclaredInRemainingNodes && variablesPassedAsCommonParameter) || parameterTypeBindings.contains(blockGap.getReturnedVariableBinding())) {
+			if((variableBinding1IsDeclaredInRemainingNodes && variableBinding2IsDeclaredInRemainingNodes && variablesPassedAsCommonParameter) ||
+					parameterTypeBindings.contains(blockGap.getReturnedVariableBinding()) || mappedNodesContainStatementDeclaringVariable(variableBinding1, variableBinding2)) {
 				Assignment assignment = ast.newAssignment();
 				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
 				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, interfaceMethodInvocation, null);

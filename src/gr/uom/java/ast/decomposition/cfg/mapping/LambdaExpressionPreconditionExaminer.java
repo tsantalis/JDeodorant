@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -132,6 +133,10 @@ public class LambdaExpressionPreconditionExaminer {
 			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2) && validReturnTypeBinding(returnTypeBinding1, returnTypeBinding2)) {
 				for(VariableBindingPair pair : parameterTypeBindings) {
 					if(introduceParameter(pair)) {
+						if(blockGap.variableIsDefinedButNotUsed(pair) && variableIsDeclaredInMappedNodes(pair) &&
+								!variableIsInitializedInMappedNodes(pair) && !variableIsDefinedInMappedNodesBeforeGap(pair, blockGap)) {
+							continue;
+						}		
 						blockGap.addParameterBinding(pair);
 					}
 					IVariableBinding binding1 = pair.getBinding1();
@@ -392,6 +397,64 @@ public class LambdaExpressionPreconditionExaminer {
 			PDGNode node2 = mapping.getNodeG2();
 			if(node1.declaresLocalVariable(variable1) && node2.declaresLocalVariable(variable2)) {
 				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean variableIsDefinedInMappedNodesBeforeGap(VariableBindingPair pair, PDGNodeBlockGap blockGap) {
+		IVariableBinding binding1 = pair.getBinding1();
+		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+		IVariableBinding binding2 = pair.getBinding2();
+		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+		int blockGapFirstNodeId1 = blockGap.getNodesG1().isEmpty() ? finalState.getMappedNodesG1().last().getId() : blockGap.getNodesG1().first().getId();
+		int blockGapFirstNodeId2 = blockGap.getNodesG2().isEmpty() ? finalState.getMappedNodesG2().last().getId() : blockGap.getNodesG2().first().getId();
+		for(PDGNodeMapping mapping : finalState.getSortedNodeMappings()) {
+			PDGNode node1 = mapping.getNodeG1();
+			PDGNode node2 = mapping.getNodeG2();
+			if(node1.getId() < blockGapFirstNodeId1 && node2.getId() < blockGapFirstNodeId2 &&
+					node1.definesLocalVariable(variable1) && node2.definesLocalVariable(variable2) &&
+					!node1.declaresLocalVariable(variable1) && !node2.declaresLocalVariable(variable2)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean variableIsInitializedInMappedNodes(VariableBindingPair pair) {
+		IVariableBinding binding1 = pair.getBinding1();
+		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+		IVariableBinding binding2 = pair.getBinding2();
+		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+		for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
+			PDGNode node1 = mapping.getNodeG1();
+			PDGNode node2 = mapping.getNodeG2();
+			if(node1.declaresLocalVariable(variable1) && node2.declaresLocalVariable(variable2)) {
+				boolean variable1IsInitialized = false;
+				List<LocalVariableDeclarationObject> localVariableDeclarations1 = node1.getStatement().getLocalVariableDeclarations();
+				for(LocalVariableDeclarationObject localVariableDeclaration : localVariableDeclarations1) {
+					if(localVariableDeclaration.getVariableBindingKey().equals(binding1.getKey())) {
+						if(localVariableDeclaration.getVariableDeclaration().getInitializer() != null) {
+							variable1IsInitialized = true;
+							break;
+						}
+					}
+				}
+				boolean variable2IsInitialized = false;
+				List<LocalVariableDeclarationObject> localVariableDeclarations2 = node2.getStatement().getLocalVariableDeclarations();
+				for(LocalVariableDeclarationObject localVariableDeclaration : localVariableDeclarations2) {
+					if(localVariableDeclaration.getVariableBindingKey().equals(binding2.getKey())) {
+						if(localVariableDeclaration.getVariableDeclaration().getInitializer() != null) {
+							variable2IsInitialized = true;
+							break;
+						}
+					}
+				}
+				return variable1IsInitialized && variable2IsInitialized;
 			}
 		}
 		return false;

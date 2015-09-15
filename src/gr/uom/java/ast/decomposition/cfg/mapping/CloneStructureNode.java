@@ -96,20 +96,31 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		PDGNodeBlockGap blockGap = new PDGNodeBlockGap(this);
 		for(CloneStructureNode child : children) {
 			if(child.getMapping() instanceof PDGNodeGap) {
-				PDGNodeGap gap = (PDGNodeGap)child.getMapping();
-				blockGap.add(gap);
-				Set<CloneStructureNode> descendants = child.getDescendants();
-				int numberOfGapDescendants = 0;
-				for(CloneStructureNode descendant : descendants) {
-					if(descendant.getMapping() instanceof PDGNodeGap || descendant.getMapping() instanceof PDGElseGap) {
-						numberOfGapDescendants++;
+				boolean containsUnacceptablePreconditionViolation = false;
+				for(PreconditionViolation violation : child.getMapping().getPreconditionViolations()) {
+					if(violation.getType().equals(PreconditionViolationType.UNMATCHED_BREAK_STATEMENT) ||
+							violation.getType().equals(PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT) ||
+							violation.getType().equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT)) {
+						containsUnacceptablePreconditionViolation = true;
+						break;
 					}
 				}
-				if(descendants.size() == numberOfGapDescendants) {
+				if(!containsUnacceptablePreconditionViolation) {
+					PDGNodeGap gap = (PDGNodeGap)child.getMapping();
+					blockGap.add(gap);
+					Set<CloneStructureNode> descendants = child.getDescendants();
+					int numberOfGapDescendants = 0;
 					for(CloneStructureNode descendant : descendants) {
-						if(descendant.getMapping() instanceof PDGNodeGap) {
-							PDGNodeGap descendantGap = (PDGNodeGap)descendant.getMapping();
-							blockGap.add(descendantGap);
+						if(descendant.getMapping() instanceof PDGNodeGap || descendant.getMapping() instanceof PDGElseGap) {
+							numberOfGapDescendants++;
+						}
+					}
+					if(descendants.size() == numberOfGapDescendants) {
+						for(CloneStructureNode descendant : descendants) {
+							if(descendant.getMapping() instanceof PDGNodeGap) {
+								PDGNodeGap descendantGap = (PDGNodeGap)descendant.getMapping();
+								blockGap.add(descendantGap);
+							}
 						}
 					}
 				}

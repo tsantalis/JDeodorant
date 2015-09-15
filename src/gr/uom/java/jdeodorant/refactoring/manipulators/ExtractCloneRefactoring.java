@@ -2227,7 +2227,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(VariableDeclaration localFieldG2 : accessedLocalFieldsG2) {
 				FieldDeclaration originalFieldDeclarationG2 = (FieldDeclaration)localFieldG2.getParent();
 				if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier()) &&
-						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1))) {
+						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&
+						!fieldDeclarationsToBePulledUp.get(0).contains(localFieldG1) && !fieldDeclarationsToBePulledUp.get(1).contains(localFieldG2)) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
 					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) /*||
 							(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))*/) {

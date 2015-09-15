@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.ReturnStatement;
 
 public class CloneStructureNode implements Comparable<CloneStructureNode> {
 	private CloneStructureNode parent;
@@ -96,17 +97,32 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 		PDGNodeBlockGap blockGap = new PDGNodeBlockGap(this);
 		for(CloneStructureNode child : children) {
 			if(child.getMapping() instanceof PDGNodeGap) {
+				PDGNodeGap gap = (PDGNodeGap)child.getMapping();
 				boolean containsUnacceptablePreconditionViolation = false;
 				for(PreconditionViolation violation : child.getMapping().getPreconditionViolations()) {
 					if(violation.getType().equals(PreconditionViolationType.UNMATCHED_BREAK_STATEMENT) ||
-							violation.getType().equals(PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT) ||
-							violation.getType().equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT)) {
+							violation.getType().equals(PreconditionViolationType.UNMATCHED_CONTINUE_STATEMENT)) {
 						containsUnacceptablePreconditionViolation = true;
 						break;
 					}
+					else if(violation.getType().equals(PreconditionViolationType.UNMATCHED_RETURN_STATEMENT)) {
+						if(gap.getNodeG1() != null && gap.getNodeG2() == null) {
+							ReturnStatement returnStatement = (ReturnStatement) gap.getNodeG1().getASTStatement();
+							if(returnStatement.getExpression() == null) {
+								containsUnacceptablePreconditionViolation = true;
+								break;
+							}
+						}
+						else if(gap.getNodeG1() == null && gap.getNodeG2() != null) {
+							ReturnStatement returnStatement = (ReturnStatement) gap.getNodeG2().getASTStatement();
+							if(returnStatement.getExpression() == null) {
+								containsUnacceptablePreconditionViolation = true;
+								break;
+							}
+						}
+					}
 				}
 				if(!containsUnacceptablePreconditionViolation) {
-					PDGNodeGap gap = (PDGNodeGap)child.getMapping();
 					blockGap.add(gap);
 					Set<CloneStructureNode> descendants = child.getDescendants();
 					int numberOfGapDescendants = 0;

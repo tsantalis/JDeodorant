@@ -3251,7 +3251,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 			if((variableBinding1IsDeclaredInRemainingNodes && variableBinding2IsDeclaredInRemainingNodes && variablesPassedAsCommonParameter) ||
-					parameterTypeBindings.contains(blockGap.getReturnedVariableBinding()) || mappedNodesContainStatementDeclaringVariable(variableBinding1, variableBinding2)) {
+					parameterTypeBindings.contains(blockGap.getReturnedVariableBinding()) ||
+					(mappedNodesContainStatementDeclaringVariable(variableBinding1, variableBinding2) && !blockGap.variableIsDeclaredInBlockGap(blockGap.getReturnedVariableBinding()))) {
 				Assignment assignment = ast.newAssignment();
 				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
 				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, interfaceMethodInvocation, null);

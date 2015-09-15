@@ -133,7 +133,7 @@ public class LambdaExpressionPreconditionExaminer {
 			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2) && validReturnTypeBinding(returnTypeBinding1, returnTypeBinding2)) {
 				for(VariableBindingPair pair : parameterTypeBindings) {
 					if(introduceParameter(pair)) {
-						if(blockGap.variableIsDefinedButNotUsed(pair) && variableIsDeclaredInMappedNodes(pair) &&
+						if(blockGap.variableIsDefinedButNotUsedInBlockGap(pair) && variableIsDeclaredInMappedNodes(pair) &&
 								!variableIsInitializedInMappedNodes(pair) && !variableIsDefinedInMappedNodesBeforeGap(pair, blockGap)) {
 							continue;
 						}		

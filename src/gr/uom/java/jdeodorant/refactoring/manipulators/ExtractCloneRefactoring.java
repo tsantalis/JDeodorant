@@ -41,6 +41,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolat
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.UncommonSuperclassPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ZeroMatchedStatementsPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignature;
@@ -5208,6 +5209,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 				else if(violation instanceof UncommonSuperclassPreconditionViolation) {
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
+				}
+				else if(violation instanceof ZeroMatchedStatementsPreconditionViolation) {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 			}

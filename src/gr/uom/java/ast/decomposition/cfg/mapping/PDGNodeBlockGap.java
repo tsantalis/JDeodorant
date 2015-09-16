@@ -197,7 +197,7 @@ public class PDGNodeBlockGap extends Gap {
 				PDGNodeMapping nodeMapping = (PDGNodeMapping)child.getMapping();
 				PDGNode nodeG1 = nodeMapping.getNodeG1();
 				PDGNode nodeG2 = nodeMapping.getNodeG2();
-				if(lastNodeG1Found && lastNodeG2Found && !nodeMapping.getPreconditionViolations().isEmpty()) {
+				if(lastNodeG1Found && lastNodeG2Found && !nodeMapping.getPreconditionViolations().isEmpty() && !nodesG1.contains(nodeG1) && !nodesG2.contains(nodeG2)) {
 					nodeDifferences.addAll(nodeMapping.getNodeDifferences());
 					nodesG1.add(nodeG1);
 					nodesG2.add(nodeG2);

@@ -51,6 +51,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolat
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.UncommonSuperclassPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ZeroMatchedStatementsPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignature;
@@ -353,6 +354,18 @@ public class PreconditionExaminer {
 				nonMappedNodes.add(pdgNode);
 			}
 		}
+		//remove mapped control predicate nodes having all statements nested inside them as unmapped nodes
+		Set<PDGNode> mappedNodesToBeRemoved = new LinkedHashSet<PDGNode>();
+		for(PDGNode pdgNode : mappedNodes) {
+			if(pdgNode instanceof PDGControlPredicateNode) {
+				Set<PDGNode> controlDependentNodes = pdgNode.getControlDependentNodes();
+				if(nonMappedNodes.containsAll(controlDependentNodes)) {
+					mappedNodesToBeRemoved.add(pdgNode);
+				}
+			}
+		}
+		mappedNodes.removeAll(mappedNodesToBeRemoved);
+		nonMappedNodes.addAll(mappedNodesToBeRemoved);
 	}
 
 	private Set<PlainVariable> findDeclaredVariablesInRemainingNodesDefinedByMappedNodes(PDG pdg, Set<PDGNode> mappedNodes) {
@@ -2874,6 +2887,11 @@ public class PreconditionExaminer {
 		}
 		else if(methodDeclaration2.getParent() instanceof AnonymousClassDeclaration) {
 			typeBinding2 = ((AnonymousClassDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		if(mappedNodesG1.isEmpty() && mappedNodesG2.isEmpty()) {
+			PreconditionViolation violation = new ZeroMatchedStatementsPreconditionViolation();
+			preconditionViolations.add(violation);
+			return CloneRefactoringType.INFEASIBLE;
 		}
 		if(typeBinding1.isAnonymous() || typeBinding2.isAnonymous()) {
 			PreconditionViolation violation = new UncommonSuperclassPreconditionViolation(typeBinding1.getQualifiedName(), typeBinding2.getQualifiedName());

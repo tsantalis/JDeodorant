@@ -2329,22 +2329,11 @@ public class PreconditionExaminer {
 				}*/
 				for(Expression expression : allSimpleNamesInConditionalExpression) {
 					SimpleName simpleName = (SimpleName)expression;
-					boolean foundInDifferences = false;
-					for(ASTNodeDifference difference : differences) {
-						Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
-						Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
-						if(isExpressionWithinExpression(simpleName, expr1) || isExpressionWithinExpression(simpleName, expr2)) {
-							foundInDifferences = true;
-							break;
-						}
-					}
-					if(!foundInDifferences) {
-						IBinding binding = simpleName.resolveBinding();
-						if(binding.getKind() == IBinding.VARIABLE) {
-							IVariableBinding variableBinding = (IVariableBinding)binding;
-							if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
-								return true;
-							}
+					IBinding binding = simpleName.resolveBinding();
+					if(binding.getKind() == IBinding.VARIABLE) {
+						IVariableBinding variableBinding = (IVariableBinding)binding;
+						if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
+							return true;
 						}
 					}
 				}

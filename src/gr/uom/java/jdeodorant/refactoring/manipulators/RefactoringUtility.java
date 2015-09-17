@@ -154,7 +154,7 @@ public class RefactoringUtility {
 					typeBindingList.add(typeArgumentBinding);
 				getSimpleTypeBindings(typeBindingList, finalTypeBindings);
 			}
-			else if(typeBinding.isWildcardType()) {
+			else if(typeBinding.isWildcardType() && typeBinding.getBound() != null) {
 				Set<ITypeBinding> typeBindingList = new LinkedHashSet<ITypeBinding>();
 				typeBindingList.add(typeBinding.getBound());
 				getSimpleTypeBindings(typeBindingList, finalTypeBindings);

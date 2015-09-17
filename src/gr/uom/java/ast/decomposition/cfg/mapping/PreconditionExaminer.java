@@ -418,18 +418,6 @@ public class PreconditionExaminer {
 				nonMappedNodes.add(pdgNode);
 			}
 		}
-		//remove mapped control predicate nodes having all statements nested inside them as unmapped nodes
-		Set<PDGNode> mappedNodesToBeRemoved = new LinkedHashSet<PDGNode>();
-		for(PDGNode pdgNode : mappedNodes) {
-			if(pdgNode instanceof PDGControlPredicateNode) {
-				Set<PDGNode> controlDependentNodes = pdgNode.getControlDependentNodes();
-				if(nonMappedNodes.containsAll(controlDependentNodes)) {
-					mappedNodesToBeRemoved.add(pdgNode);
-				}
-			}
-		}
-		mappedNodes.removeAll(mappedNodesToBeRemoved);
-		nonMappedNodes.addAll(mappedNodesToBeRemoved);
 	}
 
 	private Set<PlainVariable> findDeclaredVariablesInRemainingNodesDefinedByMappedNodes(PDG pdg, Set<PDGNode> mappedNodes) {
@@ -2952,7 +2940,25 @@ public class PreconditionExaminer {
 		else if(methodDeclaration2.getParent() instanceof AnonymousClassDeclaration) {
 			typeBinding2 = ((AnonymousClassDeclaration)methodDeclaration2.getParent()).resolveBinding();
 		}
-		if(mappedNodesG1.isEmpty() && mappedNodesG2.isEmpty()) {
+		Set<PDGNode> mappedControlPredicateNodesWithAllNestedStatementsUnmappedG1 = new TreeSet<PDGNode>();
+		for(PDGNode pdgNode : mappedNodesG1) {
+			if(pdgNode instanceof PDGControlPredicateNode) {
+				Set<PDGNode> controlDependentNodes = pdgNode.getControlDependentNodes();
+				if(nonMappedNodesG1.containsAll(controlDependentNodes)) {
+					mappedControlPredicateNodesWithAllNestedStatementsUnmappedG1.add(pdgNode);
+				}
+			}
+		}
+		Set<PDGNode> mappedControlPredicateNodesWithAllNestedStatementsUnmappedG2 = new TreeSet<PDGNode>();
+		for(PDGNode pdgNode : mappedNodesG2) {
+			if(pdgNode instanceof PDGControlPredicateNode) {
+				Set<PDGNode> controlDependentNodes = pdgNode.getControlDependentNodes();
+				if(nonMappedNodesG2.containsAll(controlDependentNodes)) {
+					mappedControlPredicateNodesWithAllNestedStatementsUnmappedG2.add(pdgNode);
+				}
+			}
+		}
+		if(mappedNodesG1.equals(mappedControlPredicateNodesWithAllNestedStatementsUnmappedG1) && mappedNodesG2.equals(mappedControlPredicateNodesWithAllNestedStatementsUnmappedG2)) {
 			PreconditionViolation violation = new ZeroMatchedStatementsPreconditionViolation();
 			preconditionViolations.add(violation);
 			return CloneRefactoringType.INFEASIBLE;

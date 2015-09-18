@@ -2345,7 +2345,7 @@ public class PreconditionExaminer {
 			AbstractVariable variable = iterator.next();
 			if(variable instanceof PlainVariable) {
 				PlainVariable plainVariable = (PlainVariable)variable;
-				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents)) {
+				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents, false)) {
 					return true;
 				}
 			}
@@ -2364,14 +2364,14 @@ public class PreconditionExaminer {
 			AbstractVariable variable = iterator.next();
 			if(variable instanceof PlainVariable) {
 				PlainVariable plainVariable = (PlainVariable)variable;
-				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents)) {
+				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents, true)) {
 					return true;
 				}
 			}
 		}
 		return false;
 	}
-	private boolean controlParentExaminesVariableInCondition(PlainVariable plainVariable, TreeSet<PDGNode> removableControlParents) {
+	private boolean controlParentExaminesVariableInCondition(PlainVariable plainVariable, TreeSet<PDGNode> removableControlParents, boolean excludeVariablesFoundInDifferences) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<ASTNodeDifference> differences = getNodeDifferences();
 		for(PDGNode controlParent : removableControlParents) {
@@ -2393,11 +2393,33 @@ public class PreconditionExaminer {
 				}*/
 				for(Expression expression : allSimpleNamesInConditionalExpression) {
 					SimpleName simpleName = (SimpleName)expression;
-					IBinding binding = simpleName.resolveBinding();
-					if(binding.getKind() == IBinding.VARIABLE) {
-						IVariableBinding variableBinding = (IVariableBinding)binding;
-						if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
-							return true;
+					if(excludeVariablesFoundInDifferences) {
+						boolean foundInDifferences = false;
+						for(ASTNodeDifference difference : differences) {
+							Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression());
+							Expression expr2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression());
+							if(isExpressionWithinExpression(simpleName, expr1) || isExpressionWithinExpression(simpleName, expr2)) {
+								foundInDifferences = true;
+								break;
+							}
+						}
+						if(!foundInDifferences) {
+							IBinding binding = simpleName.resolveBinding();
+							if(binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
+									return true;
+								}
+							}
+						}
+					}
+					else {
+						IBinding binding = simpleName.resolveBinding();
+						if(binding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)binding;
+							if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
+								return true;
+							}
 						}
 					}
 				}

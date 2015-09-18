@@ -193,6 +193,11 @@ public class PDGNodeMapping extends IdBasedMapping {
 							difference.getSecondValue().equals(variable2.getVariableName())) {
 						return true;
 					}
+					else if(difference.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH) &&
+							difference.getFirstValue().equals(variable1.getVariableType()) &&
+							difference.getSecondValue().equals(variable2.getVariableType())) {
+						return true;
+					}
 				}
 			}
 		}

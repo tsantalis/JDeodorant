@@ -7,6 +7,7 @@ import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CatchClauseObject;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
@@ -2561,6 +2562,44 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				List<Expression> initializers = oldForStatement.initializers();
 				for(Expression expression : initializers) {
 					Expression newInitializerExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping);
+					if(nodeMapping.isAdvancedMatch()) {
+						List<AbstractMethodFragment> additionallyMatchedFragments1 = nodeMapping.getAdditionallyMatchedFragments1();
+						List<AbstractMethodFragment> additionallyMatchedFragments2 = nodeMapping.getAdditionallyMatchedFragments2();
+						if(additionallyMatchedFragments1.size() > additionallyMatchedFragments2.size() && newInitializerExpression instanceof Assignment) {
+							Assignment oldAssignment = (Assignment)expression;
+							Assignment newAssignment = (Assignment)newInitializerExpression;
+							if(oldAssignment.getLeftHandSide() instanceof SimpleName) {
+								SimpleName oldLeftHandSide = (SimpleName)oldAssignment.getLeftHandSide();
+								for(AbstractMethodFragment fragment : additionallyMatchedFragments1) {
+									if(fragment instanceof StatementObject) {
+										StatementObject abstractStatement = (StatementObject)fragment;
+										Statement astStatement = abstractStatement.getStatement();
+										if(astStatement instanceof VariableDeclarationStatement) {
+											VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)astStatement;
+											List<VariableDeclarationFragment> variableDeclarationFragments = variableDeclarationStatement.fragments();
+											boolean sameVariableFound = false;
+											for(VariableDeclarationFragment declarationFragment : variableDeclarationFragments) {
+												if(declarationFragment.getName().resolveBinding().isEqualTo(oldLeftHandSide.resolveBinding())) {
+													sameVariableFound = true;
+													break;
+												}
+											}
+											if(sameVariableFound) {
+												Type variableType = variableDeclarationStatement.getType();
+												VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
+												sourceRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, newAssignment.getLeftHandSide(), null);
+												sourceRewriter.set(newFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, newAssignment.getRightHandSide(), null);
+												VariableDeclarationExpression newVariableDeclarationExpression = ast.newVariableDeclarationExpression(newFragment);
+												sourceRewriter.set(newVariableDeclarationExpression, VariableDeclarationExpression.TYPE_PROPERTY, variableType, null);
+												newInitializerExpression = newVariableDeclarationExpression;
+												break;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
 					initializerRewrite.insertLast(newInitializerExpression, null);
 				}
 				ListRewrite updaterRewrite = sourceRewriter.getListRewrite(newForStatement, ForStatement.UPDATERS_PROPERTY);

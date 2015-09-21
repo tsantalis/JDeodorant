@@ -923,6 +923,8 @@ public class ASTNodeMatcher extends ASTMatcher{
 						difference.getBindingSignaturePair().isReverse(typeCompatibleReplacementDifference.getBindingSignaturePair())) {
 					Difference diff = typeCompatibleReplacementDifference.getDifferences().get(0);
 					diff.setWeight(1);
+					Difference reversedArgumentDifference = difference.getDifferences().get(0);
+					reversedArgumentDifference.setWeight(1);
 					break;
 				}
 			}

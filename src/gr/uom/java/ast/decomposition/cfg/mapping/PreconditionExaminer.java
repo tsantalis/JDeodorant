@@ -2987,7 +2987,7 @@ public class PreconditionExaminer {
 			if(pullUpToCommonSuperclass(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
 				return CloneRefactoringType.PULL_UP_TO_EXISTING_SUPERCLASS;
 			}
-			else if(extractToUtilityClass(commonSuperTypeOfSourceTypeDeclarations)) {
+			else if(extractToUtilityClass(commonSuperTypeOfSourceTypeDeclarations, methodDeclaration1, methodDeclaration2)) {
 				return CloneRefactoringType.EXTRACT_STATIC_METHOD_TO_NEW_UTILITY_CLASS;
 			}
 			else if(infeasibleRefactoring(commonSuperTypeOfSourceTypeDeclarations, typeBinding1, typeBinding2)) {
@@ -3079,8 +3079,9 @@ public class PreconditionExaminer {
 		return false;
 	}
 
-	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations) {
-		return cloneFragmentsDoNotAccessFieldsOrMethods() && (ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations) || commonSuperTypeOfSourceTypeDeclarations.isInterface());
+	private boolean extractToUtilityClass(ITypeBinding commonSuperTypeOfSourceTypeDeclarations, MethodDeclaration methodDeclaration1, MethodDeclaration methodDeclaration2) {
+		return cloneFragmentsDoNotAccessFieldsOrMethods() && (ASTNodeMatcher.isTaggingInterface(commonSuperTypeOfSourceTypeDeclarations) || commonSuperTypeOfSourceTypeDeclarations.isInterface() ||
+				(methodDeclaration1.getModifiers() & Modifier.STATIC) != 0 || (methodDeclaration2.getModifiers() & Modifier.STATIC) != 0);
 	}
 
 	private boolean cloneFragmentsDoNotAccessFieldsOrMethods() {

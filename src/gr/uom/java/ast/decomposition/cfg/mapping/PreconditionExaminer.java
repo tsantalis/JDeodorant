@@ -668,7 +668,8 @@ public class PreconditionExaminer {
 					}
 					else if(findRenamedVariableName1(variable1) == null) {
 						if(variable2.getVariableType().equals(variable1.getVariableType()) && variable2.isField() == variable1.isField() && !sortedVariables2.contains(variable2) &&
-								!appearsInMultipleDifferences(variable1) && !appearsInMultipleDifferences(variable2)) {
+								!appearsInMultipleDifferences(variable1) && !appearsInMultipleDifferences(variable2) &&
+								!appearsOnlyInDifferences1(variable1) && !appearsOnlyInDifferences2(variable2)) {
 							sortedVariables2.add(variable2);
 							found = true;
 							break;
@@ -691,6 +692,68 @@ public class PreconditionExaminer {
 			}
 		}
 		return occurrences > 0;
+	}
+
+	private boolean appearsOnlyInDifferences1(AbstractVariable variable) {
+		Set<Expression> differencesContainingVariable = new LinkedHashSet<Expression>();
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			BindingSignaturePair pair = difference.getBindingSignaturePair();
+			if(pair.getSignature1().containsBinding(variable.getVariableBindingKey())) {
+				differencesContainingVariable.add(difference.getExpression1().getExpression());
+			}
+		}
+		Set<Expression> allSimpleNames1 = extractSimpleNames(getRemovableNodesG1());
+		int variableOccurrences = 0;
+		int variableOccurrencesInDifferences = 0;
+		for(Expression expression : allSimpleNames1) {
+			SimpleName simpleName = (SimpleName)expression;
+			if(simpleName.resolveBinding() != null && simpleName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+				variableOccurrences++;
+				for(Expression difference : differencesContainingVariable) {
+					if(isInsideDifference(simpleName, difference)) {
+						variableOccurrencesInDifferences++;
+						break;
+					}
+				}
+			}
+		}
+		return variableOccurrences > 0 && variableOccurrences == variableOccurrencesInDifferences;
+	}
+
+	private boolean appearsOnlyInDifferences2(AbstractVariable variable) {
+		Set<Expression> differencesContainingVariable = new LinkedHashSet<Expression>();
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			BindingSignaturePair pair = difference.getBindingSignaturePair();
+			if(pair.getSignature2().containsBinding(variable.getVariableBindingKey())) {
+				differencesContainingVariable.add(difference.getExpression2().getExpression());
+			}
+		}
+		Set<Expression> allSimpleNames2 = extractSimpleNames(getRemovableNodesG2());
+		int variableOccurrences = 0;
+		int variableOccurrencesInDifferences = 0;
+		for(Expression expression : allSimpleNames2) {
+			SimpleName simpleName = (SimpleName)expression;
+			if(simpleName.resolveBinding() != null && simpleName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+				variableOccurrences++;
+				for(Expression difference : differencesContainingVariable) {
+					if(isInsideDifference(simpleName, difference)) {
+						variableOccurrencesInDifferences++;
+						break;
+					}
+				}
+			}
+		}
+		return variableOccurrences > 0 && variableOccurrences == variableOccurrencesInDifferences;
+	}
+
+	private boolean isInsideDifference(SimpleName simpleName, Expression difference) {
+		int startOffset = simpleName.getStartPosition();
+		int endOffset = simpleName.getStartPosition() + simpleName.getLength();
+		int differenceStartOffset = difference.getStartPosition();
+		int differenceEndOffset = difference.getStartPosition() + difference.getLength();
+		if(startOffset >= differenceStartOffset && endOffset <= differenceEndOffset)
+			return true;
+		return false;
 	}
 
 	private String findRenamedVariableName1(AbstractVariable variable) {

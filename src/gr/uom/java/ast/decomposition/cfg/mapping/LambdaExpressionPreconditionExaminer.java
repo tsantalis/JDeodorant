@@ -131,6 +131,7 @@ public class LambdaExpressionPreconditionExaminer {
 			ITypeBinding returnTypeBinding1 = blockGap.getReturnTypeBindingFromReturnStatementG1();
 			ITypeBinding returnTypeBinding2 = blockGap.getReturnTypeBindingFromReturnStatementG2();
 			if(validReturnedVariables(variablesToBeReturnedG1, variablesToBeReturnedG2) && validReturnTypeBinding(returnTypeBinding1, returnTypeBinding2)) {
+				boolean nonEffectivelyFinalLocalVariableIsDefinedAndUsedInBlockGap = false;
 				for(VariableBindingPair pair : parameterTypeBindings) {
 					if(introduceParameter(pair)) {
 						if(blockGap.variableIsDefinedButNotUsedInBlockGap(pair) && variableIsDeclaredInMappedNodes(pair) &&
@@ -145,6 +146,9 @@ public class LambdaExpressionPreconditionExaminer {
 							(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0)) &&
 							!variableIsDeclaredInMappedNodes(pair)) {
 						blockGap.addNonEffectivelyFinalLocalVariableBinding(pair);
+						if(blockGap.variableIsDefinedAndUsedInBlockGap(pair)) {
+							nonEffectivelyFinalLocalVariableIsDefinedAndUsedInBlockGap = true;
+						}
 					}
 				}
 				if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
@@ -153,7 +157,9 @@ public class LambdaExpressionPreconditionExaminer {
 					VariableBindingPair pair = new VariableBindingPair(returnedVariable1, returnedVariable2);
 					blockGap.setReturnedVariableBinding(pair);
 				}
-				refactorableBlockGaps.add(blockGap);
+				if(!nonEffectivelyFinalLocalVariableIsDefinedAndUsedInBlockGap) {
+					refactorableBlockGaps.add(blockGap);
+				}
 			}
 			else if(blockGap.isForwardsExpandable()) {
 				checkRefactorableBlockGap(blockGap);

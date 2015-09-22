@@ -3811,13 +3811,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				remainingCloneStructureNode = root.findNodeG2(remainingNode);
 			if(!processedCloneStructureGapNodes.contains(remainingCloneStructureNode.getParent())) {
 				Statement statement = processCloneStructureGapNode(remainingCloneStructureNode, ast, methodBodyRewriter, index);
-				if(remainingNodesMovableBefore.contains(remainingNode)) {
+				if(remainingNodesMovableBefore.contains(remainingNode) && remainingNode.getId() > removableNodes.first().getId()) {
 					statementsToBeMovedBefore.add(statement);
+					methodBodyRewriter.remove(remainingNode.getASTStatement(), null);
 				}
 				else if(remainingNodesMovableAfter.contains(remainingNode)) {
 					statementsToBeMovedAfter.add(statement);
+					methodBodyRewriter.remove(remainingNode.getASTStatement(), null);
 				}
-				methodBodyRewriter.remove(remainingNode.getASTStatement(), null);
 			}
 			processedCloneStructureGapNodes.add(remainingCloneStructureNode);
 			for(CloneStructureNode child : remainingCloneStructureNode.getChildren()) {

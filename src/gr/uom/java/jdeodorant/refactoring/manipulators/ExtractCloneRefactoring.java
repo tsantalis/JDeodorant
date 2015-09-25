@@ -939,8 +939,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					if(localMethodG1.getName().equals(localMethodG2.getName()) &&
 							(localMethodG1.getReturnType().equals(localMethodG2.getReturnType()) || ASTNodeMatcher.validCommonSuperType(returnTypesCommonSuperType)) &&
 							(localMethodG1.getParameterTypeList().equals(localMethodG2.getParameterTypeList()) ||
-							//only for static method calls, we allow them having parameter types with subclass type differences
-							MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding())) ) {
+							//only for direct method calls, we allow them having parameter types with subclass type differences
+							(MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding()) &&
+							mapper.getDirectlyAccessedLocalMethodsG1().contains(localMethodG1) &&
+							mapper.getDirectlyAccessedLocalMethodsG2().contains(localMethodG2))) ) {
 						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 						boolean clones = type2Clones(methodDeclaration1, methodDeclaration2);
 						Type returnType = methodDeclaration1.getReturnType2();
@@ -1067,10 +1069,27 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
 									}
 									ListRewrite parametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-									List<SingleVariableDeclaration> parameters = methodDeclaration1.parameters();
-									for(SingleVariableDeclaration parameter : parameters) {
-										parametersRewrite.insertLast(parameter, null);
-										typeBindings.add(parameter.getType().resolveBinding());
+									List<SingleVariableDeclaration> parameters1 = methodDeclaration1.parameters();
+									List<SingleVariableDeclaration> parameters2 = methodDeclaration2.parameters();
+									int parameterIndex = 0;
+									for(SingleVariableDeclaration parameter1 : parameters1) {
+										SingleVariableDeclaration parameter2 = parameters2.get(parameterIndex);
+										ITypeBinding parameterTypeBinding1 = parameter1.getType().resolveBinding();
+										ITypeBinding parameterTypeBinding2 = parameter2.getType().resolveBinding();
+										if(parameterTypeBinding1.isEqualTo(parameterTypeBinding2) && parameterTypeBinding1.getQualifiedName().equals(parameterTypeBinding2.getQualifiedName())) {
+											parametersRewrite.insertLast(parameter1, null);
+											typeBindings.add(parameterTypeBinding1);
+										}
+										else {
+											ITypeBinding parameterCommonSuperTypeBinding = ASTNodeMatcher.commonSuperType(parameterTypeBinding1, parameterTypeBinding2);
+											Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(parameterCommonSuperTypeBinding, ast, sourceRewriter);
+											SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
+											sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+											sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameter1.getName().getIdentifier()), null);
+											parametersRewrite.insertLast(parameter, null);
+											typeBindings.add(parameterCommonSuperTypeBinding);
+										}
+										parameterIndex++;
 									}
 									ListRewrite thrownExceptionsRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
 									List<Type> thrownExceptions = methodDeclaration1.thrownExceptionTypes();

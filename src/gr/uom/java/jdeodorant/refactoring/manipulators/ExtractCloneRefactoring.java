@@ -4936,23 +4936,121 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		Block lambdaBody = ast.newBlock();
 		ListRewrite lambdaBodyRewrite = methodBodyRewriter.getListRewrite(lambdaBody, Block.STATEMENTS_PROPERTY);
+		int statementIndex = 0;
+		boolean returnStatementAdded = false;
 		for(PDGNode node : statements) {
 			Statement statement = node.getASTStatement();
-			PDGNode controlParent = node.getControlDependenceParent();
-			//special handling for statements nested under a try block, and are not control dependent on the try block
-			CloneStructureNode cloneStructureNode = index == 0 ? mapper.getCloneStructureRoot().findNodeG1(node) : mapper.getCloneStructureRoot().findNodeG2(node);
-			NodeMapping cloneStructureNodeParentMapping = cloneStructureNode.getParent().getMapping();
-			if(cloneStructureNodeParentMapping != null) {
-				PDGNode cloneStructureNodeParent = index == 0 ? cloneStructureNodeParentMapping.getNodeG1() : cloneStructureNodeParentMapping.getNodeG2();
-				if(cloneStructureNodeParent != null) {
-					controlParent = cloneStructureNodeParent;
+			boolean statementChanged = false;
+			if(statementIndex == statements.size() - 1) {
+				ASTNodeDifference difference = findDifferenceCorrespondingToStatement(statement, blockGap.getNodeDifferences());
+				if(difference != null) {
+					Expression expression = index == 0 ? difference.getExpression1().getExpression() : difference.getExpression2().getExpression();
+					if(statement instanceof ExpressionStatement) {
+						ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+						if(expressionStatement.getExpression() instanceof Assignment) {
+							Assignment assignment = (Assignment)expressionStatement.getExpression();
+							if(assignment.getRightHandSide().equals(expression) && assignment.getLeftHandSide() instanceof SimpleName) {
+								SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
+								IBinding binding = leftHandSide.resolveBinding();
+								if(binding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding variableBinding = (IVariableBinding)binding;
+									VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+									IVariableBinding returnedVariableBinding = index == 0 ? returnedVariableBindingPair.getBinding1() : returnedVariableBindingPair.getBinding2();
+									if(variableBinding.isEqualTo(returnedVariableBinding)) {
+										//introduce a return statement in the body of the lambda expression
+										ReturnStatement returnStatement = ast.newReturnStatement();
+										methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, expression, null);
+										lambdaBodyRewrite.insertLast(returnStatement, null);
+										statementChanged = true;
+										returnStatementAdded = true;
+									}
+								}
+							}
+						}
+					}
+				}
+				else {
+					PDGNode lastNode = index == 0 ? blockGap.getLastNodeG1() : blockGap.getLastNodeG2();
+					if(statement instanceof ExpressionStatement && statement.equals(lastNode.getASTStatement())) {
+						ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+						if(expressionStatement.getExpression() instanceof Assignment) {
+							Assignment assignment = (Assignment)expressionStatement.getExpression();
+							if(assignment.getLeftHandSide() instanceof SimpleName) {
+								SimpleName leftHandSide = (SimpleName)assignment.getLeftHandSide();
+								IBinding binding = leftHandSide.resolveBinding();
+								if(binding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding variableBinding = (IVariableBinding)binding;
+									VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
+									IVariableBinding returnedVariableBinding = index == 0 ? returnedVariableBindingPair.getBinding1() : returnedVariableBindingPair.getBinding2();
+									if(variableBinding.isEqualTo(returnedVariableBinding)) {
+										//introduce a return statement in the body of the lambda expression
+										ReturnStatement returnStatement = ast.newReturnStatement();
+										Expression newRightHandSide = (Expression)ASTNode.copySubtree(ast, assignment.getRightHandSide());
+										//replace the non-effectively final variables in the lambda expression body
+										for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
+											IVariableBinding variableBinding1 = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+											ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+											List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(assignment.getRightHandSide());
+											List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newRightHandSide);
+											int j = 0;
+											for(Expression oldExpression : oldSimpleNames) {
+												SimpleName oldSimpleName = (SimpleName)oldExpression;
+												SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
+												if(oldSimpleName.resolveBinding().isEqualTo(variableBinding1)) {
+													String identifier = variableBinding1.getName() + "Final";
+													if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+														identifier = identifier + index;
+													}
+													methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
+												}
+												j++;
+											}
+										}
+										methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, newRightHandSide, null);
+										lambdaBodyRewrite.insertLast(returnStatement, null);
+										statementChanged = true;
+										returnStatementAdded = true;
+									}
+								}
+							}
+						}
+					}
 				}
 			}
-			if(!statements.contains(controlParent)) {
-				Statement newStatement = (Statement)ASTNode.copySubtree(ast, statement);
-				//replace the non-effectively final variables in the lambda expression body
-				for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
-					IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+			if(!statementChanged) {
+				PDGNode controlParent = node.getControlDependenceParent();
+				//special handling for statements nested under a try block, and are not control dependent on the try block
+				CloneStructureNode cloneStructureNode = index == 0 ? mapper.getCloneStructureRoot().findNodeG1(node) : mapper.getCloneStructureRoot().findNodeG2(node);
+				NodeMapping cloneStructureNodeParentMapping = cloneStructureNode.getParent().getMapping();
+				if(cloneStructureNodeParentMapping != null) {
+					PDGNode cloneStructureNodeParent = index == 0 ? cloneStructureNodeParentMapping.getNodeG1() : cloneStructureNodeParentMapping.getNodeG2();
+					if(cloneStructureNodeParent != null) {
+						controlParent = cloneStructureNodeParent;
+					}
+				}
+				if(!statements.contains(controlParent)) {
+					Statement newStatement = (Statement)ASTNode.copySubtree(ast, statement);
+					//replace the non-effectively final variables in the lambda expression body
+					for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
+						IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+						ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+						List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(statement);
+						List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newStatement);
+						int j = 0;
+						for(Expression oldExpression : oldSimpleNames) {
+							SimpleName oldSimpleName = (SimpleName)oldExpression;
+							SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
+							if(oldSimpleName.resolveBinding().isEqualTo(variableBinding)) {
+								String identifier = variableBinding.getName() + "Final";
+								if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+									identifier = identifier + index;
+								}
+								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
+							}
+							j++;
+						}
+					}
+					//replace accesses to the returned variable in the lambda expression body
 					ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 					List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(statement);
 					List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newStatement);
@@ -4960,38 +5058,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					for(Expression oldExpression : oldSimpleNames) {
 						SimpleName oldSimpleName = (SimpleName)oldExpression;
 						SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
-						if(oldSimpleName.resolveBinding().isEqualTo(variableBinding)) {
-							String identifier = variableBinding.getName() + "Final";
-							if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
-								identifier = identifier + index;
+						if(oldSimpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)oldSimpleName.resolveBinding();
+							if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
+								String identifier = variableBinding.getName() + index;
+								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
 							}
-							methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
 						}
 						j++;
 					}
+					lambdaBodyRewrite.insertLast(newStatement, null);
 				}
-				//replace accesses to the returned variable in the lambda expression body
-				ExpressionExtractor expressionExtractor = new ExpressionExtractor();
-				List<Expression> oldSimpleNames = expressionExtractor.getVariableInstructions(statement);
-				List<Expression> newSimpleNames = expressionExtractor.getVariableInstructions(newStatement);
-				int j = 0;
-				for(Expression oldExpression : oldSimpleNames) {
-					SimpleName oldSimpleName = (SimpleName)oldExpression;
-					SimpleName newSimpleName = (SimpleName)newSimpleNames.get(j);
-					if(oldSimpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
-						IVariableBinding variableBinding = (IVariableBinding)oldSimpleName.resolveBinding();
-						if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
-							String identifier = variableBinding.getName() + index;
-							methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
-						}
-					}
-					j++;
-				}
-				lambdaBodyRewrite.insertLast(newStatement, null);
 			}
 			methodBodyRewriter.remove(statement, null);
+			statementIndex++;
 		}
-		if(blockGap.getReturnedVariableBinding() != null) {
+		if(!returnStatementAdded && blockGap.getReturnedVariableBinding() != null) {
 			ReturnStatement returnStatement = ast.newReturnStatement();
 			IVariableBinding variableBinding1 = blockGap.getReturnedVariableBinding().getBinding1();
 			IVariableBinding variableBinding2 = blockGap.getReturnedVariableBinding().getBinding2();

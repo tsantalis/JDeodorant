@@ -3432,7 +3432,8 @@ public class PreconditionExaminer {
 						//only for direct method calls, we allow them having parameter types with subclass type differences
 						(MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding()) &&
 						getDirectlyAccessedLocalMethodsG1().contains(localMethodG1) &&
-						getDirectlyAccessedLocalMethodsG2().contains(localMethodG2))) ) {
+						getDirectlyAccessedLocalMethodsG2().contains(localMethodG2) &&
+						localMethodG1.isStatic() && localMethodG2.isStatic())) ) {
 					matchCounter++;
 				}
 			}

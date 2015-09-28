@@ -11,6 +11,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -33,6 +34,11 @@ public class PDGExpressionGap extends Gap {
 
 	public Set<IVariableBinding> getUsedVariableBindingsG2() {
 		return getUsedVariableBindings(difference.getExpression2());
+	}
+ 
+	public boolean variableIsDefinedAndUsedInBlockGap(VariableBindingPair pair, Set<PDGNode> mappedNodesG1, Set<PDGNode> mappedNodesG2) {
+		return variableDefinedInNodes(mappedNodesG1, pair.getBinding1()) && variableDefinedInNodes(mappedNodesG2, pair.getBinding2()) &&
+				variableUsedInNodes(mappedNodesG1, pair.getBinding1()) && variableUsedInNodes(mappedNodesG2, pair.getBinding2());
 	}
 
 	private Set<IVariableBinding> getUsedVariableBindings(AbstractExpression expression) {

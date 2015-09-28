@@ -105,6 +105,7 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<IVariableBinding> variableBindings2 = expressionGap.getUsedVariableBindingsG2();
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
 		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
+			boolean nonEffectivelyFinalLocalVariableIsDefinedAndUsedInMappedStatements = false;
 			for(VariableBindingPair pair : parameterTypeBindings) {
 				if(introduceParameter(pair)) {
 					expressionGap.addParameterBinding(pair);
@@ -115,9 +116,14 @@ public class LambdaExpressionPreconditionExaminer {
 						(!binding2.isEffectivelyFinal() && (binding2.getModifiers() & Modifier.FINAL) == 0)) &&
 						!variableIsDeclaredInMappedNodes(pair)) {
 					expressionGap.addNonEffectivelyFinalLocalVariableBinding(pair);
+					if(expressionGap.variableIsDefinedAndUsedInBlockGap(pair, finalState.getMappedNodesG1(), finalState.getMappedNodesG2())) {
+						nonEffectivelyFinalLocalVariableIsDefinedAndUsedInMappedStatements = true;
+					}
 				}
 			}
-			refactorableExpressionGaps.add(expressionGap);
+			if(!nonEffectivelyFinalLocalVariableIsDefinedAndUsedInMappedStatements) {
+				refactorableExpressionGaps.add(expressionGap);
+			}
 		}
 	}
 

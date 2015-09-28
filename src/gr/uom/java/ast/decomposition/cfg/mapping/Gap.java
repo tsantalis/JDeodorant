@@ -1,9 +1,15 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
+
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 public abstract class Gap {
 	private Set<VariableBindingPair> parameterBindings;
@@ -46,4 +52,52 @@ public abstract class Gap {
 
 	public abstract ITypeBinding getReturnType();
 	public abstract Set<ITypeBinding> getThrownExceptions();
+
+	protected boolean variableDefinedInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
+		for(PDGNode node : nodes) {
+			Iterator<AbstractVariable> declaredVariableIterator = node.getDefinedVariableIterator();
+			while(declaredVariableIterator.hasNext()) {
+				AbstractVariable variable = declaredVariableIterator.next();
+				if(variable instanceof PlainVariable) {
+					PlainVariable plainVariable = (PlainVariable)variable;
+					if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	protected boolean variableUsedInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
+		for(PDGNode node : nodes) {
+			Iterator<AbstractVariable> declaredVariableIterator = node.getUsedVariableIterator();
+			while(declaredVariableIterator.hasNext()) {
+				AbstractVariable variable = declaredVariableIterator.next();
+				if(variable instanceof PlainVariable) {
+					PlainVariable plainVariable = (PlainVariable)variable;
+					if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	protected boolean variableDeclaredInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
+		for(PDGNode node : nodes) {
+			Iterator<AbstractVariable> declaredVariableIterator = node.getDeclaredVariableIterator();
+			while(declaredVariableIterator.hasNext()) {
+				AbstractVariable variable = declaredVariableIterator.next();
+				if(variable instanceof PlainVariable) {
+					PlainVariable plainVariable = (PlainVariable)variable;
+					if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
 }

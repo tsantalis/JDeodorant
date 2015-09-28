@@ -294,38 +294,6 @@ public class PDGNodeBlockGap extends Gap {
 		return localVariableInstructions;
 	}
 
-	private boolean variableUsedInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
-		for(PDGNode node : nodes) {
-			Iterator<AbstractVariable> declaredVariableIterator = node.getUsedVariableIterator();
-			while(declaredVariableIterator.hasNext()) {
-				AbstractVariable variable = declaredVariableIterator.next();
-				if(variable instanceof PlainVariable) {
-					PlainVariable plainVariable = (PlainVariable)variable;
-					if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	private boolean variableDeclaredInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
-		for(PDGNode node : nodes) {
-			Iterator<AbstractVariable> declaredVariableIterator = node.getDeclaredVariableIterator();
-			while(declaredVariableIterator.hasNext()) {
-				AbstractVariable variable = declaredVariableIterator.next();
-				if(variable instanceof PlainVariable) {
-					PlainVariable plainVariable = (PlainVariable)variable;
-					if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
 	private Set<IVariableBinding> getDeclaredVariableBindings(Set<PDGNode> nodes) {
 		Set<IVariableBinding> variableBindings = new LinkedHashSet<IVariableBinding>();
 		List<Expression> localVariableInstructions = getVariableInstructions(nodes);
@@ -339,22 +307,6 @@ public class PDGNodeBlockGap extends Gap {
 			}
 		}
 		return variableBindings;
-	}
-
-	private boolean variableDefinedInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
-		for(PDGNode node : nodes) {
-			Iterator<AbstractVariable> declaredVariableIterator = node.getDefinedVariableIterator();
-			while(declaredVariableIterator.hasNext()) {
-				AbstractVariable variable = declaredVariableIterator.next();
-				if(variable instanceof PlainVariable) {
-					PlainVariable plainVariable = (PlainVariable)variable;
-					if(plainVariable.getVariableBindingKey().equals(binding.getKey())) {
-						return true;
-					}
-				}
-			}
-		}
-		return false;
 	}
 
 	private Set<IVariableBinding> variablesToBeReturned(Set<PDGNode> nodes) {

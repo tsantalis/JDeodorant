@@ -396,10 +396,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		if(isNumberPrimitiveType(binding1) && binding2.getQualifiedName().equals("java.lang.Number"))
 			return true;
-		if(binding1.getName().equals("null")) {
+		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {
 			return true;
 		}
-		if(binding2.getName().equals("null")) {
+		if(binding2.getName().equals("null") && !binding1.isPrimitive()) {
 			return true;
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);

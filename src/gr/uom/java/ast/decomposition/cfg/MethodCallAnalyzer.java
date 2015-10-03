@@ -531,6 +531,7 @@ public class MethodCallAnalyzer {
 				}
 				instance.setDefinedFields(methodDeclaration, definedFields);
 				instance.setUsedFields(methodDeclaration, usedFields);
+				instance.setThrownExceptionTypes(methodDeclaration, new LinkedHashSet<String>(methodBodyObject.getExceptionsInThrowStatements()));
 				processedMethods.add(methodDeclaration.resolveBinding().getKey());
 				if(depth < maximumCallGraphAnalysisDepth) {
 					for(MethodInvocationObject methodInvocationObject : methodBodyObject.getInvokedMethodsThroughThisReference()) {
@@ -688,6 +689,9 @@ public class MethodCallAnalyzer {
 				}
 			}
 		}
+		LinkedHashSet<String> recursivelyThrownExceptionTypes =
+			indexer.getRecursivelyThrownExceptionTypes(methodBindingKey, new LinkedHashSet<String>());
+		thrownExceptionTypes.addAll(recursivelyThrownExceptionTypes);
 	}
 
 	private AbstractVariable composeVariable(AbstractVariable leftSide, AbstractVariable rightSide) {

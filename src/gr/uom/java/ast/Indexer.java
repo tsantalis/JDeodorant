@@ -39,6 +39,8 @@ public class Indexer {
 	//String corresponds to MethodDeclaration.resolveBinding.getKey()
 	private Set<String> abstractMethodSet;
 	private Set<String> nativeMethodSet;
+	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
+	private Map<String, LinkedHashSet<String>> thrownExceptionTypeMap;
 	
 	public Indexer() {
 		this.methodInvocationMap = new HashMap<String, LinkedHashSet<String>>();
@@ -49,6 +51,7 @@ public class Indexer {
 		this.methodInvocationThroughReferenceMap = new HashMap<String, HashMap<PlainVariable, LinkedHashSet<String>>>();
 		this.abstractMethodSet = new LinkedHashSet<String>();
 		this.nativeMethodSet = new LinkedHashSet<String>();
+		this.thrownExceptionTypeMap = new HashMap<String, LinkedHashSet<String>>();
 	}
 	
 	public Set<IType> getSubTypes(IType superType) {
@@ -189,6 +192,11 @@ public class Indexer {
 		usedFieldMap.put(methodBindingKey, fields);
 	}
 	
+	public void setThrownExceptionTypes(MethodDeclaration method, LinkedHashSet<String> exceptionTypes) {
+		String methodBindingKey = method.resolveBinding().getKey();
+		thrownExceptionTypeMap.put(methodBindingKey, exceptionTypes);
+	}
+	
 	public boolean isAnalyzed(String methodBindingKey) {
 		//String methodBindingKey = method.resolveBinding().getKey();
 		if(definedFieldMap.containsKey(methodBindingKey) && usedFieldMap.containsKey(methodBindingKey))
@@ -271,6 +279,44 @@ public class Indexer {
 			}
 		}
 		return usedFields;
+	}
+	
+	public LinkedHashSet<String> getRecursivelyThrownExceptionTypes(String methodBindingKey,
+			Set<String> processedMethods) {
+		LinkedHashSet<String> thrownExceptionTypes = new LinkedHashSet<String>();
+		if(thrownExceptionTypeMap.containsKey(methodBindingKey))
+			thrownExceptionTypes.addAll(thrownExceptionTypeMap.get(methodBindingKey));
+		processedMethods.add(methodBindingKey);
+		LinkedHashSet<String> invokedMethods = methodInvocationMap.get(methodBindingKey);
+		if(invokedMethods != null) {
+			for(String invokedMethodBindingKey : invokedMethods) {
+				if(!processedMethods.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey)) {
+						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
+							//method is native
+						}
+						else {
+							thrownExceptionTypes.addAll(getRecursivelyThrownExceptionTypes(invokedMethodBindingKey, processedMethods));
+						}
+					}
+					else {
+						LinkedHashSet<String> overridingMethods = overridingMethodMap.get(invokedMethodBindingKey);
+						processedMethods.add(invokedMethodBindingKey);
+						if(overridingMethods != null) {
+							for(String overridingMethodBindingKey : overridingMethods) {
+								if(nativeMethodSet.contains(overridingMethodBindingKey)) {
+									//method is native
+								}
+								else {
+									thrownExceptionTypes.addAll(getRecursivelyThrownExceptionTypes(overridingMethodBindingKey, processedMethods));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return thrownExceptionTypes;
 	}
 	
 	public LinkedHashSet<AbstractVariable> getRecursivelyDefinedFieldsThroughReference(String methodBindingKey,

@@ -2526,7 +2526,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				List<CatchClause> catchClauses = oldTryStatement.catchClauses();
 				for(CatchClause catchClause : catchClauses) {
 					CatchClause newCatchClause = ast.newCatchClause();
-					sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, catchClause.getException(), null);
+					SingleVariableDeclaration newSingleVariableDeclaration = (SingleVariableDeclaration)processASTNodeWithDifferences(ast, sourceRewriter, catchClause.getException(), nodeMapping);
+					sourceRewriter.set(newCatchClause, CatchClause.EXCEPTION_PROPERTY, newSingleVariableDeclaration, null);
 					Block newCatchBody = ast.newBlock();
 					ListRewrite newCatchBodyRewrite = sourceRewriter.getListRewrite(newCatchBody, Block.STATEMENTS_PROPERTY);
 					List<Statement> oldCatchStatements = catchClause.getBody().statements();

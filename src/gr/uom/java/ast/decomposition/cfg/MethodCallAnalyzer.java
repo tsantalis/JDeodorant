@@ -208,17 +208,15 @@ public class MethodCallAnalyzer {
 			}
 		}
 		else {
-			if(variable != null) {
-				LibraryClassStorage instance = LibraryClassStorage.getInstance();
-				IMethodBinding invokedMethodBinding = methodInvocation.resolveMethodBinding();
-				if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
-					handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), variable, instance);
-				}
-				else {
-					MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
-					if(invokedMethodDeclaration != null)
-						processExternalMethodInvocation(invokedMethodDeclaration, variable, new LinkedHashSet<String>(), 0);
-				}
+			LibraryClassStorage instance = LibraryClassStorage.getInstance();
+			IMethodBinding invokedMethodBinding = methodInvocation.resolveMethodBinding();
+			if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
+				handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), variable, instance);
+			}
+			else {
+				MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
+				if(invokedMethodDeclaration != null)
+					processExternalMethodInvocation(invokedMethodDeclaration, variable, new LinkedHashSet<String>(), 0);
 			}
 		}
 	}
@@ -533,6 +531,7 @@ public class MethodCallAnalyzer {
 				}
 				instance.setDefinedFields(methodDeclaration, definedFields);
 				instance.setUsedFields(methodDeclaration, usedFields);
+				instance.setThrownExceptionTypes(methodDeclaration, new LinkedHashSet<String>(methodBodyObject.getExceptionsInThrowStatements()));
 				processedMethods.add(methodDeclaration.resolveBinding().getKey());
 				if(depth < maximumCallGraphAnalysisDepth) {
 					for(MethodInvocationObject methodInvocationObject : methodBodyObject.getInvokedMethodsThroughThisReference()) {
@@ -586,6 +585,24 @@ public class MethodCallAnalyzer {
 								else {
 									instance.addInvokedMethod(methodDeclaration, invokedSuperMethodDeclaration);
 									processExternalMethodInvocation(invokedSuperMethodDeclaration, variableDeclaration, processedMethods, depth+1);
+								}
+							}
+						}
+					}
+					if((methodDeclaration.getModifiers() & Modifier.STATIC) != 0) {
+						for(MethodInvocationObject staticMethodInvocationObject : methodBodyObject.getInvokedStaticMethods()) {
+							MethodInvocation methodInvocation = staticMethodInvocationObject.getMethodInvocation();
+							IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();
+							MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
+							if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
+								if(!processedMethods.contains(methodBinding2.getKey())) {
+									if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
+										//method is native
+									}
+									else {
+										instance.addInvokedMethod(methodDeclaration, invokedMethodDeclaration);
+										processExternalMethodInvocation(invokedMethodDeclaration, variableDeclaration, processedMethods, depth+1);
+									}
 								}
 							}
 						}
@@ -672,10 +689,16 @@ public class MethodCallAnalyzer {
 				}
 			}
 		}
+		LinkedHashSet<String> recursivelyThrownExceptionTypes =
+			indexer.getRecursivelyThrownExceptionTypes(methodBindingKey, new LinkedHashSet<String>());
+		thrownExceptionTypes.addAll(recursivelyThrownExceptionTypes);
 	}
 
 	private AbstractVariable composeVariable(AbstractVariable leftSide, AbstractVariable rightSide) {
-		if(leftSide instanceof CompositeVariable) {
+		if(leftSide == null) {
+			return rightSide;
+		}
+		else if(leftSide instanceof CompositeVariable) {
 			CompositeVariable leftSideCompositeVariable = (CompositeVariable)leftSide;
 			PlainVariable finalVariable = leftSideCompositeVariable.getFinalVariable();
 			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getVariableBindingKey(), finalVariable.getVariableName(),

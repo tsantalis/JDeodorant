@@ -8,6 +8,8 @@ public class ImportClonesWizard extends Wizard {
 	
 	public ImportClonesWizard(IJavaProject javaProject) {
 		this.javaProject = javaProject;
+		this.setNeedsProgressMonitor(true);
+		this.setHelpAvailable(false);
 	}
 
 	@Override

@@ -19,7 +19,8 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.core.filebuffers
 Bundle-ActivationPolicy: lazy
 Import-Package: org.eclipse.jdt.core.refactoring
-Export-Package: gr.uom.java.ast,
+Export-Package: ca.concordia.jdeodorant.clone.parsers,
+ gr.uom.java.ast,
  gr.uom.java.ast.decomposition,
  gr.uom.java.ast.decomposition.cfg,
  gr.uom.java.ast.decomposition.cfg.mapping,

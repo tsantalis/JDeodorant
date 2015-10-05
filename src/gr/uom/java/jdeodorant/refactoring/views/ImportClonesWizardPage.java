@@ -89,8 +89,11 @@ public class ImportClonesWizardPage extends WizardPage {
 				else if(selectedCloneDetectorType.equals(CloneDetectorType.NICAD)) {
 					fileDialog.setFilterExtensions(new String[]{"*.xml"});
 				}
-				basicInputFile = fileDialog.open();
-				inputFileText.setText(basicInputFile);
+				String inputFile = fileDialog.open();
+				if(inputFile != null) {
+					basicInputFile = inputFile;
+					inputFileText.setText(basicInputFile);
+				}
 			}
 		});
 	}
@@ -112,8 +115,11 @@ public class ImportClonesWizardPage extends WizardPage {
 			public void widgetSelected(SelectionEvent event) {
 				DirectoryDialog directoryDialog = new DirectoryDialog(ImportClonesWizardPage.this.getShell(), SWT.OPEN);
 				directoryDialog.setText("Browse to .ccfxprepdir directory");
-				secondaryInputFile = directoryDialog.open();
-				inputFileText.setText(secondaryInputFile);
+				String inputFile = directoryDialog.open();
+				if(inputFile != null) {
+					secondaryInputFile = inputFile;
+					inputFileText.setText(secondaryInputFile);
+				}
 			}
 		});
 	}

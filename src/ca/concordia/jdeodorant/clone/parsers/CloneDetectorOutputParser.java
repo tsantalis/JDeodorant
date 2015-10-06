@@ -44,6 +44,7 @@ public abstract class CloneDetectorOutputParser {
 		return this.iJavaProject;
 	}
 	
+	public abstract int getCloneGroupCount();
 	public abstract CloneGroupList readInputFile();
 	
 	private String readResultsFile(String filePath) {
@@ -79,9 +80,9 @@ public abstract class CloneDetectorOutputParser {
 		return readResultsFile(getToolOutputFilePath());
 	}
 	
-	protected void progress(double percentage) {
+	protected void progress(int cloneGroupIndex) {
 		for (CloneDetectorOutputParserProgressObserver observer : cloneDetectorOutputParserProgressObservers)
-			observer.notify(percentage);
+			observer.notify(cloneGroupIndex);
 	}
 	
 	public void addParserProgressObserver(CloneDetectorOutputParserProgressObserver observer) {

@@ -7,32 +7,30 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 
 public class DeckardOutputParser extends CloneDetectorOutputParser {
-
+	private String resultsFile;
+	private int cloneGroupCount;
+	
 	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) {
 		super(javaProject, deckardOutputFilePath);
+		resultsFile = getResultsFileContents();
+		Pattern pattern = Pattern.compile("(?m)^\\s*$");
+		Matcher matcher = pattern.matcher(resultsFile);
+		while (matcher.find())
+			cloneGroupCount++;
 	}
 
 	@Override
 	public CloneGroupList readInputFile() {
-
 		CloneGroupList cloneGroups = new CloneGroupList();
-
-		String resultsFile = getResultsFileContents();
 		
 		int groupID = 0;
-		int cloneCount = 0;
-		
-		Pattern pattern = Pattern.compile("(?m)^\\s*$");
-		Matcher matcher = pattern.matcher(resultsFile);
-		while (matcher.find())
-			cloneCount++;
 		
 		boolean inGroup = false;
-		int cloneInstancNumber = 0;
+		int cloneInstanceNumber = 0;
 		CloneGroup cloneGroup = null;
 		
-		pattern = Pattern.compile("(.*)\n");
-		matcher = pattern.matcher(resultsFile);
+		Pattern pattern = Pattern.compile("(.*)\n");
+		Matcher matcher = pattern.matcher(resultsFile);
 
 		while (matcher.find()) {
 
@@ -48,7 +46,7 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 				if (!inGroup) {
 					inGroup = true;
 					groupID++;
-					cloneInstancNumber = 1;
+					cloneInstanceNumber = 1;
 					cloneGroup = new CloneGroup(groupID);
 					cloneGroups.add(cloneGroup);
 				}
@@ -61,14 +59,14 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					int endLine = startLine + length - 1;
 
 					CloneInstanceLocationInfo locationInfo = new CloneInstanceLocationInfo(resourceInfo.getFullPath(), startLine, 0, endLine, 0);
-					CloneInstance cloneInstance = new CloneInstance(locationInfo, cloneGroup, cloneInstancNumber);
+					CloneInstance cloneInstance = new CloneInstance(locationInfo, cloneGroup, cloneInstanceNumber);
 					cloneInstance.setSourceFolder(resourceInfo.getSourceFolder());
 					cloneInstance.setPackageName(resourceInfo.getPackageName());
 					cloneInstance.setClassName(resourceInfo.getClassName());
 					IMethod iMethod = getIMethod(resourceInfo.getICompilationUnit(), resourceInfo.getCompilationUnit(), 
 							locationInfo.getStartOffset(), locationInfo.getLength());
 					cloneInstance.setIMethod(iMethod);
-					cloneInstancNumber++;
+					cloneInstanceNumber++;
 
 					cloneGroup.addClone(cloneInstance);
 				} catch(Exception ex) {
@@ -76,11 +74,16 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 				}
 			} else {
 				inGroup = false;
-				progress(groupID / (double)cloneCount);
+				progress(groupID);
 			}
 
 		}
 		
 		return cloneGroups;
+	}
+
+	@Override
+	public int getCloneGroupCount() {
+		return cloneGroupCount;
 	}
 }

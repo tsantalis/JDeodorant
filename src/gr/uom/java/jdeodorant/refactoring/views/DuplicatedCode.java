@@ -18,7 +18,6 @@ import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TreeViewer;
-import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IActionBars;
@@ -144,7 +143,8 @@ public class DuplicatedCode extends ViewPart {
 		importClonesAction = new Action() {
 			public void run() {
 				CompilationUnitCache.getInstance().clearCache();
-				WizardDialog dialog = new WizardDialog(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
+				ImportClonesWizardDialog dialog = new ImportClonesWizardDialog(
+						PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
 						new ImportClonesWizard(selectedProject));
 				dialog.open();
 				//sliceGroupTable = getTable();

@@ -124,4 +124,16 @@ public class ImportClonesWizardPage extends WizardPage {
 		});
 	}
 
+	public CloneDetectorType getSelectedCloneDetectorType() {
+		return selectedCloneDetectorType;
+	}
+
+	public String getBasicInputFile() {
+		return basicInputFile;
+	}
+
+	public String getSecondaryInputFile() {
+		return secondaryInputFile;
+	}
+
 }

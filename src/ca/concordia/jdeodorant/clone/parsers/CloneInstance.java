@@ -1,18 +1,15 @@
 package ca.concordia.jdeodorant.clone.parsers;
 
-import org.eclipse.jdt.core.IMethod;
-import org.eclipse.jdt.core.JavaModelException;
-
 public class CloneInstance {
 	
 	private CloneGroup belongingCloneGroup;
 	private final CloneInstanceLocationInfo locationInfo;
-	private final String actualCodeFragment;
 	private int cloneID;
 	private String sourceFolder;
 	private String packageName;
 	private String className;
-	private IMethod iMethod;
+	private String methodSignature;
+	private String methodName;
 	
 	public CloneInstance(CloneInstanceLocationInfo locationInfo) {
 		this(locationInfo, null);
@@ -24,18 +21,13 @@ public class CloneInstance {
 	
 	public CloneInstance(CloneInstanceLocationInfo locationInfo, CloneGroup parentGroup, int cloneID) {
 		this.locationInfo = locationInfo;
-		this.actualCodeFragment = getActualCodeFragment(locationInfo);
 		this.setBelongingCloneGroup(parentGroup);
 		this.setCloneID(cloneID);
 	}
 
-	private String getActualCodeFragment(CloneInstanceLocationInfo locationInfo) {
+	public String getActualCodeFragment() {
 		String code = locationInfo.getContainingFileContents();
 		return code.substring(locationInfo.getStartOffset(), locationInfo.getStartOffset() + locationInfo.getLength() - 1);
-	}
-
-	public String getActualCodeFragment() {
-		return actualCodeFragment;
 	}
 
 	public CloneGroup getBelongingCloneGroup() {
@@ -83,24 +75,19 @@ public class CloneInstance {
 	}
 
 	public String getMethodName() {
-		return getIMethod().getElementName();
+		return this.methodName;
+	}
+	
+	public void setMethodName(String methodName) {
+		this.methodName = methodName;
 	}
 
 	public String getMethodSignature() {
-		try {
-			return getIMethod().getSignature();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
-			return "";
-		}
+		return this.methodSignature;
 	}
 	
-	public IMethod getIMethod() {
-		return this.iMethod;
-	}
-	
-	public void setIMethod(IMethod iMethod) {
-		this.iMethod = iMethod;
+	public void setMethodSignature(String methodSignature) {
+		this.methodSignature = methodSignature;
 	}
 	
 	public boolean isSubcloneOf(CloneInstance other) {
@@ -134,12 +121,11 @@ public class CloneInstance {
 	
 	@Override
 	public String toString() {
-		StringBuilder builder = new StringBuilder();
-		builder.append(getLocationInfo()).append(System.lineSeparator());
-		builder.append(getActualCodeFragment());
-		return builder.toString();
+		return locationInfo.toString();
 	}
 
-	
-	
+	public boolean isClassLevelClone() {
+		return this.methodName == null;
+	}
+		
 }

@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -128,6 +129,34 @@ public abstract class CloneDetectorOutputParser {
 		return iMethod;
 
 	}
+	
+	public static String getMethodJavaSignature(IMethod iMethod) {
+
+		StringBuilder toReturn = new StringBuilder();
+
+		//toReturn.append(iMethod.getDeclaringType().getFullyQualifiedName());
+		try {
+			toReturn.append(Signature.toString(iMethod.getReturnType()));
+		} catch (IllegalArgumentException e) {
+
+		} catch (JavaModelException e) {
+			
+		}
+		toReturn.append(" ");
+		toReturn.append(iMethod.getElementName());
+		toReturn.append("(");
+
+		String comma = "";
+		for (String type : iMethod .getParameterTypes()) {
+			toReturn.append(comma);
+			comma = ", ";
+			toReturn.append(Signature.toString(type));
+		}
+		toReturn.append(")");
+
+		return toReturn.toString();
+	}
+
 
 	public void cancelOperation() {
 		this.operationCanceled = true;

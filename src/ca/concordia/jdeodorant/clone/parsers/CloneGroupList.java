@@ -24,7 +24,16 @@ public class CloneGroupList implements Iterable<CloneGroup> {
 	}
 
 	public CloneGroup[] getCloneGroups() {
-		//TODO filter out repeated groups and groups with class-level clones
+		List<CloneGroup> cloneGroupsToReturn = new ArrayList<CloneGroup>();
+		for (CloneGroup cloneGroup : cloneGroups) {
+			if (!cloneGroup.isRepeated() && !cloneGroup.containsClassLevelClone())
+				cloneGroupsToReturn.add(cloneGroup);
+		}
+		
+		return cloneGroupsToReturn.toArray(new CloneGroup[cloneGroupsToReturn.size()]);
+	}
+	
+	public CloneGroup[] getAllCloneGroups() {
 		return cloneGroups.toArray(new CloneGroup[cloneGroups.size()]);
 	}
 }

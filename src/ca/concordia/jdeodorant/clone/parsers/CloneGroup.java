@@ -5,8 +5,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.eclipse.jdt.core.IMethod;
-
 
 public class CloneGroup {
 	
@@ -35,35 +33,6 @@ public class CloneGroup {
 		for (CloneInstance cloneInstance : cloneInstances)
 			copyToReturn.add(cloneInstance);
 		return copyToReturn;
-	}
-	
-	public ClonesRelativeLocation getClonesRelativeLocation() {
-
-		IMethod previousIMethod = null;
-		String previousFilePath = null;
-		boolean sameFile = true;
-		boolean sameMethod = true;
-		for (CloneInstance cloneInstance : cloneInstances) {
-			if (sameFile && previousFilePath != null && !cloneInstance.getLocationInfo().getContainingFilePath().equals(previousFilePath)) {
-				sameFile = false;
-			}
-			previousFilePath = cloneInstance.getLocationInfo().getContainingFilePath(); 
-					
-			if (sameMethod && previousIMethod != null && cloneInstance.getIMethod() != previousIMethod) {
-				sameMethod = false;
-			}
-			previousIMethod = cloneInstance.getIMethod();
-				
-		}
-		if (sameFile) {
-			if (sameMethod)
-				return ClonesRelativeLocation.WITHIN_THE_SAME_METHOD;
-			else
-				return ClonesRelativeLocation.WITHIN_THE_SAME_FILE;
-		} else {
-			return ClonesRelativeLocation.DIFFERENT_FILES;
-		}
-		
 	}
 	
 	@Override
@@ -109,6 +78,13 @@ public class CloneGroup {
 	
 	public boolean isRepeated() {
 		return repeatedOf != null;
+	}
+
+	public boolean containsClassLevelClone() {
+		for (CloneInstance cloneInstance : cloneInstances)
+			if (cloneInstance.isClassLevelClone())
+				return true;
+		return false;
 	}
 	
 }

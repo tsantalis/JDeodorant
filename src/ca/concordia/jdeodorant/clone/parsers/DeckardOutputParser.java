@@ -1,5 +1,7 @@
 package ca.concordia.jdeodorant.clone.parsers;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,6 +14,8 @@ import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFou
 public class DeckardOutputParser extends CloneDetectorOutputParser {
 	private String resultsFile;
 	private int cloneGroupCount;
+	private List<Throwable> exceptions = new ArrayList<Throwable>();
+	
 	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) {
 		super(javaProject, deckardOutputFilePath);
 		resultsFile = getResultsFileContents();
@@ -53,7 +57,6 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					groupID++;
 					cloneInstanceNumber = 1;
 					cloneGroup = new CloneGroup(groupID);
-					cloneGroups.add(cloneGroup);
 				}
 
 				String filePath = lineMatcher.group(1);
@@ -70,18 +73,22 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					cloneInstance.setClassName(resourceInfo.getClassName());
 					IMethod iMethod = getIMethod(resourceInfo.getICompilationUnit(), resourceInfo.getCompilationUnit(), 
 							locationInfo.getStartOffset(), locationInfo.getLength());
-					cloneInstance.setIMethod(iMethod);
+					if (iMethod != null) {
+						cloneInstance.setMethodName(iMethod.getElementName());
+						cloneInstance.setMethodSignature(getMethodJavaSignature(iMethod));
+					}
 					cloneInstanceNumber++;
 
 					cloneGroup.addClone(cloneInstance);
 				} catch(NumberFormatException ex) {
-					addExceptionHappenedDuringParsing(ex);
+					addExceptionHappened(ex);
 				} catch (JavaModelException ex) {
-					addExceptionHappenedDuringParsing(ex);
+					addExceptionHappened(ex);
 				} catch (ICompilationUnitNotFoundException ex) {
-					addExceptionHappenedDuringParsing(ex);
+					addExceptionHappened(ex);
 				}
 			} else {
+				cloneGroups.add(cloneGroup);
 				inGroup = false;
 				progress(groupID);
 			}
@@ -89,6 +96,10 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		}
 		
 		return cloneGroups;
+	}
+
+	private void addExceptionHappened(Throwable ex) {
+		exceptions.add(ex);
 	}
 
 	@Override

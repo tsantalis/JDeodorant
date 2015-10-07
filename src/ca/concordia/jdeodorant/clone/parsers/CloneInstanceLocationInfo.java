@@ -62,14 +62,14 @@ public class CloneInstanceLocationInfo {
 	}
 
 
-	private int getNumberOfCharsForLines(String[] linesBeforeAndIncludingOffset, int line) {
+	private int getNumberOfCharsForLines(String[] lines, int line) {
 		
-		if (line >= linesBeforeAndIncludingOffset.length)
+		if (line >= lines.length)
 			return 0;
 		
 		int charsBeforeLine = 0;
 		for (int i = 0; i < line; i++) {
-			charsBeforeLine += linesBeforeAndIncludingOffset[i].length() + LINE_FEED.length();
+			charsBeforeLine += lines[i].length() + LINE_FEED.length();
 		}
 		return charsBeforeLine;
 	}
@@ -85,9 +85,9 @@ public class CloneInstanceLocationInfo {
 		this.endLine = endLine;
 		this.endColumn = endColumn;
 		String[] lines = this.containingFileContents.split(LINE_FEED);
-		int numberOfCharsForLines = getNumberOfCharsForLines(lines, startLine - 1);
+		int numberOfCharsForLines = getNumberOfCharsForLines(lines, startLine - 1); // The first offset of the start line
 		this.startOffset = numberOfCharsForLines + this.startColumn;
-		numberOfCharsForLines = getNumberOfCharsForLines(lines, endLine - 1);
+		numberOfCharsForLines = getNumberOfCharsForLines(lines, endLine) - 1; // The last offset of the end line
 		int endOffset = numberOfCharsForLines + this.endColumn;
 		this.length = endOffset - this.startOffset + 1;
 	}

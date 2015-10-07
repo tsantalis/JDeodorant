@@ -18,6 +18,7 @@ import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IActionBars;
@@ -26,6 +27,8 @@ import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
+
+import ca.concordia.jdeodorant.clone.parsers.CloneGroupList;
 
 public class DuplicatedCode extends ViewPart {
 	private TreeViewer treeViewer;
@@ -143,10 +146,12 @@ public class DuplicatedCode extends ViewPart {
 		importClonesAction = new Action() {
 			public void run() {
 				CompilationUnitCache.getInstance().clearCache();
-				ImportClonesWizardDialog dialog = new ImportClonesWizardDialog(
+				ImportClonesWizard wizard = new ImportClonesWizard(selectedProject);
+				WizardDialog dialog = new WizardDialog(
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
-						new ImportClonesWizard(selectedProject));
+						wizard);
 				dialog.open();
+				CloneGroupList cloneGroupList = wizard.getCloneGroupList();
 				//sliceGroupTable = getTable();
 				//treeViewer.setContentProvider(new ViewContentProvider());
 				//applyRefactoringAction.setEnabled(true);

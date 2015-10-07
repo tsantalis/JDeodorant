@@ -12,6 +12,13 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 
 public class ResourceInfo {
 	
+	public static class ICompilationUnitNotFoundException extends Exception {
+		private static final long serialVersionUID = 1L;
+		public ICompilationUnitNotFoundException(String message) {
+			super(message);
+		}
+	}
+
 	private final String sourceFolder;
 	private final ICompilationUnit iCompilationUnit;
 	private final CompilationUnit compilationUnit;
@@ -61,33 +68,29 @@ public class ResourceInfo {
 		return className;
 	}
 
-	public static ResourceInfo getResourceInfo(IJavaProject jProject, String fullResourceName) throws Exception {
-		try {
-			// First try the given path, if not found, prepend src dir
-			ICompilationUnit iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullResourceName));
-			Set<String> allSrcDirectories = SourceDirectoryUtility.getAllSourceDirectories(jProject);
+	public static ResourceInfo getResourceInfo(IJavaProject jProject, String fullResourceName) throws JavaModelException, ICompilationUnitNotFoundException {
+	 
+		// First try the given path, if not found, prepend src dir
+		ICompilationUnit iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullResourceName));
+		Set<String> allSrcDirectories = SourceDirectoryUtility.getAllSourceDirectories(jProject);
 
-			if (iCompilationUnit != null && iCompilationUnit.exists()) {
-				for (String srcDirectory : allSrcDirectories) {
-					if (fullResourceName.startsWith(srcDirectory)) {
-						return new ResourceInfo(srcDirectory, iCompilationUnit, fullResourceName);
-					}
-				}
-			}
-
+		if (iCompilationUnit != null && iCompilationUnit.exists()) {
 			for (String srcDirectory : allSrcDirectories) {
-				String fullPath = srcDirectory + "/" + fullResourceName;
-				iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullPath));
-				if (iCompilationUnit != null && iCompilationUnit.exists()) {
+				if (fullResourceName.startsWith(srcDirectory)) {
 					return new ResourceInfo(srcDirectory, iCompilationUnit, fullResourceName);
 				}
 			}
+		}
 
-		} catch (JavaModelException e) {
-			throw e;
+		for (String srcDirectory : allSrcDirectories) {
+			String fullPath = srcDirectory + "/" + fullResourceName;
+			iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullPath));
+			if (iCompilationUnit != null && iCompilationUnit.exists()) {
+				return new ResourceInfo(srcDirectory, iCompilationUnit, fullResourceName);
+			}
 		}
 		
-		throw new Exception(String.format("ICompilationUnit not found for %s", fullResourceName));
+		throw new ICompilationUnitNotFoundException(String.format("ICompilationUnit not found for %s", fullResourceName));
 	}
 
 	public String getFullPath() {

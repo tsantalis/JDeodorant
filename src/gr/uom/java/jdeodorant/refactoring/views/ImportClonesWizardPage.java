@@ -9,6 +9,7 @@ import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.DirectoryDialog;
@@ -54,7 +55,8 @@ public class ImportClonesWizardPage extends WizardPage {
 		}
 		
 		Group fileInputGroup = new Group(resultComposite, SWT.SHADOW_ETCHED_IN);
-		fileInputGroup.setLayout(new GridLayout(1, false));
+		GridLayout gridLayout = new GridLayout(1, false);
+		fileInputGroup.setLayout(gridLayout);
 		fileInputGroup.setText("Select input files");
 		
 		initializeBasicFileInput(fileInputGroup);
@@ -67,16 +69,26 @@ public class ImportClonesWizardPage extends WizardPage {
 	}
 
 	private void initializeBasicFileInput(final Group fileInputGroup) {
-		Label inputFileLabel = new Label(fileInputGroup, SWT.NONE);
+		
+		Composite composite = new Composite(fileInputGroup, SWT.NONE);
+		composite.setLayout(new GridLayout(2, true));
+		
+		Label inputFileLabel = new Label(composite, SWT.NONE);
 		inputFileLabel.setText("Path to " + selectedCloneDetectorType.toString() + " results file:");
 		inputFileLabel.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
-		final Text inputFileText = new Text(fileInputGroup, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+		GridData grForLabel = new GridData();
+		grForLabel.horizontalSpan = 2;
+		grForLabel.horizontalAlignment = GridData.FILL;
+		inputFileLabel.setLayoutData(grForLabel);
+		
+		final Text inputFileText = new Text(composite, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
 		GridData gd = new GridData(GridData.FILL_HORIZONTAL);
 		gd.grabExcessHorizontalSpace = true;
 		gd.horizontalAlignment = GridData.FILL;
 		inputFileText.setLayoutData(gd);
 		inputFileText.setEditable(false);
-		Button inputFileButton = new Button(fileInputGroup, SWT.PUSH);
+		
+		Button inputFileButton = new Button(composite, SWT.PUSH);
 		inputFileButton.setText("Browse");
 		
 		inputFileButton.addSelectionListener(new SelectionAdapter() {
@@ -99,16 +111,26 @@ public class ImportClonesWizardPage extends WizardPage {
 	}
 
 	private void initializeSecondaryFileInput(final Group fileInputGroup) {
-		Label inputFileLabel = new Label(fileInputGroup, SWT.NONE);
+		
+		Composite composite = new Composite(fileInputGroup, SWT.NONE);
+		composite.setLayout(new GridLayout(2, false));
+		
+		Label inputFileLabel = new Label(composite, SWT.NONE);
 		inputFileLabel.setText("Path to .ccfxprepdir directory:");
 		inputFileLabel.setFont(MyRefactoringWizard.INPUT_PAGE_FONT);
-		final Text inputFileText = new Text(fileInputGroup, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+		GridData gridData = new GridData();
+		gridData.horizontalSpan = 2;
+		gridData.horizontalAlignment = GridData.FILL;
+		inputFileLabel.setLayoutData(gridData);
+		
+		final Text inputFileText = new Text(composite, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
 		GridData gd = new GridData(GridData.FILL_HORIZONTAL);
 		gd.grabExcessHorizontalSpace = true;
 		gd.horizontalAlignment = GridData.FILL;
 		inputFileText.setLayoutData(gd);
 		inputFileText.setEditable(false);
-		Button inputFileButton = new Button(fileInputGroup, SWT.PUSH);
+		
+		Button inputFileButton = new Button(composite, SWT.PUSH);
 		inputFileButton.setText("Browse");
 		
 		inputFileButton.addSelectionListener(new SelectionAdapter() {

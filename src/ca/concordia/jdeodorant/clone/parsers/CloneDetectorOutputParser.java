@@ -23,6 +23,8 @@ public abstract class CloneDetectorOutputParser {
 	private final IJavaProject iJavaProject;
 	private List<CloneDetectorOutputParserProgressObserver> cloneDetectorOutputParserProgressObservers = 
 			new ArrayList<CloneDetectorOutputParserProgressObserver>();
+	private boolean operationCanceled;
+	private List<Throwable> exceptions = new ArrayList<Throwable>();
 	
 	public CloneDetectorOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) {
 		this.toolOutputFilePath = cloneOutputFilePath;
@@ -45,7 +47,7 @@ public abstract class CloneDetectorOutputParser {
 	}
 	
 	public abstract int getCloneGroupCount();
-	public abstract CloneGroupList readInputFile();
+	public abstract CloneGroupList readInputFile() throws CloneDetectorOutputParseException;
 	
 	private String readResultsFile(String filePath) {
 		try {
@@ -125,6 +127,22 @@ public abstract class CloneDetectorOutputParser {
 		}
 		return iMethod;
 
+	}
+
+	public void cancelOperation() {
+		this.operationCanceled = true;
+	}
+
+	public boolean isOperationCanceled() {
+		return operationCanceled;
+	}
+
+	protected void addExceptionHappenedDuringParsing(Throwable ex) {
+		exceptions.add(ex);
+	}
+
+	public List<Throwable> getWarningExceptions() {
+		return new ArrayList<Throwable>(this.exceptions);
 	}
 	
 }

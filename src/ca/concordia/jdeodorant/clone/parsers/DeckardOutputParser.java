@@ -5,11 +5,13 @@ import java.util.regex.Pattern;
 
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.JavaModelException;
+
+import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFoundException;
 
 public class DeckardOutputParser extends CloneDetectorOutputParser {
 	private String resultsFile;
 	private int cloneGroupCount;
-	
 	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) {
 		super(javaProject, deckardOutputFilePath);
 		resultsFile = getResultsFileContents();
@@ -20,7 +22,7 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 	}
 
 	@Override
-	public CloneGroupList readInputFile() {
+	public CloneGroupList readInputFile() throws CloneDetectorOutputParseException {
 		CloneGroupList cloneGroups = new CloneGroupList();
 		
 		int groupID = 0;
@@ -33,6 +35,9 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		Matcher matcher = pattern.matcher(resultsFile);
 
 		while (matcher.find()) {
+			
+			if (isOperationCanceled())
+				return cloneGroups;
 
 			String strLine = matcher.group(1);
 
@@ -69,8 +74,12 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					cloneInstanceNumber++;
 
 					cloneGroup.addClone(cloneInstance);
-				} catch(Exception ex) {
-					ex.printStackTrace();
+				} catch(NumberFormatException ex) {
+					addExceptionHappenedDuringParsing(ex);
+				} catch (JavaModelException ex) {
+					addExceptionHappenedDuringParsing(ex);
+				} catch (ICompilationUnitNotFoundException ex) {
+					addExceptionHappenedDuringParsing(ex);
 				}
 			} else {
 				inGroup = false;

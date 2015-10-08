@@ -26,6 +26,7 @@ public class CloneGroup {
 
 	public void addClone(CloneInstance cloneInstance) {
 		cloneInstances.add(cloneInstance);
+		cloneInstance.setBelongingCloneGroup(this);
 	}
 	
 	public List<CloneInstance> getCloneInstances() {

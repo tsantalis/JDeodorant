@@ -250,10 +250,12 @@ public class DuplicatedCode extends ViewPart {
 						wizard);
 				dialog.open();
 				CloneGroupList cloneGroupList = wizard.getCloneGroupList();
-				cloneGroupTable = cloneGroupList.getCloneGroups();
-				treeViewer.setContentProvider(new ViewContentProvider());
-				applyRefactoringAction.setEnabled(true);
-				//saveResultsAction.setEnabled(true);
+				if(cloneGroupList != null) {
+					cloneGroupTable = cloneGroupList.getCloneGroups();
+					treeViewer.setContentProvider(new ViewContentProvider());
+					applyRefactoringAction.setEnabled(true);
+					//saveResultsAction.setEnabled(true);
+				}
 			}
 		};
 		importClonesAction.setToolTipText("Import Clones");

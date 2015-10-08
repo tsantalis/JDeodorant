@@ -87,8 +87,8 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 
 	public Iterator<GraphEdge> getDependenceIterator() {
 		Set<GraphEdge> allEdges = new LinkedHashSet<GraphEdge>();
-		allEdges.addAll(incomingEdges);
 		allEdges.addAll(outgoingEdges);
+		allEdges.addAll(incomingEdges);
 		return allEdges.iterator();
 	}
 

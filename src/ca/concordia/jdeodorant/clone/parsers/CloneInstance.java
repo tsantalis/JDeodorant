@@ -8,6 +8,7 @@ public class CloneInstance {
 	private String sourceFolder;
 	private String packageName;
 	private String className;
+	private String iMethodSignature;
 	private String methodSignature;
 	private String methodName;
 	
@@ -90,6 +91,14 @@ public class CloneInstance {
 		this.methodSignature = methodSignature;
 	}
 	
+	public String getIMethodSignature() {
+		return iMethodSignature;
+	}
+
+	public void setIMethodSignature(String iMethodSignature) {
+		this.iMethodSignature = iMethodSignature;
+	}
+
 	public boolean isSubcloneOf(CloneInstance other) {
 		int startOffset = locationInfo.getStartOffset();
 		int endOffset = startOffset + locationInfo.getLength() - 1;

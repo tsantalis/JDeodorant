@@ -75,6 +75,7 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 							locationInfo.getStartOffset(), locationInfo.getLength());
 					if (iMethod != null) {
 						cloneInstance.setMethodName(iMethod.getElementName());
+						cloneInstance.setIMethodSignature(iMethod.getSignature());
 						cloneInstance.setMethodSignature(getMethodJavaSignature(iMethod));
 					}
 					cloneInstanceNumber++;

@@ -1,14 +1,22 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
+import java.util.List;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.CompilationUnitCache;
+import gr.uom.java.ast.decomposition.cfg.mapping.CloneInstanceMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGRegionSubTreeMapper;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
 import org.eclipse.core.commands.operations.OperationHistoryEvent;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -16,9 +24,12 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -34,6 +45,8 @@ import org.eclipse.jface.viewers.TableLayout;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.wizard.WizardDialog;
+import org.eclipse.ltk.core.refactoring.Refactoring;
+import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
@@ -42,10 +55,12 @@ import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
+import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.part.ViewPart;
+import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 import ca.concordia.jdeodorant.clone.parsers.CloneGroup;
@@ -55,14 +70,11 @@ import ca.concordia.jdeodorant.clone.parsers.CloneInstance;
 public class DuplicatedCode extends ViewPart {
 	private TreeViewer treeViewer;
 	private Action importClonesAction;
+	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private IJavaProject selectedProject;
-	private IPackageFragmentRoot selectedPackageFragmentRoot;
-	private IPackageFragment selectedPackageFragment;
-	private ICompilationUnit selectedCompilationUnit;
-	private IType selectedType;
-	private IMethod selectedMethod;
 	private CloneGroup[] cloneGroupTable;
+	private CloneInstanceMapper mapper;
 	
 	class ViewContentProvider implements ITreeContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
@@ -107,6 +119,8 @@ public class DuplicatedCode extends ViewPart {
 				switch(index){
 				case 0:
 					return cloneInstance.getPackageName() + "." + cloneInstance.getClassName();
+				case 1:
+					return cloneInstance.getMethodSignature();
 				default:
 					return "";
 				}
@@ -136,61 +150,35 @@ public class DuplicatedCode extends ViewPart {
 				IJavaProject javaProject = null;
 				if(element instanceof IJavaProject) {
 					javaProject = (IJavaProject)element;
-					selectedPackageFragmentRoot = null;
-					selectedPackageFragment = null;
-					selectedCompilationUnit = null;
-					selectedType = null;
-					selectedMethod = null;
 				}
 				else if(element instanceof IPackageFragmentRoot) {
 					IPackageFragmentRoot packageFragmentRoot = (IPackageFragmentRoot)element;
 					javaProject = packageFragmentRoot.getJavaProject();
-					selectedPackageFragmentRoot = packageFragmentRoot;
-					selectedPackageFragment = null;
-					selectedCompilationUnit = null;
-					selectedType = null;
-					selectedMethod = null;
 				}
 				else if(element instanceof IPackageFragment) {
 					IPackageFragment packageFragment = (IPackageFragment)element;
 					javaProject = packageFragment.getJavaProject();
-					selectedPackageFragment = packageFragment;
-					selectedPackageFragmentRoot = null;
-					selectedCompilationUnit = null;
-					selectedType = null;
-					selectedMethod = null;
 				}
 				else if(element instanceof ICompilationUnit) {
 					ICompilationUnit compilationUnit = (ICompilationUnit)element;
 					javaProject = compilationUnit.getJavaProject();
-					selectedCompilationUnit = compilationUnit;
-					selectedPackageFragmentRoot = null;
-					selectedPackageFragment = null;
-					selectedType = null;
-					selectedMethod = null;
 				}
 				else if(element instanceof IType) {
 					IType type = (IType)element;
 					javaProject = type.getJavaProject();
-					selectedType = type;
-					selectedPackageFragmentRoot = null;
-					selectedPackageFragment = null;
-					selectedCompilationUnit = null;
-					selectedMethod = null;
 				}
 				else if(element instanceof IMethod) {
 					IMethod method = (IMethod)element;
 					javaProject = method.getJavaProject();
-					selectedMethod = method;
-					selectedPackageFragmentRoot = null;
-					selectedPackageFragment = null;
-					selectedCompilationUnit = null;
-					selectedType = null;
+				}
+				else if(element instanceof IField) {
+					IField field = (IField)element;
+					javaProject = field.getJavaProject();
 				}
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
 					importClonesAction.setEnabled(true);
-					//applyRefactoringAction.setEnabled(false);
+					applyRefactoringAction.setEnabled(false);
 					//saveResultsAction.setEnabled(false);
 				}
 			}
@@ -199,22 +187,28 @@ public class DuplicatedCode extends ViewPart {
 
 	@Override
 	public void createPartControl(Composite parent) {
-		treeViewer = new TreeViewer(parent, SWT.SINGLE | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
+		treeViewer = new TreeViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
 		treeViewer.setContentProvider(new ViewContentProvider());
 		treeViewer.setLabelProvider(new ViewLabelProvider());
 		treeViewer.setInput(getViewSite());
 		
 		TableLayout layout = new TableLayout();
-		layout.addColumnData(new ColumnWeightData(100, true));
+		layout.addColumnData(new ColumnWeightData(60, true));
+		layout.addColumnData(new ColumnWeightData(40, true));
 		
 		treeViewer.getTree().setLayout(layout);
 		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
 		treeViewer.getTree().setLinesVisible(true);
 		treeViewer.getTree().setHeaderVisible(true);
 		TreeColumn column0 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
-		column0.setText("Clone location");
+		column0.setText("Clone Java file");
 		column0.setResizable(true);
 		column0.pack();
+		
+		TreeColumn column1 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
+		column1.setText("Clone method");
+		column1.setResizable(true);
+		column1.pack();
 		
 		treeViewer.expandAll();
 		
@@ -228,7 +222,7 @@ public class DuplicatedCode extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					//applyRefactoringAction.setEnabled(false);
+					applyRefactoringAction.setEnabled(false);
 					//saveResultsAction.setEnabled(false);
 				}
 			}
@@ -242,7 +236,7 @@ public class DuplicatedCode extends ViewPart {
 	
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(importClonesAction);
-		//manager.add(applyRefactoringAction);
+		manager.add(applyRefactoringAction);
 		//manager.add(saveResultsAction);
 	}
 	
@@ -258,7 +252,7 @@ public class DuplicatedCode extends ViewPart {
 				CloneGroupList cloneGroupList = wizard.getCloneGroupList();
 				cloneGroupTable = cloneGroupList.getCloneGroups();
 				treeViewer.setContentProvider(new ViewContentProvider());
-				//applyRefactoringAction.setEnabled(true);
+				applyRefactoringAction.setEnabled(true);
 				//saveResultsAction.setEnabled(true);
 			}
 		};
@@ -266,6 +260,87 @@ public class DuplicatedCode extends ViewPart {
 		importClonesAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
 		importClonesAction.setEnabled(false);
+		
+		applyRefactoringAction = new Action() {
+			public void run() {
+				try {
+					CompilationUnitCache.getInstance().clearCache();
+					IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+					if(selection instanceof IStructuredSelection) {
+						IStructuredSelection structuredSelection = (IStructuredSelection)selection;
+						final List list = structuredSelection.toList();
+						if(list.size() == 2) {
+							if(list.get(0) instanceof CloneInstance && list.get(1) instanceof CloneInstance) {
+								final CloneInstance instance1 = (CloneInstance) list.get(0);
+								final CloneInstance instance2 = (CloneInstance) list.get(1);
+								if(instance1.getBelongingCloneGroup().equals(instance2.getBelongingCloneGroup())) {
+									IWorkbench wb = PlatformUI.getWorkbench();
+									IProgressService ps = wb.getProgressService();
+									if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
+										new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+									}
+									else {
+										ps.busyCursorWhile(new IRunnableWithProgress() {
+											public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+												new ASTReader(selectedProject, monitor);
+											}
+										});
+									}
+									ps.busyCursorWhile(new IRunnableWithProgress() {
+										public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+											mapper = new CloneInstanceMapper(instance1, instance2, selectedProject, monitor);
+										}
+									});
+									if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
+										try {
+											for(PDGRegionSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
+												JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+												JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+											}
+										} catch (PartInitException e) {
+											e.printStackTrace();
+										} catch (JavaModelException e) {
+											e.printStackTrace();
+										}
+										Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
+										MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+										RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+										try { 
+											String titleForFailedChecks = ""; //$NON-NLS-1$ 
+											op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+										} catch(InterruptedException e) {
+											e.printStackTrace();
+										}
+									}
+									else {
+										MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
+												"Unfortunatley, no refactoring opportunities were found.");
+									}
+									CompilationUnitCache.getInstance().releaseLock();
+								}
+								else {
+									wrongSelectionMessage();
+								}
+							}
+							else {
+								wrongSelectionMessage();
+							}
+						}
+						else {
+							wrongSelectionMessage();
+						}
+					}
+				} catch (InvocationTargetException e) {
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		};
+		applyRefactoringAction.setToolTipText("Apply Refactoring");
+		applyRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
+				getImageDescriptor(ISharedImages.IMG_DEF_VIEW));
+		applyRefactoringAction.setEnabled(false);
 		
 		doubleClickAction = new Action() {
 			public void run() {
@@ -340,5 +415,10 @@ public class DuplicatedCode extends ViewPart {
 			e.printStackTrace();
 		}
 		return null;
+	}
+
+	private void wrongSelectionMessage() {
+		MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
+				"You must select two (2) clone instances from the same clone group.");
 	}
 }

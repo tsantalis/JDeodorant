@@ -12,4 +12,8 @@ public class CloneDetectorOutputParseException extends Exception {
 		super(message);
 	}
 	
+	public CloneDetectorOutputParseException(Throwable throwable) {
+		super(throwable);
+	}
+	
 }

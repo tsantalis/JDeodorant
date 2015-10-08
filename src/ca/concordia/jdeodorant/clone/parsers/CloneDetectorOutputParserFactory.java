@@ -13,7 +13,7 @@ public class CloneDetectorOutputParserFactory {
 		case DECKARD:
 			return new DeckardOutputParser(jProject, mainFile);
 		case NICAD:
-//			return new NicadOutputParser(jProject, mainFile, outputExcelFile, otherArgs.length == 1 ?  otherArgs[0] : "", launchApplication, binFolder);
+			return new NiCadOutputParser(jProject, mainFile);
 		case CLONEDR:
 //			return new CloneDROutputParser(jProject, mainFile, outputExcelFile, otherArgs.length == 1 ?  otherArgs[0] : "", launchApplication, binFolder);
 		default:

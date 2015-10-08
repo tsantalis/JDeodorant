@@ -95,7 +95,11 @@ public class ImportClonesWizard extends Wizard {
 		    		parser.getWarningExceptions().size(), 
 		    		parser.getWarningExceptions().size() > 1 ? "s" : ""));
 		    messageBox.open();
-		    return false;
+		    System.out.println(parser.getWarningExceptions());
+		    if (cloneGroupList.getCloneGroupsCount() > 0)
+		    	return true;
+		    else
+		    	return false;
 		} else if (errorHappened || parser.isOperationCanceled()) {
 			return false;
 		}

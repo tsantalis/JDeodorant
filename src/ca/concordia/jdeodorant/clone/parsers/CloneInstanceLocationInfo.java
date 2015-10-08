@@ -47,14 +47,26 @@ public class CloneInstanceLocationInfo {
 		this.startColumn = startColumn;
 		this.endLine = endLine;
 		this.endColumn = endColumn;
-		String[] lines = readFileContents(filePath).split(LINE_FEED);
+		String fileContents = readFileContents(filePath);
+		String[] lines = fileContents.split(LINE_FEED);
 		int numberOfCharsForLines = getNumberOfCharsForLines(lines, startLine - 1); // The first offset of the start line
+
 		this.startOffset = numberOfCharsForLines + this.startColumn;
+		while (isWhiteSpaceCharacter(fileContents.charAt(startOffset))) {
+			this.startOffset++;
+		}
 		numberOfCharsForLines = getNumberOfCharsForLines(lines, endLine) - 1; // The last offset of the end line
 		int endOffset = numberOfCharsForLines + this.endColumn;
+		while (isWhiteSpaceCharacter(fileContents.charAt(endOffset))) {
+			endOffset--;
+		}
 		this.length = endOffset - this.startOffset + 1;
 	}
 	
+	private boolean isWhiteSpaceCharacter(char character) {
+		return character == ' ' || character == '\t' || character == '\n' || character == '\r';
+	}
+
 	private String readFileContents(String filePath) {
 		try {
 			InputStream in = new FileInputStream(new File(filePath));

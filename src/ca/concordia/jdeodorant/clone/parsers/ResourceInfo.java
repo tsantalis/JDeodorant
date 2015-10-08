@@ -68,8 +68,8 @@ public class ResourceInfo {
 		return className;
 	}
 
-	public static ResourceInfo getResourceInfo(IJavaProject jProject, String fullResourceName) throws JavaModelException, ICompilationUnitNotFoundException {
-	 
+	public static ResourceInfo getResourceInfo(IJavaProject jProject, String fullResourceName, boolean isAbsoluteFilePath) throws JavaModelException, ICompilationUnitNotFoundException {
+
 		// First try the given path, if not found, prepend src dir
 		ICompilationUnit iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullResourceName));
 		Set<String> allSrcDirectories = SourceDirectoryUtility.getAllSourceDirectories(jProject);
@@ -83,7 +83,17 @@ public class ResourceInfo {
 		}
 
 		for (String srcDirectory : allSrcDirectories) {
-			String fullPath = srcDirectory + "/" + fullResourceName;
+			String fullPath = "";
+			if (isAbsoluteFilePath) {
+				int indexOfSrcDirectorInTheAbsolutePath = fullResourceName.indexOf(srcDirectory);
+				if (indexOfSrcDirectorInTheAbsolutePath >= 0) {
+					fullPath = fullResourceName.substring(indexOfSrcDirectorInTheAbsolutePath);
+				} else {
+					continue;
+				}
+			} else {
+				fullPath = srcDirectory + "/" + fullResourceName;
+			}
 			iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullPath));
 			if (iCompilationUnit != null && iCompilationUnit.exists()) {
 				return new ResourceInfo(srcDirectory, iCompilationUnit, fullResourceName);

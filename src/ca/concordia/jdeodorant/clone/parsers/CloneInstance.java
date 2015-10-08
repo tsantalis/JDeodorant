@@ -20,6 +20,10 @@ public class CloneInstance {
 		this(cloneLocationInfo, parentGroup, 0);
 	}
 	
+	public CloneInstance(CloneInstanceLocationInfo locationInfo, int cloneID) {
+		this(locationInfo, null, cloneID);
+	}
+	
 	public CloneInstance(CloneInstanceLocationInfo locationInfo, CloneGroup parentGroup, int cloneID) {
 		this.locationInfo = locationInfo;
 		this.setBelongingCloneGroup(parentGroup);

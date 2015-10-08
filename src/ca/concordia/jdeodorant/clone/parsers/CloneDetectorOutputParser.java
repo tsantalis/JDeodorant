@@ -18,6 +18,8 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.NodeFinder;
 
+import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFoundException;
+
 public abstract class CloneDetectorOutputParser {
 	
 	private final String toolOutputFilePath;
@@ -26,18 +28,12 @@ public abstract class CloneDetectorOutputParser {
 			new ArrayList<CloneDetectorOutputParserProgressObserver>();
 	private boolean operationCanceled;
 	private List<Throwable> exceptions = new ArrayList<Throwable>();
+	private int cloneGroupCount;
 	
 	public CloneDetectorOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) {
 		this.toolOutputFilePath = cloneOutputFilePath;
 		this.iJavaProject = iJavaProject; 
 	}
-
-//	private String formatPath(String path) {
-//		path = path.replace("\\", "/");
-//		if (!path.endsWith("/"))
-//			path += "/";
-//		return path;
-//	}
 
 	public String getToolOutputFilePath() {
 		return toolOutputFilePath;
@@ -47,7 +43,14 @@ public abstract class CloneDetectorOutputParser {
 		return this.iJavaProject;
 	}
 	
-	public abstract int getCloneGroupCount();
+	public int getCloneGroupCount() {
+		return this.cloneGroupCount;
+	}
+	
+	protected void setCloneGroupCount(int cloneGroupCount) {
+		this.cloneGroupCount = cloneGroupCount;
+	}
+	
 	public abstract CloneGroupList readInputFile() throws CloneDetectorOutputParseException;
 	
 	private String readResultsFile(String filePath) {
@@ -134,7 +137,6 @@ public abstract class CloneDetectorOutputParser {
 
 		StringBuilder toReturn = new StringBuilder();
 
-		//toReturn.append(iMethod.getDeclaringType().getFullyQualifiedName());
 		try {
 			toReturn.append(Signature.toString(iMethod.getReturnType()));
 		} catch (IllegalArgumentException e) {
@@ -172,6 +174,43 @@ public abstract class CloneDetectorOutputParser {
 
 	public List<Throwable> getWarningExceptions() {
 		return new ArrayList<Throwable>(this.exceptions);
+	}
+	
+	protected CloneInstance getCloneInstance(String filePath, int cloneInstanceID, boolean isAbsoluteFilePath, 
+			int startLine, int startColumn, int endLine, int endColumn) 
+			throws JavaModelException, ICompilationUnitNotFoundException {
+		ResourceInfo resourceInfo = ResourceInfo.getResourceInfo(this.getIJavaProject(), filePath, isAbsoluteFilePath);
+		CloneInstanceLocationInfo locationInfo = new CloneInstanceLocationInfo(resourceInfo.getFullPath(), startLine, startColumn, endLine, endColumn);
+		CloneInstance cloneInstance = getCloneInstance(cloneInstanceID, resourceInfo, locationInfo);
+		return cloneInstance;
+	}
+	
+	protected CloneInstance getCloneInstance(String filePath, int cloneInstanceIndex, boolean isAbsoluteFilePath, 
+			int startOffset, int endOffset) 
+			throws JavaModelException, ICompilationUnitNotFoundException {
+		ResourceInfo resourceInfo = ResourceInfo.getResourceInfo(this.getIJavaProject(), filePath, isAbsoluteFilePath);
+		CloneInstanceLocationInfo locationInfo = new CloneInstanceLocationInfo(resourceInfo.getFullPath(), startOffset, endOffset);
+		CloneInstance cloneInstance = getCloneInstance(cloneInstanceIndex, resourceInfo, locationInfo);
+		return cloneInstance;
+	}
+
+	private CloneInstance getCloneInstance(int cloneInstanceIndex, ResourceInfo resourceInfo, CloneInstanceLocationInfo locationInfo) {
+		CloneInstance cloneInstance = new CloneInstance(locationInfo, cloneInstanceIndex);
+		cloneInstance.setSourceFolder(resourceInfo.getSourceFolder());
+		cloneInstance.setPackageName(resourceInfo.getPackageName());
+		cloneInstance.setClassName(resourceInfo.getClassName());
+		IMethod iMethod = getIMethod(resourceInfo.getICompilationUnit(), resourceInfo.getCompilationUnit(), 
+				locationInfo.getStartOffset(), locationInfo.getLength());
+		if (iMethod != null) {
+			cloneInstance.setMethodName(iMethod.getElementName());
+			try {
+				cloneInstance.setIMethodSignature(iMethod.getSignature());
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+			cloneInstance.setMethodSignature(getMethodJavaSignature(iMethod));
+		}
+		return cloneInstance;
 	}
 	
 }

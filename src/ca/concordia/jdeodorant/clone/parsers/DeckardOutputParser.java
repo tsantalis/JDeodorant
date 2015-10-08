@@ -6,14 +6,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.JavaModelException;
 
 import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFoundException;
 
 public class DeckardOutputParser extends CloneDetectorOutputParser {
 	private String resultsFile;
-	private int cloneGroupCount;
 	private List<Throwable> exceptions = new ArrayList<Throwable>();
 	
 	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) {
@@ -21,8 +19,10 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		resultsFile = getResultsFileContents();
 		Pattern pattern = Pattern.compile("(?m)^\\s*$");
 		Matcher matcher = pattern.matcher(resultsFile);
+		int cloneGroupCount = 0;
 		while (matcher.find())
 			cloneGroupCount++;
+		this.setCloneGroupCount(cloneGroupCount);
 	}
 
 	@Override
@@ -61,25 +61,11 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 
 				String filePath = lineMatcher.group(1);
 				try {
-					ResourceInfo resourceInfo = ResourceInfo.getResourceInfo(this.getIJavaProject(), filePath);
 					int startLine = Integer.parseInt(lineMatcher.group(2));
 					int length = Integer.parseInt(lineMatcher.group(3));
 					int endLine = startLine + length - 1;
-
-					CloneInstanceLocationInfo locationInfo = new CloneInstanceLocationInfo(resourceInfo.getFullPath(), startLine, 0, endLine, 0);
-					CloneInstance cloneInstance = new CloneInstance(locationInfo, cloneGroup, cloneInstanceNumber);
-					cloneInstance.setSourceFolder(resourceInfo.getSourceFolder());
-					cloneInstance.setPackageName(resourceInfo.getPackageName());
-					cloneInstance.setClassName(resourceInfo.getClassName());
-					IMethod iMethod = getIMethod(resourceInfo.getICompilationUnit(), resourceInfo.getCompilationUnit(), 
-							locationInfo.getStartOffset(), locationInfo.getLength());
-					if (iMethod != null) {
-						cloneInstance.setMethodName(iMethod.getElementName());
-						cloneInstance.setIMethodSignature(iMethod.getSignature());
-						cloneInstance.setMethodSignature(getMethodJavaSignature(iMethod));
-					}
+					CloneInstance cloneInstance = getCloneInstance(filePath, cloneInstanceNumber, false, startLine, 0, endLine, 0);
 					cloneInstanceNumber++;
-
 					cloneGroup.addClone(cloneInstance);
 				} catch(NumberFormatException ex) {
 					addExceptionHappened(ex);
@@ -101,10 +87,5 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 
 	private void addExceptionHappened(Throwable ex) {
 		exceptions.add(ex);
-	}
-
-	@Override
-	public int getCloneGroupCount() {
-		return cloneGroupCount;
 	}
 }

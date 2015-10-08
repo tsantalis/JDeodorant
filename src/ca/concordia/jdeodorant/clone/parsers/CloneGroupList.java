@@ -36,4 +36,8 @@ public class CloneGroupList implements Iterable<CloneGroup> {
 	public CloneGroup[] getAllCloneGroups() {
 		return cloneGroups.toArray(new CloneGroup[cloneGroups.size()]);
 	}
+
+	public int getCloneGroupsCount() {
+		return cloneGroups.size();
+	}
 }

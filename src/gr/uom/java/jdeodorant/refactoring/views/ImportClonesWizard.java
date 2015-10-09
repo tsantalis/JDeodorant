@@ -58,7 +58,6 @@ public class ImportClonesWizard extends Wizard {
 							if (monitor.isCanceled()) {
 								parser.cancelOperation();
 							}
-							//monitor.set
 							int percentage = (int)(cloneGroupIndex / (double)cloneGroupCount * 100);
 							monitor.subTask(percentage + "%");
 							monitor.worked(1);

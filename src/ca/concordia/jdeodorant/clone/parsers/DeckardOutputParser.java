@@ -11,7 +11,7 @@ import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFou
 public class DeckardOutputParser extends CloneDetectorOutputParser {
 	private String resultsFile;
 	
-	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) {
+	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) throws InvalidInputFileException {
 		super(javaProject, deckardOutputFilePath);
 		resultsFile = getResultsFileContents();
 		Pattern pattern = Pattern.compile("(?m)^\\s*$");
@@ -19,11 +19,19 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		int cloneGroupCount = 0;
 		while (matcher.find())
 			cloneGroupCount++;
+		if (cloneGroupCount == 0) {
+			resultsFile = null;
+			throw new InvalidInputFileException();
+		}
 		this.setCloneGroupCount(cloneGroupCount);
 	}
 
 	@Override
-	public CloneGroupList readInputFile() throws CloneDetectorOutputParseException {
+	public CloneGroupList readInputFile() throws InvalidInputFileException {
+		
+		if (resultsFile == null)
+			throw new InvalidInputFileException();
+		
 		CloneGroupList cloneGroups = new CloneGroupList();
 		
 		int groupID = 0;
@@ -72,12 +80,16 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					addExceptionHappenedDuringParsing(ex);
 				}
 			} else {
-				cloneGroups.add(cloneGroup);
+				if (cloneGroup != null && cloneGroup.getCloneGroupSize() > 0)
+					cloneGroups.add(cloneGroup);
 				inGroup = false;
 				progress(groupID);
 			}
 
 		}
+		
+		if (cloneGroups.getCloneGroupsCount() == 0)
+			throw new InvalidInputFileException();
 		
 		return cloneGroups;
 	}

@@ -30,7 +30,7 @@ public abstract class CloneDetectorOutputParser {
 	private List<Throwable> exceptions = new ArrayList<Throwable>();
 	private int cloneGroupCount;
 	
-	public CloneDetectorOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) {
+	public CloneDetectorOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) throws InvalidInputFileException {
 		this.toolOutputFilePath = cloneOutputFilePath;
 		this.iJavaProject = iJavaProject; 
 	}
@@ -51,7 +51,7 @@ public abstract class CloneDetectorOutputParser {
 		this.cloneGroupCount = cloneGroupCount;
 	}
 	
-	public abstract CloneGroupList readInputFile() throws CloneDetectorOutputParseException;
+	public abstract CloneGroupList readInputFile() throws InvalidInputFileException;
 	
 	public String readFileContents(String filePath) {
 		try {
@@ -169,7 +169,7 @@ public abstract class CloneDetectorOutputParser {
 	}
 
 	protected void addExceptionHappenedDuringParsing(Throwable ex) {
-		exceptions.add(ex);
+		exceptions.add(new CloneDetectorOutputParseException(ex));
 	}
 
 	public List<Throwable> getWarningExceptions() {

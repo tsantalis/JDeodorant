@@ -18,9 +18,11 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 
 	private final Set<Integer> allCloneGroupIDs;
 
-	public CloneDROutputParser(IJavaProject iJavaProject, String cloneDROutputFilePath) {
+	public CloneDROutputParser(IJavaProject iJavaProject, String cloneDROutputFilePath) throws InvalidInputFileException {
 		super(iJavaProject, formatPath(cloneDROutputFilePath));
 		this.allCloneGroupIDs = getAllCloneGroups(this.getToolOutputFilePath());
+		if (this.allCloneGroupIDs.size() == 0)
+			throw new InvalidInputFileException();
 		this.setCloneGroupCount(this.allCloneGroupIDs.size());
 	}
 
@@ -32,7 +34,7 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 	}
 
 	@Override
-	public CloneGroupList readInputFile() throws CloneDetectorOutputParseException {
+	public CloneGroupList readInputFile() throws InvalidInputFileException {
 
 		CloneGroupList cloneGroups = new CloneGroupList();
 		
@@ -71,6 +73,8 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 			}
 			if (cloneGroup.getCloneGroupSize() > 0)
 				cloneGroups.add(cloneGroup);
+			else 
+				throw new InvalidInputFileException();
 			progress(cloneGroupID);
 		}
 		

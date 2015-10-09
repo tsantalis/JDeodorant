@@ -23,7 +23,7 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 	
 	private Document document;
 
-	public ConQATOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) {
+	public ConQATOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) throws InvalidInputFileException {
 		super(iJavaProject, cloneOutputFilePath);
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		factory.setIgnoringElementContentWhitespace(true);
@@ -36,6 +36,7 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 				this.setCloneGroupCount(cloneClassesNodeList.getLength());
 			} else {			
 				this.document = null;
+				throw new InvalidInputFileException();
 			}
 		} catch (IOException ioex) {
 			ioex.printStackTrace();
@@ -47,12 +48,12 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 	}
 
 	@Override
-	public CloneGroupList readInputFile() throws CloneDetectorOutputParseException {
+	public CloneGroupList readInputFile() throws InvalidInputFileException {
 
 		CloneGroupList cloneGroups = new CloneGroupList();
 		
 		if (this.document == null)
-			throw new CloneDetectorOutputParseException();
+			throw new InvalidInputFileException();
 		
 		Map<Integer, String> filesMap = getFilesIdToPathMap();
 		

@@ -4,7 +4,7 @@ import org.eclipse.jdt.core.IJavaProject;
 
 public class CloneDetectorOutputParserFactory {
 	
-	public static CloneDetectorOutputParser getCloneToolParser(CloneDetectorType tool, IJavaProject jProject, String mainFile, String... otherArgs) {
+	public static CloneDetectorOutputParser getCloneToolParser(CloneDetectorType tool, IJavaProject jProject, String mainFile, String... otherArgs) throws InvalidInputFileException {
 		switch (tool) {
 		case CCFINDER:
 			return new CCFinderOutputParser(jProject, mainFile, otherArgs[0]);

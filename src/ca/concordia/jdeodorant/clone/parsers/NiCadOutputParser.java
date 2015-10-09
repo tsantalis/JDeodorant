@@ -22,7 +22,7 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 
 	private Document document;
 
-	public NiCadOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) {
+	public NiCadOutputParser(IJavaProject iJavaProject, String cloneOutputFilePath) throws InvalidInputFileException {
 		super(iJavaProject, cloneOutputFilePath);
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		factory.setIgnoringElementContentWhitespace(true);
@@ -33,8 +33,9 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 			NodeList classInfoNodeList = document.getElementsByTagName("classinfo");
 			try {
 				this.setCloneGroupCount(Integer.parseInt(classInfoNodeList.item(0).getAttributes().getNamedItem("nclasses").getNodeValue()));
-			} catch (NumberFormatException nfe) {
+			} catch (Exception nfe) {
 				this.document = null;
+				throw new InvalidInputFileException();
 			}
 		} catch (IOException ioex) {
 			ioex.printStackTrace();
@@ -46,10 +47,10 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 	}
 
 	@Override
-	public CloneGroupList readInputFile() throws CloneDetectorOutputParseException {
+	public CloneGroupList readInputFile() throws InvalidInputFileException {
 		
 		if (this.document == null)
-			throw new CloneDetectorOutputParseException();
+			throw new InvalidInputFileException();
 
 		CloneGroupList cloneGroups = new CloneGroupList();
 
@@ -73,7 +74,8 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 						cloneGroup.addClone(cloneInstance);
 					}
 				}
-				cloneGroups.add(cloneGroup);
+				if (cloneGroup.getCloneGroupSize() > 0)
+					cloneGroups.add(cloneGroup);
 			} catch (NullPointerException npex) {
 				addExceptionHappenedDuringParsing(npex);
 			} catch (NumberFormatException nfex) {
@@ -86,6 +88,8 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 			progress(cloneClassIndex);
 		}	
 
+		if (cloneGroups.getCloneGroupsCount() == 0)
+			throw new InvalidInputFileException();
 
 		return cloneGroups;
 	}

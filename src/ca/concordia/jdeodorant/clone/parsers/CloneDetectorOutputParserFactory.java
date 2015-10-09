@@ -9,7 +9,7 @@ public class CloneDetectorOutputParserFactory {
 		case CCFINDER:
 //			return new CCFinderOutputParser(jProject, mainFile, otherArgs[0], otherArgs.length == 2 ? otherArgs[1] : "", outputExcelFile, launchApplication, binFolder);
 		case CONQAT:
-//			return new ConQatOutputParser(jProject, mainFile, outputExcelFile, launchApplication, binFolder);
+			return new ConQATOutputParser(jProject, mainFile);
 		case DECKARD:
 			return new DeckardOutputParser(jProject, mainFile);
 		case NICAD:

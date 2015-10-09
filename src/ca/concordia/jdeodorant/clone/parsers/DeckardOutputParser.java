@@ -1,7 +1,5 @@
 package ca.concordia.jdeodorant.clone.parsers;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,7 +10,6 @@ import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFou
 
 public class DeckardOutputParser extends CloneDetectorOutputParser {
 	private String resultsFile;
-	private List<Throwable> exceptions = new ArrayList<Throwable>();
 	
 	public DeckardOutputParser(IJavaProject javaProject, String deckardOutputFilePath) {
 		super(javaProject, deckardOutputFilePath);
@@ -68,11 +65,11 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					cloneInstanceNumber++;
 					cloneGroup.addClone(cloneInstance);
 				} catch(NumberFormatException ex) {
-					addExceptionHappened(ex);
+					addExceptionHappenedDuringParsing(ex);
 				} catch (JavaModelException ex) {
-					addExceptionHappened(ex);
+					addExceptionHappenedDuringParsing(ex);
 				} catch (ICompilationUnitNotFoundException ex) {
-					addExceptionHappened(ex);
+					addExceptionHappenedDuringParsing(ex);
 				}
 			} else {
 				cloneGroups.add(cloneGroup);
@@ -83,9 +80,5 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		}
 		
 		return cloneGroups;
-	}
-
-	private void addExceptionHappened(Throwable ex) {
-		exceptions.add(ex);
 	}
 }

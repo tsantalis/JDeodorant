@@ -75,7 +75,6 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 					String filePath = filesMap.get(cloneFileID);
 					int startLine = Integer.parseInt(cloneNode.getAttributes().getNamedItem("startLine").getNodeValue()); 
 					int endLine = Integer.parseInt(cloneNode.getAttributes().getNamedItem("endLine").getNodeValue()); ; 
-					//startOffset, endOffset
 					CloneInstance cloneInstance = getCloneInstance(filePath, cloneInstanceID, true, startLine, 0, endLine, 0);
 					cloneGroup.addClone(cloneInstance);
 				}

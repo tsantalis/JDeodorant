@@ -53,7 +53,7 @@ public abstract class CloneDetectorOutputParser {
 	
 	public abstract CloneGroupList readInputFile() throws CloneDetectorOutputParseException;
 	
-	private String readResultsFile(String filePath) {
+	public String readFileContents(String filePath) {
 		try {
 			StringBuffer fileData;
 			char[] buffer;
@@ -83,7 +83,7 @@ public abstract class CloneDetectorOutputParser {
 	}
 	
 	protected String getResultsFileContents() {
-		return readResultsFile(getToolOutputFilePath());
+		return readFileContents(getToolOutputFilePath());
 	}
 	
 	protected void progress(int cloneGroupIndex) {

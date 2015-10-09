@@ -87,12 +87,8 @@ public class CloneInstanceLocationInfo {
 	}
 
 	private int getNumberOfCharsForLines(String[] lines, int line) {
-		
-		if (line >= lines.length)
-			return 0;
-		
 		int charsBeforeLine = 0;
-		for (int i = 0; i < line; i++) {
+		for (int i = 0; i < line && i < lines.length; i++) {
 			charsBeforeLine += lines[i].length() + LINE_FEED.length();
 		}
 		return charsBeforeLine;

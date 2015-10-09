@@ -7,7 +7,7 @@ public class CloneDetectorOutputParserFactory {
 	public static CloneDetectorOutputParser getCloneToolParser(CloneDetectorType tool, IJavaProject jProject, String mainFile, String... otherArgs) {
 		switch (tool) {
 		case CCFINDER:
-//			return new CCFinderOutputParser(jProject, mainFile, otherArgs[0], otherArgs.length == 2 ? otherArgs[1] : "", outputExcelFile, launchApplication, binFolder);
+			return new CCFinderOutputParser(jProject, mainFile, otherArgs[0]);
 		case CONQAT:
 			return new ConQATOutputParser(jProject, mainFile);
 		case DECKARD:
@@ -15,7 +15,7 @@ public class CloneDetectorOutputParserFactory {
 		case NICAD:
 			return new NiCadOutputParser(jProject, mainFile);
 		case CLONEDR:
-//			return new CloneDROutputParser(jProject, mainFile, outputExcelFile, otherArgs.length == 1 ?  otherArgs[0] : "", launchApplication, binFolder);
+			return new CloneDROutputParser(jProject, mainFile);
 		default:
 			throw new IllegalArgumentException("Not yet implemented.");
 		}

@@ -1309,7 +1309,8 @@ public abstract class DivideAndConquerMatcher {
 						}
 						else {
 							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
+								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
+										!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2)) {
 									MappingState state = new MappingState(previousState, mapping);
 									previousState.addChild(state);
 									state.traverse(mapping);
@@ -1348,7 +1349,8 @@ public abstract class DivideAndConquerMatcher {
 						}
 						else {
 							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2)) {
+								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
+										!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2)) {
 									MappingState state = new MappingState(previousState, mapping);
 									previousState.addChild(state);
 									state.traverse(mapping);

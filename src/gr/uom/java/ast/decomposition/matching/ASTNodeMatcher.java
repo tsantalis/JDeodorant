@@ -1488,14 +1488,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 					if(typeMatch) {
 						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 						astNodeDifference.addDifference(diff);
-						addDifference(astNodeDifference);
-						return typeMatch;
+						if(!(node.getParent() instanceof Statement) && !(o.getParent() instanceof Statement)) {
+							addDifference(astNodeDifference);
+							return typeMatch;
+						}
 					}
 					else {
 						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
-						addDifference(astNodeDifference);
-						return typeMatch;
+						if(!(node.getParent() instanceof Statement) && !(o.getParent() instanceof Statement)) {
+							addDifference(astNodeDifference);
+							return typeMatch;
+						}
 					}
 				}
 				if(node.arguments().size() != o.arguments().size()) {

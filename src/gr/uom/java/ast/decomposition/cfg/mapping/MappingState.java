@@ -4,7 +4,6 @@ import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
-import gr.uom.java.ast.decomposition.cfg.GraphNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
@@ -416,7 +415,8 @@ public class MappingState {
 			}
 		}
 		
-		return incomingDataDependenceFromUnvisitedNodeG1 != incomingDataDependenceFromUnvisitedNodeG2;
+		return incomingDataDependenceFromUnvisitedNodeG1 != incomingDataDependenceFromUnvisitedNodeG2 &&
+				restrictedNodesG1.size() == restrictedNodesG2.size();
 	}
 
 	private PDGNodeMapping findMappingWithBothNodes(PDGNode nodeG1, PDGNode nodeG2) {

@@ -7,7 +7,6 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaModelException;
 
@@ -27,9 +26,9 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 	}
 
 	private static String formatPath(String cloneDROutputFilePath) {
-		cloneDROutputFilePath = Path.forPosix(cloneDROutputFilePath).toOSString();
-		if (!cloneDROutputFilePath.endsWith(File.separator))
-			cloneDROutputFilePath += File.separator;
+		cloneDROutputFilePath = cloneDROutputFilePath.replace("\\", "/");
+		if (!cloneDROutputFilePath.endsWith("/"))
+			cloneDROutputFilePath += "/";
 		return cloneDROutputFilePath;
 	}
 

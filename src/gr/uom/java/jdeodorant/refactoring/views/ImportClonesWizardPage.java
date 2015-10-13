@@ -170,6 +170,8 @@ public class ImportClonesWizardPage extends WizardPage {
 				public void widgetSelected(SelectionEvent event) {
 					DirectoryDialog directoryDialog = new DirectoryDialog(ImportClonesWizardPage.this.getShell(), SWT.OPEN);
 					directoryDialog.setText("Browse to .ccfxprepdir directory");
+					if (inputFileText.getText() != null)
+						directoryDialog.setFilterPath(inputFileText.getText());
 					String inputFile = directoryDialog.open();
 					if(inputFile != null) {
 						secondaryInputFile = inputFile;

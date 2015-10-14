@@ -1,5 +1,6 @@
 package gr.uom.java.history;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.TypeCheckCodeFragmentAnalyzer;
 import gr.uom.java.ast.util.StatementExtractor;
 import gr.uom.java.jdeodorant.refactoring.manipulators.TypeCheckElimination;
@@ -20,7 +21,6 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Block;
@@ -113,7 +113,7 @@ public class TypeCheckingEvolution implements Evolution {
 						IPackageFragment iPackageFragment = (IPackageFragment)child;
 						ICompilationUnit[] iCompilationUnits = iPackageFragment.getCompilationUnits();
 						for(ICompilationUnit iCompilationUnit : iCompilationUnits) {
-							ASTParser parser = ASTParser.newParser(AST.JLS4);
+							ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 					        parser.setKind(ASTParser.K_COMPILATION_UNIT);
 					        parser.setSource(iCompilationUnit);
 					        parser.setResolveBindings(true); // we need bindings later on

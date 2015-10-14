@@ -15,7 +15,6 @@ import java.util.Set;
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.ITypeRoot;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -249,7 +248,7 @@ public class CompilationUnitCache extends Indexer {
 				return compilationUnitList.get(position);
 			}
 			else {
-				ASTParser parser = ASTParser.newParser(AST.JLS4);
+				ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 				parser.setKind(ASTParser.K_COMPILATION_UNIT);
 				parser.setSource(iTypeRoot);
 				parser.setResolveBindings(true);

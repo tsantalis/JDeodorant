@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.inheritance.InheritanceTree;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.TypeVisitor;
@@ -935,7 +936,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		boolean stateStrategyAlreadyExists = false;
 		ICompilationUnit stateStrategyICompilationUnit = JavaCore.createCompilationUnitFrom(stateStrategyFile);
 		javaElementsToOpenInEditor.add(stateStrategyICompilationUnit);
-		ASTParser stateStrategyParser = ASTParser.newParser(AST.JLS4);
+		ASTParser stateStrategyParser = ASTParser.newParser(ASTReader.JLS);
 		stateStrategyParser.setKind(ASTParser.K_COMPILATION_UNIT);
 		Document stateStrategyDocument = null;
 		if(stateStrategyFile.exists()) {
@@ -1250,7 +1251,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			boolean subclassAlreadyExists = false;
 			ICompilationUnit subclassICompilationUnit = JavaCore.createCompilationUnitFrom(subclassFile);
 			javaElementsToOpenInEditor.add(subclassICompilationUnit);
-			ASTParser subclassParser = ASTParser.newParser(AST.JLS4);
+			ASTParser subclassParser = ASTParser.newParser(ASTReader.JLS);
 			subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
 			Document subclassDocument = null;
 			if(subclassFile.exists()) {
@@ -1641,7 +1642,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		boolean intermediateClassAlreadyExists = false;
 		ICompilationUnit intermediateClassICompilationUnit = JavaCore.createCompilationUnitFrom(intermediateClassFile);
 		javaElementsToOpenInEditor.add(intermediateClassICompilationUnit);
-		ASTParser intermediateClassParser = ASTParser.newParser(AST.JLS4);
+		ASTParser intermediateClassParser = ASTParser.newParser(ASTReader.JLS);
 		intermediateClassParser.setKind(ASTParser.K_COMPILATION_UNIT);
 		Document intermediateClassDocument = null;
 		if(intermediateClassFile.exists()) {
@@ -1934,7 +1935,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			boolean subclassAlreadyExists = false;
 			ICompilationUnit subclassICompilationUnit = JavaCore.createCompilationUnitFrom(subclassFile);
 			javaElementsToOpenInEditor.add(subclassICompilationUnit);
-			ASTParser subclassParser = ASTParser.newParser(AST.JLS4);
+			ASTParser subclassParser = ASTParser.newParser(ASTReader.JLS);
 			subclassParser.setKind(ASTParser.K_COMPILATION_UNIT);
 			Document subclassDocument = null;
 			if(subclassFile.exists()) {

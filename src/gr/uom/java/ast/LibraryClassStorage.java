@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import java.util.Set;
 
 import org.eclipse.jdt.core.IClassFile;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -42,7 +41,7 @@ public class LibraryClassStorage extends Indexer {
 			CompilationUnit compilationUnit = null;
 			try {
 				if(!unMatchedClassFiles.contains(classFile)) {
-					ASTParser parser = ASTParser.newParser(AST.JLS4);
+					ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 					parser.setSource(classFile);
 					parser.setResolveBindings(true);
 					compilationUnit = (CompilationUnit)parser.createAST(null);

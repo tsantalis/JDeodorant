@@ -1,6 +1,7 @@
 package gr.uom.java.history;
 
 import gr.uom.java.ast.ASTInformationGenerator;
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
 
 import java.util.LinkedHashMap;
@@ -16,7 +17,6 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -101,7 +101,7 @@ public class MethodEvolution implements Evolution {
 		List<String> stringRepresentation = null;
 		if(method != null) {
 			ICompilationUnit iCompilationUnit = method.getCompilationUnit();
-			ASTParser parser = ASTParser.newParser(AST.JLS4);
+			ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 			parser.setKind(ASTParser.K_COMPILATION_UNIT);
 			parser.setSource(iCompilationUnit);
 			parser.setResolveBindings(true);

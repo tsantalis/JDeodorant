@@ -1,12 +1,13 @@
 package ca.concordia.jdeodorant.clone.parsers;
 
+import gr.uom.java.ast.ASTReader;
+
 import java.util.Set;
 
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
@@ -40,7 +41,7 @@ public class ResourceInfo {
 	
 	public CompilationUnit getCompilationUnitFromICompilationUnit(ICompilationUnit iCompilationUnit) {
 		CompilationUnit cunit = null;
-		ASTParser parser = ASTParser.newParser(AST.JLS4);
+		ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
 		parser.setSource(iCompilationUnit);
 		parser.setResolveBindings(true);

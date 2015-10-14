@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
@@ -510,7 +511,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		ICompilationUnit extractedClassICompilationUnit = JavaCore.createCompilationUnitFrom(extractedClassFile);
 		javaElementsToOpenInEditor.add(extractedClassICompilationUnit);
-		ASTParser extractedClassParser = ASTParser.newParser(AST.JLS4);
+		ASTParser extractedClassParser = ASTParser.newParser(ASTReader.JLS);
 		extractedClassParser.setKind(ASTParser.K_COMPILATION_UNIT);
 		Document extractedClassDocument = new Document();
 		extractedClassParser.setSource(extractedClassDocument.get().toCharArray());

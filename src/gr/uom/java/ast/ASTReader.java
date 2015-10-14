@@ -54,6 +54,7 @@ public class ASTReader {
 
 	private static SystemObject systemObject;
 	private static IJavaProject examinedProject;
+	public static final int JLS = AST.JLS4;
 
 	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) {
 		if(monitor != null)
@@ -187,7 +188,7 @@ public class ASTReader {
 	private List<ClassObject> parseAST(ICompilationUnit iCompilationUnit) {
 		ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
 		IFile iFile = (IFile)iCompilationUnit.getResource();
-        ASTParser parser = ASTParser.newParser(AST.JLS4);
+        ASTParser parser = ASTParser.newParser(JLS);
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
         parser.setSource(iCompilationUnit);
         parser.setResolveBindings(true); // we need bindings later on

@@ -20,7 +20,6 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -178,7 +177,7 @@ public class PackageMapDiagram {
 						ICompilationUnit iCompilationUnit = (ICompilationUnit) child;
 
 						ASTInformationGenerator.setCurrentITypeRoot(iCompilationUnit);
-						ASTParser parser = ASTParser.newParser(AST.JLS4);
+						ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 						parser.setKind(ASTParser.K_COMPILATION_UNIT);
 						parser.setSource(iCompilationUnit);
 						parser.setResolveBindings(true); // we need bindings later on

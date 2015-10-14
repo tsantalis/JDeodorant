@@ -25,13 +25,6 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 		this.setCloneGroupCount(this.allCloneGroupIDs.size());
 	}
 
-	private static String formatPath(String cloneDROutputFilePath) {
-		cloneDROutputFilePath = cloneDROutputFilePath.replace("\\", "/");
-		if (!cloneDROutputFilePath.endsWith("/"))
-			cloneDROutputFilePath += "/";
-		return cloneDROutputFilePath;
-	}
-
 	@Override
 	public CloneGroupList readInputFile() throws InvalidInputFileException {
 

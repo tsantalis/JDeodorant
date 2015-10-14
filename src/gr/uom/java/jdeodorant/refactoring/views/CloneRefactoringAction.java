@@ -117,21 +117,30 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 								e.printStackTrace();
 							}
 						}
+						else {
+							MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
+									"Unfortunatley, no refactoring opportunities were found.");
+						}
 						CompilationUnitCache.getInstance().releaseLock();
 					}
-					else
-						MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
-								"You must select two (2) methods from the same project.");
+					else {
+						wrongSelectionMessage();
+					}
 				}
-				else
-					MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
-							"You must select two (2) methods from the same project.");
+				else {
+					wrongSelectionMessage();
+				}
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void wrongSelectionMessage() {
+		MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
+				"You must select two (2) methods from the same project.");
 	}
 
 	public void selectionChanged(IAction action, ISelection selection) {

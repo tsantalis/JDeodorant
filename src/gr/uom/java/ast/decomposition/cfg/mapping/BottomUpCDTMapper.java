@@ -17,12 +17,22 @@ public class BottomUpCDTMapper {
 	private ICompilationUnit iCompilationUnit1;
 	private ICompilationUnit iCompilationUnit2;
 	private List<CompleteSubTreeMatch> solutions;
+	private boolean forceTopDownMatchForSibings = true;
 
 	public BottomUpCDTMapper(ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
 			ControlDependenceTreeNode root1, ControlDependenceTreeNode root2) {
 		this.iCompilationUnit1 = iCompilationUnit1;
 		this.iCompilationUnit2 = iCompilationUnit2;
 		this.solutions = new ArrayList<CompleteSubTreeMatch>();
+		processBottomUp(root1, root2);
+	}
+
+	public BottomUpCDTMapper(ICompilationUnit iCompilationUnit1, ICompilationUnit iCompilationUnit2,
+			ControlDependenceTreeNode root1, ControlDependenceTreeNode root2, boolean forceTopDownMatchForSibings) {
+		this.iCompilationUnit1 = iCompilationUnit1;
+		this.iCompilationUnit2 = iCompilationUnit2;
+		this.solutions = new ArrayList<CompleteSubTreeMatch>();
+		this.forceTopDownMatchForSibings = forceTopDownMatchForSibings;
 		processBottomUp(root1, root2);
 	}
 
@@ -170,6 +180,10 @@ public class BottomUpCDTMapper {
 									elseIfChainTopDownMatches.addAll(subTree.getMatchPairs());
 								}
 							}
+							else if(!forceTopDownMatchForSibings) {
+								elseIfChainMatchedSiblings.add(siblingMatchPair);
+								elseIfChainTopDownMatches.add(siblingMatchPair);
+							}
 							//apply first-match approach
 							break;
 						}
@@ -222,6 +236,9 @@ public class BottomUpCDTMapper {
 							if(subTree.getMatchPairs().contains(siblingMatchPair)) {
 								matches.addAll(subTree.getMatchPairs());
 							}
+						}
+						else if(!forceTopDownMatchForSibings) {
+							matches.add(siblingMatchPair);
 						}
 						//apply first-match approach
 						break;

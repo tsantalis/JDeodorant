@@ -25,12 +25,12 @@ import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneRefactoringType;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneStructureNode;
+import gr.uom.java.ast.decomposition.cfg.mapping.DivideAndConquerMatcher;
 import gr.uom.java.ast.decomposition.cfg.mapping.NodeMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGElseMapping;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeGap;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGNodeMapping;
-import gr.uom.java.ast.decomposition.cfg.mapping.PDGSubTreeMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.StatementCollector;
 import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingKeyPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
@@ -150,8 +150,8 @@ import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
-	private List<PDGSubTreeMapper> mappers;
-	private PDGSubTreeMapper mapper;
+	private List<? extends DivideAndConquerMatcher> mappers;
+	private DivideAndConquerMatcher mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
 	private List<TypeDeclaration> sourceTypeDeclarations;
 	private List<MethodDeclaration> sourceMethodDeclarations;
@@ -192,7 +192,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		private IPackageBinding intermediateClassPackageBinding;
 	}
 	
-	public ExtractCloneRefactoring(List<PDGSubTreeMapper> mappers) {
+	public ExtractCloneRefactoring(List<? extends DivideAndConquerMatcher> mappers) {
 		super();
 		this.mappers = mappers;
 		this.mapper = mappers.get(0);
@@ -204,7 +204,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	public List<PDGSubTreeMapper> getMappers() {
+	public List<? extends DivideAndConquerMatcher> getMappers() {
 		return mappers;
 	}
 
@@ -288,11 +288,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return javaElementsToOpenInEditor;
 	}
 
-	public PDGSubTreeMapper getMapper() {
+	public DivideAndConquerMatcher getMapper() {
 		return mapper;
 	}
 
-	public void setMapper(PDGSubTreeMapper mapper) {
+	public void setMapper(DivideAndConquerMatcher mapper) {
 		this.mapper = mapper;
 	}
 

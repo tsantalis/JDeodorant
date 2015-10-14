@@ -47,6 +47,14 @@
                menubarPath="BadSmellsMenu/sampleGroup"
                id="gr.uom.java.jdeodorant.actions.GodClass">
          </action>
+         <action
+               label="Duplicated Code"
+               icon="icons/repair.png"
+               class="gr.uom.java.jdeodorant.refactoring.actions.BadSmellsMenu"
+               tooltip="Duplicated Code"
+               menubarPath="BadSmellsMenu/sampleGroup"
+               id="gr.uom.java.jdeodorant.actions.DuplicatedCode">
+         </action>
       </actionSet>
    </extension>
    <extension
@@ -82,6 +90,13 @@
             icon="icons/repair.png"
             id="gr.uom.java.jdeodorant.views.GodClass"
             name="God Class">
+      </view>
+      <view
+            category="gr.uom.java.jdeodorant"
+            class="gr.uom.java.jdeodorant.refactoring.views.DuplicatedCode"
+            icon="icons/repair.png"
+            id="gr.uom.java.jdeodorant.views.DuplicatedCode"
+            name="Duplicated Code">
       </view>
       <view
             category="gr.uom.java.jdeodorant"
@@ -131,6 +146,15 @@
             targetID="org.eclipse.ui.resourcePerspective">
          <view
                id="gr.uom.java.jdeodorant.views.GodClass"
+               ratio="0.5"
+               relationship="right"
+               relative="org.eclipse.ui.views.TaskList">
+         </view>
+      </perspectiveExtension>
+      <perspectiveExtension
+            targetID="org.eclipse.ui.resourcePerspective">
+         <view
+               id="gr.uom.java.jdeodorant.views.DuplicatedCode"
                ratio="0.5"
                relationship="right"
                relative="org.eclipse.ui.views.TaskList">

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -83,7 +84,7 @@ public class ASTNodeDifference {
 	{
 		if(diff.getType().equals(DifferenceType.AST_TYPE_MISMATCH)
 			|| (diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && isVariableTypeMismatch())
-			|| diff.getType().equals(DifferenceType.OPERATOR_MISMATCH)
+			/*|| diff.getType().equals(DifferenceType.OPERATOR_MISMATCH)*/
 			|| diff.getType().equals(DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH))
 					return true;
 		return false;
@@ -153,6 +154,21 @@ public class ASTNodeDifference {
 		else {
 			return false;
 		}
+	}
+
+	public boolean isLeftHandSideOfAssignment() {
+		Expression exp1 = expression1.getExpression();
+		Expression exp2 = expression2.getExpression();
+		ASTNode node1 = exp1.getParent();
+		ASTNode node2 = exp2.getParent();
+		if(node1 instanceof Assignment && node2 instanceof Assignment) {
+			Assignment assignment1 = (Assignment)node1;
+			Assignment assignment2 = (Assignment)node2;
+			if(assignment1.getLeftHandSide().equals(exp1) && assignment2.getLeftHandSide().equals(exp2)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static Expression getParentExpressionOfMethodNameOrTypeName(Expression expression) {

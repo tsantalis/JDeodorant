@@ -101,7 +101,10 @@ public abstract class CloneDetectorOutputParser {
 
 		try {
 			ASTNode node = NodeFinder.perform(cunit.getRoot(), begin, length, iCompilationUnit);
-
+			
+			if (node == null)
+				return null;
+			
 			if (!(node instanceof MethodDeclaration)) {
 				ASTNode parent = node.getParent();
 				while (parent != null) {
@@ -211,6 +214,13 @@ public abstract class CloneDetectorOutputParser {
 			cloneInstance.setMethodSignature(getMethodJavaSignature(iMethod));
 		}
 		return cloneInstance;
+	}
+	
+	protected static String formatPath(String cloneDROutputFilePath) {
+		cloneDROutputFilePath = cloneDROutputFilePath.replace("\\", "/");
+		if (!cloneDROutputFilePath.endsWith("/"))
+			cloneDROutputFilePath += "/";
+		return cloneDROutputFilePath;
 	}
 	
 }

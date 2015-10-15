@@ -11,6 +11,7 @@ public class CloneGroup {
 	private int cloneGroupID;
 	private Set<CloneInstance> cloneInstances = new LinkedHashSet<CloneInstance>();
 	private CloneGroup repeatedOf;
+	private CloneGroup subCloneOf;
 	
 	public CloneGroup(int groupID) {
 		setCloneGroupID(groupID);
@@ -86,6 +87,33 @@ public class CloneGroup {
 			if (cloneInstance.isClassLevelClone())
 				return true;
 		return false;
+	}
+
+	public CloneGroup getSubcloneOf() {
+		return this.subCloneOf;
+	}
+	
+	public void setSubCloneOf(CloneGroup subCloneOf) {
+		this.subCloneOf = subCloneOf;
+	}
+
+	public boolean isSubClone() {
+		return this.subCloneOf != null;
+	}
+
+	public boolean isSubCloneOf(CloneGroup otherCloneGroup) {
+		for (CloneInstance cloneInstance : this.cloneInstances) {
+			boolean isSubClone = false;
+			for (CloneInstance otherCloneInstance : otherCloneGroup.cloneInstances) {
+				if (cloneInstance.isSubcloneOf(otherCloneInstance)) {
+					isSubClone = true;
+					break;
+				}
+			}
+			if (!isSubClone)
+				return false;
+		}
+		return true;
 	}
 	
 }

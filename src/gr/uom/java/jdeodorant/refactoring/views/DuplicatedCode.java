@@ -1,14 +1,9 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import gr.uom.java.ast.ASTReader;
-import gr.uom.java.ast.CompilationUnitCache;
-import gr.uom.java.ast.decomposition.cfg.mapping.CloneInstanceMapper;
-import gr.uom.java.ast.decomposition.cfg.mapping.PDGRegionSubTreeMapper;
-import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
 import org.eclipse.core.commands.operations.OperationHistoryEvent;
@@ -37,21 +32,39 @@ import org.eclipse.jface.viewers.ColumnWeightData;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
+import org.eclipse.jface.viewers.SelectionChangedEvent;
+import org.eclipse.jface.viewers.StyledCellLabelProvider;
+import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.jface.viewers.TableLayout;
+import org.eclipse.jface.viewers.TreePath;
+import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.viewers.ViewerCell;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.StyleRange;
+import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.MouseListener;
+import org.eclipse.swt.events.MouseMoveListener;
+import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.TreeColumn;
+import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
@@ -66,6 +79,11 @@ import org.eclipse.ui.texteditor.ITextEditor;
 import ca.concordia.jdeodorant.clone.parsers.CloneGroup;
 import ca.concordia.jdeodorant.clone.parsers.CloneGroupList;
 import ca.concordia.jdeodorant.clone.parsers.CloneInstance;
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.CompilationUnitCache;
+import gr.uom.java.ast.decomposition.cfg.mapping.CloneInstanceMapper;
+import gr.uom.java.ast.decomposition.cfg.mapping.PDGRegionSubTreeMapper;
+import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 public class DuplicatedCode extends ViewPart {
 	private TreeViewer treeViewer;
@@ -112,34 +130,68 @@ public class DuplicatedCode extends ViewPart {
 		}
 	}
 
-	class ViewLabelProvider extends LabelProvider implements ITableLabelProvider {
-		public String getColumnText(Object obj, int index) {
+	class ViewLabelProvider extends StyledCellLabelProvider {
+		
+		@Override
+		public void update(ViewerCell cell) {
+			
+			List<StyleRange> styleRanges = new ArrayList<StyleRange>();
+			
+			Object obj = cell.getElement();
+			int index = cell.getColumnIndex();
+			String text = "";
+
 			if(obj instanceof CloneInstance) {
 				CloneInstance cloneInstance = (CloneInstance)obj;
 				switch(index){
 				case 0:
-					return cloneInstance.getPackageName() + "." + cloneInstance.getClassName();
+					text = cloneInstance.getPackageName() + "." + cloneInstance.getClassName();
+					break;
 				case 1:
-					return cloneInstance.getMethodSignature();
+					text = cloneInstance.getMethodSignature();
+					break;
 				default:
-					return "";
+					text = "";
 				}
 			}
 			else if(obj instanceof CloneGroup) {
 				CloneGroup group = (CloneGroup)obj;
 				switch(index){
 				case 0:
-					return "Clone group " + group.getCloneGroupID();
+					text = "Clone group " + group.getCloneGroupID() + " (" + group.getCloneGroupSize() + " clone instances)";
+					break;
+				case 2:
+					if (group.isSubClone()) {
+						text = "Subclone of clone group ";
+						int start = text.length();
+						String cloneGroup = String.valueOf(group.getSubcloneOf().getCloneGroupID());
+						text += cloneGroup;
+						int length = cloneGroup.length();
+						StyleRange myStyledRange = 
+							new StyleRange(0, text.length(), Display.getCurrent().getSystemColor(SWT.COLOR_BLUE), null);
+						myStyledRange.underline = true;
+						styleRanges.add(myStyledRange);
+					}
+					else { 
+						text = "";
+					}
+					break;
 				default:
-					return "";
+					text = "";
 				}
 			}
-			return "";
-		}
+			
+			if (styleRanges.size() > 0) {
+				StyleRange[] range = new StyleRange[] {};
+				range = styleRanges.toArray(range);
+				cell.setStyleRanges(range);
+			}
+			
+			cell.setText(text);
+			super.update(cell);
 
-		public Image getColumnImage(Object element, int columnIndex) {
-			return null;
 		}
+		
 	}
 	
 	private ISelectionListener selectionListener = new ISelectionListener() {
@@ -191,10 +243,34 @@ public class DuplicatedCode extends ViewPart {
 		treeViewer.setContentProvider(new ViewContentProvider());
 		treeViewer.setLabelProvider(new ViewLabelProvider());
 		treeViewer.setInput(getViewSite());
+		treeViewer.getTree().addMouseListener(new MouseListener() {
+			
+			public void mouseUp(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			public void mouseDown(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			public void mouseDoubleClick(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+		treeViewer.getTree().addMouseMoveListener(new MouseMoveListener() {
+			public void mouseMove(MouseEvent arg0) {
+				
+			}
+		});
+		
 		
 		TableLayout layout = new TableLayout();
-		layout.addColumnData(new ColumnWeightData(60, true));
 		layout.addColumnData(new ColumnWeightData(40, true));
+		layout.addColumnData(new ColumnWeightData(30, true));
+		layout.addColumnData(new ColumnWeightData(15, true));
 		
 		treeViewer.getTree().setLayout(layout);
 		treeViewer.getTree().setLayoutData(new GridData(GridData.FILL_BOTH));
@@ -210,6 +286,68 @@ public class DuplicatedCode extends ViewPart {
 		column1.setResizable(true);
 		column1.pack();
 		
+		TreeColumn column2 = new TreeColumn(treeViewer.getTree(),SWT.LEFT);
+		column2.setText("Subclone Information");
+		column2.setResizable(true);
+		column2.pack();
+
+		treeViewer.getTree().addListener(SWT.MouseDown, new Listener() {
+
+			public void handleEvent(Event event) {
+				Point pt = new Point(event.x, event.y);
+				TreeItem item = treeViewer.getTree().getItem(pt);
+				
+				if (item == null)
+					return;
+				
+				Object selectedItemData = item.getData();
+				
+				if (selectedItemData instanceof CloneGroup) {
+				
+					int selectedColumn = -1;
+					for (int i = 0; i < treeViewer.getTree().getColumnCount(); i++) {
+						Rectangle rect = item.getBounds(i);
+						if (rect.contains(pt)) {
+							selectedColumn = i;
+							break;
+						}
+					}
+
+					if (selectedColumn == 2) {
+						CloneGroup selectedCloneGroup = (CloneGroup)selectedItemData;
+						if (selectedCloneGroup.isSubClone()) {
+							CloneGroup subCloneOf = selectedCloneGroup.getSubcloneOf();
+							treeViewer.setSelection(new TreeSelection(new TreePath(new Object[] {subCloneOf})));
+						}
+					}
+
+				}
+			}
+
+		});
+
+		treeViewer.getTree().addListener(SWT.MouseMove, new Listener() {
+			public void handleEvent(Event event) {
+				if (treeViewer.getTree().getCursor() != null)
+					treeViewer.getTree().setCursor(null);
+				Point pt = new Point(event.x, event.y);
+				TreeItem item = treeViewer.getTree().getItem(pt);
+				if (item != null) {
+					Object selectedItemData = item.getData();
+					if (selectedItemData instanceof CloneGroup) {
+						CloneGroup cloneGroup = (CloneGroup) selectedItemData;
+						if (cloneGroup.isSubClone()) {
+							Rectangle rect = item.getBounds(2);
+							if (rect.contains(pt)) {
+								Cursor cursor = new Cursor(Display.getCurrent(), SWT.CURSOR_HAND);
+								treeViewer.getTree().setCursor(cursor);
+							}	
+						}
+					}
+				}
+			}
+		});
+
 		treeViewer.expandAll();
 		
 		makeActions();

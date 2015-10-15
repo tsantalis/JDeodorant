@@ -12,11 +12,21 @@ public class CloneGroupList implements Iterable<CloneGroup> {
 	private final Map<Integer, CloneGroup> allCloneGroupsHashCodes = new HashMap<Integer, CloneGroup>();
 
 	public void add(CloneGroup cloneGroup) {
-		cloneGroups.add(cloneGroup);
 		if (allCloneGroupsHashCodes.containsKey(cloneGroup.hashCode()))
 			cloneGroup.setRepeatedOf(allCloneGroupsHashCodes.get(cloneGroup.hashCode()));
 		else
 			allCloneGroupsHashCodes.put(cloneGroup.hashCode(), cloneGroup);
+		
+		for (CloneGroup otherCloneGroup : cloneGroups) {
+			if (cloneGroup.isSubCloneOf(otherCloneGroup)) {
+				cloneGroup.setSubCloneOf(otherCloneGroup);
+				break;
+			} else if (otherCloneGroup.isSubCloneOf(cloneGroup)) {
+				otherCloneGroup.setSubCloneOf(cloneGroup);
+				break;
+			}
+		}
+		cloneGroups.add(cloneGroup);
 	}
 
 	public Iterator<CloneGroup> iterator() {

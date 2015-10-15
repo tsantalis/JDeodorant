@@ -104,6 +104,8 @@ public class CloneInstance {
 	}
 
 	public boolean isSubcloneOf(CloneInstance other) {
+		if (!locationInfo.getContainingFilePath().equals(other.locationInfo.getContainingFilePath()))
+			return false;
 		int startOffset = locationInfo.getStartOffset();
 		int endOffset = startOffset + locationInfo.getLength() - 1;
 		int otherStartOffset = other.locationInfo.getStartOffset();

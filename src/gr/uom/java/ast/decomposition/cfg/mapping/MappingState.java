@@ -5,6 +5,7 @@ import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -385,6 +386,37 @@ public class MappingState {
 			}
 		//}
 		return false;
+	}
+
+	public boolean incomingDataDependenciesFromUnvisitedNodes(PDGNode nodeG1, PDGNode nodeG2) {
+		Iterator<GraphEdge> incomingEdgeIterator1 = nodeG1.getIncomingDependenceIterator();
+		boolean incomingDataDependenceFromUnvisitedNodeG1 = false;
+		while(incomingEdgeIterator1.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingEdgeIterator1.next();
+			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
+			if(dependence instanceof PDGDataDependence && restrictedNodesG1.contains(srcPDGNode)) {
+				if(!containsNodeG1InMappings(srcPDGNode)) {
+					incomingDataDependenceFromUnvisitedNodeG1 = true;
+					break;
+				}
+			}
+		}
+		
+		Iterator<GraphEdge> incomingEdgeIterator2 = nodeG2.getIncomingDependenceIterator();
+		boolean incomingDataDependenceFromUnvisitedNodeG2 = false;
+		while(incomingEdgeIterator2.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingEdgeIterator2.next();
+			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
+			if(dependence instanceof PDGDataDependence && restrictedNodesG2.contains(srcPDGNode)) {
+				if(!containsNodeG2InMappings(srcPDGNode)) {
+					incomingDataDependenceFromUnvisitedNodeG2 = true;
+					break;
+				}
+			}
+		}
+		
+		return incomingDataDependenceFromUnvisitedNodeG1 != incomingDataDependenceFromUnvisitedNodeG2 &&
+				restrictedNodesG1.size() == restrictedNodesG2.size();
 	}
 
 	private PDGNodeMapping findMappingWithBothNodes(PDGNode nodeG1, PDGNode nodeG2) {

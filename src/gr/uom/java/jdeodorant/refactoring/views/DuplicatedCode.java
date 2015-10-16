@@ -650,7 +650,7 @@ public class DuplicatedCode extends ViewPart {
 			final CloneInstance instance2 = selectedCloneInstances[1];
 			
 			CompareEditorInput input = new CompareInput(instance1.getActualCodeFragment(), instance2.getActualCodeFragment());
-			CompareUI.openCompareDialog(input );
+			CompareUI.openCompareDialog(input);
 			
 		} else {
 			wrongSelectionMessage();

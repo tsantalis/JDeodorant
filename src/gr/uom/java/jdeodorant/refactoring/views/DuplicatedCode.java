@@ -1,12 +1,22 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.eclipse.compare.BufferedContent;
+import org.eclipse.compare.CompareConfiguration;
+import org.eclipse.compare.CompareEditorInput;
+import org.eclipse.compare.CompareUI;
+import org.eclipse.compare.ITypedElement;
+import org.eclipse.compare.structuremergeviewer.DiffNode;
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
 import org.eclipse.core.commands.operations.OperationHistoryEvent;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IClasspathEntry;
@@ -34,12 +44,9 @@ import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionChangedListener;
 import org.eclipse.jface.viewers.IStructuredSelection;
-import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.viewers.ITreeContentProvider;
-import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.StyledCellLabelProvider;
-import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.jface.viewers.TableLayout;
 import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.TreeSelection;
@@ -51,9 +58,8 @@ import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
-import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.events.MouseListener;
-import org.eclipse.swt.events.MouseMoveListener;
+import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
@@ -63,6 +69,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.IActionBars;
@@ -162,11 +170,7 @@ public class DuplicatedCode extends ViewPart {
 					break;
 				case 2:
 					if (group.isSubClone()) {
-						text = "Subclone of clone group ";
-						int start = text.length();
-						String cloneGroup = String.valueOf(group.getSubcloneOf().getCloneGroupID());
-						text += cloneGroup;
-						int length = cloneGroup.length();
+						text = "Subclone of clone group " + String.valueOf(group.getSubcloneOf().getCloneGroupID());
 						StyleRange myStyledRange = 
 							new StyleRange(0, text.length(), Display.getCurrent().getSystemColor(SWT.COLOR_BLUE), null);
 						myStyledRange.underline = true;
@@ -243,29 +247,6 @@ public class DuplicatedCode extends ViewPart {
 		treeViewer.setContentProvider(new ViewContentProvider());
 		treeViewer.setLabelProvider(new ViewLabelProvider());
 		treeViewer.setInput(getViewSite());
-		treeViewer.getTree().addMouseListener(new MouseListener() {
-			
-			public void mouseUp(MouseEvent arg0) {
-				// TODO Auto-generated method stub
-				
-			}
-			
-			public void mouseDown(MouseEvent arg0) {
-				// TODO Auto-generated method stub
-				
-			}
-			
-			public void mouseDoubleClick(MouseEvent arg0) {
-				// TODO Auto-generated method stub
-				
-			}
-		});
-		treeViewer.getTree().addMouseMoveListener(new MouseMoveListener() {
-			public void mouseMove(MouseEvent arg0) {
-				
-			}
-		});
-		
 		
 		TableLayout layout = new TableLayout();
 		layout.addColumnData(new ColumnWeightData(40, true));
@@ -290,6 +271,16 @@ public class DuplicatedCode extends ViewPart {
 		column2.setText("Subclone Information");
 		column2.setResizable(true);
 		column2.pack();
+
+		treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+			public void selectionChanged(SelectionChangedEvent event) {
+				treeViewer.getTree().setMenu(null);
+				CloneInstance[] selectedCloneInstances = getSelectedCloneInstances();
+				if (selectedCloneInstances.length == 2) {
+					treeViewer.getTree().setMenu(getRightClickMenu(treeViewer));
+				}
+			}
+		});
 
 		treeViewer.getTree().addListener(SWT.MouseDown, new Listener() {
 
@@ -366,6 +357,37 @@ public class DuplicatedCode extends ViewPart {
 			}
 		});
 	}
+	
+	private Menu getRightClickMenu(TreeViewer treeViewer) {
+		Menu popupMenu = new Menu(treeViewer.getControl());
+	    
+		MenuItem textualDiffMenuItem = new MenuItem(popupMenu, SWT.NONE);
+	    textualDiffMenuItem.setText("Show textual diff");
+	    textualDiffMenuItem.addSelectionListener(new SelectionListener() {
+			
+			public void widgetSelected(SelectionEvent arg0) {
+				showCompareDialog();
+			}
+			
+			public void widgetDefaultSelected(SelectionEvent arg0) {}
+			
+		});
+	    
+	    MenuItem refactorMenuItem = new MenuItem(popupMenu, SWT.NONE);
+	    refactorMenuItem.setText("Refactor");
+	    refactorMenuItem.addSelectionListener(new SelectionListener() {
+			
+			public void widgetSelected(SelectionEvent arg0) {
+				applyRefactoring();
+			}
+			
+			public void widgetDefaultSelected(SelectionEvent arg0) {}
+			
+		});
+	    popupMenu.setVisible(false);
+	    
+	    return popupMenu;
+	}
 
 	private void contributeToActionBars() {
 		IActionBars bars = getViewSite().getActionBars();
@@ -403,78 +425,7 @@ public class DuplicatedCode extends ViewPart {
 		
 		applyRefactoringAction = new Action() {
 			public void run() {
-				try {
-					CompilationUnitCache.getInstance().clearCache();
-					IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-					if(selection instanceof IStructuredSelection) {
-						IStructuredSelection structuredSelection = (IStructuredSelection)selection;
-						final List list = structuredSelection.toList();
-						if(list.size() == 2) {
-							if(list.get(0) instanceof CloneInstance && list.get(1) instanceof CloneInstance) {
-								final CloneInstance instance1 = (CloneInstance) list.get(0);
-								final CloneInstance instance2 = (CloneInstance) list.get(1);
-								if(instance1.getBelongingCloneGroup().equals(instance2.getBelongingCloneGroup())) {
-									IWorkbench wb = PlatformUI.getWorkbench();
-									IProgressService ps = wb.getProgressService();
-									if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-										new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
-									}
-									else {
-										ps.busyCursorWhile(new IRunnableWithProgress() {
-											public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-												new ASTReader(selectedProject, monitor);
-											}
-										});
-									}
-									ps.busyCursorWhile(new IRunnableWithProgress() {
-										public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-											mapper = new CloneInstanceMapper(instance1, instance2, selectedProject, monitor);
-										}
-									});
-									if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
-										try {
-											for(PDGRegionSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
-												JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
-												JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
-											}
-										} catch (PartInitException e) {
-											e.printStackTrace();
-										} catch (JavaModelException e) {
-											e.printStackTrace();
-										}
-										Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
-										MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-										RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-										try { 
-											String titleForFailedChecks = ""; //$NON-NLS-1$ 
-											op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-										} catch(InterruptedException e) {
-											e.printStackTrace();
-										}
-									}
-									else {
-										MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
-												"Unfortunatley, no refactoring opportunities were found.");
-									}
-									CompilationUnitCache.getInstance().releaseLock();
-								}
-								else {
-									wrongSelectionMessage();
-								}
-							}
-							else {
-								wrongSelectionMessage();
-							}
-						}
-						else {
-							wrongSelectionMessage();
-						}
-					}
-				} catch (InvocationTargetException e) {
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+				applyRefactoring();
 			}
 		};
 		applyRefactoringAction.setToolTipText("Apply Refactoring");
@@ -493,6 +444,7 @@ public class DuplicatedCode extends ViewPart {
 						ICompilationUnit sourceJavaElement = getICompilationUnit(selectedProject, fullName);
 						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
 						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+						@SuppressWarnings("unchecked")
 						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 						while(annotationIterator.hasNext()) {
 							Annotation currentAnnotation = annotationIterator.next();
@@ -560,5 +512,149 @@ public class DuplicatedCode extends ViewPart {
 	private void wrongSelectionMessage() {
 		MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
 				"You must select two (2) clone instances from the same clone group.");
+	}
+
+	private void applyRefactoring() {
+		try {
+			CloneInstance[] selectedCloneInstances = getSelectedCloneInstances();
+			
+			if (selectedCloneInstances.length == 2) {
+				
+				final CloneInstance instance1 = selectedCloneInstances[0];
+				final CloneInstance instance2 = selectedCloneInstances[1];
+				
+				CompilationUnitCache.getInstance().clearCache();
+				IWorkbench wb = PlatformUI.getWorkbench();
+				IProgressService ps = wb.getProgressService();
+				if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
+					new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+				}
+				else {
+					ps.busyCursorWhile(new IRunnableWithProgress() {
+						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+							new ASTReader(selectedProject, monitor);
+						}
+					});
+				}
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						mapper = new CloneInstanceMapper(instance1, instance2, selectedProject, monitor);
+					}
+				});
+				if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
+					try {
+						for(PDGRegionSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
+							JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+							JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+						}
+					} catch (PartInitException e) {
+						e.printStackTrace();
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
+					Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				else {
+					MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
+							"Unfortunatley, no refactoring opportunities were found.");
+				}
+				CompilationUnitCache.getInstance().releaseLock();
+			}
+			else {
+				wrongSelectionMessage();
+			}
+					
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private CloneInstance[] getSelectedCloneInstances() {
+		CloneInstance[] toReturn = new CloneInstance[] {};
+		IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+		if(selection instanceof IStructuredSelection) {
+			IStructuredSelection structuredSelection = (IStructuredSelection)selection;
+			Object[] selectedItems = structuredSelection.toArray();
+			if(selectedItems.length == 2) {
+				if(selectedItems[0] instanceof CloneInstance && selectedItems[1] instanceof CloneInstance) {
+					final CloneInstance instance1 = (CloneInstance) selectedItems[0];
+					final CloneInstance instance2 = (CloneInstance) selectedItems[1];
+					if(instance1.getBelongingCloneGroup().equals(instance2.getBelongingCloneGroup())) {
+						return new CloneInstance[] {instance1, instance2 };
+					}
+				}
+			}
+		}
+		return toReturn;
+	}
+	
+	static class CompareInput extends CompareEditorInput {
+
+		private final String left;
+		private final String right;
+
+		public CompareInput(String left, String right) {
+			super(new CompareConfiguration());
+			this.left = left;
+			this.right = right;
+		}
+
+		@Override
+		protected Object prepareInput(IProgressMonitor pm) {
+			CompareItem firstText = new CompareItem("First", this.left);
+			CompareItem secondText = new CompareItem("Second", this.right);
+			
+			return new DiffNode(firstText, secondText);
+		}
+		
+	}
+
+	static class CompareItem extends BufferedContent implements ITypedElement {
+		 
+		private final String name;
+		private final String content;
+		
+		public CompareItem(String name, String content) {
+			this.name = name;
+			this.content = content;
+		}
+				 
+		public Image getImage() {return null;}
+		public String getName() {return name;}
+		public String getType() {return ITypedElement.TEXT_TYPE;}
+		
+		@Override
+		protected InputStream createStream() throws CoreException {
+			return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+		}
+	 
+	}
+	
+	private void showCompareDialog() {
+		
+		CloneInstance[] selectedCloneInstances = getSelectedCloneInstances();
+		
+		if (selectedCloneInstances.length == 2) {
+			
+			final CloneInstance instance1 = selectedCloneInstances[0];
+			final CloneInstance instance2 = selectedCloneInstances[1];
+			
+			CompareEditorInput input = new CompareInput(instance1.getActualCodeFragment(), instance2.getActualCodeFragment());
+			CompareUI.openCompareDialog(input );
+			
+		} else {
+			wrongSelectionMessage();
+		}
+
 	}
 }

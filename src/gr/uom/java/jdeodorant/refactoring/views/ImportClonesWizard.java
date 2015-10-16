@@ -93,7 +93,6 @@ public class ImportClonesWizard extends Wizard {
 				int iCompilationUnitNotFoundExceptions = 0;
 				for (Throwable throwable : warningExceptions) {
 					if (throwable.getCause() instanceof ICompilationUnitNotFoundException) {
-						System.out.println(throwable.getMessage());
 						iCompilationUnitNotFoundExceptions++;
 					}
 				}

@@ -256,8 +256,16 @@ public class CloneInstanceMapper {
 							List<ControlDependenceTreeNode> ifParents = subTreeCDTNode1.getIfParents();
 							List<ControlDependenceTreeNode> elseIfChildren = subTreeCDTNode1.getElseIfChildren();
 							List<ControlDependenceTreeNode> treeChain = new ArrayList<ControlDependenceTreeNode>();
-							treeChain.addAll(ifParents);
-							treeChain.addAll(elseIfChildren);
+							for(ControlDependenceTreeNode ifParent : ifParents) {
+								if(subTreeCDTNodes1Copy.contains(ifParent)) {
+									treeChain.add(ifParent);
+								}
+							}
+							for(ControlDependenceTreeNode elseIfChild : elseIfChildren) {
+								if(subTreeCDTNodes1Copy.contains(elseIfChild)) {
+									treeChain.add(elseIfChild);
+								}
+							}
 							if(!subTreeCDTNodes1Copy.containsAll(treeChain)) {
 								subTreeCDTNodes1.remove(subTreeCDTNode1);
 								subTreeCDTNodes1.removeAll(subTreeCDTNode1.getDescendants());
@@ -271,8 +279,16 @@ public class CloneInstanceMapper {
 							List<ControlDependenceTreeNode> ifParents = subTreeCDTNode2.getIfParents();
 							List<ControlDependenceTreeNode> elseIfChildren = subTreeCDTNode2.getElseIfChildren();
 							List<ControlDependenceTreeNode> treeChain = new ArrayList<ControlDependenceTreeNode>();
-							treeChain.addAll(ifParents);
-							treeChain.addAll(elseIfChildren);
+							for(ControlDependenceTreeNode ifParent : ifParents) {
+								if(subTreeCDTNodes2Copy.contains(ifParent)) {
+									treeChain.add(ifParent);
+								}
+							}
+							for(ControlDependenceTreeNode elseIfChild : elseIfChildren) {
+								if(subTreeCDTNodes2Copy.contains(elseIfChild)) {
+									treeChain.add(elseIfChild);
+								}
+							}
 							if(!subTreeCDTNodes2Copy.containsAll(treeChain)) {
 								subTreeCDTNodes2.remove(subTreeCDTNode2);
 								subTreeCDTNodes2.removeAll(subTreeCDTNode2.getDescendants());

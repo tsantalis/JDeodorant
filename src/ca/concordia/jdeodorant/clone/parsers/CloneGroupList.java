@@ -50,4 +50,8 @@ public class CloneGroupList implements Iterable<CloneGroup> {
 	public int getCloneGroupsCount() {
 		return cloneGroups.size();
 	}
+	
+	public boolean containsCloneGroup(CloneGroup cloneGroup) {
+		return allCloneGroupsHashCodes.containsKey(cloneGroup.hashCode());
+	}
 }

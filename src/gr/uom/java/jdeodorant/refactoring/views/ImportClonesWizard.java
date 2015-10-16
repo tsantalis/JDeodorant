@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
@@ -16,6 +17,7 @@ import ca.concordia.jdeodorant.clone.parsers.CloneDetectorOutputParserProgressOb
 import ca.concordia.jdeodorant.clone.parsers.CloneDetectorType;
 import ca.concordia.jdeodorant.clone.parsers.CloneGroupList;
 import ca.concordia.jdeodorant.clone.parsers.InvalidInputFileException;
+import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFoundException;
 
 public class ImportClonesWizard extends Wizard {
 	private IJavaProject javaProject;
@@ -86,12 +88,27 @@ public class ImportClonesWizard extends Wizard {
 				e.printStackTrace();
 			}
 
-			if (parser.getWarningExceptions().size() > 0) {
+			List<Throwable> warningExceptions = parser.getWarningExceptions();
+			if (warningExceptions.size() > 0) {
+				int iCompilationUnitNotFoundExceptions = 0;
+				for (Throwable throwable : warningExceptions) {
+					if (throwable.getCause() instanceof ICompilationUnitNotFoundException) {
+						System.out.println(throwable.getMessage());
+						iCompilationUnitNotFoundExceptions++;
+					}
+				}
 				int style = SWT.ICON_ERROR | SWT.OK ;
 			    MessageBox messageBox = new MessageBox(getShell(), style);
-			    messageBox.setMessage(String.format("%s warning%s happened during parsing.", 
-			    		parser.getWarningExceptions().size(), 
-			    		parser.getWarningExceptions().size() > 1 ? "s" : ""));
+			    String message = String.format("%s warning%s happened during parsing.", 
+			    		warningExceptions.size(), 
+			    		warningExceptions.size() > 1 ? "s" : "");
+			    if (iCompilationUnitNotFoundExceptions > 0) {
+			    	message += "\n";
+			    	message += String.format("The source code of %s clone instance%s was not found.", 
+			    			iCompilationUnitNotFoundExceptions,
+			    			iCompilationUnitNotFoundExceptions > 1 ? "s" : "");
+			    }
+			    messageBox.setMessage(message);
 			    messageBox.open();
 				
 				if (cloneGroupList.getCloneGroupsCount() > 0)

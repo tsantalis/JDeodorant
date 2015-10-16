@@ -16,8 +16,7 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ltk.ui.refactoring,
  org.eclipse.compare,
  org.eclipse.draw2d,
- org.eclipse.core.filebuffers,
- org.eclipse.jface
+ org.eclipse.core.filebuffers
 Bundle-ActivationPolicy: lazy
 Import-Package: org.eclipse.jdt.core.refactoring
 Export-Package: ca.concordia.jdeodorant.clone.parsers,

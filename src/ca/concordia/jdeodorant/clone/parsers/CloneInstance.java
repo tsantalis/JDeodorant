@@ -32,7 +32,10 @@ public class CloneInstance {
 
 	public String getActualCodeFragment() {
 		String code = locationInfo.getContainingFileContents();
-		return code.substring(locationInfo.getStartOffset(), locationInfo.getStartOffset() + locationInfo.getLength() - 1);
+		/* From substring documentation:
+		 * The substring begins at the specified beginIndex and extends to the character at **index endIndex - 1**
+		 */
+		return code.substring(locationInfo.getStartOffset(), locationInfo.getStartOffset() + locationInfo.getLength());
 	}
 
 	public CloneGroup getBelongingCloneGroup() {

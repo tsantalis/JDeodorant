@@ -68,12 +68,12 @@ public class CloneInstanceMapper {
 		try {
 			SystemObject systemObject = ASTReader.getSystemObject();
 			int firstStartOffset = instance1.getLocationInfo().getStartOffset();
-			int firstEndOffset = firstStartOffset + instance1.getLocationInfo().getLength();
+			int firstEndOffset = instance1.getLocationInfo().getEndOffset();
 			IMethod iMethod1 = getIMethod(javaProject, instance1.getPackageName() + "." + instance1.getClassName(),
 					instance1.getMethodName(), instance1.getIMethodSignature(), firstStartOffset, firstEndOffset);
 
 			int secondStartOffset = instance2.getLocationInfo().getStartOffset();
-			int secondEndOffset = secondStartOffset + instance2.getLocationInfo().getLength();
+			int secondEndOffset = instance2.getLocationInfo().getEndOffset();
 			IMethod iMethod2 = getIMethod(javaProject, instance2.getPackageName() + "." + instance2.getClassName(),
 					instance2.getMethodName(), instance2.getIMethodSignature(), secondStartOffset, secondEndOffset);
 
@@ -592,18 +592,19 @@ public class CloneInstanceMapper {
 
 	private boolean isInside(ASTNode astNode, int startOffset, int endOffset, ICompilationUnit iCompilationUnit) {
 
-		int astNodeStartPosition = astNode.getStartPosition();
+		int astNodeStartOffset = astNode.getStartPosition();
 		int astNodeLength = astNode.getLength();
+		int astNodeEndOffset = astNodeStartOffset + astNodeLength - 1;
 
 		// If the node is completely inside
-		if (astNodeStartPosition >= startOffset && astNodeStartPosition + astNodeLength <= endOffset)
+		if (astNodeStartOffset >= startOffset && astNodeEndOffset <= endOffset)
 			return true;
 
-		if (astNodeStartPosition >= startOffset && astNodeStartPosition <= endOffset) {
+		if (astNodeStartOffset >= startOffset && astNodeStartOffset <= endOffset) {
 			IDocument iDocument = getIDocument(iCompilationUnit);
 			try {
-				String realSourceCode = iDocument.get(astNodeStartPosition, endOffset - astNodeStartPosition);
-				String astNodeSourceCode = iDocument.get(astNodeStartPosition, astNodeLength);
+				String realSourceCode = iDocument.get(astNodeStartOffset, endOffset - astNodeStartOffset + 1);
+				String astNodeSourceCode = iDocument.get(astNodeStartOffset, astNodeLength);
 
 				TextDiff td = new TextDiff();
 				LinkedList<Diff> diffs = td.diff_main(realSourceCode, astNodeSourceCode, false);

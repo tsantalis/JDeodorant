@@ -12,6 +12,7 @@ public class CloneInstanceLocationInfo {
 	private static final String LINE_FEED = "\n";
 	private final String filePath;
 	private int startOffset;
+	private int endOffset; 
 	private int length;
 	private int startLine;
 	private int startColumn;
@@ -56,11 +57,11 @@ public class CloneInstanceLocationInfo {
 			this.startOffset++;
 		}
 		numberOfCharsForLines = getNumberOfCharsForLines(lines, endLine) - 1; // The last offset of the end line
-		int endOffset = numberOfCharsForLines + this.endColumn;
-		while (isWhiteSpaceCharacter(fileContents.charAt(endOffset))) {
-			endOffset--;
+		this.endOffset = numberOfCharsForLines + this.endColumn;
+		while (isWhiteSpaceCharacter(fileContents.charAt(this.endOffset))) {
+			this.endOffset--;
 		}
-		this.length = endOffset - this.startOffset + 1;
+		this.length = this.endOffset - this.startOffset + 1;
 	}
 	
 	private boolean isWhiteSpaceCharacter(char character) {
@@ -108,6 +109,10 @@ public class CloneInstanceLocationInfo {
 
 	public int getStartOffset() {
 		return startOffset;
+	}	
+	
+	public int getEndOffset() {
+		return this.endOffset;
 	}
 
 	public int getLength() {
@@ -167,5 +172,7 @@ public class CloneInstanceLocationInfo {
 		stringBuilder.append(String.format("<Offset: %s, Length: %s>)", this.startOffset, this.length));
 		return stringBuilder.toString();
 	}
+
+
 
 }

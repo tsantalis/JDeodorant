@@ -436,137 +436,139 @@ public abstract class AbstractMethodFragment {
 		for(Expression classInstanceCreationExpression : classInctanceCreations) {
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreationExpression;
 			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
-			Type type = classInstanceCreation.getType();
-			ITypeBinding typeBinding = type.resolveBinding();
-			String qualifiedTypeName = typeBinding.getQualifiedName();
-			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
-			ClassInstanceCreationObject creationObject = new ClassInstanceCreationObject(typeObject);
-			creationObject.setClassInstanceCreation(classInstanceCreation);
-			ITypeBinding[] parameterTypes = constructorBinding.getParameterTypes();
-			for(ITypeBinding parameterType : parameterTypes) {
-				String qualifiedParameterName = parameterType.getQualifiedName();
-				TypeObject parameterTypeObject = TypeObject.extractTypeObject(qualifiedParameterName);
-				creationObject.addParameter(parameterTypeObject);
-			}
-			ITypeBinding[] thrownExceptionTypes = constructorBinding.getExceptionTypes();
-			for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
-				creationObject.addThrownException(thrownExceptionType.getQualifiedName());
-			}
-			AnonymousClassDeclaration anonymous = classInstanceCreation.getAnonymousClassDeclaration();
-			if(anonymous != null) {
-				final AnonymousClassDeclarationObject anonymousClassObject = new AnonymousClassDeclarationObject();
-				ITypeBinding anonymousTypeBinding = anonymous.resolveBinding();
-				if(anonymousTypeBinding.getBinaryName() != null) {
-					anonymousClassObject.setName(anonymousTypeBinding.getBinaryName());
+			if(constructorBinding != null) {
+				Type type = classInstanceCreation.getType();
+				ITypeBinding typeBinding = type.resolveBinding();
+				String qualifiedTypeName = typeBinding.getQualifiedName();
+				TypeObject typeObject = TypeObject.extractTypeObject(qualifiedTypeName);
+				ClassInstanceCreationObject creationObject = new ClassInstanceCreationObject(typeObject);
+				creationObject.setClassInstanceCreation(classInstanceCreation);
+				ITypeBinding[] parameterTypes = constructorBinding.getParameterTypes();
+				for(ITypeBinding parameterType : parameterTypes) {
+					String qualifiedParameterName = parameterType.getQualifiedName();
+					TypeObject parameterTypeObject = TypeObject.extractTypeObject(qualifiedParameterName);
+					creationObject.addParameter(parameterTypeObject);
 				}
-				else {
-					String anonymousKey = anonymousTypeBinding.getKey();
-					String formattedKey = anonymousKey.substring(1, anonymousKey.length()-1).replaceAll("/", ".");
-					anonymousClassObject.setName(formattedKey);
+				ITypeBinding[] thrownExceptionTypes = constructorBinding.getExceptionTypes();
+				for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
+					creationObject.addThrownException(thrownExceptionType.getQualifiedName());
 				}
-				anonymousClassObject.setAnonymousClassDeclaration(anonymous);
-				List<BodyDeclaration> bodyDeclarations = anonymous.bodyDeclarations();
-				for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
-					if(bodyDeclaration instanceof FieldDeclaration) {
-						FieldDeclaration fieldDeclaration = (FieldDeclaration)bodyDeclaration;
-						Type fieldType = fieldDeclaration.getType();
-		        		ITypeBinding binding = fieldType.resolveBinding();
-		        		List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-		        		for(VariableDeclarationFragment fragment : fragments) {
-		        			String qualifiedName = binding.getQualifiedName();
-		        			TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
-		        			typeObject2.setArrayDimension(typeObject2.getArrayDimension() + fragment.getExtraDimensions());
-		        			FieldObject fieldObject = new FieldObject(typeObject2, fragment.getName().getIdentifier());
-		        			fieldObject.setClassName(anonymousClassObject.getName());
-		        			fieldObject.setVariableDeclarationFragment(fragment);
-		        			
-		        			int fieldModifiers = fieldDeclaration.getModifiers();
-		        			if((fieldModifiers & Modifier.PUBLIC) != 0)
-		                		fieldObject.setAccess(Access.PUBLIC);
-		                	else if((fieldModifiers & Modifier.PROTECTED) != 0)
-		                		fieldObject.setAccess(Access.PROTECTED);
-		                	else if((fieldModifiers & Modifier.PRIVATE) != 0)
-		                		fieldObject.setAccess(Access.PRIVATE);
-		                	else
-		                		fieldObject.setAccess(Access.NONE);
-		                	
-		                	if((fieldModifiers & Modifier.STATIC) != 0)
-		                		fieldObject.setStatic(true);
-		                	
-		        			anonymousClassObject.addField(fieldObject);
-		        		}
+				AnonymousClassDeclaration anonymous = classInstanceCreation.getAnonymousClassDeclaration();
+				if(anonymous != null) {
+					final AnonymousClassDeclarationObject anonymousClassObject = new AnonymousClassDeclarationObject();
+					ITypeBinding anonymousTypeBinding = anonymous.resolveBinding();
+					if(anonymousTypeBinding.getBinaryName() != null) {
+						anonymousClassObject.setName(anonymousTypeBinding.getBinaryName());
 					}
-					else if(bodyDeclaration instanceof MethodDeclaration) {
-						MethodDeclaration methodDeclaration = (MethodDeclaration)bodyDeclaration;
-						String methodName = methodDeclaration.getName().getIdentifier();
-						final ConstructorObject constructorObject = new ConstructorObject();
-						constructorObject.setMethodDeclaration(methodDeclaration);
-						constructorObject.setName(methodName);
-						constructorObject.setClassName(anonymousClassObject.getName());
-						
-						int methodModifiers = methodDeclaration.getModifiers();
-						if((methodModifiers & Modifier.PUBLIC) != 0)
-							constructorObject.setAccess(Access.PUBLIC);
-						else if((methodModifiers & Modifier.PROTECTED) != 0)
-							constructorObject.setAccess(Access.PROTECTED);
-						else if((methodModifiers & Modifier.PRIVATE) != 0)
-							constructorObject.setAccess(Access.PRIVATE);
-						else
-							constructorObject.setAccess(Access.NONE);
-						
-						List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
-						for(SingleVariableDeclaration parameter : parameters) {
-							Type parameterType = parameter.getType();
-							ITypeBinding binding = parameterType.resolveBinding();
-							String qualifiedName = binding.getQualifiedName();
-							TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
-							typeObject2.setArrayDimension(typeObject2.getArrayDimension() + parameter.getExtraDimensions());
-							if(parameter.isVarargs()) {
-								typeObject2.setArrayDimension(1);
+					else {
+						String anonymousKey = anonymousTypeBinding.getKey();
+						String formattedKey = anonymousKey.substring(1, anonymousKey.length()-1).replaceAll("/", ".");
+						anonymousClassObject.setName(formattedKey);
+					}
+					anonymousClassObject.setAnonymousClassDeclaration(anonymous);
+					List<BodyDeclaration> bodyDeclarations = anonymous.bodyDeclarations();
+					for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+						if(bodyDeclaration instanceof FieldDeclaration) {
+							FieldDeclaration fieldDeclaration = (FieldDeclaration)bodyDeclaration;
+							Type fieldType = fieldDeclaration.getType();
+							ITypeBinding binding = fieldType.resolveBinding();
+							List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+							for(VariableDeclarationFragment fragment : fragments) {
+								String qualifiedName = binding.getQualifiedName();
+								TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
+								typeObject2.setArrayDimension(typeObject2.getArrayDimension() + fragment.getExtraDimensions());
+								FieldObject fieldObject = new FieldObject(typeObject2, fragment.getName().getIdentifier());
+								fieldObject.setClassName(anonymousClassObject.getName());
+								fieldObject.setVariableDeclarationFragment(fragment);
+								
+								int fieldModifiers = fieldDeclaration.getModifiers();
+								if((fieldModifiers & Modifier.PUBLIC) != 0)
+									fieldObject.setAccess(Access.PUBLIC);
+								else if((fieldModifiers & Modifier.PROTECTED) != 0)
+									fieldObject.setAccess(Access.PROTECTED);
+								else if((fieldModifiers & Modifier.PRIVATE) != 0)
+									fieldObject.setAccess(Access.PRIVATE);
+								else
+									fieldObject.setAccess(Access.NONE);
+								
+								if((fieldModifiers & Modifier.STATIC) != 0)
+									fieldObject.setStatic(true);
+								
+								anonymousClassObject.addField(fieldObject);
 							}
-							ParameterObject parameterObject = new ParameterObject(typeObject2, parameter.getName().getIdentifier(), parameter.isVarargs());
-							parameterObject.setSingleVariableDeclaration(parameter);
-							constructorObject.addParameter(parameterObject);
 						}
-						
-						Block methodBody = methodDeclaration.getBody();
-						if(methodBody != null) {
-							MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
-							constructorObject.setMethodBody(methodBodyObject);
-						}
-						
-						MethodObject methodObject = new MethodObject(constructorObject);
-						List<IExtendedModifier> extendedModifiers = methodDeclaration.modifiers();
-						for(IExtendedModifier extendedModifier : extendedModifiers) {
-							if(extendedModifier.isAnnotation()) {
-								Annotation annotation = (Annotation)extendedModifier;
-								if(annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
-									methodObject.setTestAnnotation(true);
-									break;
+						else if(bodyDeclaration instanceof MethodDeclaration) {
+							MethodDeclaration methodDeclaration = (MethodDeclaration)bodyDeclaration;
+							String methodName = methodDeclaration.getName().getIdentifier();
+							final ConstructorObject constructorObject = new ConstructorObject();
+							constructorObject.setMethodDeclaration(methodDeclaration);
+							constructorObject.setName(methodName);
+							constructorObject.setClassName(anonymousClassObject.getName());
+							
+							int methodModifiers = methodDeclaration.getModifiers();
+							if((methodModifiers & Modifier.PUBLIC) != 0)
+								constructorObject.setAccess(Access.PUBLIC);
+							else if((methodModifiers & Modifier.PROTECTED) != 0)
+								constructorObject.setAccess(Access.PROTECTED);
+							else if((methodModifiers & Modifier.PRIVATE) != 0)
+								constructorObject.setAccess(Access.PRIVATE);
+							else
+								constructorObject.setAccess(Access.NONE);
+							
+							List<SingleVariableDeclaration> parameters = methodDeclaration.parameters();
+							for(SingleVariableDeclaration parameter : parameters) {
+								Type parameterType = parameter.getType();
+								ITypeBinding binding = parameterType.resolveBinding();
+								String qualifiedName = binding.getQualifiedName();
+								TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
+								typeObject2.setArrayDimension(typeObject2.getArrayDimension() + parameter.getExtraDimensions());
+								if(parameter.isVarargs()) {
+									typeObject2.setArrayDimension(1);
+								}
+								ParameterObject parameterObject = new ParameterObject(typeObject2, parameter.getName().getIdentifier(), parameter.isVarargs());
+								parameterObject.setSingleVariableDeclaration(parameter);
+								constructorObject.addParameter(parameterObject);
+							}
+							
+							Block methodBody = methodDeclaration.getBody();
+							if(methodBody != null) {
+								MethodBodyObject methodBodyObject = new MethodBodyObject(methodBody);
+								constructorObject.setMethodBody(methodBodyObject);
+							}
+							
+							MethodObject methodObject = new MethodObject(constructorObject);
+							List<IExtendedModifier> extendedModifiers = methodDeclaration.modifiers();
+							for(IExtendedModifier extendedModifier : extendedModifiers) {
+								if(extendedModifier.isAnnotation()) {
+									Annotation annotation = (Annotation)extendedModifier;
+									if(annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
+										methodObject.setTestAnnotation(true);
+										break;
+									}
 								}
 							}
+							Type returnType = methodDeclaration.getReturnType2();
+							ITypeBinding binding = returnType.resolveBinding();
+							String qualifiedName = binding.getQualifiedName();
+							TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
+							methodObject.setReturnType(typeObject2);
+							
+							if((methodModifiers & Modifier.ABSTRACT) != 0)
+								methodObject.setAbstract(true);
+							if((methodModifiers & Modifier.STATIC) != 0)
+								methodObject.setStatic(true);
+							if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
+								methodObject.setSynchronized(true);
+							if((methodModifiers & Modifier.NATIVE) != 0)
+								methodObject.setNative(true);
+							
+							anonymousClassObject.addMethod(methodObject);
 						}
-						Type returnType = methodDeclaration.getReturnType2();
-						ITypeBinding binding = returnType.resolveBinding();
-						String qualifiedName = binding.getQualifiedName();
-						TypeObject typeObject2 = TypeObject.extractTypeObject(qualifiedName);
-						methodObject.setReturnType(typeObject2);
-						
-						if((methodModifiers & Modifier.ABSTRACT) != 0)
-							methodObject.setAbstract(true);
-						if((methodModifiers & Modifier.STATIC) != 0)
-							methodObject.setStatic(true);
-						if((methodModifiers & Modifier.SYNCHRONIZED) != 0)
-							methodObject.setSynchronized(true);
-						if((methodModifiers & Modifier.NATIVE) != 0)
-							methodObject.setNative(true);
-						
-						anonymousClassObject.addMethod(methodObject);
 					}
+					addAnomymousClassDeclaration(anonymousClassObject);
 				}
-				addAnomymousClassDeclaration(anonymousClassObject);
+				addCreation(creationObject);
 			}
-			addCreation(creationObject);
 		}
 	}
 

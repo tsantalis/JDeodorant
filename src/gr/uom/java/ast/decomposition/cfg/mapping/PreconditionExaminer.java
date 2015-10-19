@@ -2428,6 +2428,25 @@ public class PreconditionExaminer {
 			if(node.isControlDependentOnNode(removableNode)) {
 				removableControlParents.add(removableNode);
 			}
+			// add previous if statements containing conditional return
+			if(removableNode.getCFGNode() instanceof CFGBranchIfNode && removableNode.getId() < node.getId()) {
+				CFGBranchIfNode ifNode = (CFGBranchIfNode)removableNode.getCFGNode();
+				CompositeStatementObject composite = (CompositeStatementObject)ifNode.getStatement();
+				List<AbstractStatement> compositeStatements = composite.getStatements();
+				if(compositeStatements.size() == 1 && compositeStatements.get(0).getType().equals(StatementType.BLOCK)) {
+					CompositeStatementObject blockComposite = (CompositeStatementObject)compositeStatements.get(0);
+					compositeStatements = blockComposite.getStatements();
+				}
+				for(AbstractStatement statement : compositeStatements) {
+					if(statement.getType().equals(StatementType.RETURN)) {
+						ReturnStatement returnStatement = (ReturnStatement)statement.getStatement();
+						if(returnStatement.getExpression() == null) {
+							removableControlParents.add(removableNode);
+							break;
+						}
+					}
+				}
+			}
 		}
 		Iterator<AbstractVariable> iterator = node.getUsedVariableIterator();
 		while(iterator.hasNext()) {
@@ -2446,6 +2465,25 @@ public class PreconditionExaminer {
 		for(PDGNode removableNode : removableNodes) {
 			if(nodeContainingExpression.isControlDependentOnNode(removableNode)) {
 				removableControlParents.add(removableNode);
+			}
+			// add previous if statements containing conditional return
+			if(removableNode.getCFGNode() instanceof CFGBranchIfNode && removableNode.getId() < nodeContainingExpression.getId()) {
+				CFGBranchIfNode ifNode = (CFGBranchIfNode)removableNode.getCFGNode();
+				CompositeStatementObject composite = (CompositeStatementObject)ifNode.getStatement();
+				List<AbstractStatement> compositeStatements = composite.getStatements();
+				if(compositeStatements.size() == 1 && compositeStatements.get(0).getType().equals(StatementType.BLOCK)) {
+					CompositeStatementObject blockComposite = (CompositeStatementObject)compositeStatements.get(0);
+					compositeStatements = blockComposite.getStatements();
+				}
+				for(AbstractStatement statement : compositeStatements) {
+					if(statement.getType().equals(StatementType.RETURN)) {
+						ReturnStatement returnStatement = (ReturnStatement)statement.getStatement();
+						if(returnStatement.getExpression() == null) {
+							removableControlParents.add(removableNode);
+							break;
+						}
+					}
+				}
 			}
 		}
 		Iterator<AbstractVariable> iterator = expression.getUsedVariableIterator();

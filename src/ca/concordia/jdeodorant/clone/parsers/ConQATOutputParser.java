@@ -92,6 +92,9 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 			}
 		}
 		
+		if (cloneGroups.getCloneGroupsCount() == 0)
+			throw new InvalidInputFileException();
+		
 		return cloneGroups;
 	}
 	

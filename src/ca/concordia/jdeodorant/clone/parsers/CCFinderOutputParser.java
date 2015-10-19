@@ -354,7 +354,7 @@ public class CCFinderOutputParser extends CloneDetectorOutputParser {
 		
 		String fileContents = readFileContents(filePath);
 		
-		String linePattern = "([a-f0-9]+)\\.([a-f0-9]+)\\.([a-f0-9]+)\\t([\\+a-f0-9]+)\\t(.+)";
+		String linePattern = "([a-f0-9]+)\\.([a-f0-9]+)\\.([a-f0-9]+)\\t(([\\+a-f0-9]+)|([a-f0-9]+)\\.([a-f0-9]+)\\.([a-f0-9]+))\\t(.+)";
 		Pattern pattern = Pattern.compile(linePattern);
 		Matcher matcher = pattern.matcher(fileContents);
 		
@@ -363,9 +363,9 @@ public class CCFinderOutputParser extends CloneDetectorOutputParser {
 			String lengthString = matcher.group(4);
 			int length = 0;
 			if (lengthString.startsWith("+")) {
-				length = Integer.valueOf(lengthString.substring(1), 16);
+				length = Integer.valueOf(matcher.group(5).substring(1), 16);
 			} else {
-				//?
+				length = Integer.valueOf(matcher.group(8), 16);
 			}
 			Token token = new Token(beginOffset, beginOffset + length);
 			toReturn.add(token);

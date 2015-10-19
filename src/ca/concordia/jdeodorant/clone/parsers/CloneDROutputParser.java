@@ -65,10 +65,11 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 			}
 			if (cloneGroup.getCloneGroupSize() > 0)
 				cloneGroups.add(cloneGroup);
-			else 
-				throw new InvalidInputFileException();
 			progress(cloneGroupID);
 		}
+
+		if (cloneGroups.getCloneGroupsCount() == 0)
+			throw new InvalidInputFileException();
 		
 		return cloneGroups;
 	}

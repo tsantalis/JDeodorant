@@ -38,6 +38,7 @@ import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
+import org.eclipse.jface.viewers.ColumnViewerToolTipSupport;
 import org.eclipse.jface.viewers.ColumnWeightData;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
@@ -53,6 +54,7 @@ import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerCell;
+import org.eclipse.jface.window.ToolTip;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
@@ -100,6 +102,7 @@ public class DuplicatedCode extends ViewPart {
 	private Action doubleClickAction;
 	private IJavaProject selectedProject;
 	private CloneGroup[] cloneGroupTable;
+	private CloneGroupList cloneGroupList;
 	private CloneInstanceMapper mapper;
 	
 	class ViewContentProvider implements ITreeContentProvider {
@@ -171,10 +174,12 @@ public class DuplicatedCode extends ViewPart {
 				case 2:
 					if (group.isSubClone()) {
 						text = "Subclone of clone group " + String.valueOf(group.getSubcloneOf().getCloneGroupID());
-						StyleRange myStyledRange = 
-							new StyleRange(0, text.length(), Display.getCurrent().getSystemColor(SWT.COLOR_BLUE), null);
-						myStyledRange.underline = true;
-						styleRanges.add(myStyledRange);
+						if (!group.getSubcloneOf().isRepeated() && !group.getSubcloneOf().containsClassLevelClone()) {
+							StyleRange myStyledRange = 
+									new StyleRange(0, text.length(), Display.getCurrent().getSystemColor(SWT.COLOR_BLUE), null);
+							myStyledRange.underline = true;
+							styleRanges.add(myStyledRange);
+						}
 					}
 					else { 
 						text = "";
@@ -189,6 +194,8 @@ public class DuplicatedCode extends ViewPart {
 				StyleRange[] range = new StyleRange[] {};
 				range = styleRanges.toArray(range);
 				cell.setStyleRanges(range);
+			} else {
+				cell.setStyleRanges(null);
 			}
 			
 			cell.setText(text);
@@ -327,7 +334,7 @@ public class DuplicatedCode extends ViewPart {
 					Object selectedItemData = item.getData();
 					if (selectedItemData instanceof CloneGroup) {
 						CloneGroup cloneGroup = (CloneGroup) selectedItemData;
-						if (cloneGroup.isSubClone()) {
+						if (cloneGroup.isSubClone() && !cloneGroup.getSubcloneOf().isRepeated() && !cloneGroup.getSubcloneOf().containsClassLevelClone()) {
 							Rectangle rect = item.getBounds(2);
 							if (rect.contains(pt)) {
 								Cursor cursor = new Cursor(Display.getCurrent(), SWT.CURSOR_HAND);
@@ -339,6 +346,8 @@ public class DuplicatedCode extends ViewPart {
 			}
 		});
 
+		ColumnViewerToolTipSupport.enableFor(treeViewer, ToolTip.NO_RECREATE);
+		
 		treeViewer.expandAll();
 		
 		makeActions();
@@ -402,6 +411,7 @@ public class DuplicatedCode extends ViewPart {
 	
 	private void makeActions() {
 		importClonesAction = new Action() {
+			
 			public void run() {
 				CompilationUnitCache.getInstance().clearCache();
 				ImportClonesWizard wizard = new ImportClonesWizard(selectedProject);
@@ -409,8 +419,9 @@ public class DuplicatedCode extends ViewPart {
 						PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(),
 						wizard);
 				dialog.open();
-				CloneGroupList cloneGroupList = wizard.getCloneGroupList();
-				if(cloneGroupList != null) {
+				CloneGroupList importedCloneGroupList = wizard.getCloneGroupList();
+				if(importedCloneGroupList != null) {
+					cloneGroupList = importedCloneGroupList;
 					cloneGroupTable = cloneGroupList.getCloneGroups();
 					treeViewer.setContentProvider(new ViewContentProvider());
 					applyRefactoringAction.setEnabled(true);

@@ -19,13 +19,10 @@ public class CloneInstanceLocationInfo {
 	private int endLine;
 	private int endColumn;
 	
-	private CloneInstanceLocationInfo(String filePath) {
-		this.filePath = filePath;
-	}
-	
 	public CloneInstanceLocationInfo(String filePath, int startOffset, int endOffset) {
-		this(filePath);
+		this.filePath = filePath;
 		this.startOffset = startOffset;
+		this.endOffset = endOffset;
 		this.length = endOffset - startOffset + 1;
 		String containingFileContents = readFileContents(filePath);
 		if (!"".equals(containingFileContents)) {
@@ -43,7 +40,7 @@ public class CloneInstanceLocationInfo {
 	}
 	
 	public CloneInstanceLocationInfo(String filePath, int startLine, int startColumn, int endLine, int endColumn) {
-		this(filePath);
+		this.filePath = filePath;
 		this.startLine = startLine;
 		this.startColumn = startColumn;
 		this.endLine = endLine;
@@ -112,7 +109,7 @@ public class CloneInstanceLocationInfo {
 	}	
 	
 	public int getEndOffset() {
-		return this.endOffset;
+		return endOffset;
 	}
 
 	public int getLength() {

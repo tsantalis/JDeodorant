@@ -79,7 +79,10 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 					CloneInstance cloneInstance = getCloneInstance(filePath, cloneInstanceID, true, startLine, 0, endLine, 0);
 					cloneGroup.addClone(cloneInstance);
 				}
-				cloneGroups.add(cloneGroup);
+				
+				if (cloneGroup.getCloneGroupSize() > 1)
+					cloneGroups.add(cloneGroup);
+				
 				progress(cloneGroupIndex);
 			} catch (NullPointerException npex) {
 				addExceptionHappenedDuringParsing(npex);

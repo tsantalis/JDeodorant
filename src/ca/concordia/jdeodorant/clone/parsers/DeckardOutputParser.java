@@ -80,7 +80,7 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					addExceptionHappenedDuringParsing(ex);
 				}
 			} else {
-				if (cloneGroup != null && cloneGroup.getCloneGroupSize() > 0)
+				if (cloneGroup != null && cloneGroup.getCloneGroupSize() > 1)
 					cloneGroups.add(cloneGroup);
 				inGroup = false;
 				progress(groupID);

@@ -63,7 +63,7 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 					addExceptionHappenedDuringParsing(infe);
 				}
 			}
-			if (cloneGroup.getCloneGroupSize() > 0)
+			if (cloneGroup.getCloneGroupSize() > 1)
 				cloneGroups.add(cloneGroup);
 			progress(cloneGroupID);
 		}

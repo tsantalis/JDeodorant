@@ -209,7 +209,7 @@ public class CCFinderOutputParser extends CloneDetectorOutputParser {
 				}
 			}
 
-			if (cloneGroup.getCloneGroupSize() > 0)
+			if (cloneGroup.getCloneGroupSize() > 1)
 				cloneGroups.add(cloneGroup);
 			
 			progress(cloneSetIndex++);

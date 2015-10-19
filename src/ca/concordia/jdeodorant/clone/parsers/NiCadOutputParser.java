@@ -74,7 +74,7 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 						cloneGroup.addClone(cloneInstance);
 					}
 				}
-				if (cloneGroup.getCloneGroupSize() > 0)
+				if (cloneGroup.getCloneGroupSize() > 1)
 					cloneGroups.add(cloneGroup);
 			} catch (NullPointerException npex) {
 				addExceptionHappenedDuringParsing(npex);

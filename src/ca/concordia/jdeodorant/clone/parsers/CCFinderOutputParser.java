@@ -215,6 +215,9 @@ public class CCFinderOutputParser extends CloneDetectorOutputParser {
 			progress(cloneSetIndex++);
 		}
 		
+		if (cloneGroups.getCloneGroupsCount() == 0)
+			throw new InvalidInputFileException();
+		
 		return cloneGroups;
 
 	}

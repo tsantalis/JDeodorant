@@ -110,7 +110,7 @@ public class ImportClonesWizard extends Wizard {
 			    messageBox.setMessage(message);
 			    messageBox.open();
 				
-				if (cloneGroupList.getCloneGroupsCount() > 0)
+				if (cloneGroupList != null && cloneGroupList.getCloneGroupsCount() > 0)
 					return true;
 				else
 					return false;

@@ -110,9 +110,9 @@ public class CloneInstance {
 		if (!locationInfo.getContainingFilePath().equals(other.locationInfo.getContainingFilePath()))
 			return false;
 		int startOffset = locationInfo.getStartOffset();
-		int endOffset = startOffset + locationInfo.getLength() - 1;
+		int endOffset = locationInfo.getEndOffset();
 		int otherStartOffset = other.locationInfo.getStartOffset();
-		int otherEndOffset = otherStartOffset + other.locationInfo.getLength() - 1;
+		int otherEndOffset = other.locationInfo.getEndOffset();
 		if (startOffset >= otherStartOffset && endOffset <= otherEndOffset)
 			return true;
 		return false;

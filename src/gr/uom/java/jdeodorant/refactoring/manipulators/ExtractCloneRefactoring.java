@@ -38,6 +38,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingKeyPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
@@ -5178,6 +5179,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 				else if(violation instanceof ZeroMatchedStatementsPreconditionViolation) {
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
+				}
+				else if(violation instanceof NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation) {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 			}

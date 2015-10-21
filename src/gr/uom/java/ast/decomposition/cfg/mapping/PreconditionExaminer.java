@@ -1756,9 +1756,10 @@ public class PreconditionExaminer {
 		}
 		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
 				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0) ||
+				(mappedConditionalReturnStatements1.size() > 0 && notAllPossibleExecutionFlowsEndInReturn) ||
 				allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size() ||
 				(mappedConditionalReturnStatements2.size() > 0 && returnStatementsAfterMappedNodes2.size() > 0) ||
-				notAllPossibleExecutionFlowsEndInReturn) {
+				(mappedConditionalReturnStatements2.size() > 0 && notAllPossibleExecutionFlowsEndInReturn) ) {
 			PreconditionViolation violation = new NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation();
 			preconditionViolations.add(violation);
 		}

@@ -1754,10 +1754,10 @@ public class PreconditionExaminer {
 		if(returnTypeBinding != null && !cloneStructureRoot.containsMappedReturnStatementInDirectChildren() && !cloneStructureRoot.lastIfElseIfChainContainsReturnOrThrowStatements()) {
 			notAllPossibleExecutionFlowsEndInReturn = true;
 		}
-		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
+		if((mappedConditionalReturnStatements1.size() > 0 && allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size()) ||
 				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0) ||
 				(mappedConditionalReturnStatements1.size() > 0 && notAllPossibleExecutionFlowsEndInReturn) ||
-				allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size() ||
+				(mappedConditionalReturnStatements2.size() > 0 && allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size()) ||
 				(mappedConditionalReturnStatements2.size() > 0 && returnStatementsAfterMappedNodes2.size() > 0) ||
 				(mappedConditionalReturnStatements2.size() > 0 && notAllPossibleExecutionFlowsEndInReturn) ) {
 			PreconditionViolation violation = new NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation();

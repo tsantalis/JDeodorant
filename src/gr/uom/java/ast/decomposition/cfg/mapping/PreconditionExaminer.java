@@ -38,6 +38,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGExitNode;
 import gr.uom.java.ast.decomposition.cfg.PDGExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGOutputDependence;
@@ -88,6 +89,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -317,7 +319,6 @@ public class PreconditionExaminer {
 					directlyAccessedLocalMethodsG2, indirectlyAccessedLocalMethodsG2, expressions2, fieldAccessReplacedWithGetterExpressions2, this.iCompilationUnit2);
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
 			processNonMappedNodesMovableBeforeAndAfter();
-			checkIfAllPossibleExecutionFlowsEndInReturn();
 			this.lambdaExpressionPreconditionExaminer = new LambdaExpressionPreconditionExaminer(getCloneStructureRoot(), getMaximumStateWithMinimumDifferences(), getCommonPassedParameters());
 			Set<PDGNode> remainingMovableNodesG1 = new TreeSet<PDGNode>();
 			remainingMovableNodesG1.addAll(nonMappedPDGNodesG1MovableBefore);
@@ -357,6 +358,7 @@ public class PreconditionExaminer {
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, allMappedNodesG1);
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, allMappedNodesG2);
 			checkPreconditionsAboutReturnedVariables();
+			checkIfAllPossibleExecutionFlowsEndInReturn();
 			this.cloneRefactoringType = computeRefactoringType();
 			this.declaredVariablesInRemainingNodesDefinedByMappedNodesG1 = findDeclaredVariablesInRemainingNodesDefinedByMappedNodes(pdg1, allMappedNodesG1);
 			this.declaredVariablesInRemainingNodesDefinedByMappedNodesG2 = findDeclaredVariablesInRemainingNodesDefinedByMappedNodes(pdg2, allMappedNodesG2);
@@ -3477,5 +3479,119 @@ public class PreconditionExaminer {
 			}
 		}
 		return accessedLocalMethodsG1.size() == accessedLocalMethodsG2.size() && matchCounter == accessedLocalMethodsG1.size();
+	}
+
+	public ITypeBinding getReturnTypeBinding() {
+		List<VariableDeclaration> returnedVariables1 = new ArrayList<VariableDeclaration>(getVariablesToBeReturnedG1());
+		List<VariableDeclaration> returnedVariables2 = new ArrayList<VariableDeclaration>(getVariablesToBeReturnedG2());
+		ITypeBinding returnTypeBinding = null;
+		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1) {
+			ITypeBinding returnTypeBinding1 = extractTypeBinding(returnedVariables1.get(0));
+			ITypeBinding returnTypeBinding2 = extractTypeBinding(returnedVariables2.get(0));
+			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName()))
+				returnTypeBinding = returnTypeBinding1;
+			else
+				returnTypeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
+		}
+		else {
+			returnTypeBinding = findReturnTypeBinding();
+		}
+		return returnTypeBinding;
+	}
+
+	private ITypeBinding extractTypeBinding(VariableDeclaration variableDeclaration) {
+		IVariableBinding variableBinding = variableDeclaration.resolveBinding();
+		return variableBinding.getType();
+	}
+
+	private ITypeBinding findReturnTypeBinding() {
+		AbstractMethodDeclaration methodObject1 = getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = getPDG2().getMethod();
+		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
+		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
+		List<ITypeBinding> returnedTypeBindings1 = new ArrayList<ITypeBinding>();
+		List<ITypeBinding> returnedTypeBindings2 = new ArrayList<ITypeBinding>();
+		for(PDGNodeMapping pdgNodeMapping : getMaximumStateWithMinimumDifferences().getSortedNodeMappings()) {
+			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
+			extractReturnTypeBinding(pdgNode1, returnedTypeBindings1);
+			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
+			extractReturnTypeBinding(pdgNode2, returnedTypeBindings2);
+		}
+		if(returnedTypeBindings1.size() == 1 && returnedTypeBindings2.size() == 1) {
+			ITypeBinding typeBinding1 = returnedTypeBindings1.get(0);
+			ITypeBinding typeBinding2 = returnedTypeBindings2.get(0);
+			if(typeBinding1.isEqualTo(typeBinding2))
+				return typeBinding1;
+			else
+				return ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+		}
+		else if(returnedTypeBindings1.size() == returnedTypeBindings2.size()) {
+			ITypeBinding returnTypeBinding = null;
+			for(int i=0; i<returnedTypeBindings1.size(); i++) {
+				ITypeBinding typeBinding1 = returnedTypeBindings1.get(i);
+				ITypeBinding typeBinding2 = returnedTypeBindings2.get(i);
+				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				if(returnTypeBinding == null) {
+					if(typeBinding1.isEqualTo(typeBinding2))
+						returnTypeBinding = typeBinding1;
+					else
+						returnTypeBinding = commonSuperType;
+				}
+				else {
+					if(typeBinding1.isEqualTo(typeBinding2)) {
+						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, returnTypeBinding);
+						if(typeBinding != null) {
+							returnTypeBinding = typeBinding;
+						}
+						else {
+							ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
+							ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
+							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
+									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
+								returnTypeBinding = methodReturnTypeBinding1;
+							}
+						}
+					}
+					else {
+						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(commonSuperType, returnTypeBinding);
+						if(typeBinding != null) {
+							returnTypeBinding = typeBinding;
+						}
+						else {
+							ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
+							ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
+							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
+									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
+								returnTypeBinding = methodReturnTypeBinding1;
+							}
+						}
+					}
+				}
+			}
+			return returnTypeBinding;
+		}
+		return null;
+	}
+
+	private void extractReturnTypeBinding(PDGNode pdgNode, List<ITypeBinding> returnedTypeBindings) {
+		if(pdgNode instanceof PDGExitNode) {
+			PDGExitNode exitNode = (PDGExitNode)pdgNode;
+			ReturnStatement returnStatement = (ReturnStatement)exitNode.getASTStatement();
+			Expression returnedExpression = returnStatement.getExpression();
+			if(returnedExpression != null && !(returnedExpression instanceof NullLiteral)) {
+				ITypeBinding typeBinding = returnedExpression.resolveTypeBinding();
+				if(typeBinding != null) {
+					boolean alreadyContained = false;
+					for(ITypeBinding binding : returnedTypeBindings) {
+						if(binding.isEqualTo(typeBinding)) {
+							alreadyContained = true;
+							break;
+						}
+					}
+					if(!alreadyContained)
+						returnedTypeBindings.add(typeBinding);
+				}
+			}
+		}
 	}
 }

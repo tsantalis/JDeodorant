@@ -47,6 +47,7 @@ import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionWithCommonSuperTypePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
@@ -1748,29 +1749,18 @@ public class PreconditionExaminer {
 		Set<PDGNode> mappedConditionalReturnStatements2 = extractConditionalReturnStatements(mappedNodesG2);
 		Set<PDGNode> returnStatementsAfterMappedNodes1 = mappedNodesG1.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(nodesToBeExaminedInPDG1, mappedNodesG1.last().getId());
 		Set<PDGNode> returnStatementsAfterMappedNodes2 = mappedNodesG2.isEmpty() ? new TreeSet<PDGNode>() : extractReturnStatementsAfterId(nodesToBeExaminedInPDG2, mappedNodesG2.last().getId());
-		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
-				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0)) {
-			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
-				PDGNode node1 = nodeMapping.getNodeG1();
-				if(mappedConditionalReturnStatements1.contains(node1)) {
-					PreconditionViolation violation = new StatementPreconditionViolation(node1.getStatement(),
-							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
-					nodeMapping.addPreconditionViolation(violation);
-					preconditionViolations.add(violation);
-				}
-			}
+		boolean notAllPossibleExecutionFlowsEndInReturn = false;
+		ITypeBinding returnTypeBinding = getReturnTypeBinding();
+		if(returnTypeBinding != null && !cloneStructureRoot.containsMappedReturnStatementInDirectChildren() && !cloneStructureRoot.lastIfElseIfChainContainsReturnOrThrowStatements()) {
+			notAllPossibleExecutionFlowsEndInReturn = true;
 		}
-		if(allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size() ||
-				(mappedConditionalReturnStatements2.size() > 0 && returnStatementsAfterMappedNodes2.size() > 0)) {
-			for(PDGNodeMapping nodeMapping : getMaximumStateWithMinimumDifferences().getNodeMappings()) {
-				PDGNode node2 = nodeMapping.getNodeG2();
-				if(mappedConditionalReturnStatements2.contains(node2)) {
-					PreconditionViolation violation = new StatementPreconditionViolation(node2.getStatement(),
-							PreconditionViolationType.CONDITIONAL_RETURN_STATEMENT);
-					nodeMapping.addPreconditionViolation(violation);
-					preconditionViolations.add(violation);
-				}
-			}
+		if(allConditionalReturnStatements1.size() > mappedConditionalReturnStatements1.size() ||
+				(mappedConditionalReturnStatements1.size() > 0 && returnStatementsAfterMappedNodes1.size() > 0) ||
+				allConditionalReturnStatements2.size() > mappedConditionalReturnStatements2.size() ||
+				(mappedConditionalReturnStatements2.size() > 0 && returnStatementsAfterMappedNodes2.size() > 0) ||
+				notAllPossibleExecutionFlowsEndInReturn) {
+			PreconditionViolation violation = new NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation();
+			preconditionViolations.add(violation);
 		}
 	}
 

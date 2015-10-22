@@ -35,6 +35,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.StatementCollector;
 import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingKeyPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
@@ -106,7 +107,6 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
-import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
@@ -431,93 +431,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		return false;
-	}
-
-	private ITypeBinding findReturnTypeBinding() {
-		List<ITypeBinding> returnedTypeBindings1 = new ArrayList<ITypeBinding>();
-		List<ITypeBinding> returnedTypeBindings2 = new ArrayList<ITypeBinding>();
-		for(PDGNodeMapping pdgNodeMapping : sortedNodeMappings) {
-			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
-			extractReturnTypeBinding(pdgNode1, returnedTypeBindings1);
-			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
-			extractReturnTypeBinding(pdgNode2, returnedTypeBindings2);
-		}
-		if(returnedTypeBindings1.size() == 1 && returnedTypeBindings2.size() == 1) {
-			ITypeBinding typeBinding1 = returnedTypeBindings1.get(0);
-			ITypeBinding typeBinding2 = returnedTypeBindings2.get(0);
-			if(typeBinding1.isEqualTo(typeBinding2))
-				return typeBinding1;
-			else
-				return ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-		}
-		else if(returnedTypeBindings1.size() == returnedTypeBindings2.size()) {
-			ITypeBinding returnTypeBinding = null;
-			for(int i=0; i<returnedTypeBindings1.size(); i++) {
-				ITypeBinding typeBinding1 = returnedTypeBindings1.get(i);
-				ITypeBinding typeBinding2 = returnedTypeBindings2.get(i);
-				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-				if(returnTypeBinding == null) {
-					if(typeBinding1.isEqualTo(typeBinding2))
-						returnTypeBinding = typeBinding1;
-					else
-						returnTypeBinding = commonSuperType;
-				}
-				else {
-					if(typeBinding1.isEqualTo(typeBinding2)) {
-						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, returnTypeBinding);
-						if(typeBinding != null) {
-							returnTypeBinding = typeBinding;
-						}
-						else {
-							ITypeBinding methodReturnTypeBinding1 = sourceMethodDeclarations.get(0).getReturnType2().resolveBinding();
-							ITypeBinding methodReturnTypeBinding2 = sourceMethodDeclarations.get(1).getReturnType2().resolveBinding();
-							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
-									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
-								returnTypeBinding = methodReturnTypeBinding1;
-							}
-						}
-					}
-					else {
-						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(commonSuperType, returnTypeBinding);
-						if(typeBinding != null) {
-							returnTypeBinding = typeBinding;
-						}
-						else {
-							ITypeBinding methodReturnTypeBinding1 = sourceMethodDeclarations.get(0).getReturnType2().resolveBinding();
-							ITypeBinding methodReturnTypeBinding2 = sourceMethodDeclarations.get(1).getReturnType2().resolveBinding();
-							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
-									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
-								returnTypeBinding = methodReturnTypeBinding1;
-							}
-						}
-					}
-				}
-			}
-			return returnTypeBinding;
-		}
-		return null;
-	}
-
-	private void extractReturnTypeBinding(PDGNode pdgNode, List<ITypeBinding> returnedTypeBindings) {
-		if(pdgNode instanceof PDGExitNode) {
-			PDGExitNode exitNode = (PDGExitNode)pdgNode;
-			ReturnStatement returnStatement = (ReturnStatement)exitNode.getASTStatement();
-			Expression returnedExpression = returnStatement.getExpression();
-			if(returnedExpression != null && !(returnedExpression instanceof NullLiteral)) {
-				ITypeBinding typeBinding = returnedExpression.resolveTypeBinding();
-				if(typeBinding != null) {
-					boolean alreadyContained = false;
-					for(ITypeBinding binding : returnedTypeBindings) {
-						if(binding.isEqualTo(typeBinding)) {
-							alreadyContained = true;
-							break;
-						}
-					}
-					if(!alreadyContained)
-						returnedTypeBindings.add(typeBinding);
-				}
-			}
-		}
 	}
 
 	private Set<VariableDeclaration> getLocallyAccessedFields(Set<AbstractVariable> accessedFields, TypeDeclaration typeDeclaration) {
@@ -1069,18 +982,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(extractedMethodName), null);
 		List<VariableDeclaration> returnedVariables1 = this.returnedVariables.get(0);
 		List<VariableDeclaration> returnedVariables2 = this.returnedVariables.get(1);
-		ITypeBinding returnTypeBinding = null;
-		if(returnedVariables1.size() == 1 && returnedVariables2.size() == 1) {
-			ITypeBinding returnTypeBinding1 = extractTypeBinding(returnedVariables1.get(0));
-			ITypeBinding returnTypeBinding2 = extractTypeBinding(returnedVariables2.get(0));
-			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName()))
-				returnTypeBinding = returnTypeBinding1;
-			else
-				returnTypeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
-		}
-		else {
-			returnTypeBinding = findReturnTypeBinding();
-		}
+		ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();
 		if(returnTypeBinding != null) {
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(returnTypeBinding);
@@ -3883,7 +3785,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
 				Assignment assignment = ast.newAssignment();
 				methodBodyRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, variableDeclaration.getName(), null);
-				ITypeBinding returnTypeBinding = findReturnTypeBinding();
+				ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();
 				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableTypeBinding)) {
 					CastExpression castExpression = ast.newCastExpression();
 					methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
@@ -3907,7 +3809,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
 				VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
 				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclaration.getName(), null);
-				ITypeBinding returnTypeBinding = findReturnTypeBinding();
+				ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();
 				if(returnTypeBinding != null && !returnTypeBinding.isEqualTo(variableTypeBinding)) {
 					CastExpression castExpression = ast.newCastExpression();
 					methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, methodInvocation, null);
@@ -3937,7 +3839,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			extractedMethodInvocationStatement = methodInvocationStatement;
 		}
 		else {
-			ITypeBinding returnTypeBinding = findReturnTypeBinding();
+			ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();
 			Statement methodInvocationStatement = null;
 			if(returnTypeBinding != null) {
 				ReturnStatement returnStatement = ast.newReturnStatement();
@@ -4150,6 +4052,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 				else if(violation instanceof ZeroMatchedStatementsPreconditionViolation) {
+					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
+				}
+				else if(violation instanceof NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation) {
 					status.merge(RefactoringStatus.createErrorStatus(violation.getViolation()));
 				}
 			}

@@ -32,6 +32,7 @@ import java.util.TreeSet;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
@@ -242,6 +243,10 @@ public abstract class DivideAndConquerMatcher {
 
 	public boolean movableBeforeFirstMappedNode(PDGNodeMapping nodeMapping) {
 		return preconditionExaminer.movableBeforeFirstMappedNode(nodeMapping);
+	}
+
+	public ITypeBinding getReturnTypeBinding() {
+		return preconditionExaminer.getReturnTypeBinding();
 	}
 
 	public CloneType getCloneType() {

@@ -2374,6 +2374,10 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
+					else if(statement.getType().equals(StatementType.THROW)) {
+						removableControlParents.add(removableNode);
+						break;
+					}
 				}
 			}
 		}
@@ -2412,6 +2416,10 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
+					else if(statement.getType().equals(StatementType.THROW)) {
+						removableControlParents.add(removableNode);
+						break;
+					}
 				}
 			}
 		}
@@ -2420,7 +2428,7 @@ public class PreconditionExaminer {
 			AbstractVariable variable = iterator.next();
 			if(variable instanceof PlainVariable) {
 				PlainVariable plainVariable = (PlainVariable)variable;
-				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents, true)) {
+				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents, false)) {
 					return true;
 				}
 			}

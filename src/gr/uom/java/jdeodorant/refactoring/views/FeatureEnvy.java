@@ -569,14 +569,6 @@ public class FeatureEnvy extends ViewPart {
 								candidate.getSourceClassTypeDeclaration(), candidate.getTargetClassTypeDeclaration(), candidate.getSourceMethodDeclaration(),
 								candidate.getAdditionalMethodsToBeMoved(), candidate.leaveDelegate(), candidate.getMovedMethodName());
 					}
-					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
-					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
-					try { 
-						String titleForFailedChecks = ""; //$NON-NLS-1$ 
-						op.run(getSite().getShell(), titleForFailedChecks); 
-					} catch(InterruptedException e) {
-						e.printStackTrace();
-					}
 					try {
 						IJavaElement targetJavaElement = JavaCore.create(targetFile);
 						JavaUI.openInEditor(targetJavaElement);
@@ -585,6 +577,14 @@ public class FeatureEnvy extends ViewPart {
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(getSite().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
 						e.printStackTrace();
 					}
 				}

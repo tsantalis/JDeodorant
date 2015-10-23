@@ -1880,6 +1880,26 @@ public class ExtractClassRefactoring extends Refactoring {
 			}
 			k++;
 		}
+		//replaceThisExpressionWithSourceClassParameterInReturnStatementExpressions
+		List<Statement> sourceReturnStatements = statementExtractor.getReturnStatements(sourceMethod.getBody());
+		List<Statement> newReturnStatements = statementExtractor.getReturnStatements(newMethodDeclaration.getBody());
+		k = 0;
+		for(Statement statement : newReturnStatements) {
+			ReturnStatement newReturnStatement = (ReturnStatement)statement;
+			if(newReturnStatement.getExpression() instanceof ThisExpression) {
+				if(isParentAnonymousClassDeclaration(sourceReturnStatements.get(k)))
+					sourceClassParameterShouldBeFinal = true;
+				Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+				Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
+				if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+					sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
+					additionalArgumentsAddedToMovedMethod.add("this");
+					additionalParametersAddedToMovedMethod.add(sourceClassParameter);
+				}
+				targetRewriter.set(newReturnStatement, ReturnStatement.EXPRESSION_PROPERTY, parameterName, null);
+			}
+			k++;
+		}
 		if(sourceClassParameter != null && sourceClassParameterShouldBeFinal) {
 			ListRewrite modifiersRewrite = targetRewriter.getListRewrite(sourceClassParameter, SingleVariableDeclaration.MODIFIERS2_PROPERTY);
 			modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);

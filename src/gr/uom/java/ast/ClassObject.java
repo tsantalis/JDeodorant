@@ -247,6 +247,16 @@ public class ClassObject extends ClassDeclarationObject {
 		this._enum = _enum;
 	}
 
+	public ConstructorObject getConstructor(ClassInstanceCreationObject cico) {
+        ListIterator<ConstructorObject> ci = getConstructorIterator();
+        while(ci.hasNext()) {
+        	ConstructorObject co = ci.next();
+            if(co.equals(cico))
+                return co;
+        }
+        return null;
+    }
+
 	public String toString() {
         StringBuilder sb = new StringBuilder();
         if(!access.equals(Access.NONE))

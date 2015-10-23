@@ -41,6 +41,7 @@ public class PDGBlockNode extends PDGNode {
 					createdTypes.add(creation);
 					if(creation instanceof ClassInstanceCreationObject) {
 						ClassInstanceCreationObject classInstanceCreation = (ClassInstanceCreationObject)creation;
+						processArgumentsOfInternalClassInstanceCreation(classInstanceCreation, null);
 						thrownExceptionTypes.addAll(classInstanceCreation.getThrownExceptions());
 					}
 				}

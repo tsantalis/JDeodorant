@@ -413,7 +413,22 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     }
 
     public boolean equals(ClassInstanceCreationObject creationObject) {
-    	return this.className.equals(creationObject.getType().getClassType()) && this.getParameterTypeList().equals(creationObject.getParameterTypeList());
+    	return this.className.equals(creationObject.getType().getClassType()) &&
+    			equalParameterTypes(this.getParameterTypeList(), creationObject.getParameterTypeList());
+    }
+
+    private boolean equalParameterTypes(List<TypeObject> list1, List<TypeObject> list2) {
+    	if(list1.size() != list2.size())
+    		return false;
+    	for(int i=0; i<list1.size(); i++) {
+    		TypeObject type1 = list1.get(i);
+    		TypeObject type2 = list2.get(i);
+    		if(!type1.equalsClassType(type2))
+    			return false;
+    		if(type1.getArrayDimension() != type2.getArrayDimension())
+    			return false;
+    	}
+    	return true;
     }
 
     public boolean equals(Object o) {
@@ -469,5 +484,9 @@ public class ConstructorObject implements AbstractMethodDeclaration {
 		}
 		sb.append(")");
 		return sb.toString();
+	}
+
+	public boolean isAbstract() {
+		return false;
 	}
 }

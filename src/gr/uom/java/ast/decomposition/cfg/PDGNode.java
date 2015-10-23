@@ -1,9 +1,14 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassInstanceCreationObject;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.ConstructorObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -20,7 +25,9 @@ import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -292,7 +299,27 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 	}
 
 	protected void processArgumentsOfInternalMethodInvocation(MethodInvocationObject methodInvocationObject, AbstractVariable variable) {
-		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
+		SystemObject systemObject = ASTReader.getSystemObject();
+		MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
+		IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+		ClassObject classObject = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+		MethodObject methodObject = null;
+		if(classObject != null) {
+			methodObject = classObject.getMethod(methodInvocationObject);
+		}
+		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, methodObject, methodInvocation.arguments(), methodBinding, variable);
+	}
+
+	protected void processArgumentsOfInternalClassInstanceCreation(ClassInstanceCreationObject classInstanceCreationObject, AbstractVariable variable) {
+		SystemObject systemObject = ASTReader.getSystemObject();
+		ClassInstanceCreation classInstanceCreation = classInstanceCreationObject.getClassInstanceCreation();
+		IMethodBinding methodBinding = classInstanceCreation.resolveConstructorBinding();
+		ClassObject classObject = systemObject.getClassObject(classInstanceCreationObject.getType().getClassType());
+		ConstructorObject constructorObject = null;
+		if(classObject != null) {
+			constructorObject = classObject.getConstructor(classInstanceCreationObject);
+		}
+		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, constructorObject, classInstanceCreation.arguments(), methodBinding, variable);
 	}
 
 	public void updateReachingAliasSet(ReachingAliasSet reachingAliasSet) {

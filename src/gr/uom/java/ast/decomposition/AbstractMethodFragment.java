@@ -36,6 +36,7 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
@@ -102,6 +103,7 @@ public abstract class AbstractMethodFragment {
 	private Set<PlainVariable> usedLocalVariables;
 	private Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations;
 	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
+	private Map<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>> variablesAssignedWithClassInstanceCreations;
 	
 	protected AbstractMethodFragment(AbstractMethodFragment parent) {
 		this.parent = parent;
@@ -147,6 +149,7 @@ public abstract class AbstractMethodFragment {
 		this.usedLocalVariables = new LinkedHashSet<PlainVariable>();
 		this.parametersPassedAsArgumentsInMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.parametersPassedAsArgumentsInSuperMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
+		this.variablesAssignedWithClassInstanceCreations = new LinkedHashMap<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>>();
 	}
 
     public AbstractMethodFragment getParent() {
@@ -432,8 +435,8 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
-	protected void processClassInstanceCreations(List<Expression> classInctanceCreations) {
-		for(Expression classInstanceCreationExpression : classInctanceCreations) {
+	protected void processClassInstanceCreations(List<Expression> classInstanceCreations) {
+		for(Expression classInstanceCreationExpression : classInstanceCreations) {
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)classInstanceCreationExpression;
 			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
 			if(constructorBinding != null) {
@@ -566,6 +569,58 @@ public abstract class AbstractMethodFragment {
 						}
 					}
 					addAnomymousClassDeclaration(anonymousClassObject);
+				}
+				PlainVariable variable = null;
+				if(classInstanceCreation.getParent() instanceof Assignment) {
+					Assignment assignment = (Assignment)classInstanceCreation.getParent();
+					if(classInstanceCreation.equals(assignment.getRightHandSide())) {
+						if(assignment.getLeftHandSide() instanceof SimpleName) {
+							SimpleName simpleName = (SimpleName)assignment.getLeftHandSide();
+							IBinding binding = simpleName.resolveBinding();
+							if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								String variableBindingKey = variableBinding.getKey();
+								String variableName = variableBinding.getName();
+								String variableType = variableBinding.getType().getQualifiedName();
+								boolean isField = variableBinding.isField();
+								boolean isParameter = variableBinding.isParameter();
+								variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+							}
+						}
+						else if(assignment.getLeftHandSide() instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)assignment.getLeftHandSide();
+							SimpleName simpleName = (SimpleName)fieldAccess.getName();
+							IBinding binding = simpleName.resolveBinding();
+							if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								String variableBindingKey = variableBinding.getKey();
+								String variableName = variableBinding.getName();
+								String variableType = variableBinding.getType().getQualifiedName();
+								boolean isField = variableBinding.isField();
+								boolean isParameter = variableBinding.isParameter();
+								variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+							}
+						}
+					}
+				}
+				else if(classInstanceCreation.getParent() instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment fragment = (VariableDeclarationFragment)classInstanceCreation.getParent();
+					if(classInstanceCreation.equals(fragment.getInitializer())) {
+						SimpleName simpleName = fragment.getName();
+						IBinding binding = simpleName.resolveBinding();
+						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding variableBinding = (IVariableBinding)binding;
+							String variableBindingKey = variableBinding.getKey();
+							String variableName = variableBinding.getName();
+							String variableType = variableBinding.getType().getQualifiedName();
+							boolean isField = variableBinding.isField();
+							boolean isParameter = variableBinding.isParameter();
+							variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+						}
+					}
+				}
+				if(variable != null) {
+					addVariableAssignedWithClassInstanceCreation(variable, creationObject);
 				}
 				addCreation(creationObject);
 			}
@@ -767,6 +822,21 @@ public abstract class AbstractMethodFragment {
 		}
 		if(parent != null) {
 			parent.addParameterPassedAsArgumentInSuperMethodInvocation(parameter, methodInvocation);
+		}
+	}
+
+	private void addVariableAssignedWithClassInstanceCreation(PlainVariable variable, ClassInstanceCreationObject classInstanceCreation) {
+		if(variablesAssignedWithClassInstanceCreations.containsKey(variable)) {
+			LinkedHashSet<ClassInstanceCreationObject> classInstanceCreations = variablesAssignedWithClassInstanceCreations.get(variable);
+			classInstanceCreations.add(classInstanceCreation);
+		}
+		else {
+			LinkedHashSet<ClassInstanceCreationObject> classInstanceCreations = new LinkedHashSet<ClassInstanceCreationObject>();
+			classInstanceCreations.add(classInstanceCreation);
+			variablesAssignedWithClassInstanceCreations.put(variable, classInstanceCreations);
+		}
+		if(parent != null) {
+			parent.addVariableAssignedWithClassInstanceCreation(variable, classInstanceCreation);
 		}
 	}
 
@@ -1079,5 +1149,9 @@ public abstract class AbstractMethodFragment {
 
 	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
 		return parametersPassedAsArgumentsInSuperMethodInvocations;
+	}
+
+	public Map<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>> getVariablesAssignedWithClassInstanceCreations() {
+		return variablesAssignedWithClassInstanceCreations;
 	}
 }

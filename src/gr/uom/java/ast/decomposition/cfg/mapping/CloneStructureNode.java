@@ -61,7 +61,7 @@ public class CloneStructureNode implements Comparable<CloneStructureNode> {
 				DualExpressionWithCommonSuperTypePreconditionViolation expressionViolation = (DualExpressionWithCommonSuperTypePreconditionViolation)violation;
 				ASTNodeDifference difference = findDifferenceCorrespondingToPreconditionViolation(expressionViolation);
 				if(difference != null && !difference.containsDifferenceType(DifferenceType.VARIABLE_TYPE_MISMATCH) &&
-						!isVoidMethodCallDifferenceCoveringEntireStatement && ! difference.isLeftHandSideOfAssignment()) {
+						!isVoidMethodCallDifferenceCoveringEntireStatement && !difference.isLeftHandSideOfAssignment()) {
 					PDGExpressionGap expressionGap = new PDGExpressionGap(difference);
 					if(!expressionGapMap.containsKey(difference)) {
 						expressionGapMap.put(difference, expressionGap);

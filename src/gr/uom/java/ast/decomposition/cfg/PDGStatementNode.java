@@ -31,6 +31,16 @@ public class PDGStatementNode extends PDGNode {
 				createdTypes.add(creation);
 				if(creation instanceof ClassInstanceCreationObject) {
 					ClassInstanceCreationObject classInstanceCreation = (ClassInstanceCreationObject)creation;
+					/*Map<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>> variablesAssignedWithClassInstanceCreations = statement.getVariablesAssignedWithClassInstanceCreations();
+					PlainVariable variable = null;
+					for(PlainVariable key : variablesAssignedWithClassInstanceCreations.keySet()) {
+						if(variablesAssignedWithClassInstanceCreations.get(key).contains(classInstanceCreation) &&
+								(statement.getDefinedFieldsThroughThisReference().contains(key) || statement.getDefinedLocalVariables().contains(key) || statement.getDeclaredLocalVariables().contains(key))) {
+							variable = key;
+							break;
+						}
+					}*/
+					processArgumentsOfInternalClassInstanceCreation(classInstanceCreation, null);
 					thrownExceptionTypes.addAll(classInstanceCreation.getThrownExceptions());
 				}
 			}

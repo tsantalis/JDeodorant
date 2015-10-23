@@ -120,4 +120,6 @@ public interface AbstractMethodDeclaration {
     public List<String> getParameterList();
 
     public String getSignature();
+
+    public boolean isAbstract();
 }

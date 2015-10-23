@@ -1,9 +1,14 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassInstanceCreationObject;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.ConstructorObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
-import gr.uom.java.ast.TypeObject;
+import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.VariableDeclarationObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 
@@ -13,11 +18,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+
 public class PDGExpression {
 	private Set<AbstractVariable> declaredVariables;
 	private Set<AbstractVariable> definedVariables;
 	private Set<AbstractVariable> usedVariables;
-	private Set<TypeObject> createdTypes;
+	private Set<CreationObject> createdTypes;
 	private Set<String> thrownExceptionTypes;
 	private MethodCallAnalyzer methodCallAnalyzer;
 	
@@ -25,7 +34,7 @@ public class PDGExpression {
 		this.declaredVariables = new LinkedHashSet<AbstractVariable>();
 		this.definedVariables = new LinkedHashSet<AbstractVariable>();
 		this.usedVariables = new LinkedHashSet<AbstractVariable>();
-		this.createdTypes = new LinkedHashSet<TypeObject>();
+		this.createdTypes = new LinkedHashSet<CreationObject>();
 		this.thrownExceptionTypes = new LinkedHashSet<String>();
 		this.methodCallAnalyzer = new MethodCallAnalyzer(definedVariables, usedVariables, thrownExceptionTypes, variableDeclarationsInMethod);
 		determineDefinedAndUsedVariables(expression);
@@ -60,7 +69,20 @@ public class PDGExpression {
 	private void determineDefinedAndUsedVariables(AbstractExpression expression) {
 		List<CreationObject> creations = expression.getCreations();
 		for(CreationObject creation : creations) {
-			createdTypes.add(creation.getType());
+			createdTypes.add(creation);
+			if(creation instanceof ClassInstanceCreationObject) {
+				ClassInstanceCreationObject classInstanceCreation = (ClassInstanceCreationObject)creation;
+				/*Map<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>> variablesAssignedWithClassInstanceCreations = expression.getVariablesAssignedWithClassInstanceCreations();
+				PlainVariable variable = null;
+				for(PlainVariable key : variablesAssignedWithClassInstanceCreations.keySet()) {
+					if(variablesAssignedWithClassInstanceCreations.get(key).contains(classInstanceCreation)) {
+						variable = key;
+						break;
+					}
+				}*/
+				processArgumentsOfInternalClassInstanceCreation(classInstanceCreation, null);
+				thrownExceptionTypes.addAll(classInstanceCreation.getThrownExceptions());
+			}
 		}
 		for(PlainVariable variable : expression.getDeclaredLocalVariables()) {
 			declaredVariables.add(variable);
@@ -133,9 +155,34 @@ public class PDGExpression {
 		for(SuperMethodInvocationObject superMethodInvocationObject : superMethodInvocations) {
 			thrownExceptionTypes.addAll(superMethodInvocationObject.getThrownExceptions());
 		}
+		List<MethodInvocationObject> methodInvocations = expression.getMethodInvocations();
+		for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+			thrownExceptionTypes.addAll(methodInvocationObject.getThrownExceptions());
+		}
 	}
 
 	private void processArgumentsOfInternalMethodInvocation(MethodInvocationObject methodInvocationObject, AbstractVariable variable) {
-		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(methodInvocationObject, variable);
+		SystemObject systemObject = ASTReader.getSystemObject();
+		MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
+		IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
+		ClassObject classObject = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+		MethodObject methodObject = null;
+		if(classObject != null) {
+			methodObject = classObject.getMethod(methodInvocationObject);
+		}
+		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, methodObject, methodInvocation.arguments(), methodBinding, variable);
 	}
+
+	private void processArgumentsOfInternalClassInstanceCreation(ClassInstanceCreationObject classInstanceCreationObject, AbstractVariable variable) {
+		SystemObject systemObject = ASTReader.getSystemObject();
+		ClassInstanceCreation classInstanceCreation = classInstanceCreationObject.getClassInstanceCreation();
+		IMethodBinding methodBinding = classInstanceCreation.resolveConstructorBinding();
+		ClassObject classObject = systemObject.getClassObject(classInstanceCreationObject.getType().getClassType());
+		ConstructorObject constructorObject = null;
+		if(classObject != null) {
+			constructorObject = classObject.getConstructor(classInstanceCreationObject);
+		}
+		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, constructorObject, classInstanceCreation.arguments(), methodBinding, variable);
+	}
+
 }

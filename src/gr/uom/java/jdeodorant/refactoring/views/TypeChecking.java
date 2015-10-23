@@ -592,20 +592,20 @@ public class TypeChecking extends ViewPart {
 					else {
 						refactoring = new ReplaceConditionalWithPolymorphism(sourceFile, sourceCompilationUnit, sourceTypeDeclaration, typeCheckElimination);
 					}
-					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
-					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
-					try { 
-						String titleForFailedChecks = ""; //$NON-NLS-1$ 
-						op.run(getSite().getShell(), titleForFailedChecks); 
-					} catch(InterruptedException e) {
-						e.printStackTrace();
-					}
 					try {
 						IJavaElement sourceJavaElement = JavaCore.create(sourceFile);
 						JavaUI.openInEditor(sourceJavaElement);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
+					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, applyRefactoringAction);
+					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard); 
+					try { 
+						String titleForFailedChecks = ""; //$NON-NLS-1$ 
+						op.run(getSite().getShell(), titleForFailedChecks); 
+					} catch(InterruptedException e) {
 						e.printStackTrace();
 					}
 				}

@@ -319,8 +319,9 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		if(classObject != null) {
 			constructorObject = classObject.getConstructor(classInstanceCreationObject);
 		}
-		if(constructorObject != null) {
-			//check if the constructor does not exist, in the case the default constructor is called
+		if(classObject == null || constructorObject != null) {
+			//classObject == null => external constructor call
+			//constructorObject != null => the internal constructor might not exist, in the case the default constructor is called
 			methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, constructorObject, classInstanceCreation.arguments(), methodBinding, variable);
 		}
 	}

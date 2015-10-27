@@ -182,8 +182,8 @@ public class PDGExpression {
 		if(classObject != null) {
 			constructorObject = classObject.getConstructor(classInstanceCreationObject);
 		}
-		if(classObject == null || constructorObject != null) {
-			//classObject == null => external constructor call
+		if((classObject == null && !methodBinding.getDeclaringClass().isAnonymous()) || constructorObject != null) {
+			//classObject == null && !methodBinding.getDeclaringClass().isAnonymous() => external constructor call that is not an anonymous class declaration
 			//constructorObject != null => the internal constructor might not exist, in the case the default constructor is called
 			methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, constructorObject, classInstanceCreation.arguments(), methodBinding, variable);
 		}

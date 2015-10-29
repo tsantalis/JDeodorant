@@ -6,12 +6,12 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 
 public class MethodInvocationObject extends AbstractMethodInvocationObject {
 
-    public MethodInvocationObject(String originClassName, String methodName, TypeObject returnType) {
-        super(originClassName, methodName, returnType);
+    public MethodInvocationObject(TypeObject originClassType, String methodName, TypeObject returnType) {
+        super(originClassType, methodName, returnType);
     }
 
-    public MethodInvocationObject(String originClassName, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
-        super(originClassName, methodName, returnType, parameterList);
+    public MethodInvocationObject(TypeObject originClassType, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
+        super(originClassType, methodName, returnType, parameterList);
     }
 
     public void setMethodInvocation(MethodInvocation methodInvocation) {

@@ -314,10 +314,11 @@ public abstract class AbstractMethodFragment {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 				String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
+				TypeObject originClassTypeObject = TypeObject.extractTypeObject(originClassName);
 				String methodInvocationName = methodBinding.getName();
 				String qualifiedName = methodBinding.getReturnType().getQualifiedName();
 				TypeObject returnType = TypeObject.extractTypeObject(qualifiedName);
-				MethodInvocationObject methodInvocationObject = new MethodInvocationObject(originClassName, methodInvocationName, returnType);
+				MethodInvocationObject methodInvocationObject = new MethodInvocationObject(originClassTypeObject, methodInvocationName, returnType);
 				methodInvocationObject.setMethodInvocation(methodInvocation);
 				ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
 				for(ITypeBinding parameterType : parameterTypes) {
@@ -380,10 +381,11 @@ public abstract class AbstractMethodFragment {
 				SuperMethodInvocation superMethodInvocation = (SuperMethodInvocation)expression;
 				IMethodBinding methodBinding = superMethodInvocation.resolveMethodBinding();
 				String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
+				TypeObject originClassTypeObject = TypeObject.extractTypeObject(originClassName);
 				String methodInvocationName = methodBinding.getName();
 				String qualifiedName = methodBinding.getReturnType().getQualifiedName();
 				TypeObject returnType = TypeObject.extractTypeObject(qualifiedName);
-				SuperMethodInvocationObject superMethodInvocationObject = new SuperMethodInvocationObject(originClassName, methodInvocationName, returnType);
+				SuperMethodInvocationObject superMethodInvocationObject = new SuperMethodInvocationObject(originClassTypeObject, methodInvocationName, returnType);
 				superMethodInvocationObject.setSuperMethodInvocation(superMethodInvocation);
 				ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
 				for(ITypeBinding parameterType : parameterTypes) {

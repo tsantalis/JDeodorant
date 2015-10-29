@@ -6,12 +6,12 @@ import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 
 public class SuperMethodInvocationObject extends AbstractMethodInvocationObject {
 
-    public SuperMethodInvocationObject(String originClassName, String methodName, TypeObject returnType) {
-        super(originClassName, methodName, returnType);
+    public SuperMethodInvocationObject(TypeObject originClassType, String methodName, TypeObject returnType) {
+        super(originClassType, methodName, returnType);
     }
 
-    public SuperMethodInvocationObject(String originClassName, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
-        super(originClassName, methodName, returnType, parameterList);
+    public SuperMethodInvocationObject(TypeObject originClassType, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
+        super(originClassType, methodName, returnType, parameterList);
     }
 
     public void setSuperMethodInvocation(SuperMethodInvocation superMethodInvocation) {

@@ -7,7 +7,7 @@ import java.util.ListIterator;
 import java.util.Set;
 
 public abstract class AbstractMethodInvocationObject {
-	private String originClassName;
+	private TypeObject originClassType;
     private String methodName;
     private TypeObject returnType;
     private List<TypeObject> parameterList;
@@ -17,8 +17,8 @@ public abstract class AbstractMethodInvocationObject {
     protected ASTInformation methodInvocation;
     private volatile int hashCode = 0;
 
-    public AbstractMethodInvocationObject(String originClassName, String methodName, TypeObject returnType) {
-        this.originClassName = originClassName;
+    public AbstractMethodInvocationObject(TypeObject originClassType, String methodName, TypeObject returnType) {
+        this.originClassType = originClassType;
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = new ArrayList<TypeObject>();
@@ -26,8 +26,8 @@ public abstract class AbstractMethodInvocationObject {
         this._static = false;
     }
 
-    public AbstractMethodInvocationObject(String originClassName, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
-        this.originClassName = originClassName;
+    public AbstractMethodInvocationObject(TypeObject originClassType, String methodName, TypeObject returnType, List<TypeObject> parameterList) {
+        this.originClassType = originClassType;
         this.methodName = methodName;
         this.returnType = returnType;
         this.parameterList = parameterList;
@@ -50,8 +50,12 @@ public abstract class AbstractMethodInvocationObject {
 		return returnType;
 	}
 
+    public TypeObject getOriginClassType() {
+    	return this.originClassType;
+    }
+
     public String getOriginClassName() {
-        return this.originClassName;
+        return this.originClassType.getClassType();
     }
 
     public String getMethodName() {
@@ -93,7 +97,7 @@ public abstract class AbstractMethodInvocationObject {
         if (o instanceof AbstractMethodInvocationObject) {
             AbstractMethodInvocationObject methodInvocationObject = (AbstractMethodInvocationObject)o;
 
-            return originClassName.equals(methodInvocationObject.originClassName) &&
+            return originClassType.equals(methodInvocationObject.originClassType) &&
                 methodName.equals(methodInvocationObject.methodName) &&
                 returnType.equals(methodInvocationObject.returnType) &&
                 parameterList.equals(methodInvocationObject.parameterList);
@@ -104,7 +108,7 @@ public abstract class AbstractMethodInvocationObject {
     public int hashCode() {
     	if(hashCode == 0) {
     		int result = 17;
-    		result = 37*result + originClassName.hashCode();
+    		result = 37*result + originClassType.hashCode();
     		result = 37*result + methodName.hashCode();
     		result = 37*result + returnType.hashCode();
     		for(TypeObject parameter : parameterList)
@@ -115,7 +119,7 @@ public abstract class AbstractMethodInvocationObject {
     }
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(originClassName).append("::");
+        sb.append(originClassType).append("::");
         sb.append(methodName);
         sb.append("(");
         if(!parameterList.isEmpty()) {

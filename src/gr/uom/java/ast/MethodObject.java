@@ -121,11 +121,11 @@ public class MethodObject implements AbstractMethodDeclaration {
     }
 
     public MethodInvocationObject generateMethodInvocation() {
-    	return new MethodInvocationObject(this.constructorObject.className, this.constructorObject.name, this.returnType, this.constructorObject.getParameterTypeList());
+    	return new MethodInvocationObject(TypeObject.extractTypeObject(this.constructorObject.className), this.constructorObject.name, this.returnType, this.constructorObject.getParameterTypeList());
     }
 
     public SuperMethodInvocationObject generateSuperMethodInvocation() {
-    	return new SuperMethodInvocationObject(this.constructorObject.className, this.constructorObject.name, this.returnType, this.constructorObject.getParameterTypeList());
+    	return new SuperMethodInvocationObject(TypeObject.extractTypeObject(this.constructorObject.className), this.constructorObject.name, this.returnType, this.constructorObject.getParameterTypeList());
     }
 
     public FieldInstructionObject isGetter() {

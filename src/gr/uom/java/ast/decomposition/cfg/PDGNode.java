@@ -307,7 +307,11 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		if(classObject != null) {
 			methodObject = classObject.getMethod(methodInvocationObject);
 		}
-		methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, methodObject, methodInvocation.arguments(), methodBinding, variable);
+		if(classObject == null || methodObject != null) {
+			//classObject == null => external method call
+			//methodObject != null => the internal method might not exist, in the case of built-in enumeration methods, such as values() and valueOf()
+			methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, methodObject, methodInvocation.arguments(), methodBinding, variable);
+		}
 	}
 
 	protected void processArgumentsOfInternalClassInstanceCreation(ClassInstanceCreationObject classInstanceCreationObject, AbstractVariable variable) {

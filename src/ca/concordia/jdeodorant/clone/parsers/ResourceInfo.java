@@ -44,7 +44,7 @@ public class ResourceInfo {
 		ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
 		parser.setSource(iCompilationUnit);
-		parser.setResolveBindings(true);
+		//parser.setResolveBindings(true);
 		cunit = (CompilationUnit) parser.createAST(null);
 		return cunit;
 	}

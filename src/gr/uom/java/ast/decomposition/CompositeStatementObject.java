@@ -1,6 +1,8 @@
 package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.AnonymousClassDeclarationObject;
+import gr.uom.java.ast.ArrayCreationObject;
+import gr.uom.java.ast.ClassInstanceCreationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LiteralObject;
@@ -12,8 +14,10 @@ import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Statement;
@@ -117,6 +121,22 @@ public class CompositeStatementObject extends AbstractStatement {
 		return creations;
 	}
 
+	public List<ArrayCreationObject> getArrayCreationsInExpressions() {
+		List<ArrayCreationObject> creations = new ArrayList<ArrayCreationObject>();
+		for(AbstractExpression expression : expressionList) {
+			creations.addAll(expression.getArrayCreations());
+		}
+		return creations;
+	}
+
+	public List<ClassInstanceCreationObject> getClassInstanceCreationsInExpressions() {
+		List<ClassInstanceCreationObject> creations = new ArrayList<ClassInstanceCreationObject>();
+		for(AbstractExpression expression : expressionList) {
+			creations.addAll(expression.getClassInstanceCreations());
+		}
+		return creations;
+	}
+
 	public List<LiteralObject> getLiteralsInExpressions() {
 		List<LiteralObject> literals = new ArrayList<LiteralObject>();
 		for(AbstractExpression expression : expressionList) {
@@ -179,6 +199,40 @@ public class CompositeStatementObject extends AbstractStatement {
 			staticMethodInvocations.addAll(expression.getNonDistinctInvokedStaticMethods());
 		}
 		return staticMethodInvocations;
+	}
+
+	public List<PlainVariable> getNonDistinctDefinedFieldsThroughThisReferenceInExpressions() {
+		List<PlainVariable> nonDistinctDefinedFieldsThroughThisReference = new ArrayList<PlainVariable>();
+		for(AbstractExpression expression : expressionList) {
+			nonDistinctDefinedFieldsThroughThisReference.addAll(expression.getNonDistinctDefinedFieldsThroughThisReference());
+		}
+		return nonDistinctDefinedFieldsThroughThisReference;
+	}
+
+	public List<PlainVariable> getNonDistinctUsedFieldsThroughThisReferenceInExpressions() {
+		List<PlainVariable> nonDistinctUsedFieldsThroughThisReference = new ArrayList<PlainVariable>();
+		for(AbstractExpression expression : expressionList) {
+			nonDistinctUsedFieldsThroughThisReference.addAll(expression.getNonDistinctUsedFieldsThroughThisReference());
+		}
+		return nonDistinctUsedFieldsThroughThisReference;
+	}
+
+	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocationsInExpressions() {
+		Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations =
+				new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
+		for(AbstractExpression expression : expressionList) {
+			parametersPassedAsArgumentsInMethodInvocations.putAll(expression.getParametersPassedAsArgumentsInMethodInvocations());
+		}
+		return parametersPassedAsArgumentsInMethodInvocations;
+	}
+
+	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocationsInExpressions() {
+		Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations =
+				new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
+		for(AbstractExpression expression : expressionList) {
+			parametersPassedAsArgumentsInSuperMethodInvocations.putAll(expression.getParametersPassedAsArgumentsInSuperMethodInvocations());
+		}
+		return parametersPassedAsArgumentsInSuperMethodInvocations;
 	}
 
 	public List<String> stringRepresentation() {

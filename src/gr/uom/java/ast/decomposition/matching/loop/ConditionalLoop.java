@@ -5,13 +5,16 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Map.Entry;
 
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ForStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -76,6 +79,29 @@ public class ConditionalLoop extends AbstractLoop
 		return conditionControlVariables;
 	}
 	
+	// returns all modifiers of the specified variable occurring before it in its containing method
+	private static List<ASTNode> getAllVariableModifiersInParentBlock(SimpleName variable, Block block)
+	{
+		List<ASTNode> bodyVariableModifiers = new ArrayList<ASTNode>();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		bodyVariableModifiers.addAll(expressionExtractor.getAssignments(block));
+		// remove all variable updaters that are not modifying the specified variable or are after the position of the variable in use
+		Iterator<ASTNode> it = bodyVariableModifiers.iterator();
+		while (it.hasNext())
+		{
+			ASTNode currentNode = it.next();
+			if (currentNode instanceof Expression)
+			{
+				Expression currentExpression = (Expression) currentNode;
+				if (!AbstractLoopUtilities.isUpdatingVariable(currentExpression, variable) || currentExpression.getStartPosition() >= variable.getStartPosition())
+				{
+					it.remove();
+				}
+			}
+		}
+		return bodyVariableModifiers;
+	}
+
 	// TODO add initializer fragments when VariableDeclarations are supported
 	public List<ASTNode> getAdditionalFragments()
 	{
@@ -94,6 +120,14 @@ public class ConditionalLoop extends AbstractLoop
 				if(variableDeclaration != null)
 				{
 					additionalFragments.add(variableDeclaration);
+					if (variableDeclaration.getParent() instanceof FieldDeclaration && getLoopStatement().getParent() instanceof Block)
+					{
+						List<ASTNode> nodes = getAllVariableModifiersInParentBlock(controlVariable.getVariable(), (Block) getLoopStatement().getParent());
+						if(!nodes.isEmpty())
+						{
+							additionalFragments.add(nodes.get(nodes.size() - 1));
+						}
+					}
 				}
 				ASTNode dataStructureAccessExpression = controlVariable.getDataStructureAccessExpression();
 				if(dataStructureAccessExpression != null)

@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
+import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -31,6 +32,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.TryStatement;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -207,6 +209,16 @@ public class AbstractLoopUtilities
 		List<Expression> variableDeclarationExpressions  = expressionExtractor.getVariableDeclarationExpressions(methodBody);
 		List<Statement> enhancedForStatements            = statementExtractor.getEnhancedForStatements(methodBody);
 		List<VariableDeclaration> variableDeclarations   = new ArrayList<VariableDeclaration>(methodParameters);
+		if (method.getParent() instanceof TypeDeclaration)
+		{
+			TypeDeclaration typeDeclaration = (TypeDeclaration) method.getParent();
+			FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+			for (FieldDeclaration fieldDeclaration : fieldDeclarations)
+			{
+				List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+				variableDeclarations.addAll(fragments);
+			}
+		}
 		for (Statement currentStatement : variableDeclarationStatements)
 		{
 			if (currentStatement instanceof VariableDeclarationStatement)

@@ -19,11 +19,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.matching.NodePairComparisonCache;
 
-import org.eclipse.core.filebuffers.FileBuffers;
-import org.eclipse.core.filebuffers.ITextFileBuffer;
-import org.eclipse.core.filebuffers.ITextFileBufferManager;
-import org.eclipse.core.filebuffers.LocationKind;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
@@ -51,6 +46,7 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 
 import ca.concordia.jdeodorant.clone.parsers.CloneInstance;
+import ca.concordia.jdeodorant.clone.parsers.JavaModelUtility;
 import ca.concordia.jdeodorant.clone.parsers.TextDiff;
 import ca.concordia.jdeodorant.clone.parsers.TextDiff.Diff;
 
@@ -67,13 +63,13 @@ public class CloneInstanceMapper {
 		this.subTreeMappers = new ArrayList<PDGRegionSubTreeMapper>();
 		try {
 			SystemObject systemObject = ASTReader.getSystemObject();
-			int firstStartOffset = instance1.getLocationInfo().getStartOffset();
-			int firstEndOffset = instance1.getLocationInfo().getEndOffset();
+			int firstStartOffset = instance1.getLocationInfo().getUpdatedStartOffset();
+			int firstEndOffset = instance1.getLocationInfo().getUpdatedEndOffset();
 			IMethod iMethod1 = getIMethod(javaProject, instance1.getPackageName() + "." + instance1.getClassName(),
 					instance1.getMethodName(), instance1.getIMethodSignature(), firstStartOffset, firstEndOffset);
 
-			int secondStartOffset = instance2.getLocationInfo().getStartOffset();
-			int secondEndOffset = instance2.getLocationInfo().getEndOffset();
+			int secondStartOffset = instance2.getLocationInfo().getUpdatedStartOffset();
+			int secondEndOffset = instance2.getLocationInfo().getUpdatedEndOffset();
 			IMethod iMethod2 = getIMethod(javaProject, instance2.getPackageName() + "." + instance2.getClassName(),
 					instance2.getMethodName(), instance2.getIMethodSignature(), secondStartOffset, secondEndOffset);
 
@@ -617,7 +613,7 @@ public class CloneInstanceMapper {
 			return true;
 
 		if (astNodeStartOffset >= startOffset && astNodeStartOffset <= endOffset) {
-			IDocument iDocument = getIDocument(iCompilationUnit);
+			IDocument iDocument = JavaModelUtility.getIDocument(iCompilationUnit);
 			try {
 				String realSourceCode = iDocument.get(astNodeStartOffset, endOffset - astNodeStartOffset + 1);
 				String astNodeSourceCode = iDocument.get(astNodeStartOffset, astNodeLength);
@@ -659,27 +655,6 @@ public class CloneInstanceMapper {
 			if (keyWord.equals(filtered))
 				return true;
 		return false;
-	}
-
-	private static IDocument getIDocument(IJavaElement iJavaElement) {
-		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
-		IPath path = iJavaElement.getPath();
-		IDocument iDocument = null;
-		try {
-			bufferManager.connect(path, LocationKind.IFILE, null);
-			ITextFileBuffer textFileBuffer = bufferManager.getTextFileBuffer(
-					path, LocationKind.IFILE);
-			iDocument = textFileBuffer.getDocument();
-		} catch (CoreException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				bufferManager.disconnect(path, LocationKind.IFILE, null);
-			} catch (CoreException e) {
-				e.printStackTrace();
-			}
-		}
-		return iDocument;
 	}
 
 	private PDG getPDG(IMethod iMethod, IProgressMonitor progressMonitor) throws JavaModelException {

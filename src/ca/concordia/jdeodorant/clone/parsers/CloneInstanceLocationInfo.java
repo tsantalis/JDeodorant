@@ -18,11 +18,15 @@ public class CloneInstanceLocationInfo {
 	private int startColumn;
 	private int endLine;
 	private int endColumn;
+	private int updatedStartOffset;
+	private int updatedEndOffset;
 	
 	public CloneInstanceLocationInfo(String filePath, int startOffset, int endOffset) {
 		this.filePath = filePath;
 		this.startOffset = startOffset;
 		this.endOffset = endOffset;
+		this.updatedStartOffset = startOffset;
+		this.updatedEndOffset = endOffset;
 		this.length = endOffset - startOffset + 1;
 		String containingFileContents = readFileContents(filePath);
 		if (!"".equals(containingFileContents)) {
@@ -59,6 +63,8 @@ public class CloneInstanceLocationInfo {
 			this.endOffset--;
 		}
 		this.length = this.endOffset - this.startOffset + 1;
+		this.updatedStartOffset = startOffset;
+		this.updatedEndOffset = endOffset;
 	}
 	
 	private boolean isWhiteSpaceCharacter(char character) {
@@ -136,6 +142,15 @@ public class CloneInstanceLocationInfo {
 		return readFileContents(filePath);
 	}
 	
+	public boolean updateOffsets(int startOffset, int endOffset) {
+		if (this.updatedStartOffset != startOffset || this.updatedEndOffset != endOffset) {
+			this.updatedStartOffset = startOffset;
+			this.updatedEndOffset = endOffset;
+			return true;
+		}
+		return false;
+	}
+	
 	@Override
 	public boolean equals(Object other) {
 		
@@ -170,6 +185,21 @@ public class CloneInstanceLocationInfo {
 		return stringBuilder.toString();
 	}
 
+	public CloneInstanceStatus getCloneLocationStatus() {
+		if (updatedStartOffset == -1)
+			return CloneInstanceStatus.TAMPERED;
+		else if (this.updatedStartOffset == this.startOffset && this.updatedEndOffset == this.endOffset)
+			return CloneInstanceStatus.ORIGINAL_LOCATION;
+		else
+			return CloneInstanceStatus.OFFSETS_SHIFTED;
+	}
 
+	public int getUpdatedStartOffset() {
+		return this.updatedStartOffset;
+	}
+
+	public int getUpdatedEndOffset() {
+		return this.updatedEndOffset;
+	}
 
 }

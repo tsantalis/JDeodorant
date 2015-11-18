@@ -4,13 +4,20 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.core.filebuffers.FileBuffers;
+import org.eclipse.core.filebuffers.ITextFileBuffer;
+import org.eclipse.core.filebuffers.ITextFileBufferManager;
+import org.eclipse.core.filebuffers.LocationKind;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jface.text.IDocument;
 
-public class SourceDirectoryUtility {
+public class JavaModelUtility {
 	public static Set<String> getAllSourceDirectories(IJavaProject jProject)
 			throws JavaModelException {
 		/*
@@ -52,4 +59,27 @@ public class SourceDirectoryUtility {
 		}
 		return allSrcDirectories;
 	}
+
+	public static IDocument getIDocument(IJavaElement iJavaElement) {
+		ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
+		IPath path = iJavaElement.getPath();
+		IDocument iDocument = null;
+		try {
+			bufferManager.connect(path, LocationKind.IFILE, null);
+			ITextFileBuffer textFileBuffer = bufferManager.getTextFileBuffer(
+					path, LocationKind.IFILE);
+			iDocument = textFileBuffer.getDocument();
+		} catch (CoreException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				bufferManager.disconnect(path, LocationKind.IFILE, null);
+			} catch (CoreException e) {
+				e.printStackTrace();
+			}
+		}
+		return iDocument;
+	}
+	
+	
 }

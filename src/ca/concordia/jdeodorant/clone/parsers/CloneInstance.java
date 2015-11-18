@@ -1,7 +1,7 @@
 package ca.concordia.jdeodorant.clone.parsers;
 
 public class CloneInstance {
-	
+
 	private CloneGroup belongingCloneGroup;
 	private final CloneInstanceLocationInfo locationInfo;
 	private int cloneID;
@@ -11,14 +11,7 @@ public class CloneInstance {
 	private String iMethodSignature;
 	private String methodSignature;
 	private String methodName;
-	
-	public CloneInstance(CloneInstanceLocationInfo locationInfo) {
-		this(locationInfo, null);
-	}
-	
-	public CloneInstance(CloneInstanceLocationInfo cloneLocationInfo, CloneGroup parentGroup) {
-		this(cloneLocationInfo, parentGroup, 0);
-	}
+	private final String originalCodeFragment;
 	
 	public CloneInstance(CloneInstanceLocationInfo locationInfo, int cloneID) {
 		this(locationInfo, null, cloneID);
@@ -28,9 +21,10 @@ public class CloneInstance {
 		this.locationInfo = locationInfo;
 		this.setBelongingCloneGroup(parentGroup);
 		this.setCloneID(cloneID);
+		this.originalCodeFragment = getActualCodeFragment();
 	}
 
-	public String getActualCodeFragment() {
+	private String getActualCodeFragment() {
 		String code = locationInfo.getContainingFileContents();
 		/* From substring documentation:
 		 * The substring begins at the specified beginIndex and extends to the character at **index endIndex - 1**
@@ -48,6 +42,18 @@ public class CloneInstance {
 
 	public CloneInstanceLocationInfo getLocationInfo() {
 		return locationInfo;
+	}
+	
+	public boolean updateOffsets(int startOffset, int endOffset) {
+		return this.locationInfo.updateOffsets(startOffset, endOffset);
+	}
+	
+	public CloneInstanceStatus getStatus() {
+		return this.locationInfo.getCloneLocationStatus();
+	}
+	
+	public String getOriginalCodeFragment() {
+		return this.originalCodeFragment;
 	}
 
 	public int getCloneID() {
@@ -145,5 +151,12 @@ public class CloneInstance {
 	public boolean isClassLevelClone() {
 		return this.methodName == null;
 	}
-		
+	
+	public boolean validateIntegrity(String newSource) { 
+		int newStartOffset = newSource.indexOf(originalCodeFragment);
+		int newEndOffset = -1;
+		if (newStartOffset >= 0)
+			newEndOffset = newStartOffset + originalCodeFragment.length() - 1;
+		return updateOffsets(newStartOffset, newEndOffset);
+	}
 }

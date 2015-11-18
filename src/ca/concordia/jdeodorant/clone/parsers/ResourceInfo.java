@@ -73,7 +73,7 @@ public class ResourceInfo {
 
 		// First try the given path, if not found, prepend src dir
 		ICompilationUnit iCompilationUnit = (ICompilationUnit) JavaCore.create(jProject.getProject().getFile(fullResourceName));
-		Set<String> allSrcDirectories = SourceDirectoryUtility.getAllSourceDirectories(jProject);
+		Set<String> allSrcDirectories = JavaModelUtility.getAllSourceDirectories(jProject);
 
 		if (iCompilationUnit != null && iCompilationUnit.exists()) {
 			for (String srcDirectory : allSrcDirectories) {

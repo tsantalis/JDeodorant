@@ -54,4 +54,20 @@ public class CloneGroupList implements Iterable<CloneGroup> {
 	public boolean containsCloneGroup(CloneGroup cloneGroup) {
 		return allCloneGroupsHashCodes.containsKey(cloneGroup.hashCode());
 	}
+
+	public boolean removeClonesExistingInFile(String filePath) {
+		boolean changed = false;
+		for (CloneGroup cloneGroup : getCloneGroups()) {
+			changed |= cloneGroup.removeClonesExistingInFile(filePath);
+		}
+		return changed;
+	}
+	
+	public boolean updateClonesExistingInFile(String filePath, String newSourceCode) {
+		boolean changed = false;
+		for (CloneGroup cloneGroup : getCloneGroups()) {
+			changed |= cloneGroup.updateClonesExistingInFile(filePath, newSourceCode);
+		}
+		return changed;
+	}
 }

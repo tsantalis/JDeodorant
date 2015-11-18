@@ -19,9 +19,13 @@ import org.eclipse.core.commands.operations.OperationHistoryEvent;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.ElementChangedEvent;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IElementChangedListener;
 import org.eclipse.jdt.core.IField;
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaElementDelta;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -62,6 +66,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
@@ -89,6 +94,8 @@ import org.eclipse.ui.texteditor.ITextEditor;
 import ca.concordia.jdeodorant.clone.parsers.CloneGroup;
 import ca.concordia.jdeodorant.clone.parsers.CloneGroupList;
 import ca.concordia.jdeodorant.clone.parsers.CloneInstance;
+import ca.concordia.jdeodorant.clone.parsers.CloneInstanceStatus;
+import ca.concordia.jdeodorant.clone.parsers.JavaModelUtility;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneInstanceMapper;
@@ -143,6 +150,10 @@ public class DuplicatedCode extends ViewPart {
 
 	class ViewLabelProvider extends StyledCellLabelProvider {
 		
+		private final Color LINK_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLUE);
+		private final Color TEXT_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
+		private final Color MODIFIED_BG_COLOR = new Color(Display.getCurrent(), 218, 255, 215);
+		
 		@Override
 		public void update(ViewerCell cell) {
 			
@@ -164,9 +175,27 @@ public class DuplicatedCode extends ViewPart {
 				default:
 					text = "";
 				}
+				switch (cloneInstance.getStatus()) {
+				case OFFSETS_SHIFTED:
+					StyleRange myStyledRange = new StyleRange(0, text.length(), TEXT_COLOR, MODIFIED_BG_COLOR);
+					styleRanges.add(myStyledRange);
+					break;
+				case TAMPERED:
+					myStyledRange = new StyleRange(0, text.length(), TEXT_COLOR, null);
+					myStyledRange.strikeout = true;
+					styleRanges.add(myStyledRange);
+					break;
+				default:
+					break;
+				} 
 			}
 			else if(obj instanceof CloneGroup) {
 				CloneGroup group = (CloneGroup)obj;
+				if (group.isUpdated()) {
+					cell.setBackground(MODIFIED_BG_COLOR);
+				} else {
+					cell.setBackground(null);
+				}
 				switch(index){
 				case 0:
 					text = "Clone group " + group.getCloneGroupID() + " (" + group.getCloneGroupSize() + " clone instances)";
@@ -175,8 +204,7 @@ public class DuplicatedCode extends ViewPart {
 					if (group.isSubClone()) {
 						text = "Subclone of clone group " + String.valueOf(group.getSubcloneOf().getCloneGroupID());
 						if (!group.getSubcloneOf().isRepeated() && !group.getSubcloneOf().containsClassLevelClone()) {
-							StyleRange myStyledRange = 
-									new StyleRange(0, text.length(), Display.getCurrent().getSystemColor(SWT.COLOR_BLUE), null);
+							StyleRange myStyledRange = new StyleRange(0, text.length(), LINK_COLOR, null);
 							myStyledRange.underline = true;
 							styleRanges.add(myStyledRange);
 						}
@@ -355,6 +383,57 @@ public class DuplicatedCode extends ViewPart {
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
 		JavaCore.addElementChangedListener(new ElementChangedListener());
+		JavaCore.addElementChangedListener(new IElementChangedListener() {
+			public void elementChanged(ElementChangedEvent event) {
+				final IJavaElementDelta delta = event.getDelta();
+				Display.getDefault().syncExec(new Runnable() {
+				    public void run() {
+				    	processDelta(delta);
+				    }
+				});
+			}
+			private void processDelta(IJavaElementDelta delta) {
+				boolean shouldUpdate = false;
+				IJavaElement javaElement = delta.getElement();
+				switch(javaElement.getElementType()) {
+				case IJavaElement.JAVA_MODEL:
+				case IJavaElement.JAVA_PROJECT:
+				case IJavaElement.PACKAGE_FRAGMENT_ROOT:
+				case IJavaElement.PACKAGE_FRAGMENT:
+					IJavaElementDelta[] affectedChildren = delta.getAffectedChildren();
+					for(IJavaElementDelta affectedChild : affectedChildren) {
+						processDelta(affectedChild);
+					}
+					break;
+				case IJavaElement.COMPILATION_UNIT:
+					ICompilationUnit compilationUnit = (ICompilationUnit)javaElement;
+					String pathOfJavaElement = compilationUnit.getResource().getLocation().toOSString();
+					if(delta.getKind() == IJavaElementDelta.REMOVED) {
+						if (cloneGroupList != null) {
+							shouldUpdate = cloneGroupList.removeClonesExistingInFile(pathOfJavaElement);
+						}
+					}
+					else if (delta.getKind() == IJavaElementDelta.ADDED) {
+						String newSourceCode = JavaModelUtility.getIDocument(javaElement).get();
+						if (cloneGroupList != null ) {
+							shouldUpdate = cloneGroupList.updateClonesExistingInFile(pathOfJavaElement, newSourceCode);
+						}
+					}
+					else if(delta.getKind() == IJavaElementDelta.CHANGED) {
+						if((delta.getFlags() & IJavaElementDelta.F_FINE_GRAINED) != 0) {
+							String newSourceCode = JavaModelUtility.getIDocument(javaElement).get();
+							if (cloneGroupList != null ) {
+								shouldUpdate = cloneGroupList.updateClonesExistingInFile(pathOfJavaElement, newSourceCode);
+							}
+						}
+					}
+				}
+				if (shouldUpdate) {
+					cloneGroupTable = cloneGroupList.getCloneGroups();
+					treeViewer.refresh();
+				}
+			}
+		});
 		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new IOperationHistoryListener() {
 			public void historyNotification(OperationHistoryEvent event) {
 				int eventType = event.getEventType();
@@ -443,36 +522,38 @@ public class DuplicatedCode extends ViewPart {
 		applyRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 				getImageDescriptor(ISharedImages.IMG_DEF_VIEW));
 		applyRefactoringAction.setEnabled(false);
-		
+
 		doubleClickAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
 				if(selection.getFirstElement() instanceof CloneInstance) {
 					CloneInstance cloneInstance = (CloneInstance)selection.getFirstElement();
-					String fullName = cloneInstance.getPackageName().replace(".", "/") + "/" +
-							cloneInstance.getClassName() + ".java";
-					try {
-						ICompilationUnit sourceJavaElement = getICompilationUnit(selectedProject, fullName);
-						ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
-						AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
-						@SuppressWarnings("unchecked")
-						Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
-						while(annotationIterator.hasNext()) {
-							Annotation currentAnnotation = annotationIterator.next();
-							if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION) || currentAnnotation.getType().equals(SliceAnnotation.DUPLICATION)) {
-								annotationModel.removeAnnotation(currentAnnotation);
+					if (!cloneInstance.getStatus().equals(CloneInstanceStatus.TAMPERED)) {
+						String fullName = cloneInstance.getPackageName().replace(".", "/") + "/" +
+								cloneInstance.getClassName() + ".java";
+						try {
+							ICompilationUnit sourceJavaElement = getICompilationUnit(selectedProject, fullName);
+							ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
+							AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
+							@SuppressWarnings("unchecked")
+							Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
+							while(annotationIterator.hasNext()) {
+								Annotation currentAnnotation = annotationIterator.next();
+								if(currentAnnotation.getType().equals(SliceAnnotation.EXTRACTION) || currentAnnotation.getType().equals(SliceAnnotation.DUPLICATION)) {
+									annotationModel.removeAnnotation(currentAnnotation);
+								}
 							}
+							int offset = cloneInstance.getLocationInfo().getUpdatedStartOffset();
+							int length = cloneInstance.getLocationInfo().getLength();
+							Position position = new Position(offset, length);
+							SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, null);
+							annotationModel.addAnnotation(annotation, position);
+							sourceEditor.setHighlightRange(offset, length, true);
+						} catch (PartInitException e) {
+							e.printStackTrace();
+						} catch (JavaModelException e) {
+							e.printStackTrace();
 						}
-						int offset = cloneInstance.getLocationInfo().getStartOffset();
-						int length = cloneInstance.getLocationInfo().getLength();
-						Position position = new Position(offset, length);
-						SliceAnnotation annotation = new SliceAnnotation(SliceAnnotation.EXTRACTION, null);
-						annotationModel.addAnnotation(annotation, position);
-						sourceEditor.setHighlightRange(offset, length, true);
-					} catch (PartInitException e) {
-						e.printStackTrace();
-					} catch (JavaModelException e) {
-						e.printStackTrace();
 					}
 				}
 			}
@@ -596,11 +677,12 @@ public class DuplicatedCode extends ViewPart {
 		if(selection instanceof IStructuredSelection) {
 			IStructuredSelection structuredSelection = (IStructuredSelection)selection;
 			Object[] selectedItems = structuredSelection.toArray();
-			if(selectedItems.length == 2) {
+			if (selectedItems.length == 2) {
 				if(selectedItems[0] instanceof CloneInstance && selectedItems[1] instanceof CloneInstance) {
 					final CloneInstance instance1 = (CloneInstance) selectedItems[0];
 					final CloneInstance instance2 = (CloneInstance) selectedItems[1];
-					if(instance1.getBelongingCloneGroup().equals(instance2.getBelongingCloneGroup())) {
+					if (instance1.getBelongingCloneGroup().equals(instance2.getBelongingCloneGroup()) &&
+							!instance1.getStatus().equals(CloneInstanceStatus.TAMPERED) && !instance2.getStatus().equals(CloneInstanceStatus.TAMPERED)) {
 						return new CloneInstance[] {instance1, instance2 };
 					}
 				}
@@ -660,7 +742,7 @@ public class DuplicatedCode extends ViewPart {
 			final CloneInstance instance1 = selectedCloneInstances[0];
 			final CloneInstance instance2 = selectedCloneInstances[1];
 			
-			CompareEditorInput input = new CompareInput(instance1.getActualCodeFragment(), instance2.getActualCodeFragment());
+			CompareEditorInput input = new CompareInput(instance1.getOriginalCodeFragment(), instance2.getOriginalCodeFragment());
 			CompareUI.openCompareDialog(input);
 			
 		} else {

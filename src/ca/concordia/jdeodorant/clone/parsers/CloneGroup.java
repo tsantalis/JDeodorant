@@ -115,5 +115,27 @@ public class CloneGroup {
 		}
 		return true;
 	}
-	
+
+	public boolean removeClonesExistingInFile(String filePath) {
+		return updateClonesExistingInFile(filePath, "");
+	}
+
+	public boolean updateClonesExistingInFile(String filePath, String newSource) {
+		boolean changed = false;
+		for (CloneInstance cloneInstance : cloneInstances) {
+			if (cloneInstance.getLocationInfo().getContainingFilePath().equals(filePath)) {
+				changed |= cloneInstance.validateIntegrity(newSource);
+			}
+		}
+		return changed;
+	}
+
+	public boolean isUpdated() {
+		for (CloneInstance cloneInstance : cloneInstances) {
+			if (!cloneInstance.getStatus().equals(CloneInstanceStatus.ORIGINAL_LOCATION))
+				return true;
+		}
+		return false;
+	}
+
 }

@@ -276,6 +276,58 @@ public class DuplicatedCode extends ViewPart {
 		}
 	};
 
+	private IElementChangedListener elementChangedListener = new IElementChangedListener() {
+		public void elementChanged(ElementChangedEvent event) {
+			final IJavaElementDelta delta = event.getDelta();
+			Display.getDefault().syncExec(new Runnable() {
+			    public void run() {
+			    	processDelta(delta);
+			    }
+			});
+		}
+		private void processDelta(IJavaElementDelta delta) {
+			boolean shouldUpdate = false;
+			IJavaElement javaElement = delta.getElement();
+			switch(javaElement.getElementType()) {
+			case IJavaElement.JAVA_MODEL:
+			case IJavaElement.JAVA_PROJECT:
+			case IJavaElement.PACKAGE_FRAGMENT_ROOT:
+			case IJavaElement.PACKAGE_FRAGMENT:
+				IJavaElementDelta[] affectedChildren = delta.getAffectedChildren();
+				for(IJavaElementDelta affectedChild : affectedChildren) {
+					processDelta(affectedChild);
+				}
+				break;
+			case IJavaElement.COMPILATION_UNIT:
+				ICompilationUnit compilationUnit = (ICompilationUnit)javaElement;
+				String pathOfJavaElement = compilationUnit.getResource().getLocation().toOSString();
+				if(delta.getKind() == IJavaElementDelta.REMOVED) {
+					if (cloneGroupList != null) {
+						shouldUpdate = cloneGroupList.removeClonesExistingInFile(pathOfJavaElement);
+					}
+				}
+				else if (delta.getKind() == IJavaElementDelta.ADDED) {
+					String newSourceCode = JavaModelUtility.getIDocument(javaElement).get();
+					if (cloneGroupList != null ) {
+						shouldUpdate = cloneGroupList.updateClonesExistingInFile(pathOfJavaElement, newSourceCode);
+					}
+				}
+				else if(delta.getKind() == IJavaElementDelta.CHANGED) {
+					if((delta.getFlags() & IJavaElementDelta.F_FINE_GRAINED) != 0) {
+						String newSourceCode = JavaModelUtility.getIDocument(javaElement).get();
+						if (cloneGroupList != null ) {
+							shouldUpdate = cloneGroupList.updateClonesExistingInFile(pathOfJavaElement, newSourceCode);
+						}
+					}
+				}
+			}
+			if (shouldUpdate) {
+				cloneGroupTable = cloneGroupList.getCloneGroups();
+				treeViewer.refresh();
+			}
+		}
+	};
+
 	@Override
 	public void createPartControl(Composite parent) {
 		treeViewer = new TreeViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
@@ -383,57 +435,7 @@ public class DuplicatedCode extends ViewPart {
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
 		JavaCore.addElementChangedListener(new ElementChangedListener());
-		JavaCore.addElementChangedListener(new IElementChangedListener() {
-			public void elementChanged(ElementChangedEvent event) {
-				final IJavaElementDelta delta = event.getDelta();
-				Display.getDefault().syncExec(new Runnable() {
-				    public void run() {
-				    	processDelta(delta);
-				    }
-				});
-			}
-			private void processDelta(IJavaElementDelta delta) {
-				boolean shouldUpdate = false;
-				IJavaElement javaElement = delta.getElement();
-				switch(javaElement.getElementType()) {
-				case IJavaElement.JAVA_MODEL:
-				case IJavaElement.JAVA_PROJECT:
-				case IJavaElement.PACKAGE_FRAGMENT_ROOT:
-				case IJavaElement.PACKAGE_FRAGMENT:
-					IJavaElementDelta[] affectedChildren = delta.getAffectedChildren();
-					for(IJavaElementDelta affectedChild : affectedChildren) {
-						processDelta(affectedChild);
-					}
-					break;
-				case IJavaElement.COMPILATION_UNIT:
-					ICompilationUnit compilationUnit = (ICompilationUnit)javaElement;
-					String pathOfJavaElement = compilationUnit.getResource().getLocation().toOSString();
-					if(delta.getKind() == IJavaElementDelta.REMOVED) {
-						if (cloneGroupList != null) {
-							shouldUpdate = cloneGroupList.removeClonesExistingInFile(pathOfJavaElement);
-						}
-					}
-					else if (delta.getKind() == IJavaElementDelta.ADDED) {
-						String newSourceCode = JavaModelUtility.getIDocument(javaElement).get();
-						if (cloneGroupList != null ) {
-							shouldUpdate = cloneGroupList.updateClonesExistingInFile(pathOfJavaElement, newSourceCode);
-						}
-					}
-					else if(delta.getKind() == IJavaElementDelta.CHANGED) {
-						if((delta.getFlags() & IJavaElementDelta.F_FINE_GRAINED) != 0) {
-							String newSourceCode = JavaModelUtility.getIDocument(javaElement).get();
-							if (cloneGroupList != null ) {
-								shouldUpdate = cloneGroupList.updateClonesExistingInFile(pathOfJavaElement, newSourceCode);
-							}
-						}
-					}
-				}
-				if (shouldUpdate) {
-					cloneGroupTable = cloneGroupList.getCloneGroups();
-					treeViewer.refresh();
-				}
-			}
-		});
+		JavaCore.addElementChangedListener(elementChangedListener);
 		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new IOperationHistoryListener() {
 			public void historyNotification(OperationHistoryEvent event) {
 				int eventType = event.getEventType();
@@ -576,6 +578,7 @@ public class DuplicatedCode extends ViewPart {
 	public void dispose() {
 		super.dispose();
 		getSite().getWorkbenchWindow().getSelectionService().removeSelectionListener(selectionListener);
+		JavaCore.removeElementChangedListener(elementChangedListener);
 	}
 
 	private ICompilationUnit getICompilationUnit(IJavaProject iJavaProject, String fullName) {

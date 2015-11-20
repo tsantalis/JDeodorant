@@ -3,7 +3,7 @@ package gr.uom.java.ast;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
-public class ParameterObject implements VariableDeclarationObject {
+public class ParameterObject extends VariableDeclarationObject {
 	private TypeObject type;
 	private String name;
 	private boolean varargs;
@@ -31,6 +31,7 @@ public class ParameterObject implements VariableDeclarationObject {
 
 	public void setSingleVariableDeclaration(SingleVariableDeclaration singleVariableDeclaration) {
 		//this.singleVariableDeclaration = singleVariableDeclaration;
+		this.variableBindingKey = singleVariableDeclaration.resolveBinding().getKey();
 		this.singleVariableDeclaration = ASTInformationGenerator.generateASTInformation(singleVariableDeclaration);
 	}
 
@@ -47,7 +48,7 @@ public class ParameterObject implements VariableDeclarationObject {
         if (o instanceof ParameterObject) {
             ParameterObject parameterObject = (ParameterObject)o;
             return this.type.equals(parameterObject.type) && this.name.equals(parameterObject.name) &&
-            		this.varargs == parameterObject.varargs;
+            		this.varargs == parameterObject.varargs && this.variableBindingKey.equals(parameterObject.variableBindingKey);
         }
         
         return false;
@@ -59,6 +60,7 @@ public class ParameterObject implements VariableDeclarationObject {
 			result = 37*result + name.hashCode();
 			result = 37*result + type.hashCode();
 			result = 37*result + (varargs ? 1 : 0);
+			result = 37*result + variableBindingKey.hashCode();
 			hashCode = result;
 		}
 		return hashCode;

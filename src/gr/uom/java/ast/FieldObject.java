@@ -9,7 +9,7 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
-public class FieldObject implements VariableDeclarationObject {
+public class FieldObject extends VariableDeclarationObject {
 
     private String name;
     private TypeObject type;
@@ -31,6 +31,7 @@ public class FieldObject implements VariableDeclarationObject {
 
     public void setVariableDeclarationFragment(VariableDeclarationFragment fragment) {
     	//this.fragment = fragment;
+    	this.variableBindingKey = fragment.resolveBinding().getKey();
     	this.fragment = ASTInformationGenerator.generateASTInformation(fragment);
     }
 
@@ -95,7 +96,8 @@ public class FieldObject implements VariableDeclarationObject {
         if (o instanceof FieldObject) {
             FieldObject fieldObject = (FieldObject)o;
             return this.className.equals(fieldObject.className) &&
-            	this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type);
+            	this.name.equals(fieldObject.name) && this.type.equals(fieldObject.type) &&
+            	this.variableBindingKey.equals(fieldObject.variableBindingKey);
         }
         return false;
     }
@@ -110,7 +112,7 @@ public class FieldObject implements VariableDeclarationObject {
 
     public boolean equals(FieldInstructionObject fio) {
         return this.className.equals(fio.getOwnerClass()) &&
-        this.name.equals(fio.getName()) && this.type.equals(fio.getType());
+        this.name.equals(fio.getName()) && this.type.equals(fio.getType()) && this.variableBindingKey.equals(fio.getVariableBindingKey());
     }
 
     public int hashCode() {
@@ -119,6 +121,7 @@ public class FieldObject implements VariableDeclarationObject {
     		result = 37*result + className.hashCode();
     		result = 37*result + name.hashCode();
     		result = 37*result + type.hashCode();
+    		result = 37*result + variableBindingKey.hashCode();
     		hashCode = result;
     	}
     	return hashCode;

@@ -24,7 +24,7 @@ public class PDGMapper {
 		CompilationUnit cu2 = (CompilationUnit)pdg2.getMethod().getMethodDeclaration().getRoot();
 		ICompilationUnit iCompilationUnit2 = (ICompilationUnit)cu2.getJavaElement();
 		
-		BottomUpCDTMapper bottomUpCDTMapper = new BottomUpCDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2);
+		BottomUpCDTMapper bottomUpCDTMapper = new BottomUpCDTMapper(iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2, false);
 		this.bottomUpSubTreeMatches = bottomUpCDTMapper.getSolutions();
 		
 		for(CompleteSubTreeMatch subTreeMatch : bottomUpSubTreeMatches) {

@@ -2,8 +2,13 @@ package gr.uom.java.ast;
 
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
-public interface VariableDeclarationObject {
+public abstract class VariableDeclarationObject {
 	
-	public VariableDeclaration getVariableDeclaration();
-	public String getName();
+	protected String variableBindingKey;
+	
+	public String getVariableBindingKey() {
+		return variableBindingKey;
+	}
+	public abstract VariableDeclaration getVariableDeclaration();
+	public abstract String getName();
 }

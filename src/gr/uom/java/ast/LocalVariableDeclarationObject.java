@@ -4,7 +4,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
-public class LocalVariableDeclarationObject implements VariableDeclarationObject {
+public class LocalVariableDeclarationObject extends VariableDeclarationObject {
 	private TypeObject type;
     private String name;
     //private VariableDeclaration variableDeclaration;
@@ -37,6 +37,7 @@ public class LocalVariableDeclarationObject implements VariableDeclarationObject
 
 	public void setVariableDeclaration(VariableDeclaration variableDeclaration) {
 		//this.variableDeclaration = variableDeclaration;
+		this.variableBindingKey = variableDeclaration.resolveBinding().getKey();
 		this.variableDeclaration = ASTInformationGenerator.generateASTInformation(variableDeclaration);
 	}
 
@@ -47,13 +48,14 @@ public class LocalVariableDeclarationObject implements VariableDeclarationObject
 
         if (o instanceof LocalVariableDeclarationObject) {
         	LocalVariableDeclarationObject lvdo = (LocalVariableDeclarationObject)o;
-            return this.name.equals(lvdo.name) && this.type.equals(lvdo.type);
+            return this.name.equals(lvdo.name) && this.type.equals(lvdo.type) &&
+            		this.variableBindingKey.equals(lvdo.variableBindingKey);
         }
         return false;
     }
 
     public boolean equals(LocalVariableInstructionObject lvio) {
-    	return this.name.equals(lvio.getName()) && this.type.equals(lvio.getType());
+    	return this.name.equals(lvio.getName()) && this.type.equals(lvio.getType()) && this.variableBindingKey.equals(lvio.getVariableBindingKey());
     }
 
     public int hashCode() {
@@ -61,6 +63,7 @@ public class LocalVariableDeclarationObject implements VariableDeclarationObject
     		int result = 17;
     		result = 37*result + type.hashCode();
     		result = 37*result + name.hashCode();
+    		result = 37*result + variableBindingKey.hashCode();
     		hashCode = result;
     	}
     	return hashCode;

@@ -63,7 +63,9 @@ import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CLabel;
 import org.eclipse.swt.custom.StyleRange;
+import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Color;
@@ -72,9 +74,12 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -111,6 +116,10 @@ public class DuplicatedCode extends ViewPart {
 	private CloneGroup[] cloneGroupTable;
 	private CloneGroupList cloneGroupList;
 	private CloneInstanceMapper mapper;
+	
+	private static final Color LINK_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLUE);
+	private static final Color TEXT_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
+	private static final Color MODIFIED_BG_COLOR = new Color(Display.getCurrent(), 218, 255, 215);
 	
 	class ViewContentProvider implements ITreeContentProvider {
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
@@ -149,10 +158,6 @@ public class DuplicatedCode extends ViewPart {
 	}
 
 	class ViewLabelProvider extends StyledCellLabelProvider {
-		
-		private final Color LINK_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLUE);
-		private final Color TEXT_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
-		private final Color MODIFIED_BG_COLOR = new Color(Display.getCurrent(), 218, 255, 215);
 		
 		@Override
 		public void update(ViewerCell cell) {
@@ -330,6 +335,9 @@ public class DuplicatedCode extends ViewPart {
 
 	@Override
 	public void createPartControl(Composite parent) {
+		GridLayout gridLayout = new GridLayout();
+	    gridLayout.numColumns = 1;		
+	    parent.setLayout(gridLayout);
 		treeViewer = new TreeViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER | SWT.FULL_SELECTION);
 		treeViewer.setContentProvider(new ViewContentProvider());
 		treeViewer.setLabelProvider(new ViewLabelProvider());
@@ -446,6 +454,47 @@ public class DuplicatedCode extends ViewPart {
 				}
 			}
 		});
+		
+		createLegend(parent);
+	}
+
+	private void createLegend(Composite parent) {
+		final Group legendGroup = new Group(parent, SWT.SHADOW_NONE);
+		legendGroup.setText("Legend");
+		GridData legendGridData = new GridData(SWT.FILL, SWT.FILL, true, false);
+		legendGroup.setLayoutData(legendGridData);
+		GridLayout legendLayout = new GridLayout();
+		legendLayout.numColumns = 6;
+		legendLayout.horizontalSpacing = 20;
+		legendGroup.setLayout(legendLayout);
+		
+		Composite modifiedLegendColorComposite = new Composite(legendGroup, SWT.NONE);
+		modifiedLegendColorComposite.setLayout(new GridLayout(2, false));
+		CLabel modifiedLegendColor = new CLabel(modifiedLegendColorComposite, SWT.BORDER);
+		modifiedLegendColor.setText("      ");
+		modifiedLegendColor.setMargins(0, 0, 0, 0);
+		modifiedLegendColor.setBackground(MODIFIED_BG_COLOR);
+	    GridData layoutData = new GridData();
+	    layoutData.heightHint = 18;
+	    modifiedLegendColor.setLayoutData(layoutData);
+		Label modifiedLegendLabel = new Label(modifiedLegendColorComposite, SWT.NONE);
+		modifiedLegendLabel.setText("Updated clone group / shifted clone instance");
+		
+		Composite tamperedLegendComposite = new Composite(legendGroup, SWT.NONE);
+		tamperedLegendComposite.setLayout(new GridLayout(2, false));
+		StyledText tamperedLegend = new StyledText(tamperedLegendComposite, SWT.BORDER);
+	    tamperedLegend.setEditable(false);
+	    tamperedLegend.setEnabled(false);
+	    layoutData = new GridData();
+	    //layoutData.heightHint = 18;
+	    tamperedLegend.setLayoutData(layoutData);
+	    String tamperedText = "Clone instance";
+		tamperedLegend.setText(tamperedText);
+		StyleRange myStyledRange = new StyleRange(0, tamperedText.length(), TEXT_COLOR, null);
+		myStyledRange.strikeout = true;
+	    tamperedLegend.setStyleRange(myStyledRange);
+	    Label tamperedLegendLabel = new Label(tamperedLegendComposite, SWT.NONE);
+	    tamperedLegendLabel.setText("Eliminated / modified clone instance");
 	}
 	
 	private Menu getRightClickMenu(TreeViewer treeViewer) {

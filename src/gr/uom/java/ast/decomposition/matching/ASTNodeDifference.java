@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Type;
@@ -84,7 +85,7 @@ public class ASTNodeDifference {
 	{
 		if(diff.getType().equals(DifferenceType.AST_TYPE_MISMATCH)
 			|| (diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && isVariableTypeMismatch())
-			/*|| diff.getType().equals(DifferenceType.OPERATOR_MISMATCH)*/
+			|| (diff.getType().equals(DifferenceType.OPERATOR_MISMATCH) && isExpressionOfIfStatement())
 			|| diff.getType().equals(DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH))
 					return true;
 		return false;
@@ -95,6 +96,12 @@ public class ASTNodeDifference {
 			return false;
 		return true;
 	}
+
+	private boolean isExpressionOfIfStatement() {
+		return expression1.getExpression().getParent() instanceof IfStatement &&
+				expression2.getExpression().getParent() instanceof IfStatement;
+	}
+
 	private boolean isQualifierOfQualifiedName() {
 		Expression exp1 = expression1.getExpression();
 		Expression exp2 = expression2.getExpression();

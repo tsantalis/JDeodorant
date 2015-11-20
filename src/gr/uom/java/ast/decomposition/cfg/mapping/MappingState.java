@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.StatementObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
@@ -395,7 +396,10 @@ public class MappingState {
 			PDGDependence dependence = (PDGDependence)incomingEdgeIterator1.next();
 			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
 			if(dependence instanceof PDGDataDependence && restrictedNodesG1.contains(srcPDGNode)) {
-				if(!containsNodeG1InMappings(srcPDGNode)) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, restrictedNodesG1);
+				boolean containsDeclaringNodeG1InMappings = nodeDeclaringVariable != null ? containsNodeG1InMappings(nodeDeclaringVariable) : false;
+				if(!containsNodeG1InMappings(srcPDGNode) && !containsDeclaringNodeG1InMappings) {
 					incomingDataDependenceFromUnvisitedNodeG1 = true;
 					break;
 				}
@@ -408,7 +412,10 @@ public class MappingState {
 			PDGDependence dependence = (PDGDependence)incomingEdgeIterator2.next();
 			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
 			if(dependence instanceof PDGDataDependence && restrictedNodesG2.contains(srcPDGNode)) {
-				if(!containsNodeG2InMappings(srcPDGNode)) {
+				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, restrictedNodesG2);
+				boolean containsDeclaringNodeG2InMappings = nodeDeclaringVariable != null ? containsNodeG2InMappings(nodeDeclaringVariable) : false;
+				if(!containsNodeG2InMappings(srcPDGNode) && !containsDeclaringNodeG2InMappings) {
 					incomingDataDependenceFromUnvisitedNodeG2 = true;
 					break;
 				}
@@ -417,6 +424,15 @@ public class MappingState {
 		
 		return incomingDataDependenceFromUnvisitedNodeG1 != incomingDataDependenceFromUnvisitedNodeG2 &&
 				restrictedNodesG1.size() == restrictedNodesG2.size();
+	}
+
+	private PDGNode findNodeDeclaringVariable(AbstractVariable variable, PDGNode srcPDGNode, Set<PDGNode> nodes) {
+		for(PDGNode node : nodes) {
+			if(node.declaresLocalVariable(variable) && node.getId() != srcPDGNode.getId()) {
+				return node;
+			}
+		}
+		return null;
 	}
 
 	private PDGNodeMapping findMappingWithBothNodes(PDGNode nodeG1, PDGNode nodeG2) {

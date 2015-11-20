@@ -194,6 +194,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 	private boolean onlyVariableTypeMismatchDifferences() {
 		int diffCount = 0;
 		int variableTypeMismatchCount = 0;
+		int subclassTypeMismatchCount = 0;
 		int variableNameMismatchCount = 0;
 		int methodInvocationNameMismatchCount = 0;
 		int literalValueMismatchCount = 0;
@@ -202,6 +203,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 				diffCount++;
 				if(diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH)) {
 					variableTypeMismatchCount++;
+				}
+				if(diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
+					subclassTypeMismatchCount++;
 				}
 				if(diff.getType().equals(DifferenceType.VARIABLE_NAME_MISMATCH)) {
 					variableNameMismatchCount++;
@@ -214,11 +218,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 			}
 		}
-		if(diffCount > 0 && (diffCount == (variableTypeMismatchCount + variableNameMismatchCount) ||
-				diffCount == (variableTypeMismatchCount + methodInvocationNameMismatchCount) ||
-				diffCount == (variableTypeMismatchCount + literalValueMismatchCount) ||
-				diffCount == (variableTypeMismatchCount + literalValueMismatchCount + methodInvocationNameMismatchCount) ||
-				diffCount == (variableTypeMismatchCount + literalValueMismatchCount + variableNameMismatchCount) ))
+		if(diffCount > 0 && (diffCount == (variableTypeMismatchCount + subclassTypeMismatchCount + variableNameMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + subclassTypeMismatchCount + methodInvocationNameMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + subclassTypeMismatchCount + literalValueMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + subclassTypeMismatchCount + literalValueMismatchCount + methodInvocationNameMismatchCount) ||
+				diffCount == (variableTypeMismatchCount + subclassTypeMismatchCount + literalValueMismatchCount + variableNameMismatchCount) ))
 			return true;
 		return false;
 	}

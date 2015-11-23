@@ -10,7 +10,6 @@ public class CloneGroup {
 	
 	private int cloneGroupID;
 	private Set<CloneInstance> cloneInstances = new LinkedHashSet<CloneInstance>();
-	private CloneGroup repeatedOf;
 	private CloneGroup subCloneOf;
 	
 	public CloneGroup(int groupID) {
@@ -26,8 +25,10 @@ public class CloneGroup {
 	}
 
 	public void addClone(CloneInstance cloneInstance) {
-		cloneInstances.add(cloneInstance);
-		cloneInstance.setBelongingCloneGroup(this);
+		if (!cloneInstance.isClassLevelClone()) {
+			cloneInstances.add(cloneInstance);
+			cloneInstance.setBelongingCloneGroup(this);
+		}
 	}
 	
 	public List<CloneInstance> getCloneInstances() {
@@ -68,18 +69,6 @@ public class CloneGroup {
 	@Override
 	public String toString() {
 		return String.format("Clone group ID: %s%sNumber of clone instances: %s", cloneGroupID, System.lineSeparator(), getCloneGroupSize());
-	}
-
-	public CloneGroup getRepeatedOf() {
-		return repeatedOf;
-	}
-
-	public void setRepeatedOf(CloneGroup repeatedOf) {
-		this.repeatedOf = repeatedOf;
-	}
-	
-	public boolean isRepeated() {
-		return repeatedOf != null;
 	}
 
 	public boolean containsClassLevelClone() {

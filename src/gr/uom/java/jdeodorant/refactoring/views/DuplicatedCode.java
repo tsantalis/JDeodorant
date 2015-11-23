@@ -208,7 +208,7 @@ public class DuplicatedCode extends ViewPart {
 				case 2:
 					if (group.isSubClone()) {
 						text = "Subclone of clone group " + String.valueOf(group.getSubcloneOf().getCloneGroupID());
-						if (!group.getSubcloneOf().isRepeated() && !group.getSubcloneOf().containsClassLevelClone()) {
+						if (!group.getSubcloneOf().containsClassLevelClone()) {
 							StyleRange myStyledRange = new StyleRange(0, text.length(), LINK_COLOR, null);
 							myStyledRange.underline = true;
 							styleRanges.add(myStyledRange);
@@ -422,7 +422,7 @@ public class DuplicatedCode extends ViewPart {
 					Object selectedItemData = item.getData();
 					if (selectedItemData instanceof CloneGroup) {
 						CloneGroup cloneGroup = (CloneGroup) selectedItemData;
-						if (cloneGroup.isSubClone() && !cloneGroup.getSubcloneOf().isRepeated() && !cloneGroup.getSubcloneOf().containsClassLevelClone()) {
+						if (cloneGroup.isSubClone() && !cloneGroup.getSubcloneOf().containsClassLevelClone()) {
 							Rectangle rect = item.getBounds(2);
 							if (rect.contains(pt)) {
 								Cursor cursor = new Cursor(Display.getCurrent(), SWT.CURSOR_HAND);

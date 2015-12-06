@@ -28,7 +28,7 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 	@Override
 	public CloneGroupList readInputFile() throws InvalidInputFileException {
 
-		CloneGroupList cloneGroups = new CloneGroupList();
+		CloneGroupList cloneGroups = new CloneGroupList(getIJavaProject());
 		
 		for (Integer cloneGroupID : this.allCloneGroupIDs) {
 			

@@ -171,20 +171,6 @@ public class MySystem {
         }
     }
 
-    private boolean extendsTestCase(ClassObject classObject) {
-    	TypeObject superclass = classObject.getSuperclass();
-    	if(superclass == null)
-    		return false;
-    	else if(superclass.getClassType().equals("junit.framework.TestCase"))
-    		return true;
-    	else {
-    		ClassObject superClassObject = systemObject.getClassObject(superclass.getClassType());
-    		if(superClassObject != null)
-    			return extendsTestCase(superClassObject);
-    	}
-    	return false;
-    }
-
     public Iterator<MyClass> getClassIterator() {
         return classMap.values().iterator();
     }

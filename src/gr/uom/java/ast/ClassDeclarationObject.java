@@ -81,6 +81,20 @@ public abstract class ClassDeclarationObject {
     	return false;
     }
 
+    public boolean extendsTestCase() {
+    	TypeObject superclass = this.getSuperclass();
+    	if(superclass == null)
+    		return false;
+    	else if(superclass.getClassType().equals("junit.framework.TestCase"))
+    		return true;
+    	else {
+    		ClassObject superClassObject = ASTReader.getSystemObject().getClassObject(superclass.getClassType());
+    		if(superClassObject != null)
+    			return superClassObject.extendsTestCase();
+    	}
+    	return false;
+    }
+
     public MethodObject getMethod(MethodInvocationObject mio) {
         ListIterator<MethodObject> mi = getMethodIterator();
         while(mi.hasNext()) {

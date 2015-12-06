@@ -4,9 +4,19 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.eclipse.jdt.core.IJavaProject;
+
 public class CloneGroupList implements Iterable<CloneGroup> {
-	
+	private IJavaProject javaProject;
 	private final Map<Integer, CloneGroup> cloneGroupMap = new LinkedHashMap<Integer, CloneGroup>();
+
+	public CloneGroupList(IJavaProject javaProject) {
+		this.javaProject = javaProject;
+	}
+
+	public IJavaProject getJavaProject() {
+		return javaProject;
+	}
 
 	public void add(CloneGroup cloneGroup) {
 		if (!cloneGroupMap.containsKey(cloneGroup.hashCode())) {

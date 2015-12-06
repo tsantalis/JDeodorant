@@ -110,7 +110,6 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 public class DuplicatedCode extends ViewPart {
 	private TreeViewer treeViewer;
 	private Action importClonesAction;
-	private Action applyRefactoringAction;
 	private Action doubleClickAction;
 	private IJavaProject selectedProject;
 	private CloneGroup[] cloneGroupTable;
@@ -274,8 +273,6 @@ public class DuplicatedCode extends ViewPart {
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
 					importClonesAction.setEnabled(true);
-					applyRefactoringAction.setEnabled(false);
-					//saveResultsAction.setEnabled(false);
 				}
 			}
 		}
@@ -449,8 +446,7 @@ public class DuplicatedCode extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					//saveResultsAction.setEnabled(false);
+					//
 				}
 			}
 		});
@@ -535,8 +531,6 @@ public class DuplicatedCode extends ViewPart {
 	
 	private void fillLocalToolBar(IToolBarManager manager) {
 		manager.add(importClonesAction);
-		manager.add(applyRefactoringAction);
-		//manager.add(saveResultsAction);
 	}
 	
 	private void makeActions() {
@@ -554,8 +548,6 @@ public class DuplicatedCode extends ViewPart {
 					cloneGroupList = importedCloneGroupList;
 					cloneGroupTable = cloneGroupList.getCloneGroups();
 					treeViewer.setContentProvider(new ViewContentProvider());
-					applyRefactoringAction.setEnabled(true);
-					//saveResultsAction.setEnabled(true);
 				}
 			}
 		};
@@ -563,16 +555,6 @@ public class DuplicatedCode extends ViewPart {
 		importClonesAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
 			getImageDescriptor(ISharedImages.IMG_OBJS_INFO_TSK));
 		importClonesAction.setEnabled(false);
-		
-		applyRefactoringAction = new Action() {
-			public void run() {
-				applyRefactoring();
-			}
-		};
-		applyRefactoringAction.setToolTipText("Apply Refactoring");
-		applyRefactoringAction.setImageDescriptor(PlatformUI.getWorkbench().getSharedImages().
-				getImageDescriptor(ISharedImages.IMG_DEF_VIEW));
-		applyRefactoringAction.setEnabled(false);
 
 		doubleClickAction = new Action() {
 			public void run() {
@@ -583,7 +565,8 @@ public class DuplicatedCode extends ViewPart {
 						String fullName = cloneInstance.getPackageName().replace(".", "/") + "/" +
 								cloneInstance.getClassName() + ".java";
 						try {
-							ICompilationUnit sourceJavaElement = getICompilationUnit(selectedProject, fullName);
+							final IJavaProject importedProject = cloneGroupList.getJavaProject();
+							ICompilationUnit sourceJavaElement = getICompilationUnit(importedProject, fullName);
 							ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
 							AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
 							@SuppressWarnings("unchecked")
@@ -670,19 +653,20 @@ public class DuplicatedCode extends ViewPart {
 				CompilationUnitCache.getInstance().clearCache();
 				IWorkbench wb = PlatformUI.getWorkbench();
 				IProgressService ps = wb.getProgressService();
-				if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-					new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+				final IJavaProject importedProject = cloneGroupList.getJavaProject();
+				if(ASTReader.getSystemObject() != null && importedProject.equals(ASTReader.getExaminedProject())) {
+					new ASTReader(importedProject, ASTReader.getSystemObject(), null);
 				}
 				else {
 					ps.busyCursorWhile(new IRunnableWithProgress() {
 						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-							new ASTReader(selectedProject, monitor);
+							new ASTReader(importedProject, monitor);
 						}
 					});
 				}
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						mapper = new CloneInstanceMapper(instance1, instance2, selectedProject, monitor);
+						mapper = new CloneInstanceMapper(instance1, instance2, importedProject, monitor);
 					}
 				});
 				if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {

@@ -52,7 +52,7 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 		if (this.document == null)
 			throw new InvalidInputFileException();
 
-		CloneGroupList cloneGroups = new CloneGroupList();
+		CloneGroupList cloneGroups = new CloneGroupList(getIJavaProject());
 
 		NodeList classNodeList = document.getElementsByTagName("class");
 		for (int cloneClassIndex = 0; cloneClassIndex < classNodeList.getLength(); cloneClassIndex++) {

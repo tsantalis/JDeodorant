@@ -32,7 +32,7 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		if (resultsFile == null)
 			throw new InvalidInputFileException();
 		
-		CloneGroupList cloneGroups = new CloneGroupList();
+		CloneGroupList cloneGroups = new CloneGroupList(getIJavaProject());
 		
 		int groupID = 0;
 		

@@ -97,7 +97,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     public boolean isApplicable() {
     	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
     			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable() &&
-    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum())
+    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum() && !isSourceClassATestClass())
     		return true;
     	else
     		return false;
@@ -106,6 +106,10 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     public boolean leaveDelegate() {
 		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), getSourceClass().getClassObject()) ||
 		system.getSystemObject().containsSuperMethodInvocation(getSourceMethod().getMethodObject().generateSuperMethodInvocation());
+    }
+
+    private boolean isSourceClassATestClass() {
+    	return sourceClass.getClassObject().containsMethodWithTestAnnotation() || sourceClass.getClassObject().extendsTestCase();
     }
 
     private boolean isTargetClassAnInterface() {

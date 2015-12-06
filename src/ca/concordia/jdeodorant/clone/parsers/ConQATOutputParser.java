@@ -50,7 +50,7 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 	@Override
 	public CloneGroupList readInputFile() throws InvalidInputFileException {
 
-		CloneGroupList cloneGroups = new CloneGroupList();
+		CloneGroupList cloneGroups = new CloneGroupList(getIJavaProject());
 		
 		if (this.document == null)
 			throw new InvalidInputFileException();

@@ -183,7 +183,7 @@ public class CCFinderOutputParser extends CloneDetectorOutputParser {
 	@Override
 	public CloneGroupList readInputFile() throws InvalidInputFileException {
 
-		CloneGroupList cloneGroups = new CloneGroupList();
+		CloneGroupList cloneGroups = new CloneGroupList(getIJavaProject());
 		int cloneSetIndex = 0;
 		for (long cloneSetID : cloneSetIDs) {
 			

@@ -397,7 +397,7 @@ public class MappingState {
 			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
 			if(dependence instanceof PDGDataDependence && restrictedNodesG1.contains(srcPDGNode)) {
 				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, restrictedNodesG1);
+				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, getMappedNodesG1());
 				boolean containsDeclaringNodeG1InMappings = nodeDeclaringVariable != null ? containsNodeG1InMappings(nodeDeclaringVariable) : false;
 				if(!containsNodeG1InMappings(srcPDGNode) && !containsDeclaringNodeG1InMappings) {
 					incomingDataDependenceFromUnvisitedNodeG1 = true;
@@ -413,7 +413,7 @@ public class MappingState {
 			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
 			if(dependence instanceof PDGDataDependence && restrictedNodesG2.contains(srcPDGNode)) {
 				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
-				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, restrictedNodesG2);
+				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, getMappedNodesG2());
 				boolean containsDeclaringNodeG2InMappings = nodeDeclaringVariable != null ? containsNodeG2InMappings(nodeDeclaringVariable) : false;
 				if(!containsNodeG2InMappings(srcPDGNode) && !containsDeclaringNodeG2InMappings) {
 					incomingDataDependenceFromUnvisitedNodeG2 = true;
@@ -428,7 +428,7 @@ public class MappingState {
 
 	private PDGNode findNodeDeclaringVariable(AbstractVariable variable, PDGNode srcPDGNode, Set<PDGNode> nodes) {
 		for(PDGNode node : nodes) {
-			if(node.declaresLocalVariable(variable) && node.getId() != srcPDGNode.getId()) {
+			if(node.declaresLocalVariable(variable.getInitialVariable()) && node.getId() != srcPDGNode.getId()) {
 				return node;
 			}
 		}

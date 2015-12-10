@@ -704,7 +704,8 @@ public abstract class DivideAndConquerMatcher {
 						}
 						else {
 							ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-							if(cdtNode1 != null && cdtNode2 != null && (cdtNode1.ifStatementInsideElseIfChain() || cdtNode2.ifStatementInsideElseIfChain())) {
+							if(cdtNode1 != null && cdtNode2 != null && (cdtNode1.ifStatementInsideElseIfChain() || cdtNode2.ifStatementInsideElseIfChain()) &&
+									!cdtNode1.isTernary() && !cdtNode2.isTernary()) {
 								if(cdtNode1.getLengthOfElseIfChain() == cdtNode2.getLengthOfElseIfChain()) {
 									maxStates = processPDGNodes(finalState, nodesG1, nodesG2);
 								}

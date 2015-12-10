@@ -24,6 +24,7 @@ import gr.uom.java.ast.decomposition.matching.loop.EnhancedForLoop;
 import gr.uom.java.ast.inheritance.TypeBindingInheritanceDetection;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
+import gr.uom.java.ast.util.math.LevenshteinDistance;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -849,7 +850,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 				if(classTypeMatch && differenceCountAfterTypeMatch == differenceCount) {
 					if(node.arguments().size() != o.arguments().size()) {
 						Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
-						diff.setWeight(node.arguments().size() * o.arguments().size());
+						int size1 = node.arguments().size() == 0 ? 1 : node.arguments().size();
+						int size2 = o.arguments().size() == 0 ? 1 : o.arguments().size();
+						diff.setWeight(size1 * size2);
 						astNodeDifference.addDifference(diff);
 					}
 					else {
@@ -1458,7 +1461,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
-					diff.setWeight(node.arguments().size() * o.arguments().size());
+					int size1 = node.arguments().size() == 0 ? 1 : node.arguments().size();
+					int size2 = o.arguments().size() == 0 ? 1 : o.arguments().size();
+					diff.setWeight(size1 * size2);
 					astNodeDifference.addDifference(diff);
 				}
 				else {
@@ -1779,6 +1784,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					if(nodeBinding.getKind() == IBinding.METHOD && otherBinding.getKind() == IBinding.METHOD) {
 						if(!node.getIdentifier().equals(o.getIdentifier())) {
 							Difference diff = new Difference(node.getIdentifier(),o.getIdentifier(),DifferenceType.METHOD_INVOCATION_NAME_MISMATCH);
+							diff.setWeight(LevenshteinDistance.computeLevenshteinDistance(node.getIdentifier(),o.getIdentifier()));
 							astNodeDifference.addDifference(diff);
 						}
 					}
@@ -1960,7 +1966,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 				SuperMethodInvocation o = (SuperMethodInvocation) other;
 				if(node.arguments().size() != o.arguments().size()) {
 					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.ARGUMENT_NUMBER_MISMATCH);
-					diff.setWeight(node.arguments().size() * o.arguments().size());
+					int size1 = node.arguments().size() == 0 ? 1 : node.arguments().size();
+					int size2 = o.arguments().size() == 0 ? 1 : o.arguments().size();
+					diff.setWeight(size1 * size2);
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}

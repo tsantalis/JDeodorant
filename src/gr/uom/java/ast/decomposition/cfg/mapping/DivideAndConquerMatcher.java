@@ -10,6 +10,8 @@ import gr.uom.java.ast.decomposition.cfg.CFGBranchSwitchNode;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
+import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -1279,6 +1281,113 @@ public abstract class DivideAndConquerMatcher {
 		}
 	}
 
+	private boolean sameBasicBlock(MappingState parent, PDGNode nodeG1, PDGNode nodeG2) {
+		if((nodeG1 instanceof PDGControlPredicateNode && nodeG2 instanceof PDGControlPredicateNode) ||
+				(nodeG1 instanceof PDGBlockNode && nodeG2 instanceof PDGBlockNode)) {
+			return true;
+		}
+		else if(nodeG1.getASTStatement().toString().equals(nodeG2.getASTStatement().toString())) {
+			return true;
+		}
+		PDGNodeMapping previousControlMappingG1 = getPreviousControlMappingG1(parent, nodeG1);
+		PDGNodeMapping previousControlMappingG2 = getPreviousControlMappingG2(parent, nodeG2);
+		PDGNodeMapping nextControlMappingG1 = getNextControlMappingG1(parent, nodeG1);
+		PDGNodeMapping nextControlMappingG2 = getNextControlMappingG2(parent, nodeG2);
+		if(previousControlMappingG1 != null && nodeG1.isControlDependentOnNode(previousControlMappingG1.getNodeG1()) &&
+				previousControlMappingG2 != null && nodeG2.isControlDependentOnNode(previousControlMappingG2.getNodeG2())) {
+			return true;
+		}
+		if(symmetricalIfNodes(previousControlMappingG1, nextControlMappingG2) || symmetricalIfNodes(previousControlMappingG2, nextControlMappingG1)) {
+			return true;
+		}
+		boolean samePreviousControlMapping = false;
+		if(previousControlMappingG1 != null && previousControlMappingG2 != null) {
+			samePreviousControlMapping = previousControlMappingG1.equals(previousControlMappingG2)/* || symmetrical*/;
+		}
+		else if(previousControlMappingG1 == null && previousControlMappingG2 == null) {
+			samePreviousControlMapping = true;
+		}
+		boolean sameNextControlMapping = false;
+		if(nextControlMappingG1 != null && nextControlMappingG2 != null) {
+			sameNextControlMapping = nextControlMappingG1.equals(nextControlMappingG2)/* || symmetrical*/;
+		}
+		else if(nextControlMappingG1 == null && nextControlMappingG2 == null) {
+			sameNextControlMapping = true;
+		}
+		return samePreviousControlMapping || sameNextControlMapping;
+	}
+
+	private boolean symmetricalIfNodes(PDGNodeMapping mapping1, PDGNodeMapping mapping2) {
+		if(mapping1 != null && mapping2 != null) {
+			PDGNode mapping1NodeG1ControlDependenceParent = mapping1.getNodeG1().getControlDependenceParent();
+			PDGNode mapping1NodeG2ControlDependenceParent = mapping1.getNodeG2().getControlDependenceParent();
+			PDGNode mapping2NodeG1ControlDependenceParent = mapping2.getNodeG1().getControlDependenceParent();
+			PDGNode mapping2NodeG2ControlDependenceParent = mapping2.getNodeG2().getControlDependenceParent();
+			while(!(mapping1NodeG1ControlDependenceParent instanceof PDGMethodEntryNode) &&
+					!(mapping1NodeG2ControlDependenceParent instanceof PDGMethodEntryNode) &&
+					!(mapping2NodeG1ControlDependenceParent instanceof PDGMethodEntryNode) &&
+					!(mapping2NodeG2ControlDependenceParent instanceof PDGMethodEntryNode)) {
+				if(mapping1NodeG1ControlDependenceParent.equals(mapping2NodeG1ControlDependenceParent) &&
+						mapping1NodeG2ControlDependenceParent.equals(mapping2NodeG2ControlDependenceParent) &&
+						mapping1NodeG1ControlDependenceParent.getCFGNode() instanceof CFGBranchIfNode &&
+						mapping1NodeG2ControlDependenceParent.getCFGNode() instanceof CFGBranchIfNode) {
+					return true;
+				}
+				mapping1NodeG1ControlDependenceParent = mapping1NodeG1ControlDependenceParent.getControlDependenceParent();
+				mapping1NodeG2ControlDependenceParent = mapping1NodeG2ControlDependenceParent.getControlDependenceParent();
+				mapping2NodeG1ControlDependenceParent = mapping2NodeG1ControlDependenceParent.getControlDependenceParent();
+				mapping2NodeG2ControlDependenceParent = mapping2NodeG2ControlDependenceParent.getControlDependenceParent();
+			}
+		}
+		return false;
+	}
+
+	private PDGNodeMapping getPreviousControlMappingG1(MappingState parent, PDGNode nodeG1) {
+		PDGNodeMapping previousControlMapping = null;
+		if(parent != null) {
+			for(PDGNodeMapping mapping : parent.getSortedNodeMappings()) {
+				if((mapping.getNodeG1() instanceof PDGControlPredicateNode || mapping.getNodeG2() instanceof PDGControlPredicateNode) && mapping.getNodeG1().getId() < nodeG1.getId()) {
+					previousControlMapping = mapping;
+				}
+			}
+		}
+		return previousControlMapping;
+	}
+
+	private PDGNodeMapping getPreviousControlMappingG2(MappingState parent, PDGNode nodeG2) {
+		PDGNodeMapping previousControlMapping = null;
+		if(parent != null) {
+			for(PDGNodeMapping mapping : parent.getSortedNodeMappings()) {
+				if((mapping.getNodeG1() instanceof PDGControlPredicateNode || mapping.getNodeG2() instanceof PDGControlPredicateNode) && mapping.getNodeG2().getId() < nodeG2.getId()) {
+					previousControlMapping = mapping;
+				}
+			}
+		}
+		return previousControlMapping;
+	}
+
+	private PDGNodeMapping getNextControlMappingG1(MappingState parent, PDGNode nodeG1) {
+		if(parent != null) {
+			for(PDGNodeMapping mapping : parent.getSortedNodeMappings()) {
+				if((mapping.getNodeG1() instanceof PDGControlPredicateNode || mapping.getNodeG2() instanceof PDGControlPredicateNode) && mapping.getNodeG1().getId() > nodeG1.getId()) {
+					return mapping;
+				}
+			}
+		}
+		return null;
+	}
+
+	private PDGNodeMapping getNextControlMappingG2(MappingState parent, PDGNode nodeG2) {
+		if(parent != null) {
+			for(PDGNodeMapping mapping : parent.getSortedNodeMappings()) {
+				if((mapping.getNodeG1() instanceof PDGControlPredicateNode || mapping.getNodeG2() instanceof PDGControlPredicateNode) && mapping.getNodeG2().getId() > nodeG2.getId()) {
+					return mapping;
+				}
+			}
+		}
+		return null;
+	}
+
 	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		MappingState.setRestrictedNodesG1(nodesG1);
 		MappingState.setRestrictedNodesG2(nodesG2);
@@ -1289,7 +1398,7 @@ public abstract class DivideAndConquerMatcher {
 				for(PDGNode node2 : nodesG2) {
 					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable()) {
+					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 						if(finalStates.isEmpty()) {
 							MappingState state = new MappingState(parent, mapping);
@@ -1329,7 +1438,7 @@ public abstract class DivideAndConquerMatcher {
 				for(PDGNode node1 : nodesG1) {
 					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable()) {
+					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 						if(finalStates.isEmpty()) {
 							MappingState state = new MappingState(parent, mapping);
@@ -1377,7 +1486,7 @@ public abstract class DivideAndConquerMatcher {
 				for(PDGNode node2 : nodesG2) {
 					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable()) {
+					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 						if(finalState != null && finalState.containsAtLeastOneNodeInMappings(mapping)) {
 							continue;
@@ -1401,7 +1510,7 @@ public abstract class DivideAndConquerMatcher {
 				for(PDGNode node1 : nodesG1) {
 					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
 					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable()) {
+					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
 						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
 						if(finalState != null && finalState.containsAtLeastOneNodeInMappings(mapping)) {
 							continue;

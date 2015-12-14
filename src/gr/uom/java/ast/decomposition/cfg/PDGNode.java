@@ -323,7 +323,7 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		if(classObject != null) {
 			constructorObject = classObject.getConstructor(classInstanceCreationObject);
 		}
-		if((classObject == null && !methodBinding.getDeclaringClass().isAnonymous()) || constructorObject != null) {
+		if((classObject == null && !methodBinding.getDeclaringClass().isAnonymous() && !methodBinding.getDeclaringClass().isLocal()) || constructorObject != null) {
 			//classObject == null && !methodBinding.getDeclaringClass().isAnonymous() => external constructor call that is not an anonymous class declaration
 			//constructorObject != null => the internal constructor might not exist, in the case the default constructor is called
 			methodCallAnalyzer.processArgumentsOfInternalMethodInvocation(classObject, constructorObject, classInstanceCreation.arguments(), methodBinding, variable);

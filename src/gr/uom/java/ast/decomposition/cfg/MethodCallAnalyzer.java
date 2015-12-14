@@ -659,8 +659,9 @@ public class MethodCallAnalyzer {
 		CompilationUnit methodCompilationUnit = instance.getCompilationUnit(methodClassFile);
 		Set<TypeDeclaration> methodTypeDeclarations = extractTypeDeclarations(methodCompilationUnit);
 		for(TypeDeclaration methodTypeDeclaration : methodTypeDeclarations) {
-			if(methodTypeDeclaration.resolveBinding().isEqualTo(methodBinding.getDeclaringClass()) ||
-					methodTypeDeclaration.resolveBinding().getBinaryName().equals(methodBinding.getDeclaringClass().getBinaryName())) {
+			ITypeBinding methodTypeDeclarationBinding = methodTypeDeclaration.resolveBinding();
+			if(methodTypeDeclarationBinding != null && (methodTypeDeclarationBinding.isEqualTo(methodBinding.getDeclaringClass()) ||
+					methodTypeDeclarationBinding.getBinaryName().equals(methodBinding.getDeclaringClass().getBinaryName()))) {
 				MethodDeclaration[] methodDeclarations2 = methodTypeDeclaration.getMethods();
 				for(MethodDeclaration methodDeclaration2 : methodDeclarations2) {
 					if(methodDeclaration2.resolveBinding().isEqualTo(methodBinding) ||

@@ -20,6 +20,11 @@ public class FieldInstructionObject {
         this._static = false;
     }
 
+    public FieldInstructionObject(String ownerClass, TypeObject type, String name, String variableBindingKey) {
+        this(ownerClass, type, name);
+        this.variableBindingKey = variableBindingKey;
+    }
+
     public String getOwnerClass() {
         return ownerClass;
     }

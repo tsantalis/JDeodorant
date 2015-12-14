@@ -28,18 +28,7 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 			AbstractStatement trueControlFlowStatement = statements.get(0);
 			if(trueControlFlowStatement.getStatement() instanceof Block) {
 				CompositeStatementObject blockStatement = (CompositeStatementObject)trueControlFlowStatement;
-				for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
-					if(statementInsideBlock instanceof TryStatementObject) {
-						CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
-						processTryStatement(nestedStatements, tryStatement);
-					}
-					else if(statementInsideBlock.getStatement() instanceof LabeledStatement || statementInsideBlock.getStatement() instanceof SynchronizedStatement) {
-						CompositeStatementObject labeledStatement = (CompositeStatementObject)statementInsideBlock;
-						processLabeledStatement(nestedStatements, labeledStatement);
-					}
-					else
-						nestedStatements.add(statementInsideBlock);
-				}
+				processBlockStatement(nestedStatements, blockStatement);
 			}
 			else if(trueControlFlowStatement.getStatement() instanceof LabeledStatement || trueControlFlowStatement.getStatement() instanceof SynchronizedStatement) {
 				CompositeStatementObject labeledStatement = (CompositeStatementObject)trueControlFlowStatement;
@@ -76,18 +65,7 @@ public class CFGBranchIfNode extends CFGBranchConditionalNode {
 				AbstractStatement falseControlFlowStatement = statements.get(1);
 				if(falseControlFlowStatement.getStatement() instanceof Block) {
 					CompositeStatementObject blockStatement = (CompositeStatementObject)falseControlFlowStatement;
-					for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
-						if(statementInsideBlock instanceof TryStatementObject) {
-							CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
-							processTryStatement(nestedStatements, tryStatement);
-						}
-						else if(statementInsideBlock.getStatement() instanceof LabeledStatement || statementInsideBlock.getStatement() instanceof SynchronizedStatement) {
-							CompositeStatementObject labeledStatement = (CompositeStatementObject)statementInsideBlock;
-							processLabeledStatement(nestedStatements, labeledStatement);
-						}
-						else
-							nestedStatements.add(statementInsideBlock);
-					}
+					processBlockStatement(nestedStatements, blockStatement);
 				}
 				else if(falseControlFlowStatement.getStatement() instanceof LabeledStatement || falseControlFlowStatement.getStatement() instanceof SynchronizedStatement) {
 					CompositeStatementObject labeledStatement = (CompositeStatementObject)falseControlFlowStatement;

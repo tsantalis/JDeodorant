@@ -83,7 +83,7 @@ public class FieldObject extends VariableDeclarationObject {
     }
 
     public FieldInstructionObject generateFieldInstruction() {
-    	FieldInstructionObject fieldInstruction = new FieldInstructionObject(this.className, this.type, this.name);
+    	FieldInstructionObject fieldInstruction = new FieldInstructionObject(this.className, this.type, this.name, this.variableBindingKey);
     	fieldInstruction.setStatic(this._static);
     	return fieldInstruction;
     }

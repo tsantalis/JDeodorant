@@ -62,18 +62,7 @@ public abstract class CFGBranchNode extends CFGNode {
 			for(AbstractStatement statement : statements) {
 				if(statement.getStatement() instanceof Block) {
 					CompositeStatementObject blockStatement = (CompositeStatementObject)statement;
-					for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
-						if(statementInsideBlock instanceof TryStatementObject) {
-							CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
-							processTryStatement(nestedStatements, tryStatement);
-						}
-						else if(statementInsideBlock.getStatement() instanceof LabeledStatement || statementInsideBlock.getStatement() instanceof SynchronizedStatement) {
-							CompositeStatementObject labeledStatement = (CompositeStatementObject)statementInsideBlock;
-							processLabeledStatement(nestedStatements, labeledStatement);
-						}
-						else
-							nestedStatements.add(statementInsideBlock);
-					}
+					processBlockStatement(nestedStatements, blockStatement);
 				}
 				else if(statement.getStatement() instanceof LabeledStatement || statement.getStatement() instanceof SynchronizedStatement) {
 					CompositeStatementObject labeledStatement = (CompositeStatementObject)statement;
@@ -101,6 +90,25 @@ public abstract class CFGBranchNode extends CFGNode {
 			}
 		}
 		return nestedNodes;
+	}
+
+	protected void processBlockStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject blockStatement) {
+		for(AbstractStatement statementInsideBlock : blockStatement.getStatements()) {
+			if(statementInsideBlock instanceof TryStatementObject) {
+				CompositeStatementObject tryStatement = (CompositeStatementObject)statementInsideBlock;
+				processTryStatement(nestedStatements, tryStatement);
+			}
+			else if(statementInsideBlock.getStatement() instanceof LabeledStatement || statementInsideBlock.getStatement() instanceof SynchronizedStatement) {
+				CompositeStatementObject labeledStatement = (CompositeStatementObject)statementInsideBlock;
+				processLabeledStatement(nestedStatements, labeledStatement);
+			}
+			else if(statementInsideBlock.getStatement() instanceof Block) {
+				CompositeStatementObject blockStatement2 = (CompositeStatementObject)statementInsideBlock;
+				processBlockStatement(nestedStatements, blockStatement2);
+			}
+			else
+				nestedStatements.add(statementInsideBlock);
+		}
 	}
 
 	protected void processLabeledStatement(Set<AbstractStatement> nestedStatements, CompositeStatementObject labeledStatement) {

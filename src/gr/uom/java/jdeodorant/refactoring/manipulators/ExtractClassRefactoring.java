@@ -106,6 +106,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	private Set<String> sourceFieldBindingsWithCreatedSetterMethod;
 	private Set<String> sourceFieldBindingsWithCreatedGetterMethod;
 	private Set<FieldDeclaration> fieldDeclarationsChangedWithPublicModifier;
+	private Set<TypeDeclaration> memberTypeDeclarationsChangedWithPublicModifier;
 	private Map<MethodDeclaration, Set<MethodInvocation>> oldMethodInvocationsWithinExtractedMethods;
 	private Map<MethodDeclaration, Set<MethodInvocation>> newMethodInvocationsWithinExtractedMethods;
 	private Map<MethodDeclaration, MethodDeclaration> oldToNewExtractedMethodDeclarationMap;
@@ -139,6 +140,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.sourceFieldBindingsWithCreatedSetterMethod = new LinkedHashSet<String>();
 		this.sourceFieldBindingsWithCreatedGetterMethod = new LinkedHashSet<String>();
 		this.fieldDeclarationsChangedWithPublicModifier = new LinkedHashSet<FieldDeclaration>();
+		this.memberTypeDeclarationsChangedWithPublicModifier = new LinkedHashSet<TypeDeclaration>();
 		this.oldMethodInvocationsWithinExtractedMethods = new LinkedHashMap<MethodDeclaration, Set<MethodInvocation>>();
 		this.newMethodInvocationsWithinExtractedMethods = new LinkedHashMap<MethodDeclaration, Set<MethodInvocation>>();
 		this.oldToNewExtractedMethodDeclarationMap = new LinkedHashMap<MethodDeclaration, MethodDeclaration>();
@@ -1807,30 +1809,39 @@ public class ExtractClassRefactoring extends Refactoring {
 					sourceTypeDeclaration.resolveBinding().isEqualTo(classInstanceCreationTypeBinding.getDeclaringClass())) {
 				if(isParentAnonymousClassDeclaration(sourceClassInstanceCreations.get(k)))
 					sourceClassParameterShouldBeFinal = true;
-				Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
-				Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-				if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
-					sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-					additionalArgumentsAddedToMovedMethod.add("this");
-					additionalParametersAddedToMovedMethod.add(sourceClassParameter);
+				if((classInstanceCreationTypeBinding.getModifiers() & Modifier.STATIC) != 0) {
+					Type qualifierType = ast.newSimpleType(ast.newSimpleName(sourceTypeDeclaration.resolveBinding().getName()));
+					QualifiedType qualifiedType = ast.newQualifiedType(qualifierType, ast.newSimpleName(classInstanceCreationTypeBinding.getName()));
+					targetRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, qualifiedType, null);
+					requiredImportDeclarationsInExtractedClass.add(classInstanceCreationTypeBinding);
+					setPublicModifierToSourceMemberType(classInstanceCreationTypeBinding);
 				}
-				targetRewriter.set(classInstanceCreation, ClassInstanceCreation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
-				Type oldClassInstanceCreationType = oldClassInstanceCreation.getType();
-				SimpleName simpleNameType = null;
-				if(oldClassInstanceCreationType instanceof QualifiedType) {
-					QualifiedType qualifiedType = (QualifiedType)oldClassInstanceCreationType;
-					simpleNameType = qualifiedType.getName();
-				}
-				else if(oldClassInstanceCreationType instanceof SimpleType) { 
-					SimpleType simpleType = (SimpleType)oldClassInstanceCreationType;
-					if(simpleType.getName() instanceof QualifiedName) {
-						QualifiedName qualifiedName = (QualifiedName)simpleType.getName();
-						simpleNameType = qualifiedName.getName();
+				else {
+					Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+					Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
+					if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+						sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
+						additionalArgumentsAddedToMovedMethod.add("this");
+						additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 					}
-				}
-				if(simpleNameType != null) {
-					targetRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY,
-							ast.newSimpleType(ast.newSimpleName(simpleNameType.getIdentifier())), null);
+					targetRewriter.set(classInstanceCreation, ClassInstanceCreation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
+					Type oldClassInstanceCreationType = oldClassInstanceCreation.getType();
+					SimpleName simpleNameType = null;
+					if(oldClassInstanceCreationType instanceof QualifiedType) {
+						QualifiedType qualifiedType = (QualifiedType)oldClassInstanceCreationType;
+						simpleNameType = qualifiedType.getName();
+					}
+					else if(oldClassInstanceCreationType instanceof SimpleType) { 
+						SimpleType simpleType = (SimpleType)oldClassInstanceCreationType;
+						if(simpleType.getName() instanceof QualifiedName) {
+							QualifiedName qualifiedName = (QualifiedName)simpleType.getName();
+							simpleNameType = qualifiedName.getName();
+						}
+					}
+					if(simpleNameType != null) {
+						targetRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY,
+								ast.newSimpleType(ast.newSimpleName(simpleNameType.getIdentifier())), null);
+					}
 				}
 			}
 			k++;
@@ -2135,6 +2146,61 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 	}
 
+	private void setPublicModifierToSourceMemberType(ITypeBinding typeBinding) {
+		TypeDeclaration[] memberTypes = sourceTypeDeclaration.getTypes();
+		for(TypeDeclaration memberType : memberTypes) {
+			if(typeBinding.isEqualTo(memberType.resolveBinding())) {
+				ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(memberType, TypeDeclaration.MODIFIERS2_PROPERTY);
+				Modifier publicModifier = memberType.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+				boolean modifierFound = false;
+				List<IExtendedModifier> modifiers = memberType.modifiers();
+				for(IExtendedModifier extendedModifier : modifiers) {
+					if(extendedModifier.isModifier()) {
+						Modifier modifier = (Modifier)extendedModifier;
+						if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+							modifierFound = true;
+						}
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD)) {
+							if(!memberTypeDeclarationsChangedWithPublicModifier.contains(memberType)) {
+								memberTypeDeclarationsChangedWithPublicModifier.add(memberType);
+								modifierFound = true;
+								modifierRewrite.replace(modifier, publicModifier, null);
+								try {
+									TextEdit sourceEdit = sourceRewriter.rewriteAST();
+									ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+									CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+									change.getEdit().addChild(sourceEdit);
+									change.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+								} catch (JavaModelException e) {
+									e.printStackTrace();
+								}
+							}
+						}
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+							modifierFound = true;
+						}
+					}
+				}
+				if(!modifierFound) {
+					if(!memberTypeDeclarationsChangedWithPublicModifier.contains(memberType)) {
+						memberTypeDeclarationsChangedWithPublicModifier.add(memberType);
+						modifierRewrite.insertFirst(publicModifier, null);
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+		}
+	}
+
 	private void setPublicModifierToSourceField(IVariableBinding variableBinding) {
 		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
 		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
@@ -2269,7 +2335,8 @@ public class ExtractClassRefactoring extends Refactoring {
 		if(sourcePackageDeclaration != null)
 			sourcePackageDeclarationName = sourcePackageDeclaration.getName().getFullyQualifiedName();     
 		if(!qualifiedPackageName.equals("") && !qualifiedPackageName.equals("java.lang") &&
-				!qualifiedPackageName.equals(sourcePackageDeclarationName) && !typeBinding.isNested()) {
+				((!qualifiedPackageName.equals(sourcePackageDeclarationName) && !typeBinding.isNested()) ||
+				(qualifiedPackageName.equals(sourceTypeDeclaration.resolveBinding().getQualifiedName()) && typeBinding.isMember()))) {
 			List<ImportDeclaration> importDeclarationList = targetCompilationUnit.imports();
 			boolean found = false;
 			for(ImportDeclaration importDeclaration : importDeclarationList) {

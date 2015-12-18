@@ -179,16 +179,14 @@ public class ExtractClassRefactoring extends Refactoring {
 	}
 
 	public void apply() {
-		if(leaveDelegateForPublicMethods) {
-			for(MethodDeclaration method : extractedMethods) {
-				int modifiers = method.getModifiers();
-				if((modifiers & Modifier.PRIVATE) == 0)
-					delegateMethods.add(method);
-			}
+		for(MethodDeclaration method : extractedMethods) {
+			int modifiers = method.getModifiers();
+			if((modifiers & Modifier.PRIVATE) == 0)
+				delegateMethods.add(method);
 		}
 		removeFieldFragmentsInSourceClass(extractedFieldFragments);
-		modifyExtractedFieldAssignmentsInSourceClass(extractedFieldFragments);
-		modifyExtractedFieldAccessesInSourceClass(extractedFieldFragments);
+		Set<VariableDeclaration> modifiedFieldsInNonExtractedMethods = modifyExtractedFieldAssignmentsInSourceClass(extractedFieldFragments);
+		Set<VariableDeclaration> accessedFieldsInNonExtractedMethods = modifyExtractedFieldAccessesInSourceClass(extractedFieldFragments);
 		createExtractedTypeFieldReferenceInSourceClass();
 		
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -207,7 +205,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		
-		createExtractedClass();
+		createExtractedClass(modifiedFieldsInNonExtractedMethods, accessedFieldsInNonExtractedMethods);
 		modifyExtractedMethodInvocationsInSourceClass();
 		handleInitializationOfExtractedFieldsWithThisExpressionInTheirInitializer();
 		for(Statement statement : statementRewriteMap.keySet()) {
@@ -500,7 +498,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		return null;
 	}
 
-	private void createExtractedClass() {
+	private void createExtractedClass(Set<VariableDeclaration> modifiedFieldsInNonExtractedMethods, Set<VariableDeclaration> accessedFieldsInNonExtractedMethods) {
 		IContainer contextContainer = (IContainer)sourceFile.getParent();
 		IFile extractedClassFile = null;
 		if(contextContainer instanceof IProject) {
@@ -621,9 +619,11 @@ public class ExtractClassRefactoring extends Refactoring {
         	extractedClassBodyRewrite.insertLast(extractedClassConstructor, null);
         }
         for(VariableDeclaration fieldFragment : extractedFieldFragments) {
-        	MethodDeclaration getterMethodDeclaration = createGetterMethodDeclaration(fieldFragment, extractedClassAST, extractedClassRewriter);
-        	extractedClassBodyRewrite.insertLast(getterMethodDeclaration, null);
-        	if(!finalFieldFragments.contains(fieldFragment)) {
+        	if(accessedFieldsInNonExtractedMethods.contains(fieldFragment)) {
+        		MethodDeclaration getterMethodDeclaration = createGetterMethodDeclaration(fieldFragment, extractedClassAST, extractedClassRewriter);
+        		extractedClassBodyRewrite.insertLast(getterMethodDeclaration, null);
+        	}
+        	if(modifiedFieldsInNonExtractedMethods.contains(fieldFragment) && !finalFieldFragments.contains(fieldFragment)) {
         		MethodDeclaration setterMethodDeclaration = createSetterMethodDeclaration(fieldFragment, extractedClassAST, extractedClassRewriter);
         		extractedClassBodyRewrite.insertLast(setterMethodDeclaration, null);
         	}
@@ -2481,7 +2481,8 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 	}
 
-	private void modifyExtractedFieldAssignmentsInSourceClass(Set<VariableDeclaration> fieldFragments) {
+	private Set<VariableDeclaration> modifyExtractedFieldAssignmentsInSourceClass(Set<VariableDeclaration> fieldFragments) {
+		Set<VariableDeclaration> modifiedFields = new LinkedHashSet<VariableDeclaration>();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<MethodDeclaration> contextMethods = getAllMethodDeclarationsInSourceClass();
 		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
@@ -2553,6 +2554,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												sourceRewriter.replace(assignment, setterMethodInvocation, null);
 											}
 											rewriteAST = true;
+											modifiedFields.add(fieldFragment);
 										}
 									}
 								}
@@ -2582,6 +2584,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												}
 												sourceRewriter.replace(arrayVariable, getterMethodInvocation, null);
 												rewriteAST = true;
+												modifiedFields.add(fieldFragment);
 											}
 										}
 									}
@@ -2602,6 +2605,7 @@ public class ExtractClassRefactoring extends Refactoring {
 											}
 											sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
 											rewriteAST = true;
+											modifiedFields.add(fieldFragment);
 										}
 									}
 								}
@@ -2624,9 +2628,11 @@ public class ExtractClassRefactoring extends Refactoring {
 				}
 			}
 		}
+		return modifiedFields;
 	}
 
-	private void modifyExtractedFieldAccessesInSourceClass(Set<VariableDeclaration> fieldFragments) {
+	private Set<VariableDeclaration> modifyExtractedFieldAccessesInSourceClass(Set<VariableDeclaration> fieldFragments) {
+		Set<VariableDeclaration> accessedFields = new LinkedHashSet<VariableDeclaration>();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<MethodDeclaration> contextMethods = getAllMethodDeclarationsInSourceClass();
 		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
@@ -2667,6 +2673,7 @@ public class ExtractClassRefactoring extends Refactoring {
 											}
 											sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
 											rewriteAST = true;
+											accessedFields.add(fieldFragment);
 										}
 									}
 								}
@@ -2698,6 +2705,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												}
 												sourceRewriter.replace(arrayVariable, getterMethodInvocation, null);
 												rewriteAST = true;
+												accessedFields.add(fieldFragment);
 											}
 										}
 									}
@@ -2721,6 +2729,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				}
 			}
 		}
+		return accessedFields;
 	}
 
 	private Set<MethodDeclaration> getAllMethodDeclarationsInSourceClass() {

@@ -5,7 +5,6 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
-import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.AbstractStatement;
@@ -480,37 +479,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private Set<VariableDeclaration> getLocallyAccessedFields(Set<AbstractVariable> accessedFields, TypeDeclaration typeDeclaration) {
 		Set<VariableDeclaration> accessedLocalFields = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : accessedFields) {
-			VariableDeclaration fieldDeclaration = findFieldDeclaration(variable, typeDeclaration);
+			VariableDeclaration fieldDeclaration = RefactoringUtility.findFieldDeclaration(variable, typeDeclaration);
 			if(fieldDeclaration != null) {
 				accessedLocalFields.add(fieldDeclaration);
 			}
 		}
 		return accessedLocalFields;
-	}
-
-	private VariableDeclaration findFieldDeclaration(AbstractVariable variable, TypeDeclaration typeDeclaration) {
-		for(FieldDeclaration fieldDeclaration : typeDeclaration.getFields()) {
-			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-			for(VariableDeclarationFragment fragment : fragments) {
-				if(variable.getVariableBindingKey().equals(fragment.resolveBinding().getKey())) {
-					return fragment;
-				}
-			}
-		}
-		//fragment was not found in typeDeclaration
-		Type superclassType = typeDeclaration.getSuperclassType();
-		if(superclassType != null) {
-			String superclassQualifiedName = superclassType.resolveBinding().getQualifiedName();
-			SystemObject system = ASTReader.getSystemObject();
-			ClassObject superclassObject = system.getClassObject(superclassQualifiedName);
-			if(superclassObject != null) {
-				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
-				if(superclassTypeDeclaration instanceof TypeDeclaration) {
-					return findFieldDeclaration(variable, (TypeDeclaration)superclassTypeDeclaration);
-				}
-			}
-		}
-		return null;
 	}
 
 	private void extractClone() {

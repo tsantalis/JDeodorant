@@ -1,6 +1,7 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
@@ -100,7 +101,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	private Map<ICompilationUnit, CreateCompilationUnitChange> createCompilationUnitChanges;
 	private Set<IJavaElement> javaElementsToOpenInEditor;
 	private Set<ITypeBinding> requiredImportDeclarationsInExtractedClass;
-	private Map<MethodDeclaration, Set<String>> additionalArgumentsAddedToExtractedMethods;
+	private Map<MethodDeclaration, Set<PlainVariable>> additionalArgumentsAddedToExtractedMethods;
 	private Map<MethodDeclaration, Set<SingleVariableDeclaration>> additionalParametersAddedToExtractedMethods;
 	private Set<String> sourceMethodBindingsChangedWithPublicModifier;
 	private Set<String> sourceFieldBindingsWithCreatedSetterMethod;
@@ -134,7 +135,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.createCompilationUnitChanges = new LinkedHashMap<ICompilationUnit, CreateCompilationUnitChange>();
 		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
 		this.requiredImportDeclarationsInExtractedClass = new LinkedHashSet<ITypeBinding>();
-		this.additionalArgumentsAddedToExtractedMethods = new LinkedHashMap<MethodDeclaration, Set<String>>();
+		this.additionalArgumentsAddedToExtractedMethods = new LinkedHashMap<MethodDeclaration, Set<PlainVariable>>();
 		this.additionalParametersAddedToExtractedMethods = new LinkedHashMap<MethodDeclaration, Set<SingleVariableDeclaration>>();
 		this.sourceMethodBindingsChangedWithPublicModifier = new LinkedHashSet<String>();
 		this.sourceFieldBindingsWithCreatedSetterMethod = new LinkedHashSet<String>();
@@ -153,7 +154,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.constructorFinalFieldAssignmentMap = new LinkedHashMap<MethodDeclaration, Map<VariableDeclaration, Assignment>>();
 		this.extractedFieldsWithThisExpressionInTheirInitializer = new LinkedHashSet<VariableDeclaration>();
 		for(MethodDeclaration extractedMethod : extractedMethods) {
-			additionalArgumentsAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<String>());
+			additionalArgumentsAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<PlainVariable>());
 			additionalParametersAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<SingleVariableDeclaration>());
 		}
 	}
@@ -298,12 +299,12 @@ public class ExtractClassRefactoring extends Refactoring {
 			SimpleName argumentName = ast.newSimpleName(parameter.getName().getIdentifier());
 			argumentRewrite.insertLast(argumentName, null);
 		}
-		Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
-		for(String argument : additionalArgumentsAddedToMovedMethod) {
-			if(argument.equals("this"))
+		Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+		for(PlainVariable argument : additionalArgumentsAddedToMovedMethod) {
+			if(isThisVariable(argument))
 				argumentRewrite.insertLast(ast.newThisExpression(), null);
 			else
-				argumentRewrite.insertLast(ast.newSimpleName(argument), null);
+				argumentRewrite.insertLast(ast.newSimpleName(argument.getVariableName()), null);
 		}
 		if(sourceMethodReturnTypeBinding.getName().equals("void")) {
 			ExpressionStatement expressionStatement = ast.newExpressionStatement(delegation);
@@ -413,9 +414,9 @@ public class ExtractClassRefactoring extends Refactoring {
 								if(extractedMethod != null) {
 									if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
 										ListRewrite argumentRewrite = sourceRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-										Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(extractedMethod);
-										for(String argument : additionalArgumentsAddedToMovedMethod) {
-											if(argument.equals("this")) {
+										Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(extractedMethod);
+										for(PlainVariable argument : additionalArgumentsAddedToMovedMethod) {
+											if(isThisVariable(argument)) {
 												if(isParentAnonymousClassDeclaration(methodInvocation)) {
 													ThisExpression thisExpression = ast.newThisExpression();
 													sourceRewriter.set(thisExpression, ThisExpression.QUALIFIER_PROPERTY, sourceTypeDeclaration.getName(), null);
@@ -426,7 +427,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												}
 											}
 											else
-												argumentRewrite.insertLast(ast.newSimpleName(argument), null);
+												argumentRewrite.insertLast(ast.newSimpleName(argument.getVariableName()), null);
 										}
 										if((extractedMethod.getModifiers() & Modifier.STATIC) != 0) {
 											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(extractedTypeName), null);
@@ -706,15 +707,15 @@ public class ExtractClassRefactoring extends Refactoring {
         	min++;
         }
         for(MethodDeclaration oldMethod : sortedMethods) {
-        	Map<String, SingleVariableDeclaration> fieldParameterMap = new LinkedHashMap<String, SingleVariableDeclaration>();
-    		Map<String, Boolean> fieldParameterFinalMap = new LinkedHashMap<String, Boolean>();
+        	Map<PlainVariable, SingleVariableDeclaration> fieldParameterMap = new LinkedHashMap<PlainVariable, SingleVariableDeclaration>();
+    		Map<PlainVariable, Boolean> fieldParameterFinalMap = new LinkedHashMap<PlainVariable, Boolean>();
     		SingleVariableDeclaration sourceClassParameter = null;
     		boolean sourceClassParameterShouldBeFinal = false;
         	
         	Set<MethodInvocation> oldMethodInvocations = oldMethodInvocationsWithinExtractedMethods.get(oldMethod);
         	MethodDeclaration newMethod = oldToNewExtractedMethodDeclarationMap.get(oldMethod);
         	List<MethodInvocation> newMethodInvocations = new ArrayList<MethodInvocation>(newMethodInvocationsWithinExtractedMethods.get(newMethod));
-        	Set<String> additionalArgumentsForInvokerMethod = additionalArgumentsAddedToExtractedMethods.get(oldMethod);
+        	Set<PlainVariable> additionalArgumentsForInvokerMethod = additionalArgumentsAddedToExtractedMethods.get(oldMethod);
         	Set<SingleVariableDeclaration> additionalParametersForInvokerMethod = additionalParametersAddedToExtractedMethods.get(oldMethod);
         	int i = 0;
         	for(MethodInvocation oldMethodInvocation : oldMethodInvocations) {
@@ -723,22 +724,22 @@ public class ExtractClassRefactoring extends Refactoring {
         			if(!oldMethod.resolveBinding().isEqualTo(oldMethodInvocation.resolveMethodBinding())) {
         				//non-recursive
         				MethodDeclaration oldExtractedInvokedMethod = getExtractedMethod(oldMethodInvocation.resolveMethodBinding());
-        				Set<String> additionalArgumentsForExtractedInvokedMethod = additionalArgumentsAddedToExtractedMethods.get(oldExtractedInvokedMethod);
-        				for(String additionalArgument : additionalArgumentsForExtractedInvokedMethod) {
+        				Set<PlainVariable> additionalArgumentsForExtractedInvokedMethod = additionalArgumentsAddedToExtractedMethods.get(oldExtractedInvokedMethod);
+        				for(PlainVariable additionalArgument : additionalArgumentsForExtractedInvokedMethod) {
         					if(isParentAnonymousClassDeclaration(oldMethodInvocation)) {
-        						if(additionalArgument.equals("this"))
+        						if(isThisVariable(additionalArgument))
         							sourceClassParameterShouldBeFinal = true;
         						else
         							fieldParameterFinalMap.put(additionalArgument, true);
         					}
         					if(!additionalArgumentsForInvokerMethod.contains(additionalArgument)) {
-        						if(additionalArgument.equals("this")) {
+        						if(isThisVariable(additionalArgument)) {
         							sourceClassParameter = addSourceClassParameterToMovedMethod(newMethod, extractedClassRewriter);
-        							additionalArgumentsForInvokerMethod.add("this");
+        							addThisVariable(additionalArgumentsForInvokerMethod);
         							additionalParametersForInvokerMethod.add(sourceClassParameter);
         						}
         						else {
-        							SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethod, extractedClassAST.newSimpleName(additionalArgument), extractedClassRewriter);
+        							SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethod, additionalArgument, extractedClassRewriter);
     								additionalArgumentsForInvokerMethod.add(additionalArgument);
     								additionalParametersForInvokerMethod.add(fieldParameter);
     								fieldParameterMap.put(additionalArgument, fieldParameter);
@@ -746,14 +747,14 @@ public class ExtractClassRefactoring extends Refactoring {
         					}
         					MethodInvocation newMethodInvocation = newMethodInvocations.get(i);
         					ListRewrite argumentsRewrite = extractedClassRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-        					if(additionalArgument.equals("this")) {
+        					if(isThisVariable(additionalArgument)) {
         						String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
         						String modifiedSourceTypeName = sourceTypeName.substring(0,1).toLowerCase() + sourceTypeName.substring(1,sourceTypeName.length());
         						SimpleName parameterName = extractedClassAST.newSimpleName(modifiedSourceTypeName);
         						argumentsRewrite.insertLast(parameterName, null);
         					}
         					else {
-        						argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument), null);
+        						argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument.getVariableName()), null);
         					}
         				}
         			}
@@ -774,8 +775,8 @@ public class ExtractClassRefactoring extends Refactoring {
         			int j = 0;
         			List<SingleVariableDeclaration> additionalParametersForInvokerMethodList = new ArrayList<SingleVariableDeclaration>(additionalParametersForInvokerMethod);
         			SingleVariableDeclaration additionalParameter = null;
-        			for(String additionalArgument : additionalArgumentsForInvokerMethod) {
-        				if(additionalArgument.equals("this")) {
+        			for(PlainVariable additionalArgument : additionalArgumentsForInvokerMethod) {
+        				if(isThisVariable(additionalArgument)) {
         					additionalParameter = additionalParametersForInvokerMethodList.get(j);
         					break;
         				}
@@ -785,7 +786,7 @@ public class ExtractClassRefactoring extends Refactoring {
         			modifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
         		}
     		}
-    		for(String fieldName : fieldParameterFinalMap.keySet()) {
+    		for(PlainVariable fieldName : fieldParameterFinalMap.keySet()) {
     			if(fieldParameterFinalMap.get(fieldName) == true) {
     				SingleVariableDeclaration fieldParameter = fieldParameterMap.get(fieldName);
     				if(fieldParameter != null) {
@@ -796,7 +797,7 @@ public class ExtractClassRefactoring extends Refactoring {
     					int j = 0;
             			List<SingleVariableDeclaration> additionalParametersForInvokerMethodList = new ArrayList<SingleVariableDeclaration>(additionalParametersForInvokerMethod);
             			SingleVariableDeclaration additionalParameter = null;
-            			for(String additionalArgument : additionalArgumentsForInvokerMethod) {
+            			for(PlainVariable additionalArgument : additionalArgumentsForInvokerMethod) {
             				if(additionalArgument.equals(fieldName)) {
             					additionalParameter = additionalParametersForInvokerMethodList.get(j);
             					break;
@@ -814,24 +815,24 @@ public class ExtractClassRefactoring extends Refactoring {
         	Set<MethodInvocation> oldMethodInvocations = oldMethodInvocationsWithinExtractedMethods.get(oldMethod);
         	MethodDeclaration newMethod = oldToNewExtractedMethodDeclarationMap.get(oldMethod);
         	List<MethodInvocation> newMethodInvocations = new ArrayList<MethodInvocation>(newMethodInvocationsWithinExtractedMethods.get(newMethod));
-        	Set<String> additionalArgumentsForInvokerMethod = additionalArgumentsAddedToExtractedMethods.get(oldMethod);
+        	Set<PlainVariable> additionalArgumentsForInvokerMethod = additionalArgumentsAddedToExtractedMethods.get(oldMethod);
         	int i = 0;
         	for(MethodInvocation oldMethodInvocation : oldMethodInvocations) {
         		if(oldMethodInvocation.getExpression() == null || oldMethodInvocation.getExpression() instanceof ThisExpression) {
         			//invocation without expression
         			if(oldMethod.resolveBinding().isEqualTo(oldMethodInvocation.resolveMethodBinding())) {
         				//recursive invocation
-        				for(String additionalArgument : additionalArgumentsForInvokerMethod) {
+        				for(PlainVariable additionalArgument : additionalArgumentsForInvokerMethod) {
         					MethodInvocation newMethodInvocation = newMethodInvocations.get(i);
         					ListRewrite argumentsRewrite = extractedClassRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-        					if(additionalArgument.equals("this")) {
+        					if(isThisVariable(additionalArgument)) {
         						String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
         						String modifiedSourceTypeName = sourceTypeName.substring(0,1).toLowerCase() + sourceTypeName.substring(1,sourceTypeName.length());
         						SimpleName parameterName = extractedClassAST.newSimpleName(modifiedSourceTypeName);
         						argumentsRewrite.insertLast(parameterName, null);
         					}
         					else {
-        						argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument), null);
+        						argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument.getVariableName()), null);
         					}
         				}
         			}
@@ -959,22 +960,28 @@ public class ExtractClassRefactoring extends Refactoring {
 	}
 
 	private IMethodBinding findSetterMethodInSourceClass(IVariableBinding fieldBinding) {
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		for(MethodDeclaration methodDeclaration : contextMethods) {
-			SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
-			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fieldBinding)) {
-				return methodDeclaration.resolveBinding();
+		TypeDeclaration typeDeclaration = RefactoringUtility.findDeclaringTypeDeclaration(fieldBinding, sourceTypeDeclaration);
+		if(typeDeclaration != null) {
+			MethodDeclaration[] contextMethods = typeDeclaration.getMethods();
+			for(MethodDeclaration methodDeclaration : contextMethods) {
+				SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
+				if(simpleName != null && simpleName.resolveBinding().isEqualTo(fieldBinding)) {
+					return methodDeclaration.resolveBinding();
+				}
 			}
 		}
 		return null;
 	}
 
 	private IMethodBinding findGetterMethodInSourceClass(IVariableBinding fieldBinding) {
-		MethodDeclaration[] contextMethods = sourceTypeDeclaration.getMethods();
-		for(MethodDeclaration methodDeclaration : contextMethods) {
-			SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
-			if(simpleName != null && simpleName.resolveBinding().isEqualTo(fieldBinding)) {
-				return methodDeclaration.resolveBinding();
+		TypeDeclaration typeDeclaration = RefactoringUtility.findDeclaringTypeDeclaration(fieldBinding, sourceTypeDeclaration);
+		if(typeDeclaration != null) {
+			MethodDeclaration[] contextMethods = typeDeclaration.getMethods();
+			for(MethodDeclaration methodDeclaration : contextMethods) {
+				SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
+				if(simpleName != null && simpleName.resolveBinding().isEqualTo(fieldBinding)) {
+					return methodDeclaration.resolveBinding();
+				}
 			}
 		}
 		return null;
@@ -1080,8 +1087,8 @@ public class ExtractClassRefactoring extends Refactoring {
 		
 		SingleVariableDeclaration sourceClassParameter = null;
 		boolean sourceClassParameterShouldBeFinal = false;
-		Map<String, SingleVariableDeclaration> fieldParameterMap = new LinkedHashMap<String, SingleVariableDeclaration>();
-		Map<String, Boolean> fieldParameterFinalMap = new LinkedHashMap<String, Boolean>();
+		Map<PlainVariable, SingleVariableDeclaration> fieldParameterMap = new LinkedHashMap<PlainVariable, SingleVariableDeclaration>();
+		Map<PlainVariable, Boolean> fieldParameterFinalMap = new LinkedHashMap<PlainVariable, Boolean>();
 		String sourceTypeName = sourceTypeDeclaration.getName().getIdentifier();
 		String modifiedSourceTypeName = sourceTypeName.substring(0,1).toLowerCase() + sourceTypeName.substring(1,sourceTypeName.length());
 		SimpleName parameterName = ast.newSimpleName(modifiedSourceTypeName);
@@ -1111,16 +1118,16 @@ public class ExtractClassRefactoring extends Refactoring {
 				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
-						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+						if(declaredInSourceTypeDeclarationOrSuperclass(variableBinding)) {
 							if(!variableBindingCorrespondsToExtractedField(variableBinding)) {
 								IMethodBinding setterMethodBinding = findSetterMethodInSourceClass(variableBinding);
-								Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+								Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 								Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 								if(isParentAnonymousClassDeclaration(oldAssignment))
 									sourceClassParameterShouldBeFinal = true;
-								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+								if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 									sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-									additionalArgumentsAddedToMovedMethod.add("this");
+									addThisVariable(additionalArgumentsAddedToMovedMethod);
 									additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 								}
 								MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
@@ -1213,7 +1220,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
-							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
+							if(declaredInSourceTypeDeclarationOrSuperclass(accessedVariableBinding)) {
 								if(!variableBindingCorrespondsToExtractedField(accessedVariableBinding)) {
 									if(sourceFieldBindingsWithCreatedSetterMethod.contains(accessedVariableBinding.getKey())) {
 										if(isParentAnonymousClassDeclaration(oldAssignment))
@@ -1229,13 +1236,14 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									else {
 										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-											fieldParameterFinalMap.put(newAccessedVariable.getIdentifier(), true);
+											fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
 										handleAccessedFieldNotHavingSetterMethod(
 												sourceMethod,
 												newMethodDeclaration,
 												targetRewriter,
 												fieldParameterMap,
-												newAccessedVariable);
+												newAccessedVariable,
+												accessedVariableBinding);
 									}
 								}
 							}
@@ -1254,7 +1262,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 					if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
-						if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
+						if(declaredInSourceTypeDeclarationOrSuperclass(accessedVariableBinding)) {
 							if(!variableBindingCorrespondsToExtractedField(accessedVariableBinding)) {
 								if(sourceFieldBindingsWithCreatedSetterMethod.contains(accessedVariableBinding.getKey())) {
 									if(isParentAnonymousClassDeclaration(oldAssignment))
@@ -1269,11 +1277,11 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 								else {
 									if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-										fieldParameterFinalMap.put(newAccessedVariable.getIdentifier(), true);
+										fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
 									handleAccessedFieldNotHavingSetterMethod(
 											sourceMethod, newMethodDeclaration,
 											targetRewriter, fieldParameterMap,
-											newAccessedVariable);
+											newAccessedVariable, accessedVariableBinding);
 								}
 							}
 						}
@@ -1309,16 +1317,16 @@ public class ExtractClassRefactoring extends Refactoring {
 				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
-						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+						if(declaredInSourceTypeDeclarationOrSuperclass(variableBinding)) {
 							if(!variableBindingCorrespondsToExtractedField(variableBinding)) {
 								IMethodBinding setterMethodBinding = findSetterMethodInSourceClass(variableBinding);
-								Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+								Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 								Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 								if(isParentAnonymousClassDeclaration(oldPostfixExpression))
 									sourceClassParameterShouldBeFinal = true;
-								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+								if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 									sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-									additionalArgumentsAddedToMovedMethod.add("this");
+									addThisVariable(additionalArgumentsAddedToMovedMethod);
 									additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 								}
 								MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
@@ -1379,7 +1387,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
-							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
+							if(declaredInSourceTypeDeclarationOrSuperclass(accessedVariableBinding)) {
 								if(!variableBindingCorrespondsToExtractedField(accessedVariableBinding)) {
 									if(sourceFieldBindingsWithCreatedSetterMethod.contains(accessedVariableBinding.getKey())) {
 										if(isParentAnonymousClassDeclaration(oldPostfixExpression))
@@ -1395,13 +1403,14 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									else {
 										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-											fieldParameterFinalMap.put(newAccessedVariable.getIdentifier(), true);
+											fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
 										handleAccessedFieldNotHavingSetterMethod(
 												sourceMethod,
 												newMethodDeclaration,
 												targetRewriter,
 												fieldParameterMap,
-												newAccessedVariable);
+												newAccessedVariable,
+												accessedVariableBinding);
 									}
 								}
 							}
@@ -1441,16 +1450,16 @@ public class ExtractClassRefactoring extends Refactoring {
 				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
-						if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+						if(declaredInSourceTypeDeclarationOrSuperclass(variableBinding)) {
 							if(!variableBindingCorrespondsToExtractedField(variableBinding)) {
 								IMethodBinding setterMethodBinding = findSetterMethodInSourceClass(variableBinding);
-								Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+								Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 								Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 								if(isParentAnonymousClassDeclaration(oldPrefixExpression))
 									sourceClassParameterShouldBeFinal = true;
-								if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+								if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 									sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-									additionalArgumentsAddedToMovedMethod.add("this");
+									addThisVariable(additionalArgumentsAddedToMovedMethod);
 									additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 								}
 								MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
@@ -1511,7 +1520,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
 						IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 						if(accessedVariableBinding.isField() && (accessedVariableBinding.getModifiers() & Modifier.STATIC) == 0) {
-							if(sourceTypeDeclaration.resolveBinding().isEqualTo(accessedVariableBinding.getDeclaringClass())) {
+							if(declaredInSourceTypeDeclarationOrSuperclass(accessedVariableBinding)) {
 								if(!variableBindingCorrespondsToExtractedField(accessedVariableBinding)) {
 									if(sourceFieldBindingsWithCreatedSetterMethod.contains(accessedVariableBinding.getKey())) {
 										if(isParentAnonymousClassDeclaration(oldPrefixExpression))
@@ -1527,13 +1536,14 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									else {
 										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-											fieldParameterFinalMap.put(newAccessedVariable.getIdentifier(), true);
+											fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
 										handleAccessedFieldNotHavingSetterMethod(
 												sourceMethod,
 												newMethodDeclaration,
 												targetRewriter,
 												fieldParameterMap,
-												newAccessedVariable);
+												newAccessedVariable,
+												accessedVariableBinding);
 									}
 								}
 							}
@@ -1552,7 +1562,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) == 0) {
-					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+					if(declaredInSourceTypeDeclarationOrSuperclass(variableBinding)) {
 						if(!variableBindingCorrespondsToExtractedField(variableBinding)) {
 							if(!isAssignmentChild(expression)) {
 								SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
@@ -1570,11 +1580,11 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 								else {
 									if(isParentAnonymousClassDeclaration(simpleName))
-										fieldParameterFinalMap.put(expressionName.getIdentifier(), true);
+										fieldParameterFinalMap.put(createVariable(variableBinding), true);
 									handleAccessedFieldNotHavingSetterMethod(
 											sourceMethod, newMethodDeclaration,
 											targetRewriter, fieldParameterMap,
-											expressionName);
+											expressionName, variableBinding);
 								}
 							}
 						}
@@ -1592,16 +1602,16 @@ public class ExtractClassRefactoring extends Refactoring {
 							for(IVariableBinding superclassFieldBinding : superclassFieldBindings) {
 								if(superclassFieldBinding.isEqualTo(variableBinding)) {
 									if(!isAssignmentChild(expression)) {
-										Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+										Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 										Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 										SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
 										if(isParentAnonymousClassDeclaration(simpleName))
-											fieldParameterFinalMap.put(expressionName.getIdentifier(), true);
-										if(!additionalArgumentsAddedToMovedMethod.contains(expressionName.getIdentifier())) {
+											fieldParameterFinalMap.put(createVariable(variableBinding), true);
+										if(!containsVariable(variableBinding, additionalArgumentsAddedToMovedMethod)) {
 											SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, variableBinding, targetRewriter);
-											additionalArgumentsAddedToMovedMethod.add(variableBinding.getName());
+											addVariable(variableBinding, additionalArgumentsAddedToMovedMethod);
 											additionalParametersAddedToMovedMethod.add(fieldParameter);
-											fieldParameterMap.put(expressionName.getIdentifier(), fieldParameter);
+											fieldParameterMap.put(createVariable(variableBinding), fieldParameter);
 										}
 									}
 								}
@@ -1626,7 +1636,7 @@ public class ExtractClassRefactoring extends Refactoring {
 								if(!methodBindingCorrespondsToExtractedMethod(methodInvocation.resolveMethodBinding()) &&
 										!sourceMethod.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
 									SimpleName fieldName = MethodDeclarationUtility.isGetter(sourceMethodDeclaration);
-									Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+									Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 									Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 									int modifiers = sourceMethodDeclaration.getModifiers();
 									MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
@@ -1649,12 +1659,12 @@ public class ExtractClassRefactoring extends Refactoring {
 											else {
 												targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
 												if(isParentAnonymousClassDeclaration(methodInvocation))
-													fieldParameterFinalMap.put(fieldName.getIdentifier(), true);
-												if(!additionalArgumentsAddedToMovedMethod.contains(fieldName.getIdentifier())) {
-													SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, fieldName, targetRewriter);
-													additionalArgumentsAddedToMovedMethod.add(fieldName.getIdentifier());
+													fieldParameterFinalMap.put(createVariable(fieldBinding), true);
+												if(!containsVariable(fieldBinding, additionalArgumentsAddedToMovedMethod)) {
+													SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, fieldBinding, targetRewriter);
+													addVariable(fieldBinding, additionalArgumentsAddedToMovedMethod);
 													additionalParametersAddedToMovedMethod.add(fieldParameter);
-													fieldParameterMap.put(fieldName.getIdentifier(), fieldParameter);
+													fieldParameterMap.put(createVariable(fieldBinding), fieldParameter);
 												}
 											}
 										}
@@ -1665,9 +1675,9 @@ public class ExtractClassRefactoring extends Refactoring {
 									else {
 										if(isParentAnonymousClassDeclaration(methodInvocation))
 											sourceClassParameterShouldBeFinal = true;
-										if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+										if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 											sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-											additionalArgumentsAddedToMovedMethod.add("this");
+											addThisVariable(additionalArgumentsAddedToMovedMethod);
 											additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 										}
 										targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
@@ -1712,7 +1722,7 @@ public class ExtractClassRefactoring extends Refactoring {
 							IMethodBinding[] superclassMethodBindings = superclassTypeBinding.getDeclaredMethods();
 							for(IMethodBinding superclassMethodBinding : superclassMethodBindings) {
 								if(superclassMethodBinding.isEqualTo(methodBinding)) {
-									Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+									Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 									Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 									MethodInvocation newMethodInvocation = (MethodInvocation)newMethodInvocations.get(j);
 									if((superclassMethodBinding.getModifiers() & Modifier.STATIC) != 0) {
@@ -1722,9 +1732,9 @@ public class ExtractClassRefactoring extends Refactoring {
 									else {
 										if(isParentAnonymousClassDeclaration(methodInvocation))
 											sourceClassParameterShouldBeFinal = true;
-										if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+										if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 											sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-											additionalArgumentsAddedToMovedMethod.add("this");
+											addThisVariable(additionalArgumentsAddedToMovedMethod);
 											additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 										}
 										targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
@@ -1767,11 +1777,11 @@ public class ExtractClassRefactoring extends Refactoring {
 					if(argument instanceof ThisExpression) {
 						if(isParentAnonymousClassDeclaration(sourceMethodInvocations.get(k)))
 							sourceClassParameterShouldBeFinal = true;
-						Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+						Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 						Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-						if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+						if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 							sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-							additionalArgumentsAddedToMovedMethod.add("this");
+							addThisVariable(additionalArgumentsAddedToMovedMethod);
 							additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 						}
 						ListRewrite argumentRewrite = targetRewriter.getListRewrite(methodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -1792,11 +1802,11 @@ public class ExtractClassRefactoring extends Refactoring {
 				if(argument instanceof ThisExpression) {
 					if(isParentAnonymousClassDeclaration(sourceClassInstanceCreations.get(k)))
 						sourceClassParameterShouldBeFinal = true;
-					Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+					Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 					Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-					if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+					if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 						sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-						additionalArgumentsAddedToMovedMethod.add("this");
+						addThisVariable(additionalArgumentsAddedToMovedMethod);
 						additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 					}
 					ListRewrite argumentRewrite = targetRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
@@ -1817,11 +1827,11 @@ public class ExtractClassRefactoring extends Refactoring {
 					setPublicModifierToSourceMemberType(classInstanceCreationTypeBinding);
 				}
 				else {
-					Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+					Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 					Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-					if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+					if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 						sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-						additionalArgumentsAddedToMovedMethod.add("this");
+						addThisVariable(additionalArgumentsAddedToMovedMethod);
 						additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 					}
 					targetRewriter.set(classInstanceCreation, ClassInstanceCreation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
@@ -1880,11 +1890,11 @@ public class ExtractClassRefactoring extends Refactoring {
 			if(initializer instanceof ThisExpression) {
 				if(isParentAnonymousClassDeclaration(sourceVariableDeclarationFragments.get(k)))
 					sourceClassParameterShouldBeFinal = true;
-				Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+				Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 				Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-				if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+				if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 					sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-					additionalArgumentsAddedToMovedMethod.add("this");
+					addThisVariable(additionalArgumentsAddedToMovedMethod);
 					additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 				}
 				targetRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, parameterName, null);
@@ -1900,11 +1910,11 @@ public class ExtractClassRefactoring extends Refactoring {
 			if(newReturnStatement.getExpression() instanceof ThisExpression) {
 				if(isParentAnonymousClassDeclaration(sourceReturnStatements.get(k)))
 					sourceClassParameterShouldBeFinal = true;
-				Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+				Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 				Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-				if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+				if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 					sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-					additionalArgumentsAddedToMovedMethod.add("this");
+					addThisVariable(additionalArgumentsAddedToMovedMethod);
 					additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 				}
 				targetRewriter.set(newReturnStatement, ReturnStatement.EXPRESSION_PROPERTY, parameterName, null);
@@ -1915,7 +1925,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			ListRewrite modifiersRewrite = targetRewriter.getListRewrite(sourceClassParameter, SingleVariableDeclaration.MODIFIERS2_PROPERTY);
 			modifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD), null);
 		}
-		for(String fieldName : fieldParameterFinalMap.keySet()) {
+		for(PlainVariable fieldName : fieldParameterFinalMap.keySet()) {
 			if(fieldParameterFinalMap.get(fieldName) == true) {
 				SingleVariableDeclaration fieldParameter = fieldParameterMap.get(fieldName);
 				if(fieldParameter != null) {
@@ -1928,26 +1938,26 @@ public class ExtractClassRefactoring extends Refactoring {
 
 	private void handleAccessedFieldNotHavingSetterMethod(MethodDeclaration sourceMethod,
 			MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter,
-			Map<String, SingleVariableDeclaration> fieldParameterMap, SimpleName newAccessedVariable) {
-		Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+			Map<PlainVariable, SingleVariableDeclaration> fieldParameterMap, SimpleName newAccessedVariable, IVariableBinding accessedVariableBinding) {
+		Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 		Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 		if(newAccessedVariable.getParent() instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)newAccessedVariable.getParent();
 			if(fieldAccess.getExpression() instanceof ThisExpression) {
 				targetRewriter.replace(newAccessedVariable.getParent(), newAccessedVariable, null);
-				if(!additionalArgumentsAddedToMovedMethod.contains(newAccessedVariable.getIdentifier())) {
-					SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, newAccessedVariable, targetRewriter);
-					additionalArgumentsAddedToMovedMethod.add(newAccessedVariable.getIdentifier());
+				if(!containsVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod)) {
+					SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
+					addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
 					additionalParametersAddedToMovedMethod.add(fieldParameter);
-					fieldParameterMap.put(newAccessedVariable.getIdentifier(), fieldParameter);
+					fieldParameterMap.put(createVariable(accessedVariableBinding), fieldParameter);
 				}
 			}
 		}
-		else if(!additionalArgumentsAddedToMovedMethod.contains(newAccessedVariable.getIdentifier())) {
-			SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, newAccessedVariable, targetRewriter);
-			additionalArgumentsAddedToMovedMethod.add(newAccessedVariable.getIdentifier());
+		else if(!containsVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod)) {
+			SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
+			addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
 			additionalParametersAddedToMovedMethod.add(fieldParameter);
-			fieldParameterMap.put(newAccessedVariable.getIdentifier(), fieldParameter);
+			fieldParameterMap.put(createVariable(accessedVariableBinding), fieldParameter);
 		}
 	}
 
@@ -1956,11 +1966,11 @@ public class ExtractClassRefactoring extends Refactoring {
 			AST ast, SingleVariableDeclaration sourceClassParameter,
 			String modifiedSourceTypeName, SimpleName newAccessedVariable, IVariableBinding accessedVariableBinding) {
 		IMethodBinding getterMethodBinding = findGetterMethodInSourceClass(accessedVariableBinding);
-		Set<String> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
+		Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 		Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
-		if(!additionalArgumentsAddedToMovedMethod.contains("this")) {
+		if(!containsThisVariable(additionalArgumentsAddedToMovedMethod)) {
 			sourceClassParameter = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
-			additionalArgumentsAddedToMovedMethod.add("this");
+			addThisVariable(additionalArgumentsAddedToMovedMethod);
 			additionalParametersAddedToMovedMethod.add(sourceClassParameter);
 		}
 		MethodInvocation getterMethodInvocation = ast.newMethodInvocation();
@@ -1989,6 +1999,52 @@ public class ExtractClassRefactoring extends Refactoring {
 		return sourceClassParameter;
 	}
 
+	private void addVariable(IVariableBinding variableBinding, Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {
+		PlainVariable variable = createVariable(variableBinding);
+		additionalArgumentsAddedToMovedMethod.add(variable);
+	}
+
+	private PlainVariable createVariable(IVariableBinding variableBinding) {
+		String variableBindingKey = variableBinding.getKey();
+		String variableName = variableBinding.getName();
+		String variableType = variableBinding.getType().getQualifiedName();
+		boolean isField = variableBinding.isField();
+		boolean isParameter = variableBinding.isParameter();
+		PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+		return variable;
+	}
+
+	private void addThisVariable(Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {
+		PlainVariable variable = new PlainVariable("this", "this", "this", false, false);
+		additionalArgumentsAddedToMovedMethod.add(variable);
+	}
+
+	private boolean isThisVariable(PlainVariable argument) {
+		return argument.getVariableBindingKey().equals("this");
+	}
+
+	private boolean containsThisVariable(Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {
+		for(PlainVariable argument : additionalArgumentsAddedToMovedMethod) {
+			if(isThisVariable(argument)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean containsVariable(IVariableBinding variableBinding, Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {
+		for(PlainVariable argument : additionalArgumentsAddedToMovedMethod) {
+			if(argument.getVariableBindingKey().equals(variableBinding.getKey())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean declaredInSourceTypeDeclarationOrSuperclass(IVariableBinding variableBinding) {
+		return RefactoringUtility.findDeclaringTypeDeclaration(variableBinding, sourceTypeDeclaration) != null;
+	}
+
 	private SingleVariableDeclaration addSourceClassParameterToMovedMethod(MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter) {
 		AST ast = newMethodDeclaration.getAST();
 		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
@@ -2007,22 +2063,14 @@ public class ExtractClassRefactoring extends Refactoring {
 		return parameter;
 	}
 
-	private SingleVariableDeclaration addParameterToMovedMethod(MethodDeclaration newMethodDeclaration, SimpleName fieldName, ASTRewrite targetRewriter) {
+	private SingleVariableDeclaration addParameterToMovedMethod(MethodDeclaration newMethodDeclaration, PlainVariable additionalArgument, ASTRewrite targetRewriter) {
 		AST ast = newMethodDeclaration.getAST();
 		SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
-		Type fieldType = null;
-		FieldDeclaration[] fields = sourceTypeDeclaration.getFields();
-		for(FieldDeclaration field : fields) {
-			List<VariableDeclarationFragment> fragments = field.fragments();
-			for(VariableDeclarationFragment fragment : fragments) {
-				if(fragment.getName().getIdentifier().equals(fieldName.getIdentifier())) {
-					fieldType = field.getType();
-					break;
-				}
-			}
-		}
+		VariableDeclaration field = RefactoringUtility.findFieldDeclaration(additionalArgument, sourceTypeDeclaration);
+		FieldDeclaration fieldDeclaration = (FieldDeclaration)field.getParent();
+		Type fieldType = fieldDeclaration.getType();
 		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
-		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(fieldName.getIdentifier()), null);
+		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, field.getName(), null);
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2104,7 +2152,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.isField() && (variableBinding.getModifiers() & Modifier.STATIC) != 0) {
-					if(sourceTypeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+					if(declaredInSourceTypeDeclarationOrSuperclass(variableBinding)) {
 						AST ast = newMethodDeclaration.getAST();
 						SimpleName qualifier = ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier());
 						if(simpleName.getParent() instanceof FieldAccess) {

@@ -1,12 +1,15 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.ArrayType;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -15,12 +18,18 @@ import org.eclipse.jdt.core.dom.QualifiedType;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
+
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.SystemObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 
 public class RefactoringUtility {
 
@@ -230,5 +239,50 @@ public class RefactoringUtility {
 			return isQualifiedType(erasureType);
 		}
 		return false;
+	}
+
+	public static VariableDeclaration findFieldDeclaration(AbstractVariable variable, TypeDeclaration typeDeclaration) {
+		for(FieldDeclaration fieldDeclaration : typeDeclaration.getFields()) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				if(variable.getVariableBindingKey().equals(fragment.resolveBinding().getKey())) {
+					return fragment;
+				}
+			}
+		}
+		//fragment was not found in typeDeclaration
+		Type superclassType = typeDeclaration.getSuperclassType();
+		if(superclassType != null) {
+			String superclassQualifiedName = superclassType.resolveBinding().getQualifiedName();
+			SystemObject system = ASTReader.getSystemObject();
+			ClassObject superclassObject = system.getClassObject(superclassQualifiedName);
+			if(superclassObject != null) {
+				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
+				if(superclassTypeDeclaration instanceof TypeDeclaration) {
+					return findFieldDeclaration(variable, (TypeDeclaration)superclassTypeDeclaration);
+				}
+			}
+		}
+		return null;
+	}
+
+	public static TypeDeclaration findDeclaringTypeDeclaration(IVariableBinding variableBinding, TypeDeclaration typeDeclaration) {
+		if(typeDeclaration.resolveBinding().isEqualTo(variableBinding.getDeclaringClass())) {
+			return typeDeclaration;
+		}
+		//fragment was not found in typeDeclaration
+		Type superclassType = typeDeclaration.getSuperclassType();
+		if(superclassType != null) {
+			String superclassQualifiedName = superclassType.resolveBinding().getQualifiedName();
+			SystemObject system = ASTReader.getSystemObject();
+			ClassObject superclassObject = system.getClassObject(superclassQualifiedName);
+			if(superclassObject != null) {
+				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
+				if(superclassTypeDeclaration instanceof TypeDeclaration) {
+					return findDeclaringTypeDeclaration(variableBinding, (TypeDeclaration)superclassTypeDeclaration);
+				}
+			}
+		}
+		return null;
 	}
 }

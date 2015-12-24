@@ -186,8 +186,10 @@ public class ExtractClassRefactoring extends Refactoring {
 				delegateMethods.add(method);
 		}
 		removeFieldFragmentsInSourceClass(extractedFieldFragments);
-		Set<VariableDeclaration> modifiedFieldsInNonExtractedMethods = modifyExtractedFieldAssignmentsInSourceClass(extractedFieldFragments);
-		Set<VariableDeclaration> accessedFieldsInNonExtractedMethods = modifyExtractedFieldAccessesInSourceClass(extractedFieldFragments);
+		Set<VariableDeclaration> modifiedFieldsInNonExtractedMethods = new LinkedHashSet<VariableDeclaration>();
+		Set<VariableDeclaration> accessedFieldsInNonExtractedMethods = new LinkedHashSet<VariableDeclaration>();
+		modifyExtractedFieldAssignmentsInSourceClass(extractedFieldFragments, modifiedFieldsInNonExtractedMethods, accessedFieldsInNonExtractedMethods);
+		modifyExtractedFieldAccessesInSourceClass(extractedFieldFragments, accessedFieldsInNonExtractedMethods);
 		createExtractedTypeFieldReferenceInSourceClass();
 		
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2529,8 +2531,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 	}
 
-	private Set<VariableDeclaration> modifyExtractedFieldAssignmentsInSourceClass(Set<VariableDeclaration> fieldFragments) {
-		Set<VariableDeclaration> modifiedFields = new LinkedHashSet<VariableDeclaration>();
+	private void modifyExtractedFieldAssignmentsInSourceClass(Set<VariableDeclaration> fieldFragments, Set<VariableDeclaration> modifiedFields, Set<VariableDeclaration> accessedFields) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<MethodDeclaration> contextMethods = getAllMethodDeclarationsInSourceClass();
 		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
@@ -2592,7 +2593,57 @@ public class ExtractClassRefactoring extends Refactoring {
 												MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
 												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("set" + modifiedFieldName), null);
 												ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-												setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+												if(!assignment.getOperator().equals(Assignment.Operator.ASSIGN)) {
+													accessedFields.add(fieldFragment);
+													InfixExpression infixExpression = contextAST.newInfixExpression();
+													MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + modifiedFieldName), null);
+													if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+														sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+													}
+													else {
+														sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+													}
+													sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, getterMethodInvocation, null);
+													sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, assignment.getRightHandSide(), null);
+													if(assignment.getOperator().equals(Assignment.Operator.PLUS_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.PLUS, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.MINUS_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.MINUS, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.TIMES_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.TIMES, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.DIVIDE_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.DIVIDE, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.REMAINDER_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.REMAINDER, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.BIT_AND_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.AND, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.BIT_OR_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.OR, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.BIT_XOR_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.XOR, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.LEFT_SHIFT_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.LEFT_SHIFT, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.RIGHT_SHIFT_SIGNED_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.RIGHT_SHIFT_SIGNED, null);
+													}
+													else if(assignment.getOperator().equals(Assignment.Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN)) {
+														sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.RIGHT_SHIFT_UNSIGNED, null);
+													}
+													setterMethodInvocationArgumentsRewrite.insertLast(infixExpression, null);
+												}
+												else {
+													setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+												}
 												if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
 													sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 												}
@@ -2632,7 +2683,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												}
 												sourceRewriter.replace(arrayVariable, getterMethodInvocation, null);
 												rewriteAST = true;
-												modifiedFields.add(fieldFragment);
+												accessedFields.add(fieldFragment);
 											}
 										}
 									}
@@ -2653,7 +2704,7 @@ public class ExtractClassRefactoring extends Refactoring {
 											}
 											sourceRewriter.replace(accessedVariable, getterMethodInvocation, null);
 											rewriteAST = true;
-											modifiedFields.add(fieldFragment);
+											accessedFields.add(fieldFragment);
 										}
 									}
 								}
@@ -2676,11 +2727,9 @@ public class ExtractClassRefactoring extends Refactoring {
 				}
 			}
 		}
-		return modifiedFields;
 	}
 
-	private Set<VariableDeclaration> modifyExtractedFieldAccessesInSourceClass(Set<VariableDeclaration> fieldFragments) {
-		Set<VariableDeclaration> accessedFields = new LinkedHashSet<VariableDeclaration>();
+	private void modifyExtractedFieldAccessesInSourceClass(Set<VariableDeclaration> fieldFragments, Set<VariableDeclaration> accessedFields) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		Set<MethodDeclaration> contextMethods = getAllMethodDeclarationsInSourceClass();
 		String modifiedExtractedTypeName = extractedTypeName.substring(0,1).toLowerCase() + extractedTypeName.substring(1,extractedTypeName.length());
@@ -2777,7 +2826,6 @@ public class ExtractClassRefactoring extends Refactoring {
 				}
 			}
 		}
-		return accessedFields;
 	}
 
 	private Set<MethodDeclaration> getAllMethodDeclarationsInSourceClass() {

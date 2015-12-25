@@ -1988,14 +1988,18 @@ public class ExtractClassRefactoring extends Refactoring {
 			String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 			targetRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName("get" + modifiedFieldName), null);
 		}
-		targetRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
 		if(newAccessedVariable.getParent() instanceof FieldAccess) {
 			FieldAccess newFieldAccess = (FieldAccess)newAccessedVariable.getParent();
 			if(newFieldAccess.getExpression() instanceof ThisExpression) {
+				targetRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
 				targetRewriter.replace(newFieldAccess, getterMethodInvocation, null);
 			}
 		}
+		else if(newAccessedVariable.getParent() instanceof QualifiedName) {
+			targetRewriter.replace(newAccessedVariable, getterMethodInvocation, null);
+		}
 		else {
+			targetRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(modifiedSourceTypeName), null);
 			targetRewriter.replace(newAccessedVariable, getterMethodInvocation, null);
 		}
 		return sourceClassParameter;

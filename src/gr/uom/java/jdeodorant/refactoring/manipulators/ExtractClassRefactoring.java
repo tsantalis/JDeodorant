@@ -1779,6 +1779,18 @@ public class ExtractClassRefactoring extends Refactoring {
 						Set<MethodInvocation> methodInvocations = newMethodInvocationsWithinExtractedMethods.get(newMethodDeclaration);
 						methodInvocations.add((MethodInvocation)newMethodInvocations.get(j));
 					}
+					if(methodInvocation.getExpression() != null && methodInvocation.getExpression().resolveTypeBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+						if(!sourceMethodBindingsChangedWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
+							MethodDeclaration[] sourceMethodDeclarations = sourceTypeDeclaration.getMethods();
+							for(MethodDeclaration sourceMethodDeclaration : sourceMethodDeclarations) {
+								if(sourceMethodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+									setPublicModifierToSourceMethod(sourceMethodDeclaration);
+									break;
+								}
+							}
+							sourceMethodBindingsChangedWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
+						}
+					}
 				}
 			}
 			j++;

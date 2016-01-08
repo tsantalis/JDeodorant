@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
@@ -29,6 +30,7 @@ import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
@@ -37,6 +39,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.progress.IProgressService;
 
 public class CloneRefactoringAction implements IObjectActionDelegate {
+	private static final String MESSAGE_DIALOG_TITLE = "Duplicated Code Refactoring";
 	private IWorkbenchPart part;
 	private ISelection selection;
 	private PDGMapper mapper;
@@ -62,66 +65,79 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 						else {
 							ps.busyCursorWhile(new IRunnableWithProgress() {
 								public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-									new ASTReader(selectedProject, monitor);
+									try {
+										new ASTReader(selectedProject, monitor);
+									} catch (CompilationErrorDetectedException e) {
+										Display.getDefault().asyncExec(new Runnable() {
+											public void run() {
+												MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+														"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+											}
+										});
+									}
 								}
 							});
 						}
 						SystemObject systemObject = ASTReader.getSystemObject();
-						final AbstractMethodDeclaration methodObject1 = systemObject.getMethodObject(method1);
-						final AbstractMethodDeclaration methodObject2 = systemObject.getMethodObject(method2);
-						if(methodObject1 != null && methodObject2 != null && methodObject1.getMethodBody() != null && methodObject2.getMethodBody() != null) {
-							final ClassObject classObject1 = systemObject.getClassObject(methodObject1.getClassName());
-							final ClassObject classObject2 = systemObject.getClassObject(methodObject2.getClassName());
-							if(classObject1 != null && !classObject1.isEnum() && !classObject1.isInterface() &&
-									classObject2 != null && !classObject2.isEnum() && !classObject2.isInterface()) {
-								ps.busyCursorWhile(new IRunnableWithProgress() {
-									public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-										ITypeRoot typeRoot1 = classObject1.getITypeRoot();
-										ITypeRoot typeRoot2 = classObject2.getITypeRoot();
-										CompilationUnitCache.getInstance().lock(typeRoot1);
-										CompilationUnitCache.getInstance().lock(typeRoot2);
-										CFG cfg1 = new CFG(methodObject1);
-										final PDG pdg1 = new PDG(cfg1, classObject1.getIFile(), classObject1.getFieldsAccessedInsideMethod(methodObject1), monitor);
-										CFG cfg2 = new CFG(methodObject2);
-										final PDG pdg2 = new PDG(cfg2, classObject2.getIFile(), classObject2.getFieldsAccessedInsideMethod(methodObject2), monitor);
-										mapper = new PDGMapper(pdg1, pdg2, monitor);
-										//CompilationUnitCache.getInstance().releaseLock();
-									}
-								});
-							}
-							else
-								MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
-										"At least one of the selected methods belongs to an interface, enum, or anonymous class.");
-						}
-						else
-							MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
-									"At least one of the selected methods is abstract.");
-						if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
-							try {
-								for(PDGSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
-									JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
-									JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+						if(systemObject != null) {
+							final AbstractMethodDeclaration methodObject1 = systemObject.getMethodObject(method1);
+							final AbstractMethodDeclaration methodObject2 = systemObject.getMethodObject(method2);
+							if(methodObject1 != null && methodObject2 != null && methodObject1.getMethodBody() != null && methodObject2.getMethodBody() != null) {
+								final ClassObject classObject1 = systemObject.getClassObject(methodObject1.getClassName());
+								final ClassObject classObject2 = systemObject.getClassObject(methodObject2.getClassName());
+								if(classObject1 != null && !classObject1.isEnum() && !classObject1.isInterface() &&
+										classObject2 != null && !classObject2.isEnum() && !classObject2.isInterface()) {
+									ps.busyCursorWhile(new IRunnableWithProgress() {
+										public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+											ITypeRoot typeRoot1 = classObject1.getITypeRoot();
+											ITypeRoot typeRoot2 = classObject2.getITypeRoot();
+											CompilationUnitCache.getInstance().lock(typeRoot1);
+											CompilationUnitCache.getInstance().lock(typeRoot2);
+											CFG cfg1 = new CFG(methodObject1);
+											final PDG pdg1 = new PDG(cfg1, classObject1.getIFile(), classObject1.getFieldsAccessedInsideMethod(methodObject1), monitor);
+											CFG cfg2 = new CFG(methodObject2);
+											final PDG pdg2 = new PDG(cfg2, classObject2.getIFile(), classObject2.getFieldsAccessedInsideMethod(methodObject2), monitor);
+											mapper = new PDGMapper(pdg1, pdg2, monitor);
+											//CompilationUnitCache.getInstance().releaseLock();
+										}
+									});
 								}
-							} catch (PartInitException e) {
-								e.printStackTrace();
-							} catch (JavaModelException e) {
-								e.printStackTrace();
+								else {
+									MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
+											"At least one of the selected methods belongs to an interface, enum, or anonymous class.");
+								}
 							}
-							Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
-							MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-							RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-							try { 
-								String titleForFailedChecks = ""; //$NON-NLS-1$ 
-								op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-							} catch(InterruptedException e) {
-								e.printStackTrace();
+							else {
+								MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
+										"At least one of the selected methods is abstract.");
 							}
+							if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
+								try {
+									for(PDGSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
+										JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+										JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+									}
+								} catch (PartInitException e) {
+									e.printStackTrace();
+								} catch (JavaModelException e) {
+									e.printStackTrace();
+								}
+								Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
+								MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+								RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+								try { 
+									String titleForFailedChecks = ""; //$NON-NLS-1$ 
+									op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+								} catch(InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+							else {
+								MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
+										"Unfortunatley, no refactoring opportunities were found.");
+							}
+							CompilationUnitCache.getInstance().releaseLock();
 						}
-						else {
-							MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
-									"Unfortunatley, no refactoring opportunities were found.");
-						}
-						CompilationUnitCache.getInstance().releaseLock();
 					}
 					else {
 						wrongSelectionMessage();
@@ -135,11 +151,14 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		} catch (CompilationErrorDetectedException e) {
+			MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
+					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 	}
 
 	private void wrongSelectionMessage() {
-		MessageDialog.openInformation(part.getSite().getShell(), "Duplicated Code Refactoring",
+		MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
 				"You must select two (2) methods from the same project.");
 	}
 

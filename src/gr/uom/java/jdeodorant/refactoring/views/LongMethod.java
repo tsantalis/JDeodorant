@@ -20,6 +20,7 @@ import java.util.Set;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.SystemObject;
@@ -58,6 +59,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
@@ -84,6 +86,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
@@ -100,6 +103,7 @@ import org.eclipse.ui.progress.IProgressService;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 public class LongMethod extends ViewPart {
+	private static final String MESSAGE_DIALOG_TITLE = "Long Method";
 	private TreeViewer treeViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
@@ -693,82 +697,96 @@ public class LongMethod extends ViewPart {
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						new ASTReader(selectedProject, monitor);
+						try {
+							new ASTReader(selectedProject, monitor);
+						} catch (CompilationErrorDetectedException e) {
+							Display.getDefault().asyncExec(new Runnable() {
+								public void run() {
+									MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+											"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+								}
+							});
+						}
 					}
 				});
 			}
 			final SystemObject systemObject = ASTReader.getSystemObject();
-			final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-			final Set<AbstractMethodDeclaration> methodObjectsToBeExamined = new LinkedHashSet<AbstractMethodDeclaration>();
-			if(selectedPackageFragmentRoot != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
-			}
-			else if(selectedPackageFragment != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
-			}
-			else if(selectedCompilationUnit != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
-			}
-			else if(selectedType != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
-			}
-			else if(selectedMethod != null) {
-				AbstractMethodDeclaration methodObject = systemObject.getMethodObject(selectedMethod);
-				if(methodObject != null) {
-					ClassObject declaringClass = systemObject.getClassObject(methodObject.getClassName());
-					if(declaringClass != null && !declaringClass.isEnum() && !declaringClass.isInterface() && methodObject.getMethodBody() != null)
-						methodObjectsToBeExamined.add(methodObject);
+			if(systemObject != null) {
+				final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+				final Set<AbstractMethodDeclaration> methodObjectsToBeExamined = new LinkedHashSet<AbstractMethodDeclaration>();
+				if(selectedPackageFragmentRoot != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
 				}
-			}
-			else {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-			}
-			final List<ASTSliceGroup> extractedSliceGroups = new ArrayList<ASTSliceGroup>();
+				else if(selectedPackageFragment != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
+				}
+				else if(selectedCompilationUnit != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+				}
+				else if(selectedType != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
+				}
+				else if(selectedMethod != null) {
+					AbstractMethodDeclaration methodObject = systemObject.getMethodObject(selectedMethod);
+					if(methodObject != null) {
+						ClassObject declaringClass = systemObject.getClassObject(methodObject.getClassName());
+						if(declaringClass != null && !declaringClass.isEnum() && !declaringClass.isInterface() && methodObject.getMethodBody() != null)
+							methodObjectsToBeExamined.add(methodObject);
+					}
+				}
+				else {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+				}
+				final List<ASTSliceGroup> extractedSliceGroups = new ArrayList<ASTSliceGroup>();
 
-			ps.busyCursorWhile(new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					if(!classObjectsToBeExamined.isEmpty()) {
-						int workSize = 0;
-						for(ClassObject classObject : classObjectsToBeExamined) {
-							workSize += classObject.getNumberOfMethods();
-						}
-						monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
-						for(ClassObject classObject : classObjectsToBeExamined) {
-							if(!classObject.isEnum() && !classObject.isInterface()) {
-								ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-								while(methodIterator.hasNext()) {
-									if(monitor.isCanceled())
-										throw new OperationCanceledException();
-									MethodObject methodObject = methodIterator.next();
-									processMethod(extractedSliceGroups,classObject, methodObject);
-									monitor.worked(1);
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						if(!classObjectsToBeExamined.isEmpty()) {
+							int workSize = 0;
+							for(ClassObject classObject : classObjectsToBeExamined) {
+								workSize += classObject.getNumberOfMethods();
+							}
+							monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
+							for(ClassObject classObject : classObjectsToBeExamined) {
+								if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator()) {
+									ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+									while(methodIterator.hasNext()) {
+										if(monitor.isCanceled())
+											throw new OperationCanceledException();
+										MethodObject methodObject = methodIterator.next();
+										processMethod(extractedSliceGroups,classObject, methodObject);
+										monitor.worked(1);
+									}
 								}
 							}
 						}
-					}
-					else if(!methodObjectsToBeExamined.isEmpty()) {
-						int workSize = methodObjectsToBeExamined.size();
-						monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
-						for(AbstractMethodDeclaration methodObject : methodObjectsToBeExamined) {
-							if(monitor.isCanceled())
-								throw new OperationCanceledException();
-							ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
-							processMethod(extractedSliceGroups, classObject, methodObject);
-							monitor.worked(1);
+						else if(!methodObjectsToBeExamined.isEmpty()) {
+							int workSize = methodObjectsToBeExamined.size();
+							monitor.beginTask("Identification of Extract Method refactoring opportunities", workSize);
+							for(AbstractMethodDeclaration methodObject : methodObjectsToBeExamined) {
+								if(monitor.isCanceled())
+									throw new OperationCanceledException();
+								ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
+								processMethod(extractedSliceGroups, classObject, methodObject);
+								monitor.worked(1);
+							}
 						}
+						monitor.done();
 					}
-					monitor.done();
-				}
-			});
+				});
 
-			table = new ASTSliceGroup[extractedSliceGroups.size()];
-			for(int i=0; i<extractedSliceGroups.size(); i++) {
-				table[i] = extractedSliceGroups.get(i);
+				table = new ASTSliceGroup[extractedSliceGroups.size()];
+				for(int i=0; i<extractedSliceGroups.size(); i++) {
+					table[i] = extractedSliceGroups.get(i);
+				}
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		} catch (CompilationErrorDetectedException e) {
+			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 		return table;
 	}

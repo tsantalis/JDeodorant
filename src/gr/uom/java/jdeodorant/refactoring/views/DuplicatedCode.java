@@ -102,12 +102,14 @@ import ca.concordia.jdeodorant.clone.parsers.CloneInstance;
 import ca.concordia.jdeodorant.clone.parsers.CloneInstanceStatus;
 import ca.concordia.jdeodorant.clone.parsers.JavaModelUtility;
 import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneInstanceMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGRegionSubTreeMapper;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 public class DuplicatedCode extends ViewPart {
+	private static final String MESSAGE_DIALOG_TITLE = "Duplicated Code Refactoring";
 	private TreeViewer treeViewer;
 	private Action importClonesAction;
 	private Action doubleClickAction;
@@ -637,7 +639,7 @@ public class DuplicatedCode extends ViewPart {
 	}
 
 	private void wrongSelectionMessage() {
-		MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
+		MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
 				"You must select two (2) clone instances from the same clone group.");
 	}
 
@@ -660,41 +662,52 @@ public class DuplicatedCode extends ViewPart {
 				else {
 					ps.busyCursorWhile(new IRunnableWithProgress() {
 						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-							new ASTReader(importedProject, monitor);
+							try {
+								new ASTReader(importedProject, monitor);
+							} catch (CompilationErrorDetectedException e) {
+								Display.getDefault().asyncExec(new Runnable() {
+									public void run() {
+										MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+												"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+									}
+								});
+							}
 						}
 					});
 				}
-				ps.busyCursorWhile(new IRunnableWithProgress() {
-					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						mapper = new CloneInstanceMapper(instance1, instance2, importedProject, monitor);
-					}
-				});
-				if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
-					try {
-						for(PDGRegionSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
-							JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
-							JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+				if(ASTReader.getSystemObject() != null) {
+					ps.busyCursorWhile(new IRunnableWithProgress() {
+						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+							mapper = new CloneInstanceMapper(instance1, instance2, importedProject, monitor);
 						}
-					} catch (PartInitException e) {
-						e.printStackTrace();
-					} catch (JavaModelException e) {
-						e.printStackTrace();
+					});
+					if(mapper != null && !mapper.getSubTreeMappers().isEmpty()) {
+						try {
+							for(PDGRegionSubTreeMapper subTreeMapper : mapper.getSubTreeMappers()) {
+								JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG1().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+								JavaUI.openInEditor(((CompilationUnit)subTreeMapper.getPDG2().getMethod().getMethodDeclaration().getRoot()).getJavaElement());
+							}
+						} catch (PartInitException e) {
+							e.printStackTrace();
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
+						Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
+						MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
+						RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
+						try { 
+							String titleForFailedChecks = ""; //$NON-NLS-1$ 
+							op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
+						} catch(InterruptedException e) {
+							e.printStackTrace();
+						}
 					}
-					Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
-					MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
-					RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
-					try { 
-						String titleForFailedChecks = ""; //$NON-NLS-1$ 
-						op.run(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), titleForFailedChecks); 
-					} catch(InterruptedException e) {
-						e.printStackTrace();
+					else {
+						MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+								"Unfortunatley, no refactoring opportunities were found.");
 					}
+					CompilationUnitCache.getInstance().releaseLock();
 				}
-				else {
-					MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), "Duplicated Code Refactoring",
-							"Unfortunatley, no refactoring opportunities were found.");
-				}
-				CompilationUnitCache.getInstance().releaseLock();
 			}
 			else {
 				wrongSelectionMessage();
@@ -704,6 +717,9 @@ public class DuplicatedCode extends ViewPart {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		} catch (CompilationErrorDetectedException e) {
+			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 	}
 

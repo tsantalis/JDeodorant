@@ -20,6 +20,7 @@ import java.util.Set;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
@@ -36,6 +37,7 @@ import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractClassRefactoring;
 import gr.uom.java.jdeodorant.refactoring.views.CodeSmellPackageExplorer.CodeSmellType;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
@@ -68,6 +70,7 @@ import org.eclipse.jface.viewers.*;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.jface.action.*;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.*;
@@ -93,6 +96,7 @@ import org.eclipse.swt.SWT;
  */
 
 public class GodClass extends ViewPart {
+	private static final String MESSAGE_DIALOG_TITLE = "God Class";
 	private TreeViewer treeViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
@@ -710,74 +714,88 @@ public class GodClass extends ViewPart {
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						new ASTReader(selectedProject, monitor);
+						try {
+							new ASTReader(selectedProject, monitor);
+						} catch (CompilationErrorDetectedException e) {
+							Display.getDefault().asyncExec(new Runnable() {
+								public void run() {
+									MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+											"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+								}
+							});
+						}
 					}
 				});
 			}
 			SystemObject systemObject = ASTReader.getSystemObject();
-			Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-			if(selectedPackageFragmentRoot != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
-			}
-			else if(selectedPackageFragment != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
-			}
-			else if(selectedCompilationUnit != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
-			}
-			else if(selectedType != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
-			}
-			else {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-			}
-			final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
-			for(ClassObject classObject : classObjectsToBeExamined) {
-				if(!classObject.isEnum())
-					classNamesToBeExamined.add(classObject.getName());
-			}
-			MySystem system = new MySystem(systemObject, true);
-			final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-			ps.busyCursorWhile(new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					distanceMatrix.generateDistances(monitor);
+			if(systemObject != null) {
+				Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+				if(selectedPackageFragmentRoot != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
 				}
-			});
-			final List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
-
-			ps.busyCursorWhile(new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, monitor));
+				else if(selectedPackageFragment != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
 				}
-			});
-			HashMap<String, ExtractClassCandidateGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidateGroup>();
-			for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
-				if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
-					groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
+				else if(selectedCompilationUnit != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+				}
+				else if(selectedType != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
 				}
 				else {
-					ExtractClassCandidateGroup group = new ExtractClassCandidateGroup(candidate.getSourceEntity());
-					group.addCandidate(candidate);
-					groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects());
 				}
-			}
-			for(String sourceClass : groupedBySourceClassMap.keySet()) {
-				groupedBySourceClassMap.get(sourceClass).groupConcepts();
-			}
+				final Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
+				for(ClassObject classObject : classObjectsToBeExamined) {
+					if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator())
+						classNamesToBeExamined.add(classObject.getName());
+				}
+				MySystem system = new MySystem(systemObject, true);
+				final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						distanceMatrix.generateDistances(monitor);
+					}
+				});
+				final List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
 
-			table = new ExtractClassCandidateGroup[groupedBySourceClassMap.values().size() + 1];
-			ExtractClassCandidateGroup currentSystem = new ExtractClassCandidateGroup("current system");
-			currentSystem.setMinEP(new CurrentSystem(distanceMatrix).getEntityPlacement());
-			table[0] = currentSystem;
-			int counter = 1;
-			for(ExtractClassCandidateGroup candidate : groupedBySourceClassMap.values()) {
-				table[counter] = candidate;
-				counter++;
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, monitor));
+					}
+				});
+				HashMap<String, ExtractClassCandidateGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidateGroup>();
+				for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
+					if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
+						groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
+					}
+					else {
+						ExtractClassCandidateGroup group = new ExtractClassCandidateGroup(candidate.getSourceEntity());
+						group.addCandidate(candidate);
+						groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
+					}
+				}
+				for(String sourceClass : groupedBySourceClassMap.keySet()) {
+					groupedBySourceClassMap.get(sourceClass).groupConcepts();
+				}
+
+				table = new ExtractClassCandidateGroup[groupedBySourceClassMap.values().size() + 1];
+				ExtractClassCandidateGroup currentSystem = new ExtractClassCandidateGroup("current system");
+				currentSystem.setMinEP(new CurrentSystem(distanceMatrix).getEntityPlacement());
+				table[0] = currentSystem;
+				int counter = 1;
+				for(ExtractClassCandidateGroup candidate : groupedBySourceClassMap.values()) {
+					table[counter] = candidate;
+					counter++;
+				}
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		} catch (CompilationErrorDetectedException e) {
+			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 		return table;		
 	}

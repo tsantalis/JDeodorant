@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.CFG;
@@ -15,12 +16,12 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
@@ -29,6 +30,7 @@ import org.eclipse.ui.progress.IProgressService;
 
 public class SliceProfileAction implements IObjectActionDelegate {
 
+	private static final String MESSAGE_DIALOG_TITLE = "Slice-based Cohesion Metrics";
 	private IWorkbenchPart part;
 	private ISelection selection;
 	private PDG pdg;
@@ -58,40 +60,51 @@ public class SliceProfileAction implements IObjectActionDelegate {
 					else {
 						ps.busyCursorWhile(new IRunnableWithProgress() {
 							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-								new ASTReader(selectedProject, monitor);
+								try {
+									new ASTReader(selectedProject, monitor);
+								} catch (CompilationErrorDetectedException e) {
+									Display.getDefault().asyncExec(new Runnable() {
+										public void run() {
+											MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+													"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+										}
+									});
+								}
 							}
 						});
 					}
-					ps.busyCursorWhile(new IRunnableWithProgress() {
-						public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-							SystemObject systemObject = ASTReader.getSystemObject();
-							AbstractMethodDeclaration methodObject = systemObject.getMethodObject(method);
-							if(methodObject != null) {
-								ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
-								if(methodObject.getMethodBody() != null && classObject != null) {
-									ITypeRoot typeRoot = classObject.getITypeRoot();
-									CompilationUnitCache.getInstance().lock(typeRoot);
-									CFG cfg = new CFG(methodObject);
-									pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject), monitor);
-									CompilationUnitCache.getInstance().releaseLock();
-								}
-								else {
-									selectedMethodHasNoBody = true;
+					final SystemObject systemObject = ASTReader.getSystemObject();
+					if(systemObject != null) {
+						ps.busyCursorWhile(new IRunnableWithProgress() {
+							public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+								AbstractMethodDeclaration methodObject = systemObject.getMethodObject(method);
+								if(methodObject != null) {
+									ClassObject classObject = systemObject.getClassObject(methodObject.getClassName());
+									if(methodObject.getMethodBody() != null && classObject != null) {
+										ITypeRoot typeRoot = classObject.getITypeRoot();
+										CompilationUnitCache.getInstance().lock(typeRoot);
+										CFG cfg = new CFG(methodObject);
+										pdg = new PDG(cfg, classObject.getIFile(), classObject.getFieldsAccessedInsideMethod(methodObject), monitor);
+										CompilationUnitCache.getInstance().releaseLock();
+									}
+									else {
+										selectedMethodHasNoBody = true;
+									}
 								}
 							}
-						}
-					});
-					if(method.isConstructor())
-						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method corresponds to a constructor.");
-					if(selectedMethodHasNoBody)
-						MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics",
-								"The selected method corresponds to an abstract method or a method of an anonymous class declaration.");
-					if(pdg != null) {
-						if(pdg.getVariableDeclarationsInMethod().size() == 0)
-							MessageDialog.openInformation(part.getSite().getShell(), "Slice-based Cohesion Metrics", "The selected method does not declare any local variables.");
-						else {
-							SliceProfileDialog dialog = new SliceProfileDialog(part.getSite().getWorkbenchWindow(), pdg);
-							dialog.open();
+						});
+						//if(method.isConstructor())
+						//	MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE, "The selected method corresponds to a constructor.");
+						if(selectedMethodHasNoBody)
+							MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
+									"The selected method corresponds to an abstract method or a method of an anonymous class declaration.");
+						if(pdg != null) {
+							if(pdg.getVariableDeclarationsInMethod().size() == 0)
+								MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE, "The selected method does not declare any local variables.");
+							else {
+								SliceProfileDialog dialog = new SliceProfileDialog(part.getSite().getWorkbenchWindow(), pdg);
+								dialog.open();
+							}
 						}
 					}
 				}
@@ -100,8 +113,9 @@ public class SliceProfileAction implements IObjectActionDelegate {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
-		} catch (JavaModelException e) {
-			e.printStackTrace();
+		} catch (CompilationErrorDetectedException e) {
+			MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
+					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 	}
 

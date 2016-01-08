@@ -5,12 +5,18 @@ import org.eclipse.core.filebuffers.ITextFileBuffer;
 import org.eclipse.core.filebuffers.ITextFileBufferManager;
 import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaModelMarker;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
@@ -56,7 +62,11 @@ public class ASTReader {
 	private static IJavaProject examinedProject;
 	public static final int JLS = AST.JLS8;
 
-	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) {
+	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) throws CompilationErrorDetectedException {
+		List<IMarker> markers = buildProject(iJavaProject);
+		if(!markers.isEmpty()) {
+			throw new CompilationErrorDetectedException(markers);
+		}
 		if(monitor != null)
 			monitor.beginTask("Parsing selected Java Project", getNumberOfCompilationUnits(iJavaProject));
 		systemObject = new SystemObject();
@@ -86,7 +96,11 @@ public class ASTReader {
 			monitor.done();
 	}
 
-	public ASTReader(IJavaProject iJavaProject, SystemObject existingSystemObject, IProgressMonitor monitor) {
+	public ASTReader(IJavaProject iJavaProject, SystemObject existingSystemObject, IProgressMonitor monitor) throws CompilationErrorDetectedException {
+		List<IMarker> markers = buildProject(iJavaProject);
+		if(!markers.isEmpty()) {
+			throw new CompilationErrorDetectedException(markers);
+		}
 		Set<ICompilationUnit> changedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
 		Set<ICompilationUnit> addedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
 		Set<ICompilationUnit> removedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
@@ -131,6 +145,27 @@ public class ASTReader {
 		instance.clearAffectedCompilationUnits();
 		if(monitor != null)
 			monitor.done();
+	}
+
+	private List<IMarker> buildProject(IJavaProject iJavaProject) {
+		ArrayList<IMarker> result = new ArrayList<IMarker>();
+		try {
+			IProgressMonitor npm = new NullProgressMonitor();
+			IProject project = iJavaProject.getProject();
+			project.refreshLocal(IResource.DEPTH_INFINITE, npm);	
+			project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, npm);
+			IMarker[] markers = null;
+			markers = project.findMarkers(IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER, true, IResource.DEPTH_INFINITE);
+			for (IMarker marker: markers) {
+				Integer severityType = (Integer) marker.getAttribute(IMarker.SEVERITY);
+				if (severityType.intValue() == IMarker.SEVERITY_ERROR) {
+					result.add(marker);
+				}
+			}
+		} catch (CoreException e) {
+			e.printStackTrace();
+		}
+		return result;
 	}
 
 	public static int getNumberOfCompilationUnits(IJavaProject iJavaProject) {

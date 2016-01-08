@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.views;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
@@ -62,6 +64,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.jface.action.*;
 import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.*;
@@ -87,6 +90,7 @@ import org.eclipse.swt.SWT;
  */
 
 public class TypeChecking extends ViewPart {
+	private static final String MESSAGE_DIALOG_TITLE = "Type Checking";
 	private TreeViewer treeViewer;
 	private Action identifyBadSmellsAction;
 	private Action applyRefactoringAction;
@@ -701,44 +705,64 @@ public class TypeChecking extends ViewPart {
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						new ASTReader(selectedProject, monitor);
+						try {
+							new ASTReader(selectedProject, monitor);
+						} catch (CompilationErrorDetectedException e) {
+							Display.getDefault().asyncExec(new Runnable() {
+								public void run() {
+									MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+											"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+								}
+							});
+						}
 					}
 				});
 			}
 			final SystemObject systemObject = ASTReader.getSystemObject();
-			final Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-			if(selectedPackageFragmentRoot != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
-			}
-			else if(selectedPackageFragment != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
-			}
-			else if(selectedCompilationUnit != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
-			}
-			else if(selectedType != null) {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
-			}
-			else {
-				classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-			}
-			final List<TypeCheckEliminationGroup> typeCheckEliminationGroups = new ArrayList<TypeCheckEliminationGroup>();
-			ps.busyCursorWhile(new IRunnableWithProgress() {
-				public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-					typeCheckEliminationGroups.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, monitor));
+			if(systemObject != null) {
+				Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+				if(selectedPackageFragmentRoot != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragmentRoot));
 				}
-			});
-			
-			table = new TypeCheckEliminationGroup[typeCheckEliminationGroups.size()];
-			int i = 0;
-			for(TypeCheckEliminationGroup typeCheckEliminationGroup : typeCheckEliminationGroups) {
-				table[i] = typeCheckEliminationGroup;
-				i++;
+				else if(selectedPackageFragment != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedPackageFragment));
+				}
+				else if(selectedCompilationUnit != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedCompilationUnit));
+				}
+				else if(selectedType != null) {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects(selectedType));
+				}
+				else {
+					classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+				}
+				final Set<ClassObject> filteredClassObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+				for(ClassObject classObject : classObjectsToBeExamined) {
+					if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator()) {
+						filteredClassObjectsToBeExamined.add(classObject);
+					}
+				}
+				final List<TypeCheckEliminationGroup> typeCheckEliminationGroups = new ArrayList<TypeCheckEliminationGroup>();
+				ps.busyCursorWhile(new IRunnableWithProgress() {
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						typeCheckEliminationGroups.addAll(systemObject.generateTypeCheckEliminations(filteredClassObjectsToBeExamined, monitor));
+					}
+				});
+
+				table = new TypeCheckEliminationGroup[typeCheckEliminationGroups.size()];
+				int i = 0;
+				for(TypeCheckEliminationGroup typeCheckEliminationGroup : typeCheckEliminationGroups) {
+					table[i] = typeCheckEliminationGroup;
+					i++;
+				}
 			}
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+		} catch (CompilationErrorDetectedException e) {
+			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
+					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 		return table;
 	}

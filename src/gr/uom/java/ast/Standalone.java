@@ -37,116 +37,142 @@ public class Standalone {
 
 	public static List<MoveMethodCandidateRefactoring> getMoveMethodRefactoringOpportunities(IJavaProject project) {
 		CompilationUnitCache.getInstance().clearCache();
-		if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
-			new ASTReader(project, ASTReader.getSystemObject(), null);
+		try {
+			if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(project, ASTReader.getSystemObject(), null);
+			}
+			else {
+				new ASTReader(project, null);
+			}
 		}
-		else {
-			new ASTReader(project, null);
+		catch(CompilationErrorDetectedException e) {
+			e.printStackTrace();
 		}
-		SystemObject systemObject = ASTReader.getSystemObject();
-		
-		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-		
-		Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
-		for(ClassObject classObject : classObjectsToBeExamined) {
-			if(!classObject.isEnum())
-				classNamesToBeExamined.add(classObject.getName());
-		}
-		MySystem system = new MySystem(systemObject, false);
-		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-		distanceMatrix.generateDistances(null);
-		
 		List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
-		moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, null));
-		Collections.sort(moveMethodCandidateList);
-		
+		SystemObject systemObject = ASTReader.getSystemObject();
+		if(systemObject != null) {
+			Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+			
+			Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
+			for(ClassObject classObject : classObjectsToBeExamined) {
+				if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator())
+					classNamesToBeExamined.add(classObject.getName());
+			}
+			MySystem system = new MySystem(systemObject, false);
+			DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+			distanceMatrix.generateDistances(null);
+			
+			moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, null));
+			Collections.sort(moveMethodCandidateList);
+		}
 		return moveMethodCandidateList;
 	}
 
 	public static Set<ExtractClassCandidateGroup> getExtractClassRefactoringOpportunities(IJavaProject project) {
 		CompilationUnitCache.getInstance().clearCache();
-		if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
-			new ASTReader(project, ASTReader.getSystemObject(), null);
-		}
-		else {
-			new ASTReader(project, null);
-		}
-		SystemObject systemObject = ASTReader.getSystemObject();
-		
-		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-		
-		Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
-		for(ClassObject classObject : classObjectsToBeExamined) {
-			if(!classObject.isEnum())
-				classNamesToBeExamined.add(classObject.getName());
-		}
-		MySystem system = new MySystem(systemObject, true);
-		DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-		distanceMatrix.generateDistances(null);
-		
-		List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
-		extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, null));
-		
-		HashMap<String, ExtractClassCandidateGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidateGroup>();
-		for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
-			if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
-				groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
+		try {
+			if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(project, ASTReader.getSystemObject(), null);
 			}
 			else {
-				ExtractClassCandidateGroup group = new ExtractClassCandidateGroup(candidate.getSourceEntity());
-				group.addCandidate(candidate);
-				groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
+				new ASTReader(project, null);
 			}
 		}
-		for(String sourceClass : groupedBySourceClassMap.keySet()) {
-			groupedBySourceClassMap.get(sourceClass).groupConcepts();
+		catch(CompilationErrorDetectedException e) {
+			e.printStackTrace();
 		}
-		
-		return new TreeSet<ExtractClassCandidateGroup>(groupedBySourceClassMap.values());
+		SystemObject systemObject = ASTReader.getSystemObject();
+		if(systemObject != null) {
+			Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+			
+			Set<String> classNamesToBeExamined = new LinkedHashSet<String>();
+			for(ClassObject classObject : classObjectsToBeExamined) {
+				if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator())
+					classNamesToBeExamined.add(classObject.getName());
+			}
+			MySystem system = new MySystem(systemObject, true);
+			DistanceMatrix distanceMatrix = new DistanceMatrix(system);
+			distanceMatrix.generateDistances(null);
+			
+			List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
+			extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, null));
+			
+			HashMap<String, ExtractClassCandidateGroup> groupedBySourceClassMap = new HashMap<String, ExtractClassCandidateGroup>();
+			for(ExtractClassCandidateRefactoring candidate : extractClassCandidateList) {
+				if(groupedBySourceClassMap.keySet().contains(candidate.getSourceEntity())) {
+					groupedBySourceClassMap.get(candidate.getSourceEntity()).addCandidate(candidate);
+				}
+				else {
+					ExtractClassCandidateGroup group = new ExtractClassCandidateGroup(candidate.getSourceEntity());
+					group.addCandidate(candidate);
+					groupedBySourceClassMap.put(candidate.getSourceEntity(), group);
+				}
+			}
+			for(String sourceClass : groupedBySourceClassMap.keySet()) {
+				groupedBySourceClassMap.get(sourceClass).groupConcepts();
+			}
+			return new TreeSet<ExtractClassCandidateGroup>(groupedBySourceClassMap.values());
+		}
+		else {
+			return new TreeSet<ExtractClassCandidateGroup>();
+		}
 	}
 
 	public static Set<TypeCheckEliminationGroup> getTypeCheckEliminationRefactoringOpportunities(IJavaProject project) {
 		CompilationUnitCache.getInstance().clearCache();
-		if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
-			new ASTReader(project, ASTReader.getSystemObject(), null);
+		try {
+			if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(project, ASTReader.getSystemObject(), null);
+			}
+			else {
+				new ASTReader(project, null);
+			}
 		}
-		else {
-			new ASTReader(project, null);
+		catch(CompilationErrorDetectedException e) {
+			e.printStackTrace();
 		}
 		SystemObject systemObject = ASTReader.getSystemObject();
-		
-		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-		
 		Set<TypeCheckEliminationGroup> typeCheckEliminationGroups = new TreeSet<TypeCheckEliminationGroup>();
-		typeCheckEliminationGroups.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, null));
-		
+		if(systemObject != null) {
+			Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			for(ClassObject classObject : systemObject.getClassObjects()) {
+				if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator()) {
+					classObjectsToBeExamined.add(classObject);
+				}
+			}
+			typeCheckEliminationGroups.addAll(systemObject.generateTypeCheckEliminations(classObjectsToBeExamined, null));
+		}
 		return typeCheckEliminationGroups;
 	}
 
 	public static Set<ASTSliceGroup> getExtractMethodRefactoringOpportunities(IJavaProject project) {
 		CompilationUnitCache.getInstance().clearCache();
-		if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
-			new ASTReader(project, ASTReader.getSystemObject(), null);
+		try {
+			if(ASTReader.getSystemObject() != null && project.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(project, ASTReader.getSystemObject(), null);
+			}
+			else {
+				new ASTReader(project, null);
+			}
 		}
-		else {
-			new ASTReader(project, null);
+		catch(CompilationErrorDetectedException e) {
+			e.printStackTrace();
 		}
 		SystemObject systemObject = ASTReader.getSystemObject();
-		
-		Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
-		classObjectsToBeExamined.addAll(systemObject.getClassObjects());
-		
 		Set<ASTSliceGroup> extractedSliceGroups = new TreeSet<ASTSliceGroup>();
-		
-		for(ClassObject classObject : classObjectsToBeExamined) {
-			if(!classObject.isEnum() && !classObject.isInterface()) {
-				ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
-				while(methodIterator.hasNext()) {
-					MethodObject methodObject = methodIterator.next();
-					processMethod(extractedSliceGroups,classObject, methodObject);
+		if(systemObject != null) {
+			Set<ClassObject> classObjectsToBeExamined = new LinkedHashSet<ClassObject>();
+			classObjectsToBeExamined.addAll(systemObject.getClassObjects());
+			
+			for(ClassObject classObject : classObjectsToBeExamined) {
+				if(!classObject.isEnum() && !classObject.isInterface() && !classObject.isGeneratedByParserGenenator()) {
+					ListIterator<MethodObject> methodIterator = classObject.getMethodIterator();
+					while(methodIterator.hasNext()) {
+						MethodObject methodObject = methodIterator.next();
+						processMethod(extractedSliceGroups,classObject, methodObject);
+					}
 				}
 			}
 		}

@@ -215,7 +215,7 @@ public class Indexer {
 		if(invokedMethods != null) {
 			for(String invokedMethodBindingKey : invokedMethods) {
 				if(!processedMethods.contains(invokedMethodBindingKey)) {
-					if(!abstractMethodSet.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey) && !overridingMethodMap.containsKey(invokedMethodBindingKey)) {
 						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
 							//method is native
 						}
@@ -253,7 +253,7 @@ public class Indexer {
 		if(invokedMethods != null) {
 			for(String invokedMethodBindingKey : invokedMethods) {
 				if(!processedMethods.contains(invokedMethodBindingKey)) {
-					if(!abstractMethodSet.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey) && !overridingMethodMap.containsKey(invokedMethodBindingKey)) {
 						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
 							//method is native
 						}
@@ -291,7 +291,7 @@ public class Indexer {
 		if(invokedMethods != null) {
 			for(String invokedMethodBindingKey : invokedMethods) {
 				if(!processedMethods.contains(invokedMethodBindingKey)) {
-					if(!abstractMethodSet.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey) && !overridingMethodMap.containsKey(invokedMethodBindingKey)) {
 						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
 							//method is native
 						}

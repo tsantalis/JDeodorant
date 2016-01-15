@@ -201,16 +201,18 @@ public class Standalone {
 					ASTSliceGroup sliceGroup = new ASTSliceGroup();
 					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(sliceUnion);
-						int numberOfExtractedStatements = slice.getSliceStatements().size();
-						int numberOfRemovableStatements = slice.getRemovableStatements().size();
-						int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
-						double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
-						sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
-						sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
-						sumOfDuplicationRatioInGroup += duplicationRatio;
-						if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
-							maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
-						sliceGroup.addCandidate(slice);
+						if(!slice.isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement()) {
+							int numberOfExtractedStatements = slice.getSliceStatements().size();
+							int numberOfRemovableStatements = slice.getRemovableStatements().size();
+							int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+							double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
+							sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
+							sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
+							sumOfDuplicationRatioInGroup += duplicationRatio;
+							if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
+								maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
+							sliceGroup.addCandidate(slice);
+						}
 					}
 					if(!sliceGroup.getCandidates().isEmpty()) {
 						sliceGroup.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)groupSize);
@@ -231,16 +233,18 @@ public class Standalone {
 					ASTSliceGroup sliceGroup = new ASTSliceGroup();
 					for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(objectSliceUnion);
-						int numberOfExtractedStatements = slice.getSliceStatements().size();
-						int numberOfRemovableStatements = slice.getRemovableStatements().size();
-						int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
-						double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
-						sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
-						sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
-						sumOfDuplicationRatioInGroup += duplicationRatio;
-						if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
-							maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
-						sliceGroup.addCandidate(slice);
+						if(!slice.isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement()) {
+							int numberOfExtractedStatements = slice.getSliceStatements().size();
+							int numberOfRemovableStatements = slice.getRemovableStatements().size();
+							int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+							double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
+							sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
+							sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
+							sumOfDuplicationRatioInGroup += duplicationRatio;
+							if(numberOfExtractedStatements > maximumNumberOfExtractedStatementsInGroup)
+								maximumNumberOfExtractedStatementsInGroup = numberOfExtractedStatements;
+							sliceGroup.addCandidate(slice);
+						}
 					}
 					if(!sliceGroup.getCandidates().isEmpty()) {
 						sliceGroup.setAverageNumberOfExtractedStatementsInGroup(sumOfExtractedStatementsInGroup/(double)groupSize);

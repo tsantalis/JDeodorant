@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
 import org.eclipse.jdt.core.dom.Expression;
@@ -181,6 +182,31 @@ public class ASTSlice {
 		this.boundaryBlock = pdgObjectSliceUnion.getBoundaryBlock();
 		this.isObjectSlice = true;
 		this.methodSize = pdgObjectSliceUnion.getMethodSize();
+	}
+
+	public boolean isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement() {
+		Statement variableCriterionDeclarationStatement = getVariableCriterionDeclarationStatement();
+		if(variableCriterionDeclarationStatement != null) {
+			int depthOfNestingForVariableCriterionDeclarationStatement = depthOfNesting(variableCriterionDeclarationStatement);
+			Statement extractedMethodInvocationInsertionStatement = getExtractedMethodInvocationInsertionStatement();
+			int depthOfNestingForExtractedMethodInvocationInsertionStatement = depthOfNesting(extractedMethodInvocationInsertionStatement);
+			if(depthOfNestingForVariableCriterionDeclarationStatement > depthOfNestingForExtractedMethodInvocationInsertionStatement)
+				return true;
+			if(depthOfNestingForVariableCriterionDeclarationStatement == depthOfNestingForExtractedMethodInvocationInsertionStatement &&
+					variableCriterionDeclarationStatement instanceof TryStatement)
+				return true;
+		}
+		return false;
+	}
+
+	private int depthOfNesting(Statement statement) {
+		int depthOfNesting = 0;
+		ASTNode parent = statement;
+		while(!(parent instanceof MethodDeclaration)) {
+			depthOfNesting++;
+			parent = parent.getParent();
+		}
+		return depthOfNesting;
 	}
 
 	public TypeDeclaration getSourceTypeDeclaration() {

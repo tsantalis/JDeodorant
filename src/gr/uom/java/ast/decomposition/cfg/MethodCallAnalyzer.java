@@ -12,7 +12,9 @@ import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.SuperMethodInvocationObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.VariableDeclarationObject;
+import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.MethodBodyObject;
+import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
@@ -551,6 +553,30 @@ public class MethodCallAnalyzer {
 				instance.setThrownExceptionTypes(methodDeclaration, new LinkedHashSet<String>(methodBodyObject.getExceptionsInThrowStatements()));
 				processedMethods.add(methodDeclaration.resolveBinding().getKey());
 				if(depth < maximumCallGraphAnalysisDepth) {
+					List<AbstractStatement> statements = methodBodyObject.getCompositeStatement().getStatements();
+					//check if the method contains only one throw statement throwing the UnsupportedOperationException, and then analyze the overriding methods in the subclasses
+					if(statements.size() == 1 && statements.get(0).getType().equals(StatementType.THROW) && methodBodyObject.getExceptionsInThrowStatements().contains("java.lang.UnsupportedOperationException")) {
+						if((methodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
+							//method is native
+						}
+						else {
+							if(depth < maximumCallGraphAnalysisDepth) {
+								IType superType = (IType)methodDeclaration.resolveBinding().getDeclaringClass().getJavaElement();
+								Set<IType> subTypes = instance.getSubTypes(superType);
+								for(IType subType : subTypes) {
+									if(!subType.equals(superType)) {
+										IClassFile classFile = subType.getClassFile();
+										CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+										Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
+										for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
+											instance.addOverridingMethod(methodDeclaration, overridingMethod);
+											processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+										}
+									}
+								}
+							}
+						}
+					}
 					for(MethodInvocationObject methodInvocationObject : methodBodyObject.getInvokedMethodsThroughThisReference()) {
 						MethodInvocation methodInvocation = methodInvocationObject.getMethodInvocation();
 						IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();

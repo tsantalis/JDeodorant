@@ -164,7 +164,7 @@ public class PDGSliceUnion {
 		for(PDGNode throwNode : throwStatementNodesToBeAddedToDuplicatedNodesDueToIndispensableNodes) {
 			indispensableNodes.addAll(subgraph.computeSlice(throwNode));
 		}
-		this.removableNodes = new TreeSet<PDGNode>();
+		this.removableNodes = new LinkedHashSet<PDGNode>();
 		for(GraphNode node : pdg.nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			if(!remainingNodes.contains(pdgNode) && !indispensableNodes.contains(pdgNode))
@@ -223,7 +223,7 @@ public class PDGSliceUnion {
 	}
 
 	public PDGNode getExtractedMethodInvocationInsertionNode() {
-		return ((TreeSet<PDGNode>)removableNodes).first();
+		return ((TreeSet<PDGNode>)sliceNodes).first();
 	}
 
 	public AbstractVariable getLocalVariableCriterion() {

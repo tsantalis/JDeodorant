@@ -20,12 +20,10 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTMatcher;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
@@ -65,7 +63,6 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 	private MethodDeclaration sourceMethodDeclaration;
 	private CompilationUnitChange compilationUnitChange;
 	private Set<ITypeBinding> exceptionTypesThatShouldBeThrownByExtractedMethod;
-	private boolean variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement;
 	
 	public ExtractMethodRefactoring(CompilationUnit sourceCompilationUnit, ASTSlice slice) {
 		super();
@@ -102,18 +99,6 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 				}
 			}
-		}
-		this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = false;
-		Statement variableCriterionDeclarationStatement = slice.getVariableCriterionDeclarationStatement();
-		if(variableCriterionDeclarationStatement != null) {
-			int depthOfNestingForVariableCriterionDeclarationStatement = depthOfNesting(variableCriterionDeclarationStatement);
-			Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
-			int depthOfNestingForExtractedMethodInvocationInsertionStatement = depthOfNesting(extractedMethodInvocationInsertionStatement);
-			if(depthOfNestingForVariableCriterionDeclarationStatement > depthOfNestingForExtractedMethodInvocationInsertionStatement)
-				this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = true;
-			if(depthOfNestingForVariableCriterionDeclarationStatement == depthOfNestingForExtractedMethodInvocationInsertionStatement &&
-					variableCriterionDeclarationStatement instanceof TryStatement)
-				this.variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement = true;
 		}
 	}
 
@@ -153,16 +138,6 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private int depthOfNesting(Statement statement) {
-		int depthOfNesting = 0;
-		ASTNode parent = statement;
-		while(!(parent instanceof MethodDeclaration)) {
-			depthOfNesting++;
-			parent = parent.getParent();
-		}
-		return depthOfNesting;
-	}
-
 	public void apply() {
 		MultiTextEdit root = new MultiTextEdit();
 		compilationUnitChange.setEdit(root);
@@ -192,8 +167,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		VariableDeclaration returnedVariableDeclaration = slice.getLocalVariableCriterion();
-		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
-				!variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
+		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
 			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
 			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
@@ -204,8 +178,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 			ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
 			blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
 		}
-		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
-				!variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
+		else if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && !slice.declarationOfVariableCriterionBelongsToRemovableNodes()) {
 			if(returnedVariableDeclaration instanceof VariableDeclarationFragment) {
 				VariableDeclarationFragment oldInitializationFragment = (VariableDeclarationFragment)returnedVariableDeclaration;
 				VariableDeclarationFragment newInitializationFragment = ast.newVariableDeclarationFragment();
@@ -232,35 +205,19 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		else {
-			//variable criterion is a local variable whose declaration belongs to slice nodes,
-			//but is nested in deeper level compared to the insertion point of the extracted method invocation
-			if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
-					variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
-				ITypeBinding returnedVariableTypeBinding = extractTypeBinding(returnedVariableDeclaration);
-				Type returnedVariableType = RefactoringUtility.generateTypeFromTypeBinding(returnedVariableTypeBinding, ast, sourceRewriter);
-				VariableDeclarationFragment newInitializationFragment = ast.newVariableDeclarationFragment();
-				sourceRewriter.set(newInitializationFragment,  VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
-				sourceRewriter.set(newInitializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, extractedMethodInvocation, null);
-				VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(newInitializationFragment);
-				sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
+			//variable criterion is field, parameter, or local variable whose declaration does not belong to slice nodes
+			if(!slice.isObjectSlice()) {
+				Assignment assignment = ast.newAssignment();
+				sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
+				sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
+				ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
 				ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
-				blockRewrite.insertBefore(initializationVariableDeclarationStatement, extractedMethodInvocationInsertionStatement, null);
+				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
 			}
 			else {
-				//variable criterion is field, parameter, or local variable whose declaration does not belong to slice nodes
-				if(!slice.isObjectSlice()) {
-					Assignment assignment = ast.newAssignment();
-					sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, returnedVariableDeclaration.getName(), null);
-					sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, extractedMethodInvocation, null);
-					ExpressionStatement expressionStatement = ast.newExpressionStatement(assignment);
-					ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
-					blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
-				}
-				else {
-					ExpressionStatement expressionStatement = ast.newExpressionStatement(extractedMethodInvocation);
-					ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
-					blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
-				}
+				ExpressionStatement expressionStatement = ast.newExpressionStatement(extractedMethodInvocation);
+				ListRewrite blockRewrite = getBlockRewrite(extractedMethodInvocationInsertionStatement, sourceRewriter);
+				blockRewrite.insertBefore(expressionStatement, extractedMethodInvocationInsertionStatement, null);
 			}
 		}
 		
@@ -335,17 +292,6 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		Block newMethodBody = newMethodDeclaration.getAST().newBlock();
 		ListRewrite methodBodyRewrite = sourceRewriter.getListRewrite(newMethodBody, Block.STATEMENTS_PROPERTY);
-
-		if(slice.declarationOfVariableCriterionBelongsToSliceNodes() && slice.declarationOfVariableCriterionBelongsToRemovableNodes() &&
-				variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement) {
-			VariableDeclarationFragment initializationFragment = ast.newVariableDeclarationFragment();
-			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.NAME_PROPERTY, returnedVariableDeclaration.getName(), null);
-			Expression defaultValue = generateDefaultValue(sourceRewriter, ast, returnedVariableTypeBinding);
-			sourceRewriter.set(initializationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, defaultValue, null);
-			VariableDeclarationStatement initializationVariableDeclarationStatement = ast.newVariableDeclarationStatement(initializationFragment);
-			sourceRewriter.set(initializationVariableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, returnedVariableType, null);
-			methodBodyRewrite.insertFirst(initializationVariableDeclarationStatement, null);
-		}
 		
 		List<PDGNode> sliceNodes = new ArrayList<PDGNode>(slice.getSliceNodes());
 		while(!sliceNodes.isEmpty()) {
@@ -394,14 +340,7 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	protected void processStatementNode(ListRewrite bodyRewrite, PDGNode dstPDGNode, AST ast, ASTRewrite sourceRewriter) {
-		Statement statement = slice.getVariableCriterionDeclarationStatement();
-		if(variableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement &&
-				statement != null && (statement.equals(dstPDGNode.getASTStatement()) || statement.subtreeMatch(new ASTMatcher(), dstPDGNode.getASTStatement()))) {
-			//do nothing
-		}
-		else {
-			bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
-		}
+		bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
 	}
 
 	@Override

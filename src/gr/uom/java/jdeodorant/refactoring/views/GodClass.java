@@ -451,9 +451,11 @@ public class GodClass extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					packageExplorerAction.setEnabled(false);
+					if(activeProject != null && CompilationUnitCache.getInstance().getAffectedProjects().contains(activeProject)) {
+						applyRefactoringAction.setEnabled(false);
+						saveResultsAction.setEnabled(false);
+						packageExplorerAction.setEnabled(false);
+					}
 				}
 			}
 		});

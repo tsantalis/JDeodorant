@@ -14,6 +14,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.ITypeRoot;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -327,6 +328,20 @@ public class CompilationUnitCache extends Indexer {
 		changedCompilationUnits.clear();
 		addedCompilationUnits.clear();
 		removedCompilationUnits.clear();
+	}
+
+	public Set<IJavaProject> getAffectedProjects() {
+		Set<IJavaProject> affectedProjects = new LinkedHashSet<IJavaProject>();
+		for(ICompilationUnit cu : changedCompilationUnits) {
+			affectedProjects.add(cu.getJavaProject());
+		}
+		for(ICompilationUnit cu : addedCompilationUnits) {
+			affectedProjects.add(cu.getJavaProject());
+		}
+		for(ICompilationUnit cu : removedCompilationUnits) {
+			affectedProjects.add(cu.getJavaProject());
+		}
+		return affectedProjects;
 	}
 
 	public void clearCache() {

@@ -437,10 +437,12 @@ public class TypeChecking extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
+					if(activeProject != null && CompilationUnitCache.getInstance().getAffectedProjects().contains(activeProject)) {
+						applyRefactoringAction.setEnabled(false);
+						renameMethodAction.setEnabled(false);
+						saveResultsAction.setEnabled(false);
+						//evolutionAnalysisAction.setEnabled(false);
+					}
 				}
 			}
 		});
@@ -621,7 +623,7 @@ public class TypeChecking extends ViewPart {
 		renameMethodAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+				if(selection != null && selection.getFirstElement() instanceof TypeCheckElimination) {
 					TypeCheckElimination entry = (TypeCheckElimination)selection.getFirstElement();
 					String methodName = entry.getAbstractMethodName();
 					IInputValidator methodNameValidator = new MethodNameValidator();

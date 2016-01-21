@@ -26,7 +26,6 @@ import org.eclipse.draw2d.Viewport;
 import org.eclipse.draw2d.geometry.Point;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.ActionContributionItem;
-import org.eclipse.jface.action.ControlContribution;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IMenuCreator;
 import org.eclipse.jface.action.IToolBarManager;
@@ -42,12 +41,10 @@ import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseTrackAdapter;
 import org.eclipse.swt.events.MouseWheelListener;
-import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.IWorkbench;
@@ -56,7 +53,6 @@ import org.eclipse.ui.part.ViewPart;
 import org.eclipse.ui.progress.IProgressService;
 
 public class CodeSmellPackageExplorer extends ViewPart {
-	private static final Font CONSOLAS_BOLD_FONT = new Font(null, "Consolas", 10, SWT.BOLD);
 	public static final String ID = "gr.uom.java.jdeodorant.views.CodeSmellPackageExplorer";
 	private FigureCanvas figureCanvas; 
 	private ScalableLayeredPane root = null;
@@ -158,7 +154,7 @@ public class CodeSmellPackageExplorer extends ViewPart {
 					infoLabel = new LabelControlContribution("Label", "God Class Analysis of system: ", null);
 			}
 
-			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ", CONSOLAS_BOLD_FONT);
+			LabelControlContribution projectNameLabel = new LabelControlContribution("Label", diagram.getProjectName() +"  ");
 
 			if(infoLabel != null)
 				manager.add(infoLabel);
@@ -235,29 +231,6 @@ public class CodeSmellPackageExplorer extends ViewPart {
 	@Override
 	public void setFocus() {
 		
-	}
-
-	public class LabelControlContribution extends ControlContribution  
-	{  
-		private String name;
-		private Font font;
-
-		protected LabelControlContribution(String id, String name, Font font)  
-		{ 
-			super(id);  
-			this.name= name;
-			this.font= font;
-		}  
-
-		@Override  
-		protected Control createControl(Composite parent)  
-		{  
-			Label label= new Label(parent, SWT.CENTER);
-			label.setText(name);
-			if(font != null)
-				label.setFont(font);
-			return label;
-		}
 	}
 
 	private void hookTooltips(PackageMapDiagram diagram) {

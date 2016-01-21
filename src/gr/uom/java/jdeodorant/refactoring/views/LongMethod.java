@@ -111,6 +111,7 @@ public class LongMethod extends ViewPart {
 	private Action saveResultsAction;
 	//private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
+	private IJavaProject activeProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
@@ -301,9 +302,6 @@ public class LongMethod extends ViewPart {
 					/*if(sliceTable != null)
 						tableViewer.remove(sliceTable);*/
 					identifyBadSmellsAction.setEnabled(true);
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -401,7 +399,7 @@ public class LongMethod extends ViewPart {
 							String declaringClass = slice.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
 							String methodName = slice.getSourceMethodDeclaration().resolveBinding().toString();
 							String sourceMethodName = declaringClass + "::" + methodName;
-							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
 							content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
 							content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
@@ -451,9 +449,11 @@ public class LongMethod extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
+					if(activeProject != null && CompilationUnitCache.getInstance().getAffectedProjects().contains(activeProject)) {
+						applyRefactoringAction.setEnabled(false);
+						saveResultsAction.setEnabled(false);
+						//evolutionAnalysisAction.setEnabled(false);
+					}
 				}
 			}
 		});
@@ -474,6 +474,7 @@ public class LongMethod extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				activeProject = selectedProject;
 				CompilationUnitCache.getInstance().clearCache();
 				sliceGroupTable = getTable();
 				treeViewer.setContentProvider(new ViewContentProvider());
@@ -537,7 +538,7 @@ public class LongMethod extends ViewPart {
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				if(selection.getFirstElement() instanceof ASTSlice) {
+				if(selection != null && selection.getFirstElement() instanceof ASTSlice) {
 					ASTSlice slice = (ASTSlice)selection.getFirstElement();
 					TypeDeclaration sourceTypeDeclaration = slice.getSourceTypeDeclaration();
 					CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
@@ -561,7 +562,7 @@ public class LongMethod extends ViewPart {
 							String declaringClass = slice.getSourceTypeDeclaration().resolveBinding().getQualifiedName();
 							String methodName = slice.getSourceMethodDeclaration().resolveBinding().toString();
 							String sourceMethodName = declaringClass + "::" + methodName;
-							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
 							content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
 							content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
@@ -691,14 +692,14 @@ public class LongMethod extends ViewPart {
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
-			if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-				new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+			if(ASTReader.getSystemObject() != null && activeProject.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(activeProject, ASTReader.getSystemObject(), null);
 			}
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 						try {
-							new ASTReader(selectedProject, monitor);
+							new ASTReader(activeProject, monitor);
 						} catch (CompilationErrorDetectedException e) {
 							Display.getDefault().asyncExec(new Runnable() {
 								public void run() {

@@ -105,6 +105,7 @@ public class GodClass extends ViewPart {
 	private Action packageExplorerAction;
 	private ExtractClassCandidateGroup[] candidateRefactoringTable;
 	private IJavaProject selectedProject;
+	private IJavaProject activeProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
@@ -304,9 +305,6 @@ public class GodClass extends ViewPart {
 					/*if(candidateRefactoringTable != null)
 						tableViewer.remove(candidateRefactoringTable);*/
 					identifyBadSmellsAction.setEnabled(true);
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					packageExplorerAction.setEnabled(false);
 				}
 			}
 		}
@@ -396,7 +394,7 @@ public class GodClass extends ViewPart {
 							Set<MethodDeclaration> extractedMethods = candidate.getExtractedMethods();
 							boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
 							String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
-							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_class_name", "UTF-8") + "=" + URLEncoder.encode(declaringClass, "UTF-8");
 							String extractedElementsSourceCode = "";
 							String extractedFieldsText = "";
@@ -453,9 +451,11 @@ public class GodClass extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					packageExplorerAction.setEnabled(false);
+					if(activeProject != null && CompilationUnitCache.getInstance().getAffectedProjects().contains(activeProject)) {
+						applyRefactoringAction.setEnabled(false);
+						saveResultsAction.setEnabled(false);
+						packageExplorerAction.setEnabled(false);
+					}
 				}
 			}
 		});
@@ -484,6 +484,7 @@ public class GodClass extends ViewPart {
 					page.hideView(viewPart);
 					wasAlreadyOpen = true;
 				}
+				activeProject = selectedProject;
 				CompilationUnitCache.getInstance().clearCache();
 				candidateRefactoringTable = getTable();
 				treeViewer.setContentProvider(new ViewContentProvider());
@@ -525,7 +526,7 @@ public class GodClass extends ViewPart {
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				if(selection.getFirstElement() instanceof CandidateRefactoring) {
+				if(selection != null && selection.getFirstElement() instanceof CandidateRefactoring) {
 					CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
 					if(entry.getSourceClassTypeDeclaration() != null) {
 						IFile sourceFile = entry.getSourceIFile();
@@ -555,7 +556,7 @@ public class GodClass extends ViewPart {
 								try {
 									boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
 									String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
-									String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+									String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 									content += "&" + URLEncoder.encode("source_class_name", "UTF-8") + "=" + URLEncoder.encode(declaringClass, "UTF-8");
 									String extractedElementsSourceCode = "";
 									String extractedFieldsText = "";
@@ -708,14 +709,14 @@ public class GodClass extends ViewPart {
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
-			if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-				new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+			if(ASTReader.getSystemObject() != null && activeProject.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(activeProject, ASTReader.getSystemObject(), null);
 			}
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 						try {
-							new ASTReader(selectedProject, monitor);
+							new ASTReader(activeProject, monitor);
 						} catch (CompilationErrorDetectedException e) {
 							Display.getDefault().asyncExec(new Runnable() {
 								public void run() {

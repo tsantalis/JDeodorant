@@ -108,6 +108,7 @@ public class FeatureEnvy extends ViewPart {
 	private Action packageExplorerAction;
 	//private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
+	private IJavaProject activeProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
@@ -256,10 +257,6 @@ public class FeatureEnvy extends ViewPart {
 					/*if(candidateRefactoringTable != null)
 						tableViewer.remove(candidateRefactoringTable);*/
 					identifyBadSmellsAction.setEnabled(true);
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
-					packageExplorerAction.setEnabled(false);
 				}
 			}
 		}
@@ -351,7 +348,7 @@ public class FeatureEnvy extends ViewPart {
 							String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
 							String methodName = candidate.getSourceMethodDeclaration().resolveBinding().toString();
 							String sourceMethodName = declaringClass + "::" + methodName;
-							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
 							content += "&" + URLEncoder.encode("target_class_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getTarget(), "UTF-8");
 							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
@@ -394,10 +391,12 @@ public class FeatureEnvy extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
-					packageExplorerAction.setEnabled(false);
+					if(activeProject != null && CompilationUnitCache.getInstance().getAffectedProjects().contains(activeProject)) {
+						applyRefactoringAction.setEnabled(false);
+						saveResultsAction.setEnabled(false);
+						//evolutionAnalysisAction.setEnabled(false);
+						packageExplorerAction.setEnabled(false);
+					}
 				}
 			}
 		});
@@ -433,6 +432,7 @@ public class FeatureEnvy extends ViewPart {
 					page.hideView(viewPart);
 					wasAlreadyOpen = true;
 				}
+				activeProject = selectedProject;
 				CompilationUnitCache.getInstance().clearCache();
 				candidateRefactoringTable = getTable();
 				tableViewer.setContentProvider(new ViewContentProvider());
@@ -515,7 +515,7 @@ public class FeatureEnvy extends ViewPart {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
 				CandidateRefactoring entry = (CandidateRefactoring)selection.getFirstElement();
-				if(entry.getSourceClassTypeDeclaration() != null && entry.getTargetClassTypeDeclaration() != null) {
+				if(entry != null && entry.getSourceClassTypeDeclaration() != null && entry.getTargetClassTypeDeclaration() != null) {
 					IFile sourceFile = entry.getSourceIFile();
 					IFile targetFile = entry.getTargetIFile();
 					CompilationUnit sourceCompilationUnit = (CompilationUnit)entry.getSourceClassTypeDeclaration().getRoot();
@@ -540,7 +540,7 @@ public class FeatureEnvy extends ViewPart {
 								String declaringClass = candidate.getSourceClassTypeDeclaration().resolveBinding().getQualifiedName();
 								String methodName = candidate.getSourceMethodDeclaration().resolveBinding().toString();
 								String sourceMethodName = declaringClass + "::" + methodName;
-								String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+								String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 								content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
 								content += "&" + URLEncoder.encode("target_class_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getTarget(), "UTF-8");
 								content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
@@ -690,14 +690,14 @@ public class FeatureEnvy extends ViewPart {
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
-			if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-				new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+			if(ASTReader.getSystemObject() != null && activeProject.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(activeProject, ASTReader.getSystemObject(), null);
 			}
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 						try {
-							new ASTReader(selectedProject, monitor);
+							new ASTReader(activeProject, monitor);
 						} catch (CompilationErrorDetectedException e) {
 							Display.getDefault().asyncExec(new Runnable() {
 								public void run() {

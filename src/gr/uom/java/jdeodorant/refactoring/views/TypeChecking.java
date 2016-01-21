@@ -99,6 +99,7 @@ public class TypeChecking extends ViewPart {
 	private Action saveResultsAction;
 	//private Action evolutionAnalysisAction;
 	private IJavaProject selectedProject;
+	private IJavaProject activeProject;
 	private IPackageFragmentRoot selectedPackageFragmentRoot;
 	private IPackageFragment selectedPackageFragment;
 	private ICompilationUnit selectedCompilationUnit;
@@ -281,10 +282,6 @@ public class TypeChecking extends ViewPart {
 				if(javaProject != null && !javaProject.equals(selectedProject)) {
 					selectedProject = javaProject;
 					identifyBadSmellsAction.setEnabled(true);
-					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
 				}
 			}
 		}
@@ -392,7 +389,7 @@ public class TypeChecking extends ViewPart {
 							String declaringClass = elimination.getTypeCheckClass().resolveBinding().getQualifiedName();
 							String methodName = elimination.getTypeCheckMethod().resolveBinding().toString();
 							String sourceMethodName = declaringClass + "::" + methodName;
-							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
 							content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupSizeAtSystemLevel), "UTF-8");
 							content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(elimination.getGroupSizeAtClassLevel()), "UTF-8");
@@ -440,10 +437,12 @@ public class TypeChecking extends ViewPart {
 				int eventType = event.getEventType();
 				if(eventType == OperationHistoryEvent.UNDONE  || eventType == OperationHistoryEvent.REDONE ||
 						eventType == OperationHistoryEvent.OPERATION_ADDED || eventType == OperationHistoryEvent.OPERATION_REMOVED) {
-					applyRefactoringAction.setEnabled(false);
-					renameMethodAction.setEnabled(false);
-					saveResultsAction.setEnabled(false);
-					//evolutionAnalysisAction.setEnabled(false);
+					if(activeProject != null && CompilationUnitCache.getInstance().getAffectedProjects().contains(activeProject)) {
+						applyRefactoringAction.setEnabled(false);
+						renameMethodAction.setEnabled(false);
+						saveResultsAction.setEnabled(false);
+						//evolutionAnalysisAction.setEnabled(false);
+					}
 				}
 			}
 		});
@@ -465,6 +464,7 @@ public class TypeChecking extends ViewPart {
 	private void makeActions() {
 		identifyBadSmellsAction = new Action() {
 			public void run() {
+				activeProject = selectedProject;
 				CompilationUnitCache.getInstance().clearCache();
 				typeCheckEliminationGroupTable = getTable();
 				treeViewer.setContentProvider(new ViewContentProvider());
@@ -529,7 +529,7 @@ public class TypeChecking extends ViewPart {
 		applyRefactoringAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+				if(selection != null && selection.getFirstElement() instanceof TypeCheckElimination) {
 					TypeCheckElimination typeCheckElimination = (TypeCheckElimination)selection.getFirstElement();
 					TypeDeclaration sourceTypeDeclaration = typeCheckElimination.getTypeCheckClass();
 					CompilationUnit sourceCompilationUnit = (CompilationUnit)sourceTypeDeclaration.getRoot();
@@ -555,7 +555,7 @@ public class TypeChecking extends ViewPart {
 							String declaringClass = typeCheckElimination.getTypeCheckClass().resolveBinding().getQualifiedName();
 							String methodName = typeCheckElimination.getTypeCheckMethod().resolveBinding().toString();
 							String sourceMethodName = declaringClass + "::" + methodName;
-							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+							String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(activeProject.getElementName(), "UTF-8");
 							content += "&" + URLEncoder.encode("source_method_name", "UTF-8") + "=" + URLEncoder.encode(sourceMethodName, "UTF-8");
 							content += "&" + URLEncoder.encode("system_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupSizeAtSystemLevel), "UTF-8");
 							content += "&" + URLEncoder.encode("class_level_occurrences", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(typeCheckElimination.getGroupSizeAtClassLevel()), "UTF-8");
@@ -623,7 +623,7 @@ public class TypeChecking extends ViewPart {
 		renameMethodAction = new Action() {
 			public void run() {
 				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
-				if(selection.getFirstElement() instanceof TypeCheckElimination) {
+				if(selection != null && selection.getFirstElement() instanceof TypeCheckElimination) {
 					TypeCheckElimination entry = (TypeCheckElimination)selection.getFirstElement();
 					String methodName = entry.getAbstractMethodName();
 					IInputValidator methodNameValidator = new MethodNameValidator();
@@ -699,14 +699,14 @@ public class TypeChecking extends ViewPart {
 		try {
 			IWorkbench wb = PlatformUI.getWorkbench();
 			IProgressService ps = wb.getProgressService();
-			if(ASTReader.getSystemObject() != null && selectedProject.equals(ASTReader.getExaminedProject())) {
-				new ASTReader(selectedProject, ASTReader.getSystemObject(), null);
+			if(ASTReader.getSystemObject() != null && activeProject.equals(ASTReader.getExaminedProject())) {
+				new ASTReader(activeProject, ASTReader.getSystemObject(), null);
 			}
 			else {
 				ps.busyCursorWhile(new IRunnableWithProgress() {
 					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
 						try {
-							new ASTReader(selectedProject, monitor);
+							new ASTReader(activeProject, monitor);
 						} catch (CompilationErrorDetectedException e) {
 							Display.getDefault().asyncExec(new Runnable() {
 								public void run() {

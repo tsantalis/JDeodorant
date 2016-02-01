@@ -5,6 +5,7 @@ import gr.uom.java.ast.decomposition.cfg.CompositeVariable;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -154,13 +155,44 @@ public class Indexer {
 		}
 	}
 	
-	public Set<PlainVariable> getInvocationReferences(String originalMethodBindingKey) {
+	public Map<String, Set<PlainVariable>> getRecursivelyInvocationReferences(String methodBindingKey, Set<String> processedMethods) {
 		//String originalMethodBindingKey = originalMethod.resolveBinding().getKey();
-		if(methodInvocationThroughReferenceMap.containsKey(originalMethodBindingKey)) {
-			HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(originalMethodBindingKey);
-			return invokedMethodsThroughReference.keySet();
+		Map<String, Set<PlainVariable>> invocationReferenceMap = new LinkedHashMap<String, Set<PlainVariable>>();
+		if(methodInvocationThroughReferenceMap.containsKey(methodBindingKey)) {
+			HashMap<PlainVariable, LinkedHashSet<String>> invokedMethodsThroughReference = methodInvocationThroughReferenceMap.get(methodBindingKey);
+			invocationReferenceMap.put(methodBindingKey, invokedMethodsThroughReference.keySet());
 		}
-		return null;
+		processedMethods.add(methodBindingKey);
+		LinkedHashSet<String> invokedMethods = methodInvocationMap.get(methodBindingKey);
+		if(invokedMethods != null) {
+			for(String invokedMethodBindingKey : invokedMethods) {
+				if(!processedMethods.contains(invokedMethodBindingKey)) {
+					if(!abstractMethodSet.contains(invokedMethodBindingKey) && !overridingMethodMap.containsKey(invokedMethodBindingKey)) {
+						if(nativeMethodSet.contains(invokedMethodBindingKey)) {
+							//method is native
+						}
+						else {
+							invocationReferenceMap.putAll(getRecursivelyInvocationReferences(invokedMethodBindingKey, processedMethods));
+						}
+					}
+					else {
+						LinkedHashSet<String> overridingMethods = overridingMethodMap.get(invokedMethodBindingKey);
+						processedMethods.add(invokedMethodBindingKey);
+						if(overridingMethods != null) {
+							for(String overridingMethodBindingKey : overridingMethods) {
+								if(nativeMethodSet.contains(overridingMethodBindingKey)) {
+									//method is native
+								}
+								else {
+									invocationReferenceMap.putAll(getRecursivelyInvocationReferences(overridingMethodBindingKey, processedMethods));
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return invocationReferenceMap;
 	}
 	
 	public void addOverridingMethod(MethodDeclaration abstractMethod, MethodDeclaration overridingMethod) {
@@ -341,14 +373,14 @@ public class Indexer {
 							//method is native
 						}
 						else {
-							LinkedHashSet<PlainVariable> definedFieldsInInvokedMethod = definedFieldMap.get(invokedMethodBindingKey);
+							LinkedHashSet<PlainVariable> definedFieldsInInvokedMethod = getRecursivelyDefinedFields(invokedMethodBindingKey, new LinkedHashSet<String>());
 							if(definedFieldsInInvokedMethod != null) {
 								for(PlainVariable rightSide : definedFieldsInInvokedMethod) {
 									AbstractVariable definedField = composeVariable(fieldReference, rightSide);
 									definedFields.add(definedField);
 								}
 							}
-							LinkedHashSet<PlainVariable> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethodBindingKey);
+							LinkedHashSet<PlainVariable> usedFieldsInInvokedMethod = getRecursivelyUsedFields(invokedMethodBindingKey, new LinkedHashSet<String>());
 							if(usedFieldsInInvokedMethod != null) {
 								for(PlainVariable rightSide : usedFieldsInInvokedMethod) {
 									AbstractVariable usedField = composeVariable(fieldReference, rightSide);
@@ -385,7 +417,7 @@ public class Indexer {
 							//method is native
 						}
 						else {
-							LinkedHashSet<PlainVariable> usedFieldsInInvokedMethod = usedFieldMap.get(invokedMethod);
+							LinkedHashSet<PlainVariable> usedFieldsInInvokedMethod = getRecursivelyUsedFields(invokedMethod, new LinkedHashSet<String>());
 							if(usedFieldsInInvokedMethod != null) {
 								for(PlainVariable rightSide : usedFieldsInInvokedMethod) {
 									AbstractVariable usedField = composeVariable(fieldReference, rightSide);

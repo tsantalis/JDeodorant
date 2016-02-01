@@ -563,14 +563,26 @@ public class MethodCallAnalyzer {
 							if(depth < maximumCallGraphAnalysisDepth) {
 								IType superType = (IType)methodDeclaration.resolveBinding().getDeclaringClass().getJavaElement();
 								Set<IType> subTypes = instance.getSubTypes(superType);
-								for(IType subType : subTypes) {
-									if(!subType.equals(superType)) {
-										IClassFile classFile = subType.getClassFile();
-										CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
-										Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
-										for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
-											instance.addOverridingMethod(methodDeclaration, overridingMethod);
-											processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+								IType exactSubType = exactSubType(variableDeclaration, subTypes);
+								if(exactSubType != null && !exactSubType.equals(superType)) {
+									IClassFile classFile = exactSubType.getClassFile();
+									CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+									Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, exactSubType, compilationUnit);
+									for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
+										instance.addOverridingMethod(methodDeclaration, overridingMethod);
+										processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+									}
+								}
+								else {
+									for(IType subType : subTypes) {
+										if(!subType.equals(superType)) {
+											IClassFile classFile = subType.getClassFile();
+											CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+											Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
+											for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
+												instance.addOverridingMethod(methodDeclaration, overridingMethod);
+												processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+											}
 										}
 									}
 								}
@@ -660,14 +672,26 @@ public class MethodCallAnalyzer {
 					if(depth < maximumCallGraphAnalysisDepth) {
 						IType superType = (IType)methodDeclaration.resolveBinding().getDeclaringClass().getJavaElement();
 						Set<IType> subTypes = instance.getSubTypes(superType);
-						for(IType subType : subTypes) {
-							if(!subType.equals(superType)) {
-								IClassFile classFile = subType.getClassFile();
-								CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
-								Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
-								for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
-									instance.addOverridingMethod(methodDeclaration, overridingMethod);
-									processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+						IType exactSubType = exactSubType(variableDeclaration, subTypes);
+						if(exactSubType != null && !exactSubType.equals(superType)) {
+							IClassFile classFile = exactSubType.getClassFile();
+							CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+							Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, exactSubType, compilationUnit);
+							for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
+								instance.addOverridingMethod(methodDeclaration, overridingMethod);
+								processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+							}
+						}
+						else {
+							for(IType subType : subTypes) {
+								if(!subType.equals(superType)) {
+									IClassFile classFile = subType.getClassFile();
+									CompilationUnit compilationUnit = instance.getCompilationUnit(classFile);
+									Set<MethodDeclaration> matchingSubTypeMethodDeclarations = getMatchingMethodDeclarationsForSubType(methodBinding, subType, compilationUnit);
+									for(MethodDeclaration overridingMethod : matchingSubTypeMethodDeclarations) {
+										instance.addOverridingMethod(methodDeclaration, overridingMethod);
+										processExternalMethodInvocation(overridingMethod, variableDeclaration, processedMethods, depth);
+									}
 								}
 							}
 						}
@@ -675,6 +699,22 @@ public class MethodCallAnalyzer {
 				}
 			}
 		}
+	}
+
+	private IType exactSubType(AbstractVariable variableDeclaration, Set<IType> subTypes) {
+		PlainVariable plainVariable = null;
+		if(variableDeclaration instanceof PlainVariable) {
+			plainVariable = (PlainVariable)variableDeclaration;
+		}
+		else if(variableDeclaration instanceof CompositeVariable) {
+			plainVariable = ((CompositeVariable)variableDeclaration).getFinalVariable();
+		}
+		for(IType subType : subTypes) {
+			if(plainVariable.getVariableType().startsWith(subType.getFullyQualifiedName())) {
+				return subType;
+			}
+		}
+		return null;
 	}
 
 	private MethodDeclaration getInvokedMethodDeclaration(IMethodBinding methodBinding) {
@@ -716,20 +756,23 @@ public class MethodCallAnalyzer {
 			AbstractVariable field = composeVariable(variableDeclaration, originalField);
 			usedVariables.add(field);
 		}
-		Set<PlainVariable> invocationReferences = indexer.getInvocationReferences(methodBindingKey);
-		if(invocationReferences != null) {
-			for(PlainVariable invocationReference : invocationReferences) {
-				LinkedHashSet<AbstractVariable> definedFieldsThroughReference = 
-					indexer.getRecursivelyDefinedFieldsThroughReference(methodBindingKey, invocationReference, new LinkedHashSet<String>());
-				for(AbstractVariable definedField : definedFieldsThroughReference) {
-					AbstractVariable field = composeVariable(variableDeclaration, definedField);
-					definedVariables.add(field);
-				}
-				LinkedHashSet<AbstractVariable> usedFieldsThroughReference = 
-					indexer.getRecursivelyUsedFieldsThroughReference(methodBindingKey, invocationReference, new LinkedHashSet<String>());
-				for(AbstractVariable usedField : usedFieldsThroughReference) {
-					AbstractVariable field = composeVariable(variableDeclaration, usedField);
-					usedVariables.add(field);
+		Map<String, Set<PlainVariable>> invocationReferenceMap = indexer.getRecursivelyInvocationReferences(methodBindingKey, new LinkedHashSet<String>());
+		for(String invokedMethodBindingKey : invocationReferenceMap.keySet()) {
+			Set<PlainVariable> invocationReferences = invocationReferenceMap.get(invokedMethodBindingKey);
+			if(invocationReferences != null) {
+				for(PlainVariable invocationReference : invocationReferences) {
+					LinkedHashSet<AbstractVariable> definedFieldsThroughReference = 
+							indexer.getRecursivelyDefinedFieldsThroughReference(invokedMethodBindingKey, invocationReference, new LinkedHashSet<String>());
+					for(AbstractVariable definedField : definedFieldsThroughReference) {
+						AbstractVariable field = composeVariable(variableDeclaration, definedField);
+						definedVariables.add(field);
+					}
+					LinkedHashSet<AbstractVariable> usedFieldsThroughReference = 
+							indexer.getRecursivelyUsedFieldsThroughReference(invokedMethodBindingKey, invocationReference, new LinkedHashSet<String>());
+					for(AbstractVariable usedField : usedFieldsThroughReference) {
+						AbstractVariable field = composeVariable(variableDeclaration, usedField);
+						usedVariables.add(field);
+					}
 				}
 			}
 		}
@@ -755,6 +798,7 @@ public class MethodCallAnalyzer {
 					leftSide.getVariableType(), leftSide.isField(), leftSide.isParameter(), rightSide);
 		}
 	}
+
 	private Set<TypeDeclaration> extractTypeDeclarations(CompilationUnit compilationUnit) {
 		Set<TypeDeclaration> typeDeclarations = new LinkedHashSet<TypeDeclaration>();
 		if(compilationUnit != null) {

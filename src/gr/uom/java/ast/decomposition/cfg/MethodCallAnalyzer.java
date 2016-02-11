@@ -776,9 +776,8 @@ public class MethodCallAnalyzer {
 				}
 			}
 		}
-		LinkedHashSet<String> recursivelyThrownExceptionTypes =
-			indexer.getRecursivelyThrownExceptionTypes(methodBindingKey, new LinkedHashSet<String>());
-		thrownExceptionTypes.addAll(recursivelyThrownExceptionTypes);
+		LinkedHashSet<String> thrownExceptionTypes = indexer.getThrownExceptionTypes(methodBindingKey);
+		thrownExceptionTypes.addAll(thrownExceptionTypes);
 	}
 
 	private AbstractVariable composeVariable(AbstractVariable leftSide, AbstractVariable rightSide) {

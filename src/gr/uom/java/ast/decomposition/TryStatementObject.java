@@ -1,7 +1,12 @@
 package gr.uom.java.ast.decomposition;
 
+import gr.uom.java.ast.MethodInvocationObject;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jdt.core.dom.Statement;
 
@@ -90,5 +95,47 @@ public class TryStatementObject extends CompositeStatementObject {
 			tryStatements.addAll(finallyClause.getTryStatements());
 		}
 		return tryStatements;
+	}
+	
+	public boolean hasFinallyClauseClosingVariable(AbstractVariable variable) {
+		if(finallyClause != null) {
+			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughLocalVariables = 
+					finallyClause.getInvokedMethodsThroughLocalVariables();
+			for(AbstractVariable key : invokedMethodsThroughLocalVariables.keySet()) {
+				if(key.equals(variable)) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughLocalVariables.get(key);
+					for(MethodInvocationObject methodInvocation : methodInvocations) {
+						if(methodInvocation.getMethodName().equals("close")) {
+							return true;
+						}
+					}
+				}
+			}
+			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughParameters = 
+					finallyClause.getInvokedMethodsThroughParameters();
+			for(AbstractVariable key : invokedMethodsThroughParameters.keySet()) {
+				if(key.equals(variable)) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(key);
+					for(MethodInvocationObject methodInvocation : methodInvocations) {
+						if(methodInvocation.getMethodName().equals("close")) {
+							return true;
+						}
+					}
+				}
+			}
+			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = 
+					finallyClause.getInvokedMethodsThroughFields();
+			for(AbstractVariable key : invokedMethodsThroughFields.keySet()) {
+				if(key.equals(variable)) {
+					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(key);
+					for(MethodInvocationObject methodInvocation : methodInvocations) {
+						if(methodInvocation.getMethodName().equals("close")) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 }

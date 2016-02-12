@@ -351,6 +351,13 @@ public class Indexer {
 		return thrownExceptionTypes;
 	}
 	
+	public LinkedHashSet<String> getThrownExceptionTypes(String methodBindingKey) {
+		LinkedHashSet<String> thrownExceptionTypes = new LinkedHashSet<String>();
+		if(thrownExceptionTypeMap.containsKey(methodBindingKey))
+			thrownExceptionTypes.addAll(thrownExceptionTypeMap.get(methodBindingKey));
+		return thrownExceptionTypes;
+	}
+	
 	public LinkedHashSet<AbstractVariable> getRecursivelyDefinedFieldsThroughReference(String methodBindingKey,
 			AbstractVariable fieldReference, Set<String> processedMethods) {
 		LinkedHashSet<AbstractVariable> definedFields = new LinkedHashSet<AbstractVariable>();

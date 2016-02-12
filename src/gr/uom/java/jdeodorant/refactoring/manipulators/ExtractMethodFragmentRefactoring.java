@@ -24,6 +24,7 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
@@ -182,51 +183,61 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 	protected Set<ITypeBinding> getThrownExceptionTypes(Statement statement) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> methodInvocations = new ArrayList<Expression>();
+		List<Expression> classInstanceCreations = new ArrayList<Expression>();
 		if(statement instanceof IfStatement) {
 			IfStatement ifStatement = (IfStatement)statement;
 			Expression ifExpression = ifStatement.getExpression();
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(ifExpression));
+			classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(ifExpression));
 		}
 		else if(statement instanceof WhileStatement) {
 			WhileStatement whileStatement = (WhileStatement)statement;
 			Expression whileExpression = whileStatement.getExpression();
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(whileExpression));
+			classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(whileExpression));
 		}
 		else if(statement instanceof ForStatement) {
 			ForStatement forStatement = (ForStatement)statement;
 			List<Expression> initializers = forStatement.initializers();
 			for(Expression expression : initializers) {
 				methodInvocations.addAll(expressionExtractor.getMethodInvocations(expression));
+				classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(expression));
 			}
 			Expression forExpression = forStatement.getExpression();
 			if(forExpression != null) {
 				methodInvocations.addAll(expressionExtractor.getMethodInvocations(forExpression));
+				classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(forExpression));
 			}
 			List<Expression> updaters = forStatement.updaters();
 			for(Expression expression : updaters) {
 				methodInvocations.addAll(expressionExtractor.getMethodInvocations(expression));
+				classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(expression));
 			}
 		}
 		else if(statement instanceof EnhancedForStatement) {
 			EnhancedForStatement enhancedForStatement = (EnhancedForStatement)statement;
 			Expression expression = enhancedForStatement.getExpression();
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(expression));
+			classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(expression));
 		}
 		else if(statement instanceof DoStatement) {
 			DoStatement doStatement = (DoStatement)statement;
 			Expression doExpression = doStatement.getExpression();
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(doExpression));
+			classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(doExpression));
 		}
 		else if(statement instanceof SwitchStatement) {
 			SwitchStatement switchStatement = (SwitchStatement)statement;
 			Expression switchExpression = switchStatement.getExpression();
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(switchExpression));
+			classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(switchExpression));
 		}
 		else if(statement instanceof TryStatement) {
 			
 		}
 		else {
 			methodInvocations.addAll(expressionExtractor.getMethodInvocations(statement));
+			classInstanceCreations.addAll(expressionExtractor.getClassInstanceCreations(statement));
 		}
 		Set<ITypeBinding> thrownExceptionTypes = new LinkedHashSet<ITypeBinding>();
 		for(Expression expression : methodInvocations) {
@@ -244,6 +255,13 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 				for(ITypeBinding typeBinding : exceptionTypes)
 					thrownExceptionTypes.add(typeBinding);
 			}
+		}
+		for(Expression expression : classInstanceCreations) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
+			ITypeBinding[] exceptionTypes = constructorBinding.getExceptionTypes();
+			for(ITypeBinding typeBinding : exceptionTypes)
+				thrownExceptionTypes.add(typeBinding);
 		}
 		if(statement instanceof ThrowStatement) {
 			ThrowStatement throwStatement = (ThrowStatement)statement;
@@ -506,16 +524,30 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 				UnionType unionType = (UnionType)exceptionDeclarationType;
 				List<Type> types = unionType.types();
 				for(Type type : types) {
-					if(type.resolveBinding().isEqualTo(exceptionType))
+					ITypeBinding exceptionDeclarationTypeBinding = type.resolveBinding();
+					if(equalOrExtend(exceptionType, exceptionDeclarationTypeBinding))
 						return true;
 				}
 			}
 			else {
-				if(exceptionDeclarationType.resolveBinding().isEqualTo(exceptionType))
+				ITypeBinding exceptionDeclarationTypeBinding = exceptionDeclarationType.resolveBinding();
+				if(equalOrExtend(exceptionType, exceptionDeclarationTypeBinding))
 					return true;
 			}
 		}
 		return false;
+	}
+
+	private boolean equalOrExtend(ITypeBinding subTypeBinding, ITypeBinding superTypeBinding) {
+		if(subTypeBinding.isEqualTo(superTypeBinding))
+			return true;
+		ITypeBinding superClassTypeBinding = subTypeBinding.getSuperclass();
+		if(superClassTypeBinding != null) {
+			return equalOrExtend(superClassTypeBinding, superTypeBinding);
+		}
+		else {
+			return false;
+		}
 	}
 
 	protected ITypeBinding extractTypeBinding(VariableDeclaration variableDeclaration) {

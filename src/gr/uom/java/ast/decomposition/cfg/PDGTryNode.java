@@ -12,4 +12,8 @@ public class PDGTryNode extends PDGBlockNode {
 		this.controlParent = cfgTryNode.getControlParent();
 		determineDefinedAndUsedVariables();
 	}
+	
+	public boolean hasFinallyClauseClosingVariable(AbstractVariable variable) {
+		return ((CFGTryNode)getCFGNode()).hasFinallyClauseClosingVariable(variable);
+	}
 }

@@ -32,6 +32,8 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.PostfixExpression;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -530,6 +532,91 @@ public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 									}
 									else if(!returnedVariableDeclaration.resolveBinding().isEqualTo(leftHandSideVariableBinding)) {
 										return true;
+									}
+								}
+							}
+						}
+					}
+				}
+				List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(statement);
+				for(Expression expression : postfixExpressions) {
+					PostfixExpression postfix = (PostfixExpression)expression;
+					Expression operand = postfix.getOperand();
+					SimpleName operandName = null;
+					if(operand instanceof SimpleName) {
+						operandName = (SimpleName)operand;
+					}
+					else if(operand instanceof QualifiedName) {
+						QualifiedName qualifiedName = (QualifiedName)operand;
+						operandName = qualifiedName.getName();
+					}
+					else if(operand instanceof FieldAccess) {
+						FieldAccess fieldAccess = (FieldAccess)operand;
+						operandName = fieldAccess.getName();
+					}
+					if(operandName != null) {
+						IBinding operandBinding = operandName.resolveBinding();
+						if(operandBinding != null && operandBinding.getKind() == IBinding.VARIABLE) {
+							IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+							if(!operandVariableBinding.isField()) {
+								boolean variableIsDeclaredInsideBranch = false;
+								for(VariableDeclarationFragment fragment : variableDeclarationFragmentsInsideBranch) {
+									IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+									if(fragmentVariableBinding.isEqualTo(operandVariableBinding)) {
+										variableIsDeclaredInsideBranch = true;
+										break;
+									}
+								}
+								if(!variableIsDeclaredInsideBranch) {
+									if(returnedVariableDeclaration == null) {
+										return true;
+									}
+									else if(!returnedVariableDeclaration.resolveBinding().isEqualTo(operandVariableBinding)) {
+										return true;
+									}
+								}
+							}
+						}
+					}
+				}
+				List<Expression> prefixExpressions = expressionExtractor.getPrefixExpressions(statement);
+				for(Expression expression : prefixExpressions) {
+					PrefixExpression prefix = (PrefixExpression)expression;
+					if(prefix.getOperator().equals(PrefixExpression.Operator.INCREMENT) ||
+							prefix.getOperator().equals(PrefixExpression.Operator.DECREMENT)) {
+						Expression operand = prefix.getOperand();
+						SimpleName operandName = null;
+						if(operand instanceof SimpleName) {
+							operandName = (SimpleName)operand;
+						}
+						else if(operand instanceof QualifiedName) {
+							QualifiedName qualifiedName = (QualifiedName)operand;
+							operandName = qualifiedName.getName();
+						}
+						else if(operand instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)operand;
+							operandName = fieldAccess.getName();
+						}
+						if(operandName != null) {
+							IBinding operandBinding = operandName.resolveBinding();
+							if(operandBinding != null && operandBinding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding operandVariableBinding = (IVariableBinding)operandBinding;
+								if(!operandVariableBinding.isField()) {
+									boolean variableIsDeclaredInsideBranch = false;
+									for(VariableDeclarationFragment fragment : variableDeclarationFragmentsInsideBranch) {
+										IVariableBinding fragmentVariableBinding = fragment.resolveBinding();
+										if(fragmentVariableBinding.isEqualTo(operandVariableBinding)) {
+											variableIsDeclaredInsideBranch = true;
+											break;
+										}
+									}
+									if(!variableIsDeclaredInsideBranch) {
+										if(returnedVariableDeclaration == null) {
+											return true;
+										}
+										else if(!returnedVariableDeclaration.resolveBinding().isEqualTo(operandVariableBinding)) {
+											return true;
+										}
 									}
 								}
 							}

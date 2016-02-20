@@ -2563,6 +2563,12 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			if(!typeBindings.contains(returnTypeBinding))
 				typeBindings.add(returnTypeBinding);
 		}
+		else {
+			Type returnType = typeCheckElimination.getTypeCheckMethodReturnType();
+			ITypeBinding returnTypeBinding = returnType.resolveBinding();
+			if(!typeBindings.contains(returnTypeBinding))
+				typeBindings.add(returnTypeBinding);
+		}
 		
 		Set<SingleVariableDeclaration> parameters = typeCheckElimination.getAccessedParameters();
 		for(SingleVariableDeclaration parameter : parameters) {

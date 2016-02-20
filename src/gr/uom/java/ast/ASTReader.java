@@ -12,7 +12,6 @@ import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -63,7 +62,7 @@ public class ASTReader {
 	public static final int JLS = AST.JLS8;
 
 	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) throws CompilationErrorDetectedException {
-		List<IMarker> markers = buildProject(iJavaProject);
+		List<IMarker> markers = buildProject(iJavaProject, monitor);
 		if(!markers.isEmpty()) {
 			throw new CompilationErrorDetectedException(markers);
 		}
@@ -97,7 +96,7 @@ public class ASTReader {
 	}
 
 	public ASTReader(IJavaProject iJavaProject, SystemObject existingSystemObject, IProgressMonitor monitor) throws CompilationErrorDetectedException {
-		List<IMarker> markers = buildProject(iJavaProject);
+		List<IMarker> markers = buildProject(iJavaProject, monitor);
 		if(!markers.isEmpty()) {
 			throw new CompilationErrorDetectedException(markers);
 		}
@@ -147,13 +146,12 @@ public class ASTReader {
 			monitor.done();
 	}
 
-	private List<IMarker> buildProject(IJavaProject iJavaProject) {
+	private List<IMarker> buildProject(IJavaProject iJavaProject, IProgressMonitor pm) {
 		ArrayList<IMarker> result = new ArrayList<IMarker>();
 		try {
-			IProgressMonitor npm = new NullProgressMonitor();
 			IProject project = iJavaProject.getProject();
-			project.refreshLocal(IResource.DEPTH_INFINITE, npm);	
-			project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, npm);
+			project.refreshLocal(IResource.DEPTH_INFINITE, pm);	
+			project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, pm);
 			IMarker[] markers = null;
 			markers = project.findMarkers(IJavaModelMarker.JAVA_MODEL_PROBLEM_MARKER, true, IResource.DEPTH_INFINITE);
 			for (IMarker marker: markers) {

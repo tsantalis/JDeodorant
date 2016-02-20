@@ -71,7 +71,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 										Display.getDefault().asyncExec(new Runnable() {
 											public void run() {
 												MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
-														"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+														"Compilation errors were detected in the project. Fix the errors before using JDeodorant.");
 											}
 										});
 									}
@@ -153,7 +153,7 @@ public class CloneRefactoringAction implements IObjectActionDelegate {
 			e.printStackTrace();
 		} catch (CompilationErrorDetectedException e) {
 			MessageDialog.openInformation(part.getSite().getShell(), MESSAGE_DIALOG_TITLE,
-					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+					"Compilation errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 	}
 

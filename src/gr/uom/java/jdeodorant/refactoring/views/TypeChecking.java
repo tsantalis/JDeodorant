@@ -711,7 +711,7 @@ public class TypeChecking extends ViewPart {
 							Display.getDefault().asyncExec(new Runnable() {
 								public void run() {
 									MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
-											"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+											"Compilation errors were detected in the project. Fix the errors before using JDeodorant.");
 								}
 							});
 						}
@@ -762,7 +762,7 @@ public class TypeChecking extends ViewPart {
 			e.printStackTrace();
 		} catch (CompilationErrorDetectedException e) {
 			MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
-					"Compilations errors were detected in the project. Fix the errors before using JDeodorant.");
+					"Compilation errors were detected in the project. Fix the errors before using JDeodorant.");
 		}
 		return table;
 	}

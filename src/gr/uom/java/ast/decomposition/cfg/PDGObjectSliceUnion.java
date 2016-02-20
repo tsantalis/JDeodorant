@@ -530,6 +530,23 @@ public class PDGObjectSliceUnion {
 		return false;
 	}
 
+	private boolean sliceContainsVariableDeclarationClosedInFinallyBlock() {
+		for(PDGNode sliceNode : sliceNodes) {
+			Set<AbstractVariable> declaredVariables = sliceNode.declaredVariables;
+			for(AbstractVariable declaredVariable : declaredVariables) {
+				for(PDGNode sliceNode2 : sliceNodes) {
+					if(sliceNode2 instanceof PDGTryNode) {
+						PDGTryNode tryNode = (PDGTryNode)sliceNode2;
+						if(tryNode.hasFinallyClauseClosingVariable(declaredVariable)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	public boolean satisfiesRules() {
 		if(objectSliceEqualsMethodBody() || objectSliceHasMinimumSize() || declarationOfObjectReferenceIsDuplicated() ||
 				objectReferenceIsReturnedVariableInOriginalMethod() ||
@@ -539,7 +556,7 @@ public class PDGObjectSliceUnion {
 				nonDuplicatedSliceNodeOutputDependsOnNonRemovableNode() ||
 				duplicatedSliceNodeWithClassInstantiationHasDependenceOnRemovableNode() ||
 				!complyWithUserThresholds() || sliceContainsBranchStatementWithoutInnermostLoop() ||
-				variableCriterionIsStreamClosedInFinallyBlock())
+				variableCriterionIsStreamClosedInFinallyBlock() || sliceContainsVariableDeclarationClosedInFinallyBlock())
 			return false;
 		return true;
 	}

@@ -22,6 +22,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -30,6 +31,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -61,6 +63,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 	protected TypeCheckElimination typeCheckElimination;
 	protected Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
 	protected Set<IJavaElement> javaElementsToOpenInEditor;
+	private Set<FieldDeclaration> fieldDeclarationsChangedWithPublicModifier;
 
 	public PolymorphismRefactoring(IFile sourceFile, CompilationUnit sourceCompilationUnit,
 			TypeDeclaration sourceTypeDeclaration, TypeCheckElimination typeCheckElimination) {
@@ -75,6 +78,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 		sourceCompilationUnitChange.setEdit(sourceMultiTextEdit);
 		compilationUnitChanges.put(sourceICompilationUnit, sourceCompilationUnitChange);
 		this.javaElementsToOpenInEditor = new LinkedHashSet<IJavaElement>();
+		this.fieldDeclarationsChangedWithPublicModifier = new LinkedHashSet<FieldDeclaration>();
 	}
 
 	public Set<IJavaElement> getJavaElementsToOpenInEditor() {
@@ -307,8 +311,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 								boolean accessedFieldFound = false;
 								for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 									if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
-										if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+										if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 											SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 											if(newRightHandSideName.getParent() instanceof FieldAccess) {
 												FieldAccess fieldAccess = (FieldAccess)newRightHandSideName.getParent();
@@ -339,6 +342,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 												}
 												else
 													methodInvocationArgumentsRewrite.insertLast(newQualifiedName, null);
+											}
+											if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+												setPublicModifierToSourceField(accessedFieldBinding);
 											}
 										}
 										else {
@@ -396,8 +402,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 				if(newRightHandSideName != null && newRightHandSideName.equals(newSimpleName)) {
 					for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 						if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
-							if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-									(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+							if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 								SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 								if(newSimpleName.getParent() instanceof FieldAccess) {
 									FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
@@ -407,6 +412,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 									SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
 									QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
 									subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+								}
+								if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									setPublicModifierToSourceField(accessedFieldBinding);
 								}
 							}
 							else {
@@ -601,8 +609,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 					if(newOperandSimpleName != null && newOperandSimpleName.equals(newSimpleName)) {
 						for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 							if(accessedFieldBinding.isEqualTo(oldOperandSimpleName.resolveBinding())) {
-								if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-										(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+								if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 									SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 									if(newOperandSimpleName.getParent() instanceof FieldAccess) {
 										FieldAccess fieldAccess = (FieldAccess)newOperandSimpleName.getParent();
@@ -612,6 +619,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 										SimpleName simpleName = subclassAST.newSimpleName(newOperandSimpleName.getIdentifier());
 										QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
 										subclassRewriter.replace(newOperandSimpleName, newQualifiedName, null);
+									}
+									if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+										setPublicModifierToSourceField(accessedFieldBinding);
 									}
 								}
 								else {
@@ -653,8 +663,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 			else {
 				for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 					if(accessedFieldBinding.isEqualTo(oldSimpleName.resolveBinding())) {
-						if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-								(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+						if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 							SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 							if(newSimpleName.getParent() instanceof FieldAccess) {
 								FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
@@ -664,6 +673,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 								SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
 								QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
 								subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+							}
+							if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								setPublicModifierToSourceField(accessedFieldBinding);
 							}
 						}
 						else {
@@ -704,6 +716,69 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 				}
 			}
 			j++;
+		}
+	}
+
+	private void setPublicModifierToSourceField(IVariableBinding variableBinding) {
+		FieldDeclaration[] fieldDeclarations = sourceTypeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				boolean modifierIsReplaced = false;
+				if(variableBinding.isEqualTo(fragment.resolveBinding())) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+					ListRewrite modifierRewrite = sourceRewriter.getListRewrite(fieldDeclaration, FieldDeclaration.MODIFIERS2_PROPERTY);
+					Modifier publicModifier = fieldDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+					boolean modifierFound = false;
+					List<IExtendedModifier> modifiers = fieldDeclaration.modifiers();
+					for(IExtendedModifier extendedModifier : modifiers) {
+						if(extendedModifier.isModifier()) {
+							Modifier modifier = (Modifier)extendedModifier;
+							if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+								modifierFound = true;
+							}
+							else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD)) {
+								if(!fieldDeclarationsChangedWithPublicModifier.contains(fieldDeclaration)) {
+									fieldDeclarationsChangedWithPublicModifier.add(fieldDeclaration);
+									modifierFound = true;
+									modifierRewrite.replace(modifier, publicModifier, null);
+									modifierIsReplaced = true;
+									try {
+										TextEdit sourceEdit = sourceRewriter.rewriteAST();
+										ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+										CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+										change.getEdit().addChild(sourceEdit);
+										change.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+									} catch (JavaModelException e) {
+										e.printStackTrace();
+									}
+								}
+							}
+							else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+								modifierFound = true;
+							}
+						}
+					}
+					if(!modifierFound) {
+						if(!fieldDeclarationsChangedWithPublicModifier.contains(fieldDeclaration)) {
+							fieldDeclarationsChangedWithPublicModifier.add(fieldDeclaration);
+							modifierRewrite.insertFirst(publicModifier, null);
+							modifierIsReplaced = true;
+							try {
+								TextEdit sourceEdit = sourceRewriter.rewriteAST();
+								ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+								CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+								change.getEdit().addChild(sourceEdit);
+								change.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+							} catch (JavaModelException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+				if(modifierIsReplaced)
+					break;
+			}
 		}
 	}
 
@@ -779,47 +854,49 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 		accessedFields.addAll(typeCheckElimination.getAccessedFields());
 		accessedFields.addAll(typeCheckElimination.getSuperAccessedFields());
 		for(VariableDeclarationFragment fragment : accessedFields) {
-			IMethodBinding getterMethodBinding = null;
-			if(typeCheckElimination.getSuperAccessedFields().contains(fragment)) {
-				for(IVariableBinding fieldBinding : typeCheckElimination.getSuperAccessedFieldBindings()) {
-					if(fieldBinding.isEqualTo(fragment.resolveBinding())) {
-						getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(fieldBinding);
-						break;
+			if((fragment.resolveBinding().getModifiers() & Modifier.STATIC) == 0) {
+				IMethodBinding getterMethodBinding = null;
+				if(typeCheckElimination.getSuperAccessedFields().contains(fragment)) {
+					for(IVariableBinding fieldBinding : typeCheckElimination.getSuperAccessedFieldBindings()) {
+						if(fieldBinding.isEqualTo(fragment.resolveBinding())) {
+							getterMethodBinding = typeCheckElimination.getGetterMethodBindingOfSuperAccessedField(fieldBinding);
+							break;
+						}
 					}
 				}
-			}
-			else {
-				getterMethodBinding = findGetterMethodInContext(fragment.resolveBinding());
-			}
-			if(getterMethodBinding == null) {
-				FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
-				int modifiers = fieldDeclaration.getModifiers();
-				if(!fragment.equals(typeCheckElimination.getTypeField()) &&
-						!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
-					ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
-					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
-					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
-					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-					methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-					String methodName = fragment.getName().getIdentifier();
-					methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
-					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(methodName), null);
-					Block methodDeclarationBody = contextAST.newBlock();
-					ListRewrite methodDeclarationBodyStatementsRewrite = sourceRewriter.getListRewrite(methodDeclarationBody, Block.STATEMENTS_PROPERTY);
-					ReturnStatement returnStatement = contextAST.newReturnStatement();
-					sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fragment.getName(), null);
-					methodDeclarationBodyStatementsRewrite.insertLast(returnStatement, null);
-					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
-					ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-					contextBodyRewrite.insertLast(newMethodDeclaration, null);
-					try {
-						TextEdit sourceEdit = sourceRewriter.rewriteAST();
-						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-						change.getEdit().addChild(sourceEdit);
-						change.addTextEditGroup(new TextEditGroup("Create getter method for accessed field", new TextEdit[] {sourceEdit}));
-					} catch (JavaModelException e) {
-						e.printStackTrace();
+				else {
+					getterMethodBinding = findGetterMethodInContext(fragment.resolveBinding());
+				}
+				if(getterMethodBinding == null) {
+					FieldDeclaration fieldDeclaration = (FieldDeclaration)fragment.getParent();
+					int modifiers = fieldDeclaration.getModifiers();
+					if(!fragment.equals(typeCheckElimination.getTypeField()) &&
+							!((modifiers & Modifier.PUBLIC) != 0 && (modifiers & Modifier.STATIC) != 0)) {
+						ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+						MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
+						sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
+						ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+						methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+						String methodName = fragment.getName().getIdentifier();
+						methodName = "get" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+						sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(methodName), null);
+						Block methodDeclarationBody = contextAST.newBlock();
+						ListRewrite methodDeclarationBodyStatementsRewrite = sourceRewriter.getListRewrite(methodDeclarationBody, Block.STATEMENTS_PROPERTY);
+						ReturnStatement returnStatement = contextAST.newReturnStatement();
+						sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fragment.getName(), null);
+						methodDeclarationBodyStatementsRewrite.insertLast(returnStatement, null);
+						sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
+						ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+						contextBodyRewrite.insertLast(newMethodDeclaration, null);
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Create getter method for accessed field", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
@@ -987,5 +1064,40 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 			}
 		}
 		return nonStaticAccessedMembers > 0;
+	}
+
+	protected Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, ITypeBinding returnTypeBinding) {
+		Expression returnedExpression = null;
+		if(returnTypeBinding.isPrimitive()) {
+			if(returnTypeBinding.getQualifiedName().equals("boolean")) {
+				returnedExpression = ast.newBooleanLiteral(false);
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("char")) {
+				CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+				sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
+				returnedExpression = characterLiteral;
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("int") ||
+					returnTypeBinding.getQualifiedName().equals("short") ||
+					returnTypeBinding.getQualifiedName().equals("byte")) {
+				returnedExpression = ast.newNumberLiteral("0");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("long")) {
+				returnedExpression = ast.newNumberLiteral("0L");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("float")) {
+				returnedExpression = ast.newNumberLiteral("0.0f");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("double")) {
+				returnedExpression = ast.newNumberLiteral("0.0d");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("void")) {
+				returnedExpression = null;
+			}
+		}
+		else {
+			returnedExpression = ast.newNullLiteral();
+		}
+		return returnedExpression;
 	}
 }

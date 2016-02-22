@@ -559,6 +559,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
 					methodInvocationArgumentsRewrite.insertLast(variableDeclarationFragment.getName(), null);
+					initializeReturnedVariableDeclaration();
 				}
 			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -594,6 +595,30 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			change.getEdit().addChild(sourceEdit);
 			change.addTextEditGroup(new TextEditGroup("Replace conditional structure with polymorphic method invocation", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void initializeReturnedVariableDeclaration() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
+		if(returnedVariable != null) {
+			IVariableBinding returnedVariableBinding = returnedVariable.resolveBinding();
+			if(returnedVariable instanceof VariableDeclarationFragment && !returnedVariableBinding.isField()) {
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+				if(variableDeclarationFragment.getInitializer() == null) {
+					Expression defaultValue = generateDefaultValue(sourceRewriter, contextAST, returnedVariableBinding.getType());
+					sourceRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, defaultValue, null);
+				}
+			}
+		}
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Initialize returned variable", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
@@ -820,6 +845,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
 					methodInvocationArgumentsRewrite.insertLast(variableDeclarationFragment.getName(), null);
+					initializeReturnedVariableDeclaration();
 				}
 			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -2314,6 +2340,51 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 												} catch (JavaModelException e) {
 													e.printStackTrace();
 												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					List<Expression> classInstanceCreations = expressionExtractor.getClassInstanceCreations(statement);
+					for(Expression expression : classInstanceCreations) {
+						ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
+						List<Expression> arguments = classInstanceCreation.arguments();
+						for(Expression argument : arguments) {
+							SimpleName accessedVariable = null;
+							if(argument instanceof SimpleName) {
+								accessedVariable = (SimpleName)argument;
+							}
+							else if(argument instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)argument;
+								accessedVariable = fieldAccess.getName();
+							}
+							if(accessedVariable != null) {
+								IBinding argumentBinding = accessedVariable.resolveBinding();
+								if(argumentBinding != null && argumentBinding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding accessedVariableBinding = (IVariableBinding)argumentBinding;
+									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariable.resolveBinding())) {
+										if(modify && !nodeExistsInsideTypeCheckCodeFragment(argument)) {
+											ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+											AST contextAST = sourceTypeDeclaration.getAST();
+											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+											if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
+											}
+											ListRewrite argumentRewrite = sourceRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+											argumentRewrite.replace(argument, getterMethodInvocation, null);
+											try {
+												TextEdit sourceEdit = sourceRewriter.rewriteAST();
+												ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+												CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+												change.getEdit().addChild(sourceEdit);
+												change.addTextEditGroup(new TextEditGroup("Replace field access with invocation of getter method", new TextEdit[] {sourceEdit}));
+											} catch (JavaModelException e) {
+												e.printStackTrace();
 											}
 										}
 									}

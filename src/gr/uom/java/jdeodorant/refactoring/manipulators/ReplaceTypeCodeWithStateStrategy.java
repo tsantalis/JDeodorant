@@ -559,6 +559,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
 					methodInvocationArgumentsRewrite.insertLast(variableDeclarationFragment.getName(), null);
+					initializeReturnedVariableDeclaration();
 				}
 			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {
@@ -594,6 +595,30 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			change.getEdit().addChild(sourceEdit);
 			change.addTextEditGroup(new TextEditGroup("Replace conditional structure with polymorphic method invocation", new TextEdit[] {sourceEdit}));
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void initializeReturnedVariableDeclaration() {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		AST contextAST = sourceTypeDeclaration.getAST();
+		if(returnedVariable != null) {
+			IVariableBinding returnedVariableBinding = returnedVariable.resolveBinding();
+			if(returnedVariable instanceof VariableDeclarationFragment && !returnedVariableBinding.isField()) {
+				VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
+				if(variableDeclarationFragment.getInitializer() == null) {
+					Expression defaultValue = generateDefaultValue(sourceRewriter, contextAST, returnedVariableBinding.getType());
+					sourceRewriter.set(variableDeclarationFragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, defaultValue, null);
+				}
+			}
+		}
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Initialize returned variable", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
@@ -820,6 +845,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				else if(returnedVariable instanceof VariableDeclarationFragment) {
 					VariableDeclarationFragment variableDeclarationFragment = (VariableDeclarationFragment)returnedVariable;
 					methodInvocationArgumentsRewrite.insertLast(variableDeclarationFragment.getName(), null);
+					initializeReturnedVariableDeclaration();
 				}
 			}
 			for(SingleVariableDeclaration abstractMethodParameter : typeCheckElimination.getAccessedParameters()) {

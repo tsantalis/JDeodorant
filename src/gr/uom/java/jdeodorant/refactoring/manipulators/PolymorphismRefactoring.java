@@ -22,6 +22,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.CharacterLiteral;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -30,6 +31,7 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -309,8 +311,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 								boolean accessedFieldFound = false;
 								for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 									if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
-										if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-												(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+										if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 											SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 											if(newRightHandSideName.getParent() instanceof FieldAccess) {
 												FieldAccess fieldAccess = (FieldAccess)newRightHandSideName.getParent();
@@ -341,6 +342,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 												}
 												else
 													methodInvocationArgumentsRewrite.insertLast(newQualifiedName, null);
+											}
+											if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+												setPublicModifierToSourceField(accessedFieldBinding);
 											}
 										}
 										else {
@@ -398,8 +402,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 				if(newRightHandSideName != null && newRightHandSideName.equals(newSimpleName)) {
 					for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 						if(accessedFieldBinding.isEqualTo(oldRightHandSideName.resolveBinding())) {
-							if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-									(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+							if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 								SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 								if(newSimpleName.getParent() instanceof FieldAccess) {
 									FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
@@ -409,6 +412,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 									SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
 									QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
 									subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+								}
+								if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									setPublicModifierToSourceField(accessedFieldBinding);
 								}
 							}
 							else {
@@ -603,8 +609,7 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 					if(newOperandSimpleName != null && newOperandSimpleName.equals(newSimpleName)) {
 						for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 							if(accessedFieldBinding.isEqualTo(oldOperandSimpleName.resolveBinding())) {
-								if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0 &&
-										(accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
+								if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
 									SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
 									if(newOperandSimpleName.getParent() instanceof FieldAccess) {
 										FieldAccess fieldAccess = (FieldAccess)newOperandSimpleName.getParent();
@@ -614,6 +619,9 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 										SimpleName simpleName = subclassAST.newSimpleName(newOperandSimpleName.getIdentifier());
 										QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
 										subclassRewriter.replace(newOperandSimpleName, newQualifiedName, null);
+									}
+									if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+										setPublicModifierToSourceField(accessedFieldBinding);
 									}
 								}
 								else {
@@ -656,29 +664,17 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 				for(IVariableBinding accessedFieldBinding : accessedFieldBindings) {
 					if(accessedFieldBinding.isEqualTo(oldSimpleName.resolveBinding())) {
 						if((accessedFieldBinding.getModifiers() & Modifier.STATIC) != 0) {
-							if((accessedFieldBinding.getModifiers() & Modifier.PUBLIC) != 0) {
-								SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
-								if(newSimpleName.getParent() instanceof FieldAccess) {
-									FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
-									subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
-								}
-								else if(!(newSimpleName.getParent() instanceof QualifiedName)) {
-									SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
-									QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
-									subclassRewriter.replace(newSimpleName, newQualifiedName, null);
-								}
+							SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
+							if(newSimpleName.getParent() instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
+								subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
 							}
-							else if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-								SimpleName qualifier = subclassAST.newSimpleName(accessedFieldBinding.getDeclaringClass().getName());
-								if(newSimpleName.getParent() instanceof FieldAccess) {
-									FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
-									subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
-								}
-								else if(!(newSimpleName.getParent() instanceof QualifiedName)) {
-									SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
-									QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
-									subclassRewriter.replace(newSimpleName, newQualifiedName, null);
-								}
+							else if(!(newSimpleName.getParent() instanceof QualifiedName)) {
+								SimpleName simpleName = subclassAST.newSimpleName(newSimpleName.getIdentifier());
+								QualifiedName newQualifiedName = subclassAST.newQualifiedName(qualifier, simpleName);
+								subclassRewriter.replace(newSimpleName, newQualifiedName, null);
+							}
+							if(accessedFieldBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								setPublicModifierToSourceField(accessedFieldBinding);
 							}
 						}
@@ -1068,5 +1064,40 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 			}
 		}
 		return nonStaticAccessedMembers > 0;
+	}
+
+	protected Expression generateDefaultValue(ASTRewrite sourceRewriter, AST ast, ITypeBinding returnTypeBinding) {
+		Expression returnedExpression = null;
+		if(returnTypeBinding.isPrimitive()) {
+			if(returnTypeBinding.getQualifiedName().equals("boolean")) {
+				returnedExpression = ast.newBooleanLiteral(false);
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("char")) {
+				CharacterLiteral characterLiteral = ast.newCharacterLiteral();
+				sourceRewriter.set(characterLiteral, CharacterLiteral.ESCAPED_VALUE_PROPERTY, "\u0000", null);
+				returnedExpression = characterLiteral;
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("int") ||
+					returnTypeBinding.getQualifiedName().equals("short") ||
+					returnTypeBinding.getQualifiedName().equals("byte")) {
+				returnedExpression = ast.newNumberLiteral("0");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("long")) {
+				returnedExpression = ast.newNumberLiteral("0L");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("float")) {
+				returnedExpression = ast.newNumberLiteral("0.0f");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("double")) {
+				returnedExpression = ast.newNumberLiteral("0.0d");
+			}
+			else if(returnTypeBinding.getQualifiedName().equals("void")) {
+				returnedExpression = null;
+			}
+		}
+		else {
+			returnedExpression = ast.newNullLiteral();
+		}
+		return returnedExpression;
 	}
 }

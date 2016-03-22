@@ -702,16 +702,18 @@ public class MethodCallAnalyzer {
 	}
 
 	private IType exactSubType(AbstractVariable variableDeclaration, Set<IType> subTypes) {
-		PlainVariable plainVariable = null;
-		if(variableDeclaration instanceof PlainVariable) {
-			plainVariable = (PlainVariable)variableDeclaration;
-		}
-		else if(variableDeclaration instanceof CompositeVariable) {
-			plainVariable = ((CompositeVariable)variableDeclaration).getFinalVariable();
-		}
-		for(IType subType : subTypes) {
-			if(plainVariable.getVariableType().startsWith(subType.getFullyQualifiedName())) {
-				return subType;
+		if(variableDeclaration != null) {
+			PlainVariable plainVariable = null;
+			if(variableDeclaration instanceof PlainVariable) {
+				plainVariable = (PlainVariable)variableDeclaration;
+			}
+			else if(variableDeclaration instanceof CompositeVariable) {
+				plainVariable = ((CompositeVariable)variableDeclaration).getFinalVariable();
+			}
+			for(IType subType : subTypes) {
+				if(plainVariable.getVariableType().startsWith(subType.getFullyQualifiedName())) {
+					return subType;
+				}
 			}
 		}
 		return null;

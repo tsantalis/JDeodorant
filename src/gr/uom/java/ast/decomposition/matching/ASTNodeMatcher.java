@@ -313,6 +313,37 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		else if(o.getClass().equals(NullLiteral.class)) {
 			NullLiteral nullLiteral = (NullLiteral) o;
+			ASTNode parent = ((ASTNode)o).getParent();
+			List<Expression> arguments = null;
+			IMethodBinding methodBinding = null;
+			if(parent instanceof MethodInvocation) {
+				MethodInvocation parentMethodInvocation = (MethodInvocation)parent;
+				arguments = parentMethodInvocation.arguments();
+				methodBinding = parentMethodInvocation.resolveMethodBinding();
+			}
+			else if(parent instanceof SuperMethodInvocation) {
+				SuperMethodInvocation parentMethodInvocation = (SuperMethodInvocation)parent;
+				arguments = parentMethodInvocation.arguments();
+				methodBinding = parentMethodInvocation.resolveMethodBinding();
+			}
+			else if(parent instanceof ClassInstanceCreation) {
+				ClassInstanceCreation parentClassInstanceCreation = (ClassInstanceCreation)parent;
+				arguments = parentClassInstanceCreation.arguments();
+				methodBinding = parentClassInstanceCreation.resolveConstructorBinding();
+			}
+			if(arguments != null && methodBinding != null) {
+				int argumentPosition = 0;
+				for(Expression argument : arguments) {
+					if(argument.equals(o)) {
+						ITypeBinding[] parameterTypeBindings = methodBinding.getParameterTypes();
+						//analyze only if the argument does not correspond to a varargs parameter
+						if(argumentPosition < parameterTypeBindings.length) {
+							return parameterTypeBindings[argumentPosition];
+						}
+					}
+					argumentPosition++;
+				}
+			}
 			return nullLiteral.resolveTypeBinding();
 		}
 		else if(o.getClass().equals(ParenthesizedExpression.class)) {

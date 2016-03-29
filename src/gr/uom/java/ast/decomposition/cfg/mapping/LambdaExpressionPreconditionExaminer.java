@@ -157,6 +157,9 @@ public class LambdaExpressionPreconditionExaminer {
 						}
 					}
 				}
+				if(variablesDefinedInMappedNodesBeforeGapAndUsedInBlockGap(blockGap.getNonEffectivelyFinalLocalVariableBindings(), blockGap)) {
+					nonEffectivelyFinalLocalVariableIsDefinedAndUsedInBlockGap = true;
+				}
 				if(variablesToBeReturnedG1.size() == 1 && variablesToBeReturnedG2.size() == 1) {
 					IVariableBinding returnedVariable1 = variablesToBeReturnedG1.iterator().next();
 					IVariableBinding returnedVariable2 = variablesToBeReturnedG2.iterator().next();
@@ -433,6 +436,39 @@ public class LambdaExpressionPreconditionExaminer {
 			}
 		}
 		return false;
+	}
+
+	private boolean variablesDefinedInMappedNodesBeforeGapAndUsedInBlockGap(Set<VariableBindingPair> nonEffectivelyFinalLocalVariableBindings, PDGNodeBlockGap blockGap) {
+		boolean allVariablesDefinedInMappedNodes = true;
+		boolean allVariablesUsedInBlockGap = true;
+		for(VariableBindingPair pair : nonEffectivelyFinalLocalVariableBindings) {
+			IVariableBinding binding1 = pair.getBinding1();
+			PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
+					binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+			IVariableBinding binding2 = pair.getBinding2();
+			PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
+					binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+			int blockGapFirstNodeId1 = blockGap.getNodesG1().isEmpty() ? finalState.getMappedNodesG1().last().getId() : blockGap.getNodesG1().first().getId();
+			int blockGapFirstNodeId2 = blockGap.getNodesG2().isEmpty() ? finalState.getMappedNodesG2().last().getId() : blockGap.getNodesG2().first().getId();
+			boolean definedVariableFound = false;
+			for(PDGNodeMapping mapping : finalState.getSortedNodeMappings()) {
+				PDGNode node1 = mapping.getNodeG1();
+				PDGNode node2 = mapping.getNodeG2();
+				if(node1.getId() < blockGapFirstNodeId1 && node2.getId() < blockGapFirstNodeId2 &&
+						node1.definesLocalVariable(variable1) || node2.definesLocalVariable(variable2)) {
+					definedVariableFound = true;
+				}
+			}
+			if(!definedVariableFound) {
+				allVariablesDefinedInMappedNodes = false;
+				break;
+			}
+			if(!blockGap.variableIsUsedInBlockGap(pair)) {
+				allVariablesUsedInBlockGap = false;
+				break;
+			}
+		}
+		return nonEffectivelyFinalLocalVariableBindings.size() > 0 && allVariablesDefinedInMappedNodes && allVariablesUsedInBlockGap;
 	}
 
 	private boolean variableIsInitializedInMappedNodes(VariableBindingPair pair) {

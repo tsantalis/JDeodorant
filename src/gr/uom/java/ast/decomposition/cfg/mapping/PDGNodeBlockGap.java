@@ -239,6 +239,10 @@ public class PDGNodeBlockGap extends Gap {
 		return variableDeclaredInNodes(nodesG1, pair.getBinding1()) && variableDeclaredInNodes(nodesG2, pair.getBinding2());
 	}
 
+	public boolean variableIsUsedInBlockGap(VariableBindingPair pair) {
+		return variableUsedInNodes(nodesG1, pair.getBinding1()) && variableUsedInNodes(nodesG2, pair.getBinding2());
+	}
+
 	public Set<IVariableBinding> getVariablesToBeReturnedG1() {
 		return variablesToBeReturned(nodesG1);
 	}

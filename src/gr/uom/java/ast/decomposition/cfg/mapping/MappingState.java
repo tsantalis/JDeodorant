@@ -5,8 +5,8 @@ import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
+import gr.uom.java.ast.decomposition.cfg.PDGAbstractDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
-import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -395,8 +395,8 @@ public class MappingState {
 		while(incomingEdgeIterator1.hasNext()) {
 			PDGDependence dependence = (PDGDependence)incomingEdgeIterator1.next();
 			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
-			if(dependence instanceof PDGDataDependence && restrictedNodesG1.contains(srcPDGNode)) {
-				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+			if(dependence instanceof PDGAbstractDataDependence && restrictedNodesG1.contains(srcPDGNode)) {
+				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
 				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, getMappedNodesG1());
 				boolean containsDeclaringNodeG1InMappings = nodeDeclaringVariable != null ? containsNodeG1InMappings(nodeDeclaringVariable) : false;
 				if(!containsNodeG1InMappings(srcPDGNode) && !containsDeclaringNodeG1InMappings) {
@@ -411,8 +411,8 @@ public class MappingState {
 		while(incomingEdgeIterator2.hasNext()) {
 			PDGDependence dependence = (PDGDependence)incomingEdgeIterator2.next();
 			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
-			if(dependence instanceof PDGDataDependence && restrictedNodesG2.contains(srcPDGNode)) {
-				PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+			if(dependence instanceof PDGAbstractDataDependence && restrictedNodesG2.contains(srcPDGNode)) {
+				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
 				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, getMappedNodesG2());
 				boolean containsDeclaringNodeG2InMappings = nodeDeclaringVariable != null ? containsNodeG2InMappings(nodeDeclaringVariable) : false;
 				if(!containsNodeG2InMappings(srcPDGNode) && !containsDeclaringNodeG2InMappings) {
@@ -421,9 +421,41 @@ public class MappingState {
 				}
 			}
 		}
-		
 		return incomingDataDependenceFromUnvisitedNodeG1 != incomingDataDependenceFromUnvisitedNodeG2 &&
 				restrictedNodesG1.size() == restrictedNodesG2.size();
+	}
+
+	public boolean incomingDataDependenciesFromNonMatchingNodes(PDGNode nodeG1, PDGNode nodeG2) {
+		TreeSet<PDGNode> incomingDataDependenciesFromMappedNodesG1 = new TreeSet<PDGNode>();
+		Iterator<GraphEdge> incomingEdgeIterator1 = nodeG1.getIncomingDependenceIterator();
+		while(incomingEdgeIterator1.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingEdgeIterator1.next();
+			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
+			if(dependence instanceof PDGAbstractDataDependence && restrictedNodesG1.contains(srcPDGNode)) {
+				if(containsNodeG1InMappings(srcPDGNode)) {
+					incomingDataDependenciesFromMappedNodesG1.add(srcPDGNode);
+				}
+			}
+		}
+		
+		TreeSet<PDGNode> incomingDataDependenciesFromMappedNodesG2 = new TreeSet<PDGNode>();
+		Iterator<GraphEdge> incomingEdgeIterator2 = nodeG2.getIncomingDependenceIterator();
+		while(incomingEdgeIterator2.hasNext()) {
+			PDGDependence dependence = (PDGDependence)incomingEdgeIterator2.next();
+			PDGNode srcPDGNode = (PDGNode)dependence.getSrc();
+			if(dependence instanceof PDGAbstractDataDependence && restrictedNodesG2.contains(srcPDGNode)) {
+				if(containsNodeG2InMappings(srcPDGNode)) {
+					incomingDataDependenciesFromMappedNodesG2.add(srcPDGNode);
+				}
+			}
+		}
+		
+		if(incomingDataDependenciesFromMappedNodesG1.size() == 1 && incomingDataDependenciesFromMappedNodesG2.size() == 1) {
+			if(!containsBothNodesInMappings(incomingDataDependenciesFromMappedNodesG1.first(), incomingDataDependenciesFromMappedNodesG2.first())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private PDGNode findNodeDeclaringVariable(AbstractVariable variable, PDGNode srcPDGNode, Set<PDGNode> nodes) {

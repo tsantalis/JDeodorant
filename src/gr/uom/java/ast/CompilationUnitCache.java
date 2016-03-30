@@ -30,124 +30,11 @@ public class CompilationUnitCache extends Indexer {
 	private Set<ICompilationUnit> addedCompilationUnits;
 	private Set<ICompilationUnit> removedCompilationUnits;
 	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
-	private Map<String, HashMap<Integer, LinkedHashSet<AbstractVariable>>> usedFieldsForMethodArgumentsMap;
-	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
-	private Map<String, HashMap<Integer, LinkedHashSet<AbstractVariable>>> definedFieldsForMethodArgumentsMap;
-	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
 	private Map<String, LinkedHashSet<AbstractVariable>> usedFieldsForMethodExpressionMap;
 	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
 	private Map<String, LinkedHashSet<AbstractVariable>> definedFieldsForMethodExpressionMap;
 	//String key corresponds to MethodDeclaration.resolveBinding.getKey()
 	private Map<String, LinkedHashSet<String>> thrownExceptionTypesForMethodExpressionMap;
-
-	public void addUsedFieldForMethodArgument(AbstractVariable field, AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(usedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = usedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			if(argumentMap.containsKey(argPosition)) {
-				LinkedHashSet<AbstractVariable> fieldSet = argumentMap.get(argPosition);
-				fieldSet.add(field);
-			}
-			else {
-				LinkedHashSet<AbstractVariable> fieldSet = new LinkedHashSet<AbstractVariable>();
-				fieldSet.add(field);
-				argumentMap.put(argPosition, fieldSet);
-			}
-		}
-		else {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = new HashMap<Integer, LinkedHashSet<AbstractVariable>>();
-			LinkedHashSet<AbstractVariable> fieldSet = new LinkedHashSet<AbstractVariable>();
-			fieldSet.add(field);
-			argumentMap.put(argPosition, fieldSet);
-			usedFieldsForMethodArgumentsMap.put(methodBindingKey, argumentMap);
-		}
-	}
-
-	public void setEmptyUsedFieldsForMethodArgument(AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(usedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = usedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			argumentMap.put(argPosition, new LinkedHashSet<AbstractVariable>());
-		}
-		else {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = new HashMap<Integer, LinkedHashSet<AbstractVariable>>();
-			LinkedHashSet<AbstractVariable> fieldSet = new LinkedHashSet<AbstractVariable>();
-			argumentMap.put(argPosition, fieldSet);
-			usedFieldsForMethodArgumentsMap.put(methodBindingKey, argumentMap);
-		}
-	}
-
-	public void addDefinedFieldForMethodArgument(AbstractVariable field, AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(definedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = definedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			if(argumentMap.containsKey(argPosition)) {
-				LinkedHashSet<AbstractVariable> fieldSet = argumentMap.get(argPosition);
-				fieldSet.add(field);
-			}
-			else {
-				LinkedHashSet<AbstractVariable> fieldSet = new LinkedHashSet<AbstractVariable>();
-				fieldSet.add(field);
-				argumentMap.put(argPosition, fieldSet);
-			}
-		}
-		else {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = new HashMap<Integer, LinkedHashSet<AbstractVariable>>();
-			LinkedHashSet<AbstractVariable> fieldSet = new LinkedHashSet<AbstractVariable>();
-			fieldSet.add(field);
-			argumentMap.put(argPosition, fieldSet);
-			definedFieldsForMethodArgumentsMap.put(methodBindingKey, argumentMap);
-		}
-	}
-
-	public void setEmptyDefinedFieldsForMethodArgument(AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(definedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = definedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			argumentMap.put(argPosition, new LinkedHashSet<AbstractVariable>());
-		}
-		else {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = new HashMap<Integer, LinkedHashSet<AbstractVariable>>();
-			LinkedHashSet<AbstractVariable> fieldSet = new LinkedHashSet<AbstractVariable>();
-			argumentMap.put(argPosition, fieldSet);
-			definedFieldsForMethodArgumentsMap.put(methodBindingKey, argumentMap);
-		}
-	}
-
-	public boolean containsMethodArgument(AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(usedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = usedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			if(argumentMap.containsKey(argPosition))
-				return true;
-		}
-		if(definedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = definedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			if(argumentMap.containsKey(argPosition))
-				return true;
-		}
-		return false;
-	}
-
-	public Set<AbstractVariable> getUsedFieldsForMethodArgument(AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(usedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = usedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			if(argumentMap.containsKey(argPosition))
-				return argumentMap.get(argPosition);
-		}
-		return new LinkedHashSet<AbstractVariable>();
-	}
-
-	public Set<AbstractVariable> getDefinedFieldsForMethodArgument(AbstractMethodDeclaration mo, int argPosition) {
-		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
-		if(definedFieldsForMethodArgumentsMap.containsKey(methodBindingKey)) {
-			HashMap<Integer, LinkedHashSet<AbstractVariable>> argumentMap = definedFieldsForMethodArgumentsMap.get(methodBindingKey);
-			if(argumentMap.containsKey(argPosition))
-				return argumentMap.get(argPosition);
-		}
-		return new LinkedHashSet<AbstractVariable>();
-	}
 
 	public void addUsedFieldForMethodExpression(AbstractVariable field, AbstractMethodDeclaration mo) {
 		String methodBindingKey = mo.getMethodDeclaration().resolveBinding().getKey();
@@ -224,8 +111,6 @@ public class CompilationUnitCache extends Indexer {
 		this.changedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
 		this.addedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
 		this.removedCompilationUnits = new LinkedHashSet<ICompilationUnit>();
-		this.usedFieldsForMethodArgumentsMap = new HashMap<String, HashMap<Integer, LinkedHashSet<AbstractVariable>>>();
-		this.definedFieldsForMethodArgumentsMap = new HashMap<String, HashMap<Integer, LinkedHashSet<AbstractVariable>>>();
 		this.usedFieldsForMethodExpressionMap = new HashMap<String, LinkedHashSet<AbstractVariable>>();
 		this.definedFieldsForMethodExpressionMap = new HashMap<String, LinkedHashSet<AbstractVariable>>();
 		this.thrownExceptionTypesForMethodExpressionMap = new HashMap<String, LinkedHashSet<String>>();

@@ -2316,7 +2316,9 @@ public class PreconditionExaminer {
 		}
 		if(node.throwsException()) {
 			PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(node);
-			if(blockNode != null && blockNode instanceof PDGTryNode && removableNodes.contains(blockNode)) {
+			PDGNode controlParent = node.getControlDependenceParent();
+			if((blockNode != null && blockNode instanceof PDGTryNode && removableNodes.contains(blockNode)) ||
+					(controlParent != null && removableNodes.contains(controlParent))) {
 				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 						PreconditionViolationType.UNMATCHED_EXCEPTION_THROWING_STATEMENT_NESTED_WITHIN_MATCHED_TRY_BLOCK);
 				nodeMapping.addPreconditionViolation(violation);
@@ -2834,7 +2836,9 @@ public class PreconditionExaminer {
 			}
 			if(pdgExpression.throwsException()) {
 				PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(nodeContainingExpression);
-				if(blockNode != null && blockNode instanceof PDGTryNode && mappedNodes.contains(blockNode)) {
+				PDGNode controlParent = nodeContainingExpression.getControlDependenceParent();
+				if((blockNode != null && blockNode instanceof PDGTryNode && mappedNodes.contains(blockNode)) ||
+						(controlParent != null && mappedNodes.contains(controlParent))) {
 					return PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_METHOD_CALL_THROWING_EXCEPTION_WITHIN_MATCHED_TRY_BLOCK;
 				}
 			}

@@ -464,6 +464,10 @@ public class MethodObject implements AbstractMethodDeclaration {
         return constructorObject.getSuperMethodInvocations();
     }
 
+    public List<ConstructorInvocationObject> getConstructorInvocations() {
+        return constructorObject.getConstructorInvocations();
+    }
+
     public List<FieldInstructionObject> getFieldInstructions() {
         return constructorObject.getFieldInstructions();
     }
@@ -614,6 +618,10 @@ public class MethodObject implements AbstractMethodDeclaration {
 
 	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
 		return constructorObject.getParametersPassedAsArgumentsInSuperMethodInvocations();
+	}
+
+	public Map<PlainVariable, LinkedHashSet<ConstructorInvocationObject>> getParametersPassedAsArgumentsInConstructorInvocations() {
+		return constructorObject.getParametersPassedAsArgumentsInConstructorInvocations();
 	}
 
     public boolean containsSuperMethodInvocation() {

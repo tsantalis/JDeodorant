@@ -4,6 +4,7 @@ import gr.uom.java.ast.Access;
 import gr.uom.java.ast.AnonymousClassDeclarationObject;
 import gr.uom.java.ast.ArrayCreationObject;
 import gr.uom.java.ast.ClassInstanceCreationObject;
+import gr.uom.java.ast.ConstructorInvocationObject;
 import gr.uom.java.ast.ConstructorObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
@@ -35,6 +36,7 @@ import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
@@ -63,6 +65,7 @@ public abstract class AbstractMethodFragment {
 	
 	private List<MethodInvocationObject> methodInvocationList;
 	private List<SuperMethodInvocationObject> superMethodInvocationList;
+	private List<ConstructorInvocationObject> constructorInvocationList;
 	private List<FieldInstructionObject> fieldInstructionList;
 	private List<SuperFieldInstructionObject> superFieldInstructionList;
 	private List<LocalVariableDeclarationObject> localVariableDeclarationList;
@@ -103,12 +106,14 @@ public abstract class AbstractMethodFragment {
 	private Set<PlainVariable> usedLocalVariables;
 	private Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> parametersPassedAsArgumentsInMethodInvocations;
 	private Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> parametersPassedAsArgumentsInSuperMethodInvocations;
+	private Map<PlainVariable, LinkedHashSet<ConstructorInvocationObject>> parametersPassedAsArgumentsInConstructorInvocations;
 	private Map<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>> variablesAssignedWithClassInstanceCreations;
 	
 	protected AbstractMethodFragment(AbstractMethodFragment parent) {
 		this.parent = parent;
 		this.methodInvocationList = new ArrayList<MethodInvocationObject>();
 		this.superMethodInvocationList = new ArrayList<SuperMethodInvocationObject>();
+		this.constructorInvocationList = new ArrayList<ConstructorInvocationObject>();
 		this.fieldInstructionList = new ArrayList<FieldInstructionObject>();
 		this.superFieldInstructionList = new ArrayList<SuperFieldInstructionObject>();
 		this.localVariableDeclarationList = new ArrayList<LocalVariableDeclarationObject>();
@@ -149,6 +154,7 @@ public abstract class AbstractMethodFragment {
 		this.usedLocalVariables = new LinkedHashSet<PlainVariable>();
 		this.parametersPassedAsArgumentsInMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<MethodInvocationObject>>();
 		this.parametersPassedAsArgumentsInSuperMethodInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
+		this.parametersPassedAsArgumentsInConstructorInvocations = new LinkedHashMap<PlainVariable, LinkedHashSet<ConstructorInvocationObject>>();
 		this.variablesAssignedWithClassInstanceCreations = new LinkedHashMap<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>>();
 	}
 
@@ -308,6 +314,49 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	protected void processConstructorInvocation(ConstructorInvocation constructorInvocation) {
+		IMethodBinding methodBinding = constructorInvocation.resolveConstructorBinding();
+		String originClassName = methodBinding.getDeclaringClass().getQualifiedName();
+		TypeObject originClassTypeObject = TypeObject.extractTypeObject(originClassName);
+		String methodInvocationName = methodBinding.getName();
+		String qualifiedName = methodBinding.getReturnType().getQualifiedName();
+		TypeObject returnType = TypeObject.extractTypeObject(qualifiedName);
+		ConstructorInvocationObject constructorInvocationObject = new ConstructorInvocationObject(originClassTypeObject, methodInvocationName, returnType);
+		constructorInvocationObject.setConstructorInvocation(constructorInvocation);
+		ITypeBinding[] parameterTypes = methodBinding.getParameterTypes();
+		for(ITypeBinding parameterType : parameterTypes) {
+			String qualifiedParameterName = parameterType.getQualifiedName();
+			TypeObject typeObject = TypeObject.extractTypeObject(qualifiedParameterName);
+			constructorInvocationObject.addParameter(typeObject);
+		}
+		ITypeBinding[] thrownExceptionTypes = methodBinding.getExceptionTypes();
+		for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
+			constructorInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+		}
+		if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
+			constructorInvocationObject.setStatic(true);
+		addConstructorInvocation(constructorInvocationObject);
+		List<Expression> arguments = constructorInvocation.arguments();
+		for(Expression argument : arguments) {
+			if(argument instanceof SimpleName) {
+				SimpleName argumentName = (SimpleName)argument;
+				IBinding binding = argumentName.resolveBinding();
+				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding variableBinding = (IVariableBinding)binding;
+					if(variableBinding.isParameter()) {
+						String variableBindingKey = variableBinding.getKey();
+						String variableName = variableBinding.getName();
+						String variableType = variableBinding.getType().getQualifiedName();
+						boolean isField = variableBinding.isField();
+						boolean isParameter = variableBinding.isParameter();
+						PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+						addParameterPassedAsArgumentInConstructorInvocation(variable, constructorInvocationObject);
+					}
+				}
+			}
+		}
+	}
+
 	protected void processMethodInvocations(List<Expression> methodInvocations) {
 		for(Expression expression : methodInvocations) {
 			if(expression instanceof MethodInvocation) {
@@ -434,6 +483,13 @@ public abstract class AbstractMethodFragment {
 		superMethodInvocationList.add(superMethodInvocationObject);
 		if(parent != null) {
 			parent.addSuperMethodInvocation(superMethodInvocationObject);
+		}
+	}
+
+	private void addConstructorInvocation(ConstructorInvocationObject constructorInvocationObject) {
+		constructorInvocationList.add(constructorInvocationObject);
+		if(parent != null) {
+			parent.addConstructorInvocation(constructorInvocationObject);
 		}
 	}
 
@@ -827,6 +883,21 @@ public abstract class AbstractMethodFragment {
 		}
 	}
 
+	private void addParameterPassedAsArgumentInConstructorInvocation(PlainVariable parameter, ConstructorInvocationObject constructorInvocation) {
+		if(parametersPassedAsArgumentsInConstructorInvocations.containsKey(parameter)) {
+			LinkedHashSet<ConstructorInvocationObject> constructorInvocations = parametersPassedAsArgumentsInConstructorInvocations.get(parameter);
+			constructorInvocations.add(constructorInvocation);
+		}
+		else {
+			LinkedHashSet<ConstructorInvocationObject> constructorInvocations = new LinkedHashSet<ConstructorInvocationObject>();
+			constructorInvocations.add(constructorInvocation);
+			parametersPassedAsArgumentsInConstructorInvocations.put(parameter, constructorInvocations);
+		}
+		if(parent != null) {
+			parent.addParameterPassedAsArgumentInConstructorInvocation(parameter, constructorInvocation);
+		}
+	}
+
 	private void addVariableAssignedWithClassInstanceCreation(PlainVariable variable, ClassInstanceCreationObject classInstanceCreation) {
 		if(variablesAssignedWithClassInstanceCreations.containsKey(variable)) {
 			LinkedHashSet<ClassInstanceCreationObject> classInstanceCreations = variablesAssignedWithClassInstanceCreations.get(variable);
@@ -960,6 +1031,10 @@ public abstract class AbstractMethodFragment {
 
 	public List<SuperMethodInvocationObject> getSuperMethodInvocations() {
 		return superMethodInvocationList;
+	}
+
+	public List<ConstructorInvocationObject> getConstructorInvocations() {
+		return constructorInvocationList;
 	}
 
 	public List<CreationObject> getCreations() {
@@ -1151,6 +1226,10 @@ public abstract class AbstractMethodFragment {
 
 	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
 		return parametersPassedAsArgumentsInSuperMethodInvocations;
+	}
+
+	public Map<PlainVariable, LinkedHashSet<ConstructorInvocationObject>> getParametersPassedAsArgumentsInConstructorInvocations() {
+		return parametersPassedAsArgumentsInConstructorInvocations;
 	}
 
 	public Map<PlainVariable, LinkedHashSet<ClassInstanceCreationObject>> getVariablesAssignedWithClassInstanceCreations() {

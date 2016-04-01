@@ -257,6 +257,16 @@ public class ClassObject extends ClassDeclarationObject {
         return null;
     }
 
+	public ConstructorObject getConstructor(ConstructorInvocationObject cio) {
+        ListIterator<ConstructorObject> ci = getConstructorIterator();
+        while(ci.hasNext()) {
+        	ConstructorObject co = ci.next();
+            if(co.equals(cio))
+                return co;
+        }
+        return null;
+    }
+
 	public String toString() {
         StringBuilder sb = new StringBuilder();
         if(!access.equals(Access.NONE))

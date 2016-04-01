@@ -5,6 +5,8 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.CompilationUnitCache;
+import gr.uom.java.ast.ConstructorInvocationObject;
+import gr.uom.java.ast.ConstructorObject;
 import gr.uom.java.ast.LibraryClassStorage;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
@@ -36,6 +38,7 @@ import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
@@ -629,6 +632,17 @@ public class MethodCallAnalyzer {
 						SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
 						if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
 							processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
+					}
+				}
+			}
+			for(ConstructorInvocationObject constructorInvocationObject : methodObject.getConstructorInvocations()) {
+				ClassObject classObject2 = systemObject.getClassObject(constructorInvocationObject.getOriginClassName());
+				if(classObject2 != null) {
+					ConstructorObject constructorObject2 = classObject2.getConstructor(constructorInvocationObject);
+					if(constructorObject2 != null) {
+						ConstructorInvocation constructorInvocation = constructorInvocationObject.getConstructorInvocation();
+						if(!processedMethods.contains(constructorInvocation.resolveConstructorBinding().getKey()))
+							processInternalMethodInvocation(classObject2, constructorObject2, variableDeclaration, processedMethods);
 					}
 				}
 			}

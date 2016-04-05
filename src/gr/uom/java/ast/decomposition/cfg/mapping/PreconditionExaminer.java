@@ -2627,6 +2627,22 @@ public class PreconditionExaminer {
 				}
 			}
 		}
+		//check if a mappedNode modifies the state of an object that is used by nonMappedNode
+		for(PDGNode mappedNode : mappedNodes) {
+			if(mappedNode.getId() < nonMappedNode.getId()) {
+				Iterator<AbstractVariable> definedVariableIterator = mappedNode.getDefinedVariableIterator();
+				while(definedVariableIterator.hasNext()) {
+					AbstractVariable definedVariable = definedVariableIterator.next();
+					if(definedVariable instanceof CompositeVariable) {
+						CompositeVariable compositeVariable = (CompositeVariable)definedVariable;
+						PlainVariable initialVariable = compositeVariable.getInitialVariable();
+						if(nonMappedNode.usesLocalVariable(initialVariable)) {
+							return false;
+						}
+					}
+				}
+			}
+		}
 		return true;
 	}
 	//precondition: non-mapped statement can be moved after the last mapped statement

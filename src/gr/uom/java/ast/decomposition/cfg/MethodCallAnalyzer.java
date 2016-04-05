@@ -110,7 +110,7 @@ public class MethodCallAnalyzer {
 					}
 					else if(usedField instanceof CompositeVariable) {
 						CompositeVariable composite = (CompositeVariable)usedField;
-						if(composite.startsWithVariable(variable)) {
+						if(variable != null && composite.startsWithVariable(variable)) {
 							//getRightPart() is not correct if variable is a CompositeVariable
 							cache.addUsedFieldForMethodExpression(composite.getRightPartAfterPrefix(variable), methodObject);
 							usedFieldCount++;
@@ -134,7 +134,7 @@ public class MethodCallAnalyzer {
 					}
 					else if(definedField instanceof CompositeVariable) {
 						CompositeVariable composite = (CompositeVariable)definedField;
-						if(composite.startsWithVariable(variable)) {
+						if(variable != null && composite.startsWithVariable(variable)) {
 							//getRightPart() is not correct if variable is a CompositeVariable
 							cache.addDefinedFieldForMethodExpression(composite.getRightPartAfterPrefix(variable), methodObject);
 							definedFieldCount++;

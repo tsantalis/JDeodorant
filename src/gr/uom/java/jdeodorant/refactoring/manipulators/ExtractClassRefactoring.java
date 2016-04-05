@@ -2042,12 +2042,13 @@ public class ExtractClassRefactoring extends Refactoring {
 		String variableType = variableBinding.getType().getQualifiedName();
 		boolean isField = variableBinding.isField();
 		boolean isParameter = variableBinding.isParameter();
-		PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+		boolean isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
+		PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 		return variable;
 	}
 
 	private void addThisVariable(Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {
-		PlainVariable variable = new PlainVariable("this", "this", "this", false, false);
+		PlainVariable variable = new PlainVariable("this", "this", "this", false, false, false);
 		additionalArgumentsAddedToMovedMethod.add(variable);
 	}
 

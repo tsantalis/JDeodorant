@@ -9,8 +9,8 @@ public class PlainVariable extends AbstractVariable {
 		super(variableName);
 	}
 
-	public PlainVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter) {
-		super(variableBindingKey, variableName, variableType, isField, isParameter);
+	public PlainVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic) {
+		super(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 	}
 
 	public boolean containsPlainVariable(PlainVariable variable) {

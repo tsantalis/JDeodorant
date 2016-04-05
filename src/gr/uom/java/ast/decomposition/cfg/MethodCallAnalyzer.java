@@ -104,7 +104,7 @@ public class MethodCallAnalyzer {
 				usedVariablesAfter.removeAll(usedVariablesBefore);
 				int usedFieldCount = 0;
 				for(AbstractVariable usedField : usedVariablesAfter) {
-					if(variable == null) {
+					if(usedField instanceof PlainVariable) {
 						cache.addUsedFieldForMethodExpression(usedField, methodObject);
 						usedFieldCount++;
 					}
@@ -113,6 +113,10 @@ public class MethodCallAnalyzer {
 						if(composite.startsWithVariable(variable)) {
 							//getRightPart() is not correct if variable is a CompositeVariable
 							cache.addUsedFieldForMethodExpression(composite.getRightPartAfterPrefix(variable), methodObject);
+							usedFieldCount++;
+						}
+						else {
+							cache.addUsedFieldForMethodExpression(usedField, methodObject);
 							usedFieldCount++;
 						}
 					}
@@ -124,7 +128,7 @@ public class MethodCallAnalyzer {
 				definedVariablesAfter.removeAll(definedVariablesBefore);
 				int definedFieldCount = 0;
 				for(AbstractVariable definedField : definedVariablesAfter) {
-					if(variable == null) {
+					if(definedField instanceof PlainVariable) {
 						cache.addDefinedFieldForMethodExpression(definedField, methodObject);
 						definedFieldCount++;
 					}
@@ -133,6 +137,10 @@ public class MethodCallAnalyzer {
 						if(composite.startsWithVariable(variable)) {
 							//getRightPart() is not correct if variable is a CompositeVariable
 							cache.addDefinedFieldForMethodExpression(composite.getRightPartAfterPrefix(variable), methodObject);
+							definedFieldCount++;
+						}
+						else {
+							cache.addDefinedFieldForMethodExpression(definedField, methodObject);
 							definedFieldCount++;
 						}
 					}
@@ -332,14 +340,14 @@ public class MethodCallAnalyzer {
 			for(AbstractVariable originalField : methodObject.getDefinedFieldsThroughParameters()) {
 				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
 					AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), argumentDeclaration.isStatic(), ((CompositeVariable)originalField).getRightPart());
 					definedVariables.add(field);
 				}
 			}
 			for(AbstractVariable originalField : methodObject.getUsedFieldsThroughParameters()) {
 				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
 					AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), argumentDeclaration.isStatic(), ((CompositeVariable)originalField).getRightPart());
 					usedVariables.add(field);
 				}
 			}
@@ -352,7 +360,7 @@ public class MethodCallAnalyzer {
 						field = argumentDeclaration;
 					else
 						field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-								argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+								argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), argumentDeclaration.isStatic(), ((CompositeVariable)originalField).getRightPart());
 					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(originalField);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
 						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
@@ -438,14 +446,14 @@ public class MethodCallAnalyzer {
 			for(AbstractVariable originalField : methodBodyObject.getDefinedFieldsThroughParameters()) {
 				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
 					AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), argumentDeclaration.isStatic(), ((CompositeVariable)originalField).getRightPart());
 					definedVariables.add(field);
 				}
 			}
 			for(AbstractVariable originalField : methodBodyObject.getUsedFieldsThroughParameters()) {
 				if(parameterDeclaration.resolveBinding().getKey().equals(originalField.getVariableBindingKey())) {
 					AbstractVariable field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+							argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), argumentDeclaration.isStatic(), ((CompositeVariable)originalField).getRightPart());
 					usedVariables.add(field);
 				}
 			}
@@ -458,7 +466,7 @@ public class MethodCallAnalyzer {
 						field = argumentDeclaration;
 					else
 						field = new CompositeVariable(argumentDeclaration.getVariableBindingKey(), argumentDeclaration.getVariableName(),
-								argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), ((CompositeVariable)originalField).getRightPart());
+								argumentDeclaration.getVariableType(), argumentDeclaration.isField(), argumentDeclaration.isParameter(), argumentDeclaration.isStatic(), ((CompositeVariable)originalField).getRightPart());
 					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughParameters.get(originalField);
 					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
 						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
@@ -653,19 +661,19 @@ public class MethodCallAnalyzer {
 					MethodObject methodObject2 = classObject2.getMethod(staticMethodInvocationObject);
 					if(methodObject2 != null) {
 						if(!processedMethods.contains(staticMethodInvocation.resolveMethodBinding().getKey()))
-							processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
+							processInternalMethodInvocation(classObject2, methodObject2, null, processedMethods);
 					}
 				}
 				else {
 					LibraryClassStorage instance = LibraryClassStorage.getInstance();
 					IMethodBinding invokedMethodBinding = staticMethodInvocation.resolveMethodBinding();
 					if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
-						handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), variableDeclaration, instance);
+						handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), null, instance);
 					}
 					else {
 						MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
 						if(invokedMethodDeclaration != null)
-							processExternalMethodInvocation(invokedMethodDeclaration, variableDeclaration, new LinkedHashSet<String>(), 0);
+							processExternalMethodInvocation(invokedMethodDeclaration, null, new LinkedHashSet<String>(), 0);
 					}
 				}
 			}
@@ -806,7 +814,7 @@ public class MethodCallAnalyzer {
 									}
 									else {
 										instance.addInvokedMethod(methodDeclaration, invokedMethodDeclaration);
-										processExternalMethodInvocation(invokedMethodDeclaration, variableDeclaration, processedMethods, depth+1);
+										processExternalMethodInvocation(invokedMethodDeclaration, null, processedMethods, depth+1);
 									}
 								}
 							}
@@ -933,20 +941,20 @@ public class MethodCallAnalyzer {
 	}
 
 	private AbstractVariable composeVariable(AbstractVariable leftSide, AbstractVariable rightSide) {
-		if(leftSide == null) {
+		if(leftSide == null || rightSide.isStatic()) {
 			return rightSide;
 		}
 		else if(leftSide instanceof CompositeVariable) {
 			CompositeVariable leftSideCompositeVariable = (CompositeVariable)leftSide;
 			PlainVariable finalVariable = leftSideCompositeVariable.getFinalVariable();
 			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getVariableBindingKey(), finalVariable.getVariableName(),
-					finalVariable.getVariableType(), finalVariable.isField(), finalVariable.isParameter(), rightSide);
+					finalVariable.getVariableType(), finalVariable.isField(), finalVariable.isParameter(), finalVariable.isStatic(), rightSide);
 			AbstractVariable newLeftSide = leftSideCompositeVariable.getLeftPart();
 			return composeVariable(newLeftSide, newRightSide);
 		}
 		else {
 			return new CompositeVariable(leftSide.getVariableBindingKey(), leftSide.getVariableName(),
-					leftSide.getVariableType(), leftSide.isField(), leftSide.isParameter(), rightSide);
+					leftSide.getVariableType(), leftSide.isField(), leftSide.isParameter(), leftSide.isStatic(), rightSide);
 		}
 	}
 

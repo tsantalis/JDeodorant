@@ -224,7 +224,8 @@ public abstract class AbstractMethodFragment {
 						TypeObject localVariableType = TypeObject.extractTypeObject(variableType);
 						boolean isField = variableBinding.isField();
 						boolean isParameter = variableBinding.isParameter();
-						PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+						boolean isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
+						PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 						if(simpleName.isDeclaration()) {
 							LocalVariableDeclarationObject localVariable = new LocalVariableDeclarationObject(localVariableType, variableName);
 							VariableDeclaration variableDeclaration = (VariableDeclaration)simpleName.getParent();
@@ -344,12 +345,7 @@ public abstract class AbstractMethodFragment {
 				if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 					IVariableBinding variableBinding = (IVariableBinding)binding;
 					if(variableBinding.isParameter()) {
-						String variableBindingKey = variableBinding.getKey();
-						String variableName = variableBinding.getName();
-						String variableType = variableBinding.getType().getQualifiedName();
-						boolean isField = variableBinding.isField();
-						boolean isParameter = variableBinding.isParameter();
-						PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+						PlainVariable variable = createPlainVariable(variableBinding);
 						addParameterPassedAsArgumentInConstructorInvocation(variable, constructorInvocationObject);
 					}
 				}
@@ -414,12 +410,7 @@ public abstract class AbstractMethodFragment {
 						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)binding;
 							if(variableBinding.isParameter()) {
-								String variableBindingKey = variableBinding.getKey();
-								String variableName = variableBinding.getName();
-								String variableType = variableBinding.getType().getQualifiedName();
-								boolean isField = variableBinding.isField();
-								boolean isParameter = variableBinding.isParameter();
-								PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+								PlainVariable variable = createPlainVariable(variableBinding);
 								addParameterPassedAsArgumentInMethodInvocation(variable, methodInvocationObject);
 							}
 						}
@@ -457,12 +448,7 @@ public abstract class AbstractMethodFragment {
 						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)binding;
 							if(variableBinding.isParameter()) {
-								String variableBindingKey = variableBinding.getKey();
-								String variableName = variableBinding.getName();
-								String variableType = variableBinding.getType().getQualifiedName();
-								boolean isField = variableBinding.isField();
-								boolean isParameter = variableBinding.isParameter();
-								PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+								PlainVariable variable = createPlainVariable(variableBinding);
 								addParameterPassedAsArgumentInSuperMethodInvocation(variable, superMethodInvocationObject);
 							}
 						}
@@ -470,6 +456,17 @@ public abstract class AbstractMethodFragment {
 				}
 			}
 		}
+	}
+
+	private PlainVariable createPlainVariable(IVariableBinding variableBinding) {
+		String variableBindingKey = variableBinding.getKey();
+		String variableName = variableBinding.getName();
+		String variableType = variableBinding.getType().getQualifiedName();
+		boolean isField = variableBinding.isField();
+		boolean isParameter = variableBinding.isParameter();
+		boolean isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
+		PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
+		return variable;
 	}
 
 	private void addMethodInvocation(MethodInvocationObject methodInvocationObject) {
@@ -637,12 +634,7 @@ public abstract class AbstractMethodFragment {
 							IBinding binding = simpleName.resolveBinding();
 							if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding variableBinding = (IVariableBinding)binding;
-								String variableBindingKey = variableBinding.getKey();
-								String variableName = variableBinding.getName();
-								String variableType = variableBinding.getType().getQualifiedName();
-								boolean isField = variableBinding.isField();
-								boolean isParameter = variableBinding.isParameter();
-								variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+								variable = createPlainVariable(variableBinding);
 							}
 						}
 						else if(assignment.getLeftHandSide() instanceof FieldAccess) {
@@ -651,12 +643,7 @@ public abstract class AbstractMethodFragment {
 							IBinding binding = simpleName.resolveBinding();
 							if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding variableBinding = (IVariableBinding)binding;
-								String variableBindingKey = variableBinding.getKey();
-								String variableName = variableBinding.getName();
-								String variableType = variableBinding.getType().getQualifiedName();
-								boolean isField = variableBinding.isField();
-								boolean isParameter = variableBinding.isParameter();
-								variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+								variable = createPlainVariable(variableBinding);
 							}
 						}
 					}
@@ -668,12 +655,7 @@ public abstract class AbstractMethodFragment {
 						IBinding binding = simpleName.resolveBinding();
 						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)binding;
-							String variableBindingKey = variableBinding.getKey();
-							String variableName = variableBinding.getName();
-							String variableType = variableBinding.getType().getQualifiedName();
-							boolean isField = variableBinding.isField();
-							boolean isParameter = variableBinding.isParameter();
-							variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+							variable = createPlainVariable(variableBinding);
 						}
 					}
 				}

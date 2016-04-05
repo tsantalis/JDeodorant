@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition.cfg;
 
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public abstract class AbstractVariable {
@@ -10,6 +11,7 @@ public abstract class AbstractVariable {
 	protected String variableType;
 	protected boolean isField;
 	protected boolean isParameter;
+	protected boolean isStatic;
 	
 	public AbstractVariable(VariableDeclaration name) {
 		IVariableBinding variableBinding = name.resolveBinding();
@@ -18,14 +20,16 @@ public abstract class AbstractVariable {
 		this.variableType = variableBinding.getType().getQualifiedName();
 		this.isField = variableBinding.isField();
 		this.isParameter = variableBinding.isParameter();
+		this.isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
 	}
 
-	public AbstractVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter) {
+	public AbstractVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic) {
 		this.variableBindingKey = variableBindingKey;
 		this.variableName = variableName;
 		this.variableType = variableType;
 		this.isField = isField;
 		this.isParameter = isParameter;
+		this.isStatic = isStatic;
 	}
 
 	public String getVariableBindingKey() {
@@ -46,6 +50,10 @@ public abstract class AbstractVariable {
 
 	public boolean isParameter() {
 		return isParameter;
+	}
+
+	public boolean isStatic() {
+		return isStatic;
 	}
 
 	public abstract boolean containsPlainVariable(PlainVariable variable);

@@ -11,8 +11,8 @@ public class CompositeVariable extends AbstractVariable {
 		this.rightPart = rightPart;
 	}
 
-	public CompositeVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, AbstractVariable rightPart) {
-		super(variableBindingKey, variableName, variableType, isField, isParameter);
+	public CompositeVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic, AbstractVariable rightPart) {
+		super(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 		this.rightPart = rightPart;
 	}
 
@@ -24,11 +24,11 @@ public class CompositeVariable extends AbstractVariable {
 	//if composite variable is "one.two.three" then left part is "one.two"
 	public AbstractVariable getLeftPart() {
 		if(rightPart instanceof PlainVariable) {
-			return new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+			return new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 		}
 		else {
 			CompositeVariable compositeVariable = (CompositeVariable)rightPart;
-			return new CompositeVariable(variableBindingKey, variableName, variableType, isField, isParameter, compositeVariable.getLeftPart());
+			return new CompositeVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic, compositeVariable.getLeftPart());
 		}
 	}
 
@@ -44,7 +44,7 @@ public class CompositeVariable extends AbstractVariable {
 
 	//if composite variable is "one.two.three" then initial variable is "one"
 	public PlainVariable getInitialVariable() {
-		return new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter);
+		return new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 	}
 
 	public boolean containsPlainVariable(PlainVariable variable) {

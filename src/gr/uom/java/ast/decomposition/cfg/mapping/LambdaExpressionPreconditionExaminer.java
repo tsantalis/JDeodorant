@@ -403,10 +403,10 @@ public class LambdaExpressionPreconditionExaminer {
 	private boolean variableIsDeclaredInMappedNodes(VariableBindingPair pair) {
 		IVariableBinding binding1 = pair.getBinding1();
 		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
-				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter(), (binding1.getModifiers() & Modifier.STATIC) != 0);
 		IVariableBinding binding2 = pair.getBinding2();
 		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
-				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter(), (binding2.getModifiers() & Modifier.STATIC) != 0);
 		for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
 			PDGNode node1 = mapping.getNodeG1();
 			PDGNode node2 = mapping.getNodeG2();
@@ -420,10 +420,10 @@ public class LambdaExpressionPreconditionExaminer {
 	private boolean variableIsDefinedInMappedNodesBeforeGap(VariableBindingPair pair, PDGNodeBlockGap blockGap) {
 		IVariableBinding binding1 = pair.getBinding1();
 		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
-				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter(), (binding1.getModifiers() & Modifier.STATIC) != 0);
 		IVariableBinding binding2 = pair.getBinding2();
 		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
-				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter(), (binding2.getModifiers() & Modifier.STATIC) != 0);
 		int blockGapFirstNodeId1 = blockGap.getNodesG1().isEmpty() ? finalState.getMappedNodesG1().last().getId() : blockGap.getNodesG1().first().getId();
 		int blockGapFirstNodeId2 = blockGap.getNodesG2().isEmpty() ? finalState.getMappedNodesG2().last().getId() : blockGap.getNodesG2().first().getId();
 		for(PDGNodeMapping mapping : finalState.getSortedNodeMappings()) {
@@ -444,10 +444,10 @@ public class LambdaExpressionPreconditionExaminer {
 		for(VariableBindingPair pair : nonEffectivelyFinalLocalVariableBindings) {
 			IVariableBinding binding1 = pair.getBinding1();
 			PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
-					binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+					binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter(), (binding1.getModifiers() & Modifier.STATIC) != 0);
 			IVariableBinding binding2 = pair.getBinding2();
 			PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
-					binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+					binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter(), (binding2.getModifiers() & Modifier.STATIC) != 0);
 			int blockGapFirstNodeId1 = blockGap.getNodesG1().isEmpty() ? finalState.getMappedNodesG1().last().getId() : blockGap.getNodesG1().first().getId();
 			int blockGapFirstNodeId2 = blockGap.getNodesG2().isEmpty() ? finalState.getMappedNodesG2().last().getId() : blockGap.getNodesG2().first().getId();
 			boolean definedVariableFound = false;
@@ -474,10 +474,10 @@ public class LambdaExpressionPreconditionExaminer {
 	private boolean variableIsInitializedInMappedNodes(VariableBindingPair pair) {
 		IVariableBinding binding1 = pair.getBinding1();
 		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
-				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter());
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter(), (binding1.getModifiers() & Modifier.STATIC) != 0);
 		IVariableBinding binding2 = pair.getBinding2();
 		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
-				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter());
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter(), (binding2.getModifiers() & Modifier.STATIC) != 0);
 		for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
 			PDGNode node1 = mapping.getNodeG1();
 			PDGNode node2 = mapping.getNodeG2();

@@ -118,6 +118,13 @@ public class ConstructorObject implements AbstractMethodDeclaration {
 			return new ArrayList<SuperMethodInvocationObject>();
 	}
 
+	public List<ConstructorInvocationObject> getConstructorInvocations() {
+		if(methodBody != null)
+			return methodBody.getConstructorInvocations();
+		else
+			return new ArrayList<ConstructorInvocationObject>();
+	}
+
     public List<FieldInstructionObject> getFieldInstructions() {
     	if(methodBody != null)
     		return methodBody.getFieldInstructions();
@@ -384,6 +391,13 @@ public class ConstructorObject implements AbstractMethodDeclaration {
 			return new LinkedHashMap<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>>();
 	}
 
+	public Map<PlainVariable, LinkedHashSet<ConstructorInvocationObject>> getParametersPassedAsArgumentsInConstructorInvocations() {
+		if(methodBody != null)
+			return methodBody.getParametersPassedAsArgumentsInConstructorInvocations();
+		else
+			return new LinkedHashMap<PlainVariable, LinkedHashSet<ConstructorInvocationObject>>();
+	}
+
     public boolean containsSuperMethodInvocation() {
     	if(methodBody != null)
     		return methodBody.containsSuperMethodInvocation();
@@ -415,6 +429,11 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     public boolean equals(ClassInstanceCreationObject creationObject) {
     	return this.className.equals(creationObject.getType().getClassType()) &&
     			equalParameterTypes(this.getParameterTypeList(), creationObject.getParameterTypeList());
+    }
+
+    public boolean equals(ConstructorInvocationObject constructorInvocationObject) {
+    	return this.className.equals(constructorInvocationObject.getOriginClassType().getClassType()) &&
+    			equalParameterTypes(this.getParameterTypeList(), constructorInvocationObject.getParameterTypeList());
     }
 
     private boolean equalParameterTypes(List<TypeObject> list1, List<TypeObject> list2) {

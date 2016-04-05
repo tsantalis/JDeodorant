@@ -5,6 +5,7 @@ import gr.uom.java.ast.util.ExpressionExtractor;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.ThrowStatement;
@@ -41,6 +42,9 @@ public class StatementObject extends AbstractStatement {
 		processLiterals(expressionExtractor.getLiterals(statement));
 		if(statement instanceof ThrowStatement) {
 			processThrowStatement((ThrowStatement)statement);
+		}
+		if(statement instanceof ConstructorInvocation) {
+			processConstructorInvocation((ConstructorInvocation)statement);
 		}
 	}
 

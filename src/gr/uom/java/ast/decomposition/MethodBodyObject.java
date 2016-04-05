@@ -1,6 +1,7 @@
 package gr.uom.java.ast.decomposition;
 
 import gr.uom.java.ast.AnonymousClassDeclarationObject;
+import gr.uom.java.ast.ConstructorInvocationObject;
 import gr.uom.java.ast.CreationObject;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.LiteralObject;
@@ -223,6 +224,10 @@ public class MethodBodyObject {
 		return compositeStatement.getSuperMethodInvocations();
 	}
 
+	public List<ConstructorInvocationObject> getConstructorInvocations() {
+		return compositeStatement.getConstructorInvocations();
+	}
+
 	public List<CreationObject> getCreations() {
 		return compositeStatement.getCreations();
 	}
@@ -357,6 +362,10 @@ public class MethodBodyObject {
 
 	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations() {
 		return compositeStatement.getParametersPassedAsArgumentsInSuperMethodInvocations();
+	}
+
+	public Map<PlainVariable, LinkedHashSet<ConstructorInvocationObject>> getParametersPassedAsArgumentsInConstructorInvocations() {
+		return compositeStatement.getParametersPassedAsArgumentsInConstructorInvocations();
 	}
 
 	public boolean containsSuperMethodInvocation() {

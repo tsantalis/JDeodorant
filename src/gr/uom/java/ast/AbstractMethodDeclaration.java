@@ -35,6 +35,8 @@ public interface AbstractMethodDeclaration {
 
     public List<SuperMethodInvocationObject> getSuperMethodInvocations();
 
+    public List<ConstructorInvocationObject> getConstructorInvocations();
+
     public List<FieldInstructionObject> getFieldInstructions();
 
     public List<SuperFieldInstructionObject> getSuperFieldInstructions();
@@ -110,6 +112,8 @@ public interface AbstractMethodDeclaration {
 	public Map<PlainVariable, LinkedHashSet<MethodInvocationObject>> getParametersPassedAsArgumentsInMethodInvocations();
 
 	public Map<PlainVariable, LinkedHashSet<SuperMethodInvocationObject>> getParametersPassedAsArgumentsInSuperMethodInvocations();
+
+	public Map<PlainVariable, LinkedHashSet<ConstructorInvocationObject>> getParametersPassedAsArgumentsInConstructorInvocations();
 
     public boolean containsSuperMethodInvocation();
 

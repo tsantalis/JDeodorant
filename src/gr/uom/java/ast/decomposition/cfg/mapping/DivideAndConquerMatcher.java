@@ -1403,85 +1403,21 @@ public abstract class DivideAndConquerMatcher {
 	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		MappingState.setRestrictedNodesG1(nodesG1);
 		MappingState.setRestrictedNodesG2(nodesG2);
-		List<MappingState> finalStates = new ArrayList<MappingState>();
-		if(nodesG1.size() <= nodesG2.size()) {
-			for(PDGNode node1 : nodesG1) {
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode node2 : nodesG2) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						if(finalStates.isEmpty()) {
-							MappingState state = new MappingState(parent, mapping);
-							state.traverse(mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
-								}
-							}
-						}
-						else {
-							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
-										!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
-									MappingState state = new MappingState(previousState, mapping);
-									previousState.addChild(state);
-									state.traverse(mapping);
-									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-									for(MappingState temp : maxStates) {
-										if(!currentStates.contains(temp)) {
-											currentStates.add(temp);
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				if(!currentStates.isEmpty())
-					finalStates = getMaximumStates(currentStates);
-			}
+		List<MappingState> finalStates = null;
+		if(nodesG1.size() < nodesG2.size()) {
+			finalStates = processPDGNodesWithFirstCloneAsReference(parent, nodesG1, nodesG2);
+		}
+		else if(nodesG1.size() > nodesG2.size()) {
+			finalStates = processPDGNodesWithSecondCloneAsReference(parent, nodesG1, nodesG2);
 		}
 		else {
-			for(PDGNode node2 : nodesG2) {
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode node1 : nodesG1) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						if(finalStates.isEmpty()) {
-							MappingState state = new MappingState(parent, mapping);
-							state.traverse(mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
-								}
-							}
-						}
-						else {
-							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
-										!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
-									MappingState state = new MappingState(previousState, mapping);
-									previousState.addChild(state);
-									state.traverse(mapping);
-									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-									for(MappingState temp : maxStates) {
-										if(!currentStates.contains(temp)) {
-											currentStates.add(temp);
-										}
-									}
-								}
-							}
-						}
-					}
+			List<MappingState> finalStates1 = processPDGNodesWithFirstCloneAsReference(parent, nodesG1, nodesG2);
+			List<MappingState> finalStates2 = processPDGNodesWithSecondCloneAsReference(parent, nodesG1, nodesG2);
+			finalStates = new ArrayList<MappingState>(finalStates1);
+			for(MappingState state : finalStates2) {
+				if(!finalStates.contains(state)) {
+					finalStates.add(state);
 				}
-				if(!currentStates.isEmpty())
-					finalStates = getMaximumStates(currentStates);
 			}
 		}
 		if(finalStates.isEmpty() && parent != null)
@@ -1489,6 +1425,91 @@ public abstract class DivideAndConquerMatcher {
 		return finalStates;
 	}
 
+	private List<MappingState> processPDGNodesWithFirstCloneAsReference(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		List<MappingState> finalStates = new ArrayList<MappingState>();
+		for(PDGNode node1 : nodesG1) {
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			for(PDGNode node2 : nodesG2) {
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+				boolean match = astNodeMatcher.match(node1, node2);
+				if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+					if(finalStates.isEmpty()) {
+						MappingState state = new MappingState(parent, mapping);
+						state.traverse(mapping);
+						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+						for(MappingState temp : maxStates) {
+							if(!currentStates.contains(temp)) {
+								currentStates.add(temp);
+							}
+						}
+					}
+					else {
+						for(MappingState previousState : finalStates) {
+							if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
+									!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
+								MappingState state = new MappingState(previousState, mapping);
+								previousState.addChild(state);
+								state.traverse(mapping);
+								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+								for(MappingState temp : maxStates) {
+									if(!currentStates.contains(temp)) {
+										currentStates.add(temp);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!currentStates.isEmpty())
+				finalStates = getMaximumStates(currentStates);
+		}
+		return finalStates;
+	}
+
+	private List<MappingState> processPDGNodesWithSecondCloneAsReference(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		List<MappingState> finalStates = new ArrayList<MappingState>();
+		for(PDGNode node2 : nodesG2) {
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			for(PDGNode node1 : nodesG1) {
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+				boolean match = astNodeMatcher.match(node1, node2);
+				if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+					if(finalStates.isEmpty()) {
+						MappingState state = new MappingState(parent, mapping);
+						state.traverse(mapping);
+						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+						for(MappingState temp : maxStates) {
+							if(!currentStates.contains(temp)) {
+								currentStates.add(temp);
+							}
+						}
+					}
+					else {
+						for(MappingState previousState : finalStates) {
+							if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
+									!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
+								MappingState state = new MappingState(previousState, mapping);
+								previousState.addChild(state);
+								state.traverse(mapping);
+								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+								for(MappingState temp : maxStates) {
+									if(!currentStates.contains(temp)) {
+										currentStates.add(temp);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!currentStates.isEmpty())
+				finalStates = getMaximumStates(currentStates);
+		}
+		return finalStates;
+	}
 
 	private List<MappingState> processIdenticalPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		MappingState finalState = parent;

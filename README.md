@@ -10,7 +10,7 @@ For the moment, the tool supports five code smells, namely **Feature Envy**, **T
 - God Class problems can be resolved by appropriate **Extract Class** refactorings.
 - Duplicated Code problems can be resolved by appropriate **Extract Clone** refactorings.
 
-The tool is the outcome of the research performed in the [Software Refactoring Lab](http://users.encs.concordia.ca/~nikolaos/) at the Department of Computer Science and Software Engineering, Concordia University, Canada
+JDeodorant is the outcome of research conducted in the [Software Refactoring Lab](http://users.encs.concordia.ca/~nikolaos/) at the Department of Computer Science and Software Engineering, Concordia University, Canada
 and the [Software Engineering Group](http://se.uom.gr/) at the Department of Applied Informatics, University of Macedonia, Thessaloniki, Greece.
 
 # Installation & Configuration

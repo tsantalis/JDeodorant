@@ -166,8 +166,8 @@ public class DuplicatedCode extends ViewPart {
 								filteredCloneGroup.addClone(cloneInstance);
 							}
 						}
-						if (filteredCloneGroup.getCloneGroupSize() > 1) {
-							filteredCloneGroupList.add(filteredCloneGroup);
+						if (filteredCloneGroup.getCloneGroupSize() > 0) {
+							filteredCloneGroupList.add(cloneGroup);
 						}
 					}
 					cloneGroupTable = filteredCloneGroupList.getCloneGroups();
@@ -503,22 +503,28 @@ public class DuplicatedCode extends ViewPart {
 		
 		Composite bottomBar = new Composite(parent, SWT.NONE);
 		bottomBar.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false));
-		bottomBar.setLayout(new GridLayout(2, true));
+		bottomBar.setLayout(new GridLayout(3, true));
 		
-		createLegend(bottomBar);
 		createDetectionSettingsPanel(bottomBar);
+		createLegend(bottomBar);
 	}
 
 	private void createDetectionSettingsPanel(Composite bottomBar) {
 		final Group detectionSettingsPanel = new Group(bottomBar, SWT.SHADOW_NONE);
-		detectionSettingsPanel.setText("Detection settings");
+		detectionSettingsPanel.setText("Filtering settings");
 		detectionSettingsPanel.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false));
 		GridLayout detectionSettingsPanelLayout = new GridLayout();
-		detectionSettingsPanelLayout.numColumns = 6;
+		detectionSettingsPanelLayout.numColumns = 2;
 		detectionSettingsPanelLayout.horizontalSpacing = 20;
 		detectionSettingsPanel.setLayout(detectionSettingsPanelLayout);
 		
-		final Button filterBasedOnOpenedDocumentsButton = new Button(detectionSettingsPanel, SWT.CHECK);
+		final Button filterBasedOnOpenedDocumentsButton;
+		if(System.getProperty("os.name").toLowerCase().indexOf("win") >= 0) {
+			filterBasedOnOpenedDocumentsButton = new MultilineButton(detectionSettingsPanel, SWT.WRAP | SWT.CHECK);
+		}
+		else {
+			filterBasedOnOpenedDocumentsButton = new Button(detectionSettingsPanel, SWT.WRAP | SWT.CHECK);
+		}
 		filterBasedOnOpenedDocumentsButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
@@ -526,14 +532,14 @@ public class DuplicatedCode extends ViewPart {
 				treeViewer.refresh();
 			}
 		});
-		filterBasedOnOpenedDocumentsButton.setText("Only show duplicated code in files currently opened");
+		filterBasedOnOpenedDocumentsButton.setText("Show only clone groups for the files opened in the editor");
 		filterBasedOnOpenedDocumentsButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, true, 1, 1));
 	}
 
 	private void createLegend(Composite parent) {
 		final Group legendGroup = new Group(parent, SWT.SHADOW_NONE);
 		legendGroup.setText("Legend");
-		GridData legendGridData = new GridData(SWT.FILL, SWT.FILL, true, false);
+		GridData legendGridData = new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1);
 		legendGroup.setLayoutData(legendGridData);
 		GridLayout legendLayout = new GridLayout();
 		legendLayout.numColumns = 6;

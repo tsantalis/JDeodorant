@@ -5,8 +5,10 @@ import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.compare.BufferedContent;
 import org.eclipse.compare.CompareConfiguration;
@@ -19,6 +21,7 @@ import org.eclipse.core.commands.operations.OperationHistoryEvent;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ElementChangedEvent;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -66,6 +69,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CLabel;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Color;
@@ -75,6 +79,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -86,6 +91,9 @@ import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.IActionBars;
+import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.IEditorReference;
+import org.eclipse.ui.IFileEditorInput;
 import org.eclipse.ui.ISelectionListener;
 import org.eclipse.ui.ISharedImages;
 import org.eclipse.ui.IWorkbench;
@@ -114,9 +122,9 @@ public class DuplicatedCode extends ViewPart {
 	private Action importClonesAction;
 	private Action doubleClickAction;
 	private IJavaProject selectedProject;
-	private CloneGroup[] cloneGroupTable;
 	private CloneGroupList cloneGroupList;
 	private CloneInstanceMapper mapper;
+	private boolean filterBasedOnOpenedDocuments;
 	
 	private static final Color LINK_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLUE);
 	private static final Color TEXT_COLOR = Display.getCurrent().getSystemColor(SWT.COLOR_BLACK);
@@ -128,10 +136,49 @@ public class DuplicatedCode extends ViewPart {
 		public void dispose() {
 		}
 		public Object[] getElements(Object parent) {
-			if(cloneGroupTable!=null) {
-				return cloneGroupTable;
+
+			CloneGroup[] cloneGroupTable = null;
+
+			if (cloneGroupList != null) {
+				if (filterBasedOnOpenedDocuments) {
+
+					Set<String> locationOfOpenedFiles = new HashSet<String>();
+
+					IEditorReference[] editorReferences = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().getEditorReferences();
+					for (IEditorReference editorReference : editorReferences) {
+						try {
+							IEditorInput editorInput = editorReference.getEditorInput();
+							if (editorInput instanceof IFileEditorInput) {
+								IFileEditorInput iFileEditorInput = (IFileEditorInput) editorInput;
+								locationOfOpenedFiles.add(iFileEditorInput.getFile().getLocation().toPortableString());
+							}
+						} catch (PartInitException e) {
+							e.printStackTrace();
+						}
+					}
+
+					CloneGroupList filteredCloneGroupList = new CloneGroupList(selectedProject); 						
+					for (CloneGroup cloneGroup : cloneGroupList.getCloneGroups()) {
+						CloneGroup filteredCloneGroup = new CloneGroup(cloneGroup.getCloneGroupID());
+						for (CloneInstance cloneInstance : cloneGroup.getCloneInstances()) {
+							String cloneInstanceFilePath = cloneInstance.getLocationInfo().getContainingFilePath();
+							if (locationOfOpenedFiles.contains(new Path(cloneInstanceFilePath).toPortableString())) {
+								filteredCloneGroup.addClone(cloneInstance);
+							}
+						}
+						if (filteredCloneGroup.getCloneGroupSize() > 0) {
+							filteredCloneGroupList.add(cloneGroup);
+						}
+					}
+					cloneGroupTable = filteredCloneGroupList.getCloneGroups();
+				} else {
+					cloneGroupTable = cloneGroupList.getCloneGroups();
+				}
 			}
-			else {
+			
+			if(cloneGroupTable != null) {
+				return cloneGroupTable;
+			} else {
 				return new CloneGroup[] {};
 			}
 		}
@@ -144,8 +191,10 @@ public class DuplicatedCode extends ViewPart {
 			}
 		}
 		public Object getParent(Object arg0) {
+			CloneGroup[] cloneGroupTable = cloneGroupList.getCloneGroups();
 			if(arg0 instanceof CloneInstance) {
 				CloneInstance cloneInstance = (CloneInstance)arg0;
+				
 				for(int i=0; i<cloneGroupTable.length; i++) {
 					if(cloneGroupTable[i].getCloneInstances().contains(cloneInstance))
 						return cloneGroupTable[i];
@@ -326,7 +375,6 @@ public class DuplicatedCode extends ViewPart {
 				}
 			}
 			if (shouldUpdate) {
-				cloneGroupTable = cloneGroupList.getCloneGroups();
 				treeViewer.refresh();
 			}
 		}
@@ -453,13 +501,45 @@ public class DuplicatedCode extends ViewPart {
 			}
 		});
 		
-		createLegend(parent);
+		Composite bottomBar = new Composite(parent, SWT.NONE);
+		bottomBar.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false));
+		bottomBar.setLayout(new GridLayout(3, true));
+		
+		createDetectionSettingsPanel(bottomBar);
+		createLegend(bottomBar);
+	}
+
+	private void createDetectionSettingsPanel(Composite bottomBar) {
+		final Group detectionSettingsPanel = new Group(bottomBar, SWT.SHADOW_NONE);
+		detectionSettingsPanel.setText("Filtering settings");
+		detectionSettingsPanel.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, false));
+		GridLayout detectionSettingsPanelLayout = new GridLayout();
+		detectionSettingsPanelLayout.numColumns = 2;
+		detectionSettingsPanelLayout.horizontalSpacing = 20;
+		detectionSettingsPanel.setLayout(detectionSettingsPanelLayout);
+		
+		final Button filterBasedOnOpenedDocumentsButton;
+		if(System.getProperty("os.name").toLowerCase().indexOf("win") >= 0) {
+			filterBasedOnOpenedDocumentsButton = new MultilineButton(detectionSettingsPanel, SWT.WRAP | SWT.CHECK);
+		}
+		else {
+			filterBasedOnOpenedDocumentsButton = new Button(detectionSettingsPanel, SWT.WRAP | SWT.CHECK);
+		}
+		filterBasedOnOpenedDocumentsButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				filterBasedOnOpenedDocuments = filterBasedOnOpenedDocumentsButton.getSelection();
+				treeViewer.refresh();
+			}
+		});
+		filterBasedOnOpenedDocumentsButton.setText("Show only clone groups for the files opened in the editor");
+		filterBasedOnOpenedDocumentsButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, true, 1, 1));
 	}
 
 	private void createLegend(Composite parent) {
 		final Group legendGroup = new Group(parent, SWT.SHADOW_NONE);
 		legendGroup.setText("Legend");
-		GridData legendGridData = new GridData(SWT.FILL, SWT.FILL, true, false);
+		GridData legendGridData = new GridData(SWT.FILL, SWT.FILL, true, false, 2, 1);
 		legendGroup.setLayoutData(legendGridData);
 		GridLayout legendLayout = new GridLayout();
 		legendLayout.numColumns = 6;
@@ -548,7 +628,6 @@ public class DuplicatedCode extends ViewPart {
 				CloneGroupList importedCloneGroupList = wizard.getCloneGroupList();
 				if(importedCloneGroupList != null) {
 					cloneGroupList = importedCloneGroupList;
-					cloneGroupTable = cloneGroupList.getCloneGroups();
 					treeViewer.setContentProvider(new ViewContentProvider());
 				}
 			}

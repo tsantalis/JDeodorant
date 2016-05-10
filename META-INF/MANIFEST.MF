@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: JDeodorant Plug-in
 Bundle-SymbolicName: gr.uom.java.jdeodorant; singleton:=true
-Bundle-Version: 5.0.56
+Bundle-Version: 5.0.57
 Bundle-Activator: gr.uom.java.jdeodorant.refactoring.Activator
 Bundle-Localization: plugin
 Require-Bundle: org.eclipse.ui,
@@ -16,7 +16,8 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ltk.ui.refactoring,
  org.eclipse.compare,
  org.eclipse.draw2d,
- org.eclipse.core.filebuffers
+ org.eclipse.core.filebuffers,
+ org.eclipse.ui.ide
 Bundle-ActivationPolicy: lazy
 Import-Package: org.eclipse.jdt.core.refactoring
 Export-Package: ca.concordia.jdeodorant.clone.parsers,

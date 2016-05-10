@@ -40,7 +40,7 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 		int cloneInstanceNumber = 0;
 		CloneGroup cloneGroup = null;
 		
-		Pattern pattern = Pattern.compile("(.*)\n");
+		Pattern pattern = Pattern.compile("(.*)\r?\n");
 		Matcher matcher = pattern.matcher(resultsFile);
 
 		while (matcher.find()) {

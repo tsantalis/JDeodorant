@@ -20,7 +20,7 @@ public class TryStatementObject extends CompositeStatementObject {
 	}
 
 	public boolean hasResources() {
-		return !getExpressions().isEmpty();
+		return !super.getExpressions().isEmpty();
 	}
 
 	public void addCatchClause(CatchClauseObject catchClause) {

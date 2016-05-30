@@ -880,24 +880,26 @@ public class MethodCallAnalyzer {
 	private MethodDeclaration getInvokedMethodDeclaration(IMethodBinding methodBinding) {
 		MethodDeclaration invokedMethodDeclaration = null;
 		IMethod iMethod2 = (IMethod)methodBinding.getJavaElement();
-		IClassFile methodClassFile = iMethod2.getClassFile();
-		LibraryClassStorage instance = LibraryClassStorage.getInstance();
-		CompilationUnit methodCompilationUnit = instance.getCompilationUnit(methodClassFile);
-		Set<TypeDeclaration> methodTypeDeclarations = extractTypeDeclarations(methodCompilationUnit);
-		for(TypeDeclaration methodTypeDeclaration : methodTypeDeclarations) {
-			ITypeBinding methodTypeDeclarationBinding = methodTypeDeclaration.resolveBinding();
-			if(methodTypeDeclarationBinding != null && (methodTypeDeclarationBinding.isEqualTo(methodBinding.getDeclaringClass()) ||
-					methodTypeDeclarationBinding.getBinaryName().equals(methodBinding.getDeclaringClass().getBinaryName()))) {
-				MethodDeclaration[] methodDeclarations2 = methodTypeDeclaration.getMethods();
-				for(MethodDeclaration methodDeclaration2 : methodDeclarations2) {
-					if(methodDeclaration2.resolveBinding().isEqualTo(methodBinding) ||
-							equalSignature(methodDeclaration2.resolveBinding(), methodBinding)) {
-						invokedMethodDeclaration = methodDeclaration2;
-						break;
+		if(iMethod2 != null) {
+			IClassFile methodClassFile = iMethod2.getClassFile();
+			LibraryClassStorage instance = LibraryClassStorage.getInstance();
+			CompilationUnit methodCompilationUnit = instance.getCompilationUnit(methodClassFile);
+			Set<TypeDeclaration> methodTypeDeclarations = extractTypeDeclarations(methodCompilationUnit);
+			for(TypeDeclaration methodTypeDeclaration : methodTypeDeclarations) {
+				ITypeBinding methodTypeDeclarationBinding = methodTypeDeclaration.resolveBinding();
+				if(methodTypeDeclarationBinding != null && (methodTypeDeclarationBinding.isEqualTo(methodBinding.getDeclaringClass()) ||
+						methodTypeDeclarationBinding.getBinaryName().equals(methodBinding.getDeclaringClass().getBinaryName()))) {
+					MethodDeclaration[] methodDeclarations2 = methodTypeDeclaration.getMethods();
+					for(MethodDeclaration methodDeclaration2 : methodDeclarations2) {
+						if(methodDeclaration2.resolveBinding().isEqualTo(methodBinding) ||
+								equalSignature(methodDeclaration2.resolveBinding(), methodBinding)) {
+							invokedMethodDeclaration = methodDeclaration2;
+							break;
+						}
 					}
+					if(invokedMethodDeclaration != null)
+						break;
 				}
-				if(invokedMethodDeclaration != null)
-					break;
 			}
 		}
 		return invokedMethodDeclaration;

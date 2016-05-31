@@ -98,7 +98,7 @@ public class MethodCallAnalyzer {
 			else {
 				Set<AbstractVariable> usedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.usedVariables);
 				Set<AbstractVariable> definedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.definedVariables);
-				processInternalMethodInvocation(classObject, methodObject, variable, new LinkedHashSet<String>());
+				processInternalMethodInvocation(classObject, methodObject, variable, new LinkedHashSet<String>(), 0);
 				//save in cache
 				Set<AbstractVariable> usedVariablesAfter = new LinkedHashSet<AbstractVariable>(this.usedVariables);
 				usedVariablesAfter.removeAll(usedVariablesBefore);
@@ -368,7 +368,7 @@ public class MethodCallAnalyzer {
 						if(classObject2 != null) {
 							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
 							if(methodObject2 != null) {
-								processInternalMethodInvocation(classObject2, methodObject2, field, new LinkedHashSet<String>());
+								processInternalMethodInvocation(classObject2, methodObject2, field, new LinkedHashSet<String>(), 0);
 							}
 						}
 						else {
@@ -498,37 +498,39 @@ public class MethodCallAnalyzer {
 		return -1;
 	}
 
-	private void processInternalMethodInvocation(ClassObject classObject, AbstractMethodDeclaration methodObject, AbstractVariable variableDeclaration, Set<String> processedMethods) {
+	private void processInternalMethodInvocation(ClassObject classObject, AbstractMethodDeclaration methodObject, AbstractVariable variableDeclaration, Set<String> processedMethods, int depth) {
 		SystemObject systemObject = ASTReader.getSystemObject();
 		if(methodObject.isAbstract() || classObject.isInterface()) {
 			AbstractTypeDeclaration typeDeclaration = classObject.getAbstractTypeDeclaration();
 			IMethodBinding superMethodDeclarationBinding = methodObject.getMethodDeclaration().resolveBinding();
 			IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
 			processedMethods.add(superMethodDeclarationBinding.getKey());
-			Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
-			Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
-			if(variableDeclaration != null) {
-				String initialReferenceType = variableDeclaration.getVariableType();
-				for(IType subType : subTypes) {
-					if(subType.getFullyQualifiedName('.').equals(initialReferenceType)) {
-						subTypesToBeAnalyzed.add(subType);
-						break;
-					}
-				}
-				if(subTypesToBeAnalyzed.isEmpty())
-					subTypesToBeAnalyzed.addAll(subTypes);
-			}
-			else
-				subTypesToBeAnalyzed.addAll(subTypes);
-			for(IType subType : subTypesToBeAnalyzed) {
-				ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
-				if(subClassObject != null) {
-					ListIterator<MethodObject> methodIterator = subClassObject.getMethodIterator();
-					while(methodIterator.hasNext()) {
-						MethodObject subMethod = methodIterator.next();
-						if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), superMethodDeclarationBinding)) {
-							processInternalMethodInvocation(subClassObject, subMethod, variableDeclaration, processedMethods);
+			if(depth < maximumCallGraphAnalysisDepth) {
+				Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
+				Set<IType> subTypesToBeAnalyzed = new LinkedHashSet<IType>();
+				if(variableDeclaration != null) {
+					String initialReferenceType = variableDeclaration.getVariableType();
+					for(IType subType : subTypes) {
+						if(subType.getFullyQualifiedName('.').equals(initialReferenceType)) {
+							subTypesToBeAnalyzed.add(subType);
 							break;
+						}
+					}
+					if(subTypesToBeAnalyzed.isEmpty())
+						subTypesToBeAnalyzed.addAll(subTypes);
+				}
+				else
+					subTypesToBeAnalyzed.addAll(subTypes);
+				for(IType subType : subTypesToBeAnalyzed) {
+					ClassObject subClassObject = systemObject.getClassObject(subType.getFullyQualifiedName('.'));
+					if(subClassObject != null) {
+						ListIterator<MethodObject> methodIterator = subClassObject.getMethodIterator();
+						while(methodIterator.hasNext()) {
+							MethodObject subMethod = methodIterator.next();
+							if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), superMethodDeclarationBinding)) {
+								processInternalMethodInvocation(subClassObject, subMethod, variableDeclaration, processedMethods, depth);
+								break;
+							}
 						}
 					}
 				}
@@ -567,113 +569,115 @@ public class MethodCallAnalyzer {
 			}
 			thrownExceptionTypes.addAll(methodObject.getExceptionsInThrowStatements());
 			processedMethods.add(methodObject.getMethodDeclaration().resolveBinding().getKey());
-			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = methodObject.getInvokedMethodsThroughFields();
-			for(AbstractVariable originalField : invokedMethodsThroughFields.keySet()) {
-				boolean alreadyContainsOriginalField = false;
-				if(variableDeclaration != null && originalField instanceof PlainVariable) {
-					if(variableDeclaration.containsPlainVariable((PlainVariable)originalField))
-						alreadyContainsOriginalField = true;
-				}
-				if(!alreadyContainsOriginalField) {
-					LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(originalField);
-					AbstractVariable field = null;
-					if(variableDeclaration != null)
-						field = composeVariable(variableDeclaration, originalField);
-					else
-						field = originalField;
-					for(MethodInvocationObject methodInvocationObject : methodInvocations) {
-						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-						if(classObject2 != null) {
-							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
-							if(methodObject2 != null) {
-								if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
-									processInternalMethodInvocation(classObject2, methodObject2, field, new LinkedHashSet<String>());
-							}
-						}
-						else {
-							LibraryClassStorage instance = LibraryClassStorage.getInstance();
-							IMethodBinding invokedMethodBinding = methodInvocation2.resolveMethodBinding();
-							if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
-								handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), field, instance);
+			if(depth < maximumCallGraphAnalysisDepth) {
+				Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = methodObject.getInvokedMethodsThroughFields();
+				for(AbstractVariable originalField : invokedMethodsThroughFields.keySet()) {
+					boolean alreadyContainsOriginalField = false;
+					if(variableDeclaration != null && originalField instanceof PlainVariable) {
+						if(variableDeclaration.containsPlainVariable((PlainVariable)originalField))
+							alreadyContainsOriginalField = true;
+					}
+					if(!alreadyContainsOriginalField) {
+						LinkedHashSet<MethodInvocationObject> methodInvocations = invokedMethodsThroughFields.get(originalField);
+						AbstractVariable field = null;
+						if(variableDeclaration != null)
+							field = composeVariable(variableDeclaration, originalField);
+						else
+							field = originalField;
+						for(MethodInvocationObject methodInvocationObject : methodInvocations) {
+							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+							ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+							if(classObject2 != null) {
+								MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
+								if(methodObject2 != null) {
+									if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+										processInternalMethodInvocation(classObject2, methodObject2, field, new LinkedHashSet<String>(), 0);
+								}
 							}
 							else {
-								MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
-								if(invokedMethodDeclaration != null)
-									processExternalMethodInvocation(invokedMethodDeclaration, field, new LinkedHashSet<String>(), 0);
+								LibraryClassStorage instance = LibraryClassStorage.getInstance();
+								IMethodBinding invokedMethodBinding = methodInvocation2.resolveMethodBinding();
+								if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
+									handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), field, instance);
+								}
+								else {
+									MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
+									if(invokedMethodDeclaration != null)
+										processExternalMethodInvocation(invokedMethodDeclaration, field, new LinkedHashSet<String>(), 0);
+								}
 							}
 						}
 					}
 				}
-			}
-			for(MethodInvocationObject methodInvocationObject : methodObject.getInvokedMethodsThroughThisReference()) {
-				MethodObject methodObject2 = classObject.getMethod(methodInvocationObject);
-				if(methodObject2 != null) { 
-					if(!methodObject2.equals(methodObject)) {
-						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-						if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
-							processInternalMethodInvocation(classObject, methodObject2, variableDeclaration, processedMethods);
-					}
-				}
-				else {
-					//the invoked method is an inherited method
-					ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
-					if(classObject2 != null) {
-						methodObject2 = classObject2.getMethod(methodInvocationObject);
-						if(methodObject2 != null) {
-							thrownExceptionTypes.addAll(methodObject2.getExceptionsInThrowStatements());
-							//the commented code that follows is causing significant performance deterioration. It's time to reconsider the PDG generation strategy
-							/*
+				for(MethodInvocationObject methodInvocationObject : methodObject.getInvokedMethodsThroughThisReference()) {
+					MethodObject methodObject2 = classObject.getMethod(methodInvocationObject);
+					if(methodObject2 != null) { 
+						if(!methodObject2.equals(methodObject)) {
 							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
 							if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
-								processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
-							*/
+								processInternalMethodInvocation(classObject, methodObject2, variableDeclaration, processedMethods, depth+1);
+						}
+					}
+					else {
+						//the invoked method is an inherited method
+						ClassObject classObject2 = systemObject.getClassObject(methodInvocationObject.getOriginClassName());
+						if(classObject2 != null) {
+							methodObject2 = classObject2.getMethod(methodInvocationObject);
+							if(methodObject2 != null) {
+								thrownExceptionTypes.addAll(methodObject2.getExceptionsInThrowStatements());
+								//the commented code that follows is causing significant performance deterioration. It's time to reconsider the PDG generation strategy
+								/*
+								MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
+								if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+									processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
+								*/
+							}
 						}
 					}
 				}
-			}
-			for(SuperMethodInvocationObject superMethodInvocationObject : methodObject.getSuperMethodInvocations()) {
-				ClassObject classObject2 = systemObject.getClassObject(superMethodInvocationObject.getOriginClassName());
-				if(classObject2 != null) {
-					MethodObject methodObject2 = classObject2.getMethod(superMethodInvocationObject);
-					if(methodObject2 != null) {
-						SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
-						if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
-							processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
+				for(SuperMethodInvocationObject superMethodInvocationObject : methodObject.getSuperMethodInvocations()) {
+					ClassObject classObject2 = systemObject.getClassObject(superMethodInvocationObject.getOriginClassName());
+					if(classObject2 != null) {
+						MethodObject methodObject2 = classObject2.getMethod(superMethodInvocationObject);
+						if(methodObject2 != null) {
+							SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
+							if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
+								processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods, depth+1);
+						}
 					}
 				}
-			}
-			for(ConstructorInvocationObject constructorInvocationObject : methodObject.getConstructorInvocations()) {
-				ClassObject classObject2 = systemObject.getClassObject(constructorInvocationObject.getOriginClassName());
-				if(classObject2 != null) {
-					ConstructorObject constructorObject2 = classObject2.getConstructor(constructorInvocationObject);
-					if(constructorObject2 != null) {
-						ConstructorInvocation constructorInvocation = constructorInvocationObject.getConstructorInvocation();
-						if(!processedMethods.contains(constructorInvocation.resolveConstructorBinding().getKey()))
-							processInternalMethodInvocation(classObject2, constructorObject2, variableDeclaration, processedMethods);
+				for(ConstructorInvocationObject constructorInvocationObject : methodObject.getConstructorInvocations()) {
+					ClassObject classObject2 = systemObject.getClassObject(constructorInvocationObject.getOriginClassName());
+					if(classObject2 != null) {
+						ConstructorObject constructorObject2 = classObject2.getConstructor(constructorInvocationObject);
+						if(constructorObject2 != null) {
+							ConstructorInvocation constructorInvocation = constructorInvocationObject.getConstructorInvocation();
+							if(!processedMethods.contains(constructorInvocation.resolveConstructorBinding().getKey()))
+								processInternalMethodInvocation(classObject2, constructorObject2, variableDeclaration, processedMethods, depth+1);
+						}
 					}
 				}
-			}
-			for(MethodInvocationObject staticMethodInvocationObject : methodObject.getInvokedStaticMethods()) {
-				MethodInvocation staticMethodInvocation = staticMethodInvocationObject.getMethodInvocation();
-				ClassObject classObject2 = systemObject.getClassObject(staticMethodInvocationObject.getOriginClassName());
-				if(classObject2 != null) {
-					MethodObject methodObject2 = classObject2.getMethod(staticMethodInvocationObject);
-					if(methodObject2 != null) {
-						if(!processedMethods.contains(staticMethodInvocation.resolveMethodBinding().getKey()))
-							processInternalMethodInvocation(classObject2, methodObject2, null, processedMethods);
-					}
-				}
-				else {
-					LibraryClassStorage instance = LibraryClassStorage.getInstance();
-					IMethodBinding invokedMethodBinding = staticMethodInvocation.resolveMethodBinding();
-					if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
-						handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), null, instance);
+				for(MethodInvocationObject staticMethodInvocationObject : methodObject.getInvokedStaticMethods()) {
+					MethodInvocation staticMethodInvocation = staticMethodInvocationObject.getMethodInvocation();
+					ClassObject classObject2 = systemObject.getClassObject(staticMethodInvocationObject.getOriginClassName());
+					if(classObject2 != null) {
+						MethodObject methodObject2 = classObject2.getMethod(staticMethodInvocationObject);
+						if(methodObject2 != null) {
+							if(!processedMethods.contains(staticMethodInvocation.resolveMethodBinding().getKey()))
+								processInternalMethodInvocation(classObject2, methodObject2, null, processedMethods, depth+1);
+						}
 					}
 					else {
-						MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
-						if(invokedMethodDeclaration != null)
-							processExternalMethodInvocation(invokedMethodDeclaration, null, new LinkedHashSet<String>(), 0);
+						LibraryClassStorage instance = LibraryClassStorage.getInstance();
+						IMethodBinding invokedMethodBinding = staticMethodInvocation.resolveMethodBinding();
+						if(instance.isAnalyzed(invokedMethodBinding.getKey())) {
+							handleAlreadyAnalyzedMethod(invokedMethodBinding.getKey(), null, instance);
+						}
+						else {
+							MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(invokedMethodBinding);
+							if(invokedMethodDeclaration != null)
+								processExternalMethodInvocation(invokedMethodDeclaration, null, new LinkedHashSet<String>(), 0);
+						}
 					}
 				}
 			}

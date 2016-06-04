@@ -4,12 +4,9 @@ import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.TopicFinder;
-import gr.uom.java.ast.util.math.HumaniseCamelCase;
-import gr.uom.java.ast.util.math.Stemmer;
 import gr.uom.java.ast.visualization.GodClassVisualizationData;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -26,7 +23,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jface.text.Position;
 
-public class ExtractClassCandidateRefactoring extends CandidateRefactoring implements Comparable<ExtractClassCandidateRefactoring>,TopicFinder {
+public class ExtractClassCandidateRefactoring extends CandidateRefactoring implements Comparable<ExtractClassCandidateRefactoring> {
 
 	private MySystem system;
 	private MyClass sourceClass;
@@ -47,7 +44,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	private Map<MyAttribute, String> extractedVariableBindingKeys;
 	private GodClassVisualizationData visualizationData;
 	private Integer userRate;
-	private String topic;
+	private List<String> topics;
 
 	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass, DistanceMatrix originalDistanceMatrix) {
 		super();
@@ -71,6 +68,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		this.oldInvocations = new LinkedHashMap<MyMethod, MyMethodInvocation>();
 		this.new2oldMethods = new LinkedHashMap<MyMethod, MyMethod>();
 		this.extractedVariableBindingKeys = new LinkedHashMap<MyAttribute, String>();
+		this.topics = new ArrayList<String>();
 	}
 
 	public MyClass getProductClass() {
@@ -694,69 +692,22 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		return Double.compare(this.entityPlacement, other.entityPlacement);
 	}
 
-	public void findTopic(Stemmer stemmer, HumaniseCamelCase humaniser,
-			ArrayList<String> stopWords) {
-		HashMap<String, Integer> vocabulary = new HashMap<String, Integer>();
+	public void findTopics() {
+		List<String> codeElements = new ArrayList<String>();
 		for (Entity entity : this.extractedEntities) {
-			String[] tokens = null;
 			if (entity instanceof MyAttribute) {
-				tokens = humaniser.humanise(((MyAttribute) entity).getName())
-						.split("\\s");
-			} else {
-				tokens = humaniser
-						.humanise(((MyMethod) entity).getMethodName()).split(
-								"\\s");
+				MyAttribute attribute = (MyAttribute) entity;
+				codeElements.add(attribute.getName());
 			}
-			for (String token : tokens) {
-				if (!token.toUpperCase().equals(token)) {
-					stemmer.add(token.toLowerCase().toCharArray(),
-							token.length());
-					stemmer.stem();
-					if (!stopWords.contains(token)
-							&& !stopWords.contains(stemmer.toString()
-									.toLowerCase())) {
-						if (!vocabulary.containsKey(stemmer.toString()
-								.toLowerCase())) {
-							vocabulary.put(stemmer.toString().toLowerCase(), 1);
-						} else {
-							vocabulary.put(stemmer.toString().toLowerCase(),
-									vocabulary.get(stemmer.toString()
-											.toLowerCase()) + 1);
-						}
-					}
-				} else {
-					if (!vocabulary.containsKey(token)) {
-						vocabulary.put(token, 1);
-					} else {
-						vocabulary.put(token, vocabulary.get(token) + 1);
-					}
-				}
+			else if (entity instanceof MyMethod) {
+				MyMethod method = (MyMethod) entity;
+				codeElements.add(method.getMethodName());
 			}
-			int max = 0;
-			ArrayList<String> frequentTermList = new ArrayList<String>();
-			String frequentTerm = "";
-			if (!vocabulary.isEmpty()) {
-				for (String term : vocabulary.keySet()) {
-					if (vocabulary.get(term) >= max) {
-						max = vocabulary.get(term);
-					}
-				}
-				for (String term : vocabulary.keySet()) {
-					if (vocabulary.get(term) == max) {
-						frequentTermList.add(term);
-					}
-				}
-				for (int i = 0; i < frequentTermList.size() - 1; i++) {
-					frequentTerm += frequentTermList.get(i) + " + ";
-				}
-				frequentTerm += frequentTermList
-						.get(frequentTermList.size() - 1);
-			}
-			topic = frequentTerm;
 		}
+		this.topics = TopicFinder.findTopics(codeElements);
 	}
 
-	public String getTopic() {
-		return topic;
+	public List<String> getTopics() {
+		return topics;
 	}
 }

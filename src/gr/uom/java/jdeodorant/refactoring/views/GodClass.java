@@ -169,7 +169,7 @@ public class GodClass extends ViewPart {
 				case 0:
 					return "Extract Class";
 				case 2:
-					return entry.getTopic();
+					return ""+entry.getTopics();
 				case 3:
 					return ""+entry.getEntityPlacement();
 				case 4:
@@ -183,7 +183,7 @@ public class GodClass extends ViewPart {
 				ExtractedConcept entry = (ExtractedConcept)obj;
 				switch(index) {
 				case 1:
-					return "      "+entry.getTopic();
+					return "      "+entry.getTopics();
 				default:
 					return "";
 				}

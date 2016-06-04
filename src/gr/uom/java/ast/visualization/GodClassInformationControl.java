@@ -64,7 +64,7 @@ implements IInformationControlExtension2 {
 		for(CandidateRefactoring candidate: candidates){
 			final CandidateRefactoring candidateRefactoring = candidate;
 			ExtractClassCandidateRefactoring moveCandidate = (ExtractClassCandidateRefactoring) candidate;
-			String extractClassName = moveCandidate.getTopic();
+			String extractClassName = ""+moveCandidate.getTopics();
 			EntityFigure methodFigure =new EntityFigure(extractClassName, DecorationConstants.METHOD, false);
 			
 			

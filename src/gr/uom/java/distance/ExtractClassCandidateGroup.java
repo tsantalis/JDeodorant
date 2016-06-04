@@ -1,13 +1,5 @@
 package gr.uom.java.distance;
 
-import gr.uom.java.ast.util.math.HumaniseCamelCase;
-import gr.uom.java.ast.util.math.Stemmer;
-import gr.uom.java.jdeodorant.refactoring.Activator;
-
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -94,37 +86,12 @@ public class ExtractClassCandidateGroup implements Comparable<ExtractClassCandid
 	}
 
 	private void findConceptTerms() {
-		Stemmer stemmer = new Stemmer();
-		HumaniseCamelCase humaniser = new HumaniseCamelCase();
-		ArrayList<String> stopWords = getStopWords();
 		for (ExtractedConcept concept : extractedConcepts) {
-			concept.findTopic(stemmer, humaniser, stopWords);
+			concept.findTopics();
 			for (ExtractClassCandidateRefactoring conceptCluster : concept.getConceptClusters()) {
-				conceptCluster.findTopic(stemmer, humaniser, stopWords);
+				conceptCluster.findTopics();
 			}
 		}
-	}
-
-	private ArrayList<String> getStopWords() {
-		ArrayList<String> stopWords = new ArrayList<String>();
-		try {
-
-			BufferedReader in = new BufferedReader(
-					new InputStreamReader(Activator.getDefault().getBundle()
-							.getEntry("icons/glasgowstoplist.txt").openStream()));
-			String next = in.readLine();
-			while (next != null) {
-				stopWords.add(next);
-				next = in.readLine();
-			}
-			in.close();
-
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return stopWords;
 	}
 
 	public int compareTo(ExtractClassCandidateGroup other) {

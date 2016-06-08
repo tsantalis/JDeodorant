@@ -23,9 +23,12 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CastExpression;
+import org.eclipse.jdt.core.dom.ChildListPropertyDescriptor;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -82,6 +85,7 @@ public class MoveMethodRefactoring extends Refactoring {
 	private Set<ITypeBinding> additionalTypeBindingsToBeImportedInTargetClass;
 	private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
 	private Set<FieldDeclaration> fieldDeclarationsChangedWithPublicModifier;
+	private Set<BodyDeclaration> memberTypeDeclarationsChangedWithPublicModifier;
 	private boolean leaveDelegate;
 	private String movedMethodName;
 	private boolean isTargetClassVariableParameter;
@@ -105,6 +109,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		this.additionalTypeBindingsToBeImportedInTargetClass = new LinkedHashSet<ITypeBinding>();
 		this.additionalMethodsToBeMoved = additionalMethodsToBeMoved;
 		this.fieldDeclarationsChangedWithPublicModifier = new LinkedHashSet<FieldDeclaration>();
+		this.memberTypeDeclarationsChangedWithPublicModifier = new LinkedHashSet<BodyDeclaration>();
 		this.leaveDelegate = leaveDelegate;
 		this.movedMethodName = movedMethodName;
 		this.isTargetClassVariableParameter = false;
@@ -748,7 +753,7 @@ public class MoveMethodRefactoring extends Refactoring {
 							FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
 							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
 						}
-						else if(!(simpleName.getParent() instanceof QualifiedName)) {
+						else if(!(simpleName.getParent() instanceof QualifiedName) && !RefactoringUtility.isEnumConstantInSwitchCaseExpression(simpleName)) {
 							SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
 							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 							targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
@@ -771,15 +776,85 @@ public class MoveMethodRefactoring extends Refactoring {
 							FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
 							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
 						}
-						else if(!(simpleName.getParent() instanceof QualifiedName)) {
+						else if(!(simpleName.getParent() instanceof QualifiedName) && !RefactoringUtility.isEnumConstantInSwitchCaseExpression(simpleName)) {
 							SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
 							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 							targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
+						}
+						ITypeBinding fieldDeclaringClass = variableBinding.getDeclaringClass();
+						if(fieldDeclaringClass != null && fieldDeclaringClass.isEnum() && sourceTypeDeclaration.resolveBinding().isEqualTo(fieldDeclaringClass.getDeclaringClass())) {
+							setPublicModifierToSourceMemberType(fieldDeclaringClass);
 						}
 					}
 				}
 			}
 			i++;
+		}
+	}
+
+	private void setPublicModifierToSourceMemberType(ITypeBinding typeBinding) {
+		List<BodyDeclaration> bodyDeclarations = sourceTypeDeclaration.bodyDeclarations();
+		for(BodyDeclaration bodyDeclaration : bodyDeclarations) {
+			if(bodyDeclaration instanceof TypeDeclaration) {
+				TypeDeclaration memberType = (TypeDeclaration)bodyDeclaration;
+				ITypeBinding memberTypeBinding = memberType.resolveBinding();
+				if(typeBinding.isEqualTo(memberTypeBinding)) {
+					updateBodyDeclarationAccessModifier(memberType, TypeDeclaration.MODIFIERS2_PROPERTY);
+				}
+			}
+			else if(bodyDeclaration instanceof EnumDeclaration) {
+				EnumDeclaration memberEnum = (EnumDeclaration)bodyDeclaration;
+				ITypeBinding memberTypeBinding = memberEnum.resolveBinding();
+				if(typeBinding.isEqualTo(memberTypeBinding)) {
+					updateBodyDeclarationAccessModifier(memberEnum, EnumDeclaration.MODIFIERS2_PROPERTY);
+				}
+			}
+		}
+	}
+
+	private void updateBodyDeclarationAccessModifier(BodyDeclaration memberType, ChildListPropertyDescriptor childListPropertyDescriptor) {
+		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+		ListRewrite modifierRewrite = sourceRewriter.getListRewrite(memberType, childListPropertyDescriptor);
+		Modifier publicModifier = memberType.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
+		boolean modifierFound = false;
+		List<IExtendedModifier> modifiers = memberType.modifiers();
+		for(IExtendedModifier extendedModifier : modifiers) {
+			if(extendedModifier.isModifier()) {
+				Modifier modifier = (Modifier)extendedModifier;
+				if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
+					modifierFound = true;
+				}
+				else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD)) {
+					if(!memberTypeDeclarationsChangedWithPublicModifier.contains(memberType)) {
+						memberTypeDeclarationsChangedWithPublicModifier.add(memberType);
+						modifierFound = true;
+						modifierRewrite.replace(modifier, publicModifier, null);
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							sourceMultiTextEdit.addChild(sourceEdit);
+							sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+				else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+					modifierFound = true;
+				}
+			}
+		}
+		if(!modifierFound) {
+			if(!memberTypeDeclarationsChangedWithPublicModifier.contains(memberType)) {
+				memberTypeDeclarationsChangedWithPublicModifier.add(memberType);
+				modifierRewrite.insertFirst(publicModifier, null);
+				try {
+					TextEdit sourceEdit = sourceRewriter.rewriteAST();
+					sourceMultiTextEdit.addChild(sourceEdit);
+					sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 

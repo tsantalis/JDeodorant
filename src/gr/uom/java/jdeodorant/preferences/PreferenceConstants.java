@@ -17,6 +17,8 @@ public class PreferenceConstants {
 	
 	public static final String P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH = "maximumCallGraphAnalysisDepthPreference";
 	
+	public static final String P_ENABLE_CALL_GRAPH_ANALYSIS = "enableCallGraphAnalysisPreference";
+	
 	public static final String P_ENABLE_ALIAS_ANALYSIS = "enableAliasAnalysisPreference";
 	
 	public static final String P_PROJECT_COMPILATION_UNIT_CACHE_SIZE = "projectCompilationUnitCacheSize";

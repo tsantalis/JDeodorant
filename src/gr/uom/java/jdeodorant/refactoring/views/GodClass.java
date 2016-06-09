@@ -39,6 +39,8 @@ import gr.uom.java.jdeodorant.refactoring.views.CodeSmellPackageExplorer.CodeSme
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
@@ -75,6 +77,8 @@ import org.eclipse.ltk.core.refactoring.Refactoring;
 import org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation;
 import org.eclipse.ui.*;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 
 
 /**
@@ -340,6 +344,22 @@ public class GodClass extends ViewPart {
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Extractable Concept");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Entity Placement");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Rate it!");
+		
+		treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+			public void selectionChanged(SelectionChangedEvent event) {
+				treeViewer.getTree().setMenu(null);
+				IStructuredSelection selection = (IStructuredSelection)treeViewer.getSelection();
+				if(selection instanceof IStructuredSelection) {
+					IStructuredSelection structuredSelection = (IStructuredSelection)selection;
+					Object[] selectedItems = structuredSelection.toArray();
+					if(selection.getFirstElement() instanceof ExtractClassCandidateRefactoring && selectedItems.length == 1) {
+						ExtractClassCandidateRefactoring candidateRefactoring = (ExtractClassCandidateRefactoring)selection.getFirstElement();
+						treeViewer.getTree().setMenu(getRightClickMenu(treeViewer, candidateRefactoring));
+					}
+				}
+			}
+		});
+		
 		treeViewer.expandAll();
 
 		for (int i = 0, n = treeViewer.getTree().getColumnCount(); i < n; i++) {
@@ -461,6 +481,28 @@ public class GodClass extends ViewPart {
 		});
 	}
 
+	private Menu getRightClickMenu(TreeViewer treeViewer, final ExtractClassCandidateRefactoring candidateRefactoring) {
+		Menu popupMenu = new Menu(treeViewer.getControl());
+		MenuItem textualDiffMenuItem = new MenuItem(popupMenu, SWT.NONE);
+		textualDiffMenuItem.setText("Visualize Code Smell");
+		textualDiffMenuItem.addSelectionListener(new SelectionListener() {
+			public void widgetSelected(SelectionEvent arg) {
+				CodeSmellVisualizationDataSingleton.setData(candidateRefactoring.getGodClassVisualizationData());
+				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellVisualization.ID);
+				if(viewPart != null)
+					page.hideView(viewPart);
+				try {
+					page.showView(CodeSmellVisualization.ID);
+				} catch (PartInitException e) {
+					e.printStackTrace();
+				}
+			}
+			public void widgetDefaultSelected(SelectionEvent arg) {}
+		});
+		popupMenu.setVisible(false);
+		return popupMenu;
+	}
 
 	private void contributeToActionBars() {
 		IActionBars bars = getViewSite().getActionBars();
@@ -665,14 +707,6 @@ public class GodClass extends ViewPart {
 							int offset = firstPosition.getOffset();
 							int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 							sourceEditor.setHighlightRange(offset, length, true);
-
-							CodeSmellVisualizationDataSingleton.setData(
-									((ExtractClassCandidateRefactoring)candidate).getGodClassVisualizationData());
-							IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-							IViewPart viewPart = page.findView(CodeSmellVisualization.ID);
-							if(viewPart != null)
-								page.hideView(viewPart);
-							page.showView(CodeSmellVisualization.ID);
 						} catch (PartInitException e) {
 							e.printStackTrace();
 						} catch (JavaModelException e) {

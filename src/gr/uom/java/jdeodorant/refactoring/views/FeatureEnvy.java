@@ -37,6 +37,8 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
@@ -57,6 +59,7 @@ import org.eclipse.jface.viewers.*;
 import org.eclipse.jface.window.ToolTip;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
@@ -302,6 +305,21 @@ public class FeatureEnvy extends ViewPart {
 		column4.setText("Rate it!");
 		column4.setResizable(true);
 		column4.pack();
+		
+		tableViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+			public void selectionChanged(SelectionChangedEvent event) {
+				tableViewer.getTable().setMenu(null);
+				IStructuredSelection selection = (IStructuredSelection)tableViewer.getSelection();
+				if(selection instanceof IStructuredSelection) {
+					IStructuredSelection structuredSelection = (IStructuredSelection)selection;
+					Object[] selectedItems = structuredSelection.toArray();
+					if(selection.getFirstElement() instanceof MoveMethodCandidateRefactoring && selectedItems.length == 1) {
+						MoveMethodCandidateRefactoring candidateRefactoring = (MoveMethodCandidateRefactoring)selection.getFirstElement();
+						tableViewer.getTable().setMenu(getRightClickMenu(tableViewer, candidateRefactoring));
+					}
+				}
+			}
+		});
 
 		tableViewer.setColumnProperties(new String[] {"type", "source", "target", "ep", "rate"});
 		tableViewer.setCellEditors(new CellEditor[] {
@@ -406,6 +424,29 @@ public class FeatureEnvy extends ViewPart {
 		toolTip.setShift(new Point(-5, -5));
 		toolTip.setHideOnMouseDown(false);
 		toolTip.activate();
+	}
+
+	private Menu getRightClickMenu(TableViewer tableViewer, final MoveMethodCandidateRefactoring candidateRefactoring) {
+		Menu popupMenu = new Menu(tableViewer.getControl());
+		MenuItem textualDiffMenuItem = new MenuItem(popupMenu, SWT.NONE);
+		textualDiffMenuItem.setText("Visualize Code Smell");
+		textualDiffMenuItem.addSelectionListener(new SelectionListener() {
+			public void widgetSelected(SelectionEvent arg) {
+				CodeSmellVisualizationDataSingleton.setData(candidateRefactoring.getFeatureEnvyVisualizationData());
+				IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
+				IViewPart viewPart = page.findView(CodeSmellVisualization.ID);
+				if(viewPart != null)
+					page.hideView(viewPart);
+				try {
+					page.showView(CodeSmellVisualization.ID);
+				} catch (PartInitException e) {
+					e.printStackTrace();
+				}
+			}
+			public void widgetDefaultSelected(SelectionEvent arg) {}
+		});
+		popupMenu.setVisible(false);
+		return popupMenu;
 	}
 
 	private void contributeToActionBars() {
@@ -629,14 +670,6 @@ public class FeatureEnvy extends ViewPart {
 						int offset = firstPosition.getOffset();
 						int length = lastPosition.getOffset() + lastPosition.getLength() - firstPosition.getOffset();
 						sourceEditor.setHighlightRange(offset, length, true);
-
-						CodeSmellVisualizationDataSingleton.setData(
-								((MoveMethodCandidateRefactoring)candidate).getFeatureEnvyVisualizationData());
-						IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-						IViewPart viewPart = page.findView(CodeSmellVisualization.ID);
-						if(viewPart != null)
-							page.hideView(viewPart);
-						page.showView(CodeSmellVisualization.ID);
 					} catch (PartInitException e) {
 						e.printStackTrace();
 					} catch (JavaModelException e) {

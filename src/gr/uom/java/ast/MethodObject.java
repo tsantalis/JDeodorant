@@ -660,7 +660,8 @@ public class MethodObject implements AbstractMethodDeclaration {
     		TypeObject type2 = list2.get(i);
     		if(!type1.equalsClassType(type2))
     			return false;
-    		if(type1.getArrayDimension() != type2.getArrayDimension())
+    		//array dimension comparison is skipped if at least one of the class types is a type parameter name, such as E, K, N, T, V, S, U
+    		if(type1.getArrayDimension() != type2.getArrayDimension() && type1.getClassType().length() != 1 && type2.getClassType().length() != 1)
     			return false;
     	}
     	return true;

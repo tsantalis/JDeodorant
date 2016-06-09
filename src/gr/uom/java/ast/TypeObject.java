@@ -117,11 +117,9 @@ public class TypeObject {
     public static TypeObject extractTypeObject(String qualifiedName) {
 		int arrayDimension = 0;
 		String generic = null;
-		if(qualifiedName.contains("[") && qualifiedName.contains("]")) {
-			String arrayDimensionStr = qualifiedName.substring(qualifiedName.indexOf("["), qualifiedName.lastIndexOf("]")+1);
-			qualifiedName = qualifiedName.substring(0, qualifiedName.indexOf("["));
-			while(arrayDimensionStr.indexOf("[]") != -1) {
-				arrayDimensionStr = arrayDimensionStr.substring(arrayDimensionStr.indexOf("]")+1,arrayDimensionStr.length());
+		if(qualifiedName.endsWith("[]")) {
+			while(qualifiedName.endsWith("[]")) {
+				qualifiedName = qualifiedName.substring(0, qualifiedName.lastIndexOf("[]"));
 				arrayDimension++;
 			}
 		}

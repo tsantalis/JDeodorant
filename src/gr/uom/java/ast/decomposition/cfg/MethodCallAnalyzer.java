@@ -325,10 +325,11 @@ public class MethodCallAnalyzer {
 					ListIterator<MethodObject> methodIterator = subClassObject.getMethodIterator();
 					while(methodIterator.hasNext()) {
 						MethodObject subMethod = methodIterator.next();
-						if(equalSignature(subMethod.getMethodDeclaration().resolveBinding(), superMethodDeclarationBinding)) {
+						MethodDeclaration subMethodDeclaration = subMethod.getMethodDeclaration();
+						if(equalSignature(subMethodDeclaration.resolveBinding(), superMethodDeclarationBinding)) {
 							ParameterObject parameterObject = subMethod.getParameter(initialArgumentPosition);
 							VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
-							if(!processedMethods.contains(subMethod.getMethodDeclaration().resolveBinding().getKey()))
+							if(isUnprocessedMethod(processedMethods, subMethodDeclaration.resolveBinding()))
 								processArgumentOfInternalMethodInvocation(subMethod, argumentDeclaration, initialArgumentPosition, parameterDeclaration2, processedMethods);
 							break;
 						}
@@ -401,7 +402,7 @@ public class MethodCallAnalyzer {
 								//fix for method calls with varargs
 								if(parameterObject != null) {
 									VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
-									if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+									if(isUnprocessedMethod(processedMethods, methodInvocation2.resolveMethodBinding()))
 										processArgumentOfInternalMethodInvocation(methodObject2, argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethods);
 								}
 							}
@@ -422,7 +423,7 @@ public class MethodCallAnalyzer {
 								int argumentPosition = getArgumentPosition(superMethodInvocation.arguments(), parameter);
 								ParameterObject parameterObject = methodObject2.getParameter(argumentPosition);
 								VariableDeclaration parameterDeclaration2 = parameterObject.getSingleVariableDeclaration();
-								if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
+								if(isUnprocessedMethod(processedMethods, superMethodInvocation.resolveMethodBinding()))
 									processArgumentOfInternalMethodInvocation(methodObject2, argumentDeclaration, argumentPosition, parameterDeclaration2, processedMethods);
 							}
 						}
@@ -503,7 +504,7 @@ public class MethodCallAnalyzer {
 		if(methodObject.isAbstract() || classObject.isInterface()) {
 			AbstractTypeDeclaration typeDeclaration = classObject.getAbstractTypeDeclaration();
 			IMethodBinding superMethodDeclarationBinding = methodObject.getMethodDeclaration().resolveBinding();
-			if(!processedMethods.contains(superMethodDeclarationBinding.getKey())) {
+			if(isUnprocessedMethod(processedMethods, superMethodDeclarationBinding)) {
 				IType superType = (IType)typeDeclaration.resolveBinding().getJavaElement();
 				processedMethods.add(superMethodDeclarationBinding.getKey());
 				Set<IType> subTypes = CompilationUnitCache.getInstance().getSubTypes(superType);
@@ -589,7 +590,7 @@ public class MethodCallAnalyzer {
 						if(classObject2 != null) {
 							MethodObject methodObject2 = classObject2.getMethod(methodInvocationObject);
 							if(methodObject2 != null) {
-								if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+								if(isUnprocessedMethod(processedMethods, methodInvocation2.resolveMethodBinding()))
 									processInternalMethodInvocation(classObject2, methodObject2, field, processedMethods);
 							}
 						}
@@ -613,7 +614,7 @@ public class MethodCallAnalyzer {
 				if(methodObject2 != null) { 
 					if(!methodObject2.equals(methodObject)) {
 						MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-						if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+						if(isUnprocessedMethod(processedMethods, methodInvocation2.resolveMethodBinding()))
 							processInternalMethodInvocation(classObject, methodObject2, variableDeclaration, processedMethods);
 					}
 				}
@@ -627,7 +628,7 @@ public class MethodCallAnalyzer {
 							//the commented code that follows is causing significant performance deterioration. It's time to reconsider the PDG generation strategy
 							/*
 							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();
-							if(!processedMethods.contains(methodInvocation2.resolveMethodBinding().getKey()))
+							if(isUnprocessedMethod(processedMethods, methodInvocation2.resolveMethodBinding()))
 								processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
 							*/
 						}
@@ -640,7 +641,7 @@ public class MethodCallAnalyzer {
 					MethodObject methodObject2 = classObject2.getMethod(superMethodInvocationObject);
 					if(methodObject2 != null) {
 						SuperMethodInvocation superMethodInvocation = superMethodInvocationObject.getSuperMethodInvocation();
-						if(!processedMethods.contains(superMethodInvocation.resolveMethodBinding().getKey()))
+						if(isUnprocessedMethod(processedMethods, superMethodInvocation.resolveMethodBinding()))
 							processInternalMethodInvocation(classObject2, methodObject2, variableDeclaration, processedMethods);
 					}
 				}
@@ -651,7 +652,7 @@ public class MethodCallAnalyzer {
 					ConstructorObject constructorObject2 = classObject2.getConstructor(constructorInvocationObject);
 					if(constructorObject2 != null) {
 						ConstructorInvocation constructorInvocation = constructorInvocationObject.getConstructorInvocation();
-						if(!processedMethods.contains(constructorInvocation.resolveConstructorBinding().getKey()))
+						if(isUnprocessedMethod(processedMethods, constructorInvocation.resolveConstructorBinding()))
 							processInternalMethodInvocation(classObject2, constructorObject2, variableDeclaration, processedMethods);
 					}
 				}
@@ -662,7 +663,7 @@ public class MethodCallAnalyzer {
 				if(classObject2 != null) {
 					MethodObject methodObject2 = classObject2.getMethod(staticMethodInvocationObject);
 					if(methodObject2 != null) {
-						if(!processedMethods.contains(staticMethodInvocation.resolveMethodBinding().getKey()))
+						if(isUnprocessedMethod(processedMethods, staticMethodInvocation.resolveMethodBinding()))
 							processInternalMethodInvocation(classObject2, methodObject2, null, processedMethods);
 					}
 				}
@@ -754,7 +755,7 @@ public class MethodCallAnalyzer {
 						IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();
 						MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
 						if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
-							if(!processedMethods.contains(methodBinding2.getKey())) {
+							if(isUnprocessedMethod(processedMethods, methodBinding2)) {
 								if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
 									//method is native
 								}
@@ -775,7 +776,7 @@ public class MethodCallAnalyzer {
 								IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();
 								MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
 								if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
-									if(!processedMethods.contains(methodBinding2.getKey())) {
+									if(isUnprocessedMethod(processedMethods, methodBinding2)) {
 										if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
 											//method is native
 										}
@@ -793,7 +794,7 @@ public class MethodCallAnalyzer {
 						IMethodBinding methodBinding2 = superMethodInvocation.resolveMethodBinding();
 						MethodDeclaration invokedSuperMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
 						if(invokedSuperMethodDeclaration != null) {
-							if(!processedMethods.contains(methodBinding2.getKey())) {
+							if(isUnprocessedMethod(processedMethods, methodBinding2)) {
 								if((invokedSuperMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
 									//method is native
 								}
@@ -810,7 +811,7 @@ public class MethodCallAnalyzer {
 							IMethodBinding methodBinding2 = methodInvocation.resolveMethodBinding();
 							MethodDeclaration invokedMethodDeclaration = getInvokedMethodDeclaration(methodBinding2);
 							if(invokedMethodDeclaration != null && !invokedMethodDeclaration.equals(methodDeclaration)) {
-								if(!processedMethods.contains(methodBinding2.getKey())) {
+								if(isUnprocessedMethod(processedMethods, methodBinding2)) {
 									if((invokedMethodDeclaration.getModifiers() & Modifier.NATIVE) != 0) {
 										//method is native
 									}
@@ -1168,4 +1169,7 @@ public class MethodCallAnalyzer {
 		return matchingMethodDeclarations;
 	}
 
+	private boolean isUnprocessedMethod(Set<String> processedMethods, IMethodBinding methodBinding) {
+		return !processedMethods.contains(methodBinding.getKey()) && !processedMethods.contains(methodBinding.getMethodDeclaration().getKey());
+	}
 }

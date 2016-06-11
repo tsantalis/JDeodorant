@@ -18,7 +18,10 @@ public class TypeSearchRequestor extends SearchRequestor {
 	public void acceptSearchMatch(SearchMatch match) throws CoreException {
 		Object element = match.getElement();
 		if (match.getElement() instanceof IType) {
-			subTypes.add((IType)element);
+			IType iType = (IType)element;
+			if(!iType.isAnonymous()) {
+				subTypes.add(iType);
+			}
 		}
 	}
 }

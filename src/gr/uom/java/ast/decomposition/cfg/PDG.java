@@ -21,6 +21,8 @@ import java.util.Stack;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -484,9 +486,32 @@ public class PDG extends Graph {
 				}
 				if(pdgBlockNode != null) {
 					nodes.add(pdgBlockNode);
+					PDGNode parent = findParentOfBlockNode(pdgBlockNode);
+					if(parent != null) {
+						PDGControlDependence controlDependence = new PDGControlDependence(parent, pdgBlockNode, true);
+						edges.add(controlDependence);
+					}
 				}
 			}
 		}
+	}
+
+	private PDGNode findParentOfBlockNode(PDGBlockNode blockNode) {
+		Statement statement = blockNode.getASTStatement();
+		ASTNode parent = statement.getParent();
+		while(parent instanceof Block) {
+			parent = parent.getParent();
+		}
+		if(entryNode.getMethod().getMethodDeclaration().equals(parent)) {
+			return entryNode;
+		}
+		for(GraphNode node : nodes) {
+			PDGNode pdgNode = (PDGNode)node;
+			if(pdgNode.getASTStatement().equals(parent)) {
+				return pdgNode;
+			}
+		}
+		return null;
 	}
 
 	private void processCFGNode(PDGNode previousNode, CFGNode cfgNode, boolean controlType) {

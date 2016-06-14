@@ -21,6 +21,10 @@ public class PDGMethodEntryNode extends PDGNode {
 		}
 	}
 
+	public AbstractMethodDeclaration getMethod() {
+		return method;
+	}
+
 	public BasicBlock getBasicBlock() {
 		return null;
 	}

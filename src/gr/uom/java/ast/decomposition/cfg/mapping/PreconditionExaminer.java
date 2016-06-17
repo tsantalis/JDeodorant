@@ -62,6 +62,7 @@ import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -78,6 +79,7 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
+import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
@@ -649,7 +651,7 @@ public class PreconditionExaminer {
 
 	private void sortVariables(List<AbstractVariable> variables1, List<AbstractVariable> variables2,
 			List<AbstractVariable> sortedVariables1, List<AbstractVariable> sortedVariables2) {
-		boolean requireVariableNameMatch = getRenamedVariables().isEmpty();
+		boolean requireVariableNameMatch = getRenamedVariables().isEmpty() || pdg1.getMethod().equals(pdg2.getMethod());
 		for(int i=0; i<variables1.size(); i++) {
 			AbstractVariable variable1 = variables1.get(i);
 			boolean found = false;
@@ -1659,7 +1661,7 @@ public class PreconditionExaminer {
 					PDGNode srcNode = (PDGNode)dataDependence.getSrc();
 					if(mappedNodes.contains(srcNode) && dataDependence.getData() instanceof PlainVariable) {
 						PlainVariable variable = (PlainVariable)dataDependence.getData();
-						if(!variable.isField())
+						if(!variable.isField() && !isAssignmentToArrayAccess(srcNode, variable))
 							variablesToBeReturned.add(variable);
 					}
 				}
@@ -1668,7 +1670,7 @@ public class PreconditionExaminer {
 					PDGNode srcNode = (PDGNode)outputDependence.getSrc();
 					if(mappedNodes.contains(srcNode) && outputDependence.getData() instanceof PlainVariable) {
 						PlainVariable variable = (PlainVariable)outputDependence.getData();
-						if(!variable.isField() && mappedNodeDeclaresVariable(variable, mappedNodes))
+						if(!variable.isField() && !isAssignmentToArrayAccess(srcNode, variable) && mappedNodeDeclaresVariable(variable, mappedNodes))
 							variablesToBeReturned.add(variable);
 					}
 				}
@@ -1684,7 +1686,7 @@ public class PreconditionExaminer {
 					if(mappedNodes.contains(srcNode) && dataDependence.getData() instanceof PlainVariable) {
 						PlainVariable variable = (PlainVariable)dataDependence.getData();
 						if(dataDependence.isLoopCarried() && !mappedNodes.contains(dataDependence.getLoop().getPDGNode())) {
-							if(!variable.isField() && !srcNode.declaresLocalVariable(variable))
+							if(!variable.isField() && !isAssignmentToArrayAccess(srcNode, variable) && !srcNode.declaresLocalVariable(variable))
 								variablesToBeReturned.add(variable);
 						}
 					}
@@ -1692,6 +1694,48 @@ public class PreconditionExaminer {
 			}
 		}
 		return variablesToBeReturned;
+	}
+
+	private boolean isAssignmentToArrayAccess(PDGNode node, PlainVariable variable) {
+		Statement statement = node.getASTStatement();
+		if(statement instanceof ExpressionStatement) {
+			ExpressionStatement expressionStatement = (ExpressionStatement)statement;
+			Expression expression = expressionStatement.getExpression();
+			if(expression instanceof Assignment) {
+				Assignment assignment = (Assignment)expression;
+				Expression leftHandSide = assignment.getLeftHandSide();
+				if(leftHandSide instanceof ArrayAccess) {
+					ArrayAccess arrayAccess = (ArrayAccess)leftHandSide;
+					SimpleName arrayAccessName = MethodDeclarationUtility.getRightMostSimpleName(arrayAccess);
+					if(arrayAccessName != null && arrayAccessName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+						return true;
+					}
+				}
+			}
+			else if(expression instanceof PostfixExpression) {
+				PostfixExpression postfix = (PostfixExpression)expression;
+				Expression operand = postfix.getOperand();
+				if(operand instanceof ArrayAccess) {
+					ArrayAccess arrayAccess = (ArrayAccess)operand;
+					SimpleName arrayAccessName = MethodDeclarationUtility.getRightMostSimpleName(arrayAccess);
+					if(arrayAccessName != null && arrayAccessName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+						return true;
+					}
+				}
+			}
+			else if(expression instanceof PrefixExpression) {
+				PrefixExpression prefix = (PrefixExpression)expression;
+				Expression operand = prefix.getOperand();
+				if(operand instanceof ArrayAccess) {
+					ArrayAccess arrayAccess = (ArrayAccess)operand;
+					SimpleName arrayAccessName = MethodDeclarationUtility.getRightMostSimpleName(arrayAccess);
+					if(arrayAccessName != null && arrayAccessName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean mappedNodeDeclaresVariable(PlainVariable variable, Set<PDGNode> mappedNodes) {
@@ -2378,7 +2422,7 @@ public class PreconditionExaminer {
 				movableAfter.add(node);
 			}
 		}
-		if(node.throwsException()) {
+		if(node.throwsException() || isTheOnlyUnmappedNodeInsideMappedTryBlock(pdg, node, removableNodes)) {
 			PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(node);
 			PDGNode controlParent = node.getControlDependenceParent();
 			if((blockNode != null && blockNode instanceof PDGTryNode && removableNodes.contains(blockNode)) ||
@@ -2417,6 +2461,19 @@ public class PreconditionExaminer {
 			preconditionViolations.add(violation);
 		}
 	}
+
+	private boolean isTheOnlyUnmappedNodeInsideMappedTryBlock(PDG pdg, PDGNode node, TreeSet<PDGNode> removableNodes) {
+		PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(node);
+		if(blockNode != null && blockNode instanceof PDGTryNode && removableNodes.contains(blockNode)) {
+			TryStatementObject tryStatement = (TryStatementObject)blockNode.getStatement();
+			List<AbstractStatement> tryStatements = tryStatement.getStatementsInsideTryBlock();
+			if(tryStatements.size() == 1 && tryStatements.contains(node.getStatement())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private boolean controlParentExaminesVariableUsedInNonMappedNode(PDGNode node, TreeSet<PDGNode> removableNodes) {
 		TreeSet<PDGNode> removableControlParents = new TreeSet<PDGNode>();
 		for(PDGNode removableNode : removableNodes) {

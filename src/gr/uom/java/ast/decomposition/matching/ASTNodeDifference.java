@@ -105,6 +105,7 @@ public class ASTNodeDifference {
 				expression2.getExpression().getParent() instanceof IfStatement) {
 			IfStatement if1 = (IfStatement)expression1.getExpression().getParent();
 			IfStatement if2 = (IfStatement)expression2.getExpression().getParent();
+			boolean noElsePart = if1.getElseStatement() == null && if2.getElseStatement() == null;
 			ASTNode parent1 = if1.getParent();
 			while(parent1 instanceof Block) {
 				parent1 = parent1.getParent();
@@ -114,7 +115,7 @@ public class ASTNodeDifference {
 				parent2 = parent2.getParent();
 			}
 			if(parent1 instanceof MethodDeclaration && parent2 instanceof MethodDeclaration) {
-				return true;
+				return noElsePart;
 			}
 			if(parent1 instanceof TryStatement && parent2 instanceof TryStatement) {
 				TryStatement try1 = (TryStatement)parent1;
@@ -128,7 +129,7 @@ public class ASTNodeDifference {
 					parent2 = parent2.getParent();
 				}
 				if(parent1 instanceof MethodDeclaration && parent2 instanceof MethodDeclaration) {
-					return true;
+					return noElsePart;
 				}
 			}
 		}

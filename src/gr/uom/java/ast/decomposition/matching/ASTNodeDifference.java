@@ -7,14 +7,17 @@ import java.util.List;
 
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 
 public class ASTNodeDifference {
@@ -85,7 +88,7 @@ public class ASTNodeDifference {
 	{
 		if(diff.getType().equals(DifferenceType.AST_TYPE_MISMATCH)
 			|| (diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && isVariableTypeMismatch())
-			|| (diff.getType().equals(DifferenceType.OPERATOR_MISMATCH) && isExpressionOfIfStatement())
+			|| (diff.getType().equals(DifferenceType.OPERATOR_MISMATCH) && isExpressionOfIfStatementNestedAtLevelZero())
 			|| diff.getType().equals(DifferenceType.ANONYMOUS_CLASS_DECLARATION_MISMATCH))
 					return true;
 		return false;
@@ -97,9 +100,40 @@ public class ASTNodeDifference {
 		return true;
 	}
 
-	private boolean isExpressionOfIfStatement() {
-		return expression1.getExpression().getParent() instanceof IfStatement &&
-				expression2.getExpression().getParent() instanceof IfStatement;
+	private boolean isExpressionOfIfStatementNestedAtLevelZero() {
+		if(expression1.getExpression().getParent() instanceof IfStatement &&
+				expression2.getExpression().getParent() instanceof IfStatement) {
+			IfStatement if1 = (IfStatement)expression1.getExpression().getParent();
+			IfStatement if2 = (IfStatement)expression2.getExpression().getParent();
+			boolean noElsePart = if1.getElseStatement() == null && if2.getElseStatement() == null;
+			ASTNode parent1 = if1.getParent();
+			while(parent1 instanceof Block) {
+				parent1 = parent1.getParent();
+			}
+			ASTNode parent2 = if2.getParent();
+			while(parent2 instanceof Block) {
+				parent2 = parent2.getParent();
+			}
+			if(parent1 instanceof MethodDeclaration && parent2 instanceof MethodDeclaration) {
+				return noElsePart;
+			}
+			if(parent1 instanceof TryStatement && parent2 instanceof TryStatement) {
+				TryStatement try1 = (TryStatement)parent1;
+				TryStatement try2 = (TryStatement)parent2;
+				parent1 = try1.getParent();
+				while(parent1 instanceof Block) {
+					parent1 = parent1.getParent();
+				}
+				parent2 = try2.getParent();
+				while(parent2 instanceof Block) {
+					parent2 = parent2.getParent();
+				}
+				if(parent1 instanceof MethodDeclaration && parent2 instanceof MethodDeclaration) {
+					return noElsePart;
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean isQualifierOfQualifiedName() {

@@ -19,6 +19,11 @@ public class TryStatementObject extends CompositeStatementObject {
 		this.catchClauses = new ArrayList<CatchClauseObject>();
 	}
 
+	public List<AbstractStatement> getStatementsInsideTryBlock() {
+		CompositeStatementObject tryBlock = (CompositeStatementObject)getStatements().get(0);
+		return tryBlock.getStatements();
+	}
+
 	public boolean hasResources() {
 		return !super.getExpressions().isEmpty();
 	}

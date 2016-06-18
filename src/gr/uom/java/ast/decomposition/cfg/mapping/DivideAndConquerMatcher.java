@@ -7,10 +7,13 @@ import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchDoLoopNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchIfNode;
 import gr.uom.java.ast.decomposition.cfg.CFGBranchSwitchNode;
+import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDG;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
+import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
+import gr.uom.java.ast.decomposition.cfg.PDGDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGMethodEntryNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
@@ -1004,8 +1007,8 @@ public abstract class DivideAndConquerMatcher {
 	private List<MappingState> matchBasedOnCodeFragments(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		CodeFragmentDecomposer cfd1 = new CodeFragmentDecomposer(nodesG1, pdg1.getFieldsAccessedInMethod());
 		CodeFragmentDecomposer cfd2 = new CodeFragmentDecomposer(nodesG2, pdg2.getFieldsAccessedInMethod());
-		Map<PlainVariable, Set<PDGNode>> map1 = cfd1.getObjectNodeMap();
-		Map<PlainVariable, Set<PDGNode>> map2 = cfd2.getObjectNodeMap();
+		Map<PlainVariable, Set<PDGNode>> map1 = new LinkedHashMap<PlainVariable, Set<PDGNode>>(cfd1.getObjectNodeMap());
+		Map<PlainVariable, Set<PDGNode>> map2 = new LinkedHashMap<PlainVariable, Set<PDGNode>>(cfd2.getObjectNodeMap());
 		Set<PlainVariable> variables1 = new LinkedHashSet<PlainVariable>(map1.keySet());
 		Set<PlainVariable> variables2 = new LinkedHashSet<PlainVariable>(map2.keySet());
 		MappingState finalState = parent;
@@ -1042,10 +1045,17 @@ public abstract class DivideAndConquerMatcher {
 				for(PlainVariable variable1 : map1.keySet()) {
 					Set<PDGNode> variableNodesG1 = map1.get(variable1);
 					Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
+					Set<String> incomingVariables1 = getIncomingDependenciesFromVariables(variable1.getVariableName(), cfd1);
+					incomingVariables1.addAll(getIncomingDependenciesFromVariables(variable1.getVariableName(), cfd2));
 					Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
 					for(PlainVariable variable2 : map2.keySet()) {
 						Set<PDGNode> variableNodesG2 = map2.get(variable2);
 						Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
+						Set<String> incomingVariables2 = getIncomingDependenciesFromVariables(variable2.getVariableName(), cfd2);
+						incomingVariables2.addAll(getIncomingDependenciesFromVariables(variable2.getVariableName(), cfd1));
+						if(incomingVariables1.contains(variable2.getVariableName()) || incomingVariables2.contains(variable1.getVariableName())) {
+							continue;
+						}
 						if(finalState != null) {
 							for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
 								if(tempNodesG1.contains(mapping.getNodeG1()))
@@ -1079,10 +1089,17 @@ public abstract class DivideAndConquerMatcher {
 				for(PlainVariable variable2 : map2.keySet()) {
 					Set<PDGNode> variableNodesG2 = map2.get(variable2);
 					Set<PDGNode> tempNodesG2 = new LinkedHashSet<PDGNode>(variableNodesG2);
+					Set<String> incomingVariables2 = getIncomingDependenciesFromVariables(variable2.getVariableName(), cfd2);
+					incomingVariables2.addAll(getIncomingDependenciesFromVariables(variable2.getVariableName(), cfd1));
 					Map<PlainVariable, List<MappingState>> currentStateMap = new LinkedHashMap<PlainVariable, List<MappingState>>();
 					for(PlainVariable variable1 : map1.keySet()) {
 						Set<PDGNode> variableNodesG1 = map1.get(variable1);
 						Set<PDGNode> tempNodesG1 = new LinkedHashSet<PDGNode>(variableNodesG1);
+						Set<String> incomingVariables1 = getIncomingDependenciesFromVariables(variable1.getVariableName(), cfd1);
+						incomingVariables1.addAll(getIncomingDependenciesFromVariables(variable1.getVariableName(), cfd2));
+						if(incomingVariables1.contains(variable2.getVariableName()) || incomingVariables2.contains(variable1.getVariableName())) {
+							continue;
+						}
 						if(finalState != null) {
 							for(PDGNodeMapping mapping : finalState.getNodeMappings()) {
 								if(tempNodesG1.contains(mapping.getNodeG1()))
@@ -1153,6 +1170,31 @@ public abstract class DivideAndConquerMatcher {
 			}
 			return currentStates;
 		}
+	}
+
+	private Set<String> getIncomingDependenciesFromVariables(String variableName, CodeFragmentDecomposer cfd) {
+		Set<PlainVariable> allVariables = cfd.getObjectNodeMap().keySet();
+		Set<String> variableNames = new LinkedHashSet<String>();
+		for(PlainVariable currentVariable : cfd.getObjectNodeMap().keySet()) {
+			if(currentVariable.getVariableName().equals(variableName)) {
+				Set<PDGNode> currentNodes = cfd.getObjectNodeMap().get(currentVariable);
+				for(PDGNode node : currentNodes) {
+					Iterator<GraphEdge> iterator = node.getIncomingDependenceIterator();
+					while(iterator.hasNext()) {
+						PDGDependence dependence = (PDGDependence)iterator.next();
+						if(dependence instanceof PDGDataDependence) {
+							PDGDataDependence dataDependence = (PDGDataDependence)dependence;
+							if(dataDependence.getData() instanceof PlainVariable) {
+								PlainVariable plainVariable = (PlainVariable)dataDependence.getData();
+								if(!plainVariable.equals(currentVariable) && allVariables.contains(plainVariable))
+									variableNames.add(plainVariable.getVariableName());
+							}
+						}
+					}
+				}
+			}
+		}
+		return variableNames;
 	}
 
 	private List<MappingState> matchBasedOnIdenticalStatements(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2,
@@ -1391,85 +1433,21 @@ public abstract class DivideAndConquerMatcher {
 	private List<MappingState> processPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		MappingState.setRestrictedNodesG1(nodesG1);
 		MappingState.setRestrictedNodesG2(nodesG2);
-		List<MappingState> finalStates = new ArrayList<MappingState>();
-		if(nodesG1.size() <= nodesG2.size()) {
-			for(PDGNode node1 : nodesG1) {
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode node2 : nodesG2) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						if(finalStates.isEmpty()) {
-							MappingState state = new MappingState(parent, mapping);
-							state.traverse(mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
-								}
-							}
-						}
-						else {
-							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
-										!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
-									MappingState state = new MappingState(previousState, mapping);
-									previousState.addChild(state);
-									state.traverse(mapping);
-									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-									for(MappingState temp : maxStates) {
-										if(!currentStates.contains(temp)) {
-											currentStates.add(temp);
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				if(!currentStates.isEmpty())
-					finalStates = getMaximumStates(currentStates);
-			}
+		List<MappingState> finalStates = null;
+		if(nodesG1.size() < nodesG2.size()) {
+			finalStates = processPDGNodesWithFirstCloneAsReference(parent, nodesG1, nodesG2);
+		}
+		else if(nodesG1.size() > nodesG2.size()) {
+			finalStates = processPDGNodesWithSecondCloneAsReference(parent, nodesG1, nodesG2);
 		}
 		else {
-			for(PDGNode node2 : nodesG2) {
-				List<MappingState> currentStates = new ArrayList<MappingState>();
-				for(PDGNode node1 : nodesG1) {
-					ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
-					boolean match = astNodeMatcher.match(node1, node2);
-					if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
-						PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
-						if(finalStates.isEmpty()) {
-							MappingState state = new MappingState(parent, mapping);
-							state.traverse(mapping);
-							List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-							for(MappingState temp : maxStates) {
-								if(!currentStates.contains(temp)) {
-									currentStates.add(temp);
-								}
-							}
-						}
-						else {
-							for(MappingState previousState : finalStates) {
-								if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
-										!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
-									MappingState state = new MappingState(previousState, mapping);
-									previousState.addChild(state);
-									state.traverse(mapping);
-									List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
-									for(MappingState temp : maxStates) {
-										if(!currentStates.contains(temp)) {
-											currentStates.add(temp);
-										}
-									}
-								}
-							}
-						}
-					}
+			List<MappingState> finalStates1 = processPDGNodesWithFirstCloneAsReference(parent, nodesG1, nodesG2);
+			List<MappingState> finalStates2 = processPDGNodesWithSecondCloneAsReference(parent, nodesG1, nodesG2);
+			finalStates = new ArrayList<MappingState>(finalStates1);
+			for(MappingState state : finalStates2) {
+				if(!finalStates.contains(state)) {
+					finalStates.add(state);
 				}
-				if(!currentStates.isEmpty())
-					finalStates = getMaximumStates(currentStates);
 			}
 		}
 		if(finalStates.isEmpty() && parent != null)
@@ -1477,6 +1455,91 @@ public abstract class DivideAndConquerMatcher {
 		return finalStates;
 	}
 
+	private List<MappingState> processPDGNodesWithFirstCloneAsReference(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		List<MappingState> finalStates = new ArrayList<MappingState>();
+		for(PDGNode node1 : nodesG1) {
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			for(PDGNode node2 : nodesG2) {
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+				boolean match = astNodeMatcher.match(node1, node2);
+				if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+					if(finalStates.isEmpty()) {
+						MappingState state = new MappingState(parent, mapping);
+						state.traverse(mapping);
+						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+						for(MappingState temp : maxStates) {
+							if(!currentStates.contains(temp)) {
+								currentStates.add(temp);
+							}
+						}
+					}
+					else {
+						for(MappingState previousState : finalStates) {
+							if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
+									!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
+								MappingState state = new MappingState(previousState, mapping);
+								previousState.addChild(state);
+								state.traverse(mapping);
+								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+								for(MappingState temp : maxStates) {
+									if(!currentStates.contains(temp)) {
+										currentStates.add(temp);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!currentStates.isEmpty())
+				finalStates = getMaximumStates(currentStates);
+		}
+		return finalStates;
+	}
+
+	private List<MappingState> processPDGNodesWithSecondCloneAsReference(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
+		List<MappingState> finalStates = new ArrayList<MappingState>();
+		for(PDGNode node2 : nodesG2) {
+			List<MappingState> currentStates = new ArrayList<MappingState>();
+			for(PDGNode node1 : nodesG1) {
+				ASTNodeMatcher astNodeMatcher = new ASTNodeMatcher(iCompilationUnit1, iCompilationUnit2);
+				boolean match = astNodeMatcher.match(node1, node2);
+				if(match && astNodeMatcher.isParameterizable() && sameBasicBlock(parent, node1, node2)) {
+					PDGNodeMapping mapping = new PDGNodeMapping(node1, node2, astNodeMatcher);
+					if(finalStates.isEmpty()) {
+						MappingState state = new MappingState(parent, mapping);
+						state.traverse(mapping);
+						List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+						for(MappingState temp : maxStates) {
+							if(!currentStates.contains(temp)) {
+								currentStates.add(temp);
+							}
+						}
+					}
+					else {
+						for(MappingState previousState : finalStates) {
+							if(!previousState.containsAtLeastOneNodeInMappings(mapping) && previousState.mappedControlParents(node1, node2) &&
+									!previousState.incomingDataDependenciesFromUnvisitedNodes(node1, node2) && !previousState.incomingDataDependenciesFromNonMatchingNodes(node1, node2)) {
+								MappingState state = new MappingState(previousState, mapping);
+								previousState.addChild(state);
+								state.traverse(mapping);
+								List<MappingState> maxStates = state.getMaximumCommonSubGraphs();
+								for(MappingState temp : maxStates) {
+									if(!currentStates.contains(temp)) {
+										currentStates.add(temp);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if(!currentStates.isEmpty())
+				finalStates = getMaximumStates(currentStates);
+		}
+		return finalStates;
+	}
 
 	private List<MappingState> processIdenticalPDGNodes(MappingState parent, Set<PDGNode> nodesG1, Set<PDGNode> nodesG2) {
 		MappingState finalState = parent;

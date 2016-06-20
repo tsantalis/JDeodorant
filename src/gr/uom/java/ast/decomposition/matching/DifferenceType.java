@@ -6,6 +6,7 @@ public enum DifferenceType {
 	ARRAY_DIMENSION_MISMATCH,
 	MISSING_ARRAY_INITIALIZER,
 	ARRAY_INITIALIZER_EXPRESSION_NUMBER_MISMATCH,
+	ARRAY_INITIALIZER_MISMATCH,
 	VARIABLE_TYPE_MISMATCH,
 	VARIABLE_NAME_MISMATCH,
 	METHOD_INVOCATION_NAME_MISMATCH,
@@ -37,6 +38,9 @@ public enum DifferenceType {
 		}
 		else if (name().equals(ARRAY_INITIALIZER_EXPRESSION_NUMBER_MISMATCH.name())){
 			return "The initializers of the array creations have a different number of expressions";
+		}
+		else if (name().equals(ARRAY_INITIALIZER_MISMATCH.name())){
+			return "The initializers of the array creations are different";
 		}
 		else if (name().equals(VARIABLE_TYPE_MISMATCH.name())){
 			return "The types of the variables are different";

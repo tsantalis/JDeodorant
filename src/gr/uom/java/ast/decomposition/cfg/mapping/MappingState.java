@@ -455,6 +455,34 @@ public class MappingState {
 				return true;
 			}
 		}
+		else if(incomingDataDependenciesFromMappedNodesG1.size() == 1 && incomingDataDependenciesFromMappedNodesG2.size() == 0) {
+			PDGNodeMapping nodeMapping = findMappingWithNodeG1(incomingDataDependenciesFromMappedNodesG1.first());
+			PDGNode otherNode = nodeMapping.getNodeG2();
+			Iterator<GraphEdge> outgoingEdgeIterator = otherNode.getOutgoingDependenceIterator();
+			while(outgoingEdgeIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)outgoingEdgeIterator.next();
+				PDGNode dstPDGNode = (PDGNode)dependence.getDst();
+				if(dependence instanceof PDGAbstractDataDependence && restrictedNodesG2.contains(dstPDGNode)) {
+					if(!containsNodeG2InMappings(dstPDGNode)) {
+						return true;
+					}
+				}
+			}
+		}
+		else if(incomingDataDependenciesFromMappedNodesG1.size() == 0 && incomingDataDependenciesFromMappedNodesG2.size() == 1) {
+			PDGNodeMapping nodeMapping = findMappingWithNodeG2(incomingDataDependenciesFromMappedNodesG2.first());
+			PDGNode otherNode = nodeMapping.getNodeG1();
+			Iterator<GraphEdge> outgoingEdgeIterator = otherNode.getOutgoingDependenceIterator();
+			while(outgoingEdgeIterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)outgoingEdgeIterator.next();
+				PDGNode dstPDGNode = (PDGNode)dependence.getDst();
+				if(dependence instanceof PDGAbstractDataDependence && restrictedNodesG1.contains(dstPDGNode)) {
+					if(!containsNodeG1InMappings(dstPDGNode)) {
+						return true;
+					}
+				}
+			}
+		}
 		return false;
 	}
 
@@ -471,6 +499,24 @@ public class MappingState {
 		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
 			if(nodeMapping.getNodeG1().equals(nodeG1) &&
 					nodeMapping.getNodeG2().equals(nodeG2)) {
+				return nodeMapping;
+			}
+		}
+		return null;
+	}
+
+	private PDGNodeMapping findMappingWithNodeG1(PDGNode nodeG1) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			if(nodeMapping.getNodeG1().equals(nodeG1)) {
+				return nodeMapping;
+			}
+		}
+		return null;
+	}
+
+	private PDGNodeMapping findMappingWithNodeG2(PDGNode nodeG2) {
+		for(PDGNodeMapping nodeMapping : getNodeMappings()) {
+			if(nodeMapping.getNodeG2().equals(nodeG2)) {
 				return nodeMapping;
 			}
 		}

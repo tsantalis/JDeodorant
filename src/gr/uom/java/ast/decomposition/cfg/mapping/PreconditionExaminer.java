@@ -2888,6 +2888,14 @@ public class PreconditionExaminer {
 				expressionIsField = variableBinding.isField();
 			}
 		}
+		else if(expr instanceof QualifiedName) {
+			QualifiedName qualifiedName = (QualifiedName)expr;
+			SimpleName simpleName = qualifiedName.getName();
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+				expressionIsField = variableBinding.isField();
+			}
+		}
 		return expressionIsField;
 	}
 	//precondition: differences in expressions should be parameterizable

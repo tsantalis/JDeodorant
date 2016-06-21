@@ -2440,12 +2440,28 @@ public class PreconditionExaminer {
 				}
 			}
 		}
-		Iterator<AbstractVariable> iterator = node.getUsedVariableIterator();
-		while(iterator.hasNext()) {
-			AbstractVariable variable = iterator.next();
+		Iterator<AbstractVariable> usedVariableIterator = node.getUsedVariableIterator();
+		while(usedVariableIterator.hasNext()) {
+			AbstractVariable variable = usedVariableIterator.next();
 			if(variable instanceof PlainVariable) {
 				PlainVariable plainVariable = (PlainVariable)variable;
 				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents, false)) {
+					return true;
+				}
+			}
+		}
+		Iterator<AbstractVariable> definedVariableIterator = node.getDefinedVariableIterator();
+		while(definedVariableIterator.hasNext()) {
+			AbstractVariable variable = definedVariableIterator.next();
+			if(variable instanceof PlainVariable) {
+				PlainVariable plainVariable = (PlainVariable)variable;
+				if(plainVariable.isField()) {
+					return true;
+				}
+			}
+			else if(variable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)variable;
+				if(compositeVariable.getFinalVariable().isField()) {
 					return true;
 				}
 			}
@@ -2482,12 +2498,28 @@ public class PreconditionExaminer {
 				}
 			}
 		}
-		Iterator<AbstractVariable> iterator = expression.getUsedVariableIterator();
-		while(iterator.hasNext()) {
-			AbstractVariable variable = iterator.next();
+		Iterator<AbstractVariable> usedVariableIterator = expression.getUsedVariableIterator();
+		while(usedVariableIterator.hasNext()) {
+			AbstractVariable variable = usedVariableIterator.next();
 			if(variable instanceof PlainVariable) {
 				PlainVariable plainVariable = (PlainVariable)variable;
 				if(controlParentExaminesVariableInCondition(plainVariable, removableControlParents, false)) {
+					return true;
+				}
+			}
+		}
+		Iterator<AbstractVariable> definedVariableIterator = expression.getDefinedVariableIterator();
+		while(definedVariableIterator.hasNext()) {
+			AbstractVariable variable = definedVariableIterator.next();
+			if(variable instanceof PlainVariable) {
+				PlainVariable plainVariable = (PlainVariable)variable;
+				if(plainVariable.isField()) {
+					return true;
+				}
+			}
+			else if(variable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)variable;
+				if(compositeVariable.getFinalVariable().isField()) {
 					return true;
 				}
 			}
@@ -2819,6 +2851,14 @@ public class PreconditionExaminer {
 		else if(expr instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)expr;
 			SimpleName simpleName = fieldAccess.getName();
+			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+				expressionIsField = variableBinding.isField();
+			}
+		}
+		else if(expr instanceof QualifiedName) {
+			QualifiedName qualifiedName = (QualifiedName)expr;
+			SimpleName simpleName = qualifiedName.getName();
 			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
 				expressionIsField = variableBinding.isField();

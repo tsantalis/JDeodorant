@@ -674,7 +674,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				safeSubtreeMatch(node.getType(), o.getType());
 				safeSubtreeListMatch(node.dimensions(), o.dimensions());
-				safeSubtreeMatch(node.getInitializer(), o.getInitializer());
+				boolean initializerMatch = safeSubtreeMatch(node.getInitializer(), o.getInitializer());
+				if(!initializerMatch) {
+					Difference diff = new Difference(initializer1.toString(),initializer2.toString(),
+							DifferenceType.ARRAY_INITIALIZER_MISMATCH);
+					astNodeDifference.addDifference(diff);
+				}
 			}
 			if(!astNodeDifference.isEmpty())
 				addDifference(astNodeDifference);

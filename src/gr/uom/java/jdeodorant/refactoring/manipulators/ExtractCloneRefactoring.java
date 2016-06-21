@@ -844,7 +844,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
 								!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
 								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration1) &&
-								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration2)) {
+								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration2) &&
+								!commonSuperTypeInheritsMethodWithIdenticalSignature(methodDeclaration1.resolveBinding(), cloneInfo.sourceTypeDeclaration.resolveBinding()) &&
+								!commonSuperTypeInheritsMethodWithIdenticalSignature(methodDeclaration2.resolveBinding(), cloneInfo.sourceTypeDeclaration.resolveBinding())) {
 							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
 							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
 							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
@@ -1398,6 +1400,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(MethodCallAnalyzer.equalSignature(methodDeclaration.resolveBinding(), method.resolveBinding())) {
 				return true;
 			}
+		}
+		return false;
+	}
+
+	private boolean commonSuperTypeInheritsMethodWithIdenticalSignature(IMethodBinding methodBinding, ITypeBinding typeBinding) {
+		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
+		if(superclassTypeBinding != null) {
+			for(IMethodBinding superMethodBinding : superclassTypeBinding.getDeclaredMethods()) {
+				if(MethodCallAnalyzer.equalSignature(superMethodBinding, methodBinding)) {
+					return true;
+				}
+			}
+			return commonSuperTypeInheritsMethodWithIdenticalSignature(methodBinding, superclassTypeBinding);
 		}
 		return false;
 	}

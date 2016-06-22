@@ -799,10 +799,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
 								!methodDeclaration1.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
 								!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
-								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration1) &&
-								!commonSuperTypeDeclaresMethodWithIdenticalSignature(methodDeclaration2) &&
-								!commonSuperTypeInheritsMethodWithIdenticalSignature(methodDeclaration1.resolveBinding(), cloneInfo.sourceTypeDeclaration.resolveBinding()) &&
-								!commonSuperTypeInheritsMethodWithIdenticalSignature(methodDeclaration2.resolveBinding(), cloneInfo.sourceTypeDeclaration.resolveBinding())) {
+								!commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(methodDeclaration1.resolveBinding(), commonSuperTypeOfSourceTypeDeclarations) &&
+								!commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(methodDeclaration2.resolveBinding(), commonSuperTypeOfSourceTypeDeclarations)) {
 							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
 							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
 							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
@@ -1261,24 +1259,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return false;
 	}
 
-	private boolean commonSuperTypeDeclaresMethodWithIdenticalSignature(MethodDeclaration method) {
-		for(MethodDeclaration methodDeclaration : cloneInfo.sourceTypeDeclaration.getMethods()) {
-			if(MethodCallAnalyzer.equalSignature(methodDeclaration.resolveBinding(), method.resolveBinding())) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private boolean commonSuperTypeInheritsMethodWithIdenticalSignature(IMethodBinding methodBinding, ITypeBinding typeBinding) {
-		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
-		if(superclassTypeBinding != null) {
-			for(IMethodBinding superMethodBinding : superclassTypeBinding.getDeclaredMethods()) {
+	private boolean commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(IMethodBinding methodBinding, ITypeBinding typeBinding) {
+		if(typeBinding != null) {
+			for(IMethodBinding superMethodBinding : typeBinding.getDeclaredMethods()) {
 				if(MethodCallAnalyzer.equalSignature(superMethodBinding, methodBinding)) {
 					return true;
 				}
 			}
-			return commonSuperTypeInheritsMethodWithIdenticalSignature(methodBinding, superclassTypeBinding);
+			return commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(methodBinding, typeBinding.getSuperclass());
 		}
 		return false;
 	}

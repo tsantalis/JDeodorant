@@ -207,6 +207,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			this.extractedMethodName = this.mapper.getMethodName1();
 		}
+		//gapHandler should be initialized in the constructor for method checkFinalConditions()
+		AbstractMethodDeclaration methodObject1 = this.mapper.getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = this.mapper.getPDG2().getMethod();
+		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
+		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
+		this.gapHandler = new ExtractCloneRefactoringGapHandler(mapper, methodDeclaration1, methodDeclaration2);
 	}
 
 	public List<? extends DivideAndConquerMatcher> getMappers() {

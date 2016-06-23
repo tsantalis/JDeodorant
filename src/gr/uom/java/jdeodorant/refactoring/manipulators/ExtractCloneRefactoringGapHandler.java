@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -70,6 +71,8 @@ public class ExtractCloneRefactoringGapHandler {
 		this.mapper = mapper;
 		this.sortedNodeMappings = mapper.getMaximumStateWithMinimumDifferences().getSortedNodeMappings();
 		this.nonEffectivelyFinalLocalVariables = new LinkedHashSet<VariableBindingPair>();
+		this.sourceTypeDeclarations = new ArrayList<TypeDeclaration>();
+		this.sourceMethodDeclarations = new ArrayList<MethodDeclaration>();
 		
 		this.sourceMethodDeclarations.add(methodDeclaration1);
 		this.sourceMethodDeclarations.add(methodDeclaration2);

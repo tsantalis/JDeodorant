@@ -1,6 +1,7 @@
 package ca.concordia.jdeodorant.clone.parsers;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -125,6 +126,24 @@ public class CloneGroup {
 				return true;
 		}
 		return false;
+	}
+	
+	public ClonesRelativeLocation getClonesRelativeLocation() {
+		Set<String> uniqueCloneCodeFragmentsSourceFiles = new HashSet<String>();
+		Set<String> uniqueCloneMethodIMethods = new HashSet<String>();
+		for (CloneInstance instance : cloneInstances) {
+			uniqueCloneCodeFragmentsSourceFiles.add(instance.getLocationInfo().getContainingFilePath());
+			uniqueCloneMethodIMethods.add(instance.getIMethodSignature());
+		}
+		if (uniqueCloneCodeFragmentsSourceFiles.size() == 1) {
+			if (uniqueCloneMethodIMethods.size() == 1) {
+				return ClonesRelativeLocation.WITHIN_THE_SAME_METHOD;
+			} else {
+				return ClonesRelativeLocation.WITHIN_THE_SAME_FILE;
+			}
+		} else {
+			return ClonesRelativeLocation.DIFFERENT_FILES;
+		}
 	}
 
 }

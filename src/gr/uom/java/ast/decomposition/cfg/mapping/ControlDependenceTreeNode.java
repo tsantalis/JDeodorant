@@ -41,6 +41,22 @@ public class ControlDependenceTreeNode {
 			parent.children.add(this);
 	}
 
+	public ControlDependenceTreeNode(ControlDependenceTreeNode parent, ControlDependenceTreeNode previousSibling, PDGNode node) {
+		this.parent = parent;
+		if(parent == null) {
+			level = 0;
+		}
+		else {
+			level = parent.level + 1;
+		}
+		this.node = node;
+		this.children = new ArrayList<ControlDependenceTreeNode>();
+		if(parent != null) {
+			int indexOfPreviousSibling = parent.children.indexOf(previousSibling);
+			parent.children.add(indexOfPreviousSibling+1, this);
+		}
+	}
+
 	public boolean parentChildRelationship(double parentId, double childId) {
 		ControlDependenceTreeNode root = getRoot();
 		ControlDependenceTreeNode treeParent = root.getNode(parentId);
@@ -242,6 +258,17 @@ public class ControlDependenceTreeNode {
 			}
 		}
 		return siblings;
+	}
+
+	public ControlDependenceTreeNode getPreviousSibling() {
+		List<ControlDependenceTreeNode> siblings = this.getSiblings();
+		ControlDependenceTreeNode previousSibling = null;
+		for(ControlDependenceTreeNode sibling : siblings) {
+			if(sibling.getId() < this.getId()) {
+				previousSibling = sibling;
+			}
+		}
+		return previousSibling;
 	}
 
 	public boolean areAllSiblingsLeaves() {

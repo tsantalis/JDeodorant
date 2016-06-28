@@ -270,6 +270,9 @@ public class BottomUpCDTMapper {
 		if(treeNode.ifStatementInsideElseIfChain() && searchNode.ifStatementInsideElseIfChain()) {
 			return treeNode.getLengthOfElseIfChain() == searchNode.getLengthOfElseIfChain();
 		}
+		if(treeNode.ifStatementInsideElseIfChain() != searchNode.ifStatementInsideElseIfChain()) {
+			return false;
+		}
 		return true;
 	}
 

@@ -51,18 +51,30 @@ public class PDGMapper {
 				ControlDependenceTreeNode controlDependenceSubTreePDG1 = generateControlDependenceSubTree(controlDependenceTreePDG1, matchedControlDependenceTreeNodes1);
 				//insert unmatched CDT nodes under matched ones
 				for(ControlDependenceTreeNode node : controlDependenceTreePDG1.getNodesInBreadthFirstOrder()) {
-					if(!matchedControlDependenceTreeNodes1.contains(node) && matchedControlDependenceTreeNodes1.contains(node.getParent())) {
-						insertCDTNodeInTree(node, controlDependenceSubTreePDG1);
-						matchedControlDependenceTreeNodes1.add(node);
+					if(!matchedControlDependenceTreeNodes1.contains(node)) {
+						if(matchedControlDependenceTreeNodes1.contains(node.getParent())) {
+							insertCDTNodeInTree(node, controlDependenceSubTreePDG1);
+							matchedControlDependenceTreeNodes1.add(node);
+						}
+						else if(matchedControlDependenceTreeNodes1.contains(node.getPreviousSibling())) {
+							insertCDTNodeInTreeAfterSibling(node, node.getPreviousSibling(), controlDependenceSubTreePDG1);
+							matchedControlDependenceTreeNodes1.add(node);
+						}
 					}
 				}
 				List<ControlDependenceTreeNode> matchedControlDependenceTreeNodes2 = subTreeMatch.getControlDependenceTreeNodes2();
 				ControlDependenceTreeNode controlDependenceSubTreePDG2 = generateControlDependenceSubTree(controlDependenceTreePDG2, matchedControlDependenceTreeNodes2);
 				//insert unmatched CDT nodes under matched ones
 				for(ControlDependenceTreeNode node : controlDependenceTreePDG2.getNodesInBreadthFirstOrder()) {
-					if(!matchedControlDependenceTreeNodes2.contains(node) && matchedControlDependenceTreeNodes2.contains(node.getParent())) {
-						insertCDTNodeInTree(node, controlDependenceSubTreePDG2);
-						matchedControlDependenceTreeNodes2.add(node);
+					if(!matchedControlDependenceTreeNodes2.contains(node)) {
+						if(matchedControlDependenceTreeNodes2.contains(node.getParent())) {
+							insertCDTNodeInTree(node, controlDependenceSubTreePDG2);
+							matchedControlDependenceTreeNodes2.add(node);
+						}
+						else if(matchedControlDependenceTreeNodes2.contains(node.getPreviousSibling())) {
+							insertCDTNodeInTreeAfterSibling(node, node.getPreviousSibling(), controlDependenceSubTreePDG2);
+							matchedControlDependenceTreeNodes2.add(node);
+						}
 					}
 				}
 				TreeSet<ControlDependenceTreeNodeMatchPair> matchPairs = subTreeMatch.getMatchPairs();
@@ -116,6 +128,17 @@ public class PDGMapper {
 				newNode.setIfParentAndElseIfChild(newIfParent);
 			}
 		}
+	}
+
+	private void insertCDTNodeInTreeAfterSibling(ControlDependenceTreeNode cdtNode, ControlDependenceTreeNode previousSibling, ControlDependenceTreeNode root) {
+		ControlDependenceTreeNode parent;
+		if(cdtNode.getParent().isElseNode()) {
+			parent = root.getElseNode(cdtNode.getParent().getIfParent().getNode());
+		}
+		else {
+			parent = root.getNode(cdtNode.getParent().getNode());
+		}
+		new ControlDependenceTreeNode(parent, previousSibling, cdtNode.getNode());
 	}
 
 	public List<CompleteSubTreeMatch> getBottomUpSubTreeMatches() {

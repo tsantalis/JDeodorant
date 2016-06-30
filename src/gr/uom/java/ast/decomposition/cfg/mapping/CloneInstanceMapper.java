@@ -345,11 +345,11 @@ public class CloneInstanceMapper {
 									if(!orderedSubtreeMatchNodes1.contains(node)) {
 										if(orderedSubtreeMatchNodes1.contains(node.getParent())) {
 											insertCDTNodeInTree(node, controlDependenceSubTreePDG1);
-											orderedSubtreeMatchNodes1.add(node);
+											addNodeInOrder(orderedSubtreeMatchNodes1, node);
 										}
-										else if(orderedSubtreeMatchNodes1.contains(node.getPreviousSibling())) {
+										else if(orderedSubtreeMatchNodes1.contains(node.getPreviousSibling()) && node.getId() < orderedSubtreeMatchNodes1.get(orderedSubtreeMatchNodes1.size()-1).getId()) {
 											insertCDTNodeInTreeAfterSibling(node, node.getPreviousSibling(), controlDependenceSubTreePDG1);
-											orderedSubtreeMatchNodes1.add(node);
+											addNodeInOrder(orderedSubtreeMatchNodes1, node);
 										}
 									}
 								}
@@ -359,11 +359,11 @@ public class CloneInstanceMapper {
 									if(!orderedSubtreeMatchNodes2.contains(node)) {
 										if(orderedSubtreeMatchNodes2.contains(node.getParent())) {
 											insertCDTNodeInTree(node, controlDependenceSubTreePDG2);
-											orderedSubtreeMatchNodes2.add(node);
+											addNodeInOrder(orderedSubtreeMatchNodes2, node);
 										}
-										else if(orderedSubtreeMatchNodes2.contains(node.getPreviousSibling())) {
+										else if(orderedSubtreeMatchNodes2.contains(node.getPreviousSibling()) && node.getId() < orderedSubtreeMatchNodes2.get(orderedSubtreeMatchNodes2.size()-1).getId()) {
 											insertCDTNodeInTreeAfterSibling(node, node.getPreviousSibling(), controlDependenceSubTreePDG2);
-											orderedSubtreeMatchNodes2.add(node);
+											addNodeInOrder(orderedSubtreeMatchNodes2, node);
 										}
 									}
 								}
@@ -422,6 +422,16 @@ public class CloneInstanceMapper {
 		return root;
 	}
 
+	private void addNodeInOrder(List<ControlDependenceTreeNode> matchedControlDependenceTreeNodes, ControlDependenceTreeNode node) {
+		int indexToBeAdded = 0;
+		for(ControlDependenceTreeNode matchedNode : matchedControlDependenceTreeNodes) {
+			if(matchedNode.getId() < node.getId()) {
+				indexToBeAdded++;
+			}
+		}
+		matchedControlDependenceTreeNodes.add(indexToBeAdded, node);
+	}
+
 	private void insertCDTNodeInTree(ControlDependenceTreeNode cdtNode, ControlDependenceTreeNode root) {
 		ControlDependenceTreeNode parent;
 		if(cdtNode.getParent().isElseNode()) {
@@ -455,7 +465,21 @@ public class CloneInstanceMapper {
 		else {
 			parent = root.getNode(cdtNode.getParent().getNode());
 		}
-		new ControlDependenceTreeNode(parent, previousSibling, cdtNode.getNode());
+		ControlDependenceTreeNode newNode = new ControlDependenceTreeNode(parent, previousSibling, cdtNode.getNode());
+		if(cdtNode.isElseNode()) {
+			newNode.setElseNode(true);
+			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
+			if(newIfParent != null) {
+				newIfParent.setElseIfChild(newNode);
+				newNode.setIfParent(newIfParent);
+			}
+		}
+		else if(cdtNode.getIfParent() != null) {
+			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
+			if(newIfParent != null) {
+				newNode.setIfParentAndElseIfChild(newIfParent);
+			}
+		}
 	}
 
 	private ControlDependenceTreeNode getSubTreeCDTNode(List<ControlDependenceTreeNode> CDTNodes, ASTNode ASTNode, boolean allNodesUnderElse) {

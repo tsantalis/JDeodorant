@@ -54,11 +54,11 @@ public class PDGMapper {
 					if(!matchedControlDependenceTreeNodes1.contains(node)) {
 						if(matchedControlDependenceTreeNodes1.contains(node.getParent())) {
 							insertCDTNodeInTree(node, controlDependenceSubTreePDG1);
-							matchedControlDependenceTreeNodes1.add(node);
+							addNodeInOrder(matchedControlDependenceTreeNodes1, node);
 						}
-						else if(matchedControlDependenceTreeNodes1.contains(node.getPreviousSibling())) {
+						else if(matchedControlDependenceTreeNodes1.contains(node.getPreviousSibling()) && node.getId() < matchedControlDependenceTreeNodes1.get(matchedControlDependenceTreeNodes1.size()-1).getId()) {
 							insertCDTNodeInTreeAfterSibling(node, node.getPreviousSibling(), controlDependenceSubTreePDG1);
-							matchedControlDependenceTreeNodes1.add(node);
+							addNodeInOrder(matchedControlDependenceTreeNodes1, node);
 						}
 					}
 				}
@@ -69,11 +69,11 @@ public class PDGMapper {
 					if(!matchedControlDependenceTreeNodes2.contains(node)) {
 						if(matchedControlDependenceTreeNodes2.contains(node.getParent())) {
 							insertCDTNodeInTree(node, controlDependenceSubTreePDG2);
-							matchedControlDependenceTreeNodes2.add(node);
+							addNodeInOrder(matchedControlDependenceTreeNodes2, node);
 						}
-						else if(matchedControlDependenceTreeNodes2.contains(node.getPreviousSibling())) {
+						else if(matchedControlDependenceTreeNodes2.contains(node.getPreviousSibling()) && node.getId() < matchedControlDependenceTreeNodes2.get(matchedControlDependenceTreeNodes2.size()-1).getId()) {
 							insertCDTNodeInTreeAfterSibling(node, node.getPreviousSibling(), controlDependenceSubTreePDG2);
-							matchedControlDependenceTreeNodes2.add(node);
+							addNodeInOrder(matchedControlDependenceTreeNodes2, node);
 						}
 					}
 				}
@@ -90,6 +90,16 @@ public class PDGMapper {
 				subTreeMappers.add(mapper);
 		}
 		NodePairComparisonCache.getInstance().clearCache();
+	}
+
+	private void addNodeInOrder(List<ControlDependenceTreeNode> matchedControlDependenceTreeNodes, ControlDependenceTreeNode node) {
+		int indexToBeAdded = 0;
+		for(ControlDependenceTreeNode matchedNode : matchedControlDependenceTreeNodes) {
+			if(matchedNode.getId() < node.getId()) {
+				indexToBeAdded++;
+			}
+		}
+		matchedControlDependenceTreeNodes.add(indexToBeAdded, node);
 	}
 
 	private ControlDependenceTreeNode generateControlDependenceSubTree(ControlDependenceTreeNode completeTreeRoot, List<ControlDependenceTreeNode> subTreeNodes) {
@@ -138,7 +148,21 @@ public class PDGMapper {
 		else {
 			parent = root.getNode(cdtNode.getParent().getNode());
 		}
-		new ControlDependenceTreeNode(parent, previousSibling, cdtNode.getNode());
+		ControlDependenceTreeNode newNode = new ControlDependenceTreeNode(parent, previousSibling, cdtNode.getNode());
+		if(cdtNode.isElseNode()) {
+			newNode.setElseNode(true);
+			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
+			if(newIfParent != null) {
+				newIfParent.setElseIfChild(newNode);
+				newNode.setIfParent(newIfParent);
+			}
+		}
+		else if(cdtNode.getIfParent() != null) {
+			ControlDependenceTreeNode newIfParent = root.getNode(cdtNode.getIfParent().getNode());
+			if(newIfParent != null) {
+				newNode.setIfParentAndElseIfChild(newIfParent);
+			}
+		}
 	}
 
 	public List<CompleteSubTreeMatch> getBottomUpSubTreeMatches() {

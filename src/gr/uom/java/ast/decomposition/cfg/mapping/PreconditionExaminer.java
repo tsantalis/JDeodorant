@@ -3328,6 +3328,30 @@ public class PreconditionExaminer {
 		}
 		Set<Expression> allMethodInvocations1 = extractMethodInvocations(getRemovableNodesG1());
 		Set<Expression> allMethodInvocations2 = extractMethodInvocations(getRemovableNodesG2());
+		boolean containsInstanceMethodCall1 = false;
+		for(Expression expression : allMethodInvocations1) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
+					if((methodInvocation.resolveMethodBinding().getModifiers() & Modifier.STATIC) == 0) {
+						containsInstanceMethodCall1 = true;
+						break;
+					}
+				}
+			}
+		}
+		boolean containsInstanceMethodCall2 = false;
+		for(Expression expression : allMethodInvocations2) {
+			if(expression instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)expression;
+				if(methodInvocation.getExpression() == null || methodInvocation.getExpression() instanceof ThisExpression) {
+					if((methodInvocation.resolveMethodBinding().getModifiers() & Modifier.STATIC) == 0) {
+						containsInstanceMethodCall2 = true;
+						break;
+					}
+				}
+			}
+		}
 		int methodCounter1 = 0;
 		for(MethodObject m : getAccessedLocalMethodsG1()) {
 			for(Expression expression : allMethodInvocations1) {
@@ -3401,7 +3425,7 @@ public class PreconditionExaminer {
 			}
 		}
 		//allowing non-static method calls in only one of the clone fragments
-		return thisCounter1 == 0 && thisCounter2 == 0 && fieldCounter1 == 0 && fieldCounter2 == 0 && (methodCounter1 == 0 || methodCounter2 == 0);
+		return thisCounter1 == 0 && thisCounter2 == 0 && fieldCounter1 == 0 && fieldCounter2 == 0 && (methodCounter1 == 0 || methodCounter2 == 0) && !containsInstanceMethodCall1 && !containsInstanceMethodCall2;
 	}
 
 	private Set<Expression> extractSimpleNames(Set<PDGNode> mappedNodes) {

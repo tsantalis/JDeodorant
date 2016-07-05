@@ -667,6 +667,15 @@ public class ExtractCloneRefactoringGapHandler {
 								String identifier = variableBinding.getName() + index;
 								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
 							}
+							else if(isLambdaExpressionParameter(variableBinding, parameterTypeBindings, index) &&
+									parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
+								//Lambda expression parameter should be casted back to the original primitive type
+								CastExpression castExpression = ast.newCastExpression();
+								Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+								methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, primitiveType, null);
+								methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+								methodBodyRewriter.replace(newSimpleName, castExpression, null);
+							}
 						}
 						j++;
 					}
@@ -686,6 +695,16 @@ public class ExtractCloneRefactoringGapHandler {
 		}
 		methodBodyRewriter.set(lambdaExpression, LambdaExpression.BODY_PROPERTY, lambdaBody, null);
 		argumentsRewrite.insertLast(lambdaExpression, null);
+	}
+
+	private boolean isLambdaExpressionParameter(IVariableBinding variableBinding, Set<VariableBindingPair> parameterTypeBindings, int index) {
+		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+			IVariableBinding parameterVariableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+			if(variableBinding.isEqualTo(parameterVariableBinding)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private ASTNodeDifference findDifferenceCorrespondingToStatement(Statement statement, List<ASTNodeDifference> differences) {
@@ -993,6 +1012,15 @@ public class ExtractCloneRefactoringGapHandler {
 					if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
 						String identifier = variableBinding.getName() + index;
 						methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
+					}
+					else if(isLambdaExpressionParameter(variableBinding, parameterTypeBindings, index) &&
+							parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
+						//Lambda expression parameter should be casted back to the original primitive type
+						CastExpression castExpression = ast.newCastExpression();
+						Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
+						methodBodyRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, primitiveType, null);
+						methodBodyRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+						methodBodyRewriter.replace(simpleName, castExpression, null);
 					}
 				}
 			}

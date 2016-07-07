@@ -3657,6 +3657,12 @@ public class PreconditionExaminer {
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
 			extractReturnTypeBinding(pdgNode2, returnedTypeBindings2);
 		}
+		for(PDGNode nonMappedNodeG1 : nonMappedNodesG1) {
+			extractReturnTypeBinding(nonMappedNodeG1, returnedTypeBindings1);
+		}
+		for(PDGNode nonMappedNodeG2 : nonMappedNodesG2) {
+			extractReturnTypeBinding(nonMappedNodeG2, returnedTypeBindings2);
+		}
 		if(returnedTypeBindings1.size() == 1 && returnedTypeBindings2.size() == 1) {
 			ITypeBinding typeBinding1 = returnedTypeBindings1.get(0);
 			ITypeBinding typeBinding2 = returnedTypeBindings2.get(0);

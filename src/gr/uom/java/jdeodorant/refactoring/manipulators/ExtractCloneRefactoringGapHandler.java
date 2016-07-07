@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CastExpression;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -668,7 +669,7 @@ public class ExtractCloneRefactoringGapHandler {
 								methodBodyRewriter.replace(newSimpleName, ast.newSimpleName(identifier), null);
 							}
 							else if(isLambdaExpressionParameter(variableBinding, parameterTypeBindings, index) &&
-									parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
+									parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty() && isMethodCallArgument(oldSimpleName)) {
 								//Lambda expression parameter should be casted back to the original primitive type
 								CastExpression castExpression = ast.newCastExpression();
 								Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
@@ -703,6 +704,23 @@ public class ExtractCloneRefactoringGapHandler {
 			if(variableBinding.isEqualTo(parameterVariableBinding)) {
 				return true;
 			}
+		}
+		return false;
+	}
+
+	private boolean isMethodCallArgument(SimpleName simpleName) {
+		ASTNode parent = simpleName.getParent();
+		List<Expression> arguments = null;
+		if(parent instanceof MethodInvocation) {
+			MethodInvocation methodInvocation = (MethodInvocation)parent;
+			arguments = methodInvocation.arguments();
+		}
+		else if(parent instanceof ClassInstanceCreation) {
+			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)parent;
+			arguments = classInstanceCreation.arguments();
+		}
+		if(arguments != null && arguments.contains(simpleName)) {
+			return true;
 		}
 		return false;
 	}
@@ -1014,7 +1032,7 @@ public class ExtractCloneRefactoringGapHandler {
 						methodBodyRewriter.replace(simpleName, ast.newSimpleName(identifier), null);
 					}
 					else if(isLambdaExpressionParameter(variableBinding, parameterTypeBindings, index) &&
-							parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
+							parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty() && isMethodCallArgument(simpleName)) {
 						//Lambda expression parameter should be casted back to the original primitive type
 						CastExpression castExpression = ast.newCastExpression();
 						Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);

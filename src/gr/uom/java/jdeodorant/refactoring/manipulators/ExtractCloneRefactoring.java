@@ -3166,11 +3166,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
-			}
 			if(!assignedFieldDeclarations.get(0).isEmpty()) {
 				replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
+			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
+				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
 			}
 			replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
 			for(ASTNodeDifference difference : differences) {

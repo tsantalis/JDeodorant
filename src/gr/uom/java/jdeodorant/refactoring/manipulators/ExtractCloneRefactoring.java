@@ -150,6 +150,8 @@ import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
+	private static final String SETTER_PREFIX = "set";
+	private static final String SETTER_SUFFIX = "2";
 	private List<? extends DivideAndConquerMatcher> mappers;
 	private DivideAndConquerMatcher mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
@@ -1888,7 +1890,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
 							}
 						}
-						else if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
+						else {
+							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
+							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
+							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+							typeBindings.add(localFieldG1.resolveBinding().getType());
+							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+						}
+						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								assignedFieldDeclarations.get(0).add(localFieldG1);
@@ -1908,8 +1917,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 								String originalFieldName = localFieldG1.getName().getIdentifier();
 								String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
-								SimpleName setterMethodName = ast.newSimpleName("set" + modifiedFieldName);
-								sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, setterMethodName, null);
+								String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+								if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
+									setterMethodName += SETTER_SUFFIX;
+								}
+								SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
+								sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, setterMethodSimpleName, null);
 								
 								ListRewrite setterMethodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								setterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
@@ -1923,13 +1936,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								
 								bodyDeclarationsRewrite.insertLast(setterMethodDeclaration, null);
 							}
-						}
-						else {
-							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
-							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
-							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(localFieldG1.resolveBinding().getType());
-							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
 						}
 						break;
 					}
@@ -2958,18 +2964,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(differences.isEmpty()) {
 			boolean replacement = false;
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				if(oldASTNode instanceof FieldAccess) {
-					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (FieldAccess)oldASTNode);
-					if(node != null) {
-						newASTNode = node;
-						replacement = true;
-					}
-				}
-				else {
-					replacement = replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
-				}
-			}
 			if(!assignedFieldDeclarations.get(0).isEmpty()) {
 				if(oldASTNode instanceof Assignment) {
 					ASTNode node = createReplacementForFieldAssignment(sourceRewriter, ast, (Assignment)oldASTNode);
@@ -2980,6 +2974,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 				else {
 					replacement = replacement || replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+				}
+			}
+			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
+				if(oldASTNode instanceof FieldAccess) {
+					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (FieldAccess)oldASTNode);
+					if(node != null) {
+						newASTNode = node;
+						replacement = true;
+					}
+				}
+				else {
+					replacement = replacement || replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
 				}
 			}
 			if(oldASTNode instanceof SuperMethodInvocation) {
@@ -3004,11 +3010,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
-			}
 			if(!assignedFieldDeclarations.get(0).isEmpty()) {
 				replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
+			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
+				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
 			}
 			replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
 			for(ASTNodeDifference difference : differences) {
@@ -3209,8 +3215,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
 					String originalFieldName = newFieldName.getIdentifier();
 					String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
-					SimpleName setterMethodName = ast.newSimpleName("set" + modifiedFieldName);
-					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodName, null);
+					String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+					if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
+						setterMethodName += SETTER_SUFFIX;
+					}
+					SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
+					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodSimpleName, null);
 					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 					setterMethodInvocationArgumentsRewrite.insertLast(newAssignment.getRightHandSide(), null);
 					sourceRewriter.replace(newAssignment, setterMethodInvocation, null);
@@ -3301,8 +3311,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
 					String originalFieldName = fieldName.getIdentifier();
 					String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
-					SimpleName setterMethodName = ast.newSimpleName("set" + modifiedFieldName);
-					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodName, null);
+					String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+					if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
+						setterMethodName += SETTER_SUFFIX;
+					}
+					SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
+					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodSimpleName, null);
 					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 					setterMethodInvocationArgumentsRewrite.insertLast(oldAssignment.getRightHandSide(), null);
 					return setterMethodInvocation;
@@ -3618,9 +3632,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
 			SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
 			if(simpleName != null && simpleName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-				String methodName = variableDeclaration.getName().getIdentifier();
-				methodName = "set" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
-				if(methodDeclaration.getName().getIdentifier().equals(methodName)) {
+				String setterMethodName = variableDeclaration.getName().getIdentifier();
+				setterMethodName = SETTER_PREFIX + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
+				if(methodDeclaration.getName().getIdentifier().equals(setterMethodName) && !mapper.getMethodName1().equals(setterMethodName) && !mapper.getMethodName2().equals(setterMethodName)) {
 					return;
 				}
 			}
@@ -3636,9 +3650,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 					methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-					String methodName = fragment.getName().getIdentifier();
-					methodName = "set" + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
-					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(methodName), null);
+					String setterMethodName = fragment.getName().getIdentifier();
+					setterMethodName = SETTER_PREFIX + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
+					if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
+						setterMethodName += SETTER_SUFFIX;
+					}
+					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName), null);
 					ListRewrite methodDeclarationParametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 					SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
 					sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldDeclaration.getType(), null);
@@ -3860,7 +3877,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 		for(VariableDeclaration variableDeclaration : fieldsToBeParameterized) {
 			if(accessedLocalFields.contains(variableDeclaration)) {
-				argumentsRewrite.insertLast(variableDeclaration.getName(), null);
+				FieldAccess fieldAccess = ast.newFieldAccess();
+				methodBodyRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+				methodBodyRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, variableDeclaration.getName(), null);
+				argumentsRewrite.insertLast(fieldAccess, null);
 			}
 		}
 		cloneInfo.argumentRewriteList.add(index, argumentsRewrite);

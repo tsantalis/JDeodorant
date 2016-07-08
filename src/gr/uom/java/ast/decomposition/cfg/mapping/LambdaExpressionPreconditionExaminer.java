@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -27,13 +28,17 @@ public class LambdaExpressionPreconditionExaminer {
 
 	private MappingState finalState;
 	private Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters;
+	private TreeSet<PDGNode> nonMappedNodesG1;
+	private TreeSet<PDGNode> nonMappedNodesG2;
 	private List<PDGExpressionGap> refactorableExpressionGaps;
 	private List<PDGNodeBlockGap> refactorableBlockGaps;
 
 	public LambdaExpressionPreconditionExaminer(CloneStructureNode cloneStructureRoot, MappingState finalState, 
-			Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters) {
+			Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> commonPassedParameters, TreeSet<PDGNode> nonMappedNodesG1, TreeSet<PDGNode> nonMappedNodesG2) {
 		this.finalState = finalState;
 		this.commonPassedParameters = commonPassedParameters;
+		this.nonMappedNodesG1 = nonMappedNodesG1;
+		this.nonMappedNodesG2 = nonMappedNodesG2;
 		this.refactorableExpressionGaps = new ArrayList<PDGExpressionGap>();
 		this.refactorableBlockGaps = new ArrayList<PDGNodeBlockGap>();
 		checkCloneStructureNodeForGaps(cloneStructureRoot);
@@ -107,7 +112,7 @@ public class LambdaExpressionPreconditionExaminer {
 		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
 			boolean nonEffectivelyFinalLocalVariableIsDefinedAndUsedInMappedStatements = false;
 			for(VariableBindingPair pair : parameterTypeBindings) {
-				if(introduceParameter(pair)) {
+				if(introduceParameter(pair) || variableIsDeclaredInNonMappedNodes(pair)) {
 					expressionGap.addParameterBinding(pair);
 				}
 				IVariableBinding binding1 = pair.getBinding1();
@@ -398,6 +403,30 @@ public class LambdaExpressionPreconditionExaminer {
 				return true;
 		}
 		return false;
+	}
+
+	private boolean variableIsDeclaredInNonMappedNodes(VariableBindingPair pair) {
+		IVariableBinding binding1 = pair.getBinding1();
+		PlainVariable variable1 = new PlainVariable(binding1.getKey(), binding1.getName(),
+				binding1.getType().getQualifiedName(), binding1.isField(), binding1.isParameter(), (binding1.getModifiers() & Modifier.STATIC) != 0);
+		IVariableBinding binding2 = pair.getBinding2();
+		PlainVariable variable2 = new PlainVariable(binding2.getKey(), binding2.getName(),
+				binding2.getType().getQualifiedName(), binding2.isField(), binding2.isParameter(), (binding2.getModifiers() & Modifier.STATIC) != 0);
+		boolean variable1DeclaredInNonMappedNode = false;
+		for(PDGNode nonMappedNodeG1 : nonMappedNodesG1) {
+			if(nonMappedNodeG1.declaresLocalVariable(variable1)) {
+				variable1DeclaredInNonMappedNode = true;
+				break;
+			}
+		}
+		boolean variable2DeclaredInNonMappedNode = false;
+		for(PDGNode nonMappedNodeG2 : nonMappedNodesG2) {
+			if(nonMappedNodeG2.declaresLocalVariable(variable2)) {
+				variable2DeclaredInNonMappedNode = true;
+				break;
+			}
+		}
+		return variable1DeclaredInNonMappedNode && variable2DeclaredInNonMappedNode;
 	}
 
 	private boolean variableIsDeclaredInMappedNodes(VariableBindingPair pair) {

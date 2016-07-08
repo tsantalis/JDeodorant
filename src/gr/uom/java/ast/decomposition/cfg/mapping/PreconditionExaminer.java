@@ -1670,7 +1670,7 @@ public class PreconditionExaminer {
 					PDGNode srcNode = (PDGNode)outputDependence.getSrc();
 					if(mappedNodes.contains(srcNode) && outputDependence.getData() instanceof PlainVariable) {
 						PlainVariable variable = (PlainVariable)outputDependence.getData();
-						if(!variable.isField() && !isAssignmentToArrayAccess(srcNode, variable) && mappedNodeDeclaresVariable(variable, mappedNodes))
+						if(!variable.isField() && mappedNodeDeclaresVariable(variable, mappedNodes))
 							variablesToBeReturned.add(variable);
 					}
 				}

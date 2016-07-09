@@ -677,7 +677,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 																Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
 																intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 																String typeName = argumentTypeBinding.getName();
-																String parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
+																String parameterName = argumentTypeBinding.isPrimitive() ? Character.toString(typeName.charAt(0)) :
+																		typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
 																if(parameterTypeCounterMap.containsKey(argumentTypeBinding.getKey())) {
 																	int previousCounter = parameterTypeCounterMap.get(argumentTypeBinding.getKey());
 																	parameterName += previousCounter;

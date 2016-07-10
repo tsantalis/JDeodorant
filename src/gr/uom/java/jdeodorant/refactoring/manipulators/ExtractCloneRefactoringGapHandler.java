@@ -55,6 +55,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingKeyPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.VariableBindingPair;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.BindingSignaturePair;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.util.ExpressionExtractor;
@@ -130,21 +131,7 @@ public class ExtractCloneRefactoringGapHandler {
 		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(interfaceName));
 		ListRewrite typeArgumentsRewrite = sourceRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
 		//add first the type of the input to the function
-		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-			IVariableBinding variableBinding = variableBindingPair.getBinding1();
-			Type parameterType = null;
-			if(variableBinding.getType().isPrimitive()) {
-				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
-			}
-			else {
-				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter) :
-					RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
-			}
-			Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
-			typeBindings2.add(variableBinding.getType());
-			RefactoringUtility.getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
-			typeArgumentsRewrite.insertLast(parameterType, null);
-		}
+		processTypeArgumentsOfParameterizedType(typeArgumentsRewrite, sourceRewriter, ast, parameterTypeBindings, requiredImportTypeBindings);
 		//add second the type of the result of the function
 		if(typeBinding.isPrimitive()) {
 			typeArgumentsRewrite.insertLast(RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(typeBinding, ast), null);
@@ -176,22 +163,56 @@ public class ExtractCloneRefactoringGapHandler {
 		ParameterizedType parameterizedType = ast.newParameterizedType(ast.newSimpleType(interfaceName));
 		ListRewrite typeArgumentsRewrite = sourceRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
 		//add first the type of the input to the function
+		processTypeArgumentsOfParameterizedType(typeArgumentsRewrite, sourceRewriter, ast, parameterTypeBindings, requiredImportTypeBindings);
+		return parameterizedType;
+	}
+
+	private void processTypeArgumentsOfParameterizedType(ListRewrite typeArgumentsRewrite, ASTRewrite sourceRewriter,
+			AST ast, Set<VariableBindingPair> parameterTypeBindings, Set<ITypeBinding> requiredImportTypeBindings) {
 		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-			IVariableBinding variableBinding = variableBindingPair.getBinding1();
+			IVariableBinding variableBinding1 = variableBindingPair.getBinding1();
+			IVariableBinding variableBinding2 = variableBindingPair.getBinding2();
+			ITypeBinding typeBinding1 = variableBinding1.getType();
+			ITypeBinding typeBinding2 = variableBinding2.getType();
+			ITypeBinding variableBindingType = determineType(typeBinding1, typeBinding2);
 			Type parameterType = null;
-			if(variableBinding.getType().isPrimitive()) {
-				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
+			if(variableBindingType.isPrimitive()) {
+				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBindingType, ast);
 			}
 			else {
-				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter) :
-					RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBindingType, ast, sourceRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableBindingType, ast, sourceRewriter);
 			}
 			Set<ITypeBinding> typeBindings2 = new LinkedHashSet<ITypeBinding>();
-			typeBindings2.add(variableBinding.getType());
+			typeBindings2.add(variableBindingType);
 			RefactoringUtility.getSimpleTypeBindings(typeBindings2, requiredImportTypeBindings);	
 			typeArgumentsRewrite.insertLast(parameterType, null);
 		}
-		return parameterizedType;
+	}
+
+	private ITypeBinding determineType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		if(typeBinding1 != null && typeBinding2 != null) {
+			if(typeBinding1.getQualifiedName().equals("null") && !typeBinding2.getQualifiedName().equals("null")) {
+				return typeBinding2;
+			}
+			else if(typeBinding2.getQualifiedName().equals("null") && !typeBinding1.getQualifiedName().equals("null")) {
+				return typeBinding1;
+			}
+			else if(typeBinding1.isEqualTo(typeBinding2)) {
+				return typeBinding1;
+			}
+			else {
+				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				return typeBinding;
+			}
+		}
+		else if(typeBinding1 == null && typeBinding2 != null) {
+			return typeBinding2;
+		}
+		else if(typeBinding2 == null && typeBinding1 != null) {
+			return typeBinding1;
+		}
+		return null;
 	}
 
 	private Type createFunctionalInterface(ASTRewrite sourceRewriter, AST ast, Set<VariableBindingPair> parameterTypeBindings, Type returnType, Set<ITypeBinding> thrownExceptionTypeBindings,
@@ -226,15 +247,19 @@ public class ExtractCloneRefactoringGapHandler {
 		}
 		ListRewrite interfaceMethodDeclarationParameterRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-			IVariableBinding variableBinding = variableBindingPair.getBinding1();
-			Type parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter) :
-				RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, sourceRewriter);
+			IVariableBinding variableBinding1 = variableBindingPair.getBinding1();
+			IVariableBinding variableBinding2 = variableBindingPair.getBinding2();
+			ITypeBinding typeBinding1 = variableBinding1.getType();
+			ITypeBinding typeBinding2 = variableBinding2.getType();
+			ITypeBinding variableBindingType = determineType(typeBinding1, typeBinding2);
+			Type parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBindingType, ast, sourceRewriter) :
+				RefactoringUtility.generateTypeFromTypeBinding(variableBindingType, ast, sourceRewriter);
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-			typeBindings.add(variableBinding.getType());
+			typeBindings.add(variableBindingType);
 			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);	
 			SingleVariableDeclaration parameterDeclaration = ast.newSingleVariableDeclaration();
 			sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-			sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+			sourceRewriter.set(parameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding1.getName()), null);
 			interfaceMethodDeclarationParameterRewrite.insertLast(parameterDeclaration, null);
 		}
 		ListRewrite interfaceMethodThrownExceptionRewrite = sourceRewriter.getListRewrite(interfaceMethodDeclaration, MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY);
@@ -516,28 +541,7 @@ public class ExtractCloneRefactoringGapHandler {
 		ListRewrite lambdaParameterRewrite = methodBodyRewriter.getListRewrite(lambdaExpression, LambdaExpression.PARAMETERS_PROPERTY);
 		Set<VariableBindingPair> parameterTypeBindings = blockGap.getParameterBindings();
 		Set<ITypeBinding> thrownExceptionTypeBindings = blockGap.getThrownExceptions();
-		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-			IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
-			Type parameterType = null;
-			if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
-				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
-			}
-			else {
-				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter) :
-					RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
-			}
-			SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
-			String parameterName = null;
-			if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
-				parameterName = variableBinding.getName() + index;
-			}
-			else {
-				parameterName = variableBinding.getName();
-			}
-			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
-			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-			lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
-		}
+		processLambdaExpressionParameters(parameterTypeBindings, lambdaParameterRewrite, methodBodyRewriter, ast, thrownExceptionTypeBindings, returnedVariables, index);
 		Block lambdaBody = ast.newBlock();
 		ListRewrite lambdaBodyRewrite = methodBodyRewriter.getListRewrite(lambdaBody, Block.STATEMENTS_PROPERTY);
 		int statementIndex = 0;
@@ -968,28 +972,7 @@ public class ExtractCloneRefactoringGapHandler {
 			Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(difference);
 			PDGExpressionGap expressionGap = findExpressionGapContainingDifference(difference);
 			Set<ITypeBinding> thrownExceptionTypeBindings = expressionGap.getThrownExceptions();
-			for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
-				IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
-				Type parameterType = null;
-				if(parameterTypeBindings.size() == 1 && variableBinding.getType().isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
-					parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBinding.getType(), ast);
-				}
-				else {
-					parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter) :
-						RefactoringUtility.generateTypeFromTypeBinding(variableBinding.getType(), ast, methodBodyRewriter);
-				}
-				SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
-				String parameterName = null;
-				if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
-					parameterName = variableBinding.getName() + index;
-				}
-				else {
-					parameterName = variableBinding.getName();
-				}
-				methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
-				methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-				lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
-			}
+			processLambdaExpressionParameters(parameterTypeBindings, lambdaParameterRewrite, methodBodyRewriter, ast, thrownExceptionTypeBindings, returnedVariables, index);
 			//replace the non-effectively final variables in the lambda expression body
 			SimpleName nonEffectivelyFinalVariableSimpleName = null;
 			for(VariableBindingPair variableBindingPair : nonEffectivelyFinalLocalVariables) {
@@ -1063,6 +1046,38 @@ public class ExtractCloneRefactoringGapHandler {
 		}
 		else {
 			argumentsRewrite.insertLast(expression, null);
+		}
+	}
+
+	private void processLambdaExpressionParameters(Set<VariableBindingPair> parameterTypeBindings,
+			ListRewrite lambdaParameterRewrite, ASTRewrite methodBodyRewriter, AST ast,
+			Set<ITypeBinding> thrownExceptionTypeBindings, List<VariableDeclaration> returnedVariables, int index) {
+		for(VariableBindingPair variableBindingPair : parameterTypeBindings) {
+			IVariableBinding variableBinding = index == 0 ? variableBindingPair.getBinding1() : variableBindingPair.getBinding2();
+			IVariableBinding variableBinding1 = variableBindingPair.getBinding1();
+			IVariableBinding variableBinding2 = variableBindingPair.getBinding2();
+			ITypeBinding typeBinding1 = variableBinding1.getType();
+			ITypeBinding typeBinding2 = variableBinding2.getType();
+			ITypeBinding variableBindingType = determineType(typeBinding1, typeBinding2);
+			Type parameterType = null;
+			if(parameterTypeBindings.size() == 1 && variableBindingType.isPrimitive() && thrownExceptionTypeBindings.isEmpty()) {
+				parameterType = RefactoringUtility.generateWrapperTypeForPrimitiveTypeBinding(variableBindingType, ast);
+			}
+			else {
+				parameterType = variableBindingPair.hasQualifiedType() ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableBindingType, ast, methodBodyRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableBindingType, ast, methodBodyRewriter);
+			}
+			SingleVariableDeclaration lambdaParameterDeclaration = ast.newSingleVariableDeclaration();
+			String parameterName = null;
+			if(isReturnedVariableAndNotPassedAsCommonParameter(variableBinding, returnedVariables)) {
+				parameterName = variableBinding.getName() + index;
+			}
+			else {
+				parameterName = variableBinding.getName();
+			}
+			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
+			methodBodyRewriter.set(lambdaParameterDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+			lambdaParameterRewrite.insertLast(lambdaParameterDeclaration, null);
 		}
 	}
 

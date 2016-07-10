@@ -6,6 +6,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -100,5 +101,13 @@ public class PDGExpressionGap extends Gap {
 			addTypeBinding(typeBinding, thrownExceptionTypeBindings);
 		}
 		return thrownExceptionTypeBindings;
+	}
+
+	@Override
+	public Set<IMethodBinding> getAllMethodsInvokedThroughVariable(VariableBindingPair variableBindingPair) {
+		Set<IMethodBinding> methods = new LinkedHashSet<IMethodBinding>();
+		methods.addAll(getAllMethodsInvokedThroughVariable(difference.getExpression1(), variableBindingPair.getBinding1()));
+		methods.addAll(getAllMethodsInvokedThroughVariable(difference.getExpression2(), variableBindingPair.getBinding2()));
+		return methods;
 	}
 }

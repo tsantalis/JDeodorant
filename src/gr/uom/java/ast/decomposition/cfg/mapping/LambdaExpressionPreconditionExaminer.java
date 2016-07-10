@@ -2,6 +2,7 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.LocalVariableDeclarationObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.MethodCallAnalyzer;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
@@ -18,6 +19,7 @@ import java.util.TreeSet;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -109,7 +111,7 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<IVariableBinding> variableBindings1 = expressionGap.getUsedVariableBindingsG1();
 		Set<IVariableBinding> variableBindings2 = expressionGap.getUsedVariableBindingsG2();
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
-		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
+		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings, expressionGap)) {
 			boolean nonEffectivelyFinalLocalVariableIsDefinedAndUsedInMappedStatements = false;
 			for(VariableBindingPair pair : parameterTypeBindings) {
 				if(introduceParameter(pair) || variableIsDeclaredInNonMappedNodes(pair)) {
@@ -136,7 +138,7 @@ public class LambdaExpressionPreconditionExaminer {
 		Set<IVariableBinding> variableBindings1 = blockGap.getUsedVariableBindingsG1();
 		Set<IVariableBinding> variableBindings2 = blockGap.getUsedVariableBindingsG2();
 		Set<VariableBindingPair> parameterTypeBindings = findParametersForLambdaExpression(variableBindings1, variableBindings2);
-		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings)) {
+		if(allVariableBindingsFound(variableBindings1, variableBindings2, parameterTypeBindings, blockGap)) {
 			Set<IVariableBinding> variablesToBeReturnedG1 = blockGap.getVariablesToBeReturnedG1();
 			Set<IVariableBinding> variablesToBeReturnedG2 = blockGap.getVariablesToBeReturnedG2();
 			ITypeBinding returnTypeBinding1 = blockGap.getReturnTypeBindingFromReturnStatementG1();
@@ -200,7 +202,7 @@ public class LambdaExpressionPreconditionExaminer {
 	}
 
 	private boolean allVariableBindingsFound(Set<IVariableBinding> variableBindings1, Set<IVariableBinding> variableBindings2,
-			Set<VariableBindingPair> parameterTypeBindings) {
+			Set<VariableBindingPair> parameterTypeBindings, Gap gap) {
 		boolean allVariableBindings1Found = true;
 		for(IVariableBinding variableBinding1 : variableBindings1) {
 			boolean found = false;
@@ -234,12 +236,28 @@ public class LambdaExpressionPreconditionExaminer {
 			ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(pair.getBinding1().getType(), pair.getBinding2().getType());
 			if(!(pair.getBinding1().getType().isEqualTo(pair.getBinding2().getType()) ||
 					pair.getBinding1().getType().getQualifiedName().equals(pair.getBinding2().getType().getQualifiedName()) ||
-					ASTNodeMatcher.validCommonSuperType(commonSuperType))) {
+					(ASTNodeMatcher.validCommonSuperType(commonSuperType) && typeDeclaresAllMethods(commonSuperType, gap.getAllMethodsInvokedThroughVariable(pair))) )) {
 				allPairsHaveSameType = false;
 				break;
 			}
 		}
 		return allVariableBindings1Found && allVariableBindings2Found && allPairsHaveSameType;
+	}
+
+	private boolean typeDeclaresAllMethods(ITypeBinding typeBinding, Set<IMethodBinding> methods) {
+		for(IMethodBinding methodBinding1 : methods) {
+			boolean methodFound = false;
+			for(IMethodBinding methodBinding2 : typeBinding.getDeclaredMethods()) {
+				if(MethodCallAnalyzer.equalSignature(methodBinding1, methodBinding2)) {
+					methodFound = true;
+					break;
+				}
+			}
+			if(!methodFound) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private boolean validReturnedVariables(Set<IVariableBinding> variablesToBeReturnedG1, Set<IVariableBinding> variablesToBeReturnedG2) {

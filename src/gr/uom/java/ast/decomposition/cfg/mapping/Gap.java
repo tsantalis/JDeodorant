@@ -2,14 +2,23 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.SimpleName;
 
+import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
+import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
+import gr.uom.java.ast.util.ExpressionExtractor;
 
 public abstract class Gap {
 	private Set<VariableBindingPair> parameterBindings;
@@ -52,6 +61,7 @@ public abstract class Gap {
 
 	public abstract ITypeBinding getReturnType();
 	public abstract Set<ITypeBinding> getThrownExceptions();
+	public abstract Set<IMethodBinding> getAllMethodsInvokedThroughVariable(VariableBindingPair variableBindingPair);
 
 	protected boolean variableDefinedInNodes(Set<PDGNode> nodes, IVariableBinding binding) {
 		for(PDGNode node : nodes) {
@@ -99,5 +109,44 @@ public abstract class Gap {
 			}
 		}
 		return false;
+	}
+
+	protected Set<IMethodBinding> getAllMethodsInvokedThroughVariable(AbstractExpression expression, IVariableBinding variableBinding) {
+		Set<IMethodBinding> methods = new LinkedHashSet<IMethodBinding>();
+		Expression expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression.getExpression());
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(expr);
+		for(Expression e : methodInvocations) {
+			if(e instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)e;
+				Expression methodInvocationExpression = methodInvocation.getExpression();
+				if(methodInvocationExpression != null && methodInvocationExpression instanceof SimpleName) {
+					SimpleName simpleName = (SimpleName)methodInvocationExpression;
+					if(simpleName.resolveBinding().isEqualTo(variableBinding)) {
+						methods.add(methodInvocation.resolveMethodBinding());
+					}
+				}
+			}
+		}
+		return methods;
+	}
+
+	protected Set<IMethodBinding> getAllMethodsInvokedThroughVariable(AbstractStatement statement, IVariableBinding variableBinding) {
+		Set<IMethodBinding> methods = new LinkedHashSet<IMethodBinding>();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement.getStatement());
+		for(Expression e : methodInvocations) {
+			if(e instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)e;
+				Expression methodInvocationExpression = methodInvocation.getExpression();
+				if(methodInvocationExpression != null && methodInvocationExpression instanceof SimpleName) {
+					SimpleName simpleName = (SimpleName)methodInvocationExpression;
+					if(simpleName.resolveBinding().isEqualTo(variableBinding)) {
+						methods.add(methodInvocation.resolveMethodBinding());
+					}
+				}
+			}
+		}
+		return methods;
 	}
 }

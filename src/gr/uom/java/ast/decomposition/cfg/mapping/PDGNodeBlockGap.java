@@ -1,7 +1,9 @@
 package gr.uom.java.ast.decomposition.cfg.mapping;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
+import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
@@ -26,6 +28,7 @@ import java.util.TreeSet;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -480,5 +483,37 @@ public class PDGNodeBlockGap extends Gap {
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public Set<IMethodBinding> getAllMethodsInvokedThroughVariable(VariableBindingPair variableBindingPair) {
+		Set<IMethodBinding> methods = new LinkedHashSet<IMethodBinding>();
+		for(PDGNode nodeG1 : nodesG1) {
+			AbstractStatement abstractStatement = nodeG1.getStatement();
+			if(abstractStatement instanceof StatementObject) {
+				StatementObject statement = (StatementObject)abstractStatement;
+				methods.addAll(getAllMethodsInvokedThroughVariable(statement, variableBindingPair.getBinding1()));
+			}
+			else if(abstractStatement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+				for(AbstractExpression expression : composite.getExpressions()) {
+					methods.addAll(getAllMethodsInvokedThroughVariable(expression, variableBindingPair.getBinding1()));
+				}
+			}
+		}
+		for(PDGNode nodeG2 : nodesG2) {
+			AbstractStatement abstractStatement = nodeG2.getStatement();
+			if(abstractStatement instanceof StatementObject) {
+				StatementObject statement = (StatementObject)abstractStatement;
+				methods.addAll(getAllMethodsInvokedThroughVariable(statement, variableBindingPair.getBinding2()));
+			}
+			else if(abstractStatement instanceof CompositeStatementObject) {
+				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
+				for(AbstractExpression expression : composite.getExpressions()) {
+					methods.addAll(getAllMethodsInvokedThroughVariable(expression, variableBindingPair.getBinding2()));
+				}
+			}
+		}
+		return methods;
 	}
 }

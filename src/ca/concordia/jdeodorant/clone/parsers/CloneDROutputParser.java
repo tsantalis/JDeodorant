@@ -30,6 +30,8 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 
 		CloneGroupList cloneGroups = new CloneGroupList(getIJavaProject());
 		
+		String commonPathPrefix = getCommonPathPrefix(getToolOutputFilePath());
+		
 		for (Integer cloneGroupID : this.allCloneGroupIDs) {
 			
 			if (isOperationCanceled())
@@ -49,7 +51,7 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 					int cloneLineCount = Integer.parseInt(cloneMatcher.group(2));
 					int startLine = Integer.parseInt(cloneMatcher.group(3));
 					int endLine = startLine + cloneLineCount - 1;
-					String cloneFilePath = cloneMatcher.group(4);
+					String cloneFilePath =  commonPathPrefix + "/" + cloneMatcher.group(4);
 					cloneCount++;
 					CloneInstance cloneInstance = getCloneInstance(cloneFilePath, cloneCount, true, startLine, 0, endLine, 0);
 					cloneGroup.addClone(cloneInstance);
@@ -93,6 +95,16 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 		}
 
 		return toReturn;
+	}
+	
+	private String getCommonPathPrefix(String pathToFiles) {
+		String readFileContents = readFileContents(pathToFiles + "jFilesAnalyzed.html");
+		Pattern pattern = Pattern.compile("<h2>Common Path Prefix: <tt>(.+)</tt></h2>");
+		Matcher matcher = pattern.matcher(readFileContents);
+		if (matcher.find()) {
+			return matcher.group(1);
+		}
+		return "";
 	}
 
 }

@@ -1948,6 +1948,8 @@ public class PreconditionExaminer {
 	private void checkPreconditions(CloneStructureNode node) {
 		TreeSet<PDGNode> removableNodesG1 = getRemovableNodesG1();
 		TreeSet<PDGNode> removableNodesG2 = getRemovableNodesG2();
+		TreeSet<PDGNode> remainingNodesG1 = getRemainingNodesG1();
+		TreeSet<PDGNode> remainingNodesG2 = getRemainingNodesG2();
 		NodeMapping nodeMapping = node.getMapping();
 		for(ASTNodeDifference difference : nodeMapping.getNodeDifferences()) {
 			boolean isDifferenceInConditionalExpressionOfAdvancedLoopMatch = false;
@@ -1963,7 +1965,7 @@ public class PreconditionExaminer {
 			if(!renamedVariables.contains(difference.getBindingSignaturePair()) && !renamedFields.contains(difference.getBindingSignaturePair()) && 
 					!isVariableWithTypeMismatchDifference(expression1, expression2, difference) &&
 					!isDifferenceInConditionalExpressionOfAdvancedLoopMatch) {
-				PreconditionViolationType violationType1 = isParameterizableExpression(pdg1, removableNodesG1, abstractExpression1, iCompilationUnit1);
+				PreconditionViolationType violationType1 = isParameterizableExpression(pdg1, removableNodesG1, remainingNodesG1, abstractExpression1, iCompilationUnit1);
 				if(violationType1 != null) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression1(), violationType1);
 					nodeMapping.addPreconditionViolation(violation);
@@ -1977,7 +1979,7 @@ public class PreconditionExaminer {
 						}
 					}
 				}
-				PreconditionViolationType violationType2 = isParameterizableExpression(pdg2, removableNodesG2, abstractExpression2, iCompilationUnit2);
+				PreconditionViolationType violationType2 = isParameterizableExpression(pdg2, removableNodesG2, remainingNodesG2, abstractExpression2, iCompilationUnit2);
 				if(violationType2 != null) {
 					PreconditionViolation violation = new ExpressionPreconditionViolation(difference.getExpression2(), violationType2);
 					nodeMapping.addPreconditionViolation(violation);
@@ -2867,7 +2869,7 @@ public class PreconditionExaminer {
 		return expressionIsField;
 	}
 	//precondition: differences in expressions should be parameterizable
-	private PreconditionViolationType isParameterizableExpression(PDG pdg, TreeSet<PDGNode> mappedNodes, AbstractExpression initialAbstractExpression, ICompilationUnit iCompilationUnit) {
+	private PreconditionViolationType isParameterizableExpression(PDG pdg, TreeSet<PDGNode> mappedNodes, TreeSet<PDGNode> nonMappedNodes, AbstractExpression initialAbstractExpression, ICompilationUnit iCompilationUnit) {
 		Set<VariableDeclarationObject> variableDeclarationsInMethod = pdg.getVariableDeclarationObjectsInMethod();
 		Expression initialExpression = initialAbstractExpression.getExpression();
 		Expression expr = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(initialExpression);
@@ -2905,6 +2907,7 @@ public class PreconditionExaminer {
 		}
 		if(nodeContainingExpression != null) {
 			TreeSet<PDGNode> nodes = new TreeSet<PDGNode>(mappedNodes);
+			nodes.addAll(nonMappedNodes);
 			nodes.remove(nodeContainingExpression);
 			Iterator<GraphEdge> incomingDependenceIterator = nodeContainingExpression.getIncomingDependenceIterator();
 			while(incomingDependenceIterator.hasNext()) {

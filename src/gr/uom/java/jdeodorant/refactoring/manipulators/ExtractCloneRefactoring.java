@@ -1787,12 +1787,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private void pullUpLocallyAccessedFields(Set<VariableDeclaration> accessedLocalFieldsG1, Set<VariableDeclaration> accessedLocalFieldsG2,
 			Set<VariableDeclaration> modifiedLocalFieldsG1, Set<VariableDeclaration> modifiedLocalFieldsG2,
 			ListRewrite bodyDeclarationsRewrite, Set<ITypeBinding> requiredImportTypeBindings) {
+		Set<VariableDeclaration> allFieldsG1 = new LinkedHashSet<VariableDeclaration>(accessedLocalFieldsG1);
+		Set<VariableDeclaration> allFieldsG2 = new LinkedHashSet<VariableDeclaration>(accessedLocalFieldsG2);
+		allFieldsG1.addAll(modifiedLocalFieldsG1);
+		allFieldsG2.addAll(modifiedLocalFieldsG2);
 		ASTRewrite sourceRewriter = cloneInfo.sourceRewriter;
 		AST ast = cloneInfo.ast;
 		TypeDeclaration sourceTypeDeclaration = cloneInfo.sourceTypeDeclaration;
-		for(VariableDeclaration localFieldG1 : accessedLocalFieldsG1) {
+		for(VariableDeclaration localFieldG1 : allFieldsG1) {
 			FieldDeclaration originalFieldDeclarationG1 = (FieldDeclaration)localFieldG1.getParent();
-			for(VariableDeclaration localFieldG2 : accessedLocalFieldsG2) {
+			for(VariableDeclaration localFieldG2 : allFieldsG2) {
 				FieldDeclaration originalFieldDeclarationG2 = (FieldDeclaration)localFieldG2.getParent();
 				if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier()) &&
 						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&
@@ -1982,9 +1986,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								String originalFieldName = localFieldG1.getName().getIdentifier();
 								String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 								String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-								if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
-									setterMethodName += SETTER_SUFFIX;
-								}
+								setterMethodName = appendSetterMethodSuffix(setterMethodName);
 								SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
 								sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, setterMethodSimpleName, null);
 								
@@ -3375,9 +3377,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					String originalFieldName = newFieldName.getIdentifier();
 					String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 					String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-					if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
-						setterMethodName += SETTER_SUFFIX;
-					}
+					setterMethodName = appendSetterMethodSuffix(setterMethodName);
 					SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
 					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodSimpleName, null);
 					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -3471,9 +3471,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					String originalFieldName = fieldName.getIdentifier();
 					String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 					String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-					if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
-						setterMethodName += SETTER_SUFFIX;
-					}
+					setterMethodName = appendSetterMethodSuffix(setterMethodName);
 					SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
 					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodSimpleName, null);
 					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -3791,16 +3789,34 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void createSetterMethodDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+	private boolean typeContainsPureSetterMethodForVariable(TypeDeclaration typeDeclaration, VariableDeclaration variableDeclaration) {
 		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
 			SimpleName simpleName = MethodDeclarationUtility.isSetter(methodDeclaration);
 			if(simpleName != null && simpleName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
 				String setterMethodName = variableDeclaration.getName().getIdentifier();
 				setterMethodName = SETTER_PREFIX + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
-				if(methodDeclaration.getName().getIdentifier().equals(setterMethodName) && !mapper.getMethodName1().equals(setterMethodName) && !mapper.getMethodName2().equals(setterMethodName)) {
-					return;
+				if(methodDeclaration.getName().getIdentifier().equals(setterMethodName)) {
+					return true;
 				}
 			}
+		}
+		return false;
+	}
+
+	private boolean typeContainsMethodWithName(TypeDeclaration typeDeclaration, String methodName) {
+		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
+			if(methodDeclaration.getName().getIdentifier().equals(methodName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void createSetterMethodDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+		String setterMethodName = variableDeclaration.getName().getIdentifier();
+		setterMethodName = SETTER_PREFIX + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
+		if(typeContainsPureSetterMethodForVariable(typeDeclaration, variableDeclaration) && !mapper.getMethodName1().equals(setterMethodName) && !mapper.getMethodName2().equals(setterMethodName)) {
+			return;
 		}
 		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
 		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
@@ -3813,11 +3829,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 					methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-					String setterMethodName = fragment.getName().getIdentifier();
-					setterMethodName = SETTER_PREFIX + setterMethodName.substring(0,1).toUpperCase() + setterMethodName.substring(1,setterMethodName.length());
-					if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName)) {
-						setterMethodName += SETTER_SUFFIX;
-					}
+					setterMethodName = appendSetterMethodSuffix(setterMethodName);
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName), null);
 					ListRewrite methodDeclarationParametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 					SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
@@ -3850,6 +3862,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+	}
+
+	private String appendSetterMethodSuffix(String setterMethodName) {
+		boolean sourceTypeContainsMethodWithSetterName = false;
+		for(TypeDeclaration typeDeclaration : sourceTypeDeclarations) {
+			if(typeContainsMethodWithName(typeDeclaration, setterMethodName)) {
+				sourceTypeContainsMethodWithSetterName = true;
+				break;
+			}
+		}
+		if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName) || sourceTypeContainsMethodWithSetterName) {
+			setterMethodName += SETTER_SUFFIX;
+		}
+		return setterMethodName;
 	}
 
 	private void removeFieldDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {

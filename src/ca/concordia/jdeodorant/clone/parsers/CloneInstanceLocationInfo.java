@@ -9,7 +9,6 @@ import java.io.StringWriter;
 
 public class CloneInstanceLocationInfo {
 	
-	private static final String LINE_FEED = "\n";
 	private final String filePath;
 	private int startOffset;
 	private int endOffset; 
@@ -30,19 +29,18 @@ public class CloneInstanceLocationInfo {
 		this.length = endOffset - startOffset + 1;
 		String containingFileContents = readFileContents(filePath);
 		if (!"".equals(containingFileContents)) {
-			if (this.length < containingFileContents.length()) {
-				
-				String[] linesBeforeAndIncludingOffset = getLinesBeforeAndIncludingOffset(containingFileContents, startOffset);
-				this.startLine = linesBeforeAndIncludingOffset.length;
+			if (this.length < containingFileContents.length()) {			
+				String linesBeforeAndIncludingOffset = containingFileContents.substring(0, startOffset - 1);
+				this.startLine = getLines(linesBeforeAndIncludingOffset).length;
 				this.startColumn = this.startOffset - getNumberOfCharsForLines(linesBeforeAndIncludingOffset, this.startLine - 1);
 				
-				linesBeforeAndIncludingOffset = getLinesBeforeAndIncludingOffset(containingFileContents, endOffset);
-				this.endLine = linesBeforeAndIncludingOffset.length;
+				linesBeforeAndIncludingOffset = containingFileContents.substring(0, endOffset - 1);
+				this.endLine = getLines(linesBeforeAndIncludingOffset).length;
 				this.endColumn = endOffset - getNumberOfCharsForLines(linesBeforeAndIncludingOffset, this.endLine - 1);
 			}
 		}
 	}
-	
+
 	public CloneInstanceLocationInfo(String filePath, int startLine, int startColumn, int endLine, int endColumn) {
 		this.filePath = filePath;
 		this.startLine = startLine;
@@ -50,16 +48,16 @@ public class CloneInstanceLocationInfo {
 		this.endLine = endLine;
 		this.endColumn = endColumn;
 		String fileContents = readFileContents(filePath);
-		String[] lines = fileContents.split(LINE_FEED);
-		int numberOfCharsForLines = getNumberOfCharsForLines(lines, startLine - 1); // The first offset of the start line
+		int numberOfCharsForLines = getNumberOfCharsForLines(fileContents, startLine - 1); // The first offset of the start line
 
 		this.startOffset = numberOfCharsForLines + this.startColumn;
-		while (isWhiteSpaceCharacter(fileContents.charAt(startOffset))) {
+		while (this.startOffset < fileContents.length() && isWhiteSpaceCharacter(fileContents.charAt(startOffset))) {
 			this.startOffset++;
 		}
-		numberOfCharsForLines = getNumberOfCharsForLines(lines, endLine) - 1; // The last offset of the end line
+		numberOfCharsForLines = getNumberOfCharsForLines(fileContents, endLine) - 1; // The last offset of the end line
 		this.endOffset = numberOfCharsForLines + this.endColumn;
-		while (isWhiteSpaceCharacter(fileContents.charAt(this.endOffset))) {
+
+		while (this.endOffset >= 0 && isWhiteSpaceCharacter(fileContents.charAt(this.endOffset))) {
 			this.endOffset--;
 		}
 		this.length = this.endOffset - this.startOffset + 1;
@@ -90,16 +88,26 @@ public class CloneInstanceLocationInfo {
 		return "";
 	}
 
-	private int getNumberOfCharsForLines(String[] lines, int line) {
+	private String[] getLines(String string) {
+		if (string.indexOf("\n") >= 0) {
+			return string.split("\n");
+		} else if (string.indexOf("\r") >= 0) {
+			return string.split("\r");
+		}
+		return new String[] { string };
+	}
+	
+	private int getNumberOfCharsForLines(String fileContents, int line) {
 		int charsBeforeLine = 0;
+		String[] lines = getLines(fileContents);
 		for (int i = 0; i < line && i < lines.length; i++) {
-			charsBeforeLine += lines[i].length() + LINE_FEED.length();
+			charsBeforeLine += lines[i].length() + 1; // 1 for Line Feed character
+		}
+		// Happens when the last char of the document is not a line feed character
+		if (charsBeforeLine > fileContents.length() - 1) {
+			charsBeforeLine = fileContents.length() - 1;
 		}
 		return charsBeforeLine;
-	}
-
-	private String[] getLinesBeforeAndIncludingOffset(String fileContents, int offset) {
-		return fileContents.substring(0, offset - 1).split(LINE_FEED);
 	}
 	
 	public String getContainingFilePath() {

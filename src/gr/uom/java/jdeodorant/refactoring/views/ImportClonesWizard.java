@@ -4,12 +4,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.MultiStatus;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jface.dialogs.ErrorDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.wizard.Wizard;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.MessageBox;
 
 import ca.concordia.jdeodorant.clone.parsers.CloneDetectorOutputParser;
 import ca.concordia.jdeodorant.clone.parsers.CloneDetectorOutputParserFactory;
@@ -18,6 +20,7 @@ import ca.concordia.jdeodorant.clone.parsers.CloneDetectorType;
 import ca.concordia.jdeodorant.clone.parsers.CloneGroupList;
 import ca.concordia.jdeodorant.clone.parsers.InvalidInputFileException;
 import ca.concordia.jdeodorant.clone.parsers.ResourceInfo.ICompilationUnitNotFoundException;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 
 public class ImportClonesWizard extends Wizard {
 	private IJavaProject javaProject;
@@ -96,20 +99,22 @@ public class ImportClonesWizard extends Wizard {
 						iCompilationUnitNotFoundExceptions++;
 					}
 				}
-				int style = SWT.ICON_ERROR | SWT.OK ;
-			    MessageBox messageBox = new MessageBox(getShell(), style);
-			    String message = String.format("%s warning%s happened during parsing.", 
-			    		warningExceptions.size(), 
-			    		warningExceptions.size() > 1 ? "s" : "");
-			    if (iCompilationUnitNotFoundExceptions > 0) {
-			    	message += "\n";
-			    	message += String.format("The source code of %s clone instance%s was not found.", 
-			    			iCompilationUnitNotFoundExceptions,
-			    			iCompilationUnitNotFoundExceptions > 1 ? "s" : "");
-			    }
-			    messageBox.setMessage(message);
-			    messageBox.open();
-				
+				String message = String.format("%s warning%s happened during parsing.", 
+						warningExceptions.size(), 
+						warningExceptions.size() > 1 ? "s" : "");
+				String statusMessage = "";
+				if (iCompilationUnitNotFoundExceptions == 0) {
+					statusMessage = "See details for more information";
+				} else {
+					statusMessage = String.format("The source code of %s clone instance%s was not found", 
+						iCompilationUnitNotFoundExceptions,
+						iCompilationUnitNotFoundExceptions > 1 ? "s" : "");
+				}
+				MultiStatus info = new MultiStatus(Activator.PLUGIN_ID, IStatus.WARNING, statusMessage, null);
+				for (Throwable throwable : warningExceptions) {
+					info.add(new Status(IStatus.WARNING, Activator.PLUGIN_ID, throwable.getMessage()));
+				}
+				ErrorDialog.openError(getShell(), "Parsing clone detector results", message, info);
 				if (cloneGroupList != null && cloneGroupList.getCloneGroupsCount() > 0)
 					return true;
 				else

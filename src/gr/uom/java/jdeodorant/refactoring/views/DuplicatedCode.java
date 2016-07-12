@@ -650,7 +650,6 @@ public class DuplicatedCode extends ViewPart {
 							ICompilationUnit sourceJavaElement = getICompilationUnit(importedProject, fullName);
 							ITextEditor sourceEditor = (ITextEditor)JavaUI.openInEditor(sourceJavaElement);
 							AnnotationModel annotationModel = (AnnotationModel)sourceEditor.getDocumentProvider().getAnnotationModel(sourceEditor.getEditorInput());
-							@SuppressWarnings("unchecked")
 							Iterator<Annotation> annotationIterator = annotationModel.getAnnotationIterator();
 							while(annotationIterator.hasNext()) {
 								Annotation currentAnnotation = annotationIterator.next();

@@ -358,7 +358,7 @@ public class PDG extends Graph {
 		for(PDGNode jumpNode : jumpNodeMap.keySet()) {
 			PDGNode innerMostLoopNode = jumpNodeMap.get(jumpNode);
 			CFGNode innerMostLoopCFGNode = innerMostLoopNode.getCFGNode();
-			if(innerMostLoopCFGNode instanceof CFGBranchLoopNode || innerMostLoopCFGNode instanceof CFGBranchDoLoopNode) {
+			if(innerMostLoopCFGNode instanceof CFGBranchLoopNode || innerMostLoopCFGNode instanceof CFGBranchDoLoopNode || innerMostLoopCFGNode instanceof CFGBranchSwitchNode) {
 				for(GraphEdge edge : innerMostLoopNode.outgoingEdges) {
 					PDGDependence dependence = (PDGDependence)edge;
 					if(dependence instanceof PDGControlDependence) {

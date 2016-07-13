@@ -821,8 +821,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								!methodDeclaration2.resolveBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations) &&
 								!commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(methodDeclaration1.resolveBinding(), commonSuperTypeOfSourceTypeDeclarations) &&
 								!commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(methodDeclaration2.resolveBinding(), commonSuperTypeOfSourceTypeDeclarations)) {
-							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1);
-							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2);
+							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1, fieldsModifiedInMethod1);
+							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2, fieldsModifiedInMethod2);
 							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
 								MethodDeclaration copiedMethodDeclaration = (MethodDeclaration) ASTNode.copySubtree(ast, methodDeclaration1);
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(copiedMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
@@ -1992,8 +1992,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								
 								ListRewrite setterMethodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								setterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-								setterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
-								
+								if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
+									Block methodBody = ast.newBlock();
+									sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
+								}
+								else {
+									setterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+								}
 								ListRewrite setterMethodDeclarationParametersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 								SingleVariableDeclaration setterMethodParameter = ast.newSingleVariableDeclaration();
 								sourceRewriter.set(setterMethodParameter, SingleVariableDeclaration.TYPE_PROPERTY, originalFieldDeclarationG1.getType(), null);
@@ -2039,8 +2044,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				(localField.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
 	}
 	
-	private boolean avoidPullUpMethodDueToSerialization(TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldsAccessedInMethod) {
-		for(VariableDeclaration localField : fieldsAccessedInMethod) {
+	private boolean avoidPullUpMethodDueToSerialization(TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldsAccessedInMethod, Set<VariableDeclaration> fieldModifiedInMethod) {
+		Set<VariableDeclaration> allFields = new LinkedHashSet<VariableDeclaration>(fieldsAccessedInMethod);
+		allFields.addAll(fieldModifiedInMethod);
+		for(VariableDeclaration localField : allFields) {
 			if(avoidPullUpFieldDueToSerialization(typeDeclaration, localField)) {
 				return true;
 			}

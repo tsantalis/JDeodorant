@@ -1013,8 +1013,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			modifierRewrite.insertLast(accessModifier, null);
 		}
 		
-		if(((sourceMethodDeclarations.get(0).getModifiers() & Modifier.STATIC) != 0 &&
-				(sourceMethodDeclarations.get(1).getModifiers() & Modifier.STATIC) != 0) || cloneInfo.extractUtilityClass) {
+		boolean isSourceMethodDeclaration1Static = (sourceMethodDeclarations.get(0).getModifiers() & Modifier.STATIC) != 0;
+		boolean isSourceMethodDeclaration2Static = (sourceMethodDeclarations.get(1).getModifiers() & Modifier.STATIC) != 0;
+		if(isSourceMethodDeclaration1Static ||	isSourceMethodDeclaration2Static || cloneInfo.extractUtilityClass) {
 			Modifier staticModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD);
 			modifierRewrite.insertLast(staticModifier, null);
 		}

@@ -451,6 +451,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return false;
 	}
 
+	private boolean variableIsDeclaredInMappedNodes(VariableDeclaration variableDeclaration, Set<PDGNode> mappedNodes) {
+		PlainVariable plainVariable = new PlainVariable(variableDeclaration);
+		for(PDGNode mappedNode : mappedNodes) {
+			if(mappedNode.declaresLocalVariable(plainVariable)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private Set<VariableDeclaration> getLocallyAccessedFields(Set<AbstractVariable> accessedFields, TypeDeclaration typeDeclaration) {
 		Set<VariableDeclaration> accessedLocalFields = new LinkedHashSet<VariableDeclaration>();
 		for(AbstractVariable variable : accessedFields) {
@@ -4179,7 +4189,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Statement methodInvocationStatement = null;
 			VariableDeclaration variableDeclaration = returnedVariables.get(0);
 			if(variableDeclaration.resolveBinding().isParameter() || variableDeclaration.resolveBinding().isField()
-					|| statementsToBeMovedBefore.contains(variableDeclaration.getParent()) || variableIsPassedAsCommonParameter(variableDeclaration)) {
+					|| statementsToBeMovedBefore.contains(variableDeclaration.getParent()) ||
+					(variableIsPassedAsCommonParameter(variableDeclaration) && !variableIsDeclaredInMappedNodes(variableDeclaration, removableNodes))) {
 				//create an assignment statement
 				ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
 				Assignment assignment = ast.newAssignment();

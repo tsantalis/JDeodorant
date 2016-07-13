@@ -27,7 +27,8 @@ public enum PreconditionViolationType {
 	MULTIPLE_UNMATCHED_STATEMENTS_UPDATE_THE_SAME_VARIABLE,
 	INFEASIBLE_REFACTORING_DUE_TO_UNCOMMON_SUPERCLASS,
 	INFEASIBLE_REFACTORING_DUE_TO_ZERO_MATCHED_STATEMENTS,
-	NOT_ALL_POSSIBLE_EXECUTION_FLOWS_END_IN_RETURN;
+	NOT_ALL_POSSIBLE_EXECUTION_FLOWS_END_IN_RETURN,
+	THIS_CONSTRUCTOR_INVOCATION_STATEMENT;
 	
 	public String toString() {
 		if(name().equals(EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED.name())) {
@@ -55,6 +56,9 @@ public enum PreconditionViolationType {
 			return "cannot be moved before or after the extracted code, because it throws exception(s) that should be caught by a try block that will be extracted";
 		}
 		else if(name().equals(SUPER_CONSTRUCTOR_INVOCATION_STATEMENT.name())) {
+			return "cannot be extracted from constructor";
+		}
+		else if(name().equals(THIS_CONSTRUCTOR_INVOCATION_STATEMENT.name())) {
 			return "cannot be extracted from constructor";
 		}
 		else if(name().equals(SUPER_METHOD_INVOCATION_STATEMENT.name())) {

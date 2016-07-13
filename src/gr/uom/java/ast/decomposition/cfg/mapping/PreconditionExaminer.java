@@ -1979,6 +1979,16 @@ public class PreconditionExaminer {
 		}
 	}
 
+	private void checkIfStatementIsThisConstructorInvocation(NodeMapping nodeMapping, PDGNode node) {
+		AbstractStatement statement = node.getStatement();
+		if(statement.getType().equals(StatementType.CONSTRUCTOR_INVOCATION)) {
+			PreconditionViolation violation = new StatementPreconditionViolation(statement,
+					PreconditionViolationType.THIS_CONSTRUCTOR_INVOCATION_STATEMENT);
+			nodeMapping.addPreconditionViolation(violation);
+			preconditionViolations.add(violation);
+		}
+	}
+
 	private void checkIfStatementContainsSuperMethodInvocation(NodeMapping nodeMapping, PDGNode node) {
 		AbstractStatement statement = node.getStatement();
 		if(statement instanceof StatementObject) {
@@ -2210,6 +2220,8 @@ public class PreconditionExaminer {
 			switchCaseStatementWithInnermostSwitch(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
+			checkIfStatementIsThisConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
+			checkIfStatementIsThisConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
 			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG2());
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes

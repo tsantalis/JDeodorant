@@ -798,7 +798,7 @@ public class PreconditionExaminer {
 			if(abstractStatement instanceof StatementObject) {
 				StatementObject statement = (StatementObject)abstractStatement;
 				usedLocalFields.addAll(statement.getUsedFieldsThroughThisReference());
-				usedLocalFields.addAll(statement.getDefinedFieldsThroughThisReference());
+				//usedLocalFields.addAll(statement.getDefinedFieldsThroughThisReference());
 				updatedLocalFields.addAll(statement.getDefinedFieldsThroughThisReference());
 				fieldInstructions.addAll(statement.getFieldInstructions());
 				accessedLocalMethods.addAll(statement.getNonDistinctInvokedMethodsThroughThisReference());
@@ -807,7 +807,7 @@ public class PreconditionExaminer {
 			else if(abstractStatement instanceof CompositeStatementObject) {
 				CompositeStatementObject composite = (CompositeStatementObject)abstractStatement;
 				usedLocalFields.addAll(composite.getUsedFieldsThroughThisReferenceInExpressions());
-				usedLocalFields.addAll(composite.getDefinedFieldsThroughThisReferenceInExpressions());
+				//usedLocalFields.addAll(composite.getDefinedFieldsThroughThisReferenceInExpressions());
 				updatedLocalFields.addAll(composite.getDefinedFieldsThroughThisReferenceInExpressions());
 				fieldInstructions.addAll(composite.getFieldInstructionsInExpressions());
 				accessedLocalMethods.addAll(composite.getNonDistinctInvokedMethodsThroughThisReferenceInExpressions());
@@ -817,7 +817,7 @@ public class PreconditionExaminer {
 					List<CatchClauseObject> catchClauses = tryStatement.getCatchClauses();
 					for(CatchClauseObject catchClause : catchClauses) {
 						usedLocalFields.addAll(catchClause.getBody().getUsedFieldsThroughThisReference());
-						usedLocalFields.addAll(catchClause.getBody().getDefinedFieldsThroughThisReference());
+						//usedLocalFields.addAll(catchClause.getBody().getDefinedFieldsThroughThisReference());
 						updatedLocalFields.addAll(catchClause.getBody().getDefinedFieldsThroughThisReference());
 						fieldInstructions.addAll(catchClause.getBody().getFieldInstructions());
 						accessedLocalMethods.addAll(catchClause.getBody().getNonDistinctInvokedMethodsThroughThisReference());
@@ -825,7 +825,7 @@ public class PreconditionExaminer {
 					}
 					if(tryStatement.getFinallyClause() != null) {
 						usedLocalFields.addAll(tryStatement.getFinallyClause().getUsedFieldsThroughThisReference());
-						usedLocalFields.addAll(tryStatement.getFinallyClause().getDefinedFieldsThroughThisReference());
+						//usedLocalFields.addAll(tryStatement.getFinallyClause().getDefinedFieldsThroughThisReference());
 						updatedLocalFields.addAll(tryStatement.getFinallyClause().getDefinedFieldsThroughThisReference());
 						fieldInstructions.addAll(tryStatement.getFinallyClause().getFieldInstructions());
 						accessedLocalMethods.addAll(tryStatement.getFinallyClause().getNonDistinctInvokedMethodsThroughThisReference());
@@ -971,7 +971,7 @@ public class PreconditionExaminer {
 		Set<PlainVariable> updatedLocalFields = new LinkedHashSet<PlainVariable>();
 		Set<MethodInvocationObject> accessedLocalMethods = new LinkedHashSet<MethodInvocationObject>();
 		usedLocalFields.addAll(calledMethod.getUsedFieldsThroughThisReference());
-		usedLocalFields.addAll(calledMethod.getDefinedFieldsThroughThisReference());
+		//usedLocalFields.addAll(calledMethod.getDefinedFieldsThroughThisReference());
 		updatedLocalFields.addAll(calledMethod.getDefinedFieldsThroughThisReference());
 		accessedLocalMethods.addAll(calledMethod.getInvokedMethodsThroughThisReference());
 		accessedLocalMethods.addAll(calledMethod.getInvokedStaticMethods());
@@ -1915,6 +1915,16 @@ public class PreconditionExaminer {
 		}
 	}
 
+	private void checkIfStatementIsThisConstructorInvocation(NodeMapping nodeMapping, PDGNode node) {
+		AbstractStatement statement = node.getStatement();
+		if(statement.getType().equals(StatementType.CONSTRUCTOR_INVOCATION)) {
+			PreconditionViolation violation = new StatementPreconditionViolation(statement,
+					PreconditionViolationType.THIS_CONSTRUCTOR_INVOCATION_STATEMENT);
+			nodeMapping.addPreconditionViolation(violation);
+			preconditionViolations.add(violation);
+		}
+	}
+
 	private void checkIfStatementContainsSuperMethodInvocation(NodeMapping nodeMapping, PDGNode node) {
 		AbstractStatement statement = node.getStatement();
 		if(statement instanceof StatementObject) {
@@ -2060,6 +2070,29 @@ public class PreconditionExaminer {
 										}
 										break;
 									}
+									else if(methods1.size() == 1 && methods2.size() == 1) {
+										//the invoked methods have different signatures
+										Set<IMethodBinding> declaredMethods = getDeclaredMethods(commonSuperType);
+										boolean commonSuperTypeMethodFound1 = false;
+										boolean commonSuperTypeMethodFound2 = false;
+										for(IMethodBinding commonSuperTypeMethod : declaredMethods) {
+											if(MethodCallAnalyzer.equalSignature(methodBinding1, commonSuperTypeMethod) ||
+													MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodBinding1, commonSuperTypeMethod)) {
+												commonSuperTypeMethodFound1 = true;
+											}
+											if(MethodCallAnalyzer.equalSignature(methodBinding2, commonSuperTypeMethod) ||
+													MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodBinding2, commonSuperTypeMethod)) {
+												commonSuperTypeMethodFound2 = true;
+											}
+										}
+										if(!commonSuperTypeMethodFound1) {
+											commonSuperTypeMembers.add(methodBinding1.toString());
+										}
+										if(!commonSuperTypeMethodFound2) {
+											commonSuperTypeMembers.add(methodBinding2.toString());
+										}
+										break;
+									}
 								}
 							}
 							for(IVariableBinding fieldBinding1 : fields1) {
@@ -2123,6 +2156,8 @@ public class PreconditionExaminer {
 			switchCaseStatementWithInnermostSwitch(nodeMapping, nodeMapping.getNodeG2(), removableNodesG2);
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
+			checkIfStatementIsThisConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
+			checkIfStatementIsThisConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
 			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG2());
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes

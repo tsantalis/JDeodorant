@@ -61,6 +61,13 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 			sb.append(" ");
 			sb.append(type.toString());
 		}
+		else if(type.equals(PreconditionViolationType.THIS_CONSTRUCTOR_INVOCATION_STATEMENT)) {
+			sb.append("Constructor call ");
+			String str = statement.toString();
+			sb.append(str.substring(0, str.lastIndexOf("\n")));
+			sb.append(" ");
+			sb.append(type.toString());
+		}
 		else if(type.equals(PreconditionViolationType.SUPER_METHOD_INVOCATION_STATEMENT)) {
 			sb.append("Super method call ");
 			String str = statement.toString();
@@ -114,6 +121,13 @@ public class StatementPreconditionViolation extends PreconditionViolation {
 		}
 		else if(type.equals(PreconditionViolationType.SUPER_CONSTRUCTOR_INVOCATION_STATEMENT)) {
 			styledString.append("Super constructor call ", normalStyler);
+			String str = statement.toString();
+			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
+			styledString.append(" ", normalStyler);
+			styledString.append(type.toString(), normalStyler);
+		}
+		else if(type.equals(PreconditionViolationType.THIS_CONSTRUCTOR_INVOCATION_STATEMENT)) {
+			styledString.append("Constructor call ", normalStyler);
 			String str = statement.toString();
 			styledString.append(str.substring(0, str.lastIndexOf("\n")), boldStyler);
 			styledString.append(" ", normalStyler);

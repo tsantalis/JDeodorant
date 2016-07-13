@@ -490,6 +490,21 @@ public class PDG extends Graph {
 					if(parent != null) {
 						PDGControlDependence controlDependence = new PDGControlDependence(parent, pdgBlockNode, true);
 						edges.add(controlDependence);
+						if(parent.equals(entryNode)) {
+							createDataDependenciesFromEntryNode(pdgBlockNode);
+						}
+						//create data dependencies from other nodes
+						for(GraphNode node : nodes) {
+							PDGNode pdgNode = (PDGNode)node;
+							if(!pdgNode.equals(pdgBlockNode)) {
+								for(AbstractVariable variableInstruction : pdgNode.definedVariables) {
+									if(pdgBlockNode.usesLocalVariable(variableInstruction)) {
+										PDGDataDependence dataDependence = new PDGDataDependence(pdgNode, pdgBlockNode, variableInstruction, null);
+										edges.add(dataDependence);
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -581,20 +596,7 @@ public class PDG extends Graph {
 
 	private void createDataDependencies() {
 		PDGNode firstPDGNode = (PDGNode)nodes.toArray()[0];
-		for(AbstractVariable variableInstruction : entryNode.definedVariables) {
-			if(firstPDGNode.usesLocalVariable(variableInstruction)) {
-				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, null);
-				edges.add(dataDependence);
-			}
-			if(!firstPDGNode.definesLocalVariable(variableInstruction)) {
-				dataDependenceSearch(entryNode, variableInstruction, firstPDGNode, new LinkedHashSet<PDGNode>(), null);
-			}
-			else if(entryNode.declaresLocalVariable(variableInstruction)) {
-				//create def-order data dependence edge
-				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, firstPDGNode, variableInstruction, null);
-				edges.add(dataDependence);
-			}
-		}
+		createDataDependenciesFromEntryNode(firstPDGNode);
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
 			for(AbstractVariable variableInstruction : pdgNode.definedVariables) {
@@ -603,6 +605,23 @@ public class PDG extends Graph {
 			}
 			for(AbstractVariable variableInstruction : pdgNode.usedVariables) {
 				antiDependenceSearch(pdgNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
+			}
+		}
+	}
+
+	private void createDataDependenciesFromEntryNode(PDGNode pdgNode) {
+		for(AbstractVariable variableInstruction : entryNode.definedVariables) {
+			if(pdgNode.usesLocalVariable(variableInstruction)) {
+				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, pdgNode, variableInstruction, null);
+				edges.add(dataDependence);
+			}
+			if(!pdgNode.definesLocalVariable(variableInstruction)) {
+				dataDependenceSearch(entryNode, variableInstruction, pdgNode, new LinkedHashSet<PDGNode>(), null);
+			}
+			else if(entryNode.declaresLocalVariable(variableInstruction)) {
+				//create def-order data dependence edge
+				PDGDataDependence dataDependence = new PDGDataDependence(entryNode, pdgNode, variableInstruction, null);
+				edges.add(dataDependence);
 			}
 		}
 	}

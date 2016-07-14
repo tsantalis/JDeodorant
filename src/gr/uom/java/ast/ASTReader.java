@@ -21,6 +21,7 @@ import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
@@ -34,7 +35,6 @@ import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
-import org.eclipse.jdt.core.dom.IDocElement;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.Javadoc;
@@ -497,8 +497,8 @@ public class ASTReader {
 			for(TagElement tagElement : tags) {
 				String tagName = tagElement.getTagName();
 				if(tagName != null && tagName.equals(TagElement.TAG_THROWS)) {
-					List<IDocElement> fragments = tagElement.fragments();
-					for(IDocElement docElement : fragments) {
+					List<ASTNode> fragments = tagElement.fragments();
+					for(ASTNode docElement : fragments) {
 						if(docElement instanceof Name) {
 							Name name = (Name)docElement;
 							IBinding binding = name.resolveBinding();

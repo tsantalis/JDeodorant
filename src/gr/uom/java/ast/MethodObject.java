@@ -108,6 +108,10 @@ public class MethodObject implements AbstractMethodDeclaration {
 		this.testAnnotation = testAnnotation;
 	}
 
+    public Set<String> getExceptionsInJavaDocThrows() {
+		return constructorObject.getExceptionsInJavaDocThrows();
+	}
+
 	public Access getAccess() {
         return constructorObject.getAccess();
     }

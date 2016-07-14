@@ -52,6 +52,8 @@ public interface AbstractMethodDeclaration {
 	public List<AnonymousClassDeclarationObject> getAnonymousClassDeclarations();
 
 	public Set<String> getExceptionsInThrowStatements();
+	
+	public Set<String> getExceptionsInJavaDocThrows();
 
     public boolean containsMethodInvocation(MethodInvocationObject methodInvocation);
 

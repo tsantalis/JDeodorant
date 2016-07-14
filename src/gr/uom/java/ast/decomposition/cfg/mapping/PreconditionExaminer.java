@@ -3049,6 +3049,9 @@ public class PreconditionExaminer {
 			if(!expressionIsVariableName && controlParentExaminesVariableUsedInDifferenceExpression(pdgExpression, nodeContainingExpression, nodes)) {
 				return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
 			}
+			if(expressionUsesVariableWhoseStateIsModifiedByPreviousStatements(pdgExpression, nodeContainingExpression, nodes)) {
+				return PreconditionViolationType.EXPRESSION_DIFFERENCE_CANNOT_BE_PARAMETERIZED;
+			}
 			if(pdgExpression.throwsException()) {
 				PDGBlockNode blockNode = pdg.isNestedWithinBlockNode(nodeContainingExpression);
 				PDGNode controlParent = nodeContainingExpression.getControlDependenceParent();
@@ -3076,6 +3079,24 @@ public class PreconditionExaminer {
 			}
 		}
 		return null;
+	}
+
+	private boolean expressionUsesVariableWhoseStateIsModifiedByPreviousStatements(PDGExpression pdgExpression, PDGNode nodeContainingExpression, TreeSet<PDGNode> nodes) {
+		Iterator<AbstractVariable> usedVariableIterator = pdgExpression.getUsedVariableIterator();
+		while(usedVariableIterator.hasNext()) {
+			AbstractVariable abstractVariable = usedVariableIterator.next();
+			if(abstractVariable instanceof PlainVariable) {
+				PlainVariable plainVariable = (PlainVariable)abstractVariable;
+				for(PDGNode node : nodes) {
+					if(node.getId() < nodeContainingExpression.getId()) {
+						if(node.changesStateOfVariable(plainVariable)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean isAdvancedMatchNode(PDGNode node, Expression expressionToBeParameterized) {

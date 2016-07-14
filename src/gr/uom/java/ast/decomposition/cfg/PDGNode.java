@@ -533,6 +533,18 @@ public class PDGNode extends GraphNode implements Comparable<PDGNode> {
 		return classInstantiationMap;
 	}
 
+	public boolean changesStateOfVariable(PlainVariable plainVariable) {
+		for(AbstractVariable abstractVariable : definedVariables) {
+			if(abstractVariable instanceof CompositeVariable) {
+				CompositeVariable compositeVariable = (CompositeVariable)abstractVariable;
+				if(compositeVariable.getInitialVariable().equals(plainVariable)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	public boolean changesStateOfReference(VariableDeclaration variableDeclaration) {
 		for(AbstractVariable abstractVariable : definedVariables) {
 			if(abstractVariable instanceof CompositeVariable) {

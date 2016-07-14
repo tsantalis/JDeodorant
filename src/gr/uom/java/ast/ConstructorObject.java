@@ -22,6 +22,7 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     protected Access access;
     protected String className;
     protected MethodBodyObject methodBody;
+    protected Set<String> exceptionsInJavaDocThrows;
     //protected MethodDeclaration methodDeclaration;
     protected ASTInformation methodDeclaration;
     private volatile int hashCode = 0;
@@ -29,6 +30,7 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     public ConstructorObject() {
 		this.parameterList = new ArrayList<ParameterObject>();
 		this.commentList = new ArrayList<CommentObject>();
+		this.exceptionsInJavaDocThrows = new LinkedHashSet<String>();
         this.access = Access.NONE;
     }
 
@@ -49,6 +51,14 @@ public class ConstructorObject implements AbstractMethodDeclaration {
     public MethodBodyObject getMethodBody() {
     	return this.methodBody;
     }
+
+    public void addExceptionInJavaDocThrows(String exception) {
+    	this.exceptionsInJavaDocThrows.add(exception);
+    }
+
+    public Set<String> getExceptionsInJavaDocThrows() {
+		return exceptionsInJavaDocThrows;
+	}
 
     public void setAccess(Access access) {
         this.access = access;

@@ -569,6 +569,7 @@ public class MethodCallAnalyzer {
 				}
 			}
 			thrownExceptionTypes.addAll(methodObject.getExceptionsInThrowStatements());
+			thrownExceptionTypes.addAll(methodObject.getExceptionsInJavaDocThrows());
 			processedMethods.add(methodObject.getMethodDeclaration().resolveBinding().getKey());
 			Map<AbstractVariable, LinkedHashSet<MethodInvocationObject>> invokedMethodsThroughFields = methodObject.getInvokedMethodsThroughFields();
 			for(AbstractVariable originalField : invokedMethodsThroughFields.keySet()) {
@@ -625,6 +626,7 @@ public class MethodCallAnalyzer {
 						methodObject2 = classObject2.getMethod(methodInvocationObject);
 						if(methodObject2 != null) {
 							thrownExceptionTypes.addAll(methodObject2.getExceptionsInThrowStatements());
+							thrownExceptionTypes.addAll(methodObject2.getExceptionsInJavaDocThrows());
 							//the commented code that follows is causing significant performance deterioration. It's time to reconsider the PDG generation strategy
 							/*
 							MethodInvocation methodInvocation2 = methodInvocationObject.getMethodInvocation();

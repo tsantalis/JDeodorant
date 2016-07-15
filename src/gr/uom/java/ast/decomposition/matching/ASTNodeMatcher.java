@@ -384,7 +384,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				for(int i=0; i<interfaces1.length; i++) {
 					ITypeBinding interface1 = interfaces1[i];
 					ITypeBinding interface2 = interfaces2[i];
-					if(!interface1.isEqualTo(interface2) || !interface1.getQualifiedName().equals(interface2.getQualifiedName())) {
+					if(subclassTypeMismatch(interface1, interface2)) {
 						return false;
 					}
 				}
@@ -440,6 +440,15 @@ public class ASTNodeMatcher extends ASTMatcher{
 		}
 		ITypeBinding commonSuperType = commonSuperType(binding1, binding2);
 		return validCommonSuperType(commonSuperType);
+	}
+
+	private boolean subclassTypeMismatch(ITypeBinding nodeTypeBinding, ITypeBinding otherTypeBinding) {
+		if(nodeTypeBinding.isParameterizedType() && otherTypeBinding.isParameterizedType()) {
+			ITypeBinding declarationTypeBinding1 = nodeTypeBinding.getTypeDeclaration();
+			ITypeBinding declarationTypeBinding2 = otherTypeBinding.getTypeDeclaration();
+			return !declarationTypeBinding1.isEqualTo(declarationTypeBinding2) || !typeBindingMatch(nodeTypeBinding, otherTypeBinding);
+		}
+		return !nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName());
 	}
 
 	private static boolean isNumberPrimitiveType(ITypeBinding typeBinding) {
@@ -774,7 +783,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -871,7 +880,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -1152,7 +1161,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 				ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-				if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName())) && typeMatch) {
+				if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding) && typeMatch) {
 					Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}
@@ -1168,7 +1177,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -1508,7 +1517,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -1673,7 +1682,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -1779,7 +1788,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 					ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 					ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-					if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName())) && typeMatch) {
+					if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding) && typeMatch) {
 						Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 						astNodeDifference.addDifference(diff);
 					}
@@ -1795,7 +1804,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 							Expression o = (Expression)other;
 							ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 							ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-							if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+							if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 								Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 								astNodeDifference.addDifference(diff);
 							}
@@ -1877,7 +1886,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					else if(nodeBinding.getKind() == IBinding.TYPE && otherBinding.getKind() == IBinding.TYPE) {
 						ITypeBinding nodeTypeBinding = (ITypeBinding)nodeBinding;
 						ITypeBinding otherTypeBinding = (ITypeBinding)otherBinding;
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName())) && typeMatch) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding) && typeMatch) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),
 									otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
@@ -1900,7 +1909,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						IVariableBinding otherVariableBinding = (IVariableBinding)otherBinding;
 						ITypeBinding nodeTypeBinding = nodeVariableBinding.getType();
 						ITypeBinding otherTypeBinding = otherVariableBinding.getType();
-						if(nodeTypeBinding != null && otherTypeBinding != null && (!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(nodeTypeBinding != null && otherTypeBinding != null && subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -1913,7 +1922,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 						Expression o = (Expression)other;
 						ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 						ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-						if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName()))) {
+						if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding)) {
 							Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 							astNodeDifference.addDifference(diff);
 						}
@@ -1996,7 +2005,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				}
 				ITypeBinding nodeTypeBinding = node.resolveTypeBinding();
 				ITypeBinding otherTypeBinding = o.resolveTypeBinding();
-				if((!nodeTypeBinding.isEqualTo(otherTypeBinding) || !nodeTypeBinding.getQualifiedName().equals(otherTypeBinding.getQualifiedName())) && typeMatch) {
+				if(subclassTypeMismatch(nodeTypeBinding, otherTypeBinding) && typeMatch) {
 					Difference diff = new Difference(nodeTypeBinding.getQualifiedName(),otherTypeBinding.getQualifiedName(),DifferenceType.SUBCLASS_TYPE_MISMATCH);
 					astNodeDifference.addDifference(diff);
 				}

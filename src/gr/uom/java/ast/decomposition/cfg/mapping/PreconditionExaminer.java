@@ -1319,7 +1319,7 @@ public class PreconditionExaminer {
 						SimpleName simpleName2 = (SimpleName)expression2;
 						IBinding binding1 = simpleName1.resolveBinding();
 						IBinding binding2 = simpleName2.resolveBinding();
-						if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+						if(binding1 != null && binding1.getKind() == IBinding.VARIABLE && binding2 != null && binding2.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding1 = (IVariableBinding)binding1;
 							IVariableBinding variableBinding2 = (IVariableBinding)binding2;
 							IMethodBinding declaringMethod1 = variableBinding1.getDeclaringMethod();
@@ -1366,7 +1366,7 @@ public class PreconditionExaminer {
 						if(expr1 instanceof SimpleName && expr2 instanceof SimpleName) {
 							IBinding binding1 = ((SimpleName)expr1).resolveBinding();
 							IBinding binding2 = ((SimpleName)expr2).resolveBinding();
-							if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+							if(binding1 != null && binding1.getKind() == IBinding.VARIABLE && binding2 != null && binding2.getKind() == IBinding.VARIABLE) {
 								String bindingKey1 = ((IVariableBinding)binding1).getKey();
 								String bindingKey2 = ((IVariableBinding)binding2).getKey();
 								ArrayList<String> bindingKeys1 = new ArrayList<String>();
@@ -2211,7 +2211,7 @@ public class PreconditionExaminer {
 			IBinding binding1 = simpleName1.resolveBinding();
 			IBinding binding2 = simpleName2.resolveBinding();
 			//check if both simpleNames refer to variables
-			if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+			if(binding1 != null && binding1.getKind() == IBinding.VARIABLE && binding2 != null && binding2.getKind() == IBinding.VARIABLE) {
 				List<Difference> differences = difference.getDifferences();
 				if(differences.size() == 1) {
 					Difference diff = differences.get(0);
@@ -2258,7 +2258,7 @@ public class PreconditionExaminer {
 		}
 		for(FieldInstructionObject fieldAccess : accessedFields) {
 			IBinding binding = fieldAccess.getSimpleName().resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding)binding;
 				if(variableBinding.getDeclaringClass().isEqualTo(typeBinding) || variableBinding.getDeclaringClass().isEqualTo(typeBinding.getSuperclass())) {
 					fields.add(variableBinding);
@@ -2597,7 +2597,7 @@ public class PreconditionExaminer {
 						}
 						if(!foundInDifferences) {
 							IBinding binding = simpleName.resolveBinding();
-							if(binding.getKind() == IBinding.VARIABLE) {
+							if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 								IVariableBinding variableBinding = (IVariableBinding)binding;
 								if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
 									return true;
@@ -2607,7 +2607,7 @@ public class PreconditionExaminer {
 					}
 					else {
 						IBinding binding = simpleName.resolveBinding();
-						if(binding.getKind() == IBinding.VARIABLE) {
+						if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 							IVariableBinding variableBinding = (IVariableBinding)binding;
 							if(variableBinding.getKey().equals(plainVariable.getVariableBindingKey())) {
 								return true;
@@ -2880,24 +2880,27 @@ public class PreconditionExaminer {
 		boolean expressionIsField = false;
 		if(expr instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expr;
-			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
-				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
 				expressionIsField = variableBinding.isField();
 			}
 		}
 		else if(expr instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)expr;
 			SimpleName simpleName = fieldAccess.getName();
-			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
-				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
 				expressionIsField = variableBinding.isField();
 			}
 		}
 		else if(expr instanceof QualifiedName) {
 			QualifiedName qualifiedName = (QualifiedName)expr;
 			SimpleName simpleName = qualifiedName.getName();
-			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
-				IVariableBinding variableBinding = (IVariableBinding)simpleName.resolveBinding();
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
 				expressionIsField = variableBinding.isField();
 			}
 		}
@@ -2920,15 +2923,17 @@ public class PreconditionExaminer {
 		boolean expressionIsVariableName = false;
 		if(expr instanceof SimpleName) {
 			SimpleName simpleName = (SimpleName)expr;
-			if(simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				expressionIsVariableName = true;
 			}
 		}
 		else if(expr instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)expr;
 			SimpleName simpleName = fieldAccess.getName();
+			IBinding binding = simpleName.resolveBinding();
 			if(fieldAccess.getExpression() instanceof ThisExpression &&
-					simpleName.resolveBinding().getKind() == IBinding.VARIABLE) {
+					binding != null && binding.getKind() == IBinding.VARIABLE) {
 				expressionIsVariableName = true;
 			}
 		}

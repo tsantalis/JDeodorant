@@ -252,7 +252,7 @@ public class PDGNodeMapping extends IdBasedMapping {
 					SimpleName simpleName2 = (SimpleName)expr2;
 					IBinding binding1 = simpleName1.resolveBinding();
 					IBinding binding2 = simpleName2.resolveBinding();
-					if(binding1.getKind() == IBinding.VARIABLE && binding2.getKind() == IBinding.VARIABLE) {
+					if(binding1 != null && binding1.getKind() == IBinding.VARIABLE && binding2 != null && binding2.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableBinding1 = (IVariableBinding)binding1;
 						IVariableBinding variableBinding2 = (IVariableBinding)binding2;
 						PlainVariable variable1 = new PlainVariable(variableBinding1.getKey(), variableBinding1.getName(),

@@ -268,7 +268,7 @@ public class PDGNodeBlockGap extends Gap {
 		for(Expression variableInstruction : localVariableInstructions) {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding) binding;
 				if(!variableBinding.isField() && !simpleName.isDeclaration() &&
 						!variableDeclaredInNodes(nodes, variableBinding) && (variableUsedInNodes(nodes, variableBinding) || variableDefinedInNodes(nodes, variableBinding)))
@@ -307,7 +307,7 @@ public class PDGNodeBlockGap extends Gap {
 		for(Expression variableInstruction : localVariableInstructions) {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding) binding;
 				if(!variableBinding.isField() && (simpleName.isDeclaration() || variableDefinedInNodes(nodes, variableBinding)))
 					variableBindings.add(variableBinding);

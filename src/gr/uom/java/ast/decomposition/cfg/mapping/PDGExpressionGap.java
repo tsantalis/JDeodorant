@@ -50,7 +50,7 @@ public class PDGExpressionGap extends Gap {
 		for(Expression variableInstruction : localVariableInstructions) {
 			SimpleName simpleName = (SimpleName)variableInstruction;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				IVariableBinding variableBinding = (IVariableBinding) binding;
 				if(!variableBinding.isField() && !simpleName.isDeclaration())
 					usedVariableBindings.add(variableBinding);

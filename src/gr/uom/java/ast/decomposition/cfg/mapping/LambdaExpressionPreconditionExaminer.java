@@ -301,7 +301,7 @@ public class LambdaExpressionPreconditionExaminer {
 										for(Expression expression : variableInstructions) {
 											SimpleName simpleName = (SimpleName)expression;
 											IBinding binding = simpleName.resolveBinding();
-											if(binding.getKind() == IBinding.VARIABLE) {
+											if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 												IVariableBinding variableBinding = (IVariableBinding)binding;
 												if(binding.getKey().equals(plainVariable2.getVariableBindingKey()) &&
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding1, variableBinding) &&
@@ -361,7 +361,7 @@ public class LambdaExpressionPreconditionExaminer {
 										for(Expression expression : variableInstructions) {
 											SimpleName simpleName = (SimpleName)expression;
 											IBinding binding = simpleName.resolveBinding();
-											if(binding.getKind() == IBinding.VARIABLE) {
+											if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 												IVariableBinding variableBinding = (IVariableBinding)binding;
 												if(binding.getKey().equals(plainVariable1.getVariableBindingKey()) &&
 														!alreadyMatchedLambdaParameter(parameterTypeBindings, variableBinding, variableBinding2) &&

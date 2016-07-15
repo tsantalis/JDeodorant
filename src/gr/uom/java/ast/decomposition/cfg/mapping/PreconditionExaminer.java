@@ -2330,7 +2330,15 @@ public class PreconditionExaminer {
 		}
 		if(methodBinding1 != null && methodBinding2 != null && methodBinding1.getName().equals(methodBinding2.getName()) &&
 				argumentIndex1 > -1 && argumentIndex2 > -1 && argumentIndex1 == argumentIndex2) {
-			ITypeBinding parameterTypeBinding = methodBinding1.getParameterTypes()[argumentIndex1];
+			//special handling for varags
+			ITypeBinding parameterTypeBinding = null;
+			if(argumentIndex1 >= methodBinding1.getParameterTypes().length && methodBinding1.isVarargs()) {
+				//the argument has the type of the last varargs parameter
+				parameterTypeBinding = methodBinding1.getParameterTypes()[methodBinding1.getParameterTypes().length-1];
+			}
+			else {
+				parameterTypeBinding = methodBinding1.getParameterTypes()[argumentIndex1];
+			}
 			if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 				if(commonSuperType != null) {

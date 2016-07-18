@@ -57,6 +57,8 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 					cloneGroup.addClone(cloneInstance);
 				} catch (NullPointerException npex) {
 					addExceptionHappenedDuringParsing(npex);
+				} catch (StringIndexOutOfBoundsException siobex) {
+					addExceptionHappenedDuringParsing(siobex);
 				} catch (NumberFormatException nfex) {
 					addExceptionHappenedDuringParsing(nfex);
 				} catch (JavaModelException jme) {

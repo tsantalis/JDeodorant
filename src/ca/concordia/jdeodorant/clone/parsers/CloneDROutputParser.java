@@ -51,7 +51,10 @@ public class CloneDROutputParser extends CloneDetectorOutputParser {
 					int cloneLineCount = Integer.parseInt(cloneMatcher.group(2));
 					int startLine = Integer.parseInt(cloneMatcher.group(3));
 					int endLine = startLine + cloneLineCount - 1;
-					String cloneFilePath =  commonPathPrefix + "/" + cloneMatcher.group(4);
+					String cloneFilePath =  cloneMatcher.group(4);
+					if (!"".equals(commonPathPrefix)) {
+						cloneFilePath = commonPathPrefix + "/" + cloneFilePath;
+					}
 					cloneCount++;
 					CloneInstance cloneInstance = getCloneInstance(cloneFilePath, cloneCount, true, startLine, 0, endLine, 0);
 					cloneGroup.addClone(cloneInstance);

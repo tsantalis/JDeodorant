@@ -78,6 +78,8 @@ public class NiCadOutputParser extends CloneDetectorOutputParser {
 					cloneGroups.add(cloneGroup);
 			} catch (NullPointerException npex) {
 				addExceptionHappenedDuringParsing(npex);
+			} catch (StringIndexOutOfBoundsException siobex) {
+				addExceptionHappenedDuringParsing(siobex);
 			} catch (NumberFormatException nfex) {
 				addExceptionHappenedDuringParsing(nfex);
 			} catch (JavaModelException jme) {

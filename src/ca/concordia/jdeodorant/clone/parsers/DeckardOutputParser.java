@@ -74,6 +74,8 @@ public class DeckardOutputParser extends CloneDetectorOutputParser {
 					cloneGroup.addClone(cloneInstance);
 				} catch(NumberFormatException ex) {
 					addExceptionHappenedDuringParsing(ex);
+				} catch (StringIndexOutOfBoundsException siobex) {
+					addExceptionHappenedDuringParsing(siobex);
 				} catch (JavaModelException ex) {
 					addExceptionHappenedDuringParsing(ex);
 				} catch (ICompilationUnitNotFoundException ex) {

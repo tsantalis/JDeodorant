@@ -86,6 +86,8 @@ public class ConQATOutputParser extends CloneDetectorOutputParser{
 				progress(cloneGroupIndex);
 			} catch (NullPointerException npex) {
 				addExceptionHappenedDuringParsing(npex);
+			} catch (StringIndexOutOfBoundsException siobex) {
+				addExceptionHappenedDuringParsing(siobex);
 			} catch (NumberFormatException nfex) {
 				addExceptionHappenedDuringParsing(nfex);
 			} catch (JavaModelException jme) {

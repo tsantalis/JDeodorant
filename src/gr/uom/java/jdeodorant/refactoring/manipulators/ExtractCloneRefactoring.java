@@ -546,7 +546,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 					ClassObject commonSuperType = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
 					CompilationUnit compilationUnit = null;
-					if(commonSuperType != null) {
+					if(sourceCompilationUnits.get(0).getPackage().resolveBinding().isEqualTo(sourceCompilationUnits.get(1).getPackage().resolveBinding())) {
+						compilationUnit = sourceCompilationUnits.get(0);
+					}
+					else if(commonSuperType != null) {
 						compilationUnit = findCompilationUnit(commonSuperType.getAbstractTypeDeclaration());
 					}
 					else {

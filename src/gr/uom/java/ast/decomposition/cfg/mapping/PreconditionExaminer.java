@@ -591,7 +591,7 @@ public class PreconditionExaminer {
 							if((variable2.getVariableName().equals(variable1.getVariableName()) ||
 									variable1.getVariableName().equals(renamedVariableName)) &&
 									(variable2.getVariableType().equals(variable1.getVariableType()) ||
-											ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()) != null)) {
+											variableBinding1 != null && variableBinding2 != null && ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()) != null)) {
 								sortedVariables2.add(variable2);
 								break;
 							}

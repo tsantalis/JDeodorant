@@ -41,7 +41,7 @@ public class RefactoringUtility {
 		if(typeBinding.isParameterizedType()) {
 			type = createQualifiedParameterizedType(ast, typeBinding, rewriter);
 		}
-		else if(typeBinding.isClass() || typeBinding.isInterface()) {
+		else if(typeBinding.isClass() || typeBinding.isInterface() || typeBinding.isEnum()) {
 			if(typeBinding.isMember()) {
 				ITypeBinding declaringClassTypeBinding = typeBinding.getDeclaringClass();
 				Type declaringClassType = generateQualifiedTypeFromTypeBinding(declaringClassTypeBinding, ast, rewriter);
@@ -75,7 +75,7 @@ public class RefactoringUtility {
 		if(typeBinding.isParameterizedType()) {
 			type = createParameterizedType(ast, typeBinding, rewriter);
 		}
-		else if(typeBinding.isClass() || typeBinding.isInterface()) {
+		else if(typeBinding.isClass() || typeBinding.isInterface() || typeBinding.isEnum()) {
 			if(typeBinding.isMember()) {
 				ITypeBinding declaringClassTypeBinding = typeBinding.getDeclaringClass();
 				Type declaringClassType = generateTypeFromTypeBinding(declaringClassTypeBinding, ast, rewriter);

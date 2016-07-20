@@ -296,7 +296,7 @@ public class ExpressionExtractor {
 			return getExpressions((Expression)node);
 		else if(node instanceof Statement)
 			return getExpressions((Statement)node);
-		return null;
+		return new ArrayList<Expression>();
 	}
 
 	private List<Expression> getExpressions(Statement statement) {

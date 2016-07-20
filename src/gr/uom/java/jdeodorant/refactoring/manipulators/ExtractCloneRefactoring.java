@@ -493,7 +493,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(mapper.getCloneRefactoringType().equals(CloneRefactoringType.PULL_UP_TO_EXISTING_SUPERCLASS)) {
 					IJavaElement javaElement = commonSuperTypeOfSourceTypeDeclarations.getJavaElement();
 					javaElementsToOpenInEditor.add(javaElement);
-					ICompilationUnit iCompilationUnit = (ICompilationUnit)javaElement.getParent();
+					//special handling for the case the common superclass is an inner class
+					IJavaElement parent = javaElement.getParent();
+					while(!(parent instanceof ICompilationUnit)) {
+						parent = parent.getParent();
+					}
+					ICompilationUnit iCompilationUnit = (ICompilationUnit)parent;
 					ASTParser parser = ASTParser.newParser(ASTReader.JLS);
 					parser.setKind(ASTParser.K_COMPILATION_UNIT);
 					parser.setSource(iCompilationUnit);

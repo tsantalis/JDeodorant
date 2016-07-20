@@ -504,8 +504,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					parser.setSource(iCompilationUnit);
 					parser.setResolveBindings(true); // we need bindings later on
 					CompilationUnit compilationUnit = (CompilationUnit)parser.createAST(null);
-					List<AbstractTypeDeclaration> typeDeclarations = compilationUnit.types();
-					for(AbstractTypeDeclaration abstractTypeDeclaration : typeDeclarations) {
+					List<AbstractTypeDeclaration> topLevelTypeDeclarations = compilationUnit.types();
+					List<AbstractTypeDeclaration> allTypeDeclarations = new ArrayList<AbstractTypeDeclaration>();
+					for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
+						if(abstractTypeDeclaration instanceof TypeDeclaration) {
+							TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+							allTypeDeclarations.add(topLevelTypeDeclaration);
+							allTypeDeclarations.addAll(ASTReader.getRecursivelyInnerTypes(topLevelTypeDeclaration));
+						}
+					}
+					for(AbstractTypeDeclaration abstractTypeDeclaration : allTypeDeclarations) {
 						if(abstractTypeDeclaration instanceof TypeDeclaration) {
 							TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
 							if(typeDeclaration.resolveBinding().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {

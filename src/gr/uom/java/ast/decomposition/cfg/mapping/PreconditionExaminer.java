@@ -3764,8 +3764,10 @@ public class PreconditionExaminer {
 						else {
 							ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
 							ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
-							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
-									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
+							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding1 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1);
+							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding2 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2);
+							if(methodReturnTypeBinding1.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding1) &&
+									methodReturnTypeBinding2.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding2)) {
 								returnTypeBinding = methodReturnTypeBinding1;
 							}
 						}
@@ -3778,8 +3780,10 @@ public class PreconditionExaminer {
 						else {
 							ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
 							ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
-							if(ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1).isEqualTo(methodReturnTypeBinding1) &&
-									ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2).isEqualTo(methodReturnTypeBinding2)) {
+							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding1 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1);
+							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding2 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2);
+							if(methodReturnTypeBinding1.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding1) &&
+									methodReturnTypeBinding2.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding2)) {
 								returnTypeBinding = methodReturnTypeBinding1;
 							}
 						}

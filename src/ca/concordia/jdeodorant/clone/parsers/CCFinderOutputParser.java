@@ -193,13 +193,13 @@ public class CCFinderOutputParser extends CloneDetectorOutputParser {
 			int cloneInstanceIndex = 0;
 			for (CloneFragment cloneFragment : cloneFragments) {
 				try {
-					String path = cloneFragment.getPath().replace(this.analyzedPathPrefix, "");
+					String path = cloneFragment.getPath();
 					String preprocessedFilePath = 
 							this.pathToCcfxprepdir + path.replace(this.analyzedPathPrefix, "") + this.preprocessedFilePostfix;
 					List<Token> tokens = getPreproprossedFile(preprocessedFilePath);
 					int startOffst = tokens.get(cloneFragment.getStart()).getStartOffset();
 					int endOffset = tokens.get(cloneFragment.getEnd() - 1).getEndOffst() - 1;
-					CloneInstance cloneInstance = getCloneInstance(path, cloneInstanceIndex, false, startOffst, endOffset);
+					CloneInstance cloneInstance = getCloneInstance(path, cloneInstanceIndex, true, startOffst, endOffset);
 					cloneGroup.addClone(cloneInstance);
 					cloneInstanceIndex++;
 				} catch (JavaModelException jme) {

@@ -26,6 +26,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jdt.core.dom.WildcardType;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 
@@ -55,6 +56,17 @@ public class RefactoringUtility {
 			ITypeBinding elementTypeBinding = typeBinding.getElementType();
 			Type elementType = generateQualifiedTypeFromTypeBinding(elementTypeBinding, ast, rewriter);
 			type = ast.newArrayType(elementType, typeBinding.getDimensions());
+		}
+		else if(typeBinding.isWildcardType()) {
+			type = ast.newWildcardType();
+			if(typeBinding.getBound() != null) {
+				ITypeBinding boundBinding = typeBinding.getBound();
+				Type boundType = generateQualifiedTypeFromTypeBinding(boundBinding, ast, rewriter);
+				rewriter.set(type, WildcardType.BOUND_PROPERTY, boundType, null);
+			}
+			if(typeBinding.isUpperbound()) {
+				rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
+			}
 		}
 		return type;
 	}
@@ -108,6 +120,17 @@ public class RefactoringUtility {
 			ITypeBinding elementTypeBinding = typeBinding.getElementType();
 			Type elementType = generateTypeFromTypeBinding(elementTypeBinding, ast, rewriter);
 			type = ast.newArrayType(elementType, typeBinding.getDimensions());
+		}
+		else if(typeBinding.isWildcardType()) {
+			type = ast.newWildcardType();
+			if(typeBinding.getBound() != null) {
+				ITypeBinding boundBinding = typeBinding.getBound();
+				Type boundType = generateTypeFromTypeBinding(boundBinding, ast, rewriter);
+				rewriter.set(type, WildcardType.BOUND_PROPERTY, boundType, null);
+			}
+			if(typeBinding.isUpperbound()) {
+				rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
+			}
 		}
 		return type;
 	}

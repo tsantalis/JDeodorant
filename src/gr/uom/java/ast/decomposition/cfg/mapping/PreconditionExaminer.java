@@ -3772,7 +3772,7 @@ public class PreconditionExaminer {
 							}
 						}
 					}
-					else {
+					else if(commonSuperType != null) {
 						ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(commonSuperType, returnTypeBinding);
 						if(typeBinding != null) {
 							returnTypeBinding = typeBinding;

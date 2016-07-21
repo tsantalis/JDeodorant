@@ -5,13 +5,13 @@ public class CloneInstance {
 	private CloneGroup belongingCloneGroup;
 	private final CloneInstanceLocationInfo locationInfo;
 	private int cloneID;
-	private String sourceFolder;
-	private String packageName;
-	private String className;
-	private String iMethodSignature;
-	private String methodSignature;
-	private String methodName;
-	private String containingClassFullyQualifiedName;
+	private String sourceFolder = "";
+	private String packageName = "";
+	private String className = "";
+	private String iMethodSignature = "";
+	private String methodSignature = "";
+	private String methodName = "";
+	private String containingClassFullyQualifiedName = "";
 	private final String originalCodeFragment;
 	
 	public CloneInstance(CloneInstanceLocationInfo locationInfo, int cloneID) {

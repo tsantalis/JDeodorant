@@ -589,7 +589,10 @@ public class ExtractCloneRefactoringGapHandler {
 								if(binding.getKind() == IBinding.VARIABLE) {
 									IVariableBinding variableBinding = (IVariableBinding)binding;
 									VariableBindingPair returnedVariableBindingPair = blockGap.getReturnedVariableBinding();
-									IVariableBinding returnedVariableBinding = index == 0 ? returnedVariableBindingPair.getBinding1() : returnedVariableBindingPair.getBinding2();
+									IVariableBinding returnedVariableBinding = null;
+									if(returnedVariableBindingPair != null) {
+										returnedVariableBinding = index == 0 ? returnedVariableBindingPair.getBinding1() : returnedVariableBindingPair.getBinding2();
+									}
 									if(variableBinding.isEqualTo(returnedVariableBinding)) {
 										//introduce a return statement in the body of the lambda expression
 										ReturnStatement returnStatement = ast.newReturnStatement();

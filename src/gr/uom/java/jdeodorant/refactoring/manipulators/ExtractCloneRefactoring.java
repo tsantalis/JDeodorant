@@ -3434,15 +3434,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		oldFieldAccesses = new ArrayList<Expression>();
 		newFieldAccesses = new ArrayList<Expression>();
-		List<Expression> oldVariableInstructions = null;
-		List<Expression> newVariableInstructions = null;
+		List<Expression> oldVariableInstructions = new ArrayList<Expression>();
+		List<Expression> newVariableInstructions = new ArrayList<Expression>();
 		if(oldASTNode instanceof Expression) {
-			oldVariableInstructions = expressionExtractor.getVariableInstructions((Expression)oldASTNode);
-			newVariableInstructions = expressionExtractor.getVariableInstructions((Expression)newASTNode);
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)newASTNode));
 		}
 		else if(oldASTNode instanceof Statement) {
-			oldVariableInstructions = expressionExtractor.getVariableInstructions((Statement)oldASTNode);
-			newVariableInstructions = expressionExtractor.getVariableInstructions((Statement)newASTNode);
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)newASTNode));
 		}
 		int k = 0;
 		for(Expression e : oldVariableInstructions) {
@@ -3510,15 +3510,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		oldFieldAccesses = new ArrayList<Expression>();
 		newFieldAccesses = new ArrayList<Expression>();
-		List<Expression> oldVariableInstructions = null;
-		List<Expression> newVariableInstructions = null;
+		List<Expression> oldVariableInstructions = new ArrayList<Expression>();
+		List<Expression> newVariableInstructions = new ArrayList<Expression>();
 		if(oldASTNode instanceof Expression) {
-			oldVariableInstructions = expressionExtractor.getVariableInstructions((Expression)oldASTNode);
-			newVariableInstructions = expressionExtractor.getVariableInstructions((Expression)newASTNode);
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)newASTNode));
 		}
 		else if(oldASTNode instanceof Statement) {
-			oldVariableInstructions = expressionExtractor.getVariableInstructions((Statement)oldASTNode);
-			newVariableInstructions = expressionExtractor.getVariableInstructions((Statement)newASTNode);
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)newASTNode));
 		}
 		int k = 0;
 		for(Expression e : oldVariableInstructions) {

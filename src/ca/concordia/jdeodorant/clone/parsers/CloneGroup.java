@@ -133,7 +133,9 @@ public class CloneGroup {
 		Set<String> uniqueCloneMethodIMethods = new HashSet<String>();
 		for (CloneInstance instance : cloneInstances) {
 			uniqueCloneCodeFragmentsSourceFiles.add(instance.getLocationInfo().getContainingFilePath());
-			uniqueCloneMethodIMethods.add(instance.getIMethodSignature());
+			uniqueCloneMethodIMethods.add(instance.getContainingClassFullyQualifiedName() + "#" +
+					instance.getMethodName() + ":" +
+					instance.getIMethodSignature());
 		}
 		if (uniqueCloneCodeFragmentsSourceFiles.size() == 1) {
 			if (uniqueCloneMethodIMethods.size() == 1) {

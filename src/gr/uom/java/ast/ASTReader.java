@@ -191,7 +191,7 @@ public class ASTReader {
 		return numberOfCompilationUnits;
 	}
 
-	private List<AbstractTypeDeclaration> getRecursivelyInnerTypes(AbstractTypeDeclaration typeDeclaration) {
+	public static List<AbstractTypeDeclaration> getRecursivelyInnerTypes(AbstractTypeDeclaration typeDeclaration) {
 		List<AbstractTypeDeclaration> innerTypeDeclarations = new ArrayList<AbstractTypeDeclaration>();
 		StatementExtractor statementExtractor = new StatementExtractor();
 		List<BodyDeclaration> bodyDeclarations = typeDeclaration.bodyDeclarations();

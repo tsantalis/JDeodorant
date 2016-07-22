@@ -210,7 +210,7 @@ public class LambdaExpressionPreconditionExaminer {
 					break;
 				}
 			}
-			if(!found) {
+			if(!found && !variableBinding1.isParameter()) {
 				allVariableBindings1Found = false;
 				break;
 			}
@@ -224,7 +224,7 @@ public class LambdaExpressionPreconditionExaminer {
 					break;
 				}
 			}
-			if(!found) {
+			if(!found && !variableBinding2.isParameter()) {
 				allVariableBindings2Found = false;
 				break;
 			}

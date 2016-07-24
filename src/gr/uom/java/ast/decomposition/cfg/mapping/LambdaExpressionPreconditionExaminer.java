@@ -171,7 +171,7 @@ public class LambdaExpressionPreconditionExaminer {
 					VariableBindingPair pair = new VariableBindingPair(returnedVariable1, returnedVariable2);
 					blockGap.setReturnedVariableBinding(pair);
 				}
-				if(!nonEffectivelyFinalLocalVariableIsDefinedAndUsedInBlockGap) {
+				if(!nonEffectivelyFinalLocalVariableIsDefinedAndUsedInBlockGap && blockGap.isRefactorable()) {
 					refactorableBlockGaps.add(blockGap);
 				}
 			}

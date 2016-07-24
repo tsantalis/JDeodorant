@@ -5,6 +5,9 @@ import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.CompositeStatementObject;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.decomposition.cfg.CFGBreakNode;
+import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
+import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
@@ -515,5 +518,33 @@ public class PDGNodeBlockGap extends Gap {
 			}
 		}
 		return methods;
+	}
+
+	public boolean isRefactorable() {
+		if(branchStatementWithoutInnermostLoop(nodesG1) || branchStatementWithoutInnermostLoop(nodesG2)) {
+			return false;
+		}
+		return true;
+	}
+
+	private boolean branchStatementWithoutInnermostLoop(Set<PDGNode> nodes) {
+		for(PDGNode node : nodes) {
+			CFGNode cfgNode = node.getCFGNode();
+			if(cfgNode instanceof CFGBreakNode) {
+				CFGBreakNode breakNode = (CFGBreakNode)cfgNode;
+				CFGNode innerMostLoopNode = breakNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !nodes.contains(innerMostLoopNode.getPDGNode())) {
+					return true;
+				}
+			}
+			else if(cfgNode instanceof CFGContinueNode) {
+				CFGContinueNode continueNode = (CFGContinueNode)cfgNode;
+				CFGNode innerMostLoopNode = continueNode.getInnerMostLoopNode();
+				if(innerMostLoopNode != null && !nodes.contains(innerMostLoopNode.getPDGNode())) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }

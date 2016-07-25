@@ -4204,24 +4204,37 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private boolean typeContainsMethodWithName(TypeDeclaration typeDeclaration, String methodName) {
+	private MethodDeclaration typeContainsMethodWithName(TypeDeclaration typeDeclaration, String methodName) {
 		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
 			if(methodDeclaration.getName().getIdentifier().equals(methodName)) {
-				return true;
+				return methodDeclaration;
 			}
 		}
-		return false;
+		return null;
 	}
 
 	private String appendAccessorMethodSuffix(String accessorMethodName) {
-		boolean sourceTypeContainsMethodWithAccessorName = false;
+		boolean sourceTypeContainsMethodWithAccessorNameThatIsNotPureAccessor = false;
 		for(TypeDeclaration typeDeclaration : sourceTypeDeclarations) {
-			if(typeContainsMethodWithName(typeDeclaration, accessorMethodName)) {
-				sourceTypeContainsMethodWithAccessorName = true;
-				break;
+			MethodDeclaration accessor = typeContainsMethodWithName(typeDeclaration, accessorMethodName);
+			if(accessor != null) {
+				if(accessorMethodName.startsWith(GETTER_PREFIX)) {
+					SimpleName simpleName = MethodDeclarationUtility.isGetter(accessor);
+					if(simpleName == null) {
+						sourceTypeContainsMethodWithAccessorNameThatIsNotPureAccessor = true;
+						break;
+					}
+				}
+				else if(accessorMethodName.startsWith(SETTER_PREFIX)) {
+					SimpleName simpleName = MethodDeclarationUtility.isSetter(accessor);
+					if(simpleName == null) {
+						sourceTypeContainsMethodWithAccessorNameThatIsNotPureAccessor = true;
+						break;
+					}
+				}
 			}
 		}
-		if(mapper.getMethodName1().equals(accessorMethodName) || mapper.getMethodName2().equals(accessorMethodName) || sourceTypeContainsMethodWithAccessorName) {
+		if(mapper.getMethodName1().equals(accessorMethodName) || mapper.getMethodName2().equals(accessorMethodName) || sourceTypeContainsMethodWithAccessorNameThatIsNotPureAccessor) {
 			accessorMethodName += ACCESSOR_SUFFIX;
 		}
 		return accessorMethodName;

@@ -150,8 +150,9 @@ import org.eclipse.text.edits.TextEditGroup;
 
 @SuppressWarnings("restriction")
 public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
+	private static final String GETTER_PREFIX = "get";
 	private static final String SETTER_PREFIX = "set";
-	private static final String SETTER_SUFFIX = "2";
+	private static final String ACCESSOR_SUFFIX = "2";
 	private List<? extends DivideAndConquerMatcher> mappers;
 	private DivideAndConquerMatcher mapper;
 	private List<CompilationUnit> sourceCompilationUnits;
@@ -159,7 +160,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<MethodDeclaration> sourceMethodDeclarations;
 	private List<Set<VariableDeclaration>> fieldDeclarationsToBePulledUp;
 	private List<Set<VariableDeclaration>> fieldDeclarationsToBeParameterized;
-	private List<Set<VariableDeclaration>> assignedFieldDeclarations;
+	private List<Set<VariableDeclaration>> accessedFieldDeclarationsToBeReplacedWithGetter;
+	private List<Set<VariableDeclaration>> assignedFieldDeclarationsToBeReplacedWithSetter;
 	private List<Set<MethodDeclaration>> methodDeclarationsToBePulledUp;
 	private List<Set<LabeledStatement>> labeledStatementsToBeRemoved;
 	private Map<ICompilationUnit, CompilationUnitChange> compilationUnitChanges;
@@ -235,14 +237,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		returnedVariables.add(new ArrayList<VariableDeclaration>(this.mapper.getVariablesToBeReturnedG2()));
 		this.fieldDeclarationsToBePulledUp = new ArrayList<Set<VariableDeclaration>>();
 		this.fieldDeclarationsToBeParameterized = new ArrayList<Set<VariableDeclaration>>();
-		this.assignedFieldDeclarations = new ArrayList<Set<VariableDeclaration>>();
+		this.accessedFieldDeclarationsToBeReplacedWithGetter = new ArrayList<Set<VariableDeclaration>>();
+		this.assignedFieldDeclarationsToBeReplacedWithSetter = new ArrayList<Set<VariableDeclaration>>();
 		this.methodDeclarationsToBePulledUp = new ArrayList<Set<MethodDeclaration>>();
 		this.labeledStatementsToBeRemoved = new ArrayList<Set<LabeledStatement>>();
 		//this.nodesToBePreservedInTheOriginalMethod = new ArrayList<TreeSet<PDGNode>>();
 		for(int i=0; i<2; i++) {
 			fieldDeclarationsToBePulledUp.add(new LinkedHashSet<VariableDeclaration>());
 			fieldDeclarationsToBeParameterized.add(new LinkedHashSet<VariableDeclaration>());
-			assignedFieldDeclarations.add(new LinkedHashSet<VariableDeclaration>());
+			accessedFieldDeclarationsToBeReplacedWithGetter.add(new LinkedHashSet<VariableDeclaration>());
+			assignedFieldDeclarationsToBeReplacedWithSetter.add(new LinkedHashSet<VariableDeclaration>());
 			methodDeclarationsToBePulledUp.add(new LinkedHashSet<MethodDeclaration>());
 			labeledStatementsToBeRemoved.add(new LinkedHashSet<LabeledStatement>());
 			//nodesToBePreservedInTheOriginalMethod.add(new TreeSet<PDGNode>());
@@ -319,7 +323,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(int i=0; i<sourceCompilationUnits.size(); i++) {
 			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
-					constructorsToBeCopiedInSubclasses.get(i), assignedFieldDeclarations.get(i));
+					constructorsToBeCopiedInSubclasses.get(i), accessedFieldDeclarationsToBeReplacedWithGetter.get(i), assignedFieldDeclarationsToBeReplacedWithSetter.get(i));
 			if(!singleSourceCompilationUnit) {
 				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
 			}
@@ -1205,7 +1209,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 && variableBelongsToParameterizedDifferences(returnedVariables1.get(0), returnedVariables2.get(0)) != null)) {
 				ITypeBinding typeBinding = null;
 				if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) || difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||
-						differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
+						difference.containsDifferenceType(DifferenceType.ARGUMENT_NUMBER_MISMATCH) || differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
 					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 						if(commonSuperTypeBinding != null) {
@@ -1923,19 +1927,58 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							}
 						}
 						else {
-							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
-							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
-							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(localFieldG1.resolveBinding().getType());
-							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+							//if the fields are both modified and used, then they should be replaced with getter calls, instead of being parameterized
+							if(accessedLocalFieldsG1.contains(localFieldG1) && accessedLocalFieldsG2.contains(localFieldG2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
+								if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									accessedFieldDeclarationsToBeReplacedWithGetter.get(0).add(localFieldG1);
+								}
+								if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									accessedFieldDeclarationsToBeReplacedWithGetter.get(1).add(localFieldG2);
+								}
+								if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+										!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+									//create abstract getter methods in the common superclass for the accessed fields that need to be serialized
+									Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+									typeBindings.add(localFieldG1.resolveBinding().getType());
+									RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+									MethodDeclaration getterMethodDeclaration = ast.newMethodDeclaration();
+									
+									sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, originalFieldDeclarationG1.getType(), null);
+									String originalFieldName = localFieldG1.getName().getIdentifier();
+									String accessedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+									String getterMethodName = GETTER_PREFIX + accessedFieldName;
+									getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+									SimpleName getterMethodSimpleName = ast.newSimpleName(getterMethodName);
+									sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, getterMethodSimpleName, null);
+									
+									ListRewrite getterMethodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(getterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+									getterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+									if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
+										Block methodBody = ast.newBlock();
+										sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
+									}
+									else {
+										getterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.ABSTRACT_KEYWORD), null);
+									}
+									
+									bodyDeclarationsRewrite.insertLast(getterMethodDeclaration, null);
+								}
+							}
+							else {
+								fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
+								fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
+								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+								typeBindings.add(localFieldG1.resolveBinding().getType());
+								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+							}
 						}
 						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-								assignedFieldDeclarations.get(0).add(localFieldG1);
+								assignedFieldDeclarationsToBeReplacedWithSetter.get(0).add(localFieldG1);
 							}
 							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
-								assignedFieldDeclarations.get(1).add(localFieldG2);
+								assignedFieldDeclarationsToBeReplacedWithSetter.get(1).add(localFieldG2);
 							}
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
 									!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
@@ -1950,7 +1993,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								String originalFieldName = localFieldG1.getName().getIdentifier();
 								String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 								String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-								setterMethodName = appendSetterMethodSuffix(setterMethodName);
+								setterMethodName = appendAccessorMethodSuffix(setterMethodName);
 								SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
 								sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, setterMethodSimpleName, null);
 								
@@ -3001,7 +3044,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(differences.isEmpty()) {
 			boolean replacement = false;
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!assignedFieldDeclarations.get(0).isEmpty()) {
+			if(!assignedFieldDeclarationsToBeReplacedWithSetter.get(0).isEmpty()) {
 				if(oldASTNode instanceof Assignment) {
 					ASTNode node = createReplacementForFieldAssignment(sourceRewriter, ast, (Assignment)oldASTNode);
 					if(node != null) {
@@ -3013,9 +3056,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					replacement = replacement || replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
 				}
 			}
+			if(!accessedFieldDeclarationsToBeReplacedWithGetter.get(0).isEmpty()) {
+				if(oldASTNode instanceof FieldAccess || oldASTNode instanceof SimpleName) {
+					ASTNode node = createReplacementForFieldAccessWithGetterInvocation(sourceRewriter, ast, (Expression)oldASTNode);
+					if(node != null) {
+						newASTNode = node;
+						replacement = true;
+					}
+				}
+				else {
+					replacement = replacement || replaceFieldAccessesWithGetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+				}
+			}
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				if(oldASTNode instanceof FieldAccess) {
-					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (FieldAccess)oldASTNode);
+				if(oldASTNode instanceof FieldAccess || oldASTNode instanceof SimpleName) {
+					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (Expression)oldASTNode);
 					if(node != null) {
 						newASTNode = node;
 						replacement = true;
@@ -3047,8 +3102,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
 			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!assignedFieldDeclarations.get(0).isEmpty()) {
+			if(!assignedFieldDeclarationsToBeReplacedWithSetter.get(0).isEmpty()) {
 				replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
+			if(!accessedFieldDeclarationsToBeReplacedWithGetter.get(0).isEmpty()) {
+				replaceFieldAccessesWithGetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
 			}
 			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
 				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
@@ -3207,8 +3265,130 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			FieldAccess newFieldAccess = (FieldAccess)newFieldAccesses.get(j);
 			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-					String identifier = createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
+					String identifier = (variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0 ? variableDeclaration.getName().getIdentifier() :
+						createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
 					sourceRewriter.replace(newFieldAccess, ast.newSimpleName(identifier), null);
+					replacement = true;
+					break;
+				}
+			}
+			j++;
+		}
+		oldFieldAccesses = new ArrayList<Expression>();
+		newFieldAccesses = new ArrayList<Expression>();
+		List<Expression> oldVariableInstructions = new ArrayList<Expression>();
+		List<Expression> newVariableInstructions = new ArrayList<Expression>();
+		if(oldASTNode instanceof Expression) {
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)newASTNode));
+		}
+		else if(oldASTNode instanceof Statement) {
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)newASTNode));
+		}
+		int k = 0;
+		for(Expression e : oldVariableInstructions) {
+			SimpleName simpleName = (SimpleName)e;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && !(simpleName.getParent() instanceof FieldAccess)) {
+					oldFieldAccesses.add(simpleName);
+					newFieldAccesses.add(newVariableInstructions.get(k));
+				}
+			}
+			k++;
+		}
+		j = 0;
+		for(Expression oldExpression : oldFieldAccesses) {
+			SimpleName oldFieldAccess = (SimpleName)oldExpression;
+			SimpleName newFieldAccess = (SimpleName)newFieldAccesses.get(j);
+			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
+				if(oldFieldAccess.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					String identifier = (variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0 ? variableDeclaration.getName().getIdentifier() :
+						createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
+					sourceRewriter.replace(newFieldAccess, ast.newSimpleName(identifier), null);
+					replacement = true;
+					break;
+				}
+			}
+			j++;
+		}
+		return replacement;
+	}
+
+	private boolean replaceFieldAccessesWithGetterMethodInvocations(ASTRewrite sourceRewriter, AST ast, ASTNode oldASTNode, ASTNode newASTNode) {
+		boolean replacement = false;
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> oldFieldAccesses = new ArrayList<Expression>();
+		List<Expression> newFieldAccesses = new ArrayList<Expression>();
+		if(oldASTNode instanceof Expression) {
+			oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Expression)oldASTNode));
+			newFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Expression)newASTNode));
+		}
+		else if(oldASTNode instanceof Statement) {
+			oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Statement)oldASTNode));
+			newFieldAccesses.addAll(expressionExtractor.getFieldAccesses((Statement)newASTNode));
+		}
+		int j = 0;
+		for(Expression oldExpression : oldFieldAccesses) {
+			FieldAccess oldFieldAccess = (FieldAccess)oldExpression;
+			FieldAccess newFieldAccess = (FieldAccess)newFieldAccesses.get(j);
+			for(VariableDeclaration variableDeclaration : accessedFieldDeclarationsToBeReplacedWithGetter.get(0)) {
+				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					MethodInvocation getterMethodInvocation = ast.newMethodInvocation();
+					String originalFieldName = oldFieldAccess.getName().getIdentifier();
+					String accessedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+					String getterMethodName = GETTER_PREFIX + accessedFieldName;
+					getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+					SimpleName getterMethodSimpleName = ast.newSimpleName(getterMethodName);
+					sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, getterMethodSimpleName, null);
+					sourceRewriter.replace(newFieldAccess, getterMethodInvocation, null);
+					replacement = true;
+					break;
+				}
+			}
+			j++;
+		}
+		oldFieldAccesses = new ArrayList<Expression>();
+		newFieldAccesses = new ArrayList<Expression>();
+		List<Expression> oldVariableInstructions = new ArrayList<Expression>();
+		List<Expression> newVariableInstructions = new ArrayList<Expression>();
+		if(oldASTNode instanceof Expression) {
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Expression)newASTNode));
+		}
+		else if(oldASTNode instanceof Statement) {
+			oldVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)oldASTNode));
+			newVariableInstructions.addAll(expressionExtractor.getVariableInstructions((Statement)newASTNode));
+		}
+		int k = 0;
+		for(Expression e : oldVariableInstructions) {
+			SimpleName simpleName = (SimpleName)e;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && !(simpleName.getParent() instanceof FieldAccess)) {
+					oldFieldAccesses.add(simpleName);
+					newFieldAccesses.add(newVariableInstructions.get(k));
+				}
+			}
+			k++;
+		}
+		j = 0;
+		for(Expression oldExpression : oldFieldAccesses) {
+			SimpleName oldFieldAccess = (SimpleName)oldExpression;
+			SimpleName newFieldAccess = (SimpleName)newFieldAccesses.get(j);
+			for(VariableDeclaration variableDeclaration : accessedFieldDeclarationsToBeReplacedWithGetter.get(0)) {
+				if(oldFieldAccess.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					MethodInvocation getterMethodInvocation = ast.newMethodInvocation();
+					String originalFieldName = oldFieldAccess.getIdentifier();
+					String accessedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+					String getterMethodName = GETTER_PREFIX + accessedFieldName;
+					getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+					SimpleName getterMethodSimpleName = ast.newSimpleName(getterMethodName);
+					sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, getterMethodSimpleName, null);
+					sourceRewriter.replace(newFieldAccess, getterMethodInvocation, null);
 					replacement = true;
 					break;
 				}
@@ -3247,13 +3427,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				oldFieldName = ((FieldAccess)oldLeftHandSide).getName();
 				newFieldName = ((FieldAccess)newLeftHandSide).getName();
 			}
-			for(VariableDeclaration variableDeclaration : assignedFieldDeclarations.get(0)) {
-				if(oldFieldName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+			for(VariableDeclaration variableDeclaration : assignedFieldDeclarationsToBeReplacedWithSetter.get(0)) {
+				if(oldFieldName != null && oldFieldName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
 					MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
 					String originalFieldName = newFieldName.getIdentifier();
 					String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 					String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-					setterMethodName = appendSetterMethodSuffix(setterMethodName);
+					setterMethodName = appendAccessorMethodSuffix(setterMethodName);
 					SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
 					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodSimpleName, null);
 					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -3307,7 +3487,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return replacement;
 	}
 
-	private ASTNode createReplacementForFieldAccessOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, FieldAccess oldASTNode) {
+	private ASTNode createReplacementForFieldAccessOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, Expression oldASTNode) {
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
 		List<Expression> oldFieldAccesses = new ArrayList<Expression>();
 		oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses(oldASTNode));
@@ -3315,8 +3495,80 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			FieldAccess oldFieldAccess = (FieldAccess)oldExpression;
 			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
 				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-					String identifier = createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
+					String identifier = (variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0 ? variableDeclaration.getName().getIdentifier() :
+						createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
 					return ast.newSimpleName(identifier);
+				}
+			}
+		}
+		oldFieldAccesses = new ArrayList<Expression>();
+		List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(oldASTNode);
+		for(Expression oldExpression : oldVariableInstructions) {
+			SimpleName simpleName = (SimpleName)oldExpression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && !(simpleName.getParent() instanceof FieldAccess)) {
+					oldFieldAccesses.add(simpleName);
+				}
+			}
+		}
+		for(Expression oldExpression : oldFieldAccesses) {
+			SimpleName oldFieldAccess = (SimpleName)oldExpression;
+			for(VariableDeclaration variableDeclaration : fieldDeclarationsToBeParameterized.get(0)) {
+				if(oldFieldAccess.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					String identifier = (variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0 ? variableDeclaration.getName().getIdentifier() :
+						createNameForParameterizedFieldAccess(variableDeclaration.getName().getIdentifier());
+					return ast.newSimpleName(identifier);
+				}
+			}
+		}
+		return null;
+	}
+
+	private ASTNode createReplacementForFieldAccessWithGetterInvocation(ASTRewrite sourceRewriter, AST ast, Expression oldASTNode) {
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Expression> oldFieldAccesses = new ArrayList<Expression>();
+		oldFieldAccesses.addAll(expressionExtractor.getFieldAccesses(oldASTNode));
+		for(Expression oldExpression : oldFieldAccesses) {
+			FieldAccess oldFieldAccess = (FieldAccess)oldExpression;
+			for(VariableDeclaration variableDeclaration : accessedFieldDeclarationsToBeReplacedWithGetter.get(0)) {
+				if(oldFieldAccess.getName().resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					MethodInvocation getterMethodInvocation = ast.newMethodInvocation();
+					String originalFieldName = oldFieldAccess.getName().getIdentifier();
+					String accessedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+					String getterMethodName = GETTER_PREFIX + accessedFieldName;
+					getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+					SimpleName getterMethodSimpleName = ast.newSimpleName(getterMethodName);
+					sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, getterMethodSimpleName, null);
+					return getterMethodInvocation;
+				}
+			}
+		}
+		oldFieldAccesses = new ArrayList<Expression>();
+		List<Expression> oldVariableInstructions = expressionExtractor.getVariableInstructions(oldASTNode);
+		for(Expression oldExpression : oldVariableInstructions) {
+			SimpleName simpleName = (SimpleName)oldExpression;
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if(variableBinding.isField() && !(simpleName.getParent() instanceof FieldAccess)) {
+					oldFieldAccesses.add(simpleName);
+				}
+			}
+		}
+		for(Expression oldExpression : oldFieldAccesses) {
+			SimpleName oldFieldAccess = (SimpleName)oldExpression;
+			for(VariableDeclaration variableDeclaration : accessedFieldDeclarationsToBeReplacedWithGetter.get(0)) {
+				if(oldFieldAccess.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+					MethodInvocation getterMethodInvocation = ast.newMethodInvocation();
+					String originalFieldName = oldFieldAccess.getIdentifier();
+					String accessedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+					String getterMethodName = GETTER_PREFIX + accessedFieldName;
+					getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+					SimpleName getterMethodSimpleName = ast.newSimpleName(getterMethodName);
+					sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, getterMethodSimpleName, null);
+					return getterMethodInvocation;
 				}
 			}
 		}
@@ -3341,13 +3593,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else if(oldLeftHandSide instanceof FieldAccess) {
 				fieldName = ((FieldAccess)oldLeftHandSide).getName();
 			}
-			for(VariableDeclaration variableDeclaration : assignedFieldDeclarations.get(0)) {
-				if(fieldName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+			for(VariableDeclaration variableDeclaration : assignedFieldDeclarationsToBeReplacedWithSetter.get(0)) {
+				if(fieldName != null && fieldName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
 					MethodInvocation setterMethodInvocation = ast.newMethodInvocation();
 					String originalFieldName = fieldName.getIdentifier();
 					String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 					String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-					setterMethodName = appendSetterMethodSuffix(setterMethodName);
+					setterMethodName = appendAccessorMethodSuffix(setterMethodName);
 					SimpleName setterMethodSimpleName = ast.newSimpleName(setterMethodName);
 					sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, setterMethodSimpleName, null);
 					ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
@@ -3606,7 +3858,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 
 	private void modifySourceClass(CompilationUnit compilationUnit, TypeDeclaration typeDeclaration,
 			Set<VariableDeclaration> fieldDeclarationsToBePulledUp, Set<MethodDeclaration> methodDeclarationsToBePulledUp,
-			Set<MethodDeclaration> constructorsToBeCopied, Set<VariableDeclaration> assignedFieldDeclrations) {
+			Set<MethodDeclaration> constructorsToBeCopied, Set<VariableDeclaration> accessedFieldDeclarations, Set<VariableDeclaration> assignedFieldDeclarations) {
 		if(cloneInfo.intermediateClassName != null && !cloneInfo.extractUtilityClass) {
 			modifySuperclassType(compilationUnit, typeDeclaration, cloneInfo.intermediateClassName);
 		}
@@ -3623,7 +3875,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
 			}
 		}
-		for(VariableDeclaration variableDeclaration : assignedFieldDeclrations) {
+		for(VariableDeclaration variableDeclaration : accessedFieldDeclarations) {
+			if(variableDeclaration.getRoot().equals(compilationUnit)) {
+				createGetterMethodDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
+			}
+		}
+		for(VariableDeclaration variableDeclaration : assignedFieldDeclarations) {
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
 				createSetterMethodDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
 			}
@@ -3675,10 +3932,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return false;
 	}
 
-	private boolean typeContainsMethodWithName(TypeDeclaration typeDeclaration, String methodName) {
+	private boolean typeContainsPureGetterMethodForVariable(TypeDeclaration typeDeclaration, VariableDeclaration variableDeclaration) {
 		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
-			if(methodDeclaration.getName().getIdentifier().equals(methodName)) {
-				return true;
+			SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
+			if(simpleName != null && simpleName.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+				String getterMethodName = variableDeclaration.getName().getIdentifier();
+				getterMethodName = GETTER_PREFIX + getterMethodName.substring(0,1).toUpperCase() + getterMethodName.substring(1,getterMethodName.length());
+				if(methodDeclaration.getName().getIdentifier().equals(getterMethodName)) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -3701,7 +3963,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
 					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 					methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
-					setterMethodName = appendSetterMethodSuffix(setterMethodName);
+					setterMethodName = appendAccessorMethodSuffix(setterMethodName);
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName), null);
 					ListRewrite methodDeclarationParametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 					SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
@@ -3736,18 +3998,71 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private String appendSetterMethodSuffix(String setterMethodName) {
-		boolean sourceTypeContainsMethodWithSetterName = false;
+	private void createGetterMethodDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
+		String getterMethodName = variableDeclaration.getName().getIdentifier();
+		getterMethodName = GETTER_PREFIX + getterMethodName.substring(0,1).toUpperCase() + getterMethodName.substring(1,getterMethodName.length());
+		if(typeContainsPureGetterMethodForVariable(typeDeclaration, variableDeclaration) && !mapper.getMethodName1().equals(getterMethodName) && !mapper.getMethodName2().equals(getterMethodName)) {
+			return;
+		}
+		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+			for(VariableDeclarationFragment fragment : fragments) {
+				if(variableDeclaration.resolveBinding().isEqualTo(fragment.resolveBinding())) {
+					ASTRewrite sourceRewriter = ASTRewrite.create(typeDeclaration.getAST());
+					AST contextAST = typeDeclaration.getAST();
+					MethodDeclaration newMethodDeclaration = contextAST.newMethodDeclaration();
+					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, fieldDeclaration.getType(), null);
+					ListRewrite methodDeclarationModifiersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+					methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+					getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
+					Block methodDeclarationBody = contextAST.newBlock();
+					ListRewrite methodDeclarationBodyStatementsRewrite = sourceRewriter.getListRewrite(methodDeclarationBody, Block.STATEMENTS_PROPERTY);
+					FieldAccess fieldAccess = contextAST.newFieldAccess();
+					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, fragment.getName(), null);
+					ReturnStatement returnStatement = contextAST.newReturnStatement();
+					sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, fieldAccess, null);
+					methodDeclarationBodyStatementsRewrite.insertLast(returnStatement, null);
+					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodDeclarationBody, null);
+					ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+					contextBodyRewrite.insertLast(newMethodDeclaration, null);
+					try {
+						TextEdit sourceEdit = sourceRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Create getter method for field " + variableDeclaration.resolveBinding().getName(), new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+
+	private boolean typeContainsMethodWithName(TypeDeclaration typeDeclaration, String methodName) {
+		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
+			if(methodDeclaration.getName().getIdentifier().equals(methodName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private String appendAccessorMethodSuffix(String accessorMethodName) {
+		boolean sourceTypeContainsMethodWithAccessorName = false;
 		for(TypeDeclaration typeDeclaration : sourceTypeDeclarations) {
-			if(typeContainsMethodWithName(typeDeclaration, setterMethodName)) {
-				sourceTypeContainsMethodWithSetterName = true;
+			if(typeContainsMethodWithName(typeDeclaration, accessorMethodName)) {
+				sourceTypeContainsMethodWithAccessorName = true;
 				break;
 			}
 		}
-		if(mapper.getMethodName1().equals(setterMethodName) || mapper.getMethodName2().equals(setterMethodName) || sourceTypeContainsMethodWithSetterName) {
-			setterMethodName += SETTER_SUFFIX;
+		if(mapper.getMethodName1().equals(accessorMethodName) || mapper.getMethodName2().equals(accessorMethodName) || sourceTypeContainsMethodWithAccessorName) {
+			accessorMethodName += ACCESSOR_SUFFIX;
 		}
-		return setterMethodName;
+		return accessorMethodName;
 	}
 
 	private void removeFieldDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
@@ -3938,10 +4253,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
 		for(VariableDeclaration variableDeclaration : fieldsToBeParameterized) {
 			if(accessedLocalFields.contains(variableDeclaration)) {
-				FieldAccess fieldAccess = ast.newFieldAccess();
-				methodBodyRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
-				methodBodyRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, variableDeclaration.getName(), null);
-				argumentsRewrite.insertLast(fieldAccess, null);
+				if((variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0) {
+					argumentsRewrite.insertLast(variableDeclaration.getName(), null);
+				}
+				else {
+					FieldAccess fieldAccess = ast.newFieldAccess();
+					methodBodyRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+					methodBodyRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, variableDeclaration.getName(), null);
+					argumentsRewrite.insertLast(fieldAccess, null);
+				}
 			}
 		}
 		cloneInfo.argumentRewriteList.add(index, argumentsRewrite);

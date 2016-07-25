@@ -1260,7 +1260,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						(returnedVariables1.size() == 1 && returnedVariables2.size() == 1 && variableBelongsToParameterizedDifferences(returnedVariables1.get(0), returnedVariables2.get(0)) != null)) {
 					ITypeBinding typeBinding = null;
 					if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) || difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||
-							differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
+							difference.containsDifferenceType(DifferenceType.ARGUMENT_NUMBER_MISMATCH) || differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
 						if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
 							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 							if(commonSuperTypeBinding != null) {

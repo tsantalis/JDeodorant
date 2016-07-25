@@ -243,7 +243,9 @@ public class CloneInstanceMapper {
 					
 					PDGRegionSubTreeMapper mapper = new PDGRegionSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2,
 							controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, ASTNodes1, ASTNodes2, true, monitor);
-					subTreeMappers.add(mapper);
+					if(mapper.hasMappedNodes()) {
+						subTreeMappers.add(mapper);
+					}
 				} else { // If we have a control structure
 					// Remove the CDT subtree nodes being part of an incomplete if-else-if chain
 					List<ControlDependenceTreeNode> subTreeCDTNodes1Copy = new ArrayList<ControlDependenceTreeNode>(subTreeCDTNodes1);
@@ -311,7 +313,9 @@ public class CloneInstanceMapper {
 							if(ASTNodes1.size() == pdg1.getTotalNumberOfStatements() && ASTNodes2.size() == pdg2.getTotalNumberOfStatements()) {
 								PDGRegionSubTreeMapper mapper = new PDGRegionSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, 
 										controlDependenceTreePDG1, controlDependenceTreePDG2, ASTNodes1, ASTNodes2, true, monitor);
-								subTreeMappers.add(mapper);
+								if(mapper.hasMappedNodes()) {
+									subTreeMappers.add(mapper);
+								}
 							}
 						} else {
 							// For each solution in the bottom-up matching, do the PDG mapping 
@@ -369,7 +373,9 @@ public class CloneInstanceMapper {
 								}
 								PDGRegionSubTreeMapper mapper = new PDGRegionSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, 
 										controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, ASTNodes1, ASTNodes2, fullTreeMatch, monitor);
-								subTreeMappers.add(mapper);
+								if(mapper.hasMappedNodes()) {
+									subTreeMappers.add(mapper);
+								}
 							}
 						}
 					}

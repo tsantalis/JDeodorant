@@ -43,8 +43,9 @@ public class PDGMapper {
 			int treeSize2 = size2 - ternaryOperatorCount1;
 			if(subTreeSize == treeSize1 && subTreeSize == treeSize2) {
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2, true, monitor);
-				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
+				if(mapper.hasMappedNodes()) {
 					subTreeMappers.add(mapper);
+				}
 			}
 			else {
 				List<ControlDependenceTreeNode> matchedControlDependenceTreeNodes1 = subTreeMatch.getControlDependenceTreeNodes1();
@@ -80,14 +81,16 @@ public class PDGMapper {
 				TreeSet<ControlDependenceTreeNodeMatchPair> matchPairs = subTreeMatch.getMatchPairs();
 				boolean fullTreeMatch = matchPairs.size() == Math.min(treeSize1, treeSize2);
 				PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceSubTreePDG1, controlDependenceSubTreePDG2, fullTreeMatch, monitor);
-				if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
+				if(mapper.hasMappedNodes()) {
 					subTreeMappers.add(mapper);
+				}
 			}
 		}
 		if(bottomUpSubTreeMatches.isEmpty()) {
 			PDGSubTreeMapper mapper = new PDGSubTreeMapper(pdg1, pdg2, iCompilationUnit1, iCompilationUnit2, controlDependenceTreePDG1, controlDependenceTreePDG2, true, monitor);
-			if(!mapper.getCloneStructureRoot().getChildren().isEmpty())
+			if(mapper.hasMappedNodes()) {
 				subTreeMappers.add(mapper);
+			}
 		}
 		NodePairComparisonCache.getInstance().clearCache();
 	}

@@ -74,6 +74,10 @@ public abstract class DivideAndConquerMatcher {
 		this.allNodesInSubTreePDG2 = new TreeSet<PDGNode>();
 	}
 
+	public boolean hasMappedNodes() {
+		return root != null && !root.getChildren().isEmpty() && !getRemovableNodesG1().isEmpty() && !getRemovableNodesG2().isEmpty();
+	}
+
 	public PDG getPDG1() {
 		return pdg1;
 	}

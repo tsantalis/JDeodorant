@@ -543,7 +543,7 @@ public class PreconditionExaminer {
 					List<AbstractVariable> sortedVariables1 = new ArrayList<AbstractVariable>();
 					List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
 					sortVariables(variables1, variables2, sortedVariables1, sortedVariables2);
-					if(sortedVariables1.size() == sortedVariables2.size()) {
+					if(sortedVariables1.size() == sortedVariables2.size() && sortedVariables1.size() > 0) {
 						variables1 = sortedVariables1;
 						variables2 = sortedVariables2;
 					}

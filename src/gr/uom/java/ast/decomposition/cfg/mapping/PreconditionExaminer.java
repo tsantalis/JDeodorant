@@ -81,6 +81,7 @@ import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
@@ -3154,7 +3155,7 @@ public class PreconditionExaminer {
 		ASTNode parent = expression.getParent();
 		if(parent.equals(statement))
 			return true;
-		if(!(parent instanceof Statement))
+		if(!(parent instanceof Statement) && !(parent instanceof BodyDeclaration))
 			return isExpressionUnderStatement(parent, statement);
 		else
 			return false;

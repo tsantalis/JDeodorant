@@ -38,6 +38,7 @@ import gr.uom.java.ast.decomposition.cfg.mapping.precondition.DualExpressionPrec
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ExpressionPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.NotAllPossibleExecutionFlowsEndInReturnPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolation;
+import gr.uom.java.ast.decomposition.cfg.mapping.precondition.PreconditionViolationType;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.ReturnedVariablePreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.StatementPreconditionViolation;
 import gr.uom.java.ast.decomposition.cfg.mapping.precondition.UncommonSuperclassPreconditionViolation;
@@ -182,6 +183,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private List<Set<MethodDeclaration>> constructorsToBeCopiedInSubclasses;
 	private CloneInformation cloneInfo;
 	private ExtractCloneRefactoringGapHandler gapHandler;
+	private RefactoringStatus status = new RefactoringStatus();
 	
 	private class CloneInformation {
 		private ICompilationUnit sourceICompilationUnit;
@@ -329,20 +331,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	public void apply() {
 		initialize();
 		extractClone();
-		boolean singleSourceCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
-		if(singleSourceCompilationUnit) {
-			modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
-		}
-		for(int i=0; i<sourceCompilationUnits.size(); i++) {
-			modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
-					constructorsToBeCopiedInSubclasses.get(i), accessedFieldDeclarationsToBeReplacedWithGetter.get(i), assignedFieldDeclarationsToBeReplacedWithSetter.get(i));
-			if(!singleSourceCompilationUnit) {
-				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
+		if(status.getEntries().length == 0) {
+			boolean singleSourceCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
+			if(singleSourceCompilationUnit) {
+				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
 			}
-			modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
-					remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
+			for(int i=0; i<sourceCompilationUnits.size(); i++) {
+				modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
+						constructorsToBeCopiedInSubclasses.get(i), accessedFieldDeclarationsToBeReplacedWithGetter.get(i), assignedFieldDeclarationsToBeReplacedWithSetter.get(i));
+				if(!singleSourceCompilationUnit) {
+					modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
+				}
+				modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
+						remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
+			}
+			finalizeCloneExtraction();
 		}
-		finalizeCloneExtraction();
 	}
 
 	private boolean mappedNodesContainStatementReturningVariable(VariableDeclaration variableDeclaration1, VariableDeclaration variableDeclaration2) {
@@ -1434,10 +1438,24 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 										AbstractExpression exp1 = new AbstractExpression(methodInvocation1);
 										ASTInformationGenerator.setCurrentITypeRoot(sourceCompilationUnits.get(1).getTypeRoot());
 										AbstractExpression exp2 = new AbstractExpression(methodInvocation2);
-										ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
-										Difference diff = new Difference(methodInvocation1.getName().getIdentifier(),methodInvocation2.getName().getIdentifier(),DifferenceType.METHOD_INVOCATION_NAME_MISMATCH);
-										astNodeDifference.addDifference(diff);
-										nodeMapping.getNodeDifferences().add(astNodeDifference);
+										if(methodBinding1.getReturnType().getQualifiedName().equals("void") || methodBinding2.getReturnType().getQualifiedName().equals("void")) {
+											if(methodBinding1.getReturnType().getQualifiedName().equals("void")) {
+												PreconditionViolation violation = new ExpressionPreconditionViolation(exp1, PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
+												RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(0).getTypeRoot(), methodInvocation1);
+												status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context));
+											}
+											if(methodBinding2.getReturnType().getQualifiedName().equals("void")) {
+												PreconditionViolation violation = new ExpressionPreconditionViolation(exp2, PreconditionViolationType.EXPRESSION_DIFFERENCE_IS_VOID_METHOD_CALL);
+												RefactoringStatusContext context = JavaStatusContext.create(sourceCompilationUnits.get(1).getTypeRoot(), methodInvocation2);
+												status.merge(RefactoringStatus.createErrorStatus(violation.getViolation(), context));
+											}
+										}
+										else {
+											ASTNodeDifference astNodeDifference = new ASTNodeDifference(exp1, exp2);
+											Difference diff = new Difference(methodInvocation1.getName().getIdentifier(),methodInvocation2.getName().getIdentifier(),DifferenceType.METHOD_INVOCATION_NAME_MISMATCH);
+											astNodeDifference.addDifference(diff);
+											nodeMapping.getNodeDifferences().add(astNodeDifference);
+										}
 										break;
 									}
 								}
@@ -4773,7 +4791,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	@Override
 	public RefactoringStatus checkFinalConditions(IProgressMonitor pm)
 			throws CoreException, OperationCanceledException {
-		final RefactoringStatus status= new RefactoringStatus();
 		try {
 			pm.beginTask("Checking preconditions...", 2);
 			for(PreconditionViolation violation : mapper.getPreconditionViolations()) {

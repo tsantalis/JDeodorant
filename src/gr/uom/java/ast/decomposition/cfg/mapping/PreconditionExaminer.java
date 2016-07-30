@@ -544,7 +544,7 @@ public class PreconditionExaminer {
 					List<AbstractVariable> sortedVariables1 = new ArrayList<AbstractVariable>();
 					List<AbstractVariable> sortedVariables2 = new ArrayList<AbstractVariable>();
 					sortVariables(variables1, variables2, sortedVariables1, sortedVariables2);
-					if(sortedVariables1.size() == sortedVariables2.size() && sortedVariables1.size() > 0) {
+					if(sortedVariables1.size() == sortedVariables2.size()) {
 						variables1 = sortedVariables1;
 						variables2 = sortedVariables2;
 					}
@@ -625,6 +625,14 @@ public class PreconditionExaminer {
 			}
 			if(found) {
 				sortedVariables1.add(variable1);
+			}
+		}
+		if(sortedVariables1.isEmpty() && sortedVariables2.isEmpty() && variables1.size() == 1 && variables2.size() == 1) {
+			AbstractVariable variable1 = variables1.get(0);
+			AbstractVariable variable2 = variables2.get(0);
+			if(variable1.getVariableType().equals(variable2.getVariableType())) {
+				sortedVariables1.add(variable1);
+				sortedVariables2.add(variable2);
 			}
 		}
 	}

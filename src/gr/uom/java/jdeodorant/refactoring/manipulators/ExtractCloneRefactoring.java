@@ -901,6 +901,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								//check if the pulled up method is using fields that should be also pulled up, remove fields that have been already pulled up
 								fieldsAccessedInMethod1.removeAll(accessedLocalFieldsG1);
 								fieldsAccessedInMethod2.removeAll(accessedLocalFieldsG2);
+								fieldsModifiedInMethod1.removeAll(modifiedLocalFieldsG1);
+								fieldsModifiedInMethod2.removeAll(modifiedLocalFieldsG2);
 								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, fieldsModifiedInMethod1, fieldsModifiedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
 								if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 									methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
@@ -1841,6 +1843,27 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return fieldsAccessedInMethod;
 	}
 
+	private Set<VariableDeclaration> additionalFieldUsedAsInitializers(Set<VariableDeclaration> allFields, TypeDeclaration typeDeclaration) {
+		Set<VariableDeclaration> additionalFieldUsedAsInitializers = new LinkedHashSet<VariableDeclaration>();
+		for(VariableDeclaration field : allFields) {
+			Expression initializer = field.getInitializer();
+			if(initializer != null && initializer instanceof SimpleName) {
+				SimpleName simpleName = (SimpleName)initializer;
+				IBinding binding = simpleName.resolveBinding();
+				if(binding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding variableBinding = (IVariableBinding)binding;
+					if(variableBinding.isField()) {
+						VariableDeclaration initializerField = RefactoringUtility.findFieldDeclaration(new PlainVariable(variableBinding), typeDeclaration);
+						if(initializerField != null) {
+							additionalFieldUsedAsInitializers.add(initializerField);
+						}
+					}
+				}
+			}
+		}
+		return additionalFieldUsedAsInitializers;
+	}
+
 	private void pullUpLocallyAccessedFields(Set<VariableDeclaration> accessedLocalFieldsG1, Set<VariableDeclaration> accessedLocalFieldsG2,
 			Set<VariableDeclaration> modifiedLocalFieldsG1, Set<VariableDeclaration> modifiedLocalFieldsG2,
 			ListRewrite bodyDeclarationsRewrite, Set<ITypeBinding> requiredImportTypeBindings) {
@@ -1848,6 +1871,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		Set<VariableDeclaration> allFieldsG2 = new LinkedHashSet<VariableDeclaration>(accessedLocalFieldsG2);
 		allFieldsG1.addAll(modifiedLocalFieldsG1);
 		allFieldsG2.addAll(modifiedLocalFieldsG2);
+		allFieldsG1.addAll(additionalFieldUsedAsInitializers(allFieldsG1, sourceTypeDeclarations.get(0)));
+		allFieldsG2.addAll(additionalFieldUsedAsInitializers(allFieldsG2, sourceTypeDeclarations.get(1)));
 		ASTRewrite sourceRewriter = cloneInfo.sourceRewriter;
 		AST ast = cloneInfo.ast;
 		TypeDeclaration sourceTypeDeclaration = cloneInfo.sourceTypeDeclaration;

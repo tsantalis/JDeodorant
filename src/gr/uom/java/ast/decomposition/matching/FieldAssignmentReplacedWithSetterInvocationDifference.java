@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
+import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 
 public class FieldAssignmentReplacedWithSetterInvocationDifference extends ASTNodeDifference {
 	
@@ -11,6 +12,8 @@ public class FieldAssignmentReplacedWithSetterInvocationDifference extends ASTNo
 	private AbstractExpression invoker2;
 	private AbstractExpression argument1;
 	private AbstractExpression argument2;
+	private AbstractVariable field1;
+	private AbstractVariable field2;
 	private String setterMethodName;
 	private List<ASTNodeDifference> invokerDifferences;
 	private List<ASTNodeDifference> argumentDifferences;
@@ -62,5 +65,17 @@ public class FieldAssignmentReplacedWithSetterInvocationDifference extends ASTNo
 	}
 	public void setArgument2(AbstractExpression argument2) {
 		this.argument2 = argument2;
+	}
+	public AbstractVariable getField1() {
+		return field1;
+	}
+	public void setField1(AbstractVariable field1) {
+		this.field1 = field1;
+	}
+	public AbstractVariable getField2() {
+		return field2;
+	}
+	public void setField2(AbstractVariable field2) {
+		this.field2 = field2;
 	}
 }

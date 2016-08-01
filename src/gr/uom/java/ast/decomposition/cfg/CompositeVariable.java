@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class CompositeVariable extends AbstractVariable {
@@ -11,7 +12,17 @@ public class CompositeVariable extends AbstractVariable {
 		this.rightPart = rightPart;
 	}
 
-	public CompositeVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic, AbstractVariable rightPart) {
+	public CompositeVariable(IVariableBinding referenceBinding, AbstractVariable rightPart) {
+		super(referenceBinding);
+		this.rightPart = rightPart;
+	}
+
+	public CompositeVariable(AbstractVariable argument, AbstractVariable rightPart) {
+		this(argument.getVariableBindingKey(), argument.getVariableName(),
+				argument.getVariableType(), argument.isField(), argument.isParameter(), argument.isStatic(), rightPart);
+	}
+
+	private CompositeVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic, AbstractVariable rightPart) {
 		super(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
 		this.rightPart = rightPart;
 	}

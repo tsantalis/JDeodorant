@@ -450,14 +450,12 @@ public class Indexer {
 		if(leftSide instanceof CompositeVariable) {
 			CompositeVariable leftSideCompositeVariable = (CompositeVariable)leftSide;
 			PlainVariable finalVariable = leftSideCompositeVariable.getFinalVariable();
-			CompositeVariable newRightSide = new CompositeVariable(finalVariable.getVariableBindingKey(), finalVariable.getVariableName(),
-					finalVariable.getVariableType(), finalVariable.isField(), finalVariable.isParameter(), finalVariable.isStatic(), rightSide);
+			CompositeVariable newRightSide = new CompositeVariable(finalVariable, rightSide);
 			AbstractVariable newLeftSide = leftSideCompositeVariable.getLeftPart();
 			return composeVariable(newLeftSide, newRightSide);
 		}
 		else {
-			return new CompositeVariable(leftSide.getVariableBindingKey(), leftSide.getVariableName(),
-					leftSide.getVariableType(), leftSide.isField(), leftSide.isParameter(), leftSide.isStatic(), rightSide);
+			return new CompositeVariable(leftSide, rightSide);
 		}
 	}
 

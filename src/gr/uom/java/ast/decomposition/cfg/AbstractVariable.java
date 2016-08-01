@@ -23,6 +23,11 @@ public abstract class AbstractVariable {
 		this.isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
 	}
 
+	public AbstractVariable(IVariableBinding variableBinding) {
+		this(variableBinding.getKey(), variableBinding.getName(), variableBinding.getType().getQualifiedName(),
+				variableBinding.isField(), variableBinding.isParameter(), (variableBinding.getModifiers() & Modifier.STATIC) != 0);
+	}
+
 	public AbstractVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic) {
 		this.variableBindingKey = variableBindingKey;
 		this.variableName = variableName;

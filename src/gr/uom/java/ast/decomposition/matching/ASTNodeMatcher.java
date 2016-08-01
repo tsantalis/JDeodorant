@@ -9,6 +9,7 @@ import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.StatementObject;
 import gr.uom.java.ast.decomposition.StatementType;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
+import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.conditional.AbstractControlStructure;
 import gr.uom.java.ast.decomposition.matching.conditional.AbstractControlStructureUtilities;
 import gr.uom.java.ast.decomposition.matching.conditional.IfControlStructure;
@@ -2261,7 +2262,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		AbstractLoop nodeConditionalLoop = new ConditionalLoop(node);
 		return loopMatch(nodeConditionalLoop, other);
 	}
-	
+
 	private boolean setterReplacedWithFieldAssignment(MethodInvocation setter, Assignment assignment) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(setter);
@@ -2285,7 +2286,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			astNodeDifference.setArgument2(new AbstractExpression(rightHandSide));
 			if(leftHandSide instanceof FieldAccess) {
 				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-				if(setterMethodForField(setter, fieldAccess.getName()) && argumentRightHandSideMatch) {
+				SimpleName fieldAccessName = fieldAccess.getName();
+				SimpleName setField = setterMethodForField(setter, fieldAccessName);
+				if(setField != null && argumentRightHandSideMatch) {
 					size = differences.size();
 					safeSubtreeMatch(setter.getExpression(), fieldAccess.getExpression());
 					for(int i=size; i<differences.size(); i++) {
@@ -2307,6 +2310,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 						ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 						astNodeDifference.setInvoker2(new AbstractExpression(fieldAccess.getExpression()));
 					}
+					PlainVariable field2 = new PlainVariable((IVariableBinding)fieldAccessName.resolveBinding());
+					PlainVariable field1 = new PlainVariable((IVariableBinding)setField.resolveBinding());
+					astNodeDifference.setField1(field1);
+					astNodeDifference.setField2(field2);
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
@@ -2315,13 +2322,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else if(leftHandSide instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)leftHandSide;
-				if(setterMethodForField(setter, simpleName) && argumentRightHandSideMatch) {
+				SimpleName setField = setterMethodForField(setter, simpleName);
+				if(setField != null && argumentRightHandSideMatch) {
 					if(setter.getExpression() != null) {
 						Difference diff = new Difference(setter.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
 						astNodeDifference.addDifference(diff);
 						ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 						astNodeDifference.setInvoker1(new AbstractExpression(setter.getExpression()));
 					}
+					PlainVariable field2 = new PlainVariable((IVariableBinding)simpleName.resolveBinding());
+					PlainVariable field1 = new PlainVariable((IVariableBinding)setField.resolveBinding());
+					astNodeDifference.setField1(field1);
+					astNodeDifference.setField2(field2);
 					Difference diff = new Difference(setter.toString(),assignment.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
@@ -2355,7 +2367,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 			astNodeDifference.setArgument2(new AbstractExpression((Expression)arguments.get(0)));
 			if(leftHandSide instanceof FieldAccess) {
 				FieldAccess fieldAccess = (FieldAccess)leftHandSide;
-				if(setterMethodForField(setter, fieldAccess.getName()) && argumentRightHandSideMatch) {
+				SimpleName fieldAccessName = fieldAccess.getName();
+				SimpleName setField = setterMethodForField(setter, fieldAccessName);
+				if(setField != null && argumentRightHandSideMatch) {
 					size = differences.size();
 					safeSubtreeMatch(fieldAccess.getExpression(), setter.getExpression());
 					for(int i=size; i<differences.size(); i++) {
@@ -2377,6 +2391,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 						ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 						astNodeDifference.setInvoker2(new AbstractExpression(setter.getExpression()));
 					}
+					PlainVariable field1 = new PlainVariable((IVariableBinding)fieldAccessName.resolveBinding());
+					PlainVariable field2 = new PlainVariable((IVariableBinding)setField.resolveBinding());
+					astNodeDifference.setField1(field1);
+					astNodeDifference.setField2(field2);
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
@@ -2385,13 +2403,18 @@ public class ASTNodeMatcher extends ASTMatcher{
 			}
 			else if(leftHandSide instanceof SimpleName) {
 				SimpleName simpleName = (SimpleName)leftHandSide;
-				if(setterMethodForField(setter, simpleName) && argumentRightHandSideMatch) {
+				SimpleName setField = setterMethodForField(setter, simpleName);
+				if(setField != null && argumentRightHandSideMatch) {
 					if(setter.getExpression() != null) {
 						Difference diff = new Difference("",setter.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
 						astNodeDifference.addDifference(diff);
 						ASTInformationGenerator.setCurrentITypeRoot(typeRoot2);
 						astNodeDifference.setInvoker2(new AbstractExpression(setter.getExpression()));
 					}
+					PlainVariable field1 = new PlainVariable((IVariableBinding)simpleName.resolveBinding());
+					PlainVariable field2 = new PlainVariable((IVariableBinding)setField.resolveBinding());
+					astNodeDifference.setField1(field1);
+					astNodeDifference.setField2(field2);
 					Difference diff = new Difference(assignment.toString(),setter.toString(),DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER);
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
@@ -2431,7 +2454,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	private boolean setterMethodForField(MethodInvocation methodInvocation, SimpleName fieldName) {
+	private SimpleName setterMethodForField(MethodInvocation methodInvocation, SimpleName fieldName) {
 		IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();
 		ITypeBinding declaringClassTypeBinding = methodBinding.getDeclaringClass();
 		ClassObject declaringClass = ASTReader.getSystemObject().getClassObject(declaringClassTypeBinding.getQualifiedName());
@@ -2450,14 +2473,14 @@ public class ASTNodeMatcher extends ASTMatcher{
 							if(setFieldBinding.isEqualTo(fieldNameBinding) ||
 									(setField.getIdentifier().equals(fieldName.getIdentifier()) &&
 									setFieldBinding.getType().isEqualTo(fieldNameBinding.getType()) && setFieldBinding.getType().getQualifiedName().equals(fieldNameBinding.getType().getQualifiedName()))) {
-								return true;
+								return setField;
 							}
 						}
 					}
 				}
 			}
 		}
-		return false;
+		return null;
 	}
 	
 	private boolean isNestedUnderAnonymousClassDeclaration(ASTNode node) {

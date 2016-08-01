@@ -10,7 +10,6 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.IfStatement;
-import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 
@@ -255,10 +254,8 @@ public class PDGNodeMapping extends IdBasedMapping {
 					if(binding1 != null && binding1.getKind() == IBinding.VARIABLE && binding2 != null && binding2.getKind() == IBinding.VARIABLE) {
 						IVariableBinding variableBinding1 = (IVariableBinding)binding1;
 						IVariableBinding variableBinding2 = (IVariableBinding)binding2;
-						PlainVariable variable1 = new PlainVariable(variableBinding1.getKey(), variableBinding1.getName(),
-								variableBinding1.getType().getQualifiedName(), variableBinding1.isField(), variableBinding1.isParameter(), (variableBinding1.getModifiers() & Modifier.STATIC) != 0);
-						PlainVariable variable2 = new PlainVariable(variableBinding2.getKey(), variableBinding2.getName(),
-								variableBinding2.getType().getQualifiedName(), variableBinding2.isField(), variableBinding2.isParameter(), (variableBinding2.getModifiers() & Modifier.STATIC) != 0);
+						PlainVariable variable1 = new PlainVariable(variableBinding1);
+						PlainVariable variable2 = new PlainVariable(variableBinding2);
 						if(nodeG1.declaresLocalVariable(variable1) && nodeG2.declaresLocalVariable(variable2)) {
 							return new VariableBindingPair(variableBinding1, variableBinding2);
 						}

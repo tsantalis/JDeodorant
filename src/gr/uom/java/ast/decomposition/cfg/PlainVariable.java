@@ -1,5 +1,6 @@
 package gr.uom.java.ast.decomposition.cfg;
 
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 public class PlainVariable extends AbstractVariable {
@@ -7,6 +8,10 @@ public class PlainVariable extends AbstractVariable {
 	
 	public PlainVariable(VariableDeclaration variableName) {
 		super(variableName);
+	}
+
+	public PlainVariable(IVariableBinding variableBinding) {
+		super(variableBinding);
 	}
 
 	public PlainVariable(String variableBindingKey, String variableName, String variableType, boolean isField, boolean isParameter, boolean isStatic) {

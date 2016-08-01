@@ -1254,7 +1254,7 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									else {
 										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-											fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
+											fieldParameterFinalMap.put(new PlainVariable(accessedVariableBinding), true);
 										handleAccessedFieldNotHavingSetterMethod(
 												sourceMethod,
 												newMethodDeclaration,
@@ -1295,7 +1295,7 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 								else {
 									if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-										fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
+										fieldParameterFinalMap.put(new PlainVariable(accessedVariableBinding), true);
 									handleAccessedFieldNotHavingSetterMethod(
 											sourceMethod, newMethodDeclaration,
 											targetRewriter, fieldParameterMap,
@@ -1421,7 +1421,7 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									else {
 										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-											fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
+											fieldParameterFinalMap.put(new PlainVariable(accessedVariableBinding), true);
 										handleAccessedFieldNotHavingSetterMethod(
 												sourceMethod,
 												newMethodDeclaration,
@@ -1554,7 +1554,7 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									else {
 										if(isParentAnonymousClassDeclaration(oldAccessedVariable))
-											fieldParameterFinalMap.put(createVariable(accessedVariableBinding), true);
+											fieldParameterFinalMap.put(new PlainVariable(accessedVariableBinding), true);
 										handleAccessedFieldNotHavingSetterMethod(
 												sourceMethod,
 												newMethodDeclaration,
@@ -1598,7 +1598,7 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 								else {
 									if(isParentAnonymousClassDeclaration(simpleName))
-										fieldParameterFinalMap.put(createVariable(variableBinding), true);
+										fieldParameterFinalMap.put(new PlainVariable(variableBinding), true);
 									handleAccessedFieldNotHavingSetterMethod(
 											sourceMethod, newMethodDeclaration,
 											targetRewriter, fieldParameterMap,
@@ -1624,12 +1624,12 @@ public class ExtractClassRefactoring extends Refactoring {
 										Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 										SimpleName expressionName = (SimpleName)newFieldInstructions.get(i);
 										if(isParentAnonymousClassDeclaration(simpleName))
-											fieldParameterFinalMap.put(createVariable(variableBinding), true);
+											fieldParameterFinalMap.put(new PlainVariable(variableBinding), true);
 										if(!containsVariable(variableBinding, additionalArgumentsAddedToMovedMethod)) {
 											SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, variableBinding, targetRewriter);
 											addVariable(variableBinding, additionalArgumentsAddedToMovedMethod);
 											additionalParametersAddedToMovedMethod.add(fieldParameter);
-											fieldParameterMap.put(createVariable(variableBinding), fieldParameter);
+											fieldParameterMap.put(new PlainVariable(variableBinding), fieldParameter);
 										}
 									}
 								}
@@ -1677,12 +1677,12 @@ public class ExtractClassRefactoring extends Refactoring {
 											else {
 												targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
 												if(isParentAnonymousClassDeclaration(methodInvocation))
-													fieldParameterFinalMap.put(createVariable(fieldBinding), true);
+													fieldParameterFinalMap.put(new PlainVariable(fieldBinding), true);
 												if(!containsVariable(fieldBinding, additionalArgumentsAddedToMovedMethod)) {
 													SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, fieldBinding, targetRewriter);
 													addVariable(fieldBinding, additionalArgumentsAddedToMovedMethod);
 													additionalParametersAddedToMovedMethod.add(fieldParameter);
-													fieldParameterMap.put(createVariable(fieldBinding), fieldParameter);
+													fieldParameterMap.put(new PlainVariable(fieldBinding), fieldParameter);
 												}
 											}
 										}
@@ -1979,7 +1979,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
 					addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
 					additionalParametersAddedToMovedMethod.add(fieldParameter);
-					fieldParameterMap.put(createVariable(accessedVariableBinding), fieldParameter);
+					fieldParameterMap.put(new PlainVariable(accessedVariableBinding), fieldParameter);
 				}
 			}
 		}
@@ -1987,7 +1987,7 @@ public class ExtractClassRefactoring extends Refactoring {
 			SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
 			addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
 			additionalParametersAddedToMovedMethod.add(fieldParameter);
-			fieldParameterMap.put(createVariable(accessedVariableBinding), fieldParameter);
+			fieldParameterMap.put(new PlainVariable(accessedVariableBinding), fieldParameter);
 		}
 	}
 
@@ -2034,19 +2034,8 @@ public class ExtractClassRefactoring extends Refactoring {
 	}
 
 	private void addVariable(IVariableBinding variableBinding, Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {
-		PlainVariable variable = createVariable(variableBinding);
+		PlainVariable variable = new PlainVariable(variableBinding);
 		additionalArgumentsAddedToMovedMethod.add(variable);
-	}
-
-	private PlainVariable createVariable(IVariableBinding variableBinding) {
-		String variableBindingKey = variableBinding.getKey();
-		String variableName = variableBinding.getName();
-		String variableType = variableBinding.getType().getQualifiedName();
-		boolean isField = variableBinding.isField();
-		boolean isParameter = variableBinding.isParameter();
-		boolean isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
-		PlainVariable variable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
-		return variable;
 	}
 
 	private void addThisVariable(Set<PlainVariable> additionalArgumentsAddedToMovedMethod) {

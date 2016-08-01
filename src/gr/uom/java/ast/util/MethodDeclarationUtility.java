@@ -20,7 +20,6 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.ReturnStatement;
@@ -177,17 +176,11 @@ public class MethodDeclarationUtility {
 		IBinding binding = simpleName.resolveBinding();
 		if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 			IVariableBinding variableBinding = (IVariableBinding)binding;
-			String variableBindingKey = variableBinding.getKey();
-			String variableName = variableBinding.getName();
-			String variableType = variableBinding.getType().getQualifiedName();
-			boolean isField = variableBinding.isField();
-			boolean isParameter = variableBinding.isParameter();
-			boolean isStatic = (variableBinding.getModifiers() & Modifier.STATIC) != 0;
 			AbstractVariable currentVariable = null;
 			if(rightPart == null)
-				currentVariable = new PlainVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic);
+				currentVariable = new PlainVariable(variableBinding);
 			else
-				currentVariable = new CompositeVariable(variableBindingKey, variableName, variableType, isField, isParameter, isStatic, rightPart);
+				currentVariable = new CompositeVariable(variableBinding, rightPart);
 			
 			if(simpleName.getParent() instanceof QualifiedName) {
 				QualifiedName qualifiedName = (QualifiedName)simpleName.getParent();

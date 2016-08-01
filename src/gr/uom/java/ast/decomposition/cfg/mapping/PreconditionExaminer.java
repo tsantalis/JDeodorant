@@ -290,8 +290,10 @@ public class PreconditionExaminer {
 			List<Expression> expressions2 = new ArrayList<Expression>();
 			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions1 = new ArrayList<AbstractExpression>();
 			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions2 = new ArrayList<AbstractExpression>();
+			List<AbstractExpression> fieldAssignmentReplacedWithSetterExpressions1 = new ArrayList<AbstractExpression>();
+			List<AbstractExpression> fieldAssignmentReplacedWithSetterExpressions2 = new ArrayList<AbstractExpression>();
 			for(ASTNodeDifference nodeDifference : getNodeDifferences()) {
-				if(!nodeDifference.containsDifferenceType(DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER)) {
+				if(!nodeDifference.containsDifferenceType(DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER) && !nodeDifference.containsDifferenceType(DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER)) {
 					Expression expression1 = nodeDifference.getExpression1().getExpression();
 					Expression expr1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1);
 					if(expression1.equals(expr1)) {
@@ -309,17 +311,21 @@ public class PreconditionExaminer {
 						expressions2.add(expr2);
 					}
 				}
-				else {
+				else if(nodeDifference.containsDifferenceType(DifferenceType.FIELD_ACCESS_REPLACED_WITH_GETTER)) {
 					fieldAccessReplacedWithGetterExpressions1.add(nodeDifference.getExpression1());
 					fieldAccessReplacedWithGetterExpressions2.add(nodeDifference.getExpression2());
+				}
+				else if(nodeDifference.containsDifferenceType(DifferenceType.FIELD_ASSIGNMENT_REPLACED_WITH_SETTER)) {
+					fieldAssignmentReplacedWithSetterExpressions1.add(nodeDifference.getExpression1());
+					fieldAssignmentReplacedWithSetterExpressions2.add(nodeDifference.getExpression2());
 				}
 			}
 			ITypeBinding commonSuperclass = ASTNodeMatcher.commonSuperType(pdg1.getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass(),
 					pdg2.getMethod().getMethodDeclaration().resolveBinding().getDeclaringClass());
 			findLocallyAccessedFields(pdg1, mappedNodesG1, commonSuperclass, directlyAccessedLocalFieldsG1, indirectlyAccessedLocalFieldsG1, directlyModifiedLocalFieldsG1, indirectlyModifiedLocalFieldsG1,
-					directlyAccessedLocalMethodsG1, indirectlyAccessedLocalMethodsG1, expressions1, fieldAccessReplacedWithGetterExpressions1, this.iCompilationUnit1);
+					directlyAccessedLocalMethodsG1, indirectlyAccessedLocalMethodsG1, expressions1, fieldAccessReplacedWithGetterExpressions1, fieldAssignmentReplacedWithSetterExpressions1, this.iCompilationUnit1);
 			findLocallyAccessedFields(pdg2, mappedNodesG2, commonSuperclass, directlyAccessedLocalFieldsG2, indirectlyAccessedLocalFieldsG2, directlyModifiedLocalFieldsG2, indirectlyModifiedLocalFieldsG2,
-					directlyAccessedLocalMethodsG2, indirectlyAccessedLocalMethodsG2, expressions2, fieldAccessReplacedWithGetterExpressions2, this.iCompilationUnit2);
+					directlyAccessedLocalMethodsG2, indirectlyAccessedLocalMethodsG2, expressions2, fieldAccessReplacedWithGetterExpressions2, fieldAssignmentReplacedWithSetterExpressions2, this.iCompilationUnit2);
 			this.variablesToBeReturnedG1 = variablesToBeReturned(pdg1, getRemovableNodesG1());
 			this.variablesToBeReturnedG2 = variablesToBeReturned(pdg2, getRemovableNodesG2());
 			checkCloneStructureNodeForPreconditions(getCloneStructureRoot());
@@ -767,7 +773,8 @@ public class PreconditionExaminer {
 
 	private void findLocallyAccessedFields(PDG pdg, Set<PDGNode> mappedNodes, ITypeBinding commonSuperclass,
 			Set<AbstractVariable> directlyAccessedFields, Set<AbstractVariable> indirectlyAccessedFields, Set<AbstractVariable> directlyModifiedFields, Set<AbstractVariable> indirectlyModifiedFields,
-			Set<MethodObject> directlyAccessedMethods, Set<MethodObject> indirectlyAccessedMethods, List<Expression> expressionsInDifferences, List<AbstractExpression> fieldAccessReplacedWithGetterExpressions, ICompilationUnit iCompilationUnit) {
+			Set<MethodObject> directlyAccessedMethods, Set<MethodObject> indirectlyAccessedMethods, List<Expression> expressionsInDifferences,
+			List<AbstractExpression> fieldAccessReplacedWithGetterExpressions, List<AbstractExpression> fieldAssignmentReplacedWithSetterExpressions, ICompilationUnit iCompilationUnit) {
 		Set<SimpleName> fieldAccessesToBeExcluded = new LinkedHashSet<SimpleName>();
 		Set<MethodInvocation> methodInvocationsToBeExcluded = new LinkedHashSet<MethodInvocation>();
 		for(Expression expression : expressionsInDifferences) {
@@ -793,8 +800,16 @@ public class PreconditionExaminer {
 			}
 		}
 		Set<AbstractVariable> fieldsWithGetterToBeIncluded = new LinkedHashSet<AbstractVariable>();
+		Set<MethodInvocationObject> getterInvocationsToBeIncluded = new LinkedHashSet<MethodInvocationObject>();
 		for(AbstractExpression expression : fieldAccessReplacedWithGetterExpressions) {
 			fieldsWithGetterToBeIncluded.addAll(expression.getUsedFieldsThroughThisReference());
+			getterInvocationsToBeIncluded.addAll(expression.getInvokedMethodsThroughThisReference());
+		}
+		Set<AbstractVariable> fieldsWithSetterToBeIncluded = new LinkedHashSet<AbstractVariable>();
+		Set<MethodInvocationObject> setterInvocationsToBeIncluded = new LinkedHashSet<MethodInvocationObject>();
+		for(AbstractExpression expression : fieldAssignmentReplacedWithSetterExpressions) {
+			fieldsWithSetterToBeIncluded.addAll(expression.getDefinedFieldsThroughThisReference());
+			setterInvocationsToBeIncluded.addAll(expression.getInvokedMethodsThroughThisReference());
 		}
 		List<FieldInstructionObject> accessedLocalFields = new ArrayList<FieldInstructionObject>();
 		List<FieldInstructionObject> modifiedLocalFields = new ArrayList<FieldInstructionObject>();
@@ -916,6 +931,23 @@ public class PreconditionExaminer {
 					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
 							!fieldAccessesToBeExcluded.contains(fieldAccess)) {
 						directlyModifiedFields.add(variable);
+						if(fieldsWithSetterToBeIncluded.contains(variable)) {
+							SystemObject system = ASTReader.getSystemObject();
+							ClassObject accessedClass = system.getClassObject(fieldDeclaringClassTypeBinding.getQualifiedName());
+							if(accessedClass != null) {
+								ListIterator<MethodObject> it = accessedClass.getMethodIterator();
+								while(it.hasNext()) {
+									MethodObject method = it.next();
+									FieldInstructionObject setterFieldInstruction = method.isSetter();
+									if(setterFieldInstruction != null) {
+										if(variable.getVariableBindingKey().equals(setterFieldInstruction.getSimpleName().resolveBinding().getKey())) {
+											directlyAccessedMethods.add(method);
+											break;
+										}
+									}
+								}
+							}
+						}
 						break;
 					}
 				}
@@ -939,7 +971,33 @@ public class PreconditionExaminer {
 					MethodObject calledMethod = system.getMethod(invocation);
 					if(calledMethod != null) {
 						directlyAccessedMethods.add(calledMethod);
-						/*FieldInstructionObject getterFieldInstruction = calledMethod.isGetter();
+						ClassObject calledClass = system.getClassObject(calledMethod.getClassName());
+						getAdditionalLocallyAccessedFieldsAndMethods(calledMethod, calledClass, indirectlyAccessedFields, indirectlyModifiedFields, indirectlyAccessedMethods);
+					}
+				}
+			}
+		}
+		Set<MethodInvocationObject> invokedGetterAndSetterMethods = new LinkedHashSet<MethodInvocationObject>();
+		invokedGetterAndSetterMethods.addAll(getterInvocationsToBeIncluded);
+		invokedGetterAndSetterMethods.addAll(setterInvocationsToBeIncluded);
+		for(MethodInvocationObject invocation : invokedGetterAndSetterMethods) {
+			ITypeBinding invokedMethodDeclaringClassTypeBinding = invocation.getMethodInvocation().resolveMethodBinding().getDeclaringClass();
+			Set<ITypeBinding> superTypes = getAllSuperTypesUpToCommonSuperclass(declaringClassTypeBinding, commonSuperclass);
+			boolean invokedMethodFoundInSuperType = false;
+			for(ITypeBinding typeBinding : superTypes) {
+				if(typeBinding.isEqualTo(invokedMethodDeclaringClassTypeBinding)) {
+					invokedMethodFoundInSuperType = true;
+					break;
+				}
+			}
+			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodDeclaringClassTypeBinding.isEqualTo(commonSuperclass) || invokedMethodFoundInSuperType) &&
+					!methodInvocationsToBeExcluded.contains(invocation.getMethodInvocation())) {
+				//exclude recursive method calls
+				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {
+					SystemObject system = ASTReader.getSystemObject();
+					MethodObject calledMethod = system.getMethod(invocation);
+					if(calledMethod != null) {
+						FieldInstructionObject getterFieldInstruction = calledMethod.isGetter();
 						if(getterFieldInstruction != null) {
 							Set<PlainVariable> usedFields = calledMethod.getUsedFieldsThroughThisReference();
 							for(PlainVariable plainVariable : usedFields) {
@@ -948,9 +1006,17 @@ public class PreconditionExaminer {
 									break;
 								}
 							}
-						}*/
-						ClassObject calledClass = system.getClassObject(calledMethod.getClassName());
-						getAdditionalLocallyAccessedFieldsAndMethods(calledMethod, calledClass, indirectlyAccessedFields, indirectlyModifiedFields, indirectlyAccessedMethods);
+						}
+						FieldInstructionObject setterFieldInstruction = calledMethod.isSetter();
+						if(setterFieldInstruction != null) {
+							Set<PlainVariable> definedFields = calledMethod.getDefinedFieldsThroughThisReference();
+							for(PlainVariable plainVariable : definedFields) {
+								if(plainVariable.getVariableBindingKey().equals(setterFieldInstruction.getSimpleName().resolveBinding().getKey())) {
+									directlyModifiedFields.add(plainVariable);
+									break;
+								}
+							}
+						}
 					}
 				}
 			}

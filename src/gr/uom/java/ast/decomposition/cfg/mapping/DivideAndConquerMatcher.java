@@ -193,7 +193,11 @@ public abstract class DivideAndConquerMatcher {
 	public Map<VariableBindingKeyPair, ArrayList<VariableDeclaration>> getDeclaredLocalVariablesInMappedNodes() {
 		return preconditionExaminer.getDeclaredLocalVariablesInMappedNodes();
 	}
-	
+
+	public Set<VariableBindingKeyPair> getDeclaredLocalVariablesInMappedNodesWithinAnonymousClass() {
+		return preconditionExaminer.getDeclaredLocalVariablesInMappedNodesWithinAnonymousClass();
+	}
+
 	public Set<VariableDeclaration> getDeclaredLocalVariablesInAdditionallyMatchedNodesG1() {
 		return preconditionExaminer.getDeclaredLocalVariablesInAdditionallyMatchedNodesG1();
 	}

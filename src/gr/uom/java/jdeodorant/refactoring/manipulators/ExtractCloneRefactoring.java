@@ -554,7 +554,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 					ClassObject commonSuperType = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
 					CompilationUnit compilationUnit = null;
-					if(sourceCompilationUnits.get(0).getPackage().resolveBinding().isEqualTo(sourceCompilationUnits.get(1).getPackage().resolveBinding())) {
+					PackageDeclaration package1 = sourceCompilationUnits.get(0).getPackage();
+					PackageDeclaration package2 = sourceCompilationUnits.get(1).getPackage();
+					if(package1 != null && package2 != null && package1.resolveBinding().isEqualTo(package2.resolveBinding())) {
+						compilationUnit = sourceCompilationUnits.get(0);
+					}
+					else if(package1 == null && package2 == null) {
 						compilationUnit = sourceCompilationUnits.get(0);
 					}
 					else if(commonSuperType != null) {
@@ -4107,7 +4112,11 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
 			ImportRewrite importRewrite = ImportRewrite.create(compilationUnit, true);
 			if(cloneInfo.intermediateClassPackageBinding != null) {
-				if(!compilationUnit.getPackage().resolveBinding().isEqualTo(cloneInfo.intermediateClassPackageBinding)) {
+				if(compilationUnit.getPackage() != null && !compilationUnit.getPackage().resolveBinding().isEqualTo(cloneInfo.intermediateClassPackageBinding)) {
+					importRewrite.addImport(cloneInfo.intermediateClassPackageBinding.getName() +
+							"." + cloneInfo.intermediateClassName);
+				}
+				else if(compilationUnit.getPackage() == null && cloneInfo.intermediateClassPackageBinding != null) {
 					importRewrite.addImport(cloneInfo.intermediateClassPackageBinding.getName() +
 							"." + cloneInfo.intermediateClassName);
 				}

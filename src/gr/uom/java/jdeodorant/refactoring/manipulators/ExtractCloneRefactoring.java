@@ -1832,7 +1832,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(Expression expression : simpleNames) {
 			SimpleName simpleName = (SimpleName)expression;
 			IBinding binding = simpleName.resolveBinding();
-			if(binding.getKind() == IBinding.VARIABLE) {
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 				for(VariableDeclaration variableDeclaration : indirectlyAccessedLocalFields) {
 					if(variableDeclaration.resolveBinding().isEqualTo(binding)) {
 						fieldsAccessedInMethod.add(variableDeclaration);
@@ -3304,6 +3304,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			Set<VariableBindingKeyPair> parameterBindingKeys = originalPassedParameters.keySet();
 			Set<VariableBindingKeyPair> commonPassedParameterBindingKeys = mapper.getCommonPassedParameters().keySet();
+			Set<VariableBindingKeyPair> declaredLocalVariableBindingKeysWithinAnonymousClass = mapper.getDeclaredLocalVariablesInMappedNodesWithinAnonymousClass();
 			Set<VariableBindingKeyPair> declaredLocalVariableBindingKeys = mapper.getDeclaredLocalVariablesInMappedNodes().keySet();
 			Set<VariableBindingKeyPair> localVariableBindingKeysReturnedByBlockGaps = mapper.getLocalVariablesReturnedByBlockGaps();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
@@ -3333,7 +3334,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						IBinding binding2 = oldSimpleName2.resolveBinding();
 						VariableBindingKeyPair keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
 						if(parameterBindingKeys.contains(keyPair) || commonPassedParameterBindingKeys.contains(keyPair) ||
-								declaredLocalVariableBindingKeys.contains(keyPair) ||
+								declaredLocalVariableBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeysWithinAnonymousClass.contains(keyPair) ||
 								localVariableBindingKeysReturnedByBlockGaps.contains(keyPair) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
@@ -3348,7 +3349,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						IBinding binding2 = oldSimpleName2.resolveBinding();
 						VariableBindingKeyPair keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
 						if(parameterBindingKeys.contains(keyPair) || commonPassedParameterBindingKeys.contains(keyPair) ||
-								declaredLocalVariableBindingKeys.contains(keyPair) ||
+								declaredLocalVariableBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeysWithinAnonymousClass.contains(keyPair) ||
 								localVariableBindingKeysReturnedByBlockGaps.contains(keyPair) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
 								declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
@@ -3362,7 +3363,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							binding2 = oldSimpleName2.resolveBinding();
 							keyPair = new VariableBindingKeyPair(binding.getKey(), binding2.getKey());
 							if(parameterBindingKeys.contains(keyPair) || commonPassedParameterBindingKeys.contains(keyPair) ||
-									declaredLocalVariableBindingKeys.contains(keyPair) ||
+									declaredLocalVariableBindingKeys.contains(keyPair) || declaredLocalVariableBindingKeysWithinAnonymousClass.contains(keyPair) ||
 									declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1.contains(binding.getKey()) ||
 									declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2.contains(binding2.getKey()))
 								isCommonParameter = true;

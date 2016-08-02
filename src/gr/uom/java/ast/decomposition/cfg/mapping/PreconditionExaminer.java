@@ -115,6 +115,7 @@ public class PreconditionExaminer {
 	private TreeSet<PDGNode> nonMappedNodesG2;
 	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> commonPassedParameters;
 	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodes;
+	private Map<VariableBindingKeyPair, ArrayList<AbstractVariable>> declaredLocalVariablesInMappedNodesWithinAnonymousClass;
 	//includes used and modified fields
 	private Set<AbstractVariable> directlyAccessedLocalFieldsG1;
 	private Set<AbstractVariable> directlyAccessedLocalFieldsG2;
@@ -169,6 +170,7 @@ public class PreconditionExaminer {
 		this.nonMappedNodesG2 = new TreeSet<PDGNode>();
 		this.commonPassedParameters = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
 		this.declaredLocalVariablesInMappedNodes = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
+		this.declaredLocalVariablesInMappedNodesWithinAnonymousClass = new LinkedHashMap<VariableBindingKeyPair, ArrayList<AbstractVariable>>();
 		this.directlyAccessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
 		this.directlyAccessedLocalFieldsG2 = new LinkedHashSet<AbstractVariable>();
 		this.indirectlyAccessedLocalFieldsG1 = new LinkedHashSet<AbstractVariable>();
@@ -526,6 +528,7 @@ public class PreconditionExaminer {
 			PDGNode nodeG1 = nodeMapping.getNodeG1();
 			PDGNode nodeG2 = nodeMapping.getNodeG2();
 			List<AbstractVariable> nonAnonymousDeclaredVariablesG1 = new ArrayList<AbstractVariable>();
+			List<AbstractVariable> anonymousDeclaredVariablesG1 = new ArrayList<AbstractVariable>();
 			Iterator<AbstractVariable> declaredVariableIteratorG1 = nodeG1.getDeclaredVariableIterator();
 			while(declaredVariableIteratorG1.hasNext()) {
 				AbstractVariable declaredVariableG1 = declaredVariableIteratorG1.next();
@@ -536,10 +539,14 @@ public class PreconditionExaminer {
 						if(!declaredVariableBinding.getDeclaringMethod().getDeclaringClass().isAnonymous()) {
 							nonAnonymousDeclaredVariablesG1.add(declaredVariableG1);
 						}
+						else {
+							anonymousDeclaredVariablesG1.add(declaredVariableG1);
+						}
 					}
 				}
 			}
 			List<AbstractVariable> nonAnonymousDeclaredVariablesG2 = new ArrayList<AbstractVariable>();
+			List<AbstractVariable> anonymousDeclaredVariablesG2 = new ArrayList<AbstractVariable>();
 			Iterator<AbstractVariable> declaredVariableIteratorG2 = nodeG2.getDeclaredVariableIterator();
 			while(declaredVariableIteratorG2.hasNext()) {
 				AbstractVariable declaredVariableG2 = declaredVariableIteratorG2.next();
@@ -549,6 +556,9 @@ public class PreconditionExaminer {
 					if(declaredVariableBinding.getKey().equals(key2)) {
 						if(!declaredVariableBinding.getDeclaringMethod().getDeclaringClass().isAnonymous()) {
 							nonAnonymousDeclaredVariablesG2.add(declaredVariableG2);
+						}
+						else {
+							anonymousDeclaredVariablesG2.add(declaredVariableG2);
 						}
 					}
 				}
@@ -563,6 +573,17 @@ public class PreconditionExaminer {
 				VariableBindingKeyPair keyPair = new VariableBindingKeyPair(declaredVariableG1.getVariableBindingKey(),
 						declaredVariableG2.getVariableBindingKey());
 				declaredLocalVariablesInMappedNodes.put(keyPair, declaredVariables);
+			}
+			int min2 = Math.min(anonymousDeclaredVariablesG1.size(), anonymousDeclaredVariablesG2.size());
+			for(int i=0; i<min2; i++) {
+				AbstractVariable declaredVariableG1 = anonymousDeclaredVariablesG1.get(i);
+				AbstractVariable declaredVariableG2 = anonymousDeclaredVariablesG2.get(i);
+				ArrayList<AbstractVariable> declaredVariables = new ArrayList<AbstractVariable>();
+				declaredVariables.add(declaredVariableG1);
+				declaredVariables.add(declaredVariableG2);
+				VariableBindingKeyPair keyPair = new VariableBindingKeyPair(declaredVariableG1.getVariableBindingKey(),
+						declaredVariableG2.getVariableBindingKey());
+				declaredLocalVariablesInMappedNodesWithinAnonymousClass.put(keyPair, declaredVariables);
 			}
 			Set<AbstractVariable> dataDependences1 = nodeG1.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
 			Set<AbstractVariable> dataDependences2 = nodeG2.incomingDataDependencesFromNodesDeclaringOrDefiningVariables();
@@ -1348,7 +1369,11 @@ public class PreconditionExaminer {
 		}
 		return declaredVariables;
 	}
-	
+
+	public Set<VariableBindingKeyPair> getDeclaredLocalVariablesInMappedNodesWithinAnonymousClass() {
+		return declaredLocalVariablesInMappedNodesWithinAnonymousClass.keySet();
+	}
+
 	public Set<VariableDeclaration> getDeclaredLocalVariablesInAdditionallyMatchedNodesG1() {
 		Set<VariableDeclaration> declaredVariables = new LinkedHashSet<VariableDeclaration>();
 		Set<VariableDeclaration> variableDeclarationsAndAccessedFieldsInMethod1 = pdg1.getVariableDeclarationsAndAccessedFieldsInMethod();
@@ -1465,8 +1490,8 @@ public class PreconditionExaminer {
 							IMethodBinding declaringMethod2 = variableBinding2.getDeclaringMethod();
 							IMethodBinding  method1 = pdg1.getMethod().getMethodDeclaration().resolveBinding();
 							IMethodBinding  method2 = pdg2.getMethod().getMethodDeclaration().resolveBinding();
-							if(declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
-									declaringMethod2 != null && declaringMethod2.isEqualTo(method2) &&
+							if(/*declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
+									declaringMethod2 != null && declaringMethod2.isEqualTo(method2) &&*/
 									!alreadyContainsOneOfTheKeys(variableNameMismatches, nodeDifference.getBindingSignaturePair())) {
 								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
 							}

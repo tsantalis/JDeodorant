@@ -332,15 +332,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		initialize();
 		extractClone();
 		if(status.getEntries().length == 0) {
-			boolean singleSourceCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
-			if(singleSourceCompilationUnit) {
+			boolean bothClonesInTheSameCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
+			if(bothClonesInTheSameCompilationUnit) {
 				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
 			}
 			for(int i=0; i<sourceCompilationUnits.size(); i++) {
 				modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
 						constructorsToBeCopiedInSubclasses.get(i), accessedFieldDeclarationsToBeReplacedWithGetter.get(i), assignedFieldDeclarationsToBeReplacedWithSetter.get(i));
-				if(!singleSourceCompilationUnit) {
-					modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
+				if(!bothClonesInTheSameCompilationUnit) {
+					boolean cloneBelongsToTheCommonSuperclass = sourceCompilationUnits.get(i).getJavaElement().equals(cloneInfo.sourceCompilationUnit.getJavaElement());
+					modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), cloneBelongsToTheCommonSuperclass);
 				}
 				modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 						remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
@@ -715,13 +716,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 																typeBindings.add(argumentTypeBinding);
 																Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
 																intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-																String typeName = argumentTypeBinding.getName();
+																String typeName = null;
+																if(argumentTypeBinding.isArray()) {
+																	typeName = argumentTypeBinding.getElementType().getName();
+																}
+																else if(argumentTypeBinding.isParameterizedType()) {
+																	typeName = argumentTypeBinding.getErasure().getName();
+																}
+																else {
+																	typeName = argumentTypeBinding.getName();
+																}
 																String parameterName = null;
 																if(argumentTypeBinding.isPrimitive()) {
 																	parameterName = Character.toString(typeName.charAt(0));
 																}
 																else if(typeName.equals("Class")) {
-																	parameterName = Character.toString(Character.toLowerCase(typeName.charAt(0)));
+																	parameterName = "clazz";
 																}
 																else {
 																	parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
@@ -4106,7 +4116,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean singleSourceCompilationUnit) {
+	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean reuseImportRewrite) {
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
@@ -4126,7 +4136,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					importRewrite.addImport(typeBinding);
 			}
 			
-			if(singleSourceCompilationUnit) {
+			if(reuseImportRewrite) {
 				cloneInfo.importRewrite = importRewrite;
 			}
 			else {

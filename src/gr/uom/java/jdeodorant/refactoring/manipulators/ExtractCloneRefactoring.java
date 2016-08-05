@@ -2496,13 +2496,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				int occurrencesInStatement2 = 0;
 				for(Expression expression : simpleNames1) {
 					SimpleName simpleName = (SimpleName)expression;
-					if(simpleName.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
+					IBinding binding = simpleName.resolveBinding();
+					if(binding != null && binding.isEqualTo(variableDeclaration1.resolveBinding())) {
 						occurrencesInStatement1++;
 					}
 				}
 				for(Expression expression : simpleNames2) {
 					SimpleName simpleName = (SimpleName)expression;
-					if(simpleName.resolveBinding().isEqualTo(variableDeclaration2.resolveBinding())) {
+					IBinding binding = simpleName.resolveBinding();
+					if(binding != null && binding.isEqualTo(variableDeclaration2.resolveBinding())) {
 						occurrencesInStatement2++;
 					}
 				}
@@ -4555,6 +4557,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}*/
 		//place the code in the parent block of the first removable node
 		Statement firstStatement = /*nodesToBeRemoved*/removableNodes.first().getASTStatement();
+		if(firstStatement.getParent() instanceof LabeledStatement) {
+			firstStatement = (LabeledStatement)firstStatement.getParent();
+		}
 		ListRewrite blockRewrite = null;
 		if(firstStatement.getParent() instanceof Block) {
 			Block parentBlock = (Block)firstStatement.getParent();

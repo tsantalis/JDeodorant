@@ -87,8 +87,10 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
+import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
+import org.eclipse.jdt.core.dom.ChildListPropertyDescriptor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -1632,12 +1634,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return constructor;
 	}
 
-	private void updateAccessModifier(MethodDeclaration methodDeclaration, Modifier.ModifierKeyword modifierKeyword) {
-		AST ast = methodDeclaration.getAST();
+	private void updateAccessModifier(BodyDeclaration bodyDeclaration, Modifier.ModifierKeyword modifierKeyword) {
+		ChildListPropertyDescriptor modifiersChildListPropertyDescriptor = null;
+		if(bodyDeclaration instanceof MethodDeclaration) {
+			modifiersChildListPropertyDescriptor = MethodDeclaration.MODIFIERS2_PROPERTY;
+		}
+		else if(bodyDeclaration instanceof FieldDeclaration) {
+			modifiersChildListPropertyDescriptor = FieldDeclaration.MODIFIERS2_PROPERTY;
+		}
+		AST ast = bodyDeclaration.getAST();
 		ASTRewrite rewriter = ASTRewrite.create(ast);
-		CompilationUnit compilationUnit = findCompilationUnit(methodDeclaration);
-		ListRewrite modifiersRewrite = rewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-		List<IExtendedModifier> originalModifiers = methodDeclaration.modifiers();
+		CompilationUnit compilationUnit = findCompilationUnit(bodyDeclaration);
+		ListRewrite modifiersRewrite = rewriter.getListRewrite(bodyDeclaration, modifiersChildListPropertyDescriptor);
+		List<IExtendedModifier> originalModifiers = bodyDeclaration.modifiers();
 		boolean accessModifierFound = false;
 		for(IExtendedModifier extendedModifier : originalModifiers) {
 			if(extendedModifier.isModifier()) {
@@ -2058,6 +2067,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									}
 								}
 								bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
+							}
+							else if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								if((originalFieldDeclarationG1.getModifiers() & Modifier.PROTECTED) == 0 && (originalFieldDeclarationG1.getModifiers() & Modifier.PUBLIC) == 0) {
+									updateAccessModifier(originalFieldDeclarationG1, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+								}
+							}
+							else if(sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								if((originalFieldDeclarationG2.getModifiers() & Modifier.PROTECTED) == 0 && (originalFieldDeclarationG2.getModifiers() & Modifier.PUBLIC) == 0) {
+									updateAccessModifier(originalFieldDeclarationG2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
+								}
 							}
 						}
 						else {

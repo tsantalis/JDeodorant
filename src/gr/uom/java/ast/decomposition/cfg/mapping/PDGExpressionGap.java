@@ -15,6 +15,7 @@ import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.ThrownExceptionVisitor;
 
@@ -62,6 +63,14 @@ public class PDGExpressionGap extends Gap {
 	public ITypeBinding getReturnType() {
 		ITypeBinding typeBinding1 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression1().getExpression()).resolveTypeBinding();
 		ITypeBinding typeBinding2 = ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(difference.getExpression2().getExpression()).resolveTypeBinding();
+		if(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference) {
+			if(typeBinding1.getQualifiedName().equals("void")) {
+				return typeBinding1;
+			}
+			if(typeBinding2.getQualifiedName().equals("void")) {
+				return typeBinding2;
+			}
+		}
 		if(typeBinding1 != null && typeBinding2 != null) {
 			if(typeBinding1.getQualifiedName().equals("null") && !typeBinding2.getQualifiedName().equals("null")) {
 				return typeBinding2;

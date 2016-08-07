@@ -1989,7 +1989,7 @@ public class PreconditionExaminer {
 		return null;
 	}
 
-	private Set<PDGNode> extractConditionalReturnStatements(Set<? extends GraphNode> nodes) {
+	public static Set<PDGNode> extractConditionalReturnStatements(Set<? extends GraphNode> nodes) {
 		Set<PDGNode> conditionalReturnStatements = new TreeSet<PDGNode>();
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;
@@ -2008,7 +2008,7 @@ public class PreconditionExaminer {
 		return conditionalReturnStatements;
 	}
 
-	private Set<PDGNode> extractReturnStatementsAfterId(Set<? extends GraphNode> nodes, int id) {
+	public static Set<PDGNode> extractReturnStatementsAfterId(Set<? extends GraphNode> nodes, int id) {
 		Set<PDGNode> returnStatements = new TreeSet<PDGNode>();
 		for(GraphNode node : nodes) {
 			PDGNode pdgNode = (PDGNode)node;

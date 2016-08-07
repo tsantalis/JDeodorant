@@ -10,6 +10,7 @@ import gr.uom.java.ast.decomposition.cfg.CFGContinueNode;
 import gr.uom.java.ast.decomposition.cfg.CFGNode;
 import gr.uom.java.ast.decomposition.cfg.GraphEdge;
 import gr.uom.java.ast.decomposition.cfg.PDGBlockNode;
+import gr.uom.java.ast.decomposition.cfg.PDGControlDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGDataDependence;
 import gr.uom.java.ast.decomposition.cfg.PDGDependence;
@@ -258,11 +259,33 @@ public class PDGNodeBlockGap extends Gap {
 	}
 
 	public ITypeBinding getReturnTypeBindingFromReturnStatementG1() {
-		return getReturnTypeBindingFromReturnStatement(nodesG1);
+		TreeSet<PDGNode> nodesInBlock1 = new TreeSet<PDGNode>(nodesG1);
+		for(PDGNode nodeG1 : nodesG1) {
+			Iterator<GraphEdge> iterator = nodeG1.getOutgoingDependenceIterator();
+			while(iterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)iterator.next();
+				if(dependence instanceof PDGControlDependence) {
+					PDGNode dstNode = (PDGNode)dependence.getDst();
+					nodesInBlock1.add(dstNode);
+				}
+			}
+		}
+		return getReturnTypeBindingFromReturnStatement(nodesInBlock1);
 	}
 
 	public ITypeBinding getReturnTypeBindingFromReturnStatementG2() {
-		return getReturnTypeBindingFromReturnStatement(nodesG2);
+		TreeSet<PDGNode> nodesInBlock2 = new TreeSet<PDGNode>(nodesG2);
+		for(PDGNode nodeG2 : nodesG2) {
+			Iterator<GraphEdge> iterator = nodeG2.getOutgoingDependenceIterator();
+			while(iterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)iterator.next();
+				if(dependence instanceof PDGControlDependence) {
+					PDGNode dstNode = (PDGNode)dependence.getDst();
+					nodesInBlock2.add(dstNode);
+				}
+			}
+		}
+		return getReturnTypeBindingFromReturnStatement(nodesInBlock2);
 	}
 
 	private Set<IVariableBinding> getUsedVariableBindings(Set<PDGNode> nodes) {
@@ -524,7 +547,57 @@ public class PDGNodeBlockGap extends Gap {
 		if(branchStatementWithoutInnermostLoop(nodesG1) || branchStatementWithoutInnermostLoop(nodesG2)) {
 			return false;
 		}
+		if(notAllPossibleExecutionFlowsEndInReturn()) {
+			return false;
+		}
 		return true;
+	}
+
+	private boolean notAllPossibleExecutionFlowsEndInReturn() {
+		Set<PDGNode> allNodesUnderParentG1 = parent.getDescendantNodesG1();
+		Set<PDGNode> allNodesUnderParentG2 = parent.getDescendantNodesG2();
+		TreeSet<PDGNode> nodesInBlock1 = new TreeSet<PDGNode>(nodesG1);
+		for(PDGNode nodeG1 : nodesG1) {
+			Iterator<GraphEdge> iterator = nodeG1.getOutgoingDependenceIterator();
+			while(iterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)iterator.next();
+				if(dependence instanceof PDGControlDependence) {
+					PDGNode dstNode = (PDGNode)dependence.getDst();
+					nodesInBlock1.add(dstNode);
+				}
+			}
+		}
+		TreeSet<PDGNode> nodesInBlock2 = new TreeSet<PDGNode>(nodesG2);
+		for(PDGNode nodeG2 : nodesG2) {
+			Iterator<GraphEdge> iterator = nodeG2.getOutgoingDependenceIterator();
+			while(iterator.hasNext()) {
+				PDGDependence dependence = (PDGDependence)iterator.next();
+				if(dependence instanceof PDGControlDependence) {
+					PDGNode dstNode = (PDGNode)dependence.getDst();
+					nodesInBlock2.add(dstNode);
+				}
+			}
+		}
+		Set<PDGNode> allConditionalReturnStatements1 = PreconditionExaminer.extractConditionalReturnStatements(allNodesUnderParentG1);
+		Set<PDGNode> allConditionalReturnStatements2 = PreconditionExaminer.extractConditionalReturnStatements(allNodesUnderParentG2);
+		Set<PDGNode> conditionalReturnStatementsInsideBlock1 = PreconditionExaminer.extractConditionalReturnStatements(nodesInBlock1);
+		Set<PDGNode> conditionalReturnStatementsInsideBlock2 = PreconditionExaminer.extractConditionalReturnStatements(nodesInBlock2);
+		Set<PDGNode> returnStatementsAfterBlockNodes1 = nodesInBlock1.isEmpty() ? new TreeSet<PDGNode>() : PreconditionExaminer.extractReturnStatementsAfterId(allNodesUnderParentG1, nodesInBlock1.last().getId());
+		Set<PDGNode> returnStatementsAfterBlockNodes2 = nodesInBlock2.isEmpty() ? new TreeSet<PDGNode>() : PreconditionExaminer.extractReturnStatementsAfterId(allNodesUnderParentG2, nodesInBlock2.last().getId());
+		boolean notAllPossibleExecutionFlowsEndInReturn = false;
+		ITypeBinding returnTypeBinding = getReturnType();
+		if(returnTypeBinding != null && !parent.containsMappedReturnStatementInDirectChildren() && !parent.lastIfElseIfChainContainsReturnOrThrowStatements()) {
+			notAllPossibleExecutionFlowsEndInReturn = true;
+		}
+		if((conditionalReturnStatementsInsideBlock1.size() > 0 && allConditionalReturnStatements1.size() > conditionalReturnStatementsInsideBlock1.size()) ||
+				(conditionalReturnStatementsInsideBlock1.size() > 0 && returnStatementsAfterBlockNodes1.size() > 0) ||
+				(conditionalReturnStatementsInsideBlock1.size() > 0 && notAllPossibleExecutionFlowsEndInReturn) ||
+				(conditionalReturnStatementsInsideBlock2.size() > 0 && allConditionalReturnStatements2.size() > conditionalReturnStatementsInsideBlock2.size()) ||
+				(conditionalReturnStatementsInsideBlock2.size() > 0 && returnStatementsAfterBlockNodes2.size() > 0) ||
+				(conditionalReturnStatementsInsideBlock2.size() > 0 && notAllPossibleExecutionFlowsEndInReturn) ) {
+			return true;
+		}
+		return false;
 	}
 
 	private boolean branchStatementWithoutInnermostLoop(Set<PDGNode> nodes) {

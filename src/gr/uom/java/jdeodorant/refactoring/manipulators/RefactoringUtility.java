@@ -68,6 +68,9 @@ public class RefactoringUtility {
 				rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
 			}
 		}
+		else if(typeBinding.isTypeVariable()) {
+			type = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
+		}
 		return type;
 	}
 
@@ -131,6 +134,9 @@ public class RefactoringUtility {
 			if(typeBinding.isUpperbound()) {
 				rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
 			}
+		}
+		else if(typeBinding.isTypeVariable()) {
+			type = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
 		}
 		return type;
 	}

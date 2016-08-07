@@ -320,15 +320,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		initialize();
 		extractClone();
 		if(status.getEntries().length == 0) {
-			boolean singleSourceCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
-			if(singleSourceCompilationUnit) {
+			boolean bothClonesInTheSameCompilationUnit = sourceCompilationUnits.get(0).equals(sourceCompilationUnits.get(1));
+			if(bothClonesInTheSameCompilationUnit) {
 				modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(0), true);
 			}
 			for(int i=0; i<sourceCompilationUnits.size(); i++) {
 				modifySourceClass(sourceCompilationUnits.get(i), sourceTypeDeclarations.get(i), fieldDeclarationsToBePulledUp.get(i), methodDeclarationsToBePulledUp.get(i),
 						constructorsToBeCopiedInSubclasses.get(i), accessedFieldDeclarationsToBeReplacedWithGetter.get(i), assignedFieldDeclarationsToBeReplacedWithSetter.get(i));
-				if(!singleSourceCompilationUnit) {
-					modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), false);
+				if(!bothClonesInTheSameCompilationUnit) {
+					boolean cloneBelongsToTheCommonSuperclass = sourceCompilationUnits.get(i).getJavaElement().equals(cloneInfo.sourceCompilationUnit.getJavaElement());
+					modifySourceCompilationUnitImportDeclarations(sourceCompilationUnits.get(i), cloneBelongsToTheCommonSuperclass);
 				}
 				modifySourceMethod(sourceCompilationUnits.get(i), sourceMethodDeclarations.get(i), removableStatements.get(i),
 						remainingStatementsMovableBefore.get(i), remainingStatementsMovableAfter.get(i), returnedVariables.get(i), fieldDeclarationsToBeParameterized.get(i), i);
@@ -703,13 +704,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 																typeBindings.add(argumentTypeBinding);
 																Type parameterType = RefactoringUtility.generateTypeFromTypeBinding(argumentTypeBinding, intermediateAST, intermediateRewriter);
 																intermediateRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
-																String typeName = argumentTypeBinding.getName();
+																String typeName = null;
+																if(argumentTypeBinding.isArray()) {
+																	typeName = argumentTypeBinding.getElementType().getName();
+																}
+																else if(argumentTypeBinding.isParameterizedType()) {
+																	typeName = argumentTypeBinding.getErasure().getName();
+																}
+																else {
+																	typeName = argumentTypeBinding.getName();
+																}
 																String parameterName = null;
 																if(argumentTypeBinding.isPrimitive()) {
 																	parameterName = Character.toString(typeName.charAt(0));
 																}
 																else if(typeName.equals("Class")) {
-																	parameterName = Character.toString(Character.toLowerCase(typeName.charAt(0)));
+																	parameterName = "clazz";
 																}
 																else {
 																	parameterName = typeName.replaceFirst(Character.toString(typeName.charAt(0)), Character.toString(Character.toLowerCase(typeName.charAt(0))));
@@ -1230,9 +1240,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(difference.containsDifferenceType(DifferenceType.SUBCLASS_TYPE_MISMATCH) || difference.containsDifferenceType(DifferenceType.METHOD_INVOCATION_NAME_MISMATCH) ||
 						difference.containsDifferenceType(DifferenceType.ARGUMENT_NUMBER_MISMATCH) || differenceContainsSubDifferenceWithSubclassTypeMismatch(difference)) {
 					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-						if(commonSuperTypeBinding != null) {
-							typeBinding = commonSuperTypeBinding;
+						if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
+							typeBinding = typeBinding1.getErasure();
+						}
+						else {
+							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+							if(commonSuperTypeBinding != null) {
+								typeBinding = commonSuperTypeBinding;
+							}
 						}
 					}
 					else {
@@ -2388,13 +2403,15 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				int occurrencesInStatement2 = 0;
 				for(Expression expression : simpleNames1) {
 					SimpleName simpleName = (SimpleName)expression;
-					if(simpleName.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
+					IBinding binding = simpleName.resolveBinding();
+					if(binding != null && binding.isEqualTo(variableDeclaration1.resolveBinding())) {
 						occurrencesInStatement1++;
 					}
 				}
 				for(Expression expression : simpleNames2) {
 					SimpleName simpleName = (SimpleName)expression;
-					if(simpleName.resolveBinding().isEqualTo(variableDeclaration2.resolveBinding())) {
+					IBinding binding = simpleName.resolveBinding();
+					if(binding != null && binding.isEqualTo(variableDeclaration2.resolveBinding())) {
 						occurrencesInStatement2++;
 					}
 				}
@@ -3944,7 +3961,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 	}
 
-	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean singleSourceCompilationUnit) {
+	private void modifySourceCompilationUnitImportDeclarations(CompilationUnit compilationUnit, boolean reuseImportRewrite) {
 		try {
 			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
 			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
@@ -3964,7 +3981,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					importRewrite.addImport(typeBinding);
 			}
 			
-			if(singleSourceCompilationUnit) {
+			if(reuseImportRewrite) {
 				cloneInfo.importRewrite = importRewrite;
 			}
 			else {
@@ -4371,6 +4388,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}*/
 		//place the code in the parent block of the first removable node
 		Statement firstStatement = /*nodesToBeRemoved*/removableNodes.first().getASTStatement();
+		if(firstStatement.getParent() instanceof LabeledStatement) {
+			firstStatement = (LabeledStatement)firstStatement.getParent();
+		}
 		ListRewrite blockRewrite = null;
 		if(firstStatement.getParent() instanceof Block) {
 			Block parentBlock = (Block)firstStatement.getParent();

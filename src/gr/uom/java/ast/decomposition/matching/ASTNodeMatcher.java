@@ -28,6 +28,7 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.math.LevenshteinDistance;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -624,7 +625,10 @@ public class ASTNodeMatcher extends ASTMatcher{
 	}
 
 	private boolean overloadedMethods(IMethodBinding methodBinding1, IMethodBinding methodBinding2) {
-		return methodBinding1.getDeclaringClass().isEqualTo(methodBinding2.getDeclaringClass()) && methodBinding1.getName().equals(methodBinding2.getName());
+		List<ITypeBinding> parameterTypes1 = new ArrayList<ITypeBinding>(Arrays.asList(methodBinding1.getParameterTypes()));
+		List<ITypeBinding> parameterTypes2 = new ArrayList<ITypeBinding>(Arrays.asList(methodBinding2.getParameterTypes()));
+		return methodBinding1.getDeclaringClass().isEqualTo(methodBinding2.getDeclaringClass()) && methodBinding1.getName().equals(methodBinding2.getName()) &&
+				(parameterTypes1.containsAll(parameterTypes2) || parameterTypes2.containsAll(parameterTypes1));
 	}
 
 	public boolean match(ArrayAccess node, Object other) {

@@ -1923,8 +1923,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&
 						!fieldDeclarationsToBePulledUp.get(0).contains(localFieldG1) && !fieldDeclarationsToBePulledUp.get(1).contains(localFieldG2)) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) /*||
-							(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))*/) {
+					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && sameInitializers(localFieldG1, localFieldG2)) {
 						/*String innerTypeName = null;
 						if(!originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 							//check if the types of the fields are inner types
@@ -2182,7 +2181,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 					else {
 						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-						if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
+						if(ASTNodeMatcher.validCommonSuperType(commonSuperType) || !sameInitializers(localFieldG1, localFieldG2)) {
 							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2193,6 +2192,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+	}
+
+	private boolean sameInitializers(VariableDeclaration localFieldG1, VariableDeclaration localFieldG2) {
+		return (localFieldG1.getInitializer() == null && localFieldG2.getInitializer() == null) || 
+				(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null &&
+				localFieldG1.getInitializer().subtreeMatch(new ASTMatcher(), localFieldG2.getInitializer()));
 	}
 
 	private boolean implementsSerializableInterface(ITypeBinding typeBinding) {

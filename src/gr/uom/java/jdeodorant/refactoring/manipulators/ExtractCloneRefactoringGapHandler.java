@@ -767,8 +767,8 @@ public class ExtractCloneRefactoringGapHandler {
 	public boolean requiresFunctionImport() {
 		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
 			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
-			Expression expression = expressionGap.getASTNodeDifference().getExpression1().getExpression();
-			if(parameters.size() == 1 && !expression.resolveTypeBinding().getName().equals("void") && expressionGap.getThrownExceptions().isEmpty()) {
+			ITypeBinding returnTypeBinding = expressionGap.getReturnType();
+			if(parameters.size() == 1 && !returnTypeBinding.getName().equals("void") && expressionGap.getThrownExceptions().isEmpty()) {
 				return true;
 			}
 		}
@@ -785,8 +785,8 @@ public class ExtractCloneRefactoringGapHandler {
 	public boolean requiresSupplierImport() {
 		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
 			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
-			Expression expression = expressionGap.getASTNodeDifference().getExpression1().getExpression();
-			if(parameters.size() == 0 && !expression.resolveTypeBinding().getName().equals("void") && expressionGap.getThrownExceptions().isEmpty()) {
+			ITypeBinding returnTypeBinding = expressionGap.getReturnType();
+			if(parameters.size() == 0 && !returnTypeBinding.getName().equals("void") && expressionGap.getThrownExceptions().isEmpty()) {
 				return true;
 			}
 		}
@@ -803,8 +803,8 @@ public class ExtractCloneRefactoringGapHandler {
 	public boolean requiresConsumerImport() {
 		for(PDGExpressionGap expressionGap : mapper.getRefactorableExpressionGaps()) {
 			Set<VariableBindingPair> parameters = expressionGap.getParameterBindings();
-			Expression expression = expressionGap.getASTNodeDifference().getExpression1().getExpression();
-			if(parameters.size() == 1 && expression.resolveTypeBinding().getName().equals("void") && expressionGap.getThrownExceptions().isEmpty()) {
+			ITypeBinding returnTypeBinding = expressionGap.getReturnType();
+			if(parameters.size() == 1 && returnTypeBinding.getName().equals("void") && expressionGap.getThrownExceptions().isEmpty()) {
 				return true;
 			}
 		}
@@ -864,9 +864,9 @@ public class ExtractCloneRefactoringGapHandler {
 			PDGExpressionGap expressionGap = findExpressionGapContainingDifference(argumentDifference);
 			Set<ITypeBinding> thrownExceptionTypeBindings = expressionGap.getThrownExceptions();
 			String methodName = null;
-			Expression expression = argumentDifference.getExpression1().getExpression();
+			ITypeBinding returnTypeBinding = expressionGap.getReturnType();
 			if(parameterTypeBindings.size() == 1 && thrownExceptionTypeBindings.isEmpty()) {
-				if(!expression.resolveTypeBinding().getName().equals("void")) {
+				if(!returnTypeBinding.getName().equals("void")) {
 					//the expression has a type that is not void, and thus a Function will be created with 1 parameter
 					methodName = "apply";
 				}
@@ -875,7 +875,7 @@ public class ExtractCloneRefactoringGapHandler {
 					methodName = "accept";
 				}
 			}
-			else if(parameterTypeBindings.size() == 0 && !expression.resolveTypeBinding().getName().equals("void") && thrownExceptionTypeBindings.isEmpty()) {
+			else if(parameterTypeBindings.size() == 0 && !returnTypeBinding.getName().equals("void") && thrownExceptionTypeBindings.isEmpty()) {
 				//the expression has a type that is not void, and thus a Supplier will be created with 0 parameters
 				methodName = "get";
 			}
@@ -891,11 +891,11 @@ public class ExtractCloneRefactoringGapHandler {
 				argumentRewrite.insertLast(ast.newSimpleName(variableBinding.getName()), null);
 			}
 			sourceRewriter.set(interfaceMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, argument, null);
-			boolean castToPrimitive = expression.resolveTypeBinding().isPrimitive() && !expression.resolveTypeBinding().getName().equals("void") && parameterTypeBindings.size() <= 1;
+			boolean castToPrimitive = returnTypeBinding.isPrimitive() && !returnTypeBinding.getName().equals("void") && parameterTypeBindings.size() <= 1;
 			if(castToPrimitive) {
 				CastExpression castExpression = ast.newCastExpression();
 				sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, interfaceMethodInvocation, null);
-				Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(expression.resolveTypeBinding(), ast, sourceRewriter);
+				Type primitiveType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
 				sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, primitiveType, null);
 				return castExpression;
 			}

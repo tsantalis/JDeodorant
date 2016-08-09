@@ -1083,9 +1083,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					ITypeBinding typeBinding2 = extractTypeBinding(variableDeclaration2);
 					ITypeBinding typeBinding = null;
 					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-						if(commonSuperTypeBinding != null) {
-							typeBinding = commonSuperTypeBinding;
+						if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
+							typeBinding = typeBinding1.getErasure();
+						}
+						else {
+							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+							if(commonSuperTypeBinding != null) {
+								typeBinding = commonSuperTypeBinding;
+							}
 						}
 					}
 					else {
@@ -1351,9 +1356,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				ITypeBinding typeBinding2 = variableDeclaration2.resolveBinding().getType();
 				ITypeBinding typeBinding = null;
 				if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-					if(commonSuperTypeBinding != null) {
-						typeBinding = commonSuperTypeBinding;
+					if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
+						typeBinding = typeBinding1.getErasure();
+					}
+					else {
+						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+						if(commonSuperTypeBinding != null) {
+							typeBinding = commonSuperTypeBinding;
+						}
 					}
 				}
 				else {

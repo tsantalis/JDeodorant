@@ -81,6 +81,9 @@ public class PDGExpressionGap extends Gap {
 			else if(typeBinding1.isEqualTo(typeBinding2)) {
 				return typeBinding1;
 			}
+			else if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
+				return typeBinding1.getErasure();
+			}
 			else {
 				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 				return typeBinding;

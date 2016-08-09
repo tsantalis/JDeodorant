@@ -427,11 +427,16 @@ public class PDGNodeBlockGap extends Gap {
 		if(returnedVariableBinding != null) {
 			IVariableBinding returnedVariable1 = returnedVariableBinding.getBinding1();
 			IVariableBinding returnedVariable2 = returnedVariableBinding.getBinding2();
-			if(returnedVariable1.getType().isEqualTo(returnedVariable2.getType()) && returnedVariable1.getType().getQualifiedName().equals(returnedVariable2.getType().getQualifiedName())) {
-				return returnedVariable1.getType();
+			ITypeBinding returnTypeBinding1 = returnedVariable1.getType();
+			ITypeBinding returnTypeBinding2 = returnedVariable2.getType();
+			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName())) {
+				return returnTypeBinding1;
+			}
+			else if(returnTypeBinding1.isParameterizedType() && returnTypeBinding2.isParameterizedType() && returnTypeBinding1.getErasure().isEqualTo(returnTypeBinding2.getErasure())) {
+				return returnTypeBinding1.getErasure();
 			}
 			else {
-				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnedVariable1.getType(), returnedVariable2.getType());
+				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
 				return typeBinding;
 			}
 		}
@@ -440,6 +445,9 @@ public class PDGNodeBlockGap extends Gap {
 		if(returnTypeBinding1 != null && returnTypeBinding2 != null) {
 			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName())) {
 				return returnTypeBinding1;
+			}
+			else if(returnTypeBinding1.isParameterizedType() && returnTypeBinding2.isParameterizedType() && returnTypeBinding1.getErasure().isEqualTo(returnTypeBinding2.getErasure())) {
+				return returnTypeBinding1.getErasure();
 			}
 			else {
 				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);

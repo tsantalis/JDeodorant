@@ -2118,13 +2118,22 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						break;
 					}
 					else {
-						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-						if(ASTNodeMatcher.validCommonSuperType(commonSuperType) || !sameInitializers(localFieldG1, localFieldG2)) {
+						if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && !sameInitializers(localFieldG1, localFieldG2)) {
 							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(commonSuperType);
+							typeBindings.add(originalFieldDeclarationG1.getType().resolveBinding());
 							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+						}
+						else {
+							ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
+							if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
+								fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
+								fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
+								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+								typeBindings.add(commonSuperType);
+								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+							}
 						}
 					}
 				}

@@ -1616,6 +1616,11 @@ public class ASTNodeMatcher extends ASTMatcher{
 					astNodeDifference.addDifference(diff);
 					addDifference(astNodeDifference);
 				}
+				else {
+					Difference diff = new Difference(node.toString(),other.toString(),DifferenceType.AST_TYPE_MISMATCH);
+					astNodeDifference.addDifference(diff);
+					addDifference(astNodeDifference);
+				}
 			}
 			else {
 				return true;

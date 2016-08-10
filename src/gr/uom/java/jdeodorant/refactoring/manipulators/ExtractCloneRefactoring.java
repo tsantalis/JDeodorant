@@ -49,6 +49,7 @@ import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.decomposition.matching.FieldAccessReplacedWithGetterInvocationDifference;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
+import gr.uom.java.ast.decomposition.matching.loop.EarliestStartPositionComparator;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.SuperMethodInvocationVisitor;
@@ -1071,9 +1072,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					ITypeBinding typeBinding2 = extractTypeBinding(variableDeclaration2);
 					ITypeBinding typeBinding = null;
 					if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-						if(commonSuperTypeBinding != null) {
-							typeBinding = commonSuperTypeBinding;
+						if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
+							typeBinding = typeBinding1.getErasure();
+						}
+						else {
+							ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+							if(commonSuperTypeBinding != null) {
+								typeBinding = commonSuperTypeBinding;
+							}
 						}
 					}
 					else {
@@ -1297,9 +1303,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				ITypeBinding typeBinding2 = variableDeclaration2.resolveBinding().getType();
 				ITypeBinding typeBinding = null;
 				if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-					if(commonSuperTypeBinding != null) {
-						typeBinding = commonSuperTypeBinding;
+					if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
+						typeBinding = typeBinding1.getErasure();
+					}
+					else {
+						ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+						if(commonSuperTypeBinding != null) {
+							typeBinding = commonSuperTypeBinding;
+						}
 					}
 				}
 				else {
@@ -1850,8 +1861,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&
 						!fieldDeclarationsToBePulledUp.get(0).contains(localFieldG1) && !fieldDeclarationsToBePulledUp.get(1).contains(localFieldG2)) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) /*||
-							(commonSuperType != null && !commonSuperType.getQualifiedName().equals("java.lang.Object"))*/) {
+					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && sameInitializers(localFieldG1, localFieldG2)) {
 						/*String innerTypeName = null;
 						if(!originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 							//check if the types of the fields are inner types
@@ -2109,7 +2119,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					}
 					else {
 						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-						if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
+						if(ASTNodeMatcher.validCommonSuperType(commonSuperType) || !sameInitializers(localFieldG1, localFieldG2)) {
 							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2120,6 +2130,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+	}
+
+	private boolean sameInitializers(VariableDeclaration localFieldG1, VariableDeclaration localFieldG2) {
+		return (localFieldG1.getInitializer() == null && localFieldG2.getInitializer() == null) || 
+				(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null &&
+				localFieldG1.getInitializer().subtreeMatch(new ASTMatcher(), localFieldG2.getInitializer()));
 	}
 
 	private boolean implementsSerializableInterface(ITypeBinding typeBinding) {
@@ -3963,11 +3979,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				removeMethodDeclaration(methodDeclaration, findTypeDeclaration(methodDeclaration), findCompilationUnit(methodDeclaration));
 			}
 		}
-		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
-			if(variableDeclaration.getRoot().equals(compilationUnit)) {
-				removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
-			}
-		}
+		removeFieldDeclarations(fieldDeclarationsToBePulledUp);
 		for(VariableDeclaration variableDeclaration : accessedFieldDeclarations) {
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
 				createGetterMethodDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
@@ -4175,48 +4187,69 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return accessorMethodName;
 	}
 
-	private void removeFieldDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
-		boolean found = false;
-		AST ast = typeDeclaration.getAST();
-		ASTRewrite rewriter = ASTRewrite.create(ast);
-		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
-		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-			ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
-			for(VariableDeclarationFragment fragment : fragments) {
-				if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-					found = true;
-					if(fragments.size() > 1) {
-						fragmentsRewrite.remove(fragment, null);
+	private void removeFieldDeclarations(Set<VariableDeclaration> variableDeclarations) {
+		TreeSet<VariableDeclaration> orderedFields = new TreeSet<VariableDeclaration>(new EarliestStartPositionComparator());
+		orderedFields.addAll(variableDeclarations);
+		List<TextEdit> textEdits = new ArrayList<TextEdit>();
+		for(VariableDeclaration variableDeclaration : orderedFields) {
+			TypeDeclaration typeDeclaration = findTypeDeclaration(variableDeclaration);
+			CompilationUnit compilationUnit = findCompilationUnit(variableDeclaration);
+			if(variableDeclaration.getRoot().equals(compilationUnit)) {
+				boolean found = false;
+				AST ast = typeDeclaration.getAST();
+				ASTRewrite rewriter = ASTRewrite.create(ast);
+				ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+				FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+				for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+					List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+					ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+							found = true;
+							if(fragments.size() > 1) {
+								fragmentsRewrite.remove(fragment, null);
+							}
+							else {
+								bodyRewrite.remove(fieldDeclaration, null);
+							}
+							break;
+						}
 					}
-					else {
-						bodyRewrite.remove(fieldDeclaration, null);
+					if(found)
+						break;
+				}
+				try {
+					TextEdit sourceEdit = rewriter.rewriteAST();
+					if(textEdits.size() > 0) {
+						TextEdit previousTextEdit = textEdits.get(textEdits.size()-1);
+						for(TextEdit previousChild : previousTextEdit.getChildren()) {
+							for(TextEdit currentChild : sourceEdit.getChildren()) {
+								if(currentChild.getOffset() == previousChild.getOffset() && currentChild.getLength() == previousChild.getLength()) {
+									sourceEdit.removeChild(currentChild);
+									break;
+								}
+							}
+						}
 					}
-					break;
+					textEdits.add(sourceEdit);
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					if(change == null) {
+						MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+						change = new CompilationUnitChange("", sourceICompilationUnit);
+						change.setEdit(sourceMultiTextEdit);
+						compilationUnitChanges.put(sourceICompilationUnit, change);
+					}
+					change.getEdit().addChild(sourceEdit);
+					String message = cloneInfo.extractUtilityClass ? "Move field to utility class" : "Pull up field to superclass";
+					change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
 				}
 			}
-			if(found)
-				break;
-		}
-		try {
-			TextEdit sourceEdit = rewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-			if(change == null) {
-				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
-				change = new CompilationUnitChange("", sourceICompilationUnit);
-				change.setEdit(sourceMultiTextEdit);
-				compilationUnitChanges.put(sourceICompilationUnit, change);
-			}
-			change.getEdit().addChild(sourceEdit);
-			String message = cloneInfo.extractUtilityClass ? "Move field to utility class" : "Pull up field to superclass";
-			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
-		} catch (JavaModelException e) {
-			e.printStackTrace();
 		}
 	}
-	
+
 	private TypeDeclaration findTypeDeclaration(ASTNode node) {
 		ASTNode parent = node.getParent();
 		while(parent != null) {

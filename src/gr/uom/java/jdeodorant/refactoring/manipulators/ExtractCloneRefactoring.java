@@ -488,6 +488,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		this.cloneInfo = new CloneInformation();
 		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
 		ITypeBinding commonSuperTypeOfSourceTypeDeclarations = null;
+		ITypeBinding declaringClass1 = sourceTypeDeclarations.get(0).resolveBinding().getDeclaringClass();
+		ITypeBinding declaringClass2 = sourceTypeDeclarations.get(1).resolveBinding().getDeclaringClass();
 		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclarations.get(1).resolveBinding()) &&
 				sourceTypeDeclarations.get(0).resolveBinding().getQualifiedName().equals(sourceTypeDeclarations.get(1).resolveBinding().getQualifiedName())) {
 			cloneInfo.sourceCompilationUnit = sourceCompilationUnits.get(0);
@@ -495,6 +497,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			cloneInfo.sourceTypeDeclaration = sourceTypeDeclarations.get(0);
 			cloneInfo.sourceRewriter = ASTRewrite.create(cloneInfo.sourceTypeDeclaration.getAST());
 			cloneInfo.ast = cloneInfo.sourceTypeDeclaration.getAST();
+		}
+		else if(declaringClass1 != null && declaringClass2 != null && declaringClass1.isEqualTo(declaringClass2) && declaringClass1.getQualifiedName().equals(declaringClass2.getQualifiedName())) {
+			cloneInfo.sourceCompilationUnit = sourceCompilationUnits.get(0);
+			cloneInfo.sourceICompilationUnit = (ICompilationUnit)cloneInfo.sourceCompilationUnit.getJavaElement();
+			List<AbstractTypeDeclaration> topLevelTypeDeclarations = cloneInfo.sourceCompilationUnit.types();
+			List<AbstractTypeDeclaration> allTypeDeclarations = new ArrayList<AbstractTypeDeclaration>();
+			for(AbstractTypeDeclaration abstractTypeDeclaration : topLevelTypeDeclarations) {
+				if(abstractTypeDeclaration instanceof TypeDeclaration) {
+					TypeDeclaration topLevelTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					allTypeDeclarations.add(topLevelTypeDeclaration);
+					allTypeDeclarations.addAll(ASTReader.getRecursivelyInnerTypes(topLevelTypeDeclaration));
+				}
+			}
+			for(AbstractTypeDeclaration abstractTypeDeclaration : allTypeDeclarations) {
+				if(abstractTypeDeclaration instanceof TypeDeclaration) {
+					TypeDeclaration typeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					cloneInfo.sourceTypeDeclaration = typeDeclaration;
+					cloneInfo.sourceRewriter = ASTRewrite.create(cloneInfo.sourceTypeDeclaration.getAST());
+					cloneInfo.ast = cloneInfo.sourceTypeDeclaration.getAST();
+					break;
+				}
+			}
 		}
 		else {
 			//check if they have a common superclass
@@ -1921,7 +1945,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			for(VariableDeclaration localFieldG2 : allFieldsG2) {
 				FieldDeclaration originalFieldDeclarationG2 = (FieldDeclaration)localFieldG2.getParent();
 				if(localFieldG1.getName().getIdentifier().equals(localFieldG2.getName().getIdentifier()) &&
-						localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&
+						/*localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&*/
 						!fieldDeclarationsToBePulledUp.get(0).contains(localFieldG1) && !fieldDeclarationsToBePulledUp.get(1).contains(localFieldG2)) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
 					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && sameInitializers(localFieldG1, localFieldG2)) {

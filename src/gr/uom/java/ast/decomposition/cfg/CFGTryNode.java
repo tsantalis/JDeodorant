@@ -31,4 +31,8 @@ public class CFGTryNode extends CFGBlockNode {
 	public boolean hasFinallyClauseClosingVariable(AbstractVariable variable) {
 		return ((TryStatementObject)getStatement()).hasFinallyClauseClosingVariable(variable);
 	}
+
+	public boolean hasCatchClause() {
+		return ((TryStatementObject)getStatement()).hasCatchClause();
+	}
 }

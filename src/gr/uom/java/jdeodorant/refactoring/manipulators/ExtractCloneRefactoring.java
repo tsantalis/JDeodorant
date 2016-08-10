@@ -51,6 +51,7 @@ import gr.uom.java.ast.decomposition.matching.Difference;
 import gr.uom.java.ast.decomposition.matching.DifferenceType;
 import gr.uom.java.ast.decomposition.matching.FieldAccessReplacedWithGetterInvocationDifference;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
+import gr.uom.java.ast.decomposition.matching.loop.EarliestStartPositionComparator;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.SuperMethodInvocationVisitor;
@@ -4140,11 +4141,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				removeMethodDeclaration(methodDeclaration, findTypeDeclaration(methodDeclaration), findCompilationUnit(methodDeclaration));
 			}
 		}
-		for(VariableDeclaration variableDeclaration : fieldDeclarationsToBePulledUp) {
-			if(variableDeclaration.getRoot().equals(compilationUnit)) {
-				removeFieldDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
-			}
-		}
+		removeFieldDeclarations(fieldDeclarationsToBePulledUp);
 		for(VariableDeclaration variableDeclaration : accessedFieldDeclarations) {
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
 				createGetterMethodDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
@@ -4352,45 +4349,66 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return accessorMethodName;
 	}
 
-	private void removeFieldDeclaration(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
-		boolean found = false;
-		AST ast = typeDeclaration.getAST();
-		ASTRewrite rewriter = ASTRewrite.create(ast);
-		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
-		for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
-			List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
-			ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
-			for(VariableDeclarationFragment fragment : fragments) {
-				if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
-					found = true;
-					if(fragments.size() > 1) {
-						fragmentsRewrite.remove(fragment, null);
+	private void removeFieldDeclarations(Set<VariableDeclaration> variableDeclarations) {
+		TreeSet<VariableDeclaration> orderedFields = new TreeSet<VariableDeclaration>(new EarliestStartPositionComparator());
+		orderedFields.addAll(variableDeclarations);
+		List<TextEdit> textEdits = new ArrayList<TextEdit>();
+		for(VariableDeclaration variableDeclaration : orderedFields) {
+			TypeDeclaration typeDeclaration = findTypeDeclaration(variableDeclaration);
+			CompilationUnit compilationUnit = findCompilationUnit(variableDeclaration);
+			if(variableDeclaration.getRoot().equals(compilationUnit)) {
+				boolean found = false;
+				AST ast = typeDeclaration.getAST();
+				ASTRewrite rewriter = ASTRewrite.create(ast);
+				ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+				FieldDeclaration[] fieldDeclarations = typeDeclaration.getFields();
+				for(FieldDeclaration fieldDeclaration : fieldDeclarations) {
+					List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+					ListRewrite fragmentsRewrite = rewriter.getListRewrite(fieldDeclaration, FieldDeclaration.FRAGMENTS_PROPERTY);
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.resolveBinding().isEqualTo(variableDeclaration.resolveBinding())) {
+							found = true;
+							if(fragments.size() > 1) {
+								fragmentsRewrite.remove(fragment, null);
+							}
+							else {
+								bodyRewrite.remove(fieldDeclaration, null);
+							}
+							break;
+						}
 					}
-					else {
-						bodyRewrite.remove(fieldDeclaration, null);
+					if(found)
+						break;
+				}
+				try {
+					TextEdit sourceEdit = rewriter.rewriteAST();
+					if(textEdits.size() > 0) {
+						TextEdit previousTextEdit = textEdits.get(textEdits.size()-1);
+						for(TextEdit previousChild : previousTextEdit.getChildren()) {
+							for(TextEdit currentChild : sourceEdit.getChildren()) {
+								if(currentChild.getOffset() == previousChild.getOffset() && currentChild.getLength() == previousChild.getLength()) {
+									sourceEdit.removeChild(currentChild);
+									break;
+								}
+							}
+						}
 					}
-					break;
+					textEdits.add(sourceEdit);
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					if(change == null) {
+						MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+						change = new CompilationUnitChange("", sourceICompilationUnit);
+						change.setEdit(sourceMultiTextEdit);
+						compilationUnitChanges.put(sourceICompilationUnit, change);
+					}
+					change.getEdit().addChild(sourceEdit);
+					String message = cloneInfo.extractUtilityClass ? "Move field to utility class" : "Pull up field to superclass";
+					change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
 				}
 			}
-			if(found)
-				break;
-		}
-		try {
-			TextEdit sourceEdit = rewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-			if(change == null) {
-				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
-				change = new CompilationUnitChange("", sourceICompilationUnit);
-				change.setEdit(sourceMultiTextEdit);
-				compilationUnitChanges.put(sourceICompilationUnit, change);
-			}
-			change.getEdit().addChild(sourceEdit);
-			String message = cloneInfo.extractUtilityClass ? "Move field to utility class" : "Pull up field to superclass";
-			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
-		} catch (JavaModelException e) {
-			e.printStackTrace();
 		}
 	}
 

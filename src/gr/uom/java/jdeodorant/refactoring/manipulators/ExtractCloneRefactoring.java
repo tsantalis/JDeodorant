@@ -1107,7 +1107,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			PDGNode pdgNode1 = pdgNodeMapping.getNodeG1();
 			AbstractStatement statement1 = pdgNode1.getStatement();
 			PDGBlockNode blockNode1 = mapper.getPDG1().isNestedWithinBlockNode(pdgNode1);
-			if(blockNode1 != null && blockNode1 instanceof PDGTryNode && mapper.getRemovableNodesG1().contains(blockNode1)) {
+			if(blockNode1 != null && blockNode1 instanceof PDGTryNode && ((PDGTryNode)blockNode1).hasCatchClause() && mapper.getRemovableNodesG1().contains(blockNode1)) {
 				//do nothing
 			}
 			else {
@@ -1124,7 +1124,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			PDGNode pdgNode2 = pdgNodeMapping.getNodeG2();
 			AbstractStatement statement2 = pdgNode2.getStatement();
 			PDGBlockNode blockNode2 = mapper.getPDG2().isNestedWithinBlockNode(pdgNode2);
-			if(blockNode2 != null && blockNode2 instanceof PDGTryNode && mapper.getRemovableNodesG2().contains(blockNode2)) {
+			if(blockNode2 != null && blockNode2 instanceof PDGTryNode && ((PDGTryNode)blockNode2).hasCatchClause() && mapper.getRemovableNodesG2().contains(blockNode2)) {
 				//do nothing
 			}
 			else {

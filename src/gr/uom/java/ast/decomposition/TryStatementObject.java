@@ -143,4 +143,8 @@ public class TryStatementObject extends CompositeStatementObject {
 		}
 		return false;
 	}
+
+	public boolean hasCatchClause() {
+		return !catchClauses.isEmpty();
+	}
 }

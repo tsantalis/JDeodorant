@@ -4941,6 +4941,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			throws CoreException, OperationCanceledException {
 		try {
 			pm.beginTask("Checking preconditions...", 2);
+			AbstractMethodDeclaration methodObject1 = mapper.getPDG1().getMethod();
+			AbstractMethodDeclaration methodObject2 = mapper.getPDG2().getMethod();
+			MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
+			MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
+			if(!(methodDeclaration1.getParent() instanceof TypeDeclaration) || !(methodDeclaration2.getParent() instanceof TypeDeclaration)) { 
+				status.merge(RefactoringStatus.createErrorStatus("At least one of the clone fragments is inside an enum or annotation type declaration"));
+			}
 			for(PreconditionViolation violation : mapper.getPreconditionViolations()) {
 				if(violation instanceof StatementPreconditionViolation) {
 					StatementPreconditionViolation statementViolation = (StatementPreconditionViolation)violation;

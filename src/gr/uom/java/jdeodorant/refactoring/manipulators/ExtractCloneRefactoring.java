@@ -1329,8 +1329,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private ITypeBinding determineType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
 		ITypeBinding typeBinding = null;
 		if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-			if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
-				typeBinding = typeBinding1.getErasure();
+			if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType()) {
+				ITypeBinding erasure1 = typeBinding1.getErasure();
+				ITypeBinding erasure2 = typeBinding2.getErasure();
+				if(erasure1.isEqualTo(erasure2)) {
+					typeBinding = typeBinding1.getErasure();
+				}
+				else {
+					ITypeBinding commonErasureSuperTypeBinding = ASTNodeMatcher.commonSuperType(erasure1, erasure2);
+					if(commonErasureSuperTypeBinding != null) {
+						typeBinding = commonErasureSuperTypeBinding.getErasure();
+					}
+				}
 			}
 			else {
 				if(typeBinding1.isArray() && typeBinding2.isArray() && typeBinding1.getDimensions() == typeBinding2.getDimensions()) {

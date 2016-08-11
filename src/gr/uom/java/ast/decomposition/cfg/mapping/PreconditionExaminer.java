@@ -974,7 +974,7 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
-					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
+					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldDeclaringClassTypeBinding.getErasure().isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
 							!fieldAccessesToBeExcluded.contains(fieldAccess)) {
 						directlyAccessedFields.add(variable);
 						if(fieldsWithGetterToBeIncluded.contains(variable)) {
@@ -1013,7 +1013,7 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
-					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
+					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldDeclaringClassTypeBinding.getErasure().isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
 							!fieldAccessesToBeExcluded.contains(fieldAccess)) {
 						directlyModifiedFields.add(variable);
 						if(fieldsWithSetterToBeIncluded.contains(variable)) {

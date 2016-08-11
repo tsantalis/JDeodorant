@@ -910,7 +910,7 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
-					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
+					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldDeclaringClassTypeBinding.getErasure().isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
 							!fieldAccessesToBeExcluded.contains(fieldAccess)) {
 						directlyAccessedFields.add(variable);
 						if(fieldsWithGetterToBeIncluded.contains(variable)) {
@@ -949,7 +949,7 @@ public class PreconditionExaminer {
 							break;
 						}
 					}
-					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
+					if((fieldDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || fieldDeclaringClassTypeBinding.getErasure().isEqualTo(declaringClassTypeBinding) || fieldFoundInSuperType) &&
 							!fieldAccessesToBeExcluded.contains(fieldAccess)) {
 						directlyModifiedFields.add(variable);
 						if(fieldsWithSetterToBeIncluded.contains(variable)) {
@@ -984,7 +984,9 @@ public class PreconditionExaminer {
 					break;
 				}
 			}
-			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodDeclaringClassTypeBinding.isEqualTo(commonSuperclass) || invokedMethodFoundInSuperType) &&
+			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) ||
+					invokedMethodDeclaringClassTypeBinding.getErasure().isEqualTo(declaringClassTypeBinding) ||
+					invokedMethodDeclaringClassTypeBinding.isEqualTo(commonSuperclass) || invokedMethodFoundInSuperType) &&
 					!methodInvocationsToBeExcluded.contains(invocation.getMethodInvocation())) {
 				//exclude recursive method calls
 				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {

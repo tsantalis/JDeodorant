@@ -1101,7 +1101,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			VariableDeclaration variableDeclaration1 = variableDeclarations.get(0);
 			VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 			if(parameterIsUsedByNodesWithoutDifferences(variableDeclaration1, variableDeclaration2)) {
-				if(!variableDeclaration1.resolveBinding().isField() && !variableDeclaration2.resolveBinding().isField()) {
+				if(!variableDeclaration1.resolveBinding().isField() || !variableDeclaration2.resolveBinding().isField()) {
 					ITypeBinding typeBinding1 = extractTypeBinding(variableDeclaration1);
 					ITypeBinding typeBinding2 = extractTypeBinding(variableDeclaration2);
 					ITypeBinding typeBinding = determineType(typeBinding1, typeBinding2); 

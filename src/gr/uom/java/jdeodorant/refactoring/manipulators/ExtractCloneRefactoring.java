@@ -113,12 +113,15 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.QualifiedType;
 import org.eclipse.jdt.core.dom.ReturnStatement;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
@@ -205,6 +208,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		private boolean superclassNotDirectlyInheritedFromRefactoredSubclasses;
 		private boolean extractUtilityClass;
 		private String intermediateClassName;
+		private ITypeBinding[] intermediateClassTypeParameters;
 		private IPackageBinding intermediateClassPackageBinding;
 	}
 	
@@ -578,7 +582,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						cloneInfo.intermediateClassName = "Utility";
 					}
 					else {
-						cloneInfo.intermediateClassName = "Intermediate" + commonSuperTypeOfSourceTypeDeclarations.getName();
+						cloneInfo.intermediateClassName = "Intermediate" + commonSuperTypeOfSourceTypeDeclarations.getTypeDeclaration().getName();
 					}
 					ClassObject commonSuperType = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
 					CompilationUnit compilationUnit = null;
@@ -656,6 +660,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						intermediateTypeDeclaration = intermediateAST.newTypeDeclaration();
 						SimpleName intermediateName = intermediateAST.newSimpleName(cloneInfo.intermediateClassName);
 						intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.NAME_PROPERTY, intermediateName, null);
+						ListRewrite typeParametersRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.TYPE_PARAMETERS_PROPERTY);
+						ITypeBinding[] typeArguments = commonSuperTypeOfSourceTypeDeclarations.getTypeArguments();
+						cloneInfo.intermediateClassTypeParameters = typeArguments;
+						for(ITypeBinding typeParameterBinding : typeArguments) {
+							typeParametersRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeParameterBinding, intermediateAST, intermediateRewriter), null);
+						}
 						ListRewrite intermediateModifiersRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.MODIFIERS2_PROPERTY);
 						intermediateModifiersRewrite.insertLast(intermediateAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 						if(!cloneInfo.extractUtilityClass) {
@@ -663,7 +673,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 							if(commonSuperTypeOfSourceTypeDeclarations.isClass()) {
 								intermediateRewriter.set(intermediateTypeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
-										intermediateAST.newSimpleType(intermediateAST.newSimpleName(commonSuperTypeOfSourceTypeDeclarations.getName())), null);
+										RefactoringUtility.generateTypeFromTypeBinding(commonSuperTypeOfSourceTypeDeclarations, intermediateAST, intermediateRewriter), null);
 								typeBindings.add(commonSuperTypeOfSourceTypeDeclarations);
 							}
 							ListRewrite interfaceRewrite = intermediateRewriter.getListRewrite(intermediateTypeDeclaration, TypeDeclaration.SUPER_INTERFACE_TYPES_PROPERTY);
@@ -4496,11 +4506,32 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		if(superclassTypeName.contains(".")) {
 			String qualifier = superclassTypeName.substring(0, superclassTypeName.lastIndexOf("."));
 			String innerType = superclassTypeName.substring(superclassTypeName.lastIndexOf(".") + 1, superclassTypeName.length());
-			superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY,
-					ast.newQualifiedType(ast.newSimpleType(ast.newName(qualifier)), ast.newSimpleName(innerType)), null);
+			QualifiedType newQualifiedType = ast.newQualifiedType(ast.newSimpleType(ast.newName(qualifier)), ast.newSimpleName(innerType));
+			if(cloneInfo.intermediateClassTypeParameters != null && cloneInfo.intermediateClassTypeParameters.length > 0) {
+				ParameterizedType parameterizedType = ast.newParameterizedType(newQualifiedType);
+				ListRewrite typeArgumentsRewrite = superClassTypeRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+				for(ITypeBinding typeArgument : cloneInfo.intermediateClassTypeParameters) {
+					typeArgumentsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeArgument, ast, superClassTypeRewriter), null);
+				}
+				superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, parameterizedType, null);
+			}
+			else {
+				superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, newQualifiedType, null);
+			}
 		}
 		else {
-			superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, ast.newSimpleType(ast.newSimpleName(superclassTypeName)), null);
+			SimpleType newSimpleType = ast.newSimpleType(ast.newSimpleName(superclassTypeName));
+			if(cloneInfo.intermediateClassTypeParameters != null && cloneInfo.intermediateClassTypeParameters.length > 0) {
+				ParameterizedType parameterizedType = ast.newParameterizedType(newSimpleType);
+				ListRewrite typeArgumentsRewrite = superClassTypeRewriter.getListRewrite(parameterizedType, ParameterizedType.TYPE_ARGUMENTS_PROPERTY);
+				for(ITypeBinding typeArgument : cloneInfo.intermediateClassTypeParameters) {
+					typeArgumentsRewrite.insertLast(RefactoringUtility.generateTypeFromTypeBinding(typeArgument, ast, superClassTypeRewriter), null);
+				}
+				superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, parameterizedType, null);
+			}
+			else {
+				superClassTypeRewriter.set(typeDeclaration, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, newSimpleType, null);
+			}
 		}
 		try {
 			TextEdit sourceEdit = superClassTypeRewriter.rewriteAST();

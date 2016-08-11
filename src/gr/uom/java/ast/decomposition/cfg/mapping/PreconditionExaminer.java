@@ -1048,7 +1048,9 @@ public class PreconditionExaminer {
 					break;
 				}
 			}
-			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) || invokedMethodDeclaringClassTypeBinding.isEqualTo(commonSuperclass) || invokedMethodFoundInSuperType) &&
+			if((invokedMethodDeclaringClassTypeBinding.isEqualTo(declaringClassTypeBinding) ||
+					invokedMethodDeclaringClassTypeBinding.getErasure().isEqualTo(declaringClassTypeBinding) ||
+					invokedMethodDeclaringClassTypeBinding.isEqualTo(commonSuperclass) || invokedMethodFoundInSuperType) &&
 					!methodInvocationsToBeExcluded.contains(invocation.getMethodInvocation())) {
 				//exclude recursive method calls
 				if(!pdg.getMethod().getMethodDeclaration().resolveBinding().isEqualTo(invocation.getMethodInvocation().resolveMethodBinding())) {

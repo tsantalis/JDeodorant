@@ -2056,10 +2056,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						boolean avoidPullUpDueToSerialization2 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(1), localFieldG2);
 						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
 							//check if the common superclass is one of the source classes
-							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
 								fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
 							}
-							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							if(!sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
 								fieldDeclarationsToBePulledUp.get(1).add(localFieldG2);
 							}
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
@@ -2117,12 +2117,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 								bodyDeclarationsRewrite.insertLast(newFieldDeclaration, null);
 							}
-							else if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							else if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
 								if((originalFieldDeclarationG1.getModifiers() & Modifier.PROTECTED) == 0 && (originalFieldDeclarationG1.getModifiers() & Modifier.PUBLIC) == 0) {
 									updateAccessModifier(originalFieldDeclarationG1, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
 								}
 							}
-							else if(sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+							else if(sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
 								if((originalFieldDeclarationG2.getModifiers() & Modifier.PROTECTED) == 0 && (originalFieldDeclarationG2.getModifiers() & Modifier.PUBLIC) == 0) {
 									updateAccessModifier(originalFieldDeclarationG2, Modifier.ModifierKeyword.PROTECTED_KEYWORD);
 								}
@@ -2167,11 +2167,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 							else {
-								fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
-								fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
-								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-								typeBindings.add(localFieldG1.resolveBinding().getType());
-								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+								if(!bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
+									fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
+									fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
+									Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+									typeBindings.add(localFieldG1.resolveBinding().getType());
+									RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
+								}
 							}
 						}
 						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
@@ -2241,6 +2243,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
+	}
+
+	private boolean bothFieldsDeclaredInCommonSuperclass(VariableDeclaration localFieldG1, VariableDeclaration localFieldG2) {
+		if(sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(cloneInfo.sourceTypeDeclaration.resolveBinding())) {
+			return localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(0));
+		}
+		if(sourceTypeDeclarations.get(1).resolveBinding().isEqualTo(cloneInfo.sourceTypeDeclaration.resolveBinding())) {
+			return localFieldG1.getRoot().equals(sourceCompilationUnits.get(1)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1));
+		}
+		return false;
 	}
 
 	private boolean sameInitializers(VariableDeclaration localFieldG1, VariableDeclaration localFieldG2) {

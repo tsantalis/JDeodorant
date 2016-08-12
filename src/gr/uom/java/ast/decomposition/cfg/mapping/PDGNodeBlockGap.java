@@ -18,7 +18,6 @@ import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGStatementNode;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
-import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.ThrownExceptionVisitor;
 
@@ -429,30 +428,12 @@ public class PDGNodeBlockGap extends Gap {
 			IVariableBinding returnedVariable2 = returnedVariableBinding.getBinding2();
 			ITypeBinding returnTypeBinding1 = returnedVariable1.getType();
 			ITypeBinding returnTypeBinding2 = returnedVariable2.getType();
-			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName())) {
-				return returnTypeBinding1;
-			}
-			else if(returnTypeBinding1.isParameterizedType() && returnTypeBinding2.isParameterizedType() && returnTypeBinding1.getErasure().isEqualTo(returnTypeBinding2.getErasure())) {
-				return returnTypeBinding1.getErasure();
-			}
-			else {
-				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
-				return typeBinding;
-			}
+			return PreconditionExaminer.determineType(returnTypeBinding1, returnTypeBinding2);
 		}
 		ITypeBinding returnTypeBinding1 = getReturnTypeBindingFromReturnStatementG1();
 		ITypeBinding returnTypeBinding2 = getReturnTypeBindingFromReturnStatementG2();
 		if(returnTypeBinding1 != null && returnTypeBinding2 != null) {
-			if(returnTypeBinding1.isEqualTo(returnTypeBinding2) && returnTypeBinding1.getQualifiedName().equals(returnTypeBinding2.getQualifiedName())) {
-				return returnTypeBinding1;
-			}
-			else if(returnTypeBinding1.isParameterizedType() && returnTypeBinding2.isParameterizedType() && returnTypeBinding1.getErasure().isEqualTo(returnTypeBinding2.getErasure())) {
-				return returnTypeBinding1.getErasure();
-			}
-			else {
-				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(returnTypeBinding1, returnTypeBinding2);
-				return typeBinding;
-			}
+			return PreconditionExaminer.determineType(returnTypeBinding1, returnTypeBinding2);
 		}
 		return null;
 	}

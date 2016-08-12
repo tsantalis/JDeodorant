@@ -14,7 +14,6 @@ import org.eclipse.jdt.core.dom.SimpleName;
 import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
-import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
 import gr.uom.java.ast.decomposition.matching.FieldAssignmentReplacedWithSetterInvocationDifference;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.ThrownExceptionVisitor;
@@ -78,15 +77,8 @@ public class PDGExpressionGap extends Gap {
 			else if(typeBinding2.getQualifiedName().equals("null") && !typeBinding1.getQualifiedName().equals("null")) {
 				return typeBinding1;
 			}
-			else if(typeBinding1.isEqualTo(typeBinding2)) {
-				return typeBinding1;
-			}
-			else if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType() && typeBinding1.getErasure().isEqualTo(typeBinding2.getErasure())) {
-				return typeBinding1.getErasure();
-			}
 			else {
-				ITypeBinding typeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
-				return typeBinding;
+				return PreconditionExaminer.determineType(typeBinding1, typeBinding2);
 			}
 		}
 		else if(typeBinding1 == null && typeBinding2 != null) {

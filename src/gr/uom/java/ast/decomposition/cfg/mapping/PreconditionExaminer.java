@@ -3840,10 +3840,7 @@ public class PreconditionExaminer {
 		if(returnedTypeBindings1.size() == 1 && returnedTypeBindings2.size() == 1) {
 			ITypeBinding typeBinding1 = returnedTypeBindings1.get(0);
 			ITypeBinding typeBinding2 = returnedTypeBindings2.get(0);
-			if(typeBinding1.isEqualTo(typeBinding2))
-				return typeBinding1;
-			else
-				return ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+			return determineType(typeBinding1, typeBinding2);
 		}
 		else if(returnedTypeBindings1.size() == returnedTypeBindings2.size()) {
 			ITypeBinding returnTypeBinding = null;
@@ -3895,6 +3892,45 @@ public class PreconditionExaminer {
 			return returnTypeBinding;
 		}
 		return null;
+	}
+
+	public static ITypeBinding determineType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		ITypeBinding typeBinding = null;
+		if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
+			if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType()) {
+				ITypeBinding erasure1 = typeBinding1.getErasure();
+				ITypeBinding erasure2 = typeBinding2.getErasure();
+				if(erasure1.isEqualTo(erasure2)) {
+					typeBinding = typeBinding1.getErasure();
+				}
+				else {
+					ITypeBinding commonErasureSuperTypeBinding = ASTNodeMatcher.commonSuperType(erasure1, erasure2);
+					if(commonErasureSuperTypeBinding != null) {
+						typeBinding = commonErasureSuperTypeBinding.getErasure();
+					}
+				}
+			}
+			else {
+				if(typeBinding1.isArray() && typeBinding2.isArray() && typeBinding1.getDimensions() == typeBinding2.getDimensions()) {
+					ITypeBinding elementType1 = typeBinding1.getElementType();
+					ITypeBinding elementType2 = typeBinding2.getElementType();
+					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(elementType1, elementType2);
+					if(commonSuperTypeBinding != null) {
+						typeBinding = commonSuperTypeBinding.createArrayType(typeBinding1.getDimensions());
+					}
+				}
+				else {
+					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+					if(commonSuperTypeBinding != null) {
+						typeBinding = commonSuperTypeBinding;
+					}
+				}
+			}
+		}
+		else {
+			typeBinding = typeBinding1;
+		}
+		return typeBinding;
 	}
 
 	private void extractReturnTypeBinding(PDGNode pdgNode, List<ITypeBinding> returnedTypeBindings) {

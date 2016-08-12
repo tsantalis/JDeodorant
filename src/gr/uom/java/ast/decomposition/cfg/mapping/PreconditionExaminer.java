@@ -3350,6 +3350,47 @@ public class PreconditionExaminer {
 		return cloneRefactoringType;
 	}
 
+	public boolean isTemplateMethodApplicable() {
+		AbstractMethodDeclaration methodObject1 = getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = getPDG2().getMethod();
+		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
+		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
+		
+		ITypeBinding typeBinding1 = null;
+		if(methodDeclaration1.getParent() instanceof AbstractTypeDeclaration) {
+			typeBinding1 = ((AbstractTypeDeclaration)methodDeclaration1.getParent()).resolveBinding();
+		}
+		else if(methodDeclaration1.getParent() instanceof AnonymousClassDeclaration) {
+			typeBinding1 = ((AnonymousClassDeclaration)methodDeclaration1.getParent()).resolveBinding();
+		}
+		ITypeBinding typeBinding2 = null;
+		if(methodDeclaration2.getParent() instanceof AbstractTypeDeclaration) {
+			typeBinding2 = ((AbstractTypeDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		else if(methodDeclaration2.getParent() instanceof AnonymousClassDeclaration) {
+			typeBinding2 = ((AnonymousClassDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		if(typeBinding1 != null && typeBinding2 != null) {
+			//not in the same type
+			if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
+				ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2).getErasure();
+				ClassObject classObject = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
+				//abstract system class
+				if(classObject != null && commonSuperTypeOfSourceTypeDeclarations.isClass() && classObject.isAbstract()) {
+					CompilationUnitCache cache = CompilationUnitCache.getInstance();
+					Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
+					IType type1 = (IType)typeBinding1.getJavaElement();
+					IType type2 = (IType)typeBinding2.getJavaElement();
+					//only two subTypes corresponding to the types of the classes containing the clones
+					if(subTypes.size() == 2 && subTypes.contains(type1) && subTypes.contains(type2)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;	
+	}
+
 	private CloneRefactoringType computeRefactoringType() {
 		AbstractMethodDeclaration methodObject1 = getPDG1().getMethod();
 		AbstractMethodDeclaration methodObject2 = getPDG2().getMethod();

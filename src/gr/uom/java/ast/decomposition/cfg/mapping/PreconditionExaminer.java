@@ -3373,17 +3373,19 @@ public class PreconditionExaminer {
 		if(typeBinding1 != null && typeBinding2 != null) {
 			//not in the same type
 			if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
-				ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2).getErasure();
-				ClassObject classObject = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getQualifiedName());
-				//abstract system class
-				if(classObject != null && commonSuperTypeOfSourceTypeDeclarations.isClass() && classObject.isAbstract()) {
-					CompilationUnitCache cache = CompilationUnitCache.getInstance();
-					Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
-					IType type1 = (IType)typeBinding1.getJavaElement();
-					IType type2 = (IType)typeBinding2.getJavaElement();
-					//only two subTypes corresponding to the types of the classes containing the clones
-					if(subTypes.size() == 2 && subTypes.contains(type1) && subTypes.contains(type2)) {
-						return true;
+				ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				if(commonSuperTypeOfSourceTypeDeclarations != null) {
+					ClassObject classObject = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getErasure().getQualifiedName());
+					//abstract system class
+					if(classObject != null && commonSuperTypeOfSourceTypeDeclarations.getErasure().isClass() && classObject.isAbstract()) {
+						CompilationUnitCache cache = CompilationUnitCache.getInstance();
+						Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
+						IType type1 = (IType)typeBinding1.getJavaElement();
+						IType type2 = (IType)typeBinding2.getJavaElement();
+						//only two subTypes corresponding to the types of the classes containing the clones
+						if(subTypes.size() == 2 && subTypes.contains(type1) && subTypes.contains(type2)) {
+							return true;
+						}
 					}
 				}
 			}

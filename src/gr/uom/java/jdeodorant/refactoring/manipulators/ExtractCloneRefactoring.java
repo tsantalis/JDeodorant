@@ -3320,58 +3320,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	private ASTNode processASTNodeWithDifferences(AST ast, ASTRewrite sourceRewriter, ASTNode oldASTNode, NodeMapping nodeMapping) {
 		List<ASTNodeDifference> differences = nodeMapping.getNonOverlappingNodeDifferences();
 		if(differences.isEmpty()) {
-			boolean replacement = false;
-			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!assignedFieldDeclarationsToBeReplacedWithSetter.get(0).isEmpty()) {
-				if(oldASTNode instanceof Assignment) {
-					ASTNode node = createReplacementForFieldAssignment(sourceRewriter, ast, (Assignment)oldASTNode);
-					if(node != null) {
-						newASTNode = node;
-						replacement = true;
-					}
-				}
-				else {
-					replacement = replacement || replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
-				}
-			}
-			if(!accessedFieldDeclarationsToBeReplacedWithGetter.get(0).isEmpty()) {
-				if(oldASTNode instanceof FieldAccess || oldASTNode instanceof SimpleName) {
-					ASTNode node = createReplacementForFieldAccessWithGetterInvocation(sourceRewriter, ast, (Expression)oldASTNode);
-					if(node != null) {
-						newASTNode = node;
-						replacement = true;
-					}
-				}
-				else {
-					replacement = replacement || replaceFieldAccessesWithGetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
-				}
-			}
-			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				if(oldASTNode instanceof FieldAccess || oldASTNode instanceof SimpleName) {
-					ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (Expression)oldASTNode);
-					if(node != null) {
-						newASTNode = node;
-						replacement = true;
-					}
-				}
-				else {
-					replacement = replacement || replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
-				}
-			}
-			if(oldASTNode instanceof SuperMethodInvocation) {
-				ASTNode node = createReplacementForSuperMethodCall(sourceRewriter, ast, (SuperMethodInvocation)oldASTNode);
-				if(node != null) {
-					newASTNode = node;
-					replacement = true;
-				}
-			}
-			else {
-				replacement = replacement || replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
-			}
-			if(replacement)
-				return newASTNode;
-			else
-				return oldASTNode;
+			return preprocessASTNode(oldASTNode, ast, sourceRewriter);
 		}
 		else {
 			Set<VariableBindingKeyPair> parameterBindingKeys = originalPassedParameters.keySet();
@@ -3381,17 +3330,14 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<VariableBindingKeyPair> localVariableBindingKeysReturnedByBlockGaps = mapper.getLocalVariablesReturnedByBlockGaps();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes1 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG1();
 			Set<String> declaredLocalVariableBindingKeysInAdditionallyMatchedNodes2 = mapper.getDeclaredLocalVariableBindingKeysInAdditionallyMatchedNodesG2();
-			ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
-			if(!assignedFieldDeclarationsToBeReplacedWithSetter.get(0).isEmpty()) {
-				replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			ASTNode astNode = preprocessASTNode(oldASTNode, ast, sourceRewriter);
+			ASTNode newASTNode = null;
+			if(astNode.equals(oldASTNode)) {
+				newASTNode = ASTNode.copySubtree(ast, oldASTNode);
 			}
-			if(!accessedFieldDeclarationsToBeReplacedWithGetter.get(0).isEmpty()) {
-				replaceFieldAccessesWithGetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			else {
+				newASTNode = astNode;
 			}
-			if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
-				replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
-			}
-			replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
 			for(ASTNodeDifference difference : differences) {
 				if(!nodeMapping.isDifferenceInConditionalExpressionOfAdvancedLoopMatch(difference)) {
 					Expression oldExpression = difference.getExpression1().getExpression();
@@ -3446,12 +3392,30 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						if(difference instanceof FieldAccessReplacedWithGetterInvocationDifference) {
 							FieldAccessReplacedWithGetterInvocationDifference nodeDifference =
 									(FieldAccessReplacedWithGetterInvocationDifference)difference;
-							MethodInvocation newGetterMethodInvocation = generateGetterMethodInvocation(ast, sourceRewriter, nodeDifference);
-							if(oldASTNode.equals(oldExpression)) {
-								return newGetterMethodInvocation;
+							boolean fieldIsParameterized = false;
+							for(VariableDeclaration field : fieldDeclarationsToBeParameterized.get(0)) {
+								Expression expr = nodeDifference.getExpression1().getExpression();
+								if(expr instanceof SimpleName) {
+									SimpleName simpleName = (SimpleName)expr;
+									if(simpleName.resolveBinding().isEqualTo(field.resolveBinding())) {
+										fieldIsParameterized = true;
+									}
+								}
+								else if(expr instanceof FieldAccess) {
+									FieldAccess fieldAccess = (FieldAccess)expr;
+									if(fieldAccess.getName().resolveBinding().isEqualTo(field.resolveBinding())) {
+										fieldIsParameterized = true;
+									}
+								}
 							}
-							else {
-								replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, newGetterMethodInvocation);
+							if(!fieldIsParameterized) {
+								MethodInvocation newGetterMethodInvocation = generateGetterMethodInvocation(ast, sourceRewriter, nodeDifference);
+								if(oldASTNode.equals(oldExpression)) {
+									return newGetterMethodInvocation;
+								}
+								else {
+									replaceExpression(sourceRewriter, oldASTNode, newASTNode, oldExpression, newGetterMethodInvocation);
+								}
 							}
 						}
 						else if(difference instanceof FieldAssignmentReplacedWithSetterInvocationDifference) {
@@ -3526,6 +3490,61 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 			return newASTNode;
 		}
+	}
+
+	private ASTNode preprocessASTNode(ASTNode oldASTNode, AST ast, ASTRewrite sourceRewriter) {
+		boolean replacement = false;
+		ASTNode newASTNode = ASTNode.copySubtree(ast, oldASTNode);
+		if(!assignedFieldDeclarationsToBeReplacedWithSetter.get(0).isEmpty()) {
+			if(oldASTNode instanceof Assignment) {
+				ASTNode node = createReplacementForFieldAssignment(sourceRewriter, ast, (Assignment)oldASTNode);
+				if(node != null) {
+					newASTNode = node;
+					replacement = true;
+				}
+			}
+			else {
+				replacement = replacement || replaceFieldAssignmentsWithSetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
+		}
+		if(!accessedFieldDeclarationsToBeReplacedWithGetter.get(0).isEmpty()) {
+			if(oldASTNode instanceof FieldAccess || oldASTNode instanceof SimpleName) {
+				ASTNode node = createReplacementForFieldAccessWithGetterInvocation(sourceRewriter, ast, (Expression)oldASTNode);
+				if(node != null) {
+					newASTNode = node;
+					replacement = true;
+				}
+			}
+			else {
+				replacement = replacement || replaceFieldAccessesWithGetterMethodInvocations(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
+		}
+		if(!fieldDeclarationsToBeParameterized.get(0).isEmpty()) {
+			if(oldASTNode instanceof FieldAccess || oldASTNode instanceof SimpleName) {
+				ASTNode node = createReplacementForFieldAccessOfParameterizedFields(sourceRewriter, ast, (Expression)oldASTNode);
+				if(node != null) {
+					newASTNode = node;
+					replacement = true;
+				}
+			}
+			else {
+				replacement = replacement || replaceFieldAccessesOfParameterizedFields(sourceRewriter, ast, oldASTNode, newASTNode);
+			}
+		}
+		if(oldASTNode instanceof SuperMethodInvocation) {
+			ASTNode node = createReplacementForSuperMethodCall(sourceRewriter, ast, (SuperMethodInvocation)oldASTNode);
+			if(node != null) {
+				newASTNode = node;
+				replacement = true;
+			}
+		}
+		else {
+			replacement = replacement || replaceSuperMethodCallsWithRegularMethodCalls(sourceRewriter, ast, oldASTNode, newASTNode);
+		}
+		if(replacement)
+			return newASTNode;
+		else
+			return oldASTNode;
 	}
 
 	private boolean replaceFieldAccessesOfParameterizedFields(ASTRewrite sourceRewriter, AST ast, ASTNode oldASTNode, ASTNode newASTNode) {

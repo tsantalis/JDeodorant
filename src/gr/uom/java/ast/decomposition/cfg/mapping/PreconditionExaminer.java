@@ -3961,11 +3961,30 @@ public class PreconditionExaminer {
 					if(commonSuperTypeBinding != null) {
 						typeBinding = commonSuperTypeBinding.createArrayType(typeBinding1.getDimensions());
 					}
+					else if(elementType1.isInterface() && elementType2.getQualifiedName().equals("java.lang.Object")) {
+						typeBinding = elementType2.createArrayType(typeBinding1.getDimensions());
+					}
+					else if(elementType2.isInterface() && elementType1.getQualifiedName().equals("java.lang.Object")) {
+						typeBinding = elementType1.createArrayType(typeBinding1.getDimensions());
+					}
+					else if(elementType1.isInterface() && elementType2.isInterface()) {
+						ITypeBinding objectTypeBinding = ASTReader.getAST().resolveWellKnownType("java.lang.Object");
+						typeBinding = objectTypeBinding.createArrayType(typeBinding1.getDimensions());
+					}
 				}
 				else {
 					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
 					if(commonSuperTypeBinding != null) {
 						typeBinding = commonSuperTypeBinding;
+					}
+					else if(typeBinding1.isInterface() && typeBinding2.getQualifiedName().equals("java.lang.Object")) {
+						return typeBinding2;
+					}
+					else if(typeBinding2.isInterface() && typeBinding1.getQualifiedName().equals("java.lang.Object")) {
+						return typeBinding1;
+					}
+					else if(typeBinding1.isInterface() && typeBinding2.isInterface()) {
+						typeBinding = ASTReader.getAST().resolveWellKnownType("java.lang.Object");
 					}
 				}
 			}

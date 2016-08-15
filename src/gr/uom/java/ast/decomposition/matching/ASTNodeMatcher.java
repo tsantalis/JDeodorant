@@ -479,13 +479,13 @@ public class ASTNodeMatcher extends ASTMatcher{
 		Set<ITypeBinding> superTypes1 = getAllSuperTypes(typeBinding1);
 		Set<ITypeBinding> superTypes2 = getAllSuperTypes(typeBinding2);
 		for(ITypeBinding superType2 : superTypes2) {
-			if(superType2.getQualifiedName().equals(typeBinding1.getQualifiedName()) ||
-					implementsInterface(superType2, typeBinding1))
+			if(superType2.getQualifiedName().equals(typeBinding1.getQualifiedName()) || superType2.getErasure().getQualifiedName().equals(typeBinding1.getQualifiedName()) ||
+					implementsInterface(superType2, typeBinding1) || implementsInterface(superType2.getErasure(), typeBinding1))
 				return typeBinding1;
 		}
 		for(ITypeBinding superType1 : superTypes1) {
-			if(superType1.getQualifiedName().equals(typeBinding2.getQualifiedName()) ||
-					implementsInterface(superType1, typeBinding2))
+			if(superType1.getQualifiedName().equals(typeBinding2.getQualifiedName()) || superType1.getErasure().getQualifiedName().equals(typeBinding2.getQualifiedName()) ||
+					implementsInterface(superType1, typeBinding2) || implementsInterface(superType1.getErasure(), typeBinding2))
 				return typeBinding2;
 		}
 		List<ITypeBinding> typeBindings = new ArrayList<ITypeBinding>();
@@ -923,9 +923,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 				int differenceCount = differences.size();
 				boolean classTypeMatch = safeSubtreeMatch(node.getType(), o.getType());
 				int differenceCountAfterTypeMatch = differences.size();
+				List<Expression> nodeArguments = node.arguments();
+				List<Expression> otherArguments = o.arguments();
 				if(classTypeMatch && differenceCountAfterTypeMatch == differenceCount) {
-					List<Expression> nodeArguments = node.arguments();
-					List<Expression> otherArguments = o.arguments();
 					processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, false);
 					boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
 					//safeSubtreeListMatch(node.arguments(), o.arguments());
@@ -957,6 +957,9 @@ public class ASTNodeMatcher extends ASTMatcher{
 							astNodeDifference.addDifference(diff);
 						}
 					}
+				}
+				else {
+					processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, true);
 				}
 			}
 			if(!astNodeDifference.isEmpty())

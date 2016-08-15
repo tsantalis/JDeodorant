@@ -609,4 +609,11 @@ public class ASTReader {
 	public static IJavaProject getExaminedProject() {
 		return examinedProject;
 	}
+
+	public static AST getAST() {
+		if(systemObject.getClassNumber() > 0) {
+			return systemObject.getClassObject(0).getAbstractTypeDeclaration().getAST();
+		}
+		return null;
+	}
 }

@@ -68,6 +68,20 @@ public class RefactoringUtility {
 				rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
 			}
 		}
+		else if(typeBinding.isCapture()) {
+			ITypeBinding wildcard = typeBinding.getWildcard();
+			if(wildcard != null) {
+				type = ast.newWildcardType();
+				if(wildcard.getBound() != null) {
+					ITypeBinding boundBinding = wildcard.getBound();
+					Type boundType = generateTypeFromTypeBinding(boundBinding, ast, rewriter);
+					rewriter.set(type, WildcardType.BOUND_PROPERTY, boundType, null);
+				}
+				if(wildcard.isUpperbound()) {
+					rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
+				}
+			}
+		}
 		else if(typeBinding.isTypeVariable()) {
 			type = ast.newSimpleType(ast.newSimpleName(typeBinding.getName()));
 		}
@@ -133,6 +147,20 @@ public class RefactoringUtility {
 			}
 			if(typeBinding.isUpperbound()) {
 				rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
+			}
+		}
+		else if(typeBinding.isCapture()) {
+			ITypeBinding wildcard = typeBinding.getWildcard();
+			if(wildcard != null) {
+				type = ast.newWildcardType();
+				if(wildcard.getBound() != null) {
+					ITypeBinding boundBinding = wildcard.getBound();
+					Type boundType = generateTypeFromTypeBinding(boundBinding, ast, rewriter);
+					rewriter.set(type, WildcardType.BOUND_PROPERTY, boundType, null);
+				}
+				if(wildcard.isUpperbound()) {
+					rewriter.set(type, WildcardType.UPPER_BOUND_PROPERTY, true, null);
+				}
 			}
 		}
 		else if(typeBinding.isTypeVariable()) {

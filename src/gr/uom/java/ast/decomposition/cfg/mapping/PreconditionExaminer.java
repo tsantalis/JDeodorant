@@ -3286,6 +3286,49 @@ public class PreconditionExaminer {
 		return cloneRefactoringType;
 	}
 
+	public boolean isTemplateMethodApplicable() {
+		AbstractMethodDeclaration methodObject1 = getPDG1().getMethod();
+		AbstractMethodDeclaration methodObject2 = getPDG2().getMethod();
+		MethodDeclaration methodDeclaration1 = methodObject1.getMethodDeclaration();
+		MethodDeclaration methodDeclaration2 = methodObject2.getMethodDeclaration();
+		
+		ITypeBinding typeBinding1 = null;
+		if(methodDeclaration1.getParent() instanceof AbstractTypeDeclaration) {
+			typeBinding1 = ((AbstractTypeDeclaration)methodDeclaration1.getParent()).resolveBinding();
+		}
+		else if(methodDeclaration1.getParent() instanceof AnonymousClassDeclaration) {
+			typeBinding1 = ((AnonymousClassDeclaration)methodDeclaration1.getParent()).resolveBinding();
+		}
+		ITypeBinding typeBinding2 = null;
+		if(methodDeclaration2.getParent() instanceof AbstractTypeDeclaration) {
+			typeBinding2 = ((AbstractTypeDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		else if(methodDeclaration2.getParent() instanceof AnonymousClassDeclaration) {
+			typeBinding2 = ((AnonymousClassDeclaration)methodDeclaration2.getParent()).resolveBinding();
+		}
+		if(typeBinding1 != null && typeBinding2 != null) {
+			//not in the same type
+			if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
+				ITypeBinding commonSuperTypeOfSourceTypeDeclarations = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+				if(commonSuperTypeOfSourceTypeDeclarations != null) {
+					ClassObject classObject = ASTReader.getSystemObject().getClassObject(commonSuperTypeOfSourceTypeDeclarations.getErasure().getQualifiedName());
+					//abstract system class
+					if(classObject != null && commonSuperTypeOfSourceTypeDeclarations.getErasure().isClass() && classObject.isAbstract()) {
+						CompilationUnitCache cache = CompilationUnitCache.getInstance();
+						Set<IType> subTypes = cache.getSubTypes((IType)commonSuperTypeOfSourceTypeDeclarations.getJavaElement());
+						IType type1 = (IType)typeBinding1.getJavaElement();
+						IType type2 = (IType)typeBinding2.getJavaElement();
+						//only two subTypes corresponding to the types of the classes containing the clones
+						if(subTypes.size() == 2 && subTypes.contains(type1) && subTypes.contains(type2)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;	
+	}
+
 	private CloneRefactoringType computeRefactoringType() {
 		AbstractMethodDeclaration methodObject1 = getPDG1().getMethod();
 		AbstractMethodDeclaration methodObject2 = getPDG2().getMethod();
@@ -3776,10 +3819,7 @@ public class PreconditionExaminer {
 		if(returnedTypeBindings1.size() == 1 && returnedTypeBindings2.size() == 1) {
 			ITypeBinding typeBinding1 = returnedTypeBindings1.get(0);
 			ITypeBinding typeBinding2 = returnedTypeBindings2.get(0);
-			if(typeBinding1.isEqualTo(typeBinding2))
-				return typeBinding1;
-			else
-				return ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+			return determineType(typeBinding1, typeBinding2);
 		}
 		else if(returnedTypeBindings1.size() == returnedTypeBindings2.size()) {
 			ITypeBinding returnTypeBinding = null;
@@ -3831,6 +3871,64 @@ public class PreconditionExaminer {
 			return returnTypeBinding;
 		}
 		return null;
+	}
+
+	public static ITypeBinding determineType(ITypeBinding typeBinding1, ITypeBinding typeBinding2) {
+		ITypeBinding typeBinding = null;
+		if(!typeBinding1.isEqualTo(typeBinding2) || !typeBinding1.getQualifiedName().equals(typeBinding2.getQualifiedName())) {
+			if(typeBinding1.isParameterizedType() && typeBinding2.isParameterizedType()) {
+				ITypeBinding erasure1 = typeBinding1.getErasure();
+				ITypeBinding erasure2 = typeBinding2.getErasure();
+				if(erasure1.isEqualTo(erasure2)) {
+					typeBinding = typeBinding1.getErasure();
+				}
+				else {
+					ITypeBinding commonErasureSuperTypeBinding = ASTNodeMatcher.commonSuperType(erasure1, erasure2);
+					if(commonErasureSuperTypeBinding != null) {
+						typeBinding = commonErasureSuperTypeBinding.getErasure();
+					}
+				}
+			}
+			else {
+				if(typeBinding1.isArray() && typeBinding2.isArray() && typeBinding1.getDimensions() == typeBinding2.getDimensions()) {
+					ITypeBinding elementType1 = typeBinding1.getElementType();
+					ITypeBinding elementType2 = typeBinding2.getElementType();
+					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(elementType1, elementType2);
+					if(commonSuperTypeBinding != null) {
+						typeBinding = commonSuperTypeBinding.createArrayType(typeBinding1.getDimensions());
+					}
+					else if(elementType1.isInterface() && elementType2.getQualifiedName().equals("java.lang.Object")) {
+						typeBinding = elementType2.createArrayType(typeBinding1.getDimensions());
+					}
+					else if(elementType2.isInterface() && elementType1.getQualifiedName().equals("java.lang.Object")) {
+						typeBinding = elementType1.createArrayType(typeBinding1.getDimensions());
+					}
+					else if(elementType1.isInterface() && elementType2.isInterface()) {
+						ITypeBinding objectTypeBinding = ASTReader.getAST().resolveWellKnownType("java.lang.Object");
+						typeBinding = objectTypeBinding.createArrayType(typeBinding1.getDimensions());
+					}
+				}
+				else {
+					ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+					if(commonSuperTypeBinding != null) {
+						typeBinding = commonSuperTypeBinding;
+					}
+					else if(typeBinding1.isInterface() && typeBinding2.getQualifiedName().equals("java.lang.Object")) {
+						return typeBinding2;
+					}
+					else if(typeBinding2.isInterface() && typeBinding1.getQualifiedName().equals("java.lang.Object")) {
+						return typeBinding1;
+					}
+					else if(typeBinding1.isInterface() && typeBinding2.isInterface()) {
+						typeBinding = ASTReader.getAST().resolveWellKnownType("java.lang.Object");
+					}
+				}
+			}
+		}
+		else {
+			typeBinding = typeBinding1;
+		}
+		return typeBinding;
 	}
 
 	private void extractReturnTypeBinding(PDGNode pdgNode, List<ITypeBinding> returnedTypeBindings) {

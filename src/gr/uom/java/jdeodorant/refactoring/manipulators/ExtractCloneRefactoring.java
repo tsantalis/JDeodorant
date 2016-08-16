@@ -1918,7 +1918,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						/*localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&*/
 						!fieldDeclarationsToBePulledUp.get(0).contains(localFieldG1) && !fieldDeclarationsToBePulledUp.get(1).contains(localFieldG2)) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && sameInitializers(localFieldG1, localFieldG2)) {
+					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 						/*String innerTypeName = null;
 						if(!originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 							//check if the types of the fields are inner types
@@ -2009,7 +2009,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}*/
 						boolean avoidPullUpDueToSerialization1 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(0), localFieldG1);
 						boolean avoidPullUpDueToSerialization2 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(1), localFieldG2);
-						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
+						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2 && sameInitializers(localFieldG1, localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
 								fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
@@ -2122,7 +2122,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 							else {
-								if(!bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
+								if(!bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2) && !modifiedLocalFieldsG1.contains(localFieldG1) && !modifiedLocalFieldsG2.contains(localFieldG2)) {
 									fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 									fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 									Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2131,7 +2131,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 						}
-						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
+						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2 || !sameInitializers(localFieldG1, localFieldG2)) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								assignedFieldDeclarationsToBeReplacedWithSetter.get(0).add(localFieldG1);
@@ -2177,22 +2177,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						break;
 					}
 					else {
-						if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && !sameInitializers(localFieldG1, localFieldG2)) {
+						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
+						if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
 							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(originalFieldDeclarationG1.getType().resolveBinding());
+							typeBindings.add(commonSuperType);
 							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-						}
-						else {
-							ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-							if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
-								fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
-								fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
-								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-								typeBindings.add(commonSuperType);
-								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-							}
 						}
 					}
 				}

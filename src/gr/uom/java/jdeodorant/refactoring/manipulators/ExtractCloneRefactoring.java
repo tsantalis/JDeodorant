@@ -4605,13 +4605,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		Set<VariableDeclaration> accessedLocalFields = null;
-		if(index == 0)
+		ITypeBinding sourceClassTypeBinding = null;
+		if(index == 0) {
 			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
-		else
+			sourceClassTypeBinding = sourceTypeDeclarations.get(0).resolveBinding();
+		}
+		else {
 			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
+			sourceClassTypeBinding = sourceTypeDeclarations.get(1).resolveBinding();
+		}
 		for(VariableDeclaration variableDeclaration : fieldsToBeParameterized) {
 			if(accessedLocalFields.contains(variableDeclaration)) {
-				if((variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0) {
+				//check if the field is private and declared in another class
+				if((variableDeclaration.resolveBinding().getModifiers() & Modifier.PRIVATE) != 0 && !sourceClassTypeBinding.isEqualTo(variableDeclaration.resolveBinding().getDeclaringClass())) {
+					TypeDeclaration sourceTypeDeclaration = index == 0 ? sourceTypeDeclarations.get(0) : sourceTypeDeclarations.get(1);
+					MethodDeclaration getterDeclaration = RefactoringUtility.findGetterDeclarationForField(variableDeclaration, sourceTypeDeclaration);
+					if(getterDeclaration != null) {
+						MethodInvocation getterInvocation = ast.newMethodInvocation();
+						methodBodyRewriter.set(getterInvocation, MethodInvocation.NAME_PROPERTY, getterDeclaration.getName(), null);
+						argumentsRewrite.insertLast(getterInvocation, null);
+					}
+				}
+				else if((variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0) {
 					argumentsRewrite.insertLast(variableDeclaration.getName(), null);
 				}
 				else {

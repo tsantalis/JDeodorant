@@ -11,6 +11,7 @@ import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -34,6 +35,7 @@ import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
+import gr.uom.java.ast.util.MethodDeclarationUtility;
 
 public class RefactoringUtility {
 
@@ -320,6 +322,29 @@ public class RefactoringUtility {
 				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
 				if(superclassTypeDeclaration instanceof TypeDeclaration) {
 					return findFieldDeclaration(variable, (TypeDeclaration)superclassTypeDeclaration);
+				}
+			}
+		}
+		return null;
+	}
+
+	public static MethodDeclaration findGetterDeclarationForField(VariableDeclaration variableDeclaration, TypeDeclaration typeDeclaration) {
+		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
+			SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
+			if(simpleName != null && variableDeclaration.resolveBinding().isEqualTo(simpleName.resolveBinding())) {
+				return methodDeclaration;
+			}
+		}
+		//fragment was not found in typeDeclaration
+		Type superclassType = typeDeclaration.getSuperclassType();
+		if(superclassType != null) {
+			String superclassQualifiedName = superclassType.resolveBinding().getQualifiedName();
+			SystemObject system = ASTReader.getSystemObject();
+			ClassObject superclassObject = system.getClassObject(superclassQualifiedName);
+			if(superclassObject != null) {
+				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
+				if(superclassTypeDeclaration instanceof TypeDeclaration) {
+					return findGetterDeclarationForField(variableDeclaration, (TypeDeclaration)superclassTypeDeclaration);
 				}
 			}
 		}

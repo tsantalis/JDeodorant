@@ -2372,7 +2372,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
 		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 			AST ast = sourceMethodDeclarations.get(0).getAST();
-			ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG1 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG1();
 			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG2 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG2();
 			for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
@@ -2382,27 +2381,38 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() &&
 						(!variableDeclaration1.resolveBinding().isEffectivelyFinal() || declaredVariablesInRemainingNodesDefinedByMappedNodesG1.contains(variableDeclaration1)) &&
 						variableDeclaration1 instanceof VariableDeclarationFragment) {
+					ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration1.resolveBinding().getType());
 					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration1, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+					try {
+						TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Initialize variable passed as parameter to the extracted method", new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 				VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 				if(!variableDeclaration2.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
 					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() &&
 							(!variableDeclaration2.resolveBinding().isEffectivelyFinal() || declaredVariablesInRemainingNodesDefinedByMappedNodesG2.contains(variableDeclaration2)) &&
 							variableDeclaration2 instanceof VariableDeclarationFragment) {
+						ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 						Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration2.resolveBinding().getType());
 						methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration2, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+						try {
+							TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Initialize variable passed as parameter to the extracted method", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
-			}
-			try {
-				TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
-				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
-				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-				change.getEdit().addChild(sourceEdit);
-				change.addTextEditGroup(new TextEditGroup("Initialize variable(s) passed as parameter(s) to the extracted method", new TextEdit[] {sourceEdit}));
-			} catch (JavaModelException e) {
-				e.printStackTrace();
 			}
 		}
 		try {

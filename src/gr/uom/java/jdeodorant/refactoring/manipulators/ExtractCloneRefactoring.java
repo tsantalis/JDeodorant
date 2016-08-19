@@ -1403,7 +1403,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private boolean commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(IMethodBinding methodBinding, ITypeBinding typeBinding) {
-		if(typeBinding != null) {
+		if(typeBinding != null && !typeBinding.isInterface()) {
 			for(IMethodBinding superMethodBinding : typeBinding.getDeclaredMethods()) {
 				if(MethodCallAnalyzer.equalSignature(superMethodBinding, methodBinding)) {
 					return true;

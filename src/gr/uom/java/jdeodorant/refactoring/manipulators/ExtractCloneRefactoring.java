@@ -2112,6 +2112,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									getterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 									if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
 										Block methodBody = ast.newBlock();
+										ReturnStatement returnStatement = ast.newReturnStatement();
+										sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, generateDefaultValue(sourceRewriter, ast, originalFieldDeclarationG1.getType().resolveBinding()), null);
+										ListRewrite methodBodyStatementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+										methodBodyStatementRewrite.insertLast(returnStatement, null);
 										sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
 									}
 									else {

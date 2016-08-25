@@ -3887,6 +3887,18 @@ public class PreconditionExaminer {
 		}
 		else if(returnedTypeBindings1.size() == returnedTypeBindings2.size()) {
 			ITypeBinding returnTypeBinding = null;
+			if(returnedTypeBindings1.size() == 0 && returnedTypeBindings2.size() == 0 &&
+					pdg1.getNodes().size() == mappedNodesG1.size() && pdg2.getNodes().size() == mappedNodesG2.size()) {
+				ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
+				ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
+				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(methodReturnTypeBinding1, methodReturnTypeBinding2);
+				if(methodReturnTypeBinding1.isEqualTo(methodReturnTypeBinding2)) {
+					returnTypeBinding = methodReturnTypeBinding1;
+				}
+				else {
+					returnTypeBinding = commonSuperType;
+				}
+			}
 			for(int i=0; i<returnedTypeBindings1.size(); i++) {
 				ITypeBinding typeBinding1 = returnedTypeBindings1.get(i);
 				ITypeBinding typeBinding2 = returnedTypeBindings2.get(i);

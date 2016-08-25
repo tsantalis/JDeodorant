@@ -2372,8 +2372,37 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			cloneInfo.argumentRewriteList.get(0).insertLast(variableDeclaration1.getName(), null);
 			cloneInfo.argumentRewriteList.get(1).insertLast(variableDeclaration2.getName(), null);
 		}*/
-		finalizeOriginalMethod(sourceCompilationUnits.get(0), cloneInfo.originalMethodBodyRewriteList.get(0));
-		finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
+		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+			try {
+				List<TextEdit> textEdits = new ArrayList<TextEdit>();
+				for(ASTRewrite methodBodyRewrite : cloneInfo.originalMethodBodyRewriteList) {
+					TextEdit sourceEdit = methodBodyRewrite.rewriteAST();
+					if(textEdits.size() > 0) {
+						TextEdit previousTextEdit = textEdits.get(textEdits.size()-1);
+						for(TextEdit previousChild : previousTextEdit.getChildren()) {
+							for(TextEdit currentChild : sourceEdit.getChildren()) {
+								if(previousChild.covers(currentChild) && previousChild.getOffset() + previousChild.getLength() != currentChild.getOffset()) {
+									sourceEdit.removeChild(currentChild);
+								}
+							}
+						}
+					}
+					textEdits.add(sourceEdit);
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Modify source method", new TextEdit[] {sourceEdit}));
+				}
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			}
+		}
+		else {
+			finalizeOriginalMethod(sourceCompilationUnits.get(0), cloneInfo.originalMethodBodyRewriteList.get(0));
+			finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
+		}
 		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 			AST ast = sourceMethodDeclarations.get(0).getAST();
 			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG1 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG1();

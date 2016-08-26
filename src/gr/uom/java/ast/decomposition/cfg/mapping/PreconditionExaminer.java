@@ -3998,6 +3998,12 @@ public class PreconditionExaminer {
 					else if(typeBinding1.isInterface() && typeBinding2.isInterface()) {
 						typeBinding = ASTReader.getAST().resolveWellKnownType("java.lang.Object");
 					}
+					else if(typeBinding1.getName().equals("float") && typeBinding2.getName().equals("double")) {
+						return typeBinding2;
+					}
+					else if(typeBinding1.getName().equals("double") && typeBinding2.getName().equals("float")) {
+						return typeBinding1;
+					}
 				}
 			}
 		}

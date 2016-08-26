@@ -489,6 +489,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return accessedLocalFields;
 	}
 
+	private boolean containsImportWithNameClash(CompilationUnit cunit, ITypeBinding typeBinding) {
+		List<ImportDeclaration> imports = cunit.imports();
+		for(ImportDeclaration importDeclaration : imports) {
+			IBinding importBinding = importDeclaration.resolveBinding();
+			if(importBinding.getKind() == IBinding.TYPE) {
+				ITypeBinding importTypeBinding = (ITypeBinding)importBinding;
+				if(importTypeBinding.getName().equals(typeBinding.getName()) && !importTypeBinding.isEqualTo(typeBinding)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	private void extractClone() {
 		this.cloneInfo = new CloneInformation();
 		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
@@ -1078,7 +1092,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(returnTypeBinding);
 			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-			Type returnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
+			Type returnType = containsImportWithNameClash(cloneInfo.sourceCompilationUnit, returnTypeBinding) ?
+					RefactoringUtility.generateQualifiedTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 		}
 		else {

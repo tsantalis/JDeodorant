@@ -428,6 +428,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 			return true;
 		if(isNumberPrimitiveType(binding1) && binding2.getQualifiedName().equals("java.lang.Number"))
 			return true;
+		if(binding1.getName().equals("float") && binding2.getName().equals("double")) {
+			return true;
+		}
+		if(binding1.getName().equals("double") && binding2.getName().equals("float")) {
+			return true;
+		}
 		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {
 			return true;
 		}

@@ -1340,7 +1340,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 	}
 
 	private boolean commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(IMethodBinding methodBinding, ITypeBinding typeBinding) {
-		if(typeBinding != null) {
+		if(typeBinding != null && !typeBinding.isInterface()) {
 			for(IMethodBinding superMethodBinding : typeBinding.getDeclaredMethods()) {
 				if(MethodCallAnalyzer.equalSignature(superMethodBinding, methodBinding)) {
 					return true;
@@ -1855,7 +1855,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						/*localFieldG1.getRoot().equals(sourceCompilationUnits.get(0)) && localFieldG2.getRoot().equals(sourceCompilationUnits.get(1)) &&*/
 						!fieldDeclarationsToBePulledUp.get(0).contains(localFieldG1) && !fieldDeclarationsToBePulledUp.get(1).contains(localFieldG2)) {
 					//ITypeBinding commonSuperType = commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && sameInitializers(localFieldG1, localFieldG2)) {
+					if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 						/*String innerTypeName = null;
 						if(!originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding())) {
 							//check if the types of the fields are inner types
@@ -1946,7 +1946,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						}*/
 						boolean avoidPullUpDueToSerialization1 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(0), localFieldG1);
 						boolean avoidPullUpDueToSerialization2 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(1), localFieldG2);
-						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
+						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2 && sameInitializers(localFieldG1, localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
 								fieldDeclarationsToBePulledUp.get(0).add(localFieldG1);
@@ -2049,6 +2049,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									getterMethodDeclarationModifiersRewrite.insertLast(ast.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 									if(cloneInfo.superclassNotDirectlyInheritedFromRefactoredSubclasses) {
 										Block methodBody = ast.newBlock();
+										ReturnStatement returnStatement = ast.newReturnStatement();
+										sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, generateDefaultValue(sourceRewriter, ast, originalFieldDeclarationG1.getType().resolveBinding()), null);
+										ListRewrite methodBodyStatementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+										methodBodyStatementRewrite.insertLast(returnStatement, null);
 										sourceRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, methodBody, null);
 									}
 									else {
@@ -2059,7 +2063,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 							else {
-								if(!bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
+								if(!bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2) && !modifiedLocalFieldsG1.contains(localFieldG1) && !modifiedLocalFieldsG2.contains(localFieldG2)) {
 									fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 									fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 									Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2068,7 +2072,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 						}
-						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
+						if((avoidPullUpDueToSerialization1 || avoidPullUpDueToSerialization2 || !sameInitializers(localFieldG1, localFieldG2)) && modifiedLocalFieldsG1.contains(localFieldG1) && modifiedLocalFieldsG2.contains(localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
 								assignedFieldDeclarationsToBeReplacedWithSetter.get(0).add(localFieldG1);
@@ -2114,22 +2118,13 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						break;
 					}
 					else {
-						if(originalFieldDeclarationG1.getType().resolveBinding().isEqualTo(originalFieldDeclarationG2.getType().resolveBinding()) && !sameInitializers(localFieldG1, localFieldG2)) {
+						ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
+						if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
 							fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
 							fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
 							Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-							typeBindings.add(originalFieldDeclarationG1.getType().resolveBinding());
+							typeBindings.add(commonSuperType);
 							RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-						}
-						else {
-							ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(originalFieldDeclarationG1.getType().resolveBinding(), originalFieldDeclarationG2.getType().resolveBinding());
-							if(ASTNodeMatcher.validCommonSuperType(commonSuperType)) {
-								fieldDeclarationsToBeParameterized.get(0).add(localFieldG1);
-								fieldDeclarationsToBeParameterized.get(1).add(localFieldG2);
-								Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
-								typeBindings.add(commonSuperType);
-								RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-							}
 						}
 					}
 				}
@@ -2314,11 +2309,39 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			cloneInfo.argumentRewriteList.get(0).insertLast(variableDeclaration1.getName(), null);
 			cloneInfo.argumentRewriteList.get(1).insertLast(variableDeclaration2.getName(), null);
 		}*/
-		finalizeOriginalMethod(sourceCompilationUnits.get(0), cloneInfo.originalMethodBodyRewriteList.get(0));
-		finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
+		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
+			try {
+				List<TextEdit> textEdits = new ArrayList<TextEdit>();
+				for(ASTRewrite methodBodyRewrite : cloneInfo.originalMethodBodyRewriteList) {
+					TextEdit sourceEdit = methodBodyRewrite.rewriteAST();
+					if(textEdits.size() > 0) {
+						TextEdit previousTextEdit = textEdits.get(textEdits.size()-1);
+						for(TextEdit previousChild : previousTextEdit.getChildren()) {
+							for(TextEdit currentChild : sourceEdit.getChildren()) {
+								if(previousChild.covers(currentChild) && previousChild.getOffset() + previousChild.getLength() != currentChild.getOffset()) {
+									sourceEdit.removeChild(currentChild);
+								}
+							}
+						}
+					}
+					textEdits.add(sourceEdit);
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Modify source method", new TextEdit[] {sourceEdit}));
+				}
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			}
+		}
+		else {
+			finalizeOriginalMethod(sourceCompilationUnits.get(0), cloneInfo.originalMethodBodyRewriteList.get(0));
+			finalizeOriginalMethod(sourceCompilationUnits.get(1), cloneInfo.originalMethodBodyRewriteList.get(1));
+		}
 		if(sourceMethodDeclarations.get(0).equals(sourceMethodDeclarations.get(1))) {
 			AST ast = sourceMethodDeclarations.get(0).getAST();
-			ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG1 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG1();
 			Set<VariableDeclaration> declaredVariablesInRemainingNodesDefinedByMappedNodesG2 = mapper.getDeclaredVariablesInRemainingNodesDefinedByMappedNodesG2();
 			for(VariableBindingKeyPair parameterName : originalPassedParameters.keySet()) {
@@ -2328,27 +2351,38 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				if(variableDeclaration1.getInitializer() == null && !variableDeclaration1.resolveBinding().isParameter() && !variableDeclaration1.resolveBinding().isField() &&
 						declaredVariablesInRemainingNodesDefinedByMappedNodesG1.contains(variableDeclaration1) &&
 						variableDeclaration1 instanceof VariableDeclarationFragment) {
+					ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 					Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration1.resolveBinding().getType());
 					methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration1, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+					try {
+						TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
+						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+						change.getEdit().addChild(sourceEdit);
+						change.addTextEditGroup(new TextEditGroup("Initialize variable passed as parameter to the extracted method", new TextEdit[] {sourceEdit}));
+					} catch (JavaModelException e) {
+						e.printStackTrace();
+					}
 				}
 				VariableDeclaration variableDeclaration2 = variableDeclarations.get(1);
 				if(!variableDeclaration2.resolveBinding().isEqualTo(variableDeclaration1.resolveBinding())) {
 					if(variableDeclaration2.getInitializer() == null && !variableDeclaration2.resolveBinding().isParameter() && !variableDeclaration2.resolveBinding().isField() &&
 							declaredVariablesInRemainingNodesDefinedByMappedNodesG2.contains(variableDeclaration2) &&
 							variableDeclaration2 instanceof VariableDeclarationFragment) {
+						ASTRewrite methodBodyRewriter = ASTRewrite.create(ast);
 						Expression initializer = generateDefaultValue(methodBodyRewriter, ast, variableDeclaration2.resolveBinding().getType());
 						methodBodyRewriter.set((VariableDeclarationFragment)variableDeclaration2, VariableDeclarationFragment.INITIALIZER_PROPERTY, initializer, null);
+						try {
+							TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Initialize variable passed as parameter to the extracted method", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
-			}
-			try {
-				TextEdit sourceEdit = methodBodyRewriter.rewriteAST();
-				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnits.get(0).getJavaElement();
-				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-				change.getEdit().addChild(sourceEdit);
-				change.addTextEditGroup(new TextEditGroup("Initialize variable(s) passed as parameter(s) to the extracted method", new TextEdit[] {sourceEdit}));
-			} catch (JavaModelException e) {
-				e.printStackTrace();
 			}
 		}
 		try {
@@ -4445,13 +4479,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			}
 		}
 		Set<VariableDeclaration> accessedLocalFields = null;
-		if(index == 0)
+		ITypeBinding sourceClassTypeBinding = null;
+		if(index == 0) {
 			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG1(), sourceTypeDeclarations.get(0));
-		else
+			sourceClassTypeBinding = sourceTypeDeclarations.get(0).resolveBinding();
+		}
+		else {
 			accessedLocalFields = getLocallyAccessedFields(mapper.getDirectlyAccessedLocalFieldsG2(), sourceTypeDeclarations.get(1));
+			sourceClassTypeBinding = sourceTypeDeclarations.get(1).resolveBinding();
+		}
 		for(VariableDeclaration variableDeclaration : fieldsToBeParameterized) {
 			if(accessedLocalFields.contains(variableDeclaration)) {
-				if((variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0) {
+				//check if the field is private and declared in another class
+				if((variableDeclaration.resolveBinding().getModifiers() & Modifier.PRIVATE) != 0 && !sourceClassTypeBinding.isEqualTo(variableDeclaration.resolveBinding().getDeclaringClass())) {
+					TypeDeclaration sourceTypeDeclaration = index == 0 ? sourceTypeDeclarations.get(0) : sourceTypeDeclarations.get(1);
+					MethodDeclaration getterDeclaration = RefactoringUtility.findGetterDeclarationForField(variableDeclaration, sourceTypeDeclaration);
+					if(getterDeclaration != null) {
+						MethodInvocation getterInvocation = ast.newMethodInvocation();
+						methodBodyRewriter.set(getterInvocation, MethodInvocation.NAME_PROPERTY, getterDeclaration.getName(), null);
+						argumentsRewrite.insertLast(getterInvocation, null);
+					}
+				}
+				else if((variableDeclaration.resolveBinding().getModifiers() & Modifier.STATIC) != 0) {
 					argumentsRewrite.insertLast(variableDeclaration.getName(), null);
 				}
 				else {

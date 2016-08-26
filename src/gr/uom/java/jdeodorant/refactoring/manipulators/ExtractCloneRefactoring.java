@@ -1303,13 +1303,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			if(difference != null) {
 				AbstractExpression expression1 = difference.getExpression1();
 				AbstractExpression expression2 = difference.getExpression2();
-				boolean isReturnedVariable = false;
-				if(expression1 != null) {
-					isReturnedVariable = isReturnedVariable(expression1.getExpression(), this.returnedVariables.get(0));
-				}
-				else if(expression2 != null) {
-					isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
-				}
+				boolean isReturnedVariable = isReturnedVariable(difference);
 				ITypeBinding typeBinding1 = expression1 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression()).resolveTypeBinding()
 						: ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding();
 				ITypeBinding typeBinding2 = expression2 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding()
@@ -4617,9 +4611,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					expressions.add(null);
 				}
 				Expression expression = expressions.get(index);
-				boolean isReturnedVariable = false;
-				if(expression != null)
-					isReturnedVariable = isReturnedVariable(expression, returnedVariables);
+				boolean isReturnedVariable = isReturnedVariable(difference);
 				List<VariableDeclaration> returnedVariables1 = this.returnedVariables.get(0);
 				List<VariableDeclaration> returnedVariables2 = this.returnedVariables.get(1);
 				if(!isReturnedVariable ||
@@ -4901,6 +4893,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private boolean isReturnedVariable(ASTNodeDifference difference) {
+		AbstractExpression expression1 = difference.getExpression1();
+		AbstractExpression expression2 = difference.getExpression2();
+		boolean isReturnedVariable = false;
+		if(expression1 != null) {
+			isReturnedVariable = isReturnedVariable(expression1.getExpression(), this.returnedVariables.get(0));
+		}
+		else if(expression2 != null) {
+			isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
+		}
+		return isReturnedVariable;
 	}
 
 	private boolean isReturnedVariable(Expression expression, List<VariableDeclaration> returnedVariables) {

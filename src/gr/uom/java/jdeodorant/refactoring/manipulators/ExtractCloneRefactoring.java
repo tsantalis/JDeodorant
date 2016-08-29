@@ -4811,7 +4811,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				//create a variable declaration statement
 				ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
-				Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
+				boolean makeQualifiedType = RefactoringUtility.hasQualifiedType(variableDeclaration);
+				Type variableType = makeQualifiedType ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
 				VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
 				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclaration.getName(), null);
 				ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();

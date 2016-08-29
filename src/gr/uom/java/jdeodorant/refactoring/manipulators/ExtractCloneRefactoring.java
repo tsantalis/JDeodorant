@@ -477,6 +477,20 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return accessedLocalFields;
 	}
 
+	private boolean containsImportWithNameClash(CompilationUnit cunit, ITypeBinding typeBinding) {
+		List<ImportDeclaration> imports = cunit.imports();
+		for(ImportDeclaration importDeclaration : imports) {
+			IBinding importBinding = importDeclaration.resolveBinding();
+			if(importBinding.getKind() == IBinding.TYPE) {
+				ITypeBinding importTypeBinding = (ITypeBinding)importBinding;
+				if(importTypeBinding.getName().equals(typeBinding.getName()) && !importTypeBinding.isEqualTo(typeBinding)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	private void extractClone() {
 		this.cloneInfo = new CloneInformation();
 		Set<ITypeBinding> requiredImportTypeBindings = new LinkedHashSet<ITypeBinding>();
@@ -1066,7 +1080,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 			typeBindings.add(returnTypeBinding);
 			RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportTypeBindings);
-			Type returnType = RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
+			Type returnType = containsImportWithNameClash(cloneInfo.sourceCompilationUnit, returnTypeBinding) ?
+					RefactoringUtility.generateQualifiedTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(returnTypeBinding, ast, sourceRewriter);
 			sourceRewriter.set(newMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, returnType, null);
 		}
 		else {
@@ -1252,13 +1268,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(ASTNodeDifference difference : parameterizedDifferenceMap.values()) {
 			AbstractExpression expression1 = difference.getExpression1();
 			AbstractExpression expression2 = difference.getExpression2();
-			boolean isReturnedVariable = false;
-			if(expression1 != null) {
-				isReturnedVariable = isReturnedVariable(expression1.getExpression(), this.returnedVariables.get(0));
-			}
-			else if(expression2 != null) {
-				isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
-			}
+			boolean isReturnedVariable = isReturnedVariable(difference);
 			ITypeBinding typeBinding1 = expression1 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression1.getExpression()).resolveTypeBinding()
 					: ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding();
 			ITypeBinding typeBinding2 = expression2 != null ? ASTNodeDifference.getParentExpressionOfMethodNameOrTypeName(expression2.getExpression()).resolveTypeBinding()
@@ -4453,9 +4463,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				expressions.add(null);
 			}
 			Expression expression = expressions.get(index);
-			boolean isReturnedVariable = false;
-			if(expression != null)
-				isReturnedVariable = isReturnedVariable(expression, returnedVariables);
+			boolean isReturnedVariable = isReturnedVariable(difference);
 			List<VariableDeclaration> returnedVariables1 = this.returnedVariables.get(0);
 			List<VariableDeclaration> returnedVariables2 = this.returnedVariables.get(1);
 			if(!isReturnedVariable ||
@@ -4632,7 +4640,9 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				//create a variable declaration statement
 				ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
-				Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
+				boolean makeQualifiedType = RefactoringUtility.hasQualifiedType(variableDeclaration);
+				Type variableType = makeQualifiedType ? RefactoringUtility.generateQualifiedTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter) :
+					RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, methodBodyRewriter);
 				VariableDeclarationFragment newFragment = ast.newVariableDeclarationFragment();
 				methodBodyRewriter.set(newFragment, VariableDeclarationFragment.NAME_PROPERTY, variableDeclaration.getName(), null);
 				ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();
@@ -4729,6 +4739,19 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		} catch (JavaModelException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private boolean isReturnedVariable(ASTNodeDifference difference) {
+		AbstractExpression expression1 = difference.getExpression1();
+		AbstractExpression expression2 = difference.getExpression2();
+		boolean isReturnedVariable = false;
+		if(expression1 != null) {
+			isReturnedVariable = isReturnedVariable(expression1.getExpression(), this.returnedVariables.get(0));
+		}
+		else if(expression2 != null) {
+			isReturnedVariable = isReturnedVariable(expression2.getExpression(), this.returnedVariables.get(1));
+		}
+		return isReturnedVariable;
 	}
 
 	private boolean isReturnedVariable(Expression expression, List<VariableDeclaration> returnedVariables) {

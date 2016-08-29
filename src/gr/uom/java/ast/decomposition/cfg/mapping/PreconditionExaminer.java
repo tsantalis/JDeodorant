@@ -654,7 +654,8 @@ public class PreconditionExaminer {
 				sortedVariables1.add(variable1);
 			}
 		}
-		if(sortedVariables1.isEmpty() && sortedVariables2.isEmpty() && variables1.size() == 1 && variables2.size() == 1) {
+		if(sortedVariables1.isEmpty() && sortedVariables2.isEmpty() && variables1.size() == 1 && variables2.size() == 1 &&
+				appearsOnlyAsPartOfDifferences1(variables1.get(0)) && appearsOnlyAsPartOfDifferences2(variables2.get(0))) {
 			AbstractVariable variable1 = variables1.get(0);
 			AbstractVariable variable2 = variables2.get(0);
 			if(variable1.getVariableType().equals(variable2.getVariableType())) {
@@ -706,6 +707,58 @@ public class PreconditionExaminer {
 		for(ASTNodeDifference difference : getNodeDifferences()) {
 			BindingSignaturePair pair = difference.getBindingSignaturePair();
 			if(pair.getSignature2().containsBinding(variable.getVariableBindingKey())) {
+				differencesContainingVariable.add(difference.getExpression2().getExpression());
+			}
+		}
+		Set<Expression> allSimpleNames2 = extractSimpleNames(getRemovableNodesG2());
+		int variableOccurrences = 0;
+		int variableOccurrencesInDifferences = 0;
+		for(Expression expression : allSimpleNames2) {
+			SimpleName simpleName = (SimpleName)expression;
+			if(simpleName.resolveBinding() != null && simpleName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+				variableOccurrences++;
+				for(Expression difference : differencesContainingVariable) {
+					if(isInsideDifference(simpleName, difference)) {
+						variableOccurrencesInDifferences++;
+						break;
+					}
+				}
+			}
+		}
+		return variableOccurrences > 0 && variableOccurrences == variableOccurrencesInDifferences;
+	}
+
+	private boolean appearsOnlyAsPartOfDifferences1(AbstractVariable variable) {
+		Set<Expression> differencesContainingVariable = new LinkedHashSet<Expression>();
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			BindingSignaturePair pair = difference.getBindingSignaturePair();
+			if(pair.getSignature1().containsBinding(variable.getVariableBindingKey()) && !pair.getSignature1().containsOnlyBinding(variable.getVariableBindingKey())) {
+				differencesContainingVariable.add(difference.getExpression1().getExpression());
+			}
+		}
+		Set<Expression> allSimpleNames1 = extractSimpleNames(getRemovableNodesG1());
+		int variableOccurrences = 0;
+		int variableOccurrencesInDifferences = 0;
+		for(Expression expression : allSimpleNames1) {
+			SimpleName simpleName = (SimpleName)expression;
+			if(simpleName.resolveBinding() != null && simpleName.resolveBinding().getKey().equals(variable.getVariableBindingKey())) {
+				variableOccurrences++;
+				for(Expression difference : differencesContainingVariable) {
+					if(isInsideDifference(simpleName, difference)) {
+						variableOccurrencesInDifferences++;
+						break;
+					}
+				}
+			}
+		}
+		return variableOccurrences > 0 && variableOccurrences == variableOccurrencesInDifferences;
+	}
+
+	private boolean appearsOnlyAsPartOfDifferences2(AbstractVariable variable) {
+		Set<Expression> differencesContainingVariable = new LinkedHashSet<Expression>();
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			BindingSignaturePair pair = difference.getBindingSignaturePair();
+			if(pair.getSignature2().containsBinding(variable.getVariableBindingKey()) && !pair.getSignature2().containsOnlyBinding(variable.getVariableBindingKey())) {
 				differencesContainingVariable.add(difference.getExpression2().getExpression());
 			}
 		}

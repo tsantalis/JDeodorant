@@ -3942,14 +3942,16 @@ public class PreconditionExaminer {
 			ITypeBinding returnTypeBinding = null;
 			if(returnedTypeBindings1.size() == 0 && returnedTypeBindings2.size() == 0 &&
 					pdg1.getNodes().size() == mappedNodesG1.size() && pdg2.getNodes().size() == mappedNodesG2.size()) {
-				ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
-				ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
-				ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(methodReturnTypeBinding1, methodReturnTypeBinding2);
-				if(methodReturnTypeBinding1.isEqualTo(methodReturnTypeBinding2)) {
-					returnTypeBinding = methodReturnTypeBinding1;
-				}
-				else {
-					returnTypeBinding = commonSuperType;
+				if(methodDeclaration1.getReturnType2() != null && methodDeclaration2.getReturnType2() != null) {
+					ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
+					ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
+					ITypeBinding commonSuperType = ASTNodeMatcher.commonSuperType(methodReturnTypeBinding1, methodReturnTypeBinding2);
+					if(methodReturnTypeBinding1.isEqualTo(methodReturnTypeBinding2)) {
+						returnTypeBinding = methodReturnTypeBinding1;
+					}
+					else {
+						returnTypeBinding = commonSuperType;
+					}
 				}
 			}
 			for(int i=0; i<returnedTypeBindings1.size(); i++) {
@@ -3969,13 +3971,15 @@ public class PreconditionExaminer {
 							returnTypeBinding = typeBinding;
 						}
 						else {
-							ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
-							ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
-							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding1 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1);
-							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding2 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2);
-							if(methodReturnTypeBinding1.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding1) &&
-									methodReturnTypeBinding2.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding2)) {
-								returnTypeBinding = methodReturnTypeBinding1;
+							if(methodDeclaration1.getReturnType2() != null && methodDeclaration2.getReturnType2() != null) {
+								ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
+								ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
+								ITypeBinding commonSuperTypeWithMethodReturnTypeBinding1 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1);
+								ITypeBinding commonSuperTypeWithMethodReturnTypeBinding2 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2);
+								if(methodReturnTypeBinding1.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding1) &&
+										methodReturnTypeBinding2.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding2)) {
+									returnTypeBinding = methodReturnTypeBinding1;
+								}
 							}
 						}
 					}
@@ -3985,13 +3989,15 @@ public class PreconditionExaminer {
 							returnTypeBinding = typeBinding;
 						}
 						else {
-							ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
-							ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
-							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding1 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1);
-							ITypeBinding commonSuperTypeWithMethodReturnTypeBinding2 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2);
-							if(methodReturnTypeBinding1.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding1) &&
-									methodReturnTypeBinding2.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding2)) {
-								returnTypeBinding = methodReturnTypeBinding1;
+							if(methodDeclaration1.getReturnType2() != null && methodDeclaration2.getReturnType2() != null) {
+								ITypeBinding methodReturnTypeBinding1 = methodDeclaration1.getReturnType2().resolveBinding();
+								ITypeBinding methodReturnTypeBinding2 = methodDeclaration2.getReturnType2().resolveBinding();
+								ITypeBinding commonSuperTypeWithMethodReturnTypeBinding1 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding1);
+								ITypeBinding commonSuperTypeWithMethodReturnTypeBinding2 = ASTNodeMatcher.commonSuperType(returnTypeBinding, methodReturnTypeBinding2);
+								if(methodReturnTypeBinding1.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding1) &&
+										methodReturnTypeBinding2.isEqualTo(commonSuperTypeWithMethodReturnTypeBinding2)) {
+									returnTypeBinding = methodReturnTypeBinding1;
+								}
 							}
 						}
 					}

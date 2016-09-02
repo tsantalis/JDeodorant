@@ -97,7 +97,7 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     public boolean isApplicable() {
     	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
     			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable() &&
-    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum() && !isSourceClassATestClass())
+    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum() && !isSourceClassATestClass() && !targetClassContainsMethodWithSourceMethodSignature())
     		return true;
     	else
     		return false;
@@ -106,6 +106,18 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     public boolean leaveDelegate() {
 		return system.getSystemObject().containsMethodInvocation(getSourceMethod().getMethodObject().generateMethodInvocation(), getSourceClass().getClassObject()) ||
 		system.getSystemObject().containsSuperMethodInvocation(getSourceMethod().getMethodObject().generateSuperMethodInvocation());
+    }
+
+    private boolean targetClassContainsMethodWithSourceMethodSignature() {
+    	MethodObject sourceMethod = this.sourceMethod.getMethodObject();
+    	for(MethodObject targetMethod : targetClass.getClassObject().getMethodList()) {
+    		if(targetMethod.getName().equals(sourceMethod.getName()) &&
+    				targetMethod.getReturnType().equals(sourceMethod.getReturnType()) &&
+    				targetMethod.getParameterTypeList().equals(sourceMethod.getParameterTypeList())) {
+    			return true;
+    		}
+    	}
+    	return false;
     }
 
     private boolean isSourceClassATestClass() {

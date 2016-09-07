@@ -610,7 +610,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						compilationUnit = sourceCompilationUnits.get(0);
 					}
 					else if(commonSuperType != null) {
-						compilationUnit = findCompilationUnit(commonSuperType.getAbstractTypeDeclaration());
+						compilationUnit = RefactoringUtility.findCompilationUnit(commonSuperType.getAbstractTypeDeclaration());
 					}
 					else {
 						compilationUnit = sourceCompilationUnits.get(0);
@@ -918,8 +918,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 						boolean clones = type2Clones(methodDeclaration1, methodDeclaration2);
 						Type returnType = methodDeclaration1.getReturnType2();
-						TypeDeclaration typeDeclaration1 = findTypeDeclaration(methodDeclaration1);
-						TypeDeclaration typeDeclaration2 = findTypeDeclaration(methodDeclaration2);
+						TypeDeclaration typeDeclaration1 = RefactoringUtility.findTypeDeclaration(methodDeclaration1);
+						TypeDeclaration typeDeclaration2 = RefactoringUtility.findTypeDeclaration(methodDeclaration2);
 						Set<VariableDeclaration> fieldsAccessedInMethod1 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG1, methodDeclaration1);
 						Set<VariableDeclaration> fieldsAccessedInMethod2 = getFieldsAccessedInMethod(indirectlyAccessedLocalFieldsG2, methodDeclaration2);
 						Set<VariableDeclaration> fieldsModifiedInMethod1 = getFieldsAccessedInMethod(indirectlyModifiedLocalFieldsG1, methodDeclaration1);
@@ -1659,7 +1659,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		AST ast = bodyDeclaration.getAST();
 		ASTRewrite rewriter = ASTRewrite.create(ast);
-		CompilationUnit compilationUnit = findCompilationUnit(bodyDeclaration);
+		CompilationUnit compilationUnit = RefactoringUtility.findCompilationUnit(bodyDeclaration);
 		ListRewrite modifiersRewrite = rewriter.getListRewrite(bodyDeclaration, modifiersChildListPropertyDescriptor);
 		List<IExtendedModifier> originalModifiers = bodyDeclaration.modifiers();
 		boolean accessModifierFound = false;
@@ -1748,8 +1748,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			StatementCollector collector2 = new StatementCollector();
 			methodDeclaration2.getBody().accept(collector2);
 			List<ASTNode> statements2 = collector2.getStatementList();
-			ITypeRoot typeRoot1 = findCompilationUnit(methodDeclaration1).getTypeRoot();
-			ITypeRoot typeRoot2 = findCompilationUnit(methodDeclaration2).getTypeRoot();
+			ITypeRoot typeRoot1 = RefactoringUtility.findCompilationUnit(methodDeclaration1).getTypeRoot();
+			ITypeRoot typeRoot2 = RefactoringUtility.findCompilationUnit(methodDeclaration2).getTypeRoot();
 			if(statements1.size() != statements2.size()) {
 				return false;
 			}
@@ -4216,18 +4216,18 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
 			if(methodDeclaration.getRoot().equals(compilationUnit)) {
-				removeMethodDeclaration(methodDeclaration, findTypeDeclaration(methodDeclaration), findCompilationUnit(methodDeclaration));
+				removeMethodDeclaration(methodDeclaration, RefactoringUtility.findTypeDeclaration(methodDeclaration), RefactoringUtility.findCompilationUnit(methodDeclaration));
 			}
 		}
 		removeFieldDeclarations(fieldDeclarationsToBePulledUp);
 		for(VariableDeclaration variableDeclaration : accessedFieldDeclarations) {
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
-				createGetterMethodDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
+				createGetterMethodDeclaration(variableDeclaration, RefactoringUtility.findTypeDeclaration(variableDeclaration), RefactoringUtility.findCompilationUnit(variableDeclaration));
 			}
 		}
 		for(VariableDeclaration variableDeclaration : assignedFieldDeclarations) {
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
-				createSetterMethodDeclaration(variableDeclaration, findTypeDeclaration(variableDeclaration), findCompilationUnit(variableDeclaration));
+				createSetterMethodDeclaration(variableDeclaration, RefactoringUtility.findTypeDeclaration(variableDeclaration), RefactoringUtility.findCompilationUnit(variableDeclaration));
 			}
 		}
 	}
@@ -4432,8 +4432,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		orderedFields.addAll(variableDeclarations);
 		List<TextEdit> textEdits = new ArrayList<TextEdit>();
 		for(VariableDeclaration variableDeclaration : orderedFields) {
-			TypeDeclaration typeDeclaration = findTypeDeclaration(variableDeclaration);
-			CompilationUnit compilationUnit = findCompilationUnit(variableDeclaration);
+			TypeDeclaration typeDeclaration = RefactoringUtility.findTypeDeclaration(variableDeclaration);
+			CompilationUnit compilationUnit = RefactoringUtility.findCompilationUnit(variableDeclaration);
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
 				boolean found = false;
 				AST ast = typeDeclaration.getAST();
@@ -4488,28 +4488,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				}
 			}
 		}
-	}
-
-	private TypeDeclaration findTypeDeclaration(ASTNode node) {
-		ASTNode parent = node.getParent();
-		while(parent != null) {
-			if(parent instanceof TypeDeclaration) {
-				return (TypeDeclaration)parent;
-			}
-			parent = parent.getParent();
-		}
-		return null;
-	}
-	
-	private CompilationUnit findCompilationUnit(ASTNode node) {
-		ASTNode parent = node.getParent();
-		while(parent != null) {
-			if(parent instanceof CompilationUnit) {
-				return (CompilationUnit)parent;
-			}
-			parent = parent.getParent();
-		}
-		return null;
 	}
 
 	private void removeMethodDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {

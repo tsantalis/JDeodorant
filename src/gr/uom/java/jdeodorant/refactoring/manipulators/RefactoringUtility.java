@@ -5,10 +5,13 @@ import java.util.List;
 import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.ArrayType;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -367,6 +370,48 @@ public class RefactoringUtility {
 					return findDeclaringTypeDeclaration(variableBinding, (TypeDeclaration)superclassTypeDeclaration);
 				}
 			}
+		}
+		return null;
+	}
+
+	public static TypeDeclaration findDeclaringTypeDeclaration(IMethodBinding methodBinding, TypeDeclaration typeDeclaration) {
+		if(typeDeclaration.resolveBinding().isEqualTo(methodBinding.getDeclaringClass())) {
+			return typeDeclaration;
+		}
+		//method was not found in typeDeclaration
+		Type superclassType = typeDeclaration.getSuperclassType();
+		if(superclassType != null) {
+			String superclassQualifiedName = superclassType.resolveBinding().getQualifiedName();
+			SystemObject system = ASTReader.getSystemObject();
+			ClassObject superclassObject = system.getClassObject(superclassQualifiedName);
+			if(superclassObject != null) {
+				AbstractTypeDeclaration superclassTypeDeclaration = superclassObject.getAbstractTypeDeclaration();
+				if(superclassTypeDeclaration instanceof TypeDeclaration) {
+					return findDeclaringTypeDeclaration(methodBinding, (TypeDeclaration)superclassTypeDeclaration);
+				}
+			}
+		}
+		return null;
+	}
+
+	public static TypeDeclaration findTypeDeclaration(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof TypeDeclaration) {
+				return (TypeDeclaration)parent;
+			}
+			parent = parent.getParent();
+		}
+		return null;
+	}
+	
+	public static CompilationUnit findCompilationUnit(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof CompilationUnit) {
+				return (CompilationUnit)parent;
+			}
+			parent = parent.getParent();
 		}
 		return null;
 	}

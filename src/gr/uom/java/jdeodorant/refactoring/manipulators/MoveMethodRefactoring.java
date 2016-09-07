@@ -1078,7 +1078,7 @@ public class MoveMethodRefactoring extends Refactoring {
 									AST ast = newMethodDeclaration.getAST();
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier()), null);
 									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
-										setPublicModifierToSourceMethod(methodInvocation);
+										setPublicModifierToSourceMethod(methodInvocation, sourceTypeDeclaration);
 										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
 									}
 								}
@@ -1094,7 +1094,7 @@ public class MoveMethodRefactoring extends Refactoring {
 									}
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
 									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
-										setPublicModifierToSourceMethod(methodInvocation);
+										setPublicModifierToSourceMethod(methodInvocation, sourceTypeDeclaration);
 										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
 									}
 								}
@@ -1124,6 +1124,13 @@ public class MoveMethodRefactoring extends Refactoring {
 											parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
 										}
 										targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
+										if(!sourceMethodsWithPublicModifier.contains(methodBinding.getKey())) {
+											TypeDeclaration superclassTypeDeclaration = RefactoringUtility.findDeclaringTypeDeclaration(superclassMethodBinding, sourceTypeDeclaration);
+											if(superclassTypeDeclaration != null) {
+												setPublicModifierToSourceMethod(methodInvocation, superclassTypeDeclaration);
+											}
+											sourceMethodsWithPublicModifier.add(methodBinding.getKey());
+										}
 									}
 								}
 							}
@@ -1238,10 +1245,11 @@ public class MoveMethodRefactoring extends Refactoring {
 		addParamTagElementToJavadoc(newMethodDeclaration, targetRewriter, variableBinding.getName());
 	}
 
-	private void setPublicModifierToSourceMethod(MethodInvocation methodInvocation) {
+	private void setPublicModifierToSourceMethod(MethodInvocation methodInvocation, TypeDeclaration sourceTypeDeclaration) {
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
 		for(MethodDeclaration methodDeclaration : methodDeclarations) {
 			if(methodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+				CompilationUnit sourceCompilationUnit = RefactoringUtility.findCompilationUnit(methodDeclaration);
 				ASTRewrite sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
 				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 				Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
@@ -1257,27 +1265,27 @@ public class MoveMethodRefactoring extends Refactoring {
 								modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
 							modifierFound = true;
 							modifierRewrite.replace(modifier, publicModifier, null);
-							try {
-								TextEdit sourceEdit = sourceRewriter.rewriteAST();
-								sourceMultiTextEdit.addChild(sourceEdit);
-								sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
-							}
-							catch(JavaModelException javaModelException) {
-								javaModelException.printStackTrace();
-							}
 						}
 					}
 				}
 				if(!modifierFound) {
 					modifierRewrite.insertFirst(publicModifier, null);
-					try {
-						TextEdit sourceEdit = sourceRewriter.rewriteAST();
-						sourceMultiTextEdit.addChild(sourceEdit);
-						sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+				}
+				try {
+					TextEdit sourceEdit = sourceRewriter.rewriteAST();
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+					if(change == null) {
+						MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+						change = new CompilationUnitChange("", sourceICompilationUnit);
+						change.setEdit(sourceMultiTextEdit);
+						fChanges.put(sourceICompilationUnit, change);
 					}
-					catch(JavaModelException javaModelException) {
-						javaModelException.printStackTrace();
-					}
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Update access modifier to public", new TextEdit[] {sourceEdit}));
+				}
+				catch(JavaModelException javaModelException) {
+					javaModelException.printStackTrace();
 				}
 			}
 		}

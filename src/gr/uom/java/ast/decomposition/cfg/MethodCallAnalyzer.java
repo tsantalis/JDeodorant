@@ -98,6 +98,7 @@ public class MethodCallAnalyzer {
 			else {
 				Set<AbstractVariable> usedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.usedVariables);
 				Set<AbstractVariable> definedVariablesBefore = new LinkedHashSet<AbstractVariable>(this.definedVariables);
+				Set<String> thrownExceptionTypesBefore = new LinkedHashSet<String>(this.thrownExceptionTypes);
 				processInternalMethodInvocation(classObject, methodObject, variable, new LinkedHashSet<String>());
 				//save in cache
 				Set<AbstractVariable> usedVariablesAfter = new LinkedHashSet<AbstractVariable>(this.usedVariables);
@@ -148,7 +149,9 @@ public class MethodCallAnalyzer {
 				if(definedFieldCount == 0) {
 					cache.setEmptyDefinedFieldsForMethodExpression(methodObject);
 				}
-				cache.setThrownExceptionTypesForMethodExpression(methodObject, new LinkedHashSet<String>(this.thrownExceptionTypes));
+				LinkedHashSet<String> thrownExceptionTypesAfter = new LinkedHashSet<String>(this.thrownExceptionTypes);
+				thrownExceptionTypesAfter.removeAll(thrownExceptionTypesBefore);
+				cache.setThrownExceptionTypesForMethodExpression(methodObject, thrownExceptionTypesAfter);
 			}
 			int argumentPosition = 0;
 			for(Expression argument : arguments) {

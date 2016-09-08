@@ -1,5 +1,9 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.ASTReader;
+import gr.uom.java.ast.ClassObject;
+import gr.uom.java.ast.CompilationUnitCache;
+import gr.uom.java.ast.decomposition.cfg.MethodCallAnalyzer;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
@@ -18,9 +22,11 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
@@ -174,7 +180,7 @@ public class MoveMethodRefactoring extends Refactoring {
 		ImportRewrite targetImportRewrite = ImportRewrite.create(targetCompilationUnit, true);
 		
 		for(ITypeBinding typeBinding : typeVisitor.getTypeBindings()) {
-			if(!typeBinding.isNested())
+			if(!typeBinding.isNested() || (typeBinding.isNested() && sourceTypeDeclaration.resolveBinding().isEqualTo(typeBinding.getDeclaringClass())))
 				targetImportRewrite.addImport(typeBinding);
 		}
 		for(ITypeBinding typeBinding : additionalTypeBindingsToBeImportedInTargetClass) {
@@ -1078,8 +1084,12 @@ public class MoveMethodRefactoring extends Refactoring {
 									AST ast = newMethodDeclaration.getAST();
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(sourceTypeDeclaration.getName().getIdentifier()), null);
 									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
-										setPublicModifierToSourceMethod(methodInvocation);
+										setPublicModifierToSourceMethod(methodInvocation.resolveMethodBinding(), sourceTypeDeclaration);
 										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
+										Map<IMethodBinding, TypeDeclaration> subclassTypeDeclarationMap = findSubclassesOverridingMethod(sourceTypeDeclaration, methodInvocation.resolveMethodBinding());
+										for(IMethodBinding methodBindingKey : subclassTypeDeclarationMap.keySet()) {
+											setPublicModifierToSourceMethod(methodBindingKey, subclassTypeDeclarationMap.get(methodBindingKey));
+										}
 									}
 								}
 								else if(fieldName != null) {
@@ -1094,8 +1104,12 @@ public class MoveMethodRefactoring extends Refactoring {
 									}
 									targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
 									if(!sourceMethodsWithPublicModifier.contains(methodInvocation.resolveMethodBinding().getKey())) {
-										setPublicModifierToSourceMethod(methodInvocation);
+										setPublicModifierToSourceMethod(methodInvocation.resolveMethodBinding(), sourceTypeDeclaration);
 										sourceMethodsWithPublicModifier.add(methodInvocation.resolveMethodBinding().getKey());
+										Map<IMethodBinding, TypeDeclaration> subclassTypeDeclarationMap = findSubclassesOverridingMethod(sourceTypeDeclaration, methodInvocation.resolveMethodBinding());
+										for(IMethodBinding methodBindingKey : subclassTypeDeclarationMap.keySet()) {
+											setPublicModifierToSourceMethod(methodBindingKey, subclassTypeDeclarationMap.get(methodBindingKey));
+										}
 									}
 								}
 							}
@@ -1124,6 +1138,13 @@ public class MoveMethodRefactoring extends Refactoring {
 											parameterName = addSourceClassParameterToMovedMethod(newMethodDeclaration, targetRewriter);
 										}
 										targetRewriter.set(newMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterName, null);
+										if(!sourceMethodsWithPublicModifier.contains(methodBinding.getKey())) {
+											TypeDeclaration superclassTypeDeclaration = RefactoringUtility.findDeclaringTypeDeclaration(superclassMethodBinding, sourceTypeDeclaration);
+											if(superclassTypeDeclaration != null) {
+												setPublicModifierToSourceMethod(methodInvocation.resolveMethodBinding(), superclassTypeDeclaration);
+											}
+											sourceMethodsWithPublicModifier.add(methodBinding.getKey());
+										}
 									}
 								}
 							}
@@ -1151,6 +1172,28 @@ public class MoveMethodRefactoring extends Refactoring {
 		addParamTagElementToJavadoc(newMethodDeclaration, targetRewriter, parameterName.getIdentifier());
 		setPublicModifierToSourceTypeDeclaration();
 		return parameterName;
+	}
+
+	private Map<IMethodBinding, TypeDeclaration> findSubclassesOverridingMethod(TypeDeclaration typeDeclaration, IMethodBinding methodBinding) {
+		Map<IMethodBinding, TypeDeclaration> subclassTypeDeclarationMap = new LinkedHashMap<IMethodBinding, TypeDeclaration>();
+		CompilationUnitCache cache = CompilationUnitCache.getInstance();
+		Set<IType> subTypes = cache.getSubTypes((IType)typeDeclaration.resolveBinding().getJavaElement());
+		for(IType iType : subTypes) {
+			String fullyQualifiedTypeName = iType.getFullyQualifiedName();
+			ClassObject classObject = ASTReader.getSystemObject().getClassObject(fullyQualifiedTypeName);
+			if(classObject != null) {
+				AbstractTypeDeclaration abstractTypeDeclaration = classObject.getAbstractTypeDeclaration();
+				if(abstractTypeDeclaration instanceof TypeDeclaration) {
+					TypeDeclaration subclassTypeDeclaration = (TypeDeclaration)abstractTypeDeclaration;
+					for(MethodDeclaration subclassMethodDeclaration : subclassTypeDeclaration.getMethods()) {
+						if(MethodCallAnalyzer.equalSignature(subclassMethodDeclaration.resolveBinding(), methodBinding)) {
+							subclassTypeDeclarationMap.put(subclassMethodDeclaration.resolveBinding(), subclassTypeDeclaration);
+						}
+					}
+				}
+			}
+		}
+		return subclassTypeDeclarationMap;
 	}
 
 	private void setPublicModifierToSourceTypeDeclaration() {
@@ -1238,10 +1281,11 @@ public class MoveMethodRefactoring extends Refactoring {
 		addParamTagElementToJavadoc(newMethodDeclaration, targetRewriter, variableBinding.getName());
 	}
 
-	private void setPublicModifierToSourceMethod(MethodInvocation methodInvocation) {
+	private void setPublicModifierToSourceMethod(IMethodBinding methodBinding, TypeDeclaration sourceTypeDeclaration) {
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
 		for(MethodDeclaration methodDeclaration : methodDeclarations) {
-			if(methodDeclaration.resolveBinding().isEqualTo(methodInvocation.resolveMethodBinding())) {
+			if(methodDeclaration.resolveBinding().isEqualTo(methodBinding)) {
+				CompilationUnit sourceCompilationUnit = RefactoringUtility.findCompilationUnit(methodDeclaration);
 				ASTRewrite sourceRewriter = ASTRewrite.create(sourceCompilationUnit.getAST());
 				ListRewrite modifierRewrite = sourceRewriter.getListRewrite(methodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 				Modifier publicModifier = methodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD);
@@ -1257,27 +1301,27 @@ public class MoveMethodRefactoring extends Refactoring {
 								modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
 							modifierFound = true;
 							modifierRewrite.replace(modifier, publicModifier, null);
-							try {
-								TextEdit sourceEdit = sourceRewriter.rewriteAST();
-								sourceMultiTextEdit.addChild(sourceEdit);
-								sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Change access level to public", new TextEdit[] {sourceEdit}));
-							}
-							catch(JavaModelException javaModelException) {
-								javaModelException.printStackTrace();
-							}
 						}
 					}
 				}
 				if(!modifierFound) {
 					modifierRewrite.insertFirst(publicModifier, null);
-					try {
-						TextEdit sourceEdit = sourceRewriter.rewriteAST();
-						sourceMultiTextEdit.addChild(sourceEdit);
-						sourceCompilationUnitChange.addTextEditGroup(new TextEditGroup("Set access level to public", new TextEdit[] {sourceEdit}));
+				}
+				try {
+					TextEdit sourceEdit = sourceRewriter.rewriteAST();
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					CompilationUnitChange change = fChanges.get(sourceICompilationUnit);
+					if(change == null) {
+						MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+						change = new CompilationUnitChange("", sourceICompilationUnit);
+						change.setEdit(sourceMultiTextEdit);
+						fChanges.put(sourceICompilationUnit, change);
 					}
-					catch(JavaModelException javaModelException) {
-						javaModelException.printStackTrace();
-					}
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Update access modifier to public", new TextEdit[] {sourceEdit}));
+				}
+				catch(JavaModelException javaModelException) {
+					javaModelException.printStackTrace();
 				}
 			}
 		}

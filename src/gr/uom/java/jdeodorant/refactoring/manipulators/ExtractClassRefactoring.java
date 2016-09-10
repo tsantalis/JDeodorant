@@ -59,6 +59,7 @@ import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PostfixExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
@@ -2688,6 +2689,10 @@ public class ExtractClassRefactoring extends Refactoring {
 								FieldAccess fieldAccess = (FieldAccess)leftHandSide;
 								assignedVariable = fieldAccess.getName();
 							}
+							else if(leftHandSide instanceof QualifiedName) {
+								QualifiedName qualifiedName = (QualifiedName)leftHandSide;
+								assignedVariable = qualifiedName.getName();
+							}
 							Expression rightHandSide = assignment.getRightHandSide();
 							List<Expression> accessedVariables = expressionExtractor.getVariableInstructions(rightHandSide);
 							List<Expression> arrayAccesses = expressionExtractor.getArrayAccesses(leftHandSide);
@@ -2772,7 +2777,12 @@ public class ExtractClassRefactoring extends Refactoring {
 												else {
 													setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
 												}
-												if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+												if(leftHandSide instanceof QualifiedName) {
+													Name qualifier = contextAST.newName(((QualifiedName)leftHandSide).getQualifier().getFullyQualifiedName());
+													QualifiedName qualifiedName = contextAST.newQualifiedName(qualifier, contextAST.newSimpleName(modifiedExtractedTypeName));
+													sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, qualifiedName, null);
+												}
+												else if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
 													sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 												}
 												else {

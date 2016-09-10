@@ -2431,7 +2431,9 @@ public class ExtractClassRefactoring extends Refactoring {
 		String originalFieldName = fieldFragment.getName().getIdentifier();
 		String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 		MethodDeclaration getterMethodDeclaration = extractedClassAST.newMethodDeclaration();
-		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, extractedClassAST.newSimpleName(GETTER_PREFIX + modifiedFieldName), null);
+		String getterMethodName = GETTER_PREFIX + modifiedFieldName;
+		getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, extractedClassAST.newSimpleName(getterMethodName), null);
 		FieldDeclaration originalFieldDeclaration = (FieldDeclaration)fieldFragment.getParent();
 		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, originalFieldDeclaration.getType(), null);
 		ListRewrite getterMethodModifiersRewrite = extractedClassRewriter.getListRewrite(getterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);

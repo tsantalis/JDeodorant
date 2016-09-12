@@ -185,7 +185,7 @@ public class MappingState {
 		for(MappingState state : leaves) {
 			if(state.getSize() > max) {
 				max = state.getSize();
-				maximumStates.clear();
+				clear(maximumStates, max);
 				maximumStates.add(state);
 			}
 			else if(state.getSize() == max) {
@@ -194,6 +194,17 @@ public class MappingState {
 			}
 		}
 		return maximumStates;
+	}
+
+	private void clear(List<MappingState> maximumStates, int max) {
+		List<MappingState> keepStates = new ArrayList<MappingState>();
+		for(MappingState state : maximumStates) {
+			if(state.getSize() == max-1) {
+				keepStates.add(state);
+			}
+		}
+		maximumStates.clear();
+		maximumStates.addAll(keepStates);
 	}
 
 	private boolean containsSameState(List<MappingState> states, MappingState state) {

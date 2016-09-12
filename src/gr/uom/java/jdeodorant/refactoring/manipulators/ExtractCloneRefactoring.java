@@ -4655,7 +4655,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		else {
 			ITypeBinding returnTypeBinding = mapper.getReturnTypeBinding();
 			Statement methodInvocationStatement = null;
-			if(returnTypeBinding != null) {
+			if(returnTypeBinding != null && !returnTypeBinding.getQualifiedName().equals("void")) {
 				ReturnStatement returnStatement = ast.newReturnStatement();
 				if(returnTypeBinding.isEqualTo(methodDeclaration.getReturnType2().resolveBinding())) {
 					methodBodyRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, methodInvocation, null);

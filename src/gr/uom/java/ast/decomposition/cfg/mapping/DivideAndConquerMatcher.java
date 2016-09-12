@@ -1627,7 +1627,7 @@ public abstract class DivideAndConquerMatcher {
 		for(MappingState currentState : currentStates) {
 			if(currentState.getSize() > max) {
 				max = currentState.getSize();
-				maximumStates.clear();
+				clear(maximumStates, max);
 				maximumStates.add(currentState);
 			}
 			else if(currentState.getSize() == max) {
@@ -1654,5 +1654,16 @@ public abstract class DivideAndConquerMatcher {
 			}
 		}
 		return maximumStatesWithMinimumDifferences;
+	}
+
+	private void clear(List<MappingState> maximumStates, int max) {
+		List<MappingState> keepStates = new ArrayList<MappingState>();
+		for(MappingState state : maximumStates) {
+			if(state.getSize() == max-1) {
+				keepStates.add(state);
+			}
+		}
+		maximumStates.clear();
+		maximumStates.addAll(keepStates);
 	}
 }

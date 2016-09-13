@@ -189,9 +189,13 @@ public class ExtractClassRefactoring extends Refactoring {
 		return javaElementsToOpenInEditor;
 	}
 
-	private String appendAccessorMethodSuffix(String accessorMethodName) {
+	private String appendAccessorMethodSuffix(String accessorMethodName, MethodDeclaration[] methodDeclarations) {
+		return appendAccessorMethodSuffix(accessorMethodName, new LinkedHashSet<MethodDeclaration>(Arrays.asList(methodDeclarations)));
+	}
+
+	private String appendAccessorMethodSuffix(String accessorMethodName, Set<MethodDeclaration> methodDeclarations) {
 		boolean sourceTypeContainsMethodWithAccessorNameThatIsNotPureAccessor = false;
-		for(MethodDeclaration methodDeclaration : extractedMethods) {
+		for(MethodDeclaration methodDeclaration : methodDeclarations) {
 			if(methodDeclaration.getName().getIdentifier().equals(accessorMethodName)) {
 				if(accessorMethodName.startsWith(GETTER_PREFIX)) {
 					SimpleName simpleName = MethodDeclarationUtility.isGetter(methodDeclaration);
@@ -1049,6 +1053,7 @@ public class ExtractClassRefactoring extends Refactoring {
 					methodDeclarationModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
 					String methodName = fragment.getName().getIdentifier();
 					methodName = SETTER_PREFIX + methodName.substring(0,1).toUpperCase() + methodName.substring(1,methodName.length());
+					methodName = appendAccessorMethodSuffix(methodName, sourceTypeDeclaration.getMethods());
 					sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName(methodName), null);
 					ListRewrite methodDeclarationParametersRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 					SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
@@ -1189,7 +1194,9 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									String originalFieldName = variableBinding.getName();
 									String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
-									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(SETTER_PREFIX + modifiedFieldName), null);
+									String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+									setterMethodName = appendAccessorMethodSuffix(setterMethodName, sourceTypeDeclaration.getMethods());
+									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(setterMethodName), null);
 								}
 								ListRewrite setterMethodInvocationArgumentsRewrite = targetRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 								if(!newAssignment.getOperator().equals(Assignment.Operator.ASSIGN)) {
@@ -1388,7 +1395,9 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									String originalFieldName = variableBinding.getName();
 									String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
-									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(SETTER_PREFIX + modifiedFieldName), null);
+									String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+									setterMethodName = appendAccessorMethodSuffix(setterMethodName, sourceTypeDeclaration.getMethods());
+									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(setterMethodName), null);
 								}
 								ListRewrite setterMethodInvocationArgumentsRewrite = targetRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 								IMethodBinding getterMethodBinding = findGetterMethodInSourceClass(variableBinding);
@@ -1521,7 +1530,9 @@ public class ExtractClassRefactoring extends Refactoring {
 									}
 									String originalFieldName = variableBinding.getName();
 									String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
-									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(SETTER_PREFIX + modifiedFieldName), null);
+									String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+									setterMethodName = appendAccessorMethodSuffix(setterMethodName, sourceTypeDeclaration.getMethods());
+									targetRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, ast.newSimpleName(setterMethodName), null);
 								}
 								ListRewrite setterMethodInvocationArgumentsRewrite = targetRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 								IMethodBinding getterMethodBinding = findGetterMethodInSourceClass(variableBinding);
@@ -2390,7 +2401,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 		MethodDeclaration setterMethodDeclaration = extractedClassAST.newMethodDeclaration();
 		String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-		setterMethodName = appendAccessorMethodSuffix(setterMethodName);
+		setterMethodName = appendAccessorMethodSuffix(setterMethodName, this.extractedMethods);
 		extractedClassRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, extractedClassAST.newSimpleName(setterMethodName), null);
 		PrimitiveType type = extractedClassAST.newPrimitiveType(PrimitiveType.VOID);
 		extractedClassRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, type, null);
@@ -2432,7 +2443,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 		MethodDeclaration getterMethodDeclaration = extractedClassAST.newMethodDeclaration();
 		String getterMethodName = GETTER_PREFIX + modifiedFieldName;
-		getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+		getterMethodName = appendAccessorMethodSuffix(getterMethodName, this.extractedMethods);
 		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, extractedClassAST.newSimpleName(getterMethodName), null);
 		FieldDeclaration originalFieldDeclaration = (FieldDeclaration)fieldFragment.getParent();
 		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, originalFieldDeclaration.getType(), null);
@@ -2725,7 +2736,7 @@ public class ExtractClassRefactoring extends Refactoring {
 											else {
 												MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
 												String setterMethodName = SETTER_PREFIX + modifiedFieldName;
-												setterMethodName = appendAccessorMethodSuffix(setterMethodName);
+												setterMethodName = appendAccessorMethodSuffix(setterMethodName, this.extractedMethods);
 												sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName), null);
 												ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
 												if(!assignment.getOperator().equals(Assignment.Operator.ASSIGN)) {
@@ -2894,7 +2905,7 @@ public class ExtractClassRefactoring extends Refactoring {
 							String originalFieldName = fieldFragment.getName().getIdentifier();
 							String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
 							String getterMethodName = GETTER_PREFIX + modifiedFieldName;
-							getterMethodName = appendAccessorMethodSuffix(getterMethodName);
+							getterMethodName = appendAccessorMethodSuffix(getterMethodName, this.extractedMethods);
 							for(Expression expression : accessedVariables) {
 								SimpleName accessedVariable = (SimpleName)expression;
 								IBinding binding = accessedVariable.resolveBinding();

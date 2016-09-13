@@ -307,7 +307,7 @@ public class MappingState {
 								match = false;
 							else 
 								match = astNodeMatcher.match(dstNodeG1, dstNodeG2);
-							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) || symmetricalIfNodes)) {
+							if(match && astNodeMatcher.isParameterizable() && (mappedControlParents(dstNodeG1, dstNodeG2) || symmetricalIfNodes) && nodesDeclareVariableUsedInMappedNodes(dstNodeG1, dstNodeG2)) {
 								PDGNodeMapping dstNodeMapping = new PDGNodeMapping(dstNodeG1, dstNodeG2, astNodeMatcher);
 								if(symmetricalIfNodes) {
 									dstNodeMapping.setSymmetricalIfNodePair(initialNodeMapping);
@@ -326,6 +326,32 @@ public class MappingState {
 				}
 			}
 		}
+	}
+
+	private boolean nodesDeclareVariableUsedInMappedNodes(PDGNode dstNodeG1, PDGNode dstNodeG2) {
+		boolean nodeG1DeclaresVariableUsedInMappedNodes = false;
+		Iterator<AbstractVariable> declaredVariableIteratorG1 = dstNodeG1.getDeclaredVariableIterator();
+		while(declaredVariableIteratorG1.hasNext()) {
+			AbstractVariable variable = declaredVariableIteratorG1.next();
+			for(PDGNodeMapping mapping : nodeMappings) {
+				if(mapping.getNodeG1().definesLocalVariable(variable) || mapping.getNodeG1().usesLocalVariable(variable)) {
+					nodeG1DeclaresVariableUsedInMappedNodes = true;
+					break;
+				}
+			}
+		}
+		boolean nodeG2DeclaresVariableUsedInMappedNodes = false;
+		Iterator<AbstractVariable> declaredVariableIteratorG2 = dstNodeG2.getDeclaredVariableIterator();
+		while(declaredVariableIteratorG2.hasNext()) {
+			AbstractVariable variable = declaredVariableIteratorG2.next();
+			for(PDGNodeMapping mapping : nodeMappings) {
+				if(mapping.getNodeG2().definesLocalVariable(variable) || mapping.getNodeG2().usesLocalVariable(variable)) {
+					nodeG2DeclaresVariableUsedInMappedNodes = true;
+					break;
+				}
+			}
+		}
+		return nodeG1DeclaresVariableUsedInMappedNodes == nodeG2DeclaresVariableUsedInMappedNodes;
 	}
 
 	private boolean edgeMappingWithAlreadyVisitedNodes(Set<PDGEdgeMapping> edgeMappings, PDGEdgeMapping edgeMapping) {

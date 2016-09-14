@@ -476,7 +476,7 @@ public class LambdaExpressionPreconditionExaminer {
 				PDGNode node1 = mapping.getNodeG1();
 				PDGNode node2 = mapping.getNodeG2();
 				if(node1.getId() < blockGapFirstNodeId1 && node2.getId() < blockGapFirstNodeId2 &&
-						node1.definesLocalVariable(variable1) || node2.definesLocalVariable(variable2)) {
+						(node1.definesLocalVariable(variable1) || node2.definesLocalVariable(variable2))) {
 					definedVariableFound = true;
 				}
 			}

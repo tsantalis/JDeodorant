@@ -541,6 +541,29 @@ public class ExtractClassRefactoring extends Refactoring {
 		return null;
 	}
 
+	private IVariableBinding staticFieldInitializer(VariableDeclaration fieldFragment) {
+		if(fieldFragment.getInitializer() instanceof SimpleName) {
+			SimpleName simpleName = (SimpleName)fieldFragment.getInitializer();
+			IBinding binding = simpleName.resolveBinding();
+			if(binding != null && binding.getKind() == IBinding.VARIABLE) {
+				IVariableBinding variableBinding = (IVariableBinding)binding;
+				if((variableBinding.getModifiers() & Modifier.STATIC) != 0) {
+					return variableBinding;
+				}
+			}
+		}
+		return null;
+	}
+
+	private boolean variableBindingInExtractedFields(IVariableBinding variableBinding) {
+		for(VariableDeclaration variableDeclaration : extractedFieldFragments) {
+			if(variableDeclaration.resolveBinding().isEqualTo(variableBinding)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private void createExtractedClass(Set<VariableDeclaration> modifiedFieldsInNonExtractedMethods, Set<VariableDeclaration> accessedFieldsInNonExtractedMethods) {
 		IContainer contextContainer = (IContainer)sourceFile.getParent();
 		IFile extractedClassFile = null;
@@ -589,7 +612,18 @@ public class ExtractClassRefactoring extends Refactoring {
         	List<Expression> initializerThisExpressions = expressionExtractor.getThisExpressions(fieldFragment.getInitializer());
         	FieldDeclaration extractedFieldDeclaration = null;
         	if(initializerThisExpressions.isEmpty()) {
-        		extractedFieldDeclaration = extractedClassAST.newFieldDeclaration((VariableDeclarationFragment)ASTNode.copySubtree(extractedClassAST, fieldFragment));
+        		IVariableBinding staticFieldInitializer = staticFieldInitializer(fieldFragment);
+				if(staticFieldInitializer != null && !variableBindingInExtractedFields(staticFieldInitializer)) {
+					VariableDeclarationFragment fragment = extractedClassAST.newVariableDeclarationFragment();
+	        		extractedClassRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, extractedClassAST.newSimpleName(fieldFragment.getName().getIdentifier()), null);
+	        		ITypeBinding staticFieldDeclaringClassTypeBinding = staticFieldInitializer.getDeclaringClass();
+	        		QualifiedName qualifiedName = extractedClassAST.newQualifiedName(extractedClassAST.newSimpleName(staticFieldDeclaringClassTypeBinding.getName()), extractedClassAST.newSimpleName(staticFieldInitializer.getName()));
+	        		extractedClassRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, qualifiedName, null);
+	        		extractedFieldDeclaration = extractedClassAST.newFieldDeclaration(fragment);
+        		}
+        		else {
+        			extractedFieldDeclaration = extractedClassAST.newFieldDeclaration((VariableDeclarationFragment)ASTNode.copySubtree(extractedClassAST, fieldFragment));
+        		}
         	}
         	else {
         		this.extractedFieldsWithThisExpressionInTheirInitializer.add(fieldFragment);

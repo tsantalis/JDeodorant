@@ -2853,6 +2853,10 @@ public class ExtractClassRefactoring extends Refactoring {
 										FieldAccess fieldAccess = (FieldAccess)arrayExpression;
 										arrayVariable = fieldAccess.getName();
 									}
+									else if(arrayExpression instanceof QualifiedName) {
+										QualifiedName qualifiedName = (QualifiedName)arrayExpression;
+										arrayVariable = qualifiedName.getName();
+									}
 									if(arrayVariable != null) {
 										IBinding arrayBinding = arrayVariable.resolveBinding();
 										if(arrayBinding != null && arrayBinding.getKind() == IBinding.VARIABLE) {

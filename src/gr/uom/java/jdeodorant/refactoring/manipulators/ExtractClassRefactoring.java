@@ -343,10 +343,20 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 		for(PlainVariable argument : additionalArgumentsAddedToMovedMethod) {
-			if(isThisVariable(argument))
+			if(isThisVariable(argument)) {
 				argumentRewrite.insertLast(ast.newThisExpression(), null);
-			else
-				argumentRewrite.insertLast(ast.newSimpleName(argument.getVariableName()), null);
+			}
+			else {
+				if(argument.isField()) {
+					FieldAccess fieldAccess = ast.newFieldAccess();
+					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, ast.newSimpleName(argument.getVariableName()), null);
+					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+					argumentRewrite.insertLast(fieldAccess, null);
+				}
+				else {
+					argumentRewrite.insertLast(ast.newSimpleName(argument.getVariableName()), null);
+				}
+			}
 		}
 		if(sourceMethodReturnTypeBinding.getName().equals("void")) {
 			ExpressionStatement expressionStatement = ast.newExpressionStatement(delegation);

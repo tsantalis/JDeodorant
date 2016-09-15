@@ -859,7 +859,14 @@ public class ExtractClassRefactoring extends Refactoring {
         						argumentsRewrite.insertLast(parameterName, null);
         					}
         					else {
-        						argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument.getVariableName()), null);
+        						if(additionalArgument.isField()) {
+        							//adding "this" prefix to avoid collisions with other parameter names
+        							String parameterName = createNameForParameterizedFieldAccess(additionalArgument.getVariableName());
+        							argumentsRewrite.insertLast(extractedClassAST.newSimpleName(parameterName), null);
+        						}
+        						else {
+        							argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument.getVariableName()), null);
+        						}
         					}
         				}
         			}
@@ -1349,7 +1356,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												sourceMethod,
 												newMethodDeclaration,
 												targetRewriter,
-												fieldParameterMap,
+												ast, fieldParameterMap,
 												newAccessedVariable,
 												accessedVariableBinding);
 									}
@@ -1388,7 +1395,7 @@ public class ExtractClassRefactoring extends Refactoring {
 										fieldParameterFinalMap.put(new PlainVariable(accessedVariableBinding), true);
 									handleAccessedFieldNotHavingSetterMethod(
 											sourceMethod, newMethodDeclaration,
-											targetRewriter, fieldParameterMap,
+											targetRewriter, ast, fieldParameterMap,
 											newAccessedVariable, accessedVariableBinding);
 								}
 							}
@@ -1518,7 +1525,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												sourceMethod,
 												newMethodDeclaration,
 												targetRewriter,
-												fieldParameterMap,
+												ast, fieldParameterMap,
 												newAccessedVariable,
 												accessedVariableBinding);
 									}
@@ -1653,7 +1660,7 @@ public class ExtractClassRefactoring extends Refactoring {
 												sourceMethod,
 												newMethodDeclaration,
 												targetRewriter,
-												fieldParameterMap,
+												ast, fieldParameterMap,
 												newAccessedVariable,
 												accessedVariableBinding);
 									}
@@ -1695,7 +1702,7 @@ public class ExtractClassRefactoring extends Refactoring {
 										fieldParameterFinalMap.put(new PlainVariable(variableBinding), true);
 									handleAccessedFieldNotHavingSetterMethod(
 											sourceMethod, newMethodDeclaration,
-											targetRewriter, fieldParameterMap,
+											targetRewriter, ast, fieldParameterMap,
 											expressionName, variableBinding);
 								}
 							}
@@ -2061,14 +2068,16 @@ public class ExtractClassRefactoring extends Refactoring {
 	}
 
 	private void handleAccessedFieldNotHavingSetterMethod(MethodDeclaration sourceMethod,
-			MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter,
+			MethodDeclaration newMethodDeclaration, ASTRewrite targetRewriter, AST ast,
 			Map<PlainVariable, SingleVariableDeclaration> fieldParameterMap, SimpleName newAccessedVariable, IVariableBinding accessedVariableBinding) {
 		Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 		Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
 		if(newAccessedVariable.getParent() instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)newAccessedVariable.getParent();
 			if(fieldAccess.getExpression() instanceof ThisExpression) {
-				targetRewriter.replace(newAccessedVariable.getParent(), newAccessedVariable, null);
+				String parameterName = createNameForParameterizedFieldAccess(fieldAccess.getName().getIdentifier());
+				targetRewriter.replace(newAccessedVariable.getParent(), ast.newSimpleName(parameterName), null);
+				//targetRewriter.replace(newAccessedVariable.getParent(), newAccessedVariable, null);
 				if(!containsVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod)) {
 					SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
 					addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
@@ -2188,7 +2197,14 @@ public class ExtractClassRefactoring extends Refactoring {
 		FieldDeclaration fieldDeclaration = (FieldDeclaration)field.getParent();
 		Type fieldType = fieldDeclaration.getType();
 		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
-		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, field.getName(), null);
+		if(additionalArgument.isField()) {
+			//adding "this" prefix to avoid collisions with other parameter names
+			String parameterName = createNameForParameterizedFieldAccess(field.getName().getIdentifier());
+			targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
+		}
+		else {
+			targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, field.getName(), null);
+		}
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
@@ -2203,13 +2219,24 @@ public class ExtractClassRefactoring extends Refactoring {
 		ITypeBinding typeBinding = variableBinding.getType();
 		Type fieldType = RefactoringUtility.generateTypeFromTypeBinding(typeBinding, ast, targetRewriter);
 		targetRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, fieldType, null);
-		targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+		if(variableBinding.isField()) {
+			//adding "this" prefix to avoid collisions with other parameter names
+			String parameterName = createNameForParameterizedFieldAccess(variableBinding.getName());
+			targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(parameterName), null);
+		}
+		else {
+			targetRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, ast.newSimpleName(variableBinding.getName()), null);
+		}
 		ListRewrite parametersRewrite = targetRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
 		parametersRewrite.insertLast(parameter, null);
 		Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
 		typeBindings.add(variableBinding.getType());
 		RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
 		return parameter;
+	}
+
+	private String createNameForParameterizedFieldAccess(String fieldName) {
+		return "this" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1, fieldName.length());
 	}
 
 	private void setPublicModifierToSourceMethod(MethodDeclaration methodDeclaration) {

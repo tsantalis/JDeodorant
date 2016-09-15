@@ -373,6 +373,25 @@ public class MethodObject implements AbstractMethodDeclaration {
     	return false;
     }
 
+    public boolean containsFieldAccessOfEnclosingClass() {
+    	//check for field access like SegmentedTimeline.this.segmentsIncluded
+    	List<FieldInstructionObject> fieldInstructions = getFieldInstructions();
+    	for(FieldInstructionObject fieldInstruction : fieldInstructions) {
+    		SimpleName simpleName = fieldInstruction.getSimpleName();
+    		if(simpleName.getParent() instanceof FieldAccess) {
+    			FieldAccess fieldAccess = (FieldAccess)simpleName.getParent();
+    			Expression fieldAccessExpression = fieldAccess.getExpression();
+    			if(fieldAccessExpression instanceof ThisExpression) {
+    				ThisExpression thisExpression = (ThisExpression)fieldAccessExpression;
+    				if(thisExpression.getQualifier() != null) {
+    					return true;
+    				}
+    			}
+    		}
+    	}
+    	return false;
+    }
+
     public boolean containsMethodCallWithThisExpressionAsArgument() {
     	List<MethodInvocationObject> methodInvocations = getMethodInvocations();
     	for(MethodInvocationObject methodInvocation : methodInvocations) {

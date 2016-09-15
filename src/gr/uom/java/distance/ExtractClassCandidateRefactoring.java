@@ -523,7 +523,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 				MyMethod method = (MyMethod)entity;
 				methodCounter++;
 				if (isSynchronized(method) || containsSuperMethodInvocation(method)
-						|| overridesMethod(method) || method.isAbstract())
+						|| overridesMethod(method) || method.isAbstract() || containsFieldAccessOfEnclosingClass(method))
 					return false;
 			}
 			else if(entity instanceof MyAttribute) {
@@ -540,6 +540,14 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		else {
 			return true;
 		}
+	}
+
+	private boolean containsFieldAccessOfEnclosingClass(MyMethod method) {
+		if(method.getMethodObject().containsFieldAccessOfEnclosingClass()) {
+			return true;
+		}
+		else
+			return false;
 	}
 
 	private boolean overridesMethod(MyMethod method) {

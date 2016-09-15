@@ -184,7 +184,7 @@ public class MoveMethodRefactoring extends Refactoring {
 				targetImportRewrite.addImport(typeBinding);
 		}
 		for(ITypeBinding typeBinding : additionalTypeBindingsToBeImportedInTargetClass) {
-			if(!typeBinding.isNested())
+			if(!typeBinding.isNested() || (typeBinding.isNested() && sourceTypeDeclaration.resolveBinding().isEqualTo(typeBinding.getDeclaringClass())))
 				targetImportRewrite.addImport(typeBinding);
 		}
 		

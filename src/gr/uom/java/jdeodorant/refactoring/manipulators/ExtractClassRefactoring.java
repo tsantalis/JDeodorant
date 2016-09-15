@@ -468,8 +468,17 @@ public class ExtractClassRefactoring extends Refactoring {
 													argumentRewrite.insertLast(ast.newThisExpression(), null);
 												}
 											}
-											else
-												argumentRewrite.insertLast(ast.newSimpleName(argument.getVariableName()), null);
+											else {
+												if(argument.isField()) {
+													FieldAccess fieldAccess = ast.newFieldAccess();
+													sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, ast.newSimpleName(argument.getVariableName()), null);
+													sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, ast.newThisExpression(), null);
+													argumentRewrite.insertLast(fieldAccess, null);
+												}
+												else {
+													argumentRewrite.insertLast(ast.newSimpleName(argument.getVariableName()), null);
+												}
+											}
 										}
 										if((extractedMethod.getModifiers() & Modifier.STATIC) != 0) {
 											sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, ast.newSimpleName(extractedTypeName), null);

@@ -1776,7 +1776,9 @@ public class ExtractClassRefactoring extends Refactoring {
 												setPublicModifierToSourceField(fieldBinding);
 											}
 											else {
-												targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
+												String parameterNameString = createNameForParameterizedFieldAccess(fieldName.getIdentifier());
+												targetRewriter.replace(newMethodInvocation, ast.newSimpleName(parameterNameString), null);
+												//targetRewriter.replace(newMethodInvocation, ast.newSimpleName(fieldName.getIdentifier()), null);
 												if(isParentAnonymousClassDeclaration(methodInvocation))
 													fieldParameterFinalMap.put(new PlainVariable(fieldBinding), true);
 												if(!containsVariable(fieldBinding, additionalArgumentsAddedToMovedMethod)) {

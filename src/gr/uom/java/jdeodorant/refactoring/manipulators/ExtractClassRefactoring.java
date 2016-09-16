@@ -2811,6 +2811,8 @@ public class ExtractClassRefactoring extends Refactoring {
 							for(VariableDeclaration fieldFragment : fieldFragments) {
 								String originalFieldName = fieldFragment.getName().getIdentifier();
 								String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+								String getterMethodName = GETTER_PREFIX + modifiedFieldName;
+								getterMethodName = appendAccessorMethodSuffix(getterMethodName, this.extractedMethods);
 								if(assignedVariable != null) {
 									IBinding leftHandBinding = assignedVariable.resolveBinding();
 									if(leftHandBinding != null && leftHandBinding.getKind() == IBinding.VARIABLE) {
@@ -2842,7 +2844,7 @@ public class ExtractClassRefactoring extends Refactoring {
 													accessedFields.add(fieldFragment);
 													InfixExpression infixExpression = contextAST.newInfixExpression();
 													MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
-													sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(GETTER_PREFIX + modifiedFieldName), null);
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
 													if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
 														sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 													}
@@ -2928,7 +2930,7 @@ public class ExtractClassRefactoring extends Refactoring {
 											IVariableBinding arrayVariableBinding = (IVariableBinding)arrayBinding;
 											if(arrayVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(arrayVariableBinding)) {
 												MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
-												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(GETTER_PREFIX + modifiedFieldName), null);
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
 												if((arrayVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
 													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 												}
@@ -2949,7 +2951,7 @@ public class ExtractClassRefactoring extends Refactoring {
 										IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
 										if(accessedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(accessedVariableBinding)) {
 											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
-											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(GETTER_PREFIX + modifiedFieldName), null);
+											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
 											if((accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
 												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
 											}

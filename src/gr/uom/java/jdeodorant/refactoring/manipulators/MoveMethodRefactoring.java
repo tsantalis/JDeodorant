@@ -759,7 +759,7 @@ public class MoveMethodRefactoring extends Refactoring {
 							FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
 							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
 						}
-						else if(!(simpleName.getParent() instanceof QualifiedName) && !RefactoringUtility.isEnumConstantInSwitchCaseExpression(simpleName)) {
+						else if(RefactoringUtility.needsQualifier(simpleName)) {
 							SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
 							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 							targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);
@@ -782,7 +782,7 @@ public class MoveMethodRefactoring extends Refactoring {
 							FieldAccess fieldAccess = (FieldAccess)newVariableInstructions.get(i).getParent();
 							targetRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, qualifier, null);
 						}
-						else if(!(simpleName.getParent() instanceof QualifiedName) && !RefactoringUtility.isEnumConstantInSwitchCaseExpression(simpleName)) {
+						else if(RefactoringUtility.needsQualifier(simpleName)) {
 							SimpleName newSimpleName = ast.newSimpleName(simpleName.getIdentifier());
 							QualifiedName newQualifiedName = ast.newQualifiedName(qualifier, newSimpleName);
 							targetRewriter.replace(newVariableInstructions.get(i), newQualifiedName, null);

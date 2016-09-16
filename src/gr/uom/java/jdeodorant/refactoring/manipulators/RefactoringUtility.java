@@ -416,7 +416,16 @@ public class RefactoringUtility {
 		return null;
 	}
 
-	public static boolean isEnumConstantInSwitchCaseExpression(SimpleName simpleName) {
+	public static boolean needsQualifier(SimpleName simpleName) {
+		return (!(simpleName.getParent() instanceof QualifiedName) || isArrayLengthQualifiedName(simpleName)) &&
+				!isEnumConstantInSwitchCaseExpression(simpleName);
+	}
+
+	private static boolean isArrayLengthQualifiedName(SimpleName simpleName) {
+		return simpleName.getParent() instanceof QualifiedName && ((QualifiedName)simpleName.getParent()).getName().getIdentifier().equals("length");
+	}
+
+	private static boolean isEnumConstantInSwitchCaseExpression(SimpleName simpleName) {
 		IBinding binding = simpleName.resolveBinding();
 		if(binding != null && binding.getKind() == IBinding.VARIABLE) {
 			IVariableBinding variableBinding = (IVariableBinding)binding;

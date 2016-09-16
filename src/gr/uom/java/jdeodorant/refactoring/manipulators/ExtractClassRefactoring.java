@@ -944,7 +944,14 @@ public class ExtractClassRefactoring extends Refactoring {
         						argumentsRewrite.insertLast(parameterName, null);
         					}
         					else {
-        						argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument.getVariableName()), null);
+        						if(additionalArgument.isField()) {
+        							//adding "this" prefix to avoid collisions with other parameter names
+        							String parameterName = createNameForParameterizedFieldAccess(additionalArgument.getVariableName());
+        							argumentsRewrite.insertLast(extractedClassAST.newSimpleName(parameterName), null);
+        						}
+        						else {
+        							argumentsRewrite.insertLast(extractedClassAST.newSimpleName(additionalArgument.getVariableName()), null);
+        						}
         					}
         				}
         			}

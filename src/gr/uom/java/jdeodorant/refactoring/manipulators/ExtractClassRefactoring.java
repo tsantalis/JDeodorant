@@ -52,6 +52,7 @@ import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
@@ -2274,33 +2275,47 @@ public class ExtractClassRefactoring extends Refactoring {
 						if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PUBLIC_KEYWORD)) {
 							modifierFound = true;
 						}
-						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD) ||
-								modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PRIVATE_KEYWORD)) {
 							modifierFound = true;
 							modifierRewrite.replace(modifier, publicModifier, null);
+							updateAccessModifier(sourceRewriter, sourceCompilationUnit);
+						}
+						else if(modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
+							modifierFound = true;
+							IPackageBinding sourceTypeDeclarationPackageBinding = this.sourceTypeDeclaration.resolveBinding().getPackage();
+							IPackageBinding typeDeclarationPackageBinding = sourceTypeDeclaration.resolveBinding().getPackage();
+							if(sourceTypeDeclarationPackageBinding != null && typeDeclarationPackageBinding != null &&
+									!sourceTypeDeclarationPackageBinding.isEqualTo(typeDeclarationPackageBinding)) {
+								modifierRewrite.replace(modifier, publicModifier, null);
+								updateAccessModifier(sourceRewriter, sourceCompilationUnit);
+							}
 						}
 					}
 				}
 				if(!modifierFound) {
 					modifierRewrite.insertFirst(publicModifier, null);
-				}
-				try {
-					TextEdit sourceEdit = sourceRewriter.rewriteAST();
-					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-					if(change == null) {
-						MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
-						change = new CompilationUnitChange("", sourceICompilationUnit);
-						change.setEdit(sourceMultiTextEdit);
-						compilationUnitChanges.put(sourceICompilationUnit, change);
-					}
-					change.getEdit().addChild(sourceEdit);
-					change.addTextEditGroup(new TextEditGroup("Update access modifier to public", new TextEdit[] {sourceEdit}));
-				}
-				catch(JavaModelException javaModelException) {
-					javaModelException.printStackTrace();
+					updateAccessModifier(sourceRewriter, sourceCompilationUnit);
 				}
 			}
+		}
+	}
+
+	private void updateAccessModifier(ASTRewrite sourceRewriter, CompilationUnit sourceCompilationUnit) {
+		try {
+			TextEdit sourceEdit = sourceRewriter.rewriteAST();
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			if(change == null) {
+				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+				change = new CompilationUnitChange("", sourceICompilationUnit);
+				change.setEdit(sourceMultiTextEdit);
+				compilationUnitChanges.put(sourceICompilationUnit, change);
+			}
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Update access modifier to public", new TextEdit[] {sourceEdit}));
+		}
+		catch(JavaModelException javaModelException) {
+			javaModelException.printStackTrace();
 		}
 	}
 

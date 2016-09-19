@@ -2982,6 +2982,111 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 							}
 						}
+						List<Expression> postfixExpressions = expressionExtractor.getPostfixExpressions(statement);
+						for(Expression expression : postfixExpressions) {
+							PostfixExpression postfix = (PostfixExpression)expression;
+							Expression operand = postfix.getOperand();
+							SimpleName assignedVariable = null;
+							if(operand instanceof SimpleName) {
+								assignedVariable = (SimpleName)operand;
+							}
+							else if(operand instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)operand;
+								assignedVariable = fieldAccess.getName();
+							}
+							else if(operand instanceof QualifiedName) {
+								QualifiedName qualifiedName = (QualifiedName)operand;
+								assignedVariable = qualifiedName.getName();
+							}
+							List<Expression> arrayAccesses = expressionExtractor.getArrayAccesses(operand);
+							for(VariableDeclaration fieldFragment : fieldFragments) {
+								String originalFieldName = fieldFragment.getName().getIdentifier();
+								String modifiedFieldName = originalFieldName.substring(0,1).toUpperCase() + originalFieldName.substring(1,originalFieldName.length());
+								String getterMethodName = GETTER_PREFIX + modifiedFieldName;
+								getterMethodName = appendAccessorMethodSuffix(getterMethodName, this.extractedMethods);
+								if(assignedVariable != null) {
+									IBinding operandBinding = assignedVariable.resolveBinding();
+									if(operandBinding != null && operandBinding.getKind() == IBinding.VARIABLE) {
+										IVariableBinding assignedVariableBinding = (IVariableBinding)operandBinding;
+										if(assignedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(assignedVariableBinding)) {
+											MethodInvocation setterMethodInvocation = contextAST.newMethodInvocation();
+											String setterMethodName = SETTER_PREFIX + modifiedFieldName;
+											setterMethodName = appendAccessorMethodSuffix(setterMethodName, this.extractedMethods);
+											sourceRewriter.set(setterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(setterMethodName), null);
+											ListRewrite setterMethodInvocationArgumentsRewrite = sourceRewriter.getListRewrite(setterMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+											accessedFields.add(fieldFragment);
+											InfixExpression infixExpression = contextAST.newInfixExpression();
+											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+											sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
+											if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+											}
+											sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, getterMethodInvocation, null);
+											sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, contextAST.newNumberLiteral("1"), null);
+											if(postfix.getOperator().equals(PostfixExpression.Operator.INCREMENT)) {
+												sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.PLUS, null);
+											}
+											else if(postfix.getOperator().equals(PostfixExpression.Operator.DECREMENT)) {
+												sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.MINUS, null);
+											}
+											setterMethodInvocationArgumentsRewrite.insertLast(infixExpression, null);
+											if(operand instanceof QualifiedName) {
+												Name qualifier = contextAST.newName(((QualifiedName)operand).getQualifier().getFullyQualifiedName());
+												QualifiedName qualifiedName = contextAST.newQualifiedName(qualifier, contextAST.newSimpleName(modifiedExtractedTypeName));
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, qualifiedName, null);
+											}
+											else if((assignedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+											}
+											else {
+												sourceRewriter.set(setterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+											}
+											sourceRewriter.replace(postfix, setterMethodInvocation, null);
+											rewriteAST = true;
+											modifiedFields.add(fieldFragment);
+										}
+									}
+								}
+								for(Expression expression2 : arrayAccesses) {
+									ArrayAccess arrayAccess = (ArrayAccess)expression2;
+									Expression arrayExpression = arrayAccess.getArray();
+									SimpleName arrayVariable = null;
+									if(arrayExpression instanceof SimpleName) {
+										arrayVariable = (SimpleName)arrayExpression;
+									}
+									else if(arrayExpression instanceof FieldAccess) {
+										FieldAccess fieldAccess = (FieldAccess)arrayExpression;
+										arrayVariable = fieldAccess.getName();
+									}
+									else if(arrayExpression instanceof QualifiedName) {
+										QualifiedName qualifiedName = (QualifiedName)arrayExpression;
+										arrayVariable = qualifiedName.getName();
+									}
+									if(arrayVariable != null) {
+										IBinding arrayBinding = arrayVariable.resolveBinding();
+										if(arrayBinding != null && arrayBinding.getKind() == IBinding.VARIABLE) {
+											IVariableBinding arrayVariableBinding = (IVariableBinding)arrayBinding;
+											if(arrayVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(arrayVariableBinding)) {
+												MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
+												if((arrayVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+												}
+												else {
+													sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+												}
+												sourceRewriter.replace(arrayVariable, getterMethodInvocation, null);
+												rewriteAST = true;
+												accessedFields.add(fieldFragment);
+											}
+										}
+									}
+								}
+							}
+						}
 						if(rewriteAST) {
 							if(!statementRewriteMap.containsKey(statement))
 								statementRewriteMap.put(statement, sourceRewriter);

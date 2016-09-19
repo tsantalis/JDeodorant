@@ -643,6 +643,42 @@ public class ASTNodeMatcher extends ASTMatcher{
 				(parameterTypes1.containsAll(parameterTypes2) || parameterTypes2.containsAll(parameterTypes1));
 	}
 
+	private static boolean isExpressionWithinMethodInvocationArgument(ASTNode expression) {
+		ASTNode parent = expression.getParent();
+		while(parent != null) {
+			if(parent instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation)parent;
+				List<Expression> arguments = methodInvocation.arguments();
+				for(Expression argument : arguments) {
+					if(argument.equals(expression)) {
+						return true;
+					}
+				}
+			}
+			else if(parent instanceof SuperMethodInvocation) {
+				SuperMethodInvocation methodInvocation = (SuperMethodInvocation)parent;
+				List<Expression> arguments = methodInvocation.arguments();
+				for(Expression argument : arguments) {
+					if(argument.equals(expression)) {
+						return true;
+					}
+				}
+			}
+			else if(parent instanceof ClassInstanceCreation) {
+				ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)parent;
+				List<Expression> arguments = classInstanceCreation.arguments();
+				for(Expression argument : arguments) {
+					if(argument.equals(expression)) {
+						return true;
+					}
+				}
+			}
+			expression = parent;
+			parent = parent.getParent();
+		}
+		return false;
+	}
+
 	public boolean match(ArrayAccess node, Object other) {
 		ASTInformationGenerator.setCurrentITypeRoot(typeRoot1);
 		AbstractExpression exp1 = new AbstractExpression(node);
@@ -1583,19 +1619,29 @@ public class ASTNodeMatcher extends ASTMatcher{
 						}
 					}
 				}
-				List<Expression> nodeArguments = node.arguments();
-				List<Expression> otherArguments = o.arguments();
-				processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, overloadedMethods(nodeMethodBinding, otherMethodBinding));
-				safeSubtreeMatch(node.getName(), o.getName());
-				//safeSubtreeListMatch(node.arguments(), o.arguments());
-				safeSubtreeMatch(node.getExpression(), o.getExpression());
-				if(node.getExpression()==null && o.getExpression()!=null) {
-					Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+				if(isExpressionWithinMethodInvocationArgument(node) && isExpressionWithinMethodInvocationArgument(o) &&
+						node.getExpression() != null && o.getExpression() != null &&
+						node.getExpression().getNodeType() != o.getExpression().getNodeType() &&
+						node.arguments().isEmpty() && o.arguments().isEmpty() &&
+						typeBindingMatch(node.resolveMethodBinding().getReturnType(), o.resolveMethodBinding().getReturnType())) {
+					Difference diff = new Difference(nodeToString,otherToString,DifferenceType.TYPE_COMPATIBLE_REPLACEMENT,astNodeDifference.getWeight());
 					astNodeDifference.addDifference(diff);
 				}
-				else if(node.getExpression()!=null && o.getExpression()==null) {
-					Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
-					astNodeDifference.addDifference(diff);
+				else {
+					List<Expression> nodeArguments = node.arguments();
+					List<Expression> otherArguments = o.arguments();
+					processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, overloadedMethods(nodeMethodBinding, otherMethodBinding));
+					safeSubtreeMatch(node.getName(), o.getName());
+					//safeSubtreeListMatch(node.arguments(), o.arguments());
+					safeSubtreeMatch(node.getExpression(), o.getExpression());
+					if(node.getExpression()==null && o.getExpression()!=null) {
+						Difference diff = new Difference("",o.getExpression().toString(),DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
+					else if(node.getExpression()!=null && o.getExpression()==null) {
+						Difference diff = new Difference(node.getExpression().toString(),"",DifferenceType.MISSING_METHOD_INVOCATION_EXPRESSION);
+						astNodeDifference.addDifference(diff);
+					}
 				}
 			}
 			if(!astNodeDifference.isEmpty())

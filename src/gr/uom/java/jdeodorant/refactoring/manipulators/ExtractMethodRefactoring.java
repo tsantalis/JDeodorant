@@ -6,6 +6,7 @@ import gr.uom.java.ast.decomposition.cfg.PDGControlPredicateNode;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
 import gr.uom.java.ast.decomposition.cfg.PDGTryNode;
 import gr.uom.java.ast.util.StatementExtractor;
+import gr.uom.java.ast.util.TypeVisitor;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ import org.eclipse.jdt.core.dom.SwitchStatement;
 import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.TypeParameter;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -276,15 +278,43 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		ListRewrite parameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+		Set<ITypeBinding> requiredTypeParameterBindings = new LinkedHashSet<ITypeBinding>();
 		for(VariableDeclaration variableDeclaration : slice.getPassedParameters()) {
 			ITypeBinding variableTypeBinding = extractTypeBinding(variableDeclaration);
+			TypeVisitor typeVisitor = new TypeVisitor();
+			variableDeclaration.accept(typeVisitor);
+			Set<ITypeBinding> typeBindings = typeVisitor.getTypeBindings();
+			for(ITypeBinding typeBinding : typeBindings) {
+				if(typeBinding.isTypeVariable()) {
+					requiredTypeParameterBindings.add(typeBinding);
+				}
+			}
 			Type variableType = RefactoringUtility.generateTypeFromTypeBinding(variableTypeBinding, ast, sourceRewriter);
 			if(!variableDeclaration.resolveBinding().isField()) {
 				SingleVariableDeclaration parameter = ast.newSingleVariableDeclaration();
 				sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, variableDeclaration.getName(), null);
 				sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, variableType, null);
+				if((variableDeclaration.resolveBinding().getModifiers() & Modifier.FINAL) != 0) {
+					Modifier finalModifier = newMethodDeclaration.getAST().newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD);
+					ListRewrite parameterModifierRewrite = sourceRewriter.getListRewrite(parameter, SingleVariableDeclaration.MODIFIERS2_PROPERTY);
+					parameterModifierRewrite.insertLast(finalModifier, null);
+				}
 				parameterRewrite.insertLast(parameter, null);
 			}
+		}
+		ListRewrite typeParameterRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.TYPE_PARAMETERS_PROPERTY);
+		for(ITypeBinding typeParameterBinding : requiredTypeParameterBindings) {
+			TypeParameter typeParameter = ast.newTypeParameter();
+			sourceRewriter.set(typeParameter, TypeParameter.NAME_PROPERTY, ast.newSimpleName(typeParameterBinding.getName()), null);
+			ITypeBinding[] typeBounds = typeParameterBinding.getTypeBounds();
+			if(typeBounds.length > 0) {
+				ListRewrite typeBoundsRewrite = sourceRewriter.getListRewrite(typeParameter, TypeParameter.TYPE_BOUNDS_PROPERTY);
+				for(ITypeBinding typeBoundBinding : typeBounds) {
+					Type typeBound = RefactoringUtility.generateTypeFromTypeBinding(typeBoundBinding, ast, sourceRewriter);
+					typeBoundsRewrite.insertLast(typeBound, null);
+				}
+			}
+			typeParameterRewrite.insertLast(typeParameter, null);
 		}
 		ListRewrite thrownExceptionRewrite = sourceRewriter.getListRewrite(newMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
 		for(ITypeBinding thrownExceptionType : exceptionTypesThatShouldBeThrownByExtractedMethod) {

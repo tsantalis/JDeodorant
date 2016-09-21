@@ -19,6 +19,7 @@ import java.util.Set;
 
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.AssertStatement;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BreakStatement;
@@ -241,35 +242,60 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 		}
 		Set<ITypeBinding> thrownExceptionTypes = new LinkedHashSet<ITypeBinding>();
 		for(Expression expression : methodInvocations) {
+			TryStatement surroundingTryBlock = surroundingTryBlock(expression);
 			if(expression instanceof MethodInvocation) {
 				MethodInvocation methodInvocation = (MethodInvocation)expression;
 				IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
 				ITypeBinding[] exceptionTypes = methodInvocationBinding.getExceptionTypes();
-				for(ITypeBinding typeBinding : exceptionTypes)
-					thrownExceptionTypes.add(typeBinding);
+				for(ITypeBinding typeBinding : exceptionTypes) {
+					if(surroundingTryBlock == null || (surroundingTryBlock != null && !isNestedUnderAnonymousClassDeclaration(surroundingTryBlock))) {
+						thrownExceptionTypes.add(typeBinding);
+					}
+				}
 			}
 			else if(expression instanceof SuperMethodInvocation) {
 				SuperMethodInvocation superMethodInvocation = (SuperMethodInvocation)expression;
 				IMethodBinding methodInvocationBinding = superMethodInvocation.resolveMethodBinding();
 				ITypeBinding[] exceptionTypes = methodInvocationBinding.getExceptionTypes();
-				for(ITypeBinding typeBinding : exceptionTypes)
-					thrownExceptionTypes.add(typeBinding);
+				for(ITypeBinding typeBinding : exceptionTypes) {
+					if(surroundingTryBlock == null || (surroundingTryBlock != null && !isNestedUnderAnonymousClassDeclaration(surroundingTryBlock))) {
+						thrownExceptionTypes.add(typeBinding);
+					}
+				}
 			}
 		}
 		for(Expression expression : classInstanceCreations) {
+			TryStatement surroundingTryBlock = surroundingTryBlock(expression);
 			ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)expression;
 			IMethodBinding constructorBinding = classInstanceCreation.resolveConstructorBinding();
 			ITypeBinding[] exceptionTypes = constructorBinding.getExceptionTypes();
-			for(ITypeBinding typeBinding : exceptionTypes)
-				thrownExceptionTypes.add(typeBinding);
+			for(ITypeBinding typeBinding : exceptionTypes) {
+				if(surroundingTryBlock == null || (surroundingTryBlock != null && !isNestedUnderAnonymousClassDeclaration(surroundingTryBlock))) {
+					thrownExceptionTypes.add(typeBinding);
+				}
+			}
 		}
 		if(statement instanceof ThrowStatement) {
+			TryStatement surroundingTryBlock = surroundingTryBlock(statement);
 			ThrowStatement throwStatement = (ThrowStatement)statement;
 			TypeVisitor typeVisitor = new TypeVisitor();
 			throwStatement.accept(typeVisitor);
-			thrownExceptionTypes.addAll(typeVisitor.getTypeBindings());
+			if(surroundingTryBlock == null || (surroundingTryBlock != null && !isNestedUnderAnonymousClassDeclaration(surroundingTryBlock))) {
+				thrownExceptionTypes.addAll(typeVisitor.getTypeBindings());
+			}
 		}
 		return thrownExceptionTypes;
+	}
+
+	private boolean isNestedUnderAnonymousClassDeclaration(ASTNode node) {
+		ASTNode parent = node.getParent();
+		while(parent != null) {
+			if(parent instanceof AnonymousClassDeclaration) {
+				return true;
+			}
+			parent = parent.getParent();
+		}
+		return false;
 	}
 
 	protected Statement processPredicateNode(PDGControlPredicateNode predicateNode, AST ast,
@@ -505,7 +531,7 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 		return null;
 	}
 
-	protected TryStatement surroundingTryBlock(Statement statement) {
+	protected TryStatement surroundingTryBlock(ASTNode statement) {
 		ASTNode parent = statement.getParent();
 		while(!(parent instanceof MethodDeclaration)) {
 			if(parent instanceof TryStatement)

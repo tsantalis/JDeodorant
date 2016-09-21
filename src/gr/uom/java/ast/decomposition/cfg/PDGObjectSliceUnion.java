@@ -108,7 +108,7 @@ public class PDGObjectSliceUnion {
 				if(remainingNodes.contains(srcPDGNode) && sliceNodes.contains(dstPDGNode))
 					passedParameters.add(dataDependence.getData());
 				if(sliceNodes.contains(srcPDGNode) && remainingNodes.contains(dstPDGNode) &&
-						!dataDependence.getData().equals(objectReference))
+						!dataDependence.getData().equals(objectReference) && !dataDependence.getData().isField())
 					nDD.add(srcPDGNode);
 			}
 			else if(dependence instanceof PDGControlDependence) {

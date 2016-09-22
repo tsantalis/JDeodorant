@@ -2017,8 +2017,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								}
 							}
 						}*/
-						boolean avoidPullUpDueToSerialization1 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(0), localFieldG1);
-						boolean avoidPullUpDueToSerialization2 = avoidPullUpFieldDueToSerialization(sourceTypeDeclarations.get(1), localFieldG2);
+						boolean avoidPullUpDueToSerialization1 = RefactoringUtility.isSerializedField(sourceTypeDeclarations.get(0), localFieldG1);
+						boolean avoidPullUpDueToSerialization2 = RefactoringUtility.isSerializedField(sourceTypeDeclarations.get(1), localFieldG2);
 						if(!avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2 && sameInitializers(localFieldG1, localFieldG2)) {
 							//check if the common superclass is one of the source classes
 							if(!sourceTypeDeclarations.get(0).resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && !bothFieldsDeclaredInCommonSuperclass(localFieldG1, localFieldG2)) {
@@ -2220,31 +2220,12 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				(localFieldG1.getInitializer() != null && localFieldG2.getInitializer() != null &&
 				localFieldG1.getInitializer().subtreeMatch(new ASTMatcher(), localFieldG2.getInitializer()));
 	}
-
-	private boolean implementsSerializableInterface(ITypeBinding typeBinding) {
-		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
-		for(ITypeBinding implementedInterface : implementedInterfaces) {
-			if(implementedInterface.getQualifiedName().equals("java.io.Serializable")) {
-				return true;
-			}
-		}
-		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
-		if(superclassTypeBinding != null) {
-			return implementsSerializableInterface(superclassTypeBinding);
-		}
-		return false;
-	}
-	
-	private boolean avoidPullUpFieldDueToSerialization(TypeDeclaration typeDeclaration, VariableDeclaration localField) {
-		return implementsSerializableInterface(typeDeclaration.resolveBinding()) &&
-				(localField.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
-	}
 	
 	private boolean avoidPullUpMethodDueToSerialization(TypeDeclaration typeDeclaration, Set<VariableDeclaration> fieldsAccessedInMethod, Set<VariableDeclaration> fieldModifiedInMethod) {
 		Set<VariableDeclaration> allFields = new LinkedHashSet<VariableDeclaration>(fieldsAccessedInMethod);
 		allFields.addAll(fieldModifiedInMethod);
 		for(VariableDeclaration localField : allFields) {
-			if(avoidPullUpFieldDueToSerialization(typeDeclaration, localField)) {
+			if(RefactoringUtility.isSerializedField(typeDeclaration, localField)) {
 				return true;
 			}
 		}

@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -435,4 +436,24 @@ public class RefactoringUtility {
 		}
 		return false;
 	}
+
+	private static boolean implementsSerializableInterface(ITypeBinding typeBinding) {
+		ITypeBinding[] implementedInterfaces = typeBinding.getInterfaces();
+		for(ITypeBinding implementedInterface : implementedInterfaces) {
+			if(implementedInterface.getQualifiedName().equals("java.io.Serializable")) {
+				return true;
+			}
+		}
+		ITypeBinding superclassTypeBinding = typeBinding.getSuperclass();
+		if(superclassTypeBinding != null) {
+			return implementsSerializableInterface(superclassTypeBinding);
+		}
+		return false;
+	}
+	
+	public static boolean isSerializedField(AbstractTypeDeclaration typeDeclaration, VariableDeclaration localField) {
+		return implementsSerializableInterface(typeDeclaration.resolveBinding()) &&
+				(localField.resolveBinding().getModifiers() & Modifier.TRANSIENT) == 0;
+	}
+
 }

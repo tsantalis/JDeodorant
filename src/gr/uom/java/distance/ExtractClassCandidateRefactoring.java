@@ -5,6 +5,7 @@ import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.TopicFinder;
 import gr.uom.java.ast.visualization.GodClassVisualizationData;
+import gr.uom.java.jdeodorant.refactoring.manipulators.RefactoringUtility;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -532,6 +533,9 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 					if(system.getSystemObject().containsFieldInstruction(attribute.getFieldObject().generateFieldInstruction(), sourceClass.getClassObject()))
 						return false;
 				}
+				if(isSerializedField(attribute)) {
+					return false;
+				}
 			}
 		}
 		if(extractedEntities.size() == 1 || methodCounter == 0) {
@@ -540,6 +544,10 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		else {
 			return true;
 		}
+	}
+
+	private boolean isSerializedField(MyAttribute attribute) {
+		return RefactoringUtility.isSerializedField(sourceClass.getClassObject().getAbstractTypeDeclaration(), attribute.getFieldObject().getVariableDeclaration());
 	}
 
 	private boolean containsFieldAccessOfEnclosingClass(MyMethod method) {

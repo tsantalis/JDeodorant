@@ -603,6 +603,15 @@ public class MappingState {
 		}
 		return false;
 	}
+	
+	public boolean containsNodeInMappings(PDGNode node) {
+		Set<PDGNodeMapping> nodeMappings = getNodeMappings();
+		for(PDGNodeMapping nodeMapping : nodeMappings) {
+			if(nodeMapping.getNodeG1().equals(node) || nodeMapping.getNodeG2().equals(node))
+				return true;
+		}
+		return false;
+	}
 
 	public Set<PDGNodeMapping> getNodeMappings() {
 		return this.nodeMappings;

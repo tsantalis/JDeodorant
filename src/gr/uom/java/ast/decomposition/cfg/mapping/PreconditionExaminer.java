@@ -432,6 +432,9 @@ public class PreconditionExaminer {
 			}
 			PDGNode controlParent = pdgNode.getControlDependenceParent();
 			if(controlParent != null && nonMappedNodes.contains(controlParent) && mappedNodes.contains(pdgNode)) {
+				if(pdgNode instanceof PDGControlPredicateNode && finalState.containsNodeInMappings(pdgNode)) {
+					continue;
+				}
 				mappedNodes.remove(pdgNode);
 				nonMappedNodes.add(pdgNode);
 			}
@@ -2962,6 +2965,8 @@ public class PreconditionExaminer {
 				movableNonMappedNodeBeforeFirstMappedNode(getRemovableNodesG2(), nodeMapping.getNodeG2());
 	}
 	private boolean isFirstNonMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		if(mappedNodes.isEmpty())
+			return true;
 		PDGNode firstMappedNode = mappedNodes.first();
 		if(nonMappedNode.getId() < firstMappedNode.getId()) {
 			boolean nonMappedNodeDirectlyNestedUnderRoot = false;
@@ -3017,6 +3022,8 @@ public class PreconditionExaminer {
 		return true;
 	}
 	private boolean isLastNonMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		if(mappedNodes.isEmpty())
+			return true;
 		PDGNode lastMappedNode = mappedNodes.last();
 		if(nonMappedNode.getId() > lastMappedNode.getId()) {
 			boolean nonMappedNodeDirectlyNestedUnderRoot = false;

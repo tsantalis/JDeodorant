@@ -2590,7 +2590,7 @@ public class PreconditionExaminer {
 			preconditionViolations.add(violation);
 		}
 		else if(movableNonMappedNodeBeforeFirstMappedNode && movableNonMappedNodeAfterLastMappedNode) {
-			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes) && !isFirstNonMappedNode(removableNodes, node) && !isLastNonMappedNode(removableNodes, node)) {
 				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
 				nodeMapping.addPreconditionViolation(violation);
@@ -2601,7 +2601,7 @@ public class PreconditionExaminer {
 			}
 		}
 		else if(movableNonMappedNodeBeforeFirstMappedNode) {
-			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes) && !isFirstNonMappedNode(removableNodes, node)) {
 				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
 				nodeMapping.addPreconditionViolation(violation);
@@ -2612,7 +2612,7 @@ public class PreconditionExaminer {
 			}
 		}
 		else if(movableNonMappedNodeAfterLastMappedNode) {
-			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes)) {
+			if(controlParentExaminesVariableUsedInNonMappedNode(node, removableNodes) && !isLastNonMappedNode(removableNodes, node)) {
 				PreconditionViolation violation = new StatementPreconditionViolation(node.getStatement(),
 						PreconditionViolationType.UNMATCHED_STATEMENT_CANNOT_BE_MOVED_BEFORE_THE_EXTRACTED_CODE_DUE_TO_CONTROL_DEPENDENCE);
 				nodeMapping.addPreconditionViolation(violation);
@@ -2961,8 +2961,26 @@ public class PreconditionExaminer {
 		return movableNonMappedNodeBeforeFirstMappedNode(getRemovableNodesG1(), nodeMapping.getNodeG1()) &&
 				movableNonMappedNodeBeforeFirstMappedNode(getRemovableNodesG2(), nodeMapping.getNodeG2());
 	}
+	private boolean isFirstNonMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		PDGNode firstMappedNode = mappedNodes.first();
+		if(nonMappedNode.getId() < firstMappedNode.getId()) {
+			boolean nonMappedNodeDirectlyNestedUnderRoot = false;
+			for(CloneStructureNode rootChild : cloneStructureRoot.getChildren()) {
+				NodeMapping nodeMapping = rootChild.getMapping();
+				if(nonMappedNode.equals(nodeMapping.getNodeG1()) || nonMappedNode.equals(nodeMapping.getNodeG2())) {
+					nonMappedNodeDirectlyNestedUnderRoot = true;
+					break;
+				}
+			}
+			return nonMappedNodeDirectlyNestedUnderRoot;
+		}
+		return false;
+	}
 	//precondition: non-mapped statement can be moved before the first mapped statement
 	private boolean movableNonMappedNodeBeforeFirstMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		if(isFirstNonMappedNode(mappedNodes, nonMappedNode)) {
+			return true;
+		}
 		Iterator<GraphEdge> incomingDependenceIterator = nonMappedNode.getIncomingDependenceIterator();
 		while(incomingDependenceIterator.hasNext()) {
 			PDGDependence dependence = (PDGDependence)incomingDependenceIterator.next();
@@ -2998,8 +3016,26 @@ public class PreconditionExaminer {
 		}
 		return true;
 	}
+	private boolean isLastNonMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		PDGNode lastMappedNode = mappedNodes.last();
+		if(nonMappedNode.getId() > lastMappedNode.getId()) {
+			boolean nonMappedNodeDirectlyNestedUnderRoot = false;
+			for(CloneStructureNode rootChild : cloneStructureRoot.getChildren()) {
+				NodeMapping nodeMapping = rootChild.getMapping();
+				if(nonMappedNode.equals(nodeMapping.getNodeG1()) || nonMappedNode.equals(nodeMapping.getNodeG2())) {
+					nonMappedNodeDirectlyNestedUnderRoot = true;
+					break;
+				}
+			}
+			return nonMappedNodeDirectlyNestedUnderRoot;
+		}
+		return false;
+	}
 	//precondition: non-mapped statement can be moved after the last mapped statement
 	private boolean movableNonMappedNodeAfterLastMappedNode(TreeSet<PDGNode> mappedNodes, PDGNode nonMappedNode) {
+		if(isLastNonMappedNode(mappedNodes, nonMappedNode)) {
+			return true;
+		}
 		Iterator<GraphEdge> outgoingDependenceIterator = nonMappedNode.getOutgoingDependenceIterator();
 		while(outgoingDependenceIterator.hasNext()) {
 			PDGDependence dependence = (PDGDependence)outgoingDependenceIterator.next();

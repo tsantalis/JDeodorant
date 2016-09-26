@@ -1,6 +1,7 @@
 package gr.uom.java.distance;
 
 import gr.uom.java.ast.FieldObject;
+import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
@@ -539,7 +540,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 				}*/
 			}
 		}
-		if(containsReadObjectMethodAssigningExtractedField()) {
+		if(containsReadObjectMethodAccessingExtractedEntity()) {
 			return false;
 		}
 		if(extractedEntities.size() == 1 || methodCounter == 0) {
@@ -550,7 +551,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		}
 	}
 
-	private boolean containsReadObjectMethodAssigningExtractedField() {
+	private boolean containsReadObjectMethodAccessingExtractedEntity() {
 		for(MethodObject methodObject : sourceClass.getClassObject().getMethodList()) {
 			List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
 			if(methodObject.getName().equals("readObject") && parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.io.ObjectInputStream")) {
@@ -561,6 +562,18 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 							MyAttribute attribute = (MyAttribute)entity;
 							FieldObject fieldObject = attribute.getFieldObject();
 							if(fieldObject.getVariableBindingKey().equals(definedField.getVariableBindingKey())) {
+								return true;
+							}
+						}
+					}
+				}
+				Set<MethodInvocationObject> methodInvocations = methodObject.getInvokedMethodsThroughThisReference();
+				for(MethodInvocationObject methodInvocation : methodInvocations) {
+					for(Entity entity : extractedEntities) {
+						if(entity instanceof MyMethod) {
+							MyMethod method = (MyMethod)entity;
+							MethodObject extractedMethod = method.getMethodObject();
+							if(extractedMethod.equals(methodInvocation)) {
 								return true;
 							}
 						}

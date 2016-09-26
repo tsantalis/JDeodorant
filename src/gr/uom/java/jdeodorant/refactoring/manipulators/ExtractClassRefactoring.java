@@ -223,7 +223,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	public void apply() {
 		for(MethodDeclaration method : extractedMethods) {
 			int modifiers = method.getModifiers();
-			if((modifiers & Modifier.PRIVATE) == 0 || isReadObject(method) || isWriteObject(method))
+			if((modifiers & Modifier.PRIVATE) == 0)
 				delegateMethods.add(method);
 		}
 		removeFieldFragmentsInSourceClass(extractedFieldFragments);
@@ -274,16 +274,6 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		if(methodsToBeRemoved.size() > 0)
 			removeSourceMethods(methodsToBeRemoved);
-	}
-
-	private boolean isWriteObject(MethodDeclaration method) {
-		return method.getName().getIdentifier().equals("writeObject") && method.parameters().size() == 1 &&
-				((SingleVariableDeclaration)method.parameters().get(0)).getType().resolveBinding().getQualifiedName().equals("java.io.ObjectOutputStream");
-	}
-
-	private boolean isReadObject(MethodDeclaration method) {
-		return method.getName().getIdentifier().equals("readObject") && method.parameters().size() == 1 &&
-				((SingleVariableDeclaration)method.parameters().get(0)).getType().resolveBinding().getQualifiedName().equals("java.io.ObjectInputStream");
 	}
 
 	private void handleInitializationOfExtractedFieldsWithThisExpressionInTheirInitializer() {

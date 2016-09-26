@@ -525,8 +525,9 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 			if(entity instanceof MyMethod) {
 				MyMethod method = (MyMethod)entity;
 				methodCounter++;
-				if (isSynchronized(method) || containsSuperMethodInvocation(method)
-						|| overridesMethod(method) || method.isAbstract() || containsFieldAccessOfEnclosingClass(method))
+				if (isSynchronized(method) || containsSuperMethodInvocation(method) ||
+						overridesMethod(method) || method.isAbstract() || containsFieldAccessOfEnclosingClass(method) ||
+						isReadObject(method) || isWriteObject(method))
 					return false;
 			}
 			else if(entity instanceof MyAttribute) {
@@ -553,8 +554,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 
 	private boolean containsReadObjectMethodAccessingExtractedEntity() {
 		for(MethodObject methodObject : sourceClass.getClassObject().getMethodList()) {
-			List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
-			if(methodObject.getName().equals("readObject") && parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.io.ObjectInputStream")) {
+			if(isReadObject(methodObject)) {
 				Set<PlainVariable> definedFields = methodObject.getDefinedFieldsThroughThisReference();
 				for(PlainVariable definedField : definedFields) {
 					for(Entity entity : extractedEntities) {
@@ -582,6 +582,24 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 			}
 		}
 		return false;
+	}
+
+	private boolean isReadObject(MyMethod method) {
+		return isReadObject(method.getMethodObject());
+	}
+
+	private boolean isReadObject(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("readObject") && parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.io.ObjectInputStream");
+	}
+
+	private boolean isWriteObject(MyMethod method) {
+		return isWriteObject(method.getMethodObject());
+	}
+
+	private boolean isWriteObject(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("writeObject") && parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.io.ObjectOutputStream");
 	}
 
 	private boolean isSerializedField(MyAttribute attribute) {

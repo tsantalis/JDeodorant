@@ -66,12 +66,14 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 	protected Set<TryStatement> tryStatementsToBeCopied;
 	protected Map<TryStatement, ListRewrite> tryStatementBodyRewriteMap;
 	protected List<CFGBranchDoLoopNode> doLoopNodes;
+	protected Set<LabeledStatement> labeledStatementsToBeRemoved;
 
 	public ExtractMethodFragmentRefactoring() {
 		this.tryStatementsToBeRemoved = new LinkedHashSet<TryStatement>();
 		this.tryStatementsToBeCopied = new LinkedHashSet<TryStatement>();
 		this.tryStatementBodyRewriteMap = new LinkedHashMap<TryStatement, ListRewrite>();
 		this.doLoopNodes = new ArrayList<CFGBranchDoLoopNode>();
+		this.labeledStatementsToBeRemoved = new LinkedHashSet<LabeledStatement>();
 	}
 
 	protected List<Statement> getStatements(Statement statement) {
@@ -471,11 +473,27 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 				sourceRewriter.set(newDoStatement, DoStatement.BODY_PROPERTY, loopBlock, null);
 			}
 		}
+		LabeledStatement labeled = belongsToLabeledStatement(predicateNode);
+		if(labeled != null) {
+			labeledStatementsToBeRemoved.add(labeled);
+			LabeledStatement newLabeledStatement = ast.newLabeledStatement();
+			sourceRewriter.set(newLabeledStatement, LabeledStatement.LABEL_PROPERTY, labeled.getLabel(), null);
+			sourceRewriter.set(newLabeledStatement, LabeledStatement.BODY_PROPERTY, newPredicateStatement, null);
+			newPredicateStatement = newLabeledStatement;
+		}
 		return newPredicateStatement;
 	}
 
 	protected void processStatementNode(ListRewrite bodyRewrite, PDGNode dstPDGNode, AST ast, ASTRewrite sourceRewriter) {
 		bodyRewrite.insertLast(dstPDGNode.getASTStatement(), null);
+	}
+
+	private LabeledStatement belongsToLabeledStatement(PDGNode pdgNode) {
+		Statement statement = pdgNode.getASTStatement();
+		if(statement.getParent() instanceof LabeledStatement) {
+			return (LabeledStatement) statement.getParent();
+		}
+		return null;
 	}
 
 	protected ListRewrite createTryStatementIfNeeded(ASTRewrite sourceRewriter, AST ast, ListRewrite bodyRewrite, PDGNode node) {

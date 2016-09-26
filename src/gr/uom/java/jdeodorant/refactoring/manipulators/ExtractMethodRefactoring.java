@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.LabeledStatement;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -159,6 +160,9 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		
 		Statement extractedMethodInvocationInsertionStatement = slice.getExtractedMethodInvocationInsertionStatement();
+		if(extractedMethodInvocationInsertionStatement.getParent() instanceof LabeledStatement) {
+			extractedMethodInvocationInsertionStatement = (LabeledStatement)extractedMethodInvocationInsertionStatement.getParent();
+		}
 		ASTNode statementParent = extractedMethodInvocationInsertionStatement.getParent();
 		if(statementParent != null && statementParent instanceof Block)
 			statementParent = statementParent.getParent();
@@ -228,6 +232,9 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		}
 		for(TryStatement tryStatement : tryStatementsToBeRemoved) {
 			sourceRewriter.remove(tryStatement, null);
+		}
+		for(LabeledStatement labeledStatement : labeledStatementsToBeRemoved) {
+			sourceRewriter.remove(labeledStatement, null);
 		}
 		try {
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();

@@ -2,9 +2,11 @@ package gr.uom.java.distance;
 
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.TopicFinder;
 import gr.uom.java.ast.visualization.GodClassVisualizationData;
+import gr.uom.java.jdeodorant.refactoring.manipulators.RefactoringUtility;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -532,7 +534,13 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 					if(system.getSystemObject().containsFieldInstruction(attribute.getFieldObject().generateFieldInstruction(), sourceClass.getClassObject()))
 						return false;
 				}
+				/*if(isSerializedField(attribute)) {
+					return false;
+				}*/
 			}
+		}
+		if(containsReadObjectMethodAssigningExtractedField()) {
+			return false;
 		}
 		if(extractedEntities.size() == 1 || methodCounter == 0) {
 			return false;
@@ -540,6 +548,31 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		else {
 			return true;
 		}
+	}
+
+	private boolean containsReadObjectMethodAssigningExtractedField() {
+		for(MethodObject methodObject : sourceClass.getClassObject().getMethodList()) {
+			List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+			if(methodObject.getName().equals("readObject") && parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.io.ObjectInputStream")) {
+				Set<PlainVariable> definedFields = methodObject.getDefinedFieldsThroughThisReference();
+				for(PlainVariable definedField : definedFields) {
+					for(Entity entity : extractedEntities) {
+						if(entity instanceof MyAttribute) {
+							MyAttribute attribute = (MyAttribute)entity;
+							FieldObject fieldObject = attribute.getFieldObject();
+							if(fieldObject.getVariableBindingKey().equals(definedField.getVariableBindingKey())) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean isSerializedField(MyAttribute attribute) {
+		return RefactoringUtility.isSerializedField(sourceClass.getClassObject().getAbstractTypeDeclaration(), attribute.getFieldObject().getVariableDeclaration());
 	}
 
 	private boolean containsFieldAccessOfEnclosingClass(MyMethod method) {

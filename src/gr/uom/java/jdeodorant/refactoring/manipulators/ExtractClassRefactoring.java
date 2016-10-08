@@ -2091,25 +2091,25 @@ public class ExtractClassRefactoring extends Refactoring {
 			Map<PlainVariable, SingleVariableDeclaration> fieldParameterMap, SimpleName newAccessedVariable, IVariableBinding accessedVariableBinding) {
 		Set<PlainVariable> additionalArgumentsAddedToMovedMethod = additionalArgumentsAddedToExtractedMethods.get(sourceMethod);
 		Set<SingleVariableDeclaration> additionalParametersAddedToMovedMethod = additionalParametersAddedToExtractedMethods.get(sourceMethod);
+		if(!containsVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod)) {
+			SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
+			addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
+			additionalParametersAddedToMovedMethod.add(fieldParameter);
+			fieldParameterMap.put(new PlainVariable(accessedVariableBinding), fieldParameter);
+		}
 		if(newAccessedVariable.getParent() instanceof FieldAccess) {
 			FieldAccess fieldAccess = (FieldAccess)newAccessedVariable.getParent();
 			if(fieldAccess.getExpression() instanceof ThisExpression) {
 				String parameterName = createNameForParameterizedFieldAccess(fieldAccess.getName().getIdentifier());
 				targetRewriter.replace(newAccessedVariable.getParent(), ast.newSimpleName(parameterName), null);
-				//targetRewriter.replace(newAccessedVariable.getParent(), newAccessedVariable, null);
-				if(!containsVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod)) {
-					SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
-					addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
-					additionalParametersAddedToMovedMethod.add(fieldParameter);
-					fieldParameterMap.put(new PlainVariable(accessedVariableBinding), fieldParameter);
-				}
 			}
 		}
-		else if(!containsVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod)) {
-			SingleVariableDeclaration fieldParameter = addParameterToMovedMethod(newMethodDeclaration, accessedVariableBinding, targetRewriter);
-			addVariable(accessedVariableBinding, additionalArgumentsAddedToMovedMethod);
-			additionalParametersAddedToMovedMethod.add(fieldParameter);
-			fieldParameterMap.put(new PlainVariable(accessedVariableBinding), fieldParameter);
+		else if(newAccessedVariable.getParent() instanceof QualifiedName) {
+			
+		}
+		else {
+			String parameterName = createNameForParameterizedFieldAccess(accessedVariableBinding.getName());
+			targetRewriter.replace(newAccessedVariable, ast.newSimpleName(parameterName), null);
 		}
 	}
 

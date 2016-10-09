@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.CastExpression;
+import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ChildListPropertyDescriptor;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -76,6 +77,8 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.ThisExpression;
+import org.eclipse.jdt.core.dom.ThrowStatement;
+import org.eclipse.jdt.core.dom.TryStatement;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
@@ -989,6 +992,10 @@ public class ExtractClassRefactoring extends Refactoring {
             	typeBindings.add(cloneableInterfaceTypeBinding);
             	RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
         	}
+        	else {
+        		SimpleType cloneableType = extractedClassAST.newSimpleType(extractedClassAST.newSimpleName("Cloneable"));
+        		extractedClassImplementedInterfacesRewrite.insertLast(cloneableType, null);
+        	}
         }
         extractedClassTypesRewrite.insertLast(extractedClassTypeDeclaration, null);
 
@@ -1053,7 +1060,37 @@ public class ExtractClassRefactoring extends Refactoring {
 			extractedClassRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, superCloneMethodInvocation, null);
 			extractedClassRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, extractedClassAST.newSimpleName(extractedTypeName), null);
 			extractedClassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, castExpression, null);
-			statementsRewrite.insertLast(returnStatement, null);
+			if(thrownExceptionTypes.isEmpty()) {
+				TryStatement tryStatement = extractedClassAST.newTryStatement();
+				Block tryBody = extractedClassAST.newBlock();
+				extractedClassRewriter.set(tryStatement, TryStatement.BODY_PROPERTY, tryBody, null);
+				ListRewrite tryStatementsRewrite = extractedClassRewriter.getListRewrite(tryBody, Block.STATEMENTS_PROPERTY);
+				tryStatementsRewrite.insertLast(returnStatement, null);
+				ListRewrite catchClausesRewrite = extractedClassRewriter.getListRewrite(tryStatement, TryStatement.CATCH_CLAUSES_PROPERTY);
+				CatchClause catchClause = extractedClassAST.newCatchClause();
+				Type catchClauseExceptionType = extractedClassAST.newSimpleType(extractedClassAST.newSimpleName("CloneNotSupportedException"));
+				SingleVariableDeclaration singleVariableDeclaration = extractedClassAST.newSingleVariableDeclaration();
+				extractedClassRewriter.set(singleVariableDeclaration, SingleVariableDeclaration.TYPE_PROPERTY, catchClauseExceptionType, null);
+				SimpleName exceptionName = extractedClassAST.newSimpleName("e");
+				extractedClassRewriter.set(singleVariableDeclaration, SingleVariableDeclaration.NAME_PROPERTY, exceptionName, null);
+				extractedClassRewriter.set(catchClause, CatchClause.EXCEPTION_PROPERTY, singleVariableDeclaration, null);
+				Block catchBody = extractedClassAST.newBlock();
+				extractedClassRewriter.set(catchClause, CatchClause.BODY_PROPERTY, catchBody, null);
+				ListRewrite catchStatementsRewrite = extractedClassRewriter.getListRewrite(catchBody, Block.STATEMENTS_PROPERTY);
+				ThrowStatement throwStatement = extractedClassAST.newThrowStatement();
+				ClassInstanceCreation classInstanceCreation = extractedClassAST.newClassInstanceCreation();
+				Type throwExceptionType = extractedClassAST.newSimpleType(extractedClassAST.newSimpleName("InternalError"));
+				extractedClassRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, throwExceptionType, null);
+				ListRewrite argumentsRewrite = extractedClassRewriter.getListRewrite(classInstanceCreation, ClassInstanceCreation.ARGUMENTS_PROPERTY);
+				argumentsRewrite.insertLast(exceptionName, null);
+				extractedClassRewriter.set(throwStatement, ThrowStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
+				catchStatementsRewrite.insertLast(throwStatement, null);
+				catchClausesRewrite.insertLast(catchClause, null);
+				statementsRewrite.insertLast(tryStatement, null);
+			}
+			else {
+				statementsRewrite.insertLast(returnStatement, null);
+			}
 			return cloneMethodDeclaration;
 		}
 		return null;

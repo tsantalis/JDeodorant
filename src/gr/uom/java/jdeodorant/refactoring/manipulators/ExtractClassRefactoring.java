@@ -2874,93 +2874,197 @@ public class ExtractClassRefactoring extends Refactoring {
 		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
+		boolean methodFound = false;
 		for(MethodDeclaration method : methodDeclarations) {
-			if(isWriteObject(method) && !extractedMethods.contains(method)) {
-				Block methodBody = method.getBody();
-				if(methodBody != null) {
-					ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
-					FieldAccess fieldAccess = contextAST.newFieldAccess();
-					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
-					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
-					
-					List<SingleVariableDeclaration> parameters = method.parameters();
-					SimpleName parameterSimpleName = parameters.get(0).getName();
-					
-					MethodInvocation writeObjectMethodInvocation = contextAST.newMethodInvocation();
-					sourceRewriter.set(writeObjectMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterSimpleName, null);
-					sourceRewriter.set(writeObjectMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("writeObject"), null);
-					ListRewrite argumentRewrite = sourceRewriter.getListRewrite(writeObjectMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-					argumentRewrite.insertLast(fieldAccess, null);
-					
-					Statement methodInvocationStatement = contextAST.newExpressionStatement(writeObjectMethodInvocation);
-					Statement firstStatement = isFirstStatementMethodInvocationExpressionStatementWithName(method, "defaultWriteObject");
-					if(firstStatement != null) {
-						statementRewrite.insertAfter(methodInvocationStatement, firstStatement, null);
-					}
-					else {
-						statementRewrite.insertFirst(methodInvocationStatement, null);
-					}
-					try {
-						TextEdit sourceEdit = sourceRewriter.rewriteAST();
-						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-						change.getEdit().addChild(sourceEdit);
-						change.addTextEditGroup(new TextEditGroup("Update writeObject()", new TextEdit[] {sourceEdit}));
-					} catch (JavaModelException e) {
-						e.printStackTrace();
+			if(isWriteObject(method)) {
+				methodFound = true;
+				if(!extractedMethods.contains(method)) {
+					Block methodBody = method.getBody();
+					if(methodBody != null) {
+						List<SingleVariableDeclaration> parameters = method.parameters();
+						SimpleName parameterSimpleName = parameters.get(0).getName();
+						ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+						Statement methodInvocationStatement = createMethodInvocationStatementForWriteObject(
+								sourceRewriter, contextAST, modifiedExtractedTypeName, parameterSimpleName);
+						Statement firstStatement = isFirstStatementMethodInvocationExpressionStatementWithName(method, "defaultWriteObject");
+						if(firstStatement != null) {
+							statementRewrite.insertAfter(methodInvocationStatement, firstStatement, null);
+						}
+						else {
+							statementRewrite.insertFirst(methodInvocationStatement, null);
+						}
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Update writeObject()", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
 		}
+		if(!methodFound) {
+			MethodDeclaration writeObjectMethod = contextAST.newMethodDeclaration();
+			sourceRewriter.set(writeObjectMethod, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("writeObject"), null);
+			ListRewrite parametersRewrite = sourceRewriter.getListRewrite(writeObjectMethod, MethodDeclaration.PARAMETERS_PROPERTY);
+			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
+			Type parameterType = contextAST.newSimpleType(contextAST.newName("java.io.ObjectOutputStream"));
+			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+			SimpleName parameterSimpleName = contextAST.newSimpleName("stream");
+			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterSimpleName, null);
+			parametersRewrite.insertLast(parameter, null);
+			ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(writeObjectMethod, MethodDeclaration.MODIFIERS2_PROPERTY);
+			modifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+			sourceRewriter.set(writeObjectMethod, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
+			ListRewrite thrownExceptionTypesRewrite = sourceRewriter.getListRewrite(writeObjectMethod, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+			thrownExceptionTypesRewrite.insertLast(contextAST.newName("java.io.IOException"), null);
+			
+			Block methodBody = contextAST.newBlock();
+			sourceRewriter.set(writeObjectMethod, MethodDeclaration.BODY_PROPERTY, methodBody, null);
+			ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+			
+			MethodInvocation methodInvocation = contextAST.newMethodInvocation();
+			sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("defaultWriteObject"), null);
+			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterSimpleName, null);
+			ExpressionStatement methodInvocationStatement = contextAST.newExpressionStatement(methodInvocation);
+			statementRewrite.insertLast(methodInvocationStatement, null);
+			
+			Statement methodInvocationStatement2 = createMethodInvocationStatementForWriteObject(
+					sourceRewriter, contextAST, modifiedExtractedTypeName, parameterSimpleName);
+			statementRewrite.insertLast(methodInvocationStatement2, null);
+			
+			ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			contextBodyRewrite.insertLast(writeObjectMethod, null);
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Create writeObject()", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private Statement createMethodInvocationStatementForWriteObject(ASTRewrite sourceRewriter, AST contextAST,
+			String modifiedExtractedTypeName, SimpleName parameterSimpleName) {
+		FieldAccess fieldAccess = contextAST.newFieldAccess();
+		sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+		sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+
+		MethodInvocation writeObjectMethodInvocation = contextAST.newMethodInvocation();
+		sourceRewriter.set(writeObjectMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterSimpleName, null);
+		sourceRewriter.set(writeObjectMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("writeObject"), null);
+		ListRewrite argumentRewrite = sourceRewriter.getListRewrite(writeObjectMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+		argumentRewrite.insertLast(fieldAccess, null);
+
+		Statement methodInvocationStatement = contextAST.newExpressionStatement(writeObjectMethodInvocation);
+		return methodInvocationStatement;
 	}
 
 	private void updateReadObjectInSourceClass(String modifiedExtractedTypeName) {
 		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
+		boolean methodFound = false;
 		for(MethodDeclaration method : methodDeclarations) {
-			if(isReadObject(method) && !extractedMethods.contains(method)) {
-				Block methodBody = method.getBody();
-				if(methodBody != null) {
-					ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
-					Assignment assignment = contextAST.newAssignment();
-					FieldAccess fieldAccess = contextAST.newFieldAccess();
-					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
-					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
-					sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, fieldAccess, null);
-					
-					List<SingleVariableDeclaration> parameters = method.parameters();
-					SimpleName parameterSimpleName = parameters.get(0).getName();
-					
-					MethodInvocation readObjectMethodInvocation = contextAST.newMethodInvocation();
-					sourceRewriter.set(readObjectMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterSimpleName, null);
-					sourceRewriter.set(readObjectMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("readObject"), null);
-					
-					CastExpression castExpression = contextAST.newCastExpression();
-					sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, readObjectMethodInvocation, null);
-					sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
-					sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, castExpression, null);
-					
-					Statement assignmentStatement = contextAST.newExpressionStatement(assignment);
-					Statement firstStatement = isFirstStatementMethodInvocationExpressionStatementWithName(method, "defaultReadObject");
-					if(firstStatement != null) {
-						statementRewrite.insertAfter(assignmentStatement, firstStatement, null);
-					}
-					else {
-						statementRewrite.insertFirst(assignmentStatement, null);
-					}
-					try {
-						TextEdit sourceEdit = sourceRewriter.rewriteAST();
-						ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-						CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-						change.getEdit().addChild(sourceEdit);
-						change.addTextEditGroup(new TextEditGroup("Update readObject()", new TextEdit[] {sourceEdit}));
-					} catch (JavaModelException e) {
-						e.printStackTrace();
+			if(isReadObject(method)) {
+				methodFound = true;
+				if(!extractedMethods.contains(method)) {
+					Block methodBody = method.getBody();
+					if(methodBody != null) {
+						List<SingleVariableDeclaration> parameters = method.parameters();
+						SimpleName parameterSimpleName = parameters.get(0).getName();
+						ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+						Statement assignmentStatement = createAssignmentStatementForReadObject(sourceRewriter,
+								contextAST, modifiedExtractedTypeName, parameterSimpleName);
+						Statement firstStatement = isFirstStatementMethodInvocationExpressionStatementWithName(method, "defaultReadObject");
+						if(firstStatement != null) {
+							statementRewrite.insertAfter(assignmentStatement, firstStatement, null);
+						}
+						else {
+							statementRewrite.insertFirst(assignmentStatement, null);
+						}
+						try {
+							TextEdit sourceEdit = sourceRewriter.rewriteAST();
+							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+							change.getEdit().addChild(sourceEdit);
+							change.addTextEditGroup(new TextEditGroup("Update readObject()", new TextEdit[] {sourceEdit}));
+						} catch (JavaModelException e) {
+							e.printStackTrace();
+						}
 					}
 				}
 			}
 		}
+		if(!methodFound) {
+			MethodDeclaration readObjectMethod = contextAST.newMethodDeclaration();
+			sourceRewriter.set(readObjectMethod, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("readObject"), null);
+			ListRewrite parametersRewrite = sourceRewriter.getListRewrite(readObjectMethod, MethodDeclaration.PARAMETERS_PROPERTY);
+			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
+			Type parameterType = contextAST.newSimpleType(contextAST.newName("java.io.ObjectInputStream"));
+			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
+			SimpleName parameterSimpleName = contextAST.newSimpleName("stream");
+			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterSimpleName, null);
+			parametersRewrite.insertLast(parameter, null);
+			ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(readObjectMethod, MethodDeclaration.MODIFIERS2_PROPERTY);
+			modifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+			sourceRewriter.set(readObjectMethod, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newPrimitiveType(PrimitiveType.VOID), null);
+			ListRewrite thrownExceptionTypesRewrite = sourceRewriter.getListRewrite(readObjectMethod, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+			thrownExceptionTypesRewrite.insertLast(contextAST.newName("java.io.IOException"), null);
+			thrownExceptionTypesRewrite.insertLast(contextAST.newName("java.lang.ClassNotFoundException"), null);
+			
+			Block methodBody = contextAST.newBlock();
+			sourceRewriter.set(readObjectMethod, MethodDeclaration.BODY_PROPERTY, methodBody, null);
+			ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+			
+			MethodInvocation methodInvocation = contextAST.newMethodInvocation();
+			sourceRewriter.set(methodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("defaultReadObject"), null);
+			sourceRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterSimpleName, null);
+			ExpressionStatement methodInvocationStatement = contextAST.newExpressionStatement(methodInvocation);
+			statementRewrite.insertLast(methodInvocationStatement, null);
+			Statement assignmentStatement = createAssignmentStatementForReadObject(sourceRewriter,
+					contextAST, modifiedExtractedTypeName, parameterSimpleName);
+			statementRewrite.insertLast(assignmentStatement, null);
+			
+			ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+			contextBodyRewrite.insertLast(readObjectMethod, null);
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+				change.getEdit().addChild(sourceEdit);
+				change.addTextEditGroup(new TextEditGroup("Create readObject()", new TextEdit[] {sourceEdit}));
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private Statement createAssignmentStatementForReadObject(ASTRewrite sourceRewriter, AST contextAST,
+			String modifiedExtractedTypeName, SimpleName parameterSimpleName) {
+		Assignment assignment = contextAST.newAssignment();
+		FieldAccess fieldAccess = contextAST.newFieldAccess();
+		sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+		sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, fieldAccess, null);
+
+		MethodInvocation readObjectMethodInvocation = contextAST.newMethodInvocation();
+		sourceRewriter.set(readObjectMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, parameterSimpleName, null);
+		sourceRewriter.set(readObjectMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("readObject"), null);
+
+		CastExpression castExpression = contextAST.newCastExpression();
+		sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, readObjectMethodInvocation, null);
+		sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+		sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, castExpression, null);
+
+		Statement assignmentStatement = contextAST.newExpressionStatement(assignment);
+		return assignmentStatement;
 	}
 
 	private void updateCloneInSourceClass(String modifiedExtractedTypeName) {

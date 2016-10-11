@@ -1019,33 +1019,34 @@ public class ExtractClassRefactoring extends Refactoring {
 
 	private MethodDeclaration createCloneMethod(ASTRewrite extractedClassRewriter, AST extractedClassAST) {
 		// check if source class contains clone method
-		MethodDeclaration cloneMethodInSourceClass = null;
+		IMethodBinding cloneMethodBinding = null;
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
 		for(MethodDeclaration method : methodDeclarations) {
 			if(isClone(method)) {
-				cloneMethodInSourceClass = method;
+				cloneMethodBinding = method.resolveBinding();
 				break;
 			}
 		}
-		if(cloneMethodInSourceClass != null) {
+		if(cloneMethodBinding == null && sourceTypeDeclaration.getSuperclassType() != null) {
+			cloneMethodBinding = findCloneMethod(sourceTypeDeclaration.getSuperclassType().resolveBinding());
+		}
+		if(cloneMethodBinding != null) {
 			MethodDeclaration cloneMethodDeclaration = extractedClassAST.newMethodDeclaration();
 			extractedClassRewriter.set(cloneMethodDeclaration, MethodDeclaration.NAME_PROPERTY,
-					extractedClassAST.newSimpleName(cloneMethodInSourceClass.getName().getIdentifier()), null);
-			extractedClassRewriter.set(cloneMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, cloneMethodInSourceClass.getReturnType2(), null);
+					extractedClassAST.newSimpleName(cloneMethodBinding.getName()), null);
+			extractedClassRewriter.set(cloneMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY,
+					RefactoringUtility.generateTypeFromTypeBinding(cloneMethodBinding.getReturnType(), extractedClassAST, extractedClassRewriter), null);
 			
 			ListRewrite modifiersRewrite = extractedClassRewriter.getListRewrite(cloneMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-			List<IExtendedModifier> modifiers = cloneMethodInSourceClass.modifiers();
-			for(IExtendedModifier modifier : modifiers) {
-				if(modifier instanceof Modifier) {
-					modifiersRewrite.insertLast((Modifier)modifier, null);
-				}
-			}
+			modifiersRewrite.insertLast(extractedClassAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+			
 			ListRewrite thrownExceptionTypesRewrite = extractedClassRewriter.getListRewrite(cloneMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
-			List<Name> thrownExceptionTypes = cloneMethodInSourceClass.thrownExceptions();
+			ITypeBinding[] thrownExceptionTypes = cloneMethodBinding.getExceptionTypes();
 			Set<ITypeBinding> thrownExceptionTypeBindings = new LinkedHashSet<ITypeBinding>();
-			for(Name type : thrownExceptionTypes) {
+			for(ITypeBinding typeBinding : thrownExceptionTypes) {
+				Name type = extractedClassAST.newSimpleName(typeBinding.getName());
 				thrownExceptionTypesRewrite.insertLast(type, null);
-				thrownExceptionTypeBindings.add(type.resolveTypeBinding());
+				thrownExceptionTypeBindings.add(typeBinding);
 			}
 			RefactoringUtility.getSimpleTypeBindings(thrownExceptionTypeBindings, requiredImportDeclarationsInExtractedClass);
 			Block body = extractedClassAST.newBlock();
@@ -1055,12 +1056,12 @@ public class ExtractClassRefactoring extends Refactoring {
 			ReturnStatement returnStatement = extractedClassAST.newReturnStatement();
 			SuperMethodInvocation superCloneMethodInvocation = extractedClassAST.newSuperMethodInvocation();
 			extractedClassRewriter.set(superCloneMethodInvocation, SuperMethodInvocation.NAME_PROPERTY,
-					extractedClassAST.newSimpleName(cloneMethodInSourceClass.getName().getIdentifier()), null);
+					extractedClassAST.newSimpleName(cloneMethodBinding.getName()), null);
 			CastExpression castExpression = extractedClassAST.newCastExpression();
 			extractedClassRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, superCloneMethodInvocation, null);
 			extractedClassRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, extractedClassAST.newSimpleName(extractedTypeName), null);
 			extractedClassRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, castExpression, null);
-			if(thrownExceptionTypes.isEmpty()) {
+			if(thrownExceptionTypes.length == 0) {
 				TryStatement tryStatement = extractedClassAST.newTryStatement();
 				Block tryBody = extractedClassAST.newBlock();
 				extractedClassRewriter.set(tryStatement, TryStatement.BODY_PROPERTY, tryBody, null);
@@ -3071,51 +3072,121 @@ public class ExtractClassRefactoring extends Refactoring {
 		ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 		AST contextAST = sourceTypeDeclaration.getAST();
 		MethodDeclaration[] methodDeclarations = sourceTypeDeclaration.getMethods();
+		boolean methodFound = false;
 		for(MethodDeclaration method : methodDeclarations) {
-			if(isClone(method) && !extractedMethods.contains(method)) {
-				Block methodBody = method.getBody();
-				if(methodBody != null) {
-					ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
-					VariableDeclarationStatement firstStatement = isFirstStatementVariableDeclarationStatementWithSuperCloneInitializer(method);
-					if(firstStatement != null) {
-						VariableDeclarationFragment fragment = (VariableDeclarationFragment)firstStatement.fragments().get(0);
-						
-						Assignment assignment = contextAST.newAssignment();
-						FieldAccess cloneFieldAccess = contextAST.newFieldAccess();
-						sourceRewriter.set(cloneFieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
-						sourceRewriter.set(cloneFieldAccess, FieldAccess.EXPRESSION_PROPERTY, fragment.getName(), null);
-						sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, cloneFieldAccess, null);
-						
-						
-						FieldAccess thisFieldAccess = contextAST.newFieldAccess();
-						sourceRewriter.set(thisFieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
-						sourceRewriter.set(thisFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
-						
-						MethodInvocation cloneInvocation = contextAST.newMethodInvocation();
-						sourceRewriter.set(cloneInvocation, MethodInvocation.EXPRESSION_PROPERTY, thisFieldAccess, null);
-						sourceRewriter.set(cloneInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("clone"), null);
-						
-						CastExpression castExpression = contextAST.newCastExpression();
-						sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, cloneInvocation, null);
-						sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
-						sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, castExpression, null);
-						
-						Statement assignmentStatement = contextAST.newExpressionStatement(assignment);
-						statementRewrite.insertAfter(assignmentStatement, firstStatement, null);
-						
-						try {
-							TextEdit sourceEdit = sourceRewriter.rewriteAST();
-							ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-							CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-							change.getEdit().addChild(sourceEdit);
-							change.addTextEditGroup(new TextEditGroup("Update clone()", new TextEdit[] {sourceEdit}));
-						} catch (JavaModelException e) {
-							e.printStackTrace();
+			if(isClone(method)) {
+				methodFound = true;
+				if(!extractedMethods.contains(method)) {
+					Block methodBody = method.getBody();
+					if(methodBody != null) {
+						ListRewrite statementRewrite = sourceRewriter.getListRewrite(methodBody, Block.STATEMENTS_PROPERTY);
+						VariableDeclarationStatement firstStatement = isFirstStatementVariableDeclarationStatementWithSuperCloneInitializer(method);
+						if(firstStatement != null) {
+							VariableDeclarationFragment fragment = (VariableDeclarationFragment)firstStatement.fragments().get(0);
+
+							Statement assignmentStatement = createAssignmentStatementForClone(sourceRewriter, contextAST,
+									fragment.getName().getIdentifier(), modifiedExtractedTypeName);
+							statementRewrite.insertAfter(assignmentStatement, firstStatement, null);
+
+							try {
+								TextEdit sourceEdit = sourceRewriter.rewriteAST();
+								ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+								CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+								change.getEdit().addChild(sourceEdit);
+								change.addTextEditGroup(new TextEditGroup("Update clone()", new TextEdit[] {sourceEdit}));
+							} catch (JavaModelException e) {
+								e.printStackTrace();
+							}
 						}
 					}
 				}
 			}
 		}
+		if(!methodFound) {
+			IMethodBinding cloneMethodBinding = findCloneMethod(sourceTypeDeclaration.resolveBinding().getSuperclass());
+			if(cloneMethodBinding != null) {
+				MethodDeclaration cloneMethodDeclaration = contextAST.newMethodDeclaration();
+				sourceRewriter.set(cloneMethodDeclaration, MethodDeclaration.NAME_PROPERTY,
+						contextAST.newSimpleName(cloneMethodBinding.getName()), null);
+				sourceRewriter.set(cloneMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY,
+						RefactoringUtility.generateTypeFromTypeBinding(cloneMethodBinding.getReturnType(), contextAST, sourceRewriter), null);
+				
+				ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(cloneMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+				modifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PUBLIC_KEYWORD), null);
+				
+				ListRewrite thrownExceptionTypesRewrite = sourceRewriter.getListRewrite(cloneMethodDeclaration, MethodDeclaration.THROWN_EXCEPTIONS_PROPERTY);
+				ITypeBinding[] thrownExceptionTypeBindings = cloneMethodBinding.getExceptionTypes();
+				for(ITypeBinding typeBinding : thrownExceptionTypeBindings) {
+					Name type = contextAST.newName(typeBinding.getQualifiedName());
+					thrownExceptionTypesRewrite.insertLast(type, null);
+				}
+				
+				Block body = contextAST.newBlock();
+				sourceRewriter.set(cloneMethodDeclaration, MethodDeclaration.BODY_PROPERTY, body, null);
+				
+				ListRewrite statementsRewrite = sourceRewriter.getListRewrite(body, Block.STATEMENTS_PROPERTY);
+				
+				VariableDeclarationFragment fragment = contextAST.newVariableDeclarationFragment();
+				SimpleName cloneSimpleName = contextAST.newSimpleName("clone");
+				Type sourceClassType = RefactoringUtility.generateTypeFromTypeBinding(sourceTypeDeclaration.resolveBinding(), contextAST, sourceRewriter);
+				sourceRewriter.set(fragment, VariableDeclarationFragment.NAME_PROPERTY, cloneSimpleName, null);
+				
+				SuperMethodInvocation superCloneInvocation = contextAST.newSuperMethodInvocation();
+				sourceRewriter.set(superCloneInvocation, SuperMethodInvocation.NAME_PROPERTY, cloneSimpleName, null);
+				CastExpression castExpression = contextAST.newCastExpression();
+				sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, superCloneInvocation, null);
+				sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, sourceClassType, null);
+				sourceRewriter.set(fragment, VariableDeclarationFragment.INITIALIZER_PROPERTY, castExpression, null);
+				VariableDeclarationStatement variableDeclarationStatement = contextAST.newVariableDeclarationStatement(fragment);
+				sourceRewriter.set(variableDeclarationStatement, VariableDeclarationStatement.TYPE_PROPERTY, sourceClassType, null);
+				statementsRewrite.insertLast(variableDeclarationStatement, null);
+				
+				Statement assignmentStatement = createAssignmentStatementForClone(sourceRewriter, contextAST, "clone", modifiedExtractedTypeName);
+				statementsRewrite.insertLast(assignmentStatement, null);
+				
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, contextAST.newSimpleName("clone"), null);
+				statementsRewrite.insertLast(returnStatement, null);
+				
+				ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+				contextBodyRewrite.insertLast(cloneMethodDeclaration, null);
+				
+				try {
+					TextEdit sourceEdit = sourceRewriter.rewriteAST();
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					change.getEdit().addChild(sourceEdit);
+					change.addTextEditGroup(new TextEditGroup("Create clone()", new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	private Statement createAssignmentStatementForClone(ASTRewrite sourceRewriter, AST contextAST,
+			String cloneVariableName, String modifiedExtractedTypeName) {
+		Assignment assignment = contextAST.newAssignment();
+		FieldAccess cloneFieldAccess = contextAST.newFieldAccess();
+		sourceRewriter.set(cloneFieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+		sourceRewriter.set(cloneFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(cloneVariableName), null);
+		sourceRewriter.set(assignment, Assignment.LEFT_HAND_SIDE_PROPERTY, cloneFieldAccess, null);
+
+		FieldAccess thisFieldAccess = contextAST.newFieldAccess();
+		sourceRewriter.set(thisFieldAccess, FieldAccess.NAME_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+		sourceRewriter.set(thisFieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newThisExpression(), null);
+
+		MethodInvocation cloneInvocation = contextAST.newMethodInvocation();
+		sourceRewriter.set(cloneInvocation, MethodInvocation.EXPRESSION_PROPERTY, thisFieldAccess, null);
+		sourceRewriter.set(cloneInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("clone"), null);
+
+		CastExpression castExpression = contextAST.newCastExpression();
+		sourceRewriter.set(castExpression, CastExpression.EXPRESSION_PROPERTY, cloneInvocation, null);
+		sourceRewriter.set(castExpression, CastExpression.TYPE_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+		sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, castExpression, null);
+
+		Statement assignmentStatement = contextAST.newExpressionStatement(assignment);
+		return assignmentStatement;
 	}
 
 	private boolean isWriteObject(MethodDeclaration method) {
@@ -3131,6 +3202,23 @@ public class ExtractClassRefactoring extends Refactoring {
 	private boolean isClone(MethodDeclaration method) {
 		return method.getName().getIdentifier().equals("clone") && method.parameters().size() == 0 &&
 				method.getReturnType2().resolveBinding().getQualifiedName().equals("java.lang.Object");
+	}
+
+	private IMethodBinding findCloneMethod(ITypeBinding typeBinding) {
+		if(typeBinding != null) {
+			for(IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
+				if(isClone(methodBinding)) {
+					return methodBinding;
+				}
+			}
+			return findCloneMethod(typeBinding.getSuperclass());
+		}
+		return null;
+	}
+
+	private boolean isClone(IMethodBinding methodBinding) {
+		return methodBinding.getName().equals("clone") && methodBinding.getParameterTypes().length == 0 &&
+				methodBinding.getReturnType().getQualifiedName().equals("java.lang.Object");
 	}
 
 	private Statement isFirstStatementMethodInvocationExpressionStatementWithName(MethodDeclaration method, String methodName) {

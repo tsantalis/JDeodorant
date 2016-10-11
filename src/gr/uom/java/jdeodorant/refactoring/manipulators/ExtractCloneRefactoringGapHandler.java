@@ -39,6 +39,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 
+import gr.uom.java.ast.decomposition.AbstractExpression;
 import gr.uom.java.ast.decomposition.AbstractStatement;
 import gr.uom.java.ast.decomposition.cfg.AbstractVariable;
 import gr.uom.java.ast.decomposition.cfg.PDGNode;
@@ -302,50 +303,54 @@ public class ExtractCloneRefactoringGapHandler {
 	}
 
 	public boolean differenceBelongsToBlockGaps(ASTNodeDifference difference) {
-		Expression expr1 = difference.getExpression1().getExpression();
-		Expression expr2 = difference.getExpression2().getExpression();
-		Statement statement1 = findParentStatement(expr1);
-		Statement statement2 = findParentStatement(expr2);
-		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
-			boolean statement1Found = false;
-			boolean statement2Found = false;
-			for(PDGNode node : blockGap.getNodesG1()) {
-				if(node.getASTStatement().equals(statement1)) {
-					statement1Found = true;
+		AbstractExpression expr1 = difference.getExpression1();
+		AbstractExpression expr2 = difference.getExpression2();
+		if(expr1 != null && expr2 != null) {
+			Statement statement1 = findParentStatement(expr1.getExpression());
+			Statement statement2 = findParentStatement(expr2.getExpression());
+			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+				boolean statement1Found = false;
+				boolean statement2Found = false;
+				for(PDGNode node : blockGap.getNodesG1()) {
+					if(node.getASTStatement().equals(statement1)) {
+						statement1Found = true;
+					}
 				}
-			}
-			for(PDGNode node : blockGap.getNodesG2()) {
-				if(node.getASTStatement().equals(statement2)) {
-					statement2Found = true;
+				for(PDGNode node : blockGap.getNodesG2()) {
+					if(node.getASTStatement().equals(statement2)) {
+						statement2Found = true;
+					}
 				}
-			}
-			if(statement1Found && statement2Found) {
-				return true;
+				if(statement1Found && statement2Found) {
+					return true;
+				}
 			}
 		}
 		return false;
 	}
 
 	private PDGNodeBlockGap findBlockGapContainingDifference(ASTNodeDifference difference) {
-		Expression expr1 = difference.getExpression1().getExpression();
-		Expression expr2 = difference.getExpression2().getExpression();
-		Statement statement1 = findParentStatement(expr1);
-		Statement statement2 = findParentStatement(expr2);
-		for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
-			boolean statement1Found = false;
-			boolean statement2Found = false;
-			for(PDGNode node : blockGap.getNodesG1()) {
-				if(node.getASTStatement().equals(statement1)) {
-					statement1Found = true;
+		AbstractExpression expr1 = difference.getExpression1();
+		AbstractExpression expr2 = difference.getExpression2();
+		if(expr1 != null && expr2 != null) {
+			Statement statement1 = findParentStatement(expr1.getExpression());
+			Statement statement2 = findParentStatement(expr2.getExpression());
+			for(PDGNodeBlockGap blockGap : mapper.getRefactorableBlockGaps()) {
+				boolean statement1Found = false;
+				boolean statement2Found = false;
+				for(PDGNode node : blockGap.getNodesG1()) {
+					if(node.getASTStatement().equals(statement1)) {
+						statement1Found = true;
+					}
 				}
-			}
-			for(PDGNode node : blockGap.getNodesG2()) {
-				if(node.getASTStatement().equals(statement2)) {
-					statement2Found = true;
+				for(PDGNode node : blockGap.getNodesG2()) {
+					if(node.getASTStatement().equals(statement2)) {
+						statement2Found = true;
+					}
 				}
-			}
-			if(statement1Found && statement2Found) {
-				return blockGap;
+				if(statement1Found && statement2Found) {
+					return blockGap;
+				}
 			}
 		}
 		return null;

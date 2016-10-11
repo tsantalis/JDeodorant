@@ -1027,7 +1027,7 @@ public class ExtractClassRefactoring extends Refactoring {
 				break;
 			}
 		}
-		if(cloneMethodBinding == null) {
+		if(cloneMethodBinding == null && sourceTypeDeclaration.getSuperclassType() != null) {
 			cloneMethodBinding = findCloneMethod(sourceTypeDeclaration.getSuperclassType().resolveBinding());
 		}
 		if(cloneMethodBinding != null) {

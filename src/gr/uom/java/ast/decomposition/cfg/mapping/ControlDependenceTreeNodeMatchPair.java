@@ -3,8 +3,12 @@ package gr.uom.java.ast.decomposition.cfg.mapping;
 import gr.uom.java.ast.decomposition.AbstractMethodFragment;
 import gr.uom.java.ast.decomposition.matching.ASTNodeDifference;
 import gr.uom.java.ast.decomposition.matching.ASTNodeMatcher;
+import gr.uom.java.ast.decomposition.matching.Difference;
+import gr.uom.java.ast.decomposition.matching.DifferenceType;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDependenceTreeNodeMatchPair> {
 	private ControlDependenceTreeNode node1;
@@ -54,6 +58,57 @@ public class ControlDependenceTreeNodeMatchPair implements Comparable<ControlDep
 		List<ControlDependenceTreeNode> elseIfChildren2 = node2.getElseIfChildren();
 		return (ifParents1.contains(otherPair.node1) || elseIfChildren1.contains(otherPair.node1)) &&
 				(ifParents2.contains(otherPair.node2) || elseIfChildren2.contains(otherPair.node2));
+	}
+
+	public int getDistinctDifferenceCount() {
+		Set<Difference> differences = new LinkedHashSet<Difference>();
+		int count = 0;
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			for(Difference diff : difference.getDifferences()) {
+				if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH)) {
+					if(!differences.contains(diff)) {
+						differences.add(diff);
+						count += diff.getWeight();
+					}
+				}
+			}
+		}
+		return count;
+	}
+
+	public int getDistinctDifferenceCountIncludingTypeMismatches() {
+		Set<Difference> differences = new LinkedHashSet<Difference>();
+		int count = 0;
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			for(Difference diff : difference.getDifferences()) {
+				if(!differences.contains(diff)) {
+					differences.add(diff);
+					count += diff.getWeight();
+				}
+			}
+		}
+		return count;
+	}
+
+	public int getNonDistinctDifferenceCount() {
+		int count = 0;
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			for(Difference diff : difference.getDifferences()) {
+				if(!diff.getType().equals(DifferenceType.VARIABLE_TYPE_MISMATCH) && !diff.getType().equals(DifferenceType.SUBCLASS_TYPE_MISMATCH))
+					count += diff.getWeight();
+			}
+		}
+		return count;
+	}
+
+	public int getNonDistinctDifferenceCountIncludingTypeMismatches() {
+		int count = 0;
+		for(ASTNodeDifference difference : getNodeDifferences()) {
+			for(Difference diff : difference.getDifferences()) {
+				count += diff.getWeight();
+			}
+		}
+		return count;
 	}
 
 	public int hashCode() {

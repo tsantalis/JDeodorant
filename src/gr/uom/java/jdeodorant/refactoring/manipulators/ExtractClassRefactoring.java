@@ -1027,8 +1027,8 @@ public class ExtractClassRefactoring extends Refactoring {
 				break;
 			}
 		}
-		if(cloneMethodBinding == null && sourceTypeDeclaration.getSuperclassType() != null) {
-			cloneMethodBinding = findCloneMethod(sourceTypeDeclaration.getSuperclassType().resolveBinding());
+		if(cloneMethodBinding == null) {
+			cloneMethodBinding = findCloneMethod(sourceTypeDeclaration.resolveBinding().getSuperclass());
 		}
 		if(cloneMethodBinding != null) {
 			MethodDeclaration cloneMethodDeclaration = extractedClassAST.newMethodDeclaration();
@@ -3205,7 +3205,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	}
 
 	private IMethodBinding findCloneMethod(ITypeBinding typeBinding) {
-		if(typeBinding != null) {
+		if(typeBinding != null && !typeBinding.getQualifiedName().equals("java.lang.Object")) {
 			for(IMethodBinding methodBinding : typeBinding.getDeclaredMethods()) {
 				if(isClone(methodBinding)) {
 					return methodBinding;

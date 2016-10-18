@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+
 public class MappingState {
 	private List<MappingState> children;
 	private Set<PDGNodeMapping> nodeMappings;
@@ -426,7 +429,9 @@ public class MappingState {
 		return false;
 	}
 
-	public boolean incomingDataDependenciesFromUnvisitedNodes(PDGNode nodeG1, PDGNode nodeG2) {
+	public boolean incomingDataDependenciesFromUnvisitedNodes(PDGNodeMapping mapping) {
+		PDGNode nodeG1 = mapping.getNodeG1();
+		PDGNode nodeG2 = mapping.getNodeG2();
 		Iterator<GraphEdge> incomingEdgeIterator1 = nodeG1.getIncomingDependenceIterator();
 		boolean incomingDataDependenceFromUnvisitedNodeG1 = false;
 		while(incomingEdgeIterator1.hasNext()) {
@@ -436,7 +441,8 @@ public class MappingState {
 				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
 				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, getMappedNodesG1());
 				boolean containsDeclaringNodeG1InMappings = nodeDeclaringVariable != null ? containsNodeG1InMappings(nodeDeclaringVariable) : false;
-				if(!containsNodeG1InMappings(srcPDGNode) && !containsDeclaringNodeG1InMappings) {
+				if(!containsNodeG1InMappings(srcPDGNode) && !containsDeclaringNodeG1InMappings &&
+						!nodeIsUnmappedTemporaryVariableDeclaration(srcPDGNode, dataDependence.getData(), mapping, getMappedNodesG1())) {
 					incomingDataDependenceFromUnvisitedNodeG1 = true;
 					break;
 				}
@@ -452,7 +458,8 @@ public class MappingState {
 				PDGAbstractDataDependence dataDependence = (PDGAbstractDataDependence)dependence;
 				PDGNode nodeDeclaringVariable = findNodeDeclaringVariable(dataDependence.getData(), srcPDGNode, getMappedNodesG2());
 				boolean containsDeclaringNodeG2InMappings = nodeDeclaringVariable != null ? containsNodeG2InMappings(nodeDeclaringVariable) : false;
-				if(!containsNodeG2InMappings(srcPDGNode) && !containsDeclaringNodeG2InMappings) {
+				if(!containsNodeG2InMappings(srcPDGNode) && !containsDeclaringNodeG2InMappings &&
+						!nodeIsUnmappedTemporaryVariableDeclaration(srcPDGNode, dataDependence.getData(), mapping, getMappedNodesG2())) {
 					incomingDataDependenceFromUnvisitedNodeG2 = true;
 					break;
 				}
@@ -460,6 +467,28 @@ public class MappingState {
 		}
 		return incomingDataDependenceFromUnvisitedNodeG1 != incomingDataDependenceFromUnvisitedNodeG2 &&
 				restrictedNodesG1.size() == restrictedNodesG2.size();
+	}
+
+	private boolean nodeIsUnmappedTemporaryVariableDeclaration(PDGNode srcPDGNode, AbstractVariable variable, PDGNodeMapping mapping, Set<PDGNode> mappedNodes) {
+		if(srcPDGNode.declaresLocalVariable(variable.getInitialVariable()) && !mappedNodes.contains(srcPDGNode)) {
+			if(srcPDGNode.getASTStatement() instanceof VariableDeclarationStatement) {
+				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)srcPDGNode.getASTStatement();
+				List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+				for(VariableDeclarationFragment fragment : fragments) {
+					if(fragment.resolveBinding().getKey().equals(variable.getInitialVariable().getVariableBindingKey())) {
+						String initializer = fragment.getInitializer().toString();
+						for(ASTNodeDifference difference : mapping.getNodeDifferences()) {
+							String expr1 = difference.getExpression1().toString();
+							String expr2 = difference.getExpression2().toString();
+							if(expr1.contains(initializer) || expr2.contains(initializer)) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	public boolean incomingDataDependenciesFromNonMatchingNodes(PDGNode nodeG1, PDGNode nodeG2) {

@@ -172,9 +172,8 @@ public class LongMethod extends ViewPart {
 				case 3:
 					return "B" + entry.getBoundaryBlock().getId();
 				case 4:
-					int numberOfSliceStatements = entry.getSliceStatements().size();
-					int numberOfRemovableStatements = entry.getRemovableStatements().size();
-					int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+					int numberOfSliceStatements = entry.getNumberOfSliceStatements();
+					int numberOfDuplicatedStatements = entry.getNumberOfDuplicatedStatements();
 					return numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
 				case 5:
 					Integer userRate = entry.getUserRate();
@@ -404,9 +403,8 @@ public class LongMethod extends ViewPart {
 							content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
 							content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
 							content += "&" + URLEncoder.encode("object_slice", "UTF-8") + "=" + URLEncoder.encode(slice.isObjectSlice() ? "1" : "0", "UTF-8");
-							int numberOfSliceStatements = slice.getSliceStatements().size();
-							int numberOfRemovableStatements = slice.getRemovableStatements().size();
-							int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+							int numberOfSliceStatements = slice.getNumberOfSliceStatements();
+							int numberOfDuplicatedStatements = slice.getNumberOfDuplicatedStatements();
 							content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
 							content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
 							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
@@ -567,9 +565,8 @@ public class LongMethod extends ViewPart {
 							content += "&" + URLEncoder.encode("variable_name", "UTF-8") + "=" + URLEncoder.encode(slice.getLocalVariableCriterion().resolveBinding().toString(), "UTF-8");
 							content += "&" + URLEncoder.encode("block", "UTF-8") + "=" + URLEncoder.encode("B" + slice.getBoundaryBlock().getId(), "UTF-8");
 							content += "&" + URLEncoder.encode("object_slice", "UTF-8") + "=" + URLEncoder.encode(slice.isObjectSlice() ? "1" : "0", "UTF-8");
-							int numberOfSliceStatements = slice.getSliceStatements().size();
-							int numberOfRemovableStatements = slice.getRemovableStatements().size();
-							int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+							int numberOfSliceStatements = slice.getNumberOfSliceStatements();
+							int numberOfDuplicatedStatements = slice.getNumberOfDuplicatedStatements();
 							content += "&" + URLEncoder.encode("duplicated_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfDuplicatedStatements), "UTF-8");
 							content += "&" + URLEncoder.encode("extracted_statements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(numberOfSliceStatements), "UTF-8");
 							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
@@ -815,9 +812,8 @@ public class LongMethod extends ViewPart {
 					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(sliceUnion);
 						if(!slice.isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement()) {
-							int numberOfExtractedStatements = slice.getSliceStatements().size();
-							int numberOfRemovableStatements = slice.getRemovableStatements().size();
-							int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+							int numberOfExtractedStatements = slice.getNumberOfSliceStatements();
+							int numberOfDuplicatedStatements = slice.getNumberOfDuplicatedStatements();
 							double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
 							sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
 							sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
@@ -847,9 +843,8 @@ public class LongMethod extends ViewPart {
 					for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(objectSliceUnion);
 						if(!slice.isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement()) {
-							int numberOfExtractedStatements = slice.getSliceStatements().size();
-							int numberOfRemovableStatements = slice.getRemovableStatements().size();
-							int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+							int numberOfExtractedStatements = slice.getNumberOfSliceStatements();
+							int numberOfDuplicatedStatements = slice.getNumberOfDuplicatedStatements();
 							double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
 							sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
 							sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;

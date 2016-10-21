@@ -434,6 +434,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 		if(binding1.getName().equals("double") && binding2.getName().equals("float")) {
 			return true;
 		}
+		if(binding1.getName().equals("int") && binding2.getName().equals("byte")) {
+			return true;
+		}
+		if(binding1.getName().equals("byte") && binding2.getName().equals("int")) {
+			return true;
+		}
 		if(binding1.getName().equals("null") && !binding2.isPrimitive()) {
 			return true;
 		}

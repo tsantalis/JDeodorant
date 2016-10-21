@@ -19,6 +19,14 @@ public class ASTSliceGroup implements Comparable<ASTSliceGroup> {
 	}
 
 	public void addCandidate(ASTSlice slice) {
+		Set<ASTSlice> slicesToBeRemoved = new LinkedHashSet<ASTSlice>();
+		for(ASTSlice previousSlice : candidates) {
+			if(previousSlice.getNumberOfSliceStatements() == slice.getNumberOfSliceStatements() &&
+					previousSlice.getNumberOfDuplicatedStatements() == slice.getNumberOfDuplicatedStatements()) {
+				slicesToBeRemoved.add(previousSlice);
+			}
+		}
+		this.candidates.removeAll(slicesToBeRemoved);
 		this.candidates.add(slice);
 	}
 

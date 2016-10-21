@@ -411,14 +411,24 @@ public class ASTSlice {
 	}
 
 	public String toString() {
-		int numberOfSliceStatements = getSliceStatements().size();
-		int numberOfRemovableStatements = getRemovableStatements().size();
-		int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+		int numberOfSliceStatements = getNumberOfSliceStatements();
+		int numberOfDuplicatedStatements = getNumberOfDuplicatedStatements();
 		return getSourceTypeDeclaration().resolveBinding().getQualifiedName() + "\t" +
 		getSourceMethodDeclaration().resolveBinding().toString() + "\t" +
 		getLocalVariableCriterion().getName().getIdentifier() + "\t" +
 		"B" + getBoundaryBlock().getId() + "\t" +
 		numberOfDuplicatedStatements + "/" + numberOfSliceStatements;
+	}
+
+	public int getNumberOfSliceStatements() {
+		return getSliceStatements().size();
+	}
+
+	public int getNumberOfDuplicatedStatements() {
+		int numberOfSliceStatements = getNumberOfSliceStatements();
+		int numberOfRemovableStatements = getRemovableStatements().size();
+		int numberOfDuplicatedStatements = numberOfSliceStatements - numberOfRemovableStatements;
+		return numberOfDuplicatedStatements;
 	}
 
 	public Integer getUserRate() {

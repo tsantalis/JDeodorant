@@ -202,9 +202,8 @@ public class Standalone {
 					for(PDGSliceUnion sliceUnion : sliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(sliceUnion);
 						if(!slice.isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement()) {
-							int numberOfExtractedStatements = slice.getSliceStatements().size();
-							int numberOfRemovableStatements = slice.getRemovableStatements().size();
-							int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+							int numberOfExtractedStatements = slice.getNumberOfSliceStatements();
+							int numberOfDuplicatedStatements = slice.getNumberOfDuplicatedStatements();
 							double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
 							sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
 							sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;
@@ -234,9 +233,8 @@ public class Standalone {
 					for(PDGObjectSliceUnion objectSliceUnion : objectSliceUnionCollection.getSliceUnions()) {
 						ASTSlice slice = new ASTSlice(objectSliceUnion);
 						if(!slice.isVariableCriterionDeclarationStatementIsDeeperNestedThanExtractedMethodInvocationInsertionStatement()) {
-							int numberOfExtractedStatements = slice.getSliceStatements().size();
-							int numberOfRemovableStatements = slice.getRemovableStatements().size();
-							int numberOfDuplicatedStatements = numberOfExtractedStatements - numberOfRemovableStatements;
+							int numberOfExtractedStatements = slice.getNumberOfSliceStatements();
+							int numberOfDuplicatedStatements = slice.getNumberOfDuplicatedStatements();
 							double duplicationRatio = (double)numberOfDuplicatedStatements/(double)numberOfExtractedStatements;
 							sumOfExtractedStatementsInGroup += numberOfExtractedStatements;
 							sumOfDuplicatedStatementsInGroup += numberOfDuplicatedStatements;

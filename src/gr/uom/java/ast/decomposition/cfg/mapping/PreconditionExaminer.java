@@ -4106,6 +4106,12 @@ public class PreconditionExaminer {
 					else if(typeBinding1.getName().equals("double") && typeBinding2.getName().equals("float")) {
 						return typeBinding1;
 					}
+					else if(typeBinding1.getName().equals("int") && typeBinding2.getName().equals("byte")) {
+						return typeBinding1;
+					}
+					else if(typeBinding1.getName().equals("byte") && typeBinding2.getName().equals("int")) {
+						return typeBinding2;
+					}
 				}
 			}
 		}

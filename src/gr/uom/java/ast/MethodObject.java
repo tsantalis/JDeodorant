@@ -27,6 +27,7 @@ import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -412,6 +413,45 @@ public class MethodObject implements AbstractMethodDeclaration {
         			if(argument instanceof ThisExpression)
         				return true;
         		}
+    		}
+    	}
+    	return false;
+    }
+
+    public boolean containsNullCheckForTargetObject(ClassObject targetClass) {
+    	List<LiteralObject> literals = getLiterals();
+    	for(LiteralObject literal : literals) {
+    		if(literal.getLiteralType().equals(LiteralType.NULL)) {
+    			Expression nullLiteral = literal.getLiteral();
+    			if(nullLiteral.getParent() instanceof InfixExpression) {
+    				InfixExpression infixExpression = (InfixExpression)nullLiteral.getParent();
+    				Expression leftOperand = infixExpression.getLeftOperand();
+    				ITypeBinding typeBinding = leftOperand.resolveTypeBinding();
+    				if(typeBinding != null && typeBinding.getQualifiedName().equals(targetClass.getName()) &&
+							infixExpression.getOperator().equals(InfixExpression.Operator.EQUALS)) {
+						if(leftOperand instanceof SimpleName) {
+							SimpleName simpleName = (SimpleName)leftOperand;
+							IBinding binding = simpleName.resolveBinding();
+							if(binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								if(variableBinding.isParameter() || variableBinding.isField()) {
+									return true;
+								}
+							}
+						}
+						else if(leftOperand instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)leftOperand;
+							SimpleName simpleName = fieldAccess.getName();
+							IBinding binding = simpleName.resolveBinding();
+							if(binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								if(variableBinding.isField()) {
+									return true;
+								}
+							}
+						}
+    				}
+    			}
     		}
     	}
     	return false;

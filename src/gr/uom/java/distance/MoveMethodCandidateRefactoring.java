@@ -3,6 +3,7 @@ package gr.uom.java.distance;
 import gr.uom.java.ast.FieldInstructionObject;
 import gr.uom.java.ast.MethodInvocationObject;
 import gr.uom.java.ast.MethodObject;
+import gr.uom.java.ast.TypeObject;
 import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.visualization.FeatureEnvyVisualizationData;
 
@@ -112,9 +113,21 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     	MethodObject sourceMethod = this.sourceMethod.getMethodObject();
     	for(MethodObject targetMethod : targetClass.getClassObject().getMethodList()) {
     		if(targetMethod.getName().equals(sourceMethod.getName()) &&
-    				targetMethod.getReturnType().equals(sourceMethod.getReturnType()) &&
-    				targetMethod.getParameterTypeList().equals(sourceMethod.getParameterTypeList())) {
-    			return true;
+    				targetMethod.getReturnType().equals(sourceMethod.getReturnType())) {
+    			if(targetMethod.getParameterTypeList().equals(sourceMethod.getParameterTypeList())) {
+    				return true;
+    			}
+    			else {
+    				List<TypeObject> sourceParameterTypeListWithoutTargetType = new ArrayList<TypeObject>();
+    				for(TypeObject type : sourceMethod.getParameterTypeList()) {
+    					if(!type.getClassType().equals(targetClass.getName())) {
+    						sourceParameterTypeListWithoutTargetType.add(type);
+    					}
+    				}
+    				if(targetMethod.getParameterTypeList().equals(sourceParameterTypeListWithoutTargetType)) {
+    					return true;
+    				}
+    			}
     		}
     	}
     	return false;

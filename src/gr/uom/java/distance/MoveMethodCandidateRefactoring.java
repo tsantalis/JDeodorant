@@ -98,7 +98,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     public boolean isApplicable() {
     	if(!isSynchronized() && !containsSuperMethodInvocation() && !overridesMethod() && !containsFieldAssignment() && !isTargetClassAnInterface() &&
     			validTargetObject() && !oneToManyRelationshipWithTargetClass() && !containsAssignmentToTargetClassVariable() &&
-    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum() && !isSourceClassATestClass() && !targetClassContainsMethodWithSourceMethodSignature())
+    			!containsMethodCallWithThisExpressionAsArgument() && !isTargetClassAnEnum() && !isSourceClassATestClass() && !targetClassContainsMethodWithSourceMethodSignature() &&
+    			!containsNullCheckForTargetObject())
     		return true;
     	else
     		return false;
@@ -228,6 +229,15 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     	}
     	else
     		return false;
+    }
+
+    private boolean containsNullCheckForTargetObject() {
+    	if(sourceMethod.getMethodObject().containsNullCheckForTargetObject(targetClass.getClassObject())) {
+    		return true;
+    	}
+    	else {
+    		return false;
+    	}
     }
 
     private void virtualApplication(MySystem virtualSystem) {

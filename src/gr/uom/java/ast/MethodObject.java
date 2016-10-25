@@ -427,8 +427,29 @@ public class MethodObject implements AbstractMethodDeclaration {
     				InfixExpression infixExpression = (InfixExpression)nullLiteral.getParent();
     				Expression leftOperand = infixExpression.getLeftOperand();
     				ITypeBinding typeBinding = leftOperand.resolveTypeBinding();
-					if(typeBinding != null && typeBinding.getQualifiedName().equals(targetClass.getName())) {
-    					return true;
+    				if(typeBinding != null && typeBinding.getQualifiedName().equals(targetClass.getName()) &&
+							infixExpression.getOperator().equals(InfixExpression.Operator.EQUALS)) {
+						if(leftOperand instanceof SimpleName) {
+							SimpleName simpleName = (SimpleName)leftOperand;
+							IBinding binding = simpleName.resolveBinding();
+							if(binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								if(variableBinding.isParameter() || variableBinding.isField()) {
+									return true;
+								}
+							}
+						}
+						else if(leftOperand instanceof FieldAccess) {
+							FieldAccess fieldAccess = (FieldAccess)leftOperand;
+							SimpleName simpleName = fieldAccess.getName();
+							IBinding binding = simpleName.resolveBinding();
+							if(binding.getKind() == IBinding.VARIABLE) {
+								IVariableBinding variableBinding = (IVariableBinding)binding;
+								if(variableBinding.isField()) {
+									return true;
+								}
+							}
+						}
     				}
     			}
     		}

@@ -489,7 +489,7 @@ public class DuplicatedCode extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
-		JavaCore.addElementChangedListener(new ElementChangedListener());
+		JavaCore.addElementChangedListener(ElementChangedListener.getInstance());
 		JavaCore.addElementChangedListener(elementChangedListener);
 		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new IOperationHistoryListener() {
 			public void historyNotification(OperationHistoryEvent event) {

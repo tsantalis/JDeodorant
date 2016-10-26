@@ -16,6 +16,7 @@ import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -172,11 +173,23 @@ public class CompilationUnitCache extends Indexer {
 	}
 
 	public void compilationUnitChanged(ICompilationUnit compilationUnit) {
-		changedCompilationUnits.add(compilationUnit);
+		try {
+			if(compilationUnit.getCorrespondingResource() != null) {
+				changedCompilationUnits.add(compilationUnit);
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void compilationUnitAdded(ICompilationUnit compilationUnit) {
-		addedCompilationUnits.add(compilationUnit);
+		try {
+			if(compilationUnit.getCorrespondingResource() != null) {
+				addedCompilationUnits.add(compilationUnit);
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public void compilationUnitRemoved(ICompilationUnit compilationUnit) {

@@ -465,7 +465,7 @@ public class GodClass extends ViewPart {
 		hookDoubleClickAction();
 		contributeToActionBars();
 		getSite().getWorkbenchWindow().getSelectionService().addSelectionListener(selectionListener);
-		JavaCore.addElementChangedListener(new ElementChangedListener());
+		JavaCore.addElementChangedListener(ElementChangedListener.getInstance());
 		getSite().getWorkbenchWindow().getWorkbench().getOperationSupport().getOperationHistory().addOperationHistoryListener(new IOperationHistoryListener() {
 			public void historyNotification(OperationHistoryEvent event) {
 				int eventType = event.getEventType();

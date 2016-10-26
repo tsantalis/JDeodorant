@@ -78,8 +78,7 @@ public class SystemObject {
     public void replaceClass(ClassObject c) {
     	int position = getPositionInClassList(c.getName());
     	if(position != -1) {
-    		classList.remove(position);
-    		classList.add(position, c);
+    		classList.set(position, c);
     	}
     	else {
     		addClass(c);

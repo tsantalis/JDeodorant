@@ -9,6 +9,14 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaElementDelta;
 
 public class ElementChangedListener implements IElementChangedListener {
+	private static ElementChangedListener instance;
+
+	public static ElementChangedListener getInstance() {
+		if(instance == null) {
+			instance = new ElementChangedListener();
+		}
+		return instance;
+	}
 
 	public void elementChanged(ElementChangedEvent event) {
 		IJavaElementDelta javaElementDelta = event.getDelta();

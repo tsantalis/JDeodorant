@@ -38,7 +38,7 @@ public class SliceProfileAction implements IObjectActionDelegate {
 
 	public void setActivePart(IAction action, IWorkbenchPart targetPart) {
 		this.part = targetPart;
-		JavaCore.addElementChangedListener(new ElementChangedListener());
+		JavaCore.addElementChangedListener(ElementChangedListener.getInstance());
 	}
 
 	public void run(IAction action) {

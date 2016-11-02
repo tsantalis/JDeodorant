@@ -616,7 +616,27 @@ public class ASTNodeMatcher extends ASTMatcher{
 		return false;
 	}
 
-	private void processArguments(List<Expression> nodeArguments, List<Expression> otherArguments,
+	private void processClassInstanceCreationArguments(List<Expression> nodeArguments, List<Expression> otherArguments,
+			ASTNodeDifference astNodeDifference, String nodeToString, String otherToString, boolean identicalConstructorErasureType) {
+		if(identicalConstructorErasureType) {
+			if(nodeArguments.size() != otherArguments.size()) {
+				Difference diff = new Difference(nodeToString,otherToString,DifferenceType.ARGUMENT_NUMBER_MISMATCH);
+				int size1 = nodeArguments.size() == 0 ? 1 : nodeArguments.size();
+				int size2 = otherArguments.size() == 0 ? 1 : otherArguments.size();
+				diff.setWeight(size1 * size2);
+				astNodeDifference.addDifference(diff);
+			}
+			else {
+				for(int i=0; i<nodeArguments.size(); i++) {
+					int differenceCountBefore = differences.size();
+					safeSubtreeMatch(nodeArguments.get(i), otherArguments.get(i));
+					reduceWeightOfReversedArguments(differenceCountBefore);
+				}
+			}
+		}
+	}
+
+	private void processMethodInvocationArguments(List<Expression> nodeArguments, List<Expression> otherArguments,
 			ASTNodeDifference astNodeDifference, String nodeToString, String otherToString, boolean overloadedMethods) {
 		if(nodeArguments.size() != otherArguments.size()) {
 			Difference diff = new Difference(nodeToString,otherToString,DifferenceType.ARGUMENT_NUMBER_MISMATCH);
@@ -970,11 +990,12 @@ public class ASTNodeMatcher extends ASTMatcher{
 				ClassInstanceCreation o = (ClassInstanceCreation) other;
 				int differenceCount = differences.size();
 				boolean classTypeMatch = safeSubtreeMatch(node.getType(), o.getType());
+				boolean identicalErasureType = node.getType().resolveBinding().getErasure().getQualifiedName().equals(o.getType().resolveBinding().getErasure().getQualifiedName());
 				int differenceCountAfterTypeMatch = differences.size();
 				List<Expression> nodeArguments = node.arguments();
 				List<Expression> otherArguments = o.arguments();
 				if(classTypeMatch && differenceCountAfterTypeMatch == differenceCount) {
-					processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, false);
+					processClassInstanceCreationArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, identicalErasureType);
 					boolean anonymousClassDeclarationMatch = safeSubtreeMatch(node.getAnonymousClassDeclaration(),o.getAnonymousClassDeclaration());
 					//safeSubtreeListMatch(node.arguments(), o.arguments());
 					safeSubtreeMatch(node.getExpression(), o.getExpression());
@@ -1007,7 +1028,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 					}
 				}
 				else {
-					processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, true);
+					processClassInstanceCreationArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, identicalErasureType);
 				}
 			}
 			if(!astNodeDifference.isEmpty())
@@ -1586,7 +1607,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				else {
 					List<Expression> nodeArguments = node.arguments();
 					List<Expression> otherArguments = o.arguments();
-					processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, overloadedMethods(nodeMethodBinding, otherMethodBinding));
+					processMethodInvocationArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, overloadedMethods(nodeMethodBinding, otherMethodBinding));
 					safeSubtreeMatch(node.getName(), o.getName());
 					//safeSubtreeListMatch(node.arguments(), o.arguments());
 					safeSubtreeMatch(node.getExpression(), o.getExpression());
@@ -2086,7 +2107,7 @@ public class ASTNodeMatcher extends ASTMatcher{
 				IMethodBinding otherMethodBinding = o.resolveMethodBinding();
 				List<Expression> nodeArguments = node.arguments();
 				List<Expression> otherArguments = o.arguments();
-				processArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, overloadedMethods(nodeMethodBinding, otherMethodBinding));
+				processMethodInvocationArguments(nodeArguments, otherArguments, astNodeDifference, nodeToString, otherToString, overloadedMethods(nodeMethodBinding, otherMethodBinding));
 				safeSubtreeMatch(node.getName(), o.getName());
 				//safeSubtreeListMatch(node.arguments(), o.arguments());
 				safeSubtreeMatch(node.getQualifier(), o.getQualifier());

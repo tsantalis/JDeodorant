@@ -135,6 +135,7 @@ public class ExtractClassRefactoring extends Refactoring {
 	//this map hold the parameters that should be passed in each constructor of the extracted class
 	private Map<MethodDeclaration, Set<VariableDeclaration>> extractedClassConstructorParameterMap;
 	private Set<VariableDeclaration> extractedFieldsWithThisExpressionInTheirInitializer;
+	private Set<IMethodBinding> staticallyImportedMethods;
 	
 	public ExtractClassRefactoring(IFile sourceFile, CompilationUnit sourceCompilationUnit, TypeDeclaration sourceTypeDeclaration,
 			Set<VariableDeclaration> extractedFieldFragments, Set<MethodDeclaration> extractedMethods, Set<MethodDeclaration> delegateMethods, String extractedTypeName) {
@@ -169,6 +170,7 @@ public class ExtractClassRefactoring extends Refactoring {
 		this.constructorFinalFieldAssignmentMap = new LinkedHashMap<MethodDeclaration, Map<VariableDeclaration, Assignment>>();
 		this.extractedClassConstructorParameterMap = new LinkedHashMap<MethodDeclaration, Set<VariableDeclaration>>();
 		this.extractedFieldsWithThisExpressionInTheirInitializer = new LinkedHashSet<VariableDeclaration>();
+		this.staticallyImportedMethods = new LinkedHashSet<IMethodBinding>();
 		for(MethodDeclaration extractedMethod : extractedMethods) {
 			additionalArgumentsAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<PlainVariable>());
 			additionalParametersAddedToExtractedMethods.put(extractedMethod, new LinkedHashSet<SingleVariableDeclaration>());
@@ -1003,6 +1005,9 @@ public class ExtractClassRefactoring extends Refactoring {
         	for(ITypeBinding typeBinding : requiredImportDeclarationsInExtractedClass) {
 				addImportDeclaration(typeBinding, extractedClassCompilationUnit, extractedClassRewriter);
 			}
+        	for(IMethodBinding methodBinding : staticallyImportedMethods) {
+        		addStaticImportDeclaration(methodBinding, extractedClassCompilationUnit, extractedClassRewriter);
+        	}
         	TextEdit extractedClassEdit = extractedClassRewriter.rewriteAST(extractedClassDocument, null);
         	extractedClassEdit.apply(extractedClassDocument);
         	CreateCompilationUnitChange createCompilationUnitChange =
@@ -2002,6 +2007,24 @@ public class ExtractClassRefactoring extends Refactoring {
 								}
 							}
 						}
+						else {
+							//check if it is a statically imported method
+							List<ImportDeclaration> sourceImportDeclarations = sourceCompilationUnit.imports();
+							for(ImportDeclaration importDeclaration : sourceImportDeclarations) {
+								if(importDeclaration.isStatic()) {
+									IBinding binding = importDeclaration.resolveBinding();
+									//A single-static-import declaration imports all accessible static members with a given simple name from a type.
+									//binding.isEqualTo(methodBinding) will not work when the static import actually imports multiple overloaded methods
+									if(binding != null && binding.getKind() == IBinding.METHOD) {
+										IMethodBinding importedMethodBinding = (IMethodBinding)binding;
+										if(importedMethodBinding.getName().equals(methodBinding.getName()) &&
+												importedMethodBinding.getDeclaringClass().getQualifiedName().equals(methodBinding.getDeclaringClass().getQualifiedName())) {
+											this.staticallyImportedMethods.add(importedMethodBinding);
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 				else if(methodBindingCorrespondsToExtractedMethod(methodInvocation.resolveMethodBinding())) {
@@ -2690,6 +2713,16 @@ public class ExtractClassRefactoring extends Refactoring {
 		getterMethodBodyRewrite.insertLast(returnStatement, null);
 		extractedClassRewriter.set(getterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, getterMethodBody, null);
 		return getterMethodDeclaration;
+	}
+
+	private void addStaticImportDeclaration(IMethodBinding methodBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {
+		AST ast = targetCompilationUnit.getAST();
+		ImportDeclaration importDeclaration = ast.newImportDeclaration();
+		QualifiedName qualifiedName = ast.newQualifiedName(ast.newName(methodBinding.getDeclaringClass().getQualifiedName()), ast.newSimpleName(methodBinding.getName()));
+		targetRewriter.set(importDeclaration, ImportDeclaration.NAME_PROPERTY, qualifiedName, null);
+		targetRewriter.set(importDeclaration, ImportDeclaration.STATIC_PROPERTY, true, null);
+		ListRewrite importRewrite = targetRewriter.getListRewrite(targetCompilationUnit, CompilationUnit.IMPORTS_PROPERTY);
+		importRewrite.insertLast(importDeclaration, null);
 	}
 
 	private void addImportDeclaration(ITypeBinding typeBinding, CompilationUnit targetCompilationUnit, ASTRewrite targetRewriter) {

@@ -36,6 +36,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.ArrayAccess;
 import org.eclipse.jdt.core.dom.Assignment;
@@ -59,6 +60,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.InfixExpression;
+import org.eclipse.jdt.core.dom.MarkerAnnotation;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -1161,6 +1163,12 @@ public class ExtractClassRefactoring extends Refactoring {
 						modifier.getKeyword().equals(Modifier.ModifierKeyword.PROTECTED_KEYWORD)) {
 					modifierFound = true;
 					modifierRewrite.replace(modifier, publicModifier, null);
+				}
+			}
+			else if(extendedModifier.isAnnotation()) {
+				Annotation annotation = (Annotation)extendedModifier;
+				if(annotation instanceof MarkerAnnotation && annotation.getTypeName().getFullyQualifiedName().equals("Test")) {
+					modifierRewrite.remove(annotation, null);
 				}
 			}
 		}

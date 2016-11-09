@@ -89,26 +89,34 @@ public class PropertyManagerPreferencePage
 		minimumMethodSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(minimumMethodSizeFieldEditor);
 		
-		maximumCallGraphAnalysisDepthFieldEditor = new IntegerFieldEditor(
-				PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH,
-				"&Maximum depth of method call graph analysis:", sliceExtractionPreferenceGroup);
-		maximumCallGraphAnalysisDepthFieldEditor.setEmptyStringAllowed(false);
-		addField(maximumCallGraphAnalysisDepthFieldEditor);
+		Group callGraphAnalysisPreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
+		callGraphAnalysisPreferenceGroup.setLayout(new GridLayout(1, false));
+		callGraphAnalysisPreferenceGroup.setText("Call Graph Analysis Preferences");
 		
 		enableAliasAnalysisFieldEditor = new BooleanFieldEditor(
 				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,
-				"&Enable Alias Analysis", sliceExtractionPreferenceGroup);
+				"&Enable Alias Analysis", callGraphAnalysisPreferenceGroup);
 		addField(enableAliasAnalysisFieldEditor);
+		
+		maximumCallGraphAnalysisDepthFieldEditor = new IntegerFieldEditor(
+				PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH,
+				"&Maximum depth of method call graph analysis:", callGraphAnalysisPreferenceGroup);
+		maximumCallGraphAnalysisDepthFieldEditor.setEmptyStringAllowed(false);
+		addField(maximumCallGraphAnalysisDepthFieldEditor);
+		
+		Group compilationUnitCachePreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
+		compilationUnitCachePreferenceGroup.setLayout(new GridLayout(1, false));
+		compilationUnitCachePreferenceGroup.setText("CompilationUnit Cache Preferences");
 		
 		projectCompilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_PROJECT_COMPILATION_UNIT_CACHE_SIZE,
-				"&Project CompilationUnit cache size:", sliceExtractionPreferenceGroup);
+				"&Project CompilationUnit cache size:", compilationUnitCachePreferenceGroup);
 		projectCompilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(projectCompilationUnitCacheSizeFieldEditor);
 
 		libraryCompilationUnitCacheSizeFieldEditor = new IntegerFieldEditor(
 				PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE,
-				"&Library CompilationUnit cache size:", sliceExtractionPreferenceGroup);
+				"&Library CompilationUnit cache size:", compilationUnitCachePreferenceGroup);
 		libraryCompilationUnitCacheSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(libraryCompilationUnitCacheSizeFieldEditor);
 		

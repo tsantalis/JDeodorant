@@ -34,7 +34,6 @@ public class PropertyManagerPreferencePage
 	private StringFieldEditor maximumRatioOfDuplicatedToExtractedFieldEditor;
 	private IntegerFieldEditor minimumMethodSizeFieldEditor;
 	private IntegerFieldEditor maximumCallGraphAnalysisDepthFieldEditor;
-	private BooleanFieldEditor enableCallGraphAnalysisFieldEditor;
 	private BooleanFieldEditor enableAliasAnalysisFieldEditor;
 	private IntegerFieldEditor projectCompilationUnitCacheSizeFieldEditor;
 	private IntegerFieldEditor libraryCompilationUnitCacheSizeFieldEditor;
@@ -93,11 +92,6 @@ public class PropertyManagerPreferencePage
 		Group callGraphAnalysisPreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
 		callGraphAnalysisPreferenceGroup.setLayout(new GridLayout(1, false));
 		callGraphAnalysisPreferenceGroup.setText("Call Graph Analysis Preferences");
-		
-		enableCallGraphAnalysisFieldEditor = new BooleanFieldEditor(
-				PreferenceConstants.P_ENABLE_CALL_GRAPH_ANALYSIS,
-				"&Enable Call Graph Analysis", callGraphAnalysisPreferenceGroup);
-		addField(enableCallGraphAnalysisFieldEditor);
 		
 		enableAliasAnalysisFieldEditor = new BooleanFieldEditor(
 				PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS,

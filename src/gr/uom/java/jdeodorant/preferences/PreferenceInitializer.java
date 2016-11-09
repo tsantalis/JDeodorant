@@ -23,7 +23,6 @@ public class PreferenceInitializer extends AbstractPreferenceInitializer {
 		store.setDefault(PreferenceConstants.P_MAXIMUM_RATIO_OF_DUPLICATED_TO_EXTRACTED, 1.0);
 		store.setDefault(PreferenceConstants.P_MINIMUM_METHOD_SIZE, 0);
 		store.setDefault(PreferenceConstants.P_MAXIMUM_CALL_GRAPH_ANALYSIS_DEPTH, 3);
-		store.setDefault(PreferenceConstants.P_ENABLE_CALL_GRAPH_ANALYSIS, true);
 		store.setDefault(PreferenceConstants.P_ENABLE_ALIAS_ANALYSIS, true);
 		store.setDefault(PreferenceConstants.P_PROJECT_COMPILATION_UNIT_CACHE_SIZE, 20);
 		store.setDefault(PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE, 50);

@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.IfStatement;
 import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.LabeledStatement;
+import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NullLiteral;
@@ -641,6 +642,17 @@ public class ExpressionExtractor {
 			CharacterLiteral characterLiteral = (CharacterLiteral)expression;
 			if(instanceChecker.instanceOf(characterLiteral))
 				expressionList.add(characterLiteral);
+		}
+		else if(expression instanceof LambdaExpression) {
+			LambdaExpression lambdaExpression = (LambdaExpression)expression;
+			if(lambdaExpression.getBody() instanceof Expression) {
+				expressionList.addAll(getExpressions((Expression)lambdaExpression.getBody()));
+			}
+			else if(lambdaExpression.getBody() instanceof Block) {
+				expressionList.addAll(getExpressions((Block)lambdaExpression.getBody()));
+			}
+			if(instanceChecker.instanceOf(lambdaExpression))
+				expressionList.add(lambdaExpression);
 		}
 		return expressionList;
 	}

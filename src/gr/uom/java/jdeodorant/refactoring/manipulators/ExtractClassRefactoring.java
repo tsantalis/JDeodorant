@@ -1178,6 +1178,24 @@ public class ExtractClassRefactoring extends Refactoring {
 		
 		modifySourceMemberAccessesInTargetClass(extractedMethod, newMethodDeclaration, extractedClassRewriter);
 		modifySourceStaticFieldInstructionsInTargetClass(extractedMethod, newMethodDeclaration, extractedClassRewriter);
+		//check if there is a parameter type collision
+		List<SingleVariableDeclaration> originalParameters = extractedMethod.parameters();
+		List<SingleVariableDeclaration> newParameters = newMethodDeclaration.parameters();
+		int i = 0;
+		Set<ITypeBinding> typeBindingsToBeRemoved = new LinkedHashSet<ITypeBinding>();
+		for(SingleVariableDeclaration originalParameter : originalParameters) {
+			ITypeBinding originalParameterTypeBinding = originalParameter.getType().resolveBinding();
+			for(ITypeBinding typeBinding : requiredImportDeclarationsInExtractedClass) {
+				if(!originalParameterTypeBinding.isEqualTo(typeBinding) && originalParameterTypeBinding.getName().equals(typeBinding.getName())) {
+					Type qualifiedType = RefactoringUtility.generateQualifiedTypeFromTypeBinding(originalParameterTypeBinding, extractedClassAST, extractedClassRewriter);
+					extractedClassRewriter.set(newParameters.get(i), SingleVariableDeclaration.TYPE_PROPERTY, qualifiedType, null);
+					typeBindingsToBeRemoved.add(originalParameterTypeBinding);
+					break;
+				}
+			}
+			i++;
+		}
+		requiredImportDeclarationsInExtractedClass.removeAll(typeBindingsToBeRemoved);
 		return newMethodDeclaration;
 	}
 

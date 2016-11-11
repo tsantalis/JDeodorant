@@ -179,34 +179,6 @@ public abstract class MyAbstractStatement {
     	return this.statement.toString();
     }
 
-    public void replaceMethodInvocationWithAttributeInstruction(MyMethodInvocation methodInvocation, MyAttributeInstruction attributeInstruction) {
-    	if(methodInvocationList.contains(methodInvocation)) {
-    		methodInvocationList.remove(methodInvocation);
-    		if(!attributeInstructionList.contains(attributeInstruction))
-    			attributeInstructionList.add(attributeInstruction);
-    	}
-    }
-
-    public void replaceMethodInvocation(MyMethodInvocation oldMethodInvocation, MyMethodInvocation newMethodInvocation) {
-        if(methodInvocationList.contains(oldMethodInvocation)) {
-            int index = methodInvocationList.indexOf(oldMethodInvocation);
-            methodInvocationList.remove(index);
-            methodInvocationList.add(index,newMethodInvocation);
-        }
-    }
-
-    public void replaceAttributeInstruction(MyAttributeInstruction oldInstruction, MyAttributeInstruction newInstruction) {
-        if(attributeInstructionList.contains(oldInstruction)) {
-            int index = attributeInstructionList.indexOf(oldInstruction);
-            attributeInstructionList.remove(index);
-            attributeInstructionList.add(index,newInstruction);
-        }
-    }
-
-    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
-    	attributeInstructionList.remove(attributeInstruction);
-    }
-
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	int index = attributeInstructionList.indexOf(myAttributeInstruction);
     	if(index != -1) {

@@ -3,16 +3,13 @@ package gr.uom.java.distance;
 import gr.uom.java.ast.FieldObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.TypeObject;
-import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.util.TopicFinder;
 import gr.uom.java.ast.visualization.GodClassVisualizationData;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,26 +25,14 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 
 	private MySystem system;
 	private MyClass sourceClass;
-	private MyClass newSourceClass;
-	private MyClass productClass;
 	private List<Entity> extractedEntities;
-	private double entityPlacement;
 	private Map<MyMethod, Boolean> leaveDelegate;
 	private String targetClassName;
-	private Set<Entity> changedEntities;
-	private Set<String> changedClasses;
-	private Set<Entity> oldEntities;
-	private Set<Entity> newEntities;
-	private DistanceMatrix originalDistanceMatrix;
-	private Map<String, MyAttribute> oldInstructions;
-	private Map<MyMethod, MyMethodInvocation> oldInvocations;
-	private Map<MyMethod, MyMethod> new2oldMethods;
-	private Map<MyAttribute, String> extractedVariableBindingKeys;
 	private GodClassVisualizationData visualizationData;
 	private Integer userRate;
 	private List<String> topics;
 
-	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass, DistanceMatrix originalDistanceMatrix) {
+	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass) {
 		super();
 		this.system = system;
 		this.sourceClass = sourceClass;
@@ -59,37 +44,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		else {
 			this.targetClassName = sourceClass.getName() + "Product2";
 		}
-
-		this.changedEntities = new LinkedHashSet<Entity>();
-		this.changedClasses = new LinkedHashSet<String>();
-		this.oldEntities = new LinkedHashSet<Entity>();
-		this.newEntities = new LinkedHashSet<Entity>();
-		this.originalDistanceMatrix = originalDistanceMatrix;
-		this.oldInstructions = new LinkedHashMap<String, MyAttribute>();
-		this.oldInvocations = new LinkedHashMap<MyMethod, MyMethodInvocation>();
-		this.new2oldMethods = new LinkedHashMap<MyMethod, MyMethod>();
-		this.extractedVariableBindingKeys = new LinkedHashMap<MyAttribute, String>();
 		this.topics = new ArrayList<String>();
-	}
-
-	public MyClass getProductClass() {
-		return productClass;
-	}
-
-	public Set<Entity> getChangedEntities() {
-		return changedEntities;
-	}
-
-	public Set<String> getChangedClasses() {
-		return changedClasses;
-	}
-
-	public Set<Entity> getOldEntities() {
-		return oldEntities;
-	}
-
-	public Set<Entity> getNewEntities() {
-		return newEntities;
 	}
 
 	public String getTargetClassName() {
@@ -167,356 +122,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		system.getSystemObject().containsSuperMethodInvocation(method.getMethodObject().generateSuperMethodInvocation());
 	}
 
-	public void apply() {
-		virtualApplication(system);
-		ExtractClassFastDistanceMatrix fastDistanceMatrix = new ExtractClassFastDistanceMatrix(system, originalDistanceMatrix, this, newSourceClass, productClass);
-		double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
-		this.entityPlacement = fastEntityPlacement;
-		for(Entity entity : extractedEntities) {
-			if(entity instanceof MyMethod) {
-				MyMethod method = (MyMethod)entity;
-				leaveDelegate.put(method, leaveDelegate(method));
-			}
-		}
-		for(Entity entity : changedEntities) {
-			entity.resetNewEntitySet();
-		}
-		for(String myClass : changedClasses)
-			system.getClass(myClass).resetNewEntitySet();
-		system.removeClass(productClass);
-	}
-
-	private void virtualApplication(MySystem virtualSystem) {
-		newSourceClass = virtualSystem.getClass(sourceClass.getName());
-		productClass = new MyClass(sourceClass.toString()+"Product");
-		virtualSystem.addClass(productClass);
-		List<MyMethod> oldMethods = new ArrayList<MyMethod>();
-		List<MyAttribute> oldAttributes = new ArrayList<MyAttribute>();
-		List<MyMethod> newMethods = new ArrayList<MyMethod>();
-		List<MyAttribute> newAttributes = new ArrayList<MyAttribute>();
-		/*//debugging
-		Iterator<MyClass> classIt = virtualSystem.getClassIterator();
-		while(classIt.hasNext()) {
-			MyClass aClass = classIt.next();
-			//if(true) {
-			if ((aClass.getName().equals("CH.ifa.draw.figures.TextFigure") || aClass.getName().equals("CH.ifa.draw.figures.TextFigureSize")) && sourceClass.getName().equals("CH.ifa.draw.applet.DrawApplet")) {
-				aClass.setEntityList();
-				for (String anEntity : aClass.getEntitySet()) {
-					System.out.println("OLD CLASS ENTITY SET "
-							+ aClass.toString() + ": " + anEntity);
-				}
-				Iterator<Entity> entityIt = aClass.getEntityIterator();
-				while (entityIt.hasNext()) {
-					Entity entity = entityIt.next();
-					for (String anEntity : entity.getEntitySet()) {
-						System.out.println("OLD ENTITY SET "
-								+ aClass.toString() + " -> "
-								+ entity.toString() + ": " + anEntity);
-					}
-				}
-			}
-		}
-		//debugging
-		*/		
-		newSourceClass.initializeNewEntitySet();
-		changedClasses.add(newSourceClass.getName());
-		changedClasses.add(productClass.getName());
-		for(Entity entity : extractedEntities) {
-			if(entity instanceof MyAttribute) {
-				MyAttribute attribute = (MyAttribute)entity;
-				oldAttributes.add(attribute);
-				oldInstructions.put(attribute.toString(), attribute);
-				extractedVariableBindingKeys.put(attribute, attribute.getFieldObject().getVariableDeclaration().resolveBinding().getKey());
-				MyAttribute newAttribute = MyAttribute.newInstance(attribute);
-				newSourceClass.removeAttribute(attribute);				
-				newAttribute.setClassOrigin(productClass.getName());
-				productClass.addAttribute(newAttribute);
-				newAttributes.add(newAttribute);
-			}
-			else if(entity instanceof MyMethod) {
-				MyMethod method = (MyMethod)entity;
-				oldMethods.add(method);
-				MyMethod newMethod = MyMethod.newInstance(method);
-				oldInvocations.put(method, method.generateMethodInvocation());
-				newSourceClass.removeMethod(method);				
-				newMethod.setClassOrigin(productClass.getName());
-				productClass.addMethod(newMethod);
-				newMethods.add(newMethod);
-				new2oldMethods.put(newMethod, method);
-			}
-		}
-		for(int i=0;i<oldAttributes.size();i++) {
-			MyAttribute oldAttribute = oldAttributes.get(i);
-			MyAttribute newAttribute = newAttributes.get(i);
-			MyAttributeInstruction oldAttributeInstruction = oldAttribute.generateAttributeInstruction();
-			MyAttributeInstruction newAttributeInstruction = newAttribute.generateAttributeInstruction();
-			Iterator<MyClass> classIterator = virtualSystem.getClassIterator();
-			while(classIterator.hasNext()) {
-				MyClass myClass = classIterator.next();
-				if (!myClass.equals(productClass)) {
-					ListIterator<MyMethod> methodIterator = myClass
-					.getMethodIterator();
-					while (methodIterator.hasNext()) {
-						MyMethod myMethod = methodIterator.next();
-						if (myMethod
-								.containsAttributeInstruction(oldAttributeInstruction) && !oldMethods.contains(myMethod)) {
-							myMethod.initializeNewEntitySet();
-							changedEntities.add(myMethod);
-							myMethod.replaceAttributeInstruction(
-									oldAttributeInstruction,
-									newAttributeInstruction);
-						}
-					}
-				}
-				else {
-					for(MyMethod myMethod : newMethods) {
-						if (myMethod
-								.containsAttributeInstruction(oldAttributeInstruction)) {
-							myMethod.initializeNewEntitySet();
-							changedEntities.add(myMethod);
-							myMethod.replaceAttributeInstruction(
-									oldAttributeInstruction,
-									newAttributeInstruction);
-						}
-					}
-				}
-			}
-			oldEntities.add(oldAttribute);
-			newEntities.add(newAttribute);
-		}
-
-		for(MyMethod aMethod : newMethods) {
-			ListIterator<MyMethodInvocation> invocationIterator = aMethod.getMethodInvocationIterator();
-			boolean found=false;
-			while(invocationIterator.hasNext() && !found) {
-				MyMethodInvocation invocation = invocationIterator.next();
-				if(invocation.getClassOrigin().equals(newSourceClass.getName())) {
-					if(!oldInvocations.containsValue(invocation)) {
-						aMethod.addParameter(invocation.getClassOrigin());
-						found = true;
-					}
-				}
-			}
-
-			if(containsFieldAssignment(new2oldMethods.get(aMethod))) {
-				aMethod.addParameter(newSourceClass.getName());
-				found = true;
-			}
-
-
-			ListIterator<MyAttributeInstruction> instructionIterator = aMethod.getAttributeInstructionIterator();
-			List<MyAttributeInstruction> instructionsToBeRemoved = new ArrayList<MyAttributeInstruction>();
-			while(instructionIterator.hasNext()) {
-				MyAttributeInstruction instruction = instructionIterator.next();
-				boolean parameterAdded=false;
-				if(instruction.getClassOrigin().equals(newSourceClass.getName()) && !oldInstructions.containsKey(instruction.toString())) {
-					if(!instruction.getClassType().equals(productClass.getName()) && !found) {
-						aMethod.addParameter(instruction.getClassType());
-						parameterAdded = true;
-					}
-					instructionsToBeRemoved.add(instruction);
-					ListIterator<MyMethod> sourceMethodIterator = newSourceClass.getMethodIterator();
-					while(sourceMethodIterator.hasNext()) {
-						MyMethod myMethod = sourceMethodIterator.next();
-						if (!oldMethods.contains(myMethod)) {
-							MyMethodInvocation myMethodInvocation = new2oldMethods.get(aMethod)
-							.generateMethodInvocation();
-							if (myMethod
-									.containsMethodInvocation(myMethodInvocation) && parameterAdded) {
-								MyAttribute mySourceAttribute = null;
-								if (newSourceClass
-										.getAttribute(instruction) != null) {
-									mySourceAttribute = newSourceClass
-									.getAttribute(instruction);
-								} else if (productClass
-										.getAttribute(instruction) != null) {
-									mySourceAttribute = productClass
-									.getAttribute(instruction);
-								}
-								if (mySourceAttribute != null) {
-									if (mySourceAttribute.getNewEntitySet() == null  && !mySourceAttribute.isReference()) {
-										mySourceAttribute
-										.initializeNewEntitySet();
-										changedEntities
-										.add(mySourceAttribute);
-										mySourceAttribute
-										.addMethod(myMethod);
-									}
-								}
-
-								myMethod.initializeNewEntitySet();
-								changedEntities.add(myMethod);
-								myMethod
-								.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(
-										instruction,
-										myMethodInvocation);
-							}
-						}
-					}
-				}
-			}
-
-			for(MyAttributeInstruction instruction : instructionsToBeRemoved) {
-				found = false;
-				for(MyAttribute attribute : oldAttributes) {
-					if ((instruction.getName().equals(attribute.getName()) && oldInstructions.containsKey(instruction.toString()))) {
-						found = true;
-					}
-				}
-				for(MyAttribute sourceAttribute :newSourceClass.getAttributeList()) {
-					if(instruction.equals(sourceAttribute.generateAttributeInstruction())) {
-						if(sourceAttribute.getNewEntitySet() == null && !sourceAttribute.isReference()) {
-							sourceAttribute.initializeNewEntitySet();
-							changedEntities.add(sourceAttribute);
-						}
-
-						sourceAttribute.removeMethod(new2oldMethods.get(aMethod));
-					}
-				}
-				if(!found) {
-					aMethod.removeAttributeInstruction(instruction);
-				}
-			}
-			newEntities.add(aMethod);
-
-		}
-
-		for(int i=0;i<oldMethods.size();i++) {
-			MyMethod oldMethod = oldMethods.get(i);
-			MyMethod newMethod = newMethods.get(i);
-			MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
-			MyMethodInvocation newMethodInvocation = newMethod.generateMethodInvocation();
-			Iterator<MyClass> classIterator = virtualSystem.getClassIterator();
-			while(classIterator.hasNext()) {
-				MyClass myClass = classIterator.next();
-				if (!myClass.equals(productClass)) {
-					ListIterator<MyAttribute> attributeIterator = myClass
-					.getAttributeIterator();
-					while (attributeIterator.hasNext()) {
-						MyAttribute attribute = attributeIterator.next();
-						if (attribute.containsMethod(oldMethod) && !oldAttributes.contains(attribute)) {
-							attribute.initializeNewEntitySet();
-							changedEntities.add(attribute);
-							attribute.replaceMethod(oldMethod, newMethod);
-						}
-					}
-					ListIterator<MyMethod> methodIterator = myClass
-					.getMethodIterator();
-					while (methodIterator.hasNext()) {
-						MyMethod myMethod = methodIterator.next();
-						if (myMethod
-								.containsMethodInvocation(oldMethodInvocation) && !oldMethods.contains(myMethod)) {
-							myMethod.initializeNewEntitySet();
-							changedEntities.add(myMethod);
-							myMethod.replaceMethodInvocation(
-									oldMethodInvocation, newMethodInvocation);
-						}
-					}
-				}
-				else {
-					for(MyAttribute attribute : newAttributes) {
-						if (attribute.containsMethod(oldMethod)) {
-							attribute.initializeNewEntitySet();
-							changedEntities.add(attribute);
-							attribute.replaceMethod(oldMethod, newMethod);
-						}
-					}
-					for(MyMethod myMethod : newMethods) {
-						if (myMethod
-								.containsMethodInvocation(oldMethodInvocation)) {
-							myMethod.initializeNewEntitySet();
-							changedEntities.add(myMethod);
-							myMethod.replaceMethodInvocation(
-									oldMethodInvocation, newMethodInvocation);
-						}
-					}
-				}
-			}
-			oldEntities.add(oldMethod);
-		}
-
-		productClass.initializeNewEntitySet();
-
-		/*//debugging
-		Iterator<MyClass> classIt2 = virtualSystem.getClassIterator();
-		while(classIt2.hasNext()) {
-			MyClass aClass = classIt2.next();
-			//if(true) {
-			if ((aClass.getName().equals("CH.ifa.draw.figures.TextFigure") || aClass.getName().equals("CH.ifa.draw.figures.TextFigureProduct")) && sourceClass.getName().equals("CH.ifa.draw.figures.TextFigureSize")) {
-				aClass.setEntityList();
-				if (aClass.getNewEntitySet() != null) {
-					for (String anEntity : aClass.getNewEntitySet()) {
-						System.out.println("*NEW CLASS ENTITY SET "
-								+ aClass.toString() + ": " + anEntity);
-					}
-				}
-				else {
-					for (String anEntity : aClass.getEntitySet()) {
-						System.out.println("NEW CLASS ENTITY SET "
-								+ aClass.toString() + ": " + anEntity);
-					}
-				}
-				if (aClass.equals(newSourceClass)) {
-					Iterator<Entity> entityIt = aClass.getEntityIterator();
-					while (entityIt.hasNext()) {
-						Entity entity = entityIt.next();
-						if (!(oldMethods.contains(entity) || oldAttributes.contains(entity))) {
-							if (entity.getNewEntitySet() != null) {
-								for (String anEntity : entity.getNewEntitySet()) {
-									System.out.println("*NEW ENTITY SET "
-											+ aClass.toString() + " -> "
-											+ entity.toString() + ": "
-											+ anEntity);
-								}
-							} else {
-								for (String anEntity : entity.getEntitySet()) {
-									System.out.println("NEW ENTITY SET "
-											+ aClass.toString() + " -> "
-											+ entity.toString() + ": "
-											+ anEntity);
-								}
-							}
-						}
-					}
-				}
-				else {
-					Iterator<Entity> entityIt = aClass.getEntityIterator();
-					while (entityIt.hasNext()) {
-						Entity entity = entityIt.next();
-						if (entity.getNewEntitySet() != null) {
-							for (String anEntity : entity.getNewEntitySet()) {
-								System.out.println("*NEW ENTITY SET "
-										+ aClass.toString() + " -> "
-										+ entity.toString() + ": "
-										+ anEntity);
-							}
-						} else {
-							for (String anEntity : entity.getEntitySet()) {
-								System.out.println("NEW ENTITY SET "
-										+ aClass.toString() + " -> "
-										+ entity.toString() + ": "
-										+ anEntity);
-							}
-						}
-					}
-				}
-			}
-		}
-		//debugging	
-		 */		/*//debugging
-		for(MyMethod method : newMethods) {
-			for(String anEntity : method.getEntitySet()) {
-				System.out.println("NEW "+method.toString()+": "+anEntity);
-			}
-		}
-		//debugging
-		for(MyAttribute attribute : newAttributes) {
-			for(String anEntity : attribute.getEntitySet()) {
-				System.out.println("NEW "+attribute.toString()+": "+anEntity);
-			}
-		}*/
-	}
-
 	public boolean isApplicable() {
 		int methodCounter = 0;
 		for (Entity entity : extractedEntities) {
@@ -536,12 +141,25 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 				}
 			}
 		}
-		if(extractedEntities.size() == 1 || methodCounter == 0) {
+		if(extractedEntities.size() <=2 || methodCounter == 0 || !validRemainingMembersInSourceClass()) {
 			return false;
 		}
 		else {
 			return true;
 		}
+	}
+
+	private boolean validRemainingMembersInSourceClass() {
+		for(MyMethod sourceMethod : sourceClass.getMethodList()) {
+			if(!extractedEntities.contains(sourceMethod)) {
+				MethodObject methodObject = sourceMethod.getMethodObject();
+				if(!methodObject.isStatic() && !methodObject.isAbstract() && methodObject.isGetter() == null && methodObject.isSetter() == null && methodObject.isDelegate() == null &&
+						!isReadObject(methodObject) && !isWriteObject(methodObject) && !isEquals(methodObject) && !isHashCode(methodObject) && !isClone(methodObject) && !isCompareTo(methodObject)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean isReadObject(MyMethod method) {
@@ -560,6 +178,27 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	private boolean isWriteObject(MethodObject methodObject) {
 		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
 		return methodObject.getName().equals("writeObject") && parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.io.ObjectOutputStream");
+	}
+
+	private boolean isEquals(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("equals") && methodObject.getReturnType().getClassType().equals("boolean") &&
+				parameterTypeList.size() == 1 && parameterTypeList.get(0).getClassType().equals("java.lang.Object");
+	}
+
+	private boolean isHashCode(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("hashCode") && methodObject.getReturnType().getClassType().equals("int") && parameterTypeList.size() == 0;
+	}
+
+	private boolean isClone(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("clone") && methodObject.getReturnType().getClassType().equals("java.lang.Object") && parameterTypeList.size() == 0;
+	}
+
+	private boolean isCompareTo(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("compareTo") && methodObject.getReturnType().getClassType().equals("int") && parameterTypeList.size() == 1;
 	}
 
 	private boolean containsFieldAccessOfEnclosingClass(MyMethod method) {
@@ -588,20 +227,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 			return false;
 	}
 
-	private boolean containsFieldAssignment(MyMethod method) {
-		if(!method.getMethodObject().getDefinedFieldsThroughThisReference().isEmpty()) {
-			//System.out.println(this.toString() + "\tcontains field assignment");
-			for(PlainVariable variable : method.getMethodObject().getDefinedFieldsThroughThisReference()) {
-				if(!extractedVariableBindingKeys.containsValue(variable.getVariableBindingKey())) {
-					return true;
-				}
-			}
-			return false;
-		}
-		else
-			return false;
-	}
-
 	private boolean isSynchronized(MyMethod method) {
 		if(method.getMethodObject().isSynchronized()) {
 			//System.out.println(this.toString() + "\tis synchronized");
@@ -609,11 +234,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		}
 		else
 			return false;
-	}
-
-	@Override
-	public double getEntityPlacement() {
-		return entityPlacement;
 	}
 
 	@Override
@@ -671,7 +291,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	}
 
 	public String toString() {
-        return sourceClass.toString() + "\t" + extractedEntities.toString() + "\t" + entityPlacement;
+        return sourceClass.toString() + "\t" + extractedEntities.toString();
     }
 
 	public String getAnnotationText() {
@@ -717,7 +337,21 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	}
 
 	public int compareTo(ExtractClassCandidateRefactoring other) {
-		return Double.compare(this.entityPlacement, other.entityPlacement);
+		int thisSourceClassDependencies = this.getDistinctSourceDependencies();
+		int otherSourceClassDependencies = other.getDistinctSourceDependencies();
+		if(thisSourceClassDependencies != otherSourceClassDependencies) {
+			return Integer.compare(thisSourceClassDependencies, otherSourceClassDependencies);
+		}
+		else {
+			int thisTargetClassDependencies = this.getDistinctTargetDependencies();
+			int otherTargetClassDependencies = other.getDistinctTargetDependencies();
+			if(thisTargetClassDependencies != otherTargetClassDependencies) {
+				return -Integer.compare(thisTargetClassDependencies, otherTargetClassDependencies);
+			}
+			else {
+				return this.sourceClass.getName().compareTo(other.sourceClass.getName());
+			}
+		}
 	}
 
 	public void findTopics() {
@@ -737,5 +371,13 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 
 	public List<String> getTopics() {
 		return topics;
+	}
+
+	public int getDistinctSourceDependencies() {
+		return getGodClassVisualizationData().getDistinctSourceDependencies();
+	}
+
+	public int getDistinctTargetDependencies() {
+		return getGodClassVisualizationData().getDistinctTargetDependencies();
 	}
 }

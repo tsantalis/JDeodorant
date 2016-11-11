@@ -251,4 +251,40 @@ public class GodClassVisualizationData implements VisualizationData {
 		}
 		return sb.toString();
 	}
+
+	public int getDistinctTargetDependencies() {
+		Set<FieldInstructionObject> fields = new LinkedHashSet<FieldInstructionObject>();
+		for(MethodObject key : internalFieldReadMap.keySet()) {
+			Map<FieldInstructionObject, Integer> value = internalFieldReadMap.get(key);
+			fields.addAll(value.keySet());
+		}
+		for(MethodObject key : internalFieldWriteMap.keySet()) {
+			Map<FieldInstructionObject, Integer> value = internalFieldWriteMap.get(key);
+			fields.addAll(value.keySet());
+		}
+		Set<MethodInvocationObject> methods = new LinkedHashSet<MethodInvocationObject>();
+		for(MethodObject key : internalMethodInvocationMap.keySet()) {
+			Map<MethodInvocationObject, Integer> value = internalMethodInvocationMap.get(key);
+			methods.addAll(value.keySet());
+		}
+		return fields.size() + methods.size();
+	}
+
+	public int getDistinctSourceDependencies() {
+		Set<FieldInstructionObject> fields = new LinkedHashSet<FieldInstructionObject>();
+		for(MethodObject key : externalFieldReadMap.keySet()) {
+			Map<FieldInstructionObject, Integer> value = externalFieldReadMap.get(key);
+			fields.addAll(value.keySet());
+		}
+		for(MethodObject key : externalFieldWriteMap.keySet()) {
+			Map<FieldInstructionObject, Integer> value = externalFieldWriteMap.get(key);
+			fields.addAll(value.keySet());
+		}
+		Set<MethodInvocationObject> methods = new LinkedHashSet<MethodInvocationObject>();
+		for(MethodObject key : externalMethodInvocationMap.keySet()) {
+			Map<MethodInvocationObject, Integer> value = externalMethodInvocationMap.get(key);
+			methods.addAll(value.keySet());
+		}
+		return fields.size() + methods.size();
+	}
 }

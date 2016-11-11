@@ -28,6 +28,8 @@ public class PreferenceInitializer extends AbstractPreferenceInitializer {
 		store.setDefault(PreferenceConstants.P_LIBRARY_COMPILATION_UNIT_CACHE_SIZE, 50);
 		store.setDefault(PreferenceConstants.P_ENABLE_USAGE_REPORTING, true);
 		store.setDefault(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING, false);
+		store.setDefault(PreferenceConstants.P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_MOVE_METHOD_CANDIDATE, 2);
+		store.setDefault(PreferenceConstants.P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_EXTRACT_CLASS_CANDIDATE, 2);
 	}
 
 }

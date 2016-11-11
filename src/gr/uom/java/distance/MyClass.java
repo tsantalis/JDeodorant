@@ -12,13 +12,11 @@ public class MyClass {
     private List<MyMethod> methodList;
     private ClassObject classObject;
     private volatile int hashCode = 0;
-    private Set<String> newEntitySet;
 
     public MyClass(String name) {
         this.name = name;
         this.attributeList = new ArrayList<MyAttribute>();
         this.methodList = new ArrayList<MyMethod>();
-        this.newEntitySet = null;
     }
 
     public String getName() {
@@ -42,14 +40,8 @@ public class MyClass {
     }
 
     public void addAttribute(MyAttribute attribute) {
-    	if(newEntitySet != null) {
-        	newEntitySet.add(attribute.toString());
-        	
-        }
-        else {
-        	if(!attributeList.contains(attribute))
-        		attributeList.add(attribute);
-        }
+        if(!attributeList.contains(attribute))
+        	attributeList.add(attribute);
     }
 
     public MyAttribute getAttribute(MyAttributeInstruction attributeInstruction) {
@@ -81,31 +73,16 @@ public class MyClass {
 	}
 
     public void addMethod(MyMethod method) {
-        if(newEntitySet != null) {
-        	newEntitySet.add(method.toString());
-        }
-        else {
-        	if(!methodList.contains(method))
-        		methodList.add(method);
-        }
+        if(!methodList.contains(method))
+        	methodList.add(method);
     }
 
     public void removeMethod(MyMethod method) {
-    	if(newEntitySet != null) {
-    		newEntitySet.remove(method.toString());
-    	}
-    	else {
-    		methodList.remove(method);
-    	}
+    	methodList.remove(method);
     }
 
     public void removeAttribute(MyAttribute attribute) {
-    	if(newEntitySet != null) {
-    		newEntitySet.remove(attribute.toString());
-    	}
-    	else {
-    		attributeList.remove(attribute);
-    	}
+    	attributeList.remove(attribute);
     }
     
     public List<MyAttribute> getAttributeList() {
@@ -132,22 +109,6 @@ public class MyClass {
         return set;
     }
 
-    public static MyClass newInstance(MyClass myClass) {
-        MyClass newClass = new MyClass(myClass.name);
-        newClass.setSuperclass(myClass.superclass);
-        ListIterator<MyAttribute> attributeIterator = myClass.getAttributeIterator();
-        while(attributeIterator.hasNext()) {
-            MyAttribute attribute = attributeIterator.next();
-            newClass.addAttribute(MyAttribute.newInstance(attribute));
-        }
-        ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-        while(methodIterator.hasNext()) {
-            MyMethod method = methodIterator.next();
-            newClass.addMethod(MyMethod.newInstance(method));
-        }
-        return newClass;
-    }
-
     public boolean equals(Object o) {
     	if(this == o) {
             return true;
@@ -171,18 +132,5 @@ public class MyClass {
 
     public String toString() {
         return name;
-    }
-
-    public void initializeNewEntitySet() {
-    	if(newEntitySet == null)
-    		this.newEntitySet = getEntitySet();
-    }
-
-    public void resetNewEntitySet() {
-    	this.newEntitySet = null;
-    }
-
-    public Set<String> getNewEntitySet() {
-    	return this.newEntitySet;
     }
 }

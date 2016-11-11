@@ -193,8 +193,14 @@ public class CompilationUnitCache extends Indexer {
 	}
 
 	public void compilationUnitRemoved(ICompilationUnit compilationUnit) {
-		addedCompilationUnits.remove(compilationUnit);
-		removedCompilationUnits.add(compilationUnit);
+		try {
+			if(compilationUnit.getCorrespondingResource() != null) {
+				addedCompilationUnits.remove(compilationUnit);
+				removedCompilationUnits.add(compilationUnit);
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public Set<ICompilationUnit> getChangedCompilationUnits() {

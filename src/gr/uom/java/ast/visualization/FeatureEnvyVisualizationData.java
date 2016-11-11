@@ -2,8 +2,10 @@ package gr.uom.java.ast.visualization;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.jdt.core.dom.ITypeBinding;
 
@@ -370,5 +372,19 @@ public class FeatureEnvyVisualizationData implements VisualizationData {
 			sb.append(methodInvocation).append("\t").append(targetMethodInvocationMap.get(methodInvocation)).append("\n");
 		}
 		return sb.toString();
+	}
+
+	public int getDistinctSourceDependencies() {
+		Set<FieldInstructionObject> fields = new LinkedHashSet<FieldInstructionObject>();
+		fields.addAll(sourceFieldReadMap.keySet());
+		fields.addAll(sourceFieldWriteMap.keySet());
+		return fields.size() + sourceMethodInvocationMap.size();
+	}
+
+	public int getDistinctTargetDependencies() {
+		Set<FieldInstructionObject> fields = new LinkedHashSet<FieldInstructionObject>();
+		fields.addAll(targetFieldReadMap.keySet());
+		fields.addAll(targetFieldWriteMap.keySet());
+		return fields.size() + targetMethodInvocationMap.size();
 	}
 }

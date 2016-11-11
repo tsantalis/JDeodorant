@@ -5,13 +5,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class ExtractClassCandidateGroup implements Comparable<ExtractClassCandidateGroup> {
 
 	private String source;
 	private ArrayList<ExtractClassCandidateRefactoring> candidates;
 	private ArrayList<ExtractedConcept> extractedConcepts;
-	private double minEP;
 
 	public ExtractClassCandidateGroup(String source) {
 		this.source = source;
@@ -34,24 +34,6 @@ public class ExtractClassCandidateGroup implements Comparable<ExtractClassCandid
 	public ArrayList<ExtractClassCandidateRefactoring> getCandidates() {
 		Collections.sort(candidates);
 		return candidates;
-	}
-
-	public double getMinEP() {
-		if (minEP == 0.0) {
-			double min = Double.MAX_VALUE;
-			for (ExtractedConcept concept : extractedConcepts) {
-				if (concept.getMinEP() < min) {
-					min = concept.getMinEP();
-				}
-			}
-			return min;
-		} else {
-			return minEP;
-		}
-	}
-
-	public void setMinEP(double ep) {
-		this.minEP = ep;
 	}
 
 	public void groupConcepts() {
@@ -95,10 +77,16 @@ public class ExtractClassCandidateGroup implements Comparable<ExtractClassCandid
 	}
 
 	public int compareTo(ExtractClassCandidateGroup other) {
-		if(this.getMinEP() < other.getMinEP())
-			return -1;
-		else if(this.getMinEP() > other.getMinEP())
-			return 1;
-		return this.source.compareTo(other.source);
+		TreeSet<ExtractClassCandidateRefactoring> thisSet = new TreeSet<ExtractClassCandidateRefactoring>(this.candidates);
+		TreeSet<ExtractClassCandidateRefactoring> otherSet = new TreeSet<ExtractClassCandidateRefactoring>(other.candidates);
+		ExtractClassCandidateRefactoring thisFirst = thisSet.first();
+		ExtractClassCandidateRefactoring otherFirst = otherSet.first();
+		int comparison = thisFirst.compareTo(otherFirst);
+		if(comparison != 0) {
+			return comparison;
+		}
+		else {
+			return this.source.compareTo(other.source);
+		}
 	}
 }

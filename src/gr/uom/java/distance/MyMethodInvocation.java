@@ -1,7 +1,6 @@
 package gr.uom.java.distance;
 
 import java.util.List;
-import java.util.ArrayList;
 
 public class MyMethodInvocation {
     private String classOrigin;
@@ -70,12 +69,5 @@ public class MyMethodInvocation {
         if(returnType != null)
             sb.append(":").append(returnType);
         return sb.toString();
-    }
-
-    public static MyMethodInvocation newInstance(MyMethodInvocation invocation) {
-        List<String> newParameterList = new ArrayList<String>();
-        for(String parameter : invocation.parameterList)
-            newParameterList.add(parameter);
-        return new MyMethodInvocation(invocation.classOrigin,invocation.methodName,invocation.returnType,newParameterList);
     }
 }

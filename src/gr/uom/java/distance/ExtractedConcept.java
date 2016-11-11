@@ -6,20 +6,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
-public class ExtractedConcept {
+public class ExtractedConcept implements Comparable<ExtractedConcept> {
 
 	private Set<ExtractClassCandidateRefactoring> conceptClusters;
 	private Set<Entity> conceptEntities;
 	private String sourceClass;
-	private double minEP;
 	private List<String> topics;
 
 	public ExtractedConcept(Set<Entity> conceptEntities, String sourceClass) {
 		this.conceptEntities = conceptEntities;
 		this.conceptClusters = new HashSet<ExtractClassCandidateRefactoring>();
 		this.sourceClass = sourceClass;
-		this.minEP = 0.0;
 		this.topics = new ArrayList<String>();
 	}
 
@@ -43,20 +42,6 @@ public class ExtractedConcept {
 		this.conceptClusters.add(candidate);
 	}
 
-	public double getMinEP() {
-		if (minEP == 0.0) {
-			double min = Double.MAX_VALUE;
-			for (ExtractClassCandidateRefactoring candidate : conceptClusters) {
-				if (candidate.getEntityPlacement() < min) {
-					min = candidate.getEntityPlacement();
-				}
-			}
-			return min;
-		} else {
-			return minEP;
-		}
-	}
-
 	public void findTopics() {
 		List<String> codeElements = new ArrayList<String>();
 		for (Entity entity : this.getConceptEntities()) {
@@ -70,5 +55,13 @@ public class ExtractedConcept {
 			}
 		}
 		this.topics = TopicFinder.findTopics(codeElements);
+	}
+
+	public int compareTo(ExtractedConcept other) {
+		TreeSet<ExtractClassCandidateRefactoring> thisSet = new TreeSet<ExtractClassCandidateRefactoring>(this.conceptClusters);
+		TreeSet<ExtractClassCandidateRefactoring> otherSet = new TreeSet<ExtractClassCandidateRefactoring>(other.conceptClusters);
+		ExtractClassCandidateRefactoring thisFirst = thisSet.first();
+		ExtractClassCandidateRefactoring otherFirst = otherSet.first();
+		return thisFirst.compareTo(otherFirst);
 	}
 }

@@ -46,7 +46,7 @@ public class FeatureEnvyDiagram {
 		EntityFigure extractMethod = new EntityFigure(data.getMethodToBeMoved().getName(), DecorationConstants.METHOD, false);
 		new ClassFigureMover(extractMethod);
 		extractMethod.setLabelAlignment(2);
-		extractMethod.setToolTip(new Label("Method to be Extracted"));
+		extractMethod.setToolTip(new Label("Method to be moved"));
 		Font font = DecorationConstants.normalFont;
 		extractMethod.setFont(font);
 

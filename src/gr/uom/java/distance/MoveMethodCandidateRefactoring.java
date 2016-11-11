@@ -8,19 +8,14 @@ import gr.uom.java.ast.decomposition.cfg.PlainVariable;
 import gr.uom.java.ast.visualization.FeatureEnvyVisualizationData;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jface.text.Position;
 
@@ -29,24 +24,17 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 	private MyClass sourceClass;
     private MyClass targetClass;
     private MyMethod sourceMethod;
-    private double entityPlacement;
     //contains source class methods that do not access any field or method and are accessed only by sourceMethod
     private Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved;
-    private DistanceMatrix originalDistanceMatrix;
     private String movedMethodName;
-    private Set<Entity> changedEntities;
-    private Set<MyClass> changedClasses;
-    private Set<MyMethod> oldMovedMethods;
-    private Set<MyMethod> newMovedMethods;
     private FeatureEnvyVisualizationData visualizationData;
     private Integer userRate;
 
-    public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod, DistanceMatrix originalDistanceMatrix) {
+    public MoveMethodCandidateRefactoring(MySystem system, MyClass sourceClass, MyClass targetClass, MyMethod sourceMethod) {
         this.system = system;
     	this.sourceClass = sourceClass;
         this.targetClass = targetClass;
         this.sourceMethod = sourceMethod;
-        this.originalDistanceMatrix = originalDistanceMatrix;
         this.additionalMethodsToBeMoved = new LinkedHashMap<MethodInvocation, MethodDeclaration>();
         this.movedMethodName = sourceMethod.getMethodName();
         List<MethodInvocationObject> methodInvocations = sourceMethod.getMethodObject().getMethodInvocations();
@@ -74,25 +62,8 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
         			additionalMethodsToBeMoved.put(methodInvocation.getMethodInvocation(), invokedMethod.getMethodDeclaration());
         	}
         }
-        this.changedEntities = new LinkedHashSet<Entity>();
-        this.changedClasses = new LinkedHashSet<MyClass>();
-        this.oldMovedMethods = new LinkedHashSet<MyMethod>();
-        this.newMovedMethods = new LinkedHashSet<MyMethod>();
         this.visualizationData = new FeatureEnvyVisualizationData(sourceClass.getClassObject(),
 				sourceMethod.getMethodObject(), targetClass.getClassObject());
-    }
-
-	public void apply() {
-    	virtualApplication(system);
-    	//FastDistanceMatrix fastDistanceMatrix = new FastDistanceMatrix(system, originalDistanceMatrix, this, oldMovedMethods, newMovedMethods);
-    	MoveMethodFastDistanceMatrix fastDistanceMatrix = new MoveMethodFastDistanceMatrix(system, originalDistanceMatrix, this);
-    	double fastEntityPlacement = fastDistanceMatrix.getSystemEntityPlacementValue();
-    	this.entityPlacement = fastEntityPlacement;
-    	for(Entity entity : changedEntities) {
-    		entity.resetNewEntitySet();
-    	}
-    	for(MyClass myClass : changedClasses)
-    		myClass.resetNewEntitySet();
     }
 
     public boolean isApplicable() {
@@ -240,144 +211,6 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
     	}
     }
 
-    private void virtualApplication(MySystem virtualSystem) {
-    	MyMethod oldMethod = sourceMethod;
-        MyMethod newMethod = MyMethod.newInstance(oldMethod);
-        newMethod.setClassOrigin(targetClass.getName());
-        newMethod.removeParameter(targetClass.getName());
-
-        ListIterator<MyAttributeInstruction> instructionIterator = newMethod.getAttributeInstructionIterator();
-        List<MyAttributeInstruction> instructionsToBeRemoved = new ArrayList<MyAttributeInstruction>();
-        while(instructionIterator.hasNext()) {
-            MyAttributeInstruction instruction = instructionIterator.next();
-            if(instruction.getClassOrigin().equals(oldMethod.getClassOrigin())) {
-            	if(!instruction.getClassType().equals(targetClass.getName()))
-            		newMethod.addParameter(instruction.getClassType());
-                instructionsToBeRemoved.add(instruction);
-                MyClass virtualSourceClass = virtualSystem.getClass(sourceClass.getName());
-                ListIterator<MyMethod> sourceMethodIterator = virtualSourceClass.getMethodIterator();
-                MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
-                while(sourceMethodIterator.hasNext()) {
-                	MyMethod myMethod = sourceMethodIterator.next();
-                	//if a method of the source class invokes the method to be moved,
-                	//the fields accessed by the method to be moved should be passed as arguments to the modified method invocation of the moved method
-                	if(myMethod.containsMethodInvocation(oldMethodInvocation)) {
-                		MyAttribute mySourceAttribute = virtualSourceClass.getAttribute(instruction);
-                		mySourceAttribute.initializeNewEntitySet();
-                		changedEntities.add(mySourceAttribute);
-                		mySourceAttribute.addMethod(myMethod);
-                		myMethod.initializeNewEntitySet();
-                		changedEntities.add(myMethod);
-                		myMethod.addAttributeInstructionInStatementsOrExpressionsContainingMethodInvocation(instruction, oldMethodInvocation);
-                	}
-                }
-            }
-        }
-        for(MyAttributeInstruction instruction : instructionsToBeRemoved) {
-        	newMethod.removeAttributeInstruction(instruction);
-        }
-        ListIterator<MyMethodInvocation> invocationIterator = newMethod.getMethodInvocationIterator();
-        while(invocationIterator.hasNext()) {
-            MyMethodInvocation invocation = invocationIterator.next();
-            if(invocation.getClassOrigin().equals(oldMethod.getClassOrigin()) && !belongsToAdditionalMethodsToBeMoved(invocation)) {
-                newMethod.addParameter(invocation.getClassOrigin());
-                break;
-            }
-        }
-        
-        if(virtualSystem.getClass(targetClass.getName()).getMethod(newMethod) != null) {
-        	String sourceClassName = null;
-        	if(sourceClass.getName().contains("."))
-        		sourceClassName = sourceClass.getName().substring(sourceClass.getName().lastIndexOf(".")+1, sourceClass.getName().length());
-        	else
-        		sourceClassName = sourceClass.getName();
-        	movedMethodName = newMethod.getMethodName() + sourceClassName;
-        	newMethod.setMethodName(movedMethodName);
-        }
-        
-        MyMethodInvocation oldMethodInvocation = oldMethod.generateMethodInvocation();
-        MyMethodInvocation newMethodInvocation = newMethod.generateMethodInvocation();
-        MyClass mySourceClass = virtualSystem.getClass(sourceClass.getName());
-        mySourceClass.initializeNewEntitySet();
-        changedClasses.add(mySourceClass);
-        mySourceClass.removeMethod(oldMethod);
-        
-        MyClass myTargetClass = virtualSystem.getClass(targetClass.getName());
-        myTargetClass.initializeNewEntitySet();
-        changedClasses.add(myTargetClass);
-        myTargetClass.addMethod(newMethod);
-        
-        Iterator<MyClass> classIterator = virtualSystem.getClassIterator();
-        while(classIterator.hasNext()) {
-            MyClass myClass = classIterator.next();
-            ListIterator<MyAttribute> attributeIterator = myClass.getAttributeIterator();
-            while(attributeIterator.hasNext()) {
-                MyAttribute attribute = attributeIterator.next();
-                if(attribute.containsMethod(oldMethod)) {
-                	attribute.initializeNewEntitySet();
-                	changedEntities.add(attribute);
-	                if(attribute.getClassOrigin().equals(sourceClass.getName()))
-	                	attribute.removeMethod(oldMethod);
-	                attribute.replaceMethod(oldMethod,newMethod);
-                }
-            }
-            ListIterator<MyMethod> methodIterator = myClass.getMethodIterator();
-            while(methodIterator.hasNext()) {
-                MyMethod myMethod = methodIterator.next();
-                if(myMethod.containsMethodInvocation(oldMethodInvocation)) {
-                	myMethod.initializeNewEntitySet();
-                	changedEntities.add(myMethod);
-                	myMethod.replaceMethodInvocation(oldMethodInvocation,newMethodInvocation);
-                }
-            }
-        }
-        oldMovedMethods.add(oldMethod);
-        newMovedMethods.add(newMethod);
-        
-        List<MyMethod> methodsToBeMoved = new ArrayList<MyMethod>();
-        Collection<MethodDeclaration> methodDeclarationsToBeMoved = additionalMethodsToBeMoved.values();
-        ListIterator<MyMethod> sourceClassMethodIterator = sourceClass.getMethodIterator();
-        if(!methodDeclarationsToBeMoved.isEmpty()) {
-	        while(sourceClassMethodIterator.hasNext()) {
-	        	MyMethod sourceMethod = sourceClassMethodIterator.next();
-	        	if(methodDeclarationsToBeMoved.contains(sourceMethod.getMethodObject().getMethodDeclaration()) && !methodsToBeMoved.contains(sourceMethod))
-	        		methodsToBeMoved.add(sourceMethod);
-	        }
-        }
-        for(MyMethod oldMyMethod : methodsToBeMoved) {
-        	MyMethod newMyMethod = MyMethod.newInstance(oldMyMethod);
-        	newMyMethod.setClassOrigin(targetClass.getName());
-        	MyMethodInvocation oldMyMethodInvocation = oldMyMethod.generateMethodInvocation();
-        	MyMethodInvocation newMyMethodInvocation = newMyMethod.generateMethodInvocation();
-        	//virtualSystem.getClass(sourceClass.getName()).removeMethod(oldMyMethod);
-            //virtualSystem.getClass(targetClass.getName()).addMethod(newMyMethod);
-        	mySourceClass.removeMethod(oldMyMethod);
-        	myTargetClass.addMethod(newMyMethod);
-            newMethod.replaceMethodInvocation(oldMyMethodInvocation, newMyMethodInvocation);
-            oldMovedMethods.add(oldMyMethod);
-            newMovedMethods.add(newMyMethod);
-        }
-    }
-
-    private boolean belongsToAdditionalMethodsToBeMoved(MyMethodInvocation methodInvocation) {
-    	for(MethodDeclaration methodDeclaration : additionalMethodsToBeMoved.values()) {
-    		if(methodDeclaration.getName().getIdentifier().equals(methodInvocation.getMethodName())) {
-    			List<SingleVariableDeclaration> methodDeclarationParameters = methodDeclaration.parameters();
-    			List<String> methodInvocationTypeParameters = methodInvocation.getParameterList();
-    			if(methodDeclarationParameters.size() == methodInvocationTypeParameters.size()) {
-    				int numberOfSameTypeParameters = 0;
-    				for(int i=0; i<methodDeclarationParameters.size(); i++) {
-    					if(methodDeclarationParameters.get(i).getType().resolveBinding().getQualifiedName().equals(methodInvocationTypeParameters.get(i)))
-    						numberOfSameTypeParameters++;
-    				}
-    				if(numberOfSameTypeParameters == methodDeclarationParameters.size())
-    					return true;
-    			}
-    		}
-    	}
-    	return false;
-    }
-
     public TypeDeclaration getSourceClassTypeDeclaration() {
         return (TypeDeclaration)sourceClass.getClassObject().getAbstractTypeDeclaration();
     }
@@ -421,22 +254,6 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 		this.movedMethodName = movedMethodName;
 	}
 
-    public Set<Entity> getChangedEntities() {
-		return changedEntities;
-	}
-
-	public Set<MyClass> getChangedClasses() {
-		return changedClasses;
-	}
-
-	public Set<MyMethod> getOldMovedMethods() {
-		return oldMovedMethods;
-	}
-
-	public Set<MyMethod> getNewMovedMethods() {
-		return newMovedMethods;
-	}
-
 	public String toString() {
         return getSourceEntity() + "->" + getTarget();
     }
@@ -466,10 +283,6 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 		return targetClass.getName();
 	}
 
-	public double getEntityPlacement() {
-		return entityPlacement;
-	}
-
 	public Set<String> getEntitySet() {
 		return sourceMethod.getEntitySet();
 	}
@@ -494,7 +307,6 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 		for(String entity : getEntitySet()) {
 			String[] tokens = entity.split("::");
 			String classOrigin = tokens[0];
-			String entityName = tokens[1];
 			if(classOrigin.equals(targetClass.getName()))
 				counter++;
 		}
@@ -510,6 +322,28 @@ public class MoveMethodCandidateRefactoring extends CandidateRefactoring impleme
 	}
 
 	public int compareTo(MoveMethodCandidateRefactoring other) {
-		return Double.compare(this.entityPlacement, other.entityPlacement);
+		int thisSourceClassDependencies = this.getDistinctSourceDependencies();
+		int otherSourceClassDependencies = other.getDistinctSourceDependencies();
+		if(thisSourceClassDependencies != otherSourceClassDependencies) {
+			return Integer.compare(thisSourceClassDependencies, otherSourceClassDependencies);
+		}
+		else {
+			int thisTargetClassDependencies = this.getDistinctTargetDependencies();
+			int otherTargetClassDependencies = other.getDistinctTargetDependencies();
+			if(thisTargetClassDependencies != otherTargetClassDependencies) {
+				return -Integer.compare(thisTargetClassDependencies, otherTargetClassDependencies);
+			}
+			else {
+				return this.sourceClass.getName().compareTo(other.sourceClass.getName());
+			}
+		}
+	}
+
+	public int getDistinctSourceDependencies() {
+		return getFeatureEnvyVisualizationData().getDistinctSourceDependencies();
+	}
+
+	public int getDistinctTargetDependencies() {
+		return getFeatureEnvyVisualizationData().getDistinctTargetDependencies();
 	}
 }

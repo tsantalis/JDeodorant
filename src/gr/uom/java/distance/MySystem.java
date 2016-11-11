@@ -23,15 +23,10 @@ public class MySystem {
         	generateSystem();
     }
 
-    private MySystem(Map<String,MyClass> classMap) {
-        this.classMap = classMap;
-    }
-
     private void generateSystem() {
         ListIterator<ClassObject> classIterator1 = systemObject.getClassListIterator();
         while(classIterator1.hasNext()) {
             ClassObject co = classIterator1.next();
-            //if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
             MyClass myClass = new MyClass(co.getName());
             myClass.setClassObject(co);
             TypeObject superclassType = co.getSuperclass();
@@ -55,13 +50,11 @@ public class MySystem {
             	}
             }
             classMap.put(co.getName(),myClass);
-            //}
         }
         
         ListIterator<ClassObject> classIterator2 = systemObject.getClassListIterator();
         while(classIterator2.hasNext()) {
             ClassObject co = classIterator2.next();
-            //if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
             MyClass myClass = classMap.get(co.getName());
             ListIterator<MethodObject> methodIt = co.getMethodIterator();
             while(methodIt.hasNext()) {
@@ -96,7 +89,6 @@ public class MySystem {
             		}
             	}
             }
-            //}
         }
     }
 
@@ -104,7 +96,6 @@ public class MySystem {
         ListIterator<ClassObject> classIterator1 = systemObject.getClassListIterator();
         while(classIterator1.hasNext()) {
             ClassObject co = classIterator1.next();
-            //if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
             MyClass myClass = new MyClass(co.getName());
             myClass.setClassObject(co);
             TypeObject superclassType = co.getSuperclass();
@@ -126,13 +117,11 @@ public class MySystem {
             	myClass.addAttribute(myAttribute);
             }
             classMap.put(co.getName(),myClass);
-            //}
         }
         
         ListIterator<ClassObject> classIterator2 = systemObject.getClassListIterator();
         while(classIterator2.hasNext()) {
             ClassObject co = classIterator2.next();
-            //if(!extendsTestCase(co) && !co.containsMethodWithTestAnnotation()) {
             MyClass myClass = classMap.get(co.getName());
             ListIterator<MethodObject> methodIt = co.getMethodIterator();
             while(methodIt.hasNext()) {
@@ -167,7 +156,6 @@ public class MySystem {
             		}
             	}
             }
-            //}
         }
     }
 
@@ -204,15 +192,5 @@ public class MySystem {
     	if(association != null && association.isContainer())
     		return association;
     	return null;
-    }
-
-	public static MySystem newInstance(MySystem system) {
-        Map<String,MyClass> classMap = new HashMap<String,MyClass>();
-        Iterator<MyClass> classIterator = system.getClassIterator();
-        while(classIterator.hasNext()) {
-            MyClass myClass = classIterator.next();
-            classMap.put(myClass.getName(),MyClass.newInstance(myClass));
-        }
-        return new MySystem(classMap);
     }
 }

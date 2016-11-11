@@ -58,10 +58,4 @@ public class MyAttributeInstruction {
         sb.append(name);
         return sb.toString();
     }
-
-    public static MyAttributeInstruction newInstance(MyAttributeInstruction instruction) {
-        MyAttributeInstruction newInstruction = new MyAttributeInstruction(instruction.classOrigin,instruction.classType,instruction.name);
-        newInstruction.setReference(instruction.reference);
-        return newInstruction;
-    }
 }

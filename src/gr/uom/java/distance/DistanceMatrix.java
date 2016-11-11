@@ -9,6 +9,8 @@ import gr.uom.java.ast.ParameterObject;
 import gr.uom.java.ast.association.Association;
 import gr.uom.java.ast.util.math.Cluster;
 import gr.uom.java.ast.util.math.Clustering;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 
 import java.util.*;
 
@@ -18,6 +20,7 @@ import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jface.preference.IPreferenceStore;
 
 public class DistanceMatrix {
     private Map<String,Integer> entityIndexMap;
@@ -26,15 +29,11 @@ public class DistanceMatrix {
     private List<MyClass> classList;
     //holds the entity set of each entity
     private Map<String,Set<String>> entityMap;
-
     //holds the entity set of each class
     private Map<String,Set<String>> classMap;
-    private Double[][] distanceMatrix;
-    private Integer[][] accessMatrix;
-    private String[] entityNames;
-    private String[] classNames;
-    private SystemEntityPlacement systemEntityPlacement;
     private MySystem system;
+    private int maximumNumberOfSourceClassMembersAccessedByMoveMethodCandidate;
+    private int maximumNumberOfSourceClassMembersAccessedByExtractClassCandidate;
 
     public DistanceMatrix(MySystem system) {
         this.system = system;
@@ -44,9 +43,13 @@ public class DistanceMatrix {
         classList = new ArrayList<MyClass>();
         entityMap = new LinkedHashMap<String,Set<String>>();
         classMap = new LinkedHashMap<String,Set<String>>();
+        IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+		this.maximumNumberOfSourceClassMembersAccessedByMoveMethodCandidate = store.getInt(PreferenceConstants.P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_MOVE_METHOD_CANDIDATE);
+		this.maximumNumberOfSourceClassMembersAccessedByExtractClassCandidate = store.getInt(PreferenceConstants.P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_EXTRACT_CLASS_CANDIDATE);
+		generateDistances();
     }
 
-    public void generateDistances(IProgressMonitor monitor) {
+    private void generateDistances() {
     	Iterator<MyClass> classIt = system.getClassIterator();
         while(classIt.hasNext()) {
             MyClass myClass = classIt.next();
@@ -68,64 +71,22 @@ public class DistanceMatrix {
             classMap.put(myClass.getName(),myClass.getEntitySet());
         }
 
-        entityNames = new String[entityList.size()];
-        classNames = new String[classList.size()];
-        distanceMatrix = new Double[entityList.size()][classList.size()];
-        accessMatrix = new Integer[entityList.size()][classList.size()];
-        systemEntityPlacement = new SystemEntityPlacement();
+        String[] entityNames = new String[entityList.size()];
+        String[] classNames = new String[classList.size()];
         
-        if(monitor != null)
-        	monitor.beginTask("Calculating distances", entityList.size()*classList.size());
         int i = 0;
         for(Entity entity : entityList) {
             entityNames[i] = entity.toString();
             entityIndexMap.put(entityNames[i],i);
             int j = 0;
             for(MyClass myClass : classList) {
-            	if(monitor != null && monitor.isCanceled())
-        			throw new OperationCanceledException();
                 classNames[j] = myClass.getName();
                 if(!classIndexMap.containsKey(classNames[j]))
                     classIndexMap.put(classNames[j],j);
-                ClassEntityPlacement entityPlacement = systemEntityPlacement.getClassEntityPlacement(myClass.getName());
-                if(entity.getClassOrigin().equals(myClass.getName())) {
-                    Set<String> tempClassSet = new HashSet<String>();
-                    tempClassSet.addAll(classMap.get(classNames[j]));
-                    tempClassSet.remove(entityNames[i]);
-                    Set<String> entitySet = entityMap.get(entityNames[i]);
-                    Set<String> intersection = DistanceCalculator.intersection(entitySet,tempClassSet);
-                    Set<String> union = DistanceCalculator.union(entitySet,tempClassSet);
-                    accessMatrix[i][j] = intersection.size();
-                    if(union.isEmpty())
-                    	distanceMatrix[i][j] = 1.0;
-                    else
-                    	distanceMatrix[i][j] = 1.0 - (double)intersection.size()/(double)union.size();
-                    //distanceMatrix[i][j] = DistanceCalculator.getDistance(entityMap.get(entityNames[i]),tempClassSet);
-                    entityPlacement.setInnerSum(entityPlacement.getInnerSum() + distanceMatrix[i][j]);
-                    entityPlacement.setNumberOfInnerEntities(entityPlacement.getNumberOfInnerEntities() + 1);
-                }
-                else {
-                    Set<String> entitySet = entityMap.get(entityNames[i]);
-                    Set<String> classSet = classMap.get(classNames[j]);
-                    Set<String> intersection = DistanceCalculator.intersection(entitySet,classSet);
-                    Set<String> union = DistanceCalculator.union(entitySet,classSet);
-                    accessMatrix[i][j] = intersection.size();
-                    if(union.isEmpty())
-                    	distanceMatrix[i][j] = 1.0;
-                    else
-                    	distanceMatrix[i][j] = 1.0 - (double)intersection.size()/(double)union.size();
-                	//distanceMatrix[i][j] = DistanceCalculator.getDistance(entityMap.get(entityNames[i]),classMap.get(classNames[j]));
-                    entityPlacement.setOuterSum(entityPlacement.getOuterSum() + distanceMatrix[i][j]);
-                    entityPlacement.setNumberOfOuterEntities(entityPlacement.getNumberOfOuterEntities() + 1);
-                }
                 j++;
-                if(monitor != null)
-                	monitor.worked(1);
             }
             i++;
         }
-        if(monitor != null)
-        	monitor.done();
     }
 
     private List<MoveMethodCandidateRefactoring> identifyConceptualBindings(MyMethod method, Set<String> targetClasses) {
@@ -166,7 +127,7 @@ public class DistanceMatrix {
 	    							if(containerFieldIsAccessed) {
 	    								MyClass mySourceClass = classList.get(classIndexMap.get(sourceClass));
 	    								MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
-	    								MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method,this);
+	    								MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method);
 	    								Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
 	    								Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
 	    								Set<String> methodEntitySet = entityMap.get(method.toString());
@@ -190,8 +151,12 @@ public class DistanceMatrix {
 	    								}
 	    								if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
 	    									if(candidate.isApplicable()) {
-	    										candidate.apply();
-	    										candidateRefactoringList.add(candidate);
+	    										int sourceClassDependencies = candidate.getDistinctSourceDependencies();
+    					    					int targetClassDependencies = candidate.getDistinctTargetDependencies();
+    					    					if(sourceClassDependencies <= maximumNumberOfSourceClassMembersAccessedByMoveMethodCandidate &&
+    					    							sourceClassDependencies < targetClassDependencies) {
+    					    						candidateRefactoringList.add(candidate);
+    					    					}
 	    									}
 	    								}
 	    							}
@@ -222,10 +187,9 @@ public class DistanceMatrix {
 
     public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByAccess(Set<String> classNamesToBeExamined, IProgressMonitor monitor) {
     	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
-    	double entityPlacement0 = this.getSystemEntityPlacementValue();
     	if(monitor != null)
-    		monitor.beginTask("Identification and virtual application of Move Method refactoring opportunities", distanceMatrix.length);
-    	for(int i=0; i<distanceMatrix.length; i++) {
+    		monitor.beginTask("Identification of Move Method refactoring opportunities", entityList.size());
+    	for(int i=0; i<entityList.size(); i++) {
     		if(monitor != null && monitor.isCanceled())
     			throw new OperationCanceledException();
     		Entity entity = entityList.get(i);
@@ -233,7 +197,7 @@ public class DistanceMatrix {
     			String sourceClass = entity.getClassOrigin();
     			if(classNamesToBeExamined.contains(sourceClass)) {
     				MyMethod method = (MyMethod)entity;
-    				Set<String> entitySetI = entityMap.get(entityNames[i]);
+    				Set<String> entitySetI = entityMap.get(entity.toString());
     				Map<String, ArrayList<String>> accessMap = computeAccessMap(entitySetI);
     				List<MoveMethodCandidateRefactoring> conceptuallyBoundRefactorings = identifyConceptualBindings(method, accessMap.keySet());
     				if(!conceptuallyBoundRefactorings.isEmpty()) {
@@ -259,67 +223,48 @@ public class DistanceMatrix {
     					boolean sourceClassIsTarget = false;
     					while(!candidateFound && !sourceClassIsTarget && !sortedByAccessMap.isEmpty()) {
     						ArrayList<String> targetClasses = sortedByAccessMap.get(sortedByAccessMap.lastKey());
-    						//target classes are sorted by the distance of entity i from them
-    						TreeMap<Double, ArrayList<String>> sortedByDistanceMap = new TreeMap<Double, ArrayList<String>>();
-    						for(String targetClass : targetClasses) {
-    							double distance = distanceMatrix[i][classIndexMap.get(targetClass)];
-    							if(sortedByDistanceMap.containsKey(distance)) {
-    								ArrayList<String> list = sortedByDistanceMap.get(distance);
-    								list.add(targetClass);
-    							}
-    							else {
-    								ArrayList<String> list = new ArrayList<String>();
-    								list.add(targetClass);
-    								sortedByDistanceMap.put(distance, list);
-    							}
-    						}
-    						for(Double distance : sortedByDistanceMap.keySet()) {
-    							ArrayList<String> targetClassesPerDistance = sortedByDistanceMap.get(distance);
-    							for(String targetClass : targetClassesPerDistance) {
-    								if(sourceClass.equals(targetClass)) {
-    									sourceClassIsTarget = true;
-    								}
-    								else {
-    									MyClass mySourceClass = classList.get(classIndexMap.get(sourceClass));
-    									MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
-    									MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method,this);
-    									Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
-    									Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
-    									Set<String> methodEntitySet = entityMap.get(method.toString());
-    									Set<String> sourceClassEntitySet = classMap.get(sourceClass);
-    									Set<String> targetClassEntitySet = classMap.get(targetClass);
-    									Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
-    									Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
-    									Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
-    									if(!values.isEmpty()) {
-    										for(String s : intersectionWithSourceClass) {
-    											int entityPosition = entityIndexMap.get(s);
-    											Entity e = entityList.get(entityPosition);
-    											if(e instanceof MyMethod) {
-    												MyMethod invokedMethod = (MyMethod)e;
-    												if(values.contains(invokedMethod.getMethodObject().getMethodDeclaration())) {
-    													entitiesToRemoveFromIntersectionWithSourceClass.add(s);
-    												}
-    											}
-    										}
-    										intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
-    									}
-    									if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
-    										if(candidate.isApplicable() && !targetClassInheritedByAnotherCandidateTargetClass(targetClass, accessMap.keySet())) {
-    											candidate.apply();
-    											double entityPlacement1 = candidate.getEntityPlacement();
-    					    					double d = entityPlacement1 - entityPlacement0;
-    					    					//if (d < 0) {
-    					    						candidateRefactoringList.add(candidate);
-    					    					//}
-    											candidateFound = true;
-    										}
-    									}
-    								}
-    							}
-    							if(candidateFound || sourceClassIsTarget)
-    								break;
-    						}
+							for(String targetClass : targetClasses) {
+								if(sourceClass.equals(targetClass)) {
+									sourceClassIsTarget = true;
+								}
+								else {
+									MyClass mySourceClass = classList.get(classIndexMap.get(sourceClass));
+									MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
+									MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method);
+									Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
+									Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
+									Set<String> methodEntitySet = entityMap.get(method.toString());
+									Set<String> sourceClassEntitySet = classMap.get(sourceClass);
+									Set<String> targetClassEntitySet = classMap.get(targetClass);
+									Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
+									Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
+									Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
+									if(!values.isEmpty()) {
+										for(String s : intersectionWithSourceClass) {
+											int entityPosition = entityIndexMap.get(s);
+											Entity e = entityList.get(entityPosition);
+											if(e instanceof MyMethod) {
+												MyMethod invokedMethod = (MyMethod)e;
+												if(values.contains(invokedMethod.getMethodObject().getMethodDeclaration())) {
+													entitiesToRemoveFromIntersectionWithSourceClass.add(s);
+												}
+											}
+										}
+										intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
+									}
+									if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
+										if(candidate.isApplicable() && !targetClassInheritedByAnotherCandidateTargetClass(targetClass, accessMap.keySet())) {
+											int sourceClassDependencies = candidate.getDistinctSourceDependencies();
+					    					int targetClassDependencies = candidate.getDistinctTargetDependencies();
+					    					if(sourceClassDependencies <= maximumNumberOfSourceClassMembersAccessedByMoveMethodCandidate &&
+					    							sourceClassDependencies < targetClassDependencies) {
+					    						candidateRefactoringList.add(candidate);
+					    					}
+											candidateFound = true;
+										}
+									}
+								}
+							}
     						sortedByAccessMap.remove(sortedByAccessMap.lastKey());
     					}
     				}
@@ -364,109 +309,8 @@ public class DistanceMatrix {
 		return accessMap;
 	}
 
-    public List<MoveMethodCandidateRefactoring> getMoveMethodCandidateRefactoringsByDistance() {
-    	List<MoveMethodCandidateRefactoring> candidateRefactoringList = new ArrayList<MoveMethodCandidateRefactoring>();
-    	double entityPlacement0 = this.getSystemEntityPlacementValue();
-    	for(int i=0; i<distanceMatrix.length; i++) {
-    		Entity entity = entityList.get(i);
-    		if(entity instanceof MyMethod) {
-    			String sourceClass = entity.getClassOrigin();
-    			MyMethod method = (MyMethod)entity;
-    			Set<String> entitySetI = entityMap.get(entityNames[i]);
-    			Map<String, ArrayList<String>> accessMap = computeAccessMap(entitySetI);
-    			//ArrayList<String> contains the target classes from which entity i has key distance
-    			TreeMap<Double, ArrayList<String>> sortedByDistanceMap = new TreeMap<Double, ArrayList<String>>();
-    			for(String targetClass : accessMap.keySet()) {
-    				double distance = distanceMatrix[i][classIndexMap.get(targetClass)];
-    				if(sortedByDistanceMap.containsKey(distance)) {
-    					ArrayList<String> list = sortedByDistanceMap.get(distance);
-    					list.add(targetClass);
-    				}
-    				else {
-    					ArrayList<String> list = new ArrayList<String>();
-    					list.add(targetClass);
-    					sortedByDistanceMap.put(distance, list);
-    				}
-    			}
-    			
-    			boolean candidateFound = false;
-    			boolean sourceClassIsTarget = false;
-    			while(!candidateFound && !sourceClassIsTarget && !sortedByDistanceMap.isEmpty()) {
-    				ArrayList<String> targetClasses = sortedByDistanceMap.get(sortedByDistanceMap.firstKey());
-    				//target classes are sorted by the number of entities that entity i accesses from them
-    				TreeMap<Integer, ArrayList<String>> sortedByAccessMap = new TreeMap<Integer, ArrayList<String>>();
-    				for(String targetClass : targetClasses) {
-    					int numberOfAccessedEntities = accessMap.get(targetClass).size();
-    					if(sortedByAccessMap.containsKey(numberOfAccessedEntities)) {
-    						ArrayList<String> list = sortedByAccessMap.get(numberOfAccessedEntities);
-    						list.add(targetClass);
-    					}
-    					else {
-    						ArrayList<String> list = new ArrayList<String>();
-        					list.add(targetClass);
-        					sortedByAccessMap.put(numberOfAccessedEntities, list);
-    					}
-    				}
-    				List<Integer> keyList = new ArrayList<Integer>(sortedByAccessMap.keySet());
-    				ListIterator<Integer> keyListIterator = keyList.listIterator(keyList.size());
-    				while(keyListIterator.hasPrevious()) {
-    					Integer accesses = keyListIterator.previous();
-    					ArrayList<String> targetClassesPerAccess = sortedByAccessMap.get(accesses);
-    					for(String targetClass : targetClassesPerAccess) {
-	    					if(sourceClass.equals(targetClass)) {
-	    						sourceClassIsTarget = true;
-	    					}
-	    					else {
-		    					MyClass mySourceClass = classList.get(classIndexMap.get(sourceClass));
-		    					MyClass myTargetClass = classList.get(classIndexMap.get(targetClass));
-		    					MoveMethodCandidateRefactoring candidate = new MoveMethodCandidateRefactoring(system,mySourceClass,myTargetClass,method,this);
-		    					Map<MethodInvocation, MethodDeclaration> additionalMethodsToBeMoved = candidate.getAdditionalMethodsToBeMoved();
-		                        Collection<MethodDeclaration> values = additionalMethodsToBeMoved.values();
-		                        Set<String> methodEntitySet = entityMap.get(method.toString());
-		                    	Set<String> sourceClassEntitySet = classMap.get(sourceClass);
-		                    	Set<String> targetClassEntitySet = classMap.get(targetClass);
-		                    	Set<String> intersectionWithSourceClass = DistanceCalculator.intersection(methodEntitySet, sourceClassEntitySet);
-		                    	Set<String> intersectionWithTargetClass = DistanceCalculator.intersection(methodEntitySet, targetClassEntitySet);
-		                        Set<String> entitiesToRemoveFromIntersectionWithSourceClass = new LinkedHashSet<String>();
-		                        if(!values.isEmpty()) {
-		                        	for(String s : intersectionWithSourceClass) {
-		                        		int entityPosition = entityIndexMap.get(s);
-		                        		Entity e = entityList.get(entityPosition);
-		                        		if(e instanceof MyMethod) {
-		                        			MyMethod invokedMethod = (MyMethod)e;
-		                        			if(values.contains(invokedMethod.getMethodObject().getMethodDeclaration())) {
-		                        				entitiesToRemoveFromIntersectionWithSourceClass.add(s);
-		                        			}
-		                        		}
-		                        	}
-		                        	intersectionWithSourceClass.removeAll(entitiesToRemoveFromIntersectionWithSourceClass);
-		                        }
-		                        if(intersectionWithTargetClass.size() >= intersectionWithSourceClass.size()) {
-		                            if(candidate.isApplicable()) {
-		                            	candidate.apply();
-		                            	double entityPlacement1 = candidate.getEntityPlacement();
-		            					double d = entityPlacement1 - entityPlacement0;
-		            					//if (d < 0) {
-		            						candidateRefactoringList.add(candidate);
-		            					//}
-		                            	candidateFound = true;
-		                            }
-		                        }
-	    					}
-    					}
-    					if(candidateFound || sourceClassIsTarget)
-    						break;
-    				}
-    				sortedByDistanceMap.remove(sortedByDistanceMap.firstKey());
-    			}
-    		}
-    	}
-    	return candidateRefactoringList;
-    }
-
     public List<ExtractClassCandidateRefactoring> getExtractClassCandidateRefactorings(Set<String> classNamesToBeExamined, IProgressMonitor monitor) {
     	List<ExtractClassCandidateRefactoring> candidateList = new ArrayList<ExtractClassCandidateRefactoring>();
-    	double entityPlacement0 = this.getSystemEntityPlacementValue();
     	Iterator<MyClass> classIt = system.getClassIterator();
     	ArrayList<MyClass> oldClasses = new ArrayList<MyClass>();
 
@@ -477,13 +321,13 @@ public class DistanceMatrix {
     		}
     	}
     	if(monitor != null)
-    		monitor.beginTask("Identification and virtual application of Extract Class refactoring opportunities", oldClasses.size());
+    		monitor.beginTask("Identification of Extract Class refactoring opportunities", oldClasses.size());
 
     	for(MyClass sourceClass : oldClasses) {
     		if(monitor != null && monitor.isCanceled())
     			throw new OperationCanceledException();
     		if (!sourceClass.getMethodList().isEmpty() && !sourceClass.getAttributeList().isEmpty()) {
-    			ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
+    			ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass);
     			double[][] distanceMatrix = candidate.getJaccardDistanceMatrix();
 				Clustering clustering = Clustering.getInstance(0, distanceMatrix);
 				ArrayList<Entity> entities = new ArrayList<Entity>();
@@ -491,15 +335,15 @@ public class DistanceMatrix {
 				entities.addAll(sourceClass.getMethodList());
 				HashSet<Cluster> clusters = clustering.clustering(entities);
 				for (Cluster cluster : clusters) {
-    				candidate = new ExtractClassCandidateRefactoring(system, sourceClass, this);
+    				candidate = new ExtractClassCandidateRefactoring(system, sourceClass);
     				for (Entity entity : cluster.getEntities()) {
     					candidate.addEntity(entity);
     				}
     				if (candidate.isApplicable()) {
-    					candidate.apply();
-    					double entityPlacement1 = candidate.getEntityPlacement();
-    					double d = entityPlacement1 - entityPlacement0;
-    					if (d < 0) {
+    					int sourceClassDependencies = candidate.getDistinctSourceDependencies();
+    					int extractedClassDependencies = candidate.getDistinctTargetDependencies();
+    					if(sourceClassDependencies <= maximumNumberOfSourceClassMembersAccessedByExtractClassCandidate &&
+    							sourceClassDependencies < extractedClassDependencies) {
     						candidateList.add(candidate);
     					}
     				}
@@ -513,35 +357,4 @@ public class DistanceMatrix {
     		monitor.done();
     	return candidateList;
     }
-
-    public String[] getClassNames() {
-        return classNames;
-    }
-
-    public String[] getEntityNames() {
-        return entityNames;
-    }
-    
-    public Double[][] getDistanceMatrix() {
-        return distanceMatrix;
-    }
-
-    public Double getDistance(String entityName, String className) {
-    	if(entityIndexMap.containsKey(entityName))
-    		return distanceMatrix[entityIndexMap.get(entityName)][classIndexMap.get(className)];
-    	else
-    		return null;
-    }
-
-    public SystemEntityPlacement getSystemEntityPlacement() {
-        return systemEntityPlacement;
-    }
-
-    public double getSystemEntityPlacementValue() {
-        return systemEntityPlacement.getSystemEntityPlacementValue();
-    }
-
-	public List<MyClass> getClassList() {
-		return classList;
-	} 
 }

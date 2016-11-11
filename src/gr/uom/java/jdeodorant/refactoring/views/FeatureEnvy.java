@@ -6,7 +6,6 @@ import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
-import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.MoveMethodCandidateRefactoring;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.MySystem;
@@ -158,7 +157,7 @@ public class FeatureEnvy extends ViewPart {
 			case 2:
 				return entry.getTarget();
 			case 3:
-				return Double.toString(entry.getEntityPlacement());
+				return entry.getDistinctSourceDependencies() + "/" + entry.getDistinctTargetDependencies();
 			case 4:
 				if(entry instanceof MoveMethodCandidateRefactoring) {
 					Integer userRate = ((MoveMethodCandidateRefactoring)entry).getUserRate();
@@ -196,17 +195,9 @@ public class FeatureEnvy extends ViewPart {
 	}
 	class NameSorter extends ViewerSorter {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
-			double value1 = ((CandidateRefactoring)obj1).getEntityPlacement();
-			double value2 = ((CandidateRefactoring)obj2).getEntityPlacement();
-			if(value1 < value2) {
-				return -1;
-			}
-			else if(value1 > value2) {
-				return 1;
-			}
-			else {
-				return 0;
-			}
+			MoveMethodCandidateRefactoring candidate1 = (MoveMethodCandidateRefactoring)obj1;
+			MoveMethodCandidateRefactoring candidate2 = (MoveMethodCandidateRefactoring)obj2;
+			return candidate1.compareTo(candidate2);
 		}
 	}
 
@@ -297,7 +288,7 @@ public class FeatureEnvy extends ViewPart {
 		column2.setResizable(true);
 		column2.pack();
 		TableColumn column3 = new TableColumn(tableViewer.getTable(),SWT.LEFT);
-		column3.setText("Entity Placement");
+		column3.setText("Source/Target accessed members");
 		column3.setResizable(true);
 		column3.pack();
 
@@ -371,7 +362,7 @@ public class FeatureEnvy extends ViewPart {
 							content += "&" + URLEncoder.encode("target_class_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getTarget(), "UTF-8");
 							content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
 							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()-1), "UTF-8");
-							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(0.0), "UTF-8");
 							content += "&" + URLEncoder.encode("envied_elements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getNumberOfDistinctEnviedElements()), "UTF-8");
 							if(allowSourceCodeReporting)
 								content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(candidate.getSourceMethodDeclaration().toString(), "UTF-8");
@@ -586,7 +577,7 @@ public class FeatureEnvy extends ViewPart {
 								content += "&" + URLEncoder.encode("target_class_name", "UTF-8") + "=" + URLEncoder.encode(candidate.getTarget(), "UTF-8");
 								content += "&" + URLEncoder.encode("ranking_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(rankingPosition), "UTF-8");
 								content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(table.getItemCount()-1), "UTF-8");
-								content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+								content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(0.0), "UTF-8");
 								content += "&" + URLEncoder.encode("envied_elements", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getNumberOfDistinctEnviedElements()), "UTF-8");
 								if(allowSourceCodeReporting)
 									content += "&" + URLEncoder.encode("source_method_code", "UTF-8") + "=" + URLEncoder.encode(candidate.getSourceMethodDeclaration().toString(), "UTF-8");
@@ -768,11 +759,6 @@ public class FeatureEnvy extends ViewPart {
 				}
 				MySystem system = new MySystem(systemObject, false);
 				final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-				ps.busyCursorWhile(new IRunnableWithProgress() {
-					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						distanceMatrix.generateDistances(monitor);
-					}
-				});
 				final List<MoveMethodCandidateRefactoring> moveMethodCandidateList = new ArrayList<MoveMethodCandidateRefactoring>();
 
 				ps.busyCursorWhile(new IRunnableWithProgress() {
@@ -781,9 +767,8 @@ public class FeatureEnvy extends ViewPart {
 					}
 				});
 
-				table = new CandidateRefactoring[moveMethodCandidateList.size() + 1];
-				table[0] = new CurrentSystem(distanceMatrix);
-				int counter = 1;
+				table = new CandidateRefactoring[moveMethodCandidateList.size()];
+				int counter = 0;
 				for(MoveMethodCandidateRefactoring candidate : moveMethodCandidateList) {
 					table[counter] = candidate;
 					counter++;

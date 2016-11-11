@@ -39,6 +39,8 @@ public class PropertyManagerPreferencePage
 	private IntegerFieldEditor libraryCompilationUnitCacheSizeFieldEditor;
 	private BooleanFieldEditor enableUsageReportingFieldEditor;
 	private BooleanFieldEditor enableSourceCodeReportingFieldEditor;
+	private IntegerFieldEditor maximumSourceClassAccessedMembersByMoveMethodCandidate;
+	private IntegerFieldEditor maximumSourceClassAccessedMembersByExtractClassCandidate;
 	
 	public PropertyManagerPreferencePage() {
 		super(GRID);
@@ -88,6 +90,26 @@ public class PropertyManagerPreferencePage
 				"&Minimum number of statements in method:", sliceExtractionPreferenceGroup);
 		minimumMethodSizeFieldEditor.setEmptyStringAllowed(false);
 		addField(minimumMethodSizeFieldEditor);
+		
+		Group featureEnvyPreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
+		featureEnvyPreferenceGroup.setLayout(new GridLayout(1, false));
+		featureEnvyPreferenceGroup.setText("Feature Envy Preferences");
+		
+		maximumSourceClassAccessedMembersByMoveMethodCandidate = new IntegerFieldEditor(
+				PreferenceConstants.P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_MOVE_METHOD_CANDIDATE,
+				"&Maximum number of source class members accessed by a Move Method Candidate:", featureEnvyPreferenceGroup);
+		maximumSourceClassAccessedMembersByMoveMethodCandidate.setEmptyStringAllowed(false);
+		addField(maximumSourceClassAccessedMembersByMoveMethodCandidate);
+
+		Group godClassPreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
+		godClassPreferenceGroup.setLayout(new GridLayout(1, false));
+		godClassPreferenceGroup.setText("God Class Preferences");
+		
+		maximumSourceClassAccessedMembersByExtractClassCandidate = new IntegerFieldEditor(
+				PreferenceConstants.P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_EXTRACT_CLASS_CANDIDATE,
+				"&Maximum number of source class members accessed by an Extract Class Candidate:", godClassPreferenceGroup);
+		maximumSourceClassAccessedMembersByExtractClassCandidate.setEmptyStringAllowed(false);
+		addField(maximumSourceClassAccessedMembersByExtractClassCandidate);
 		
 		Group callGraphAnalysisPreferenceGroup = new Group(composite, SWT.SHADOW_ETCHED_IN);
 		callGraphAnalysisPreferenceGroup.setLayout(new GridLayout(1, false));
@@ -271,6 +293,40 @@ public class PropertyManagerPreferencePage
 		}
 		catch(NumberFormatException e) {
 			setErrorMessage("Cache size must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			int sourceClassAccessedMembers = maximumSourceClassAccessedMembersByMoveMethodCandidate.getIntValue();
+			if(sourceClassAccessedMembers >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Maximum number of accessed source class members must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Maximum number of accessed source class members must be an Integer");
+			setValid(false);
+			return;
+		}
+		try {
+			int sourceClassAccessedMembers = maximumSourceClassAccessedMembersByExtractClassCandidate.getIntValue();
+			if(sourceClassAccessedMembers >= 0) {
+				setErrorMessage(null);
+				setValid(true);
+			}
+			else {
+				setErrorMessage("Maximum number of accessed source class members must be >= 0");
+				setValid(false);
+				return;
+			}
+		}
+		catch(NumberFormatException e) {
+			setErrorMessage("Maximum number of accessed source class members must be an Integer");
 			setValid(false);
 			return;
 		}

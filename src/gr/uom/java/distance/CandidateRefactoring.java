@@ -11,8 +11,6 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jface.text.Position;
 
 public abstract class CandidateRefactoring {
-	
-	public abstract double getEntityPlacement();
 	public abstract String getSourceEntity();
 	public abstract String getSource();
 	public abstract String getTarget();
@@ -22,6 +20,8 @@ public abstract class CandidateRefactoring {
 	public abstract IFile getSourceIFile();
 	public abstract IFile getTargetIFile();
 	public abstract List<Position> getPositions();
+	public abstract int getDistinctSourceDependencies();
+	public abstract int getDistinctTargetDependencies();
 	
 	public String getAnnotationText() {
 		Map<String, ArrayList<String>> accessMap = new LinkedHashMap<String, ArrayList<String>>();

@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.ClassObject;
@@ -24,7 +25,6 @@ import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.SystemObject;
 import gr.uom.java.distance.CandidateRefactoring;
-import gr.uom.java.distance.CurrentSystem;
 import gr.uom.java.distance.DistanceMatrix;
 import gr.uom.java.distance.Entity;
 import gr.uom.java.distance.ExtractClassCandidateRefactoring;
@@ -162,7 +162,8 @@ public class GodClass extends ViewPart {
 				case 1:
 					return entry.getSource();
 				case 3:
-					return ""+entry.getMinEP();
+					TreeSet<ExtractClassCandidateRefactoring> set = new TreeSet<ExtractClassCandidateRefactoring>(entry.getCandidates());
+					return ""+set.first().getDistinctSourceDependencies() + "/" + set.first().getDistinctTargetDependencies();
 				default:
 					return "";
 				}
@@ -175,7 +176,7 @@ public class GodClass extends ViewPart {
 				case 2:
 					return ""+entry.getTopics();
 				case 3:
-					return ""+entry.getEntityPlacement();
+					return ""+entry.getDistinctSourceDependencies() + "/" + entry.getDistinctTargetDependencies();
 				case 4:
 					Integer userRate = ((ExtractClassCandidateRefactoring)entry).getUserRate();
 					return (userRate == null) ? "" : userRate.toString();
@@ -223,38 +224,20 @@ public class GodClass extends ViewPart {
 		public int compare(Viewer viewer, Object obj1, Object obj2) {
 			if (obj1 instanceof CandidateRefactoring
 					&& obj2 instanceof CandidateRefactoring) {
-				double value1 = ((CandidateRefactoring) obj1).getEntityPlacement();
-				double value2 = ((CandidateRefactoring) obj2).getEntityPlacement();
-				if (value1 < value2) {
-					return -1;
-				} else if (value1 > value2) {
-					return 1;
-				} else {
-					return 0;
-				}
+				ExtractClassCandidateRefactoring candidate1 = (ExtractClassCandidateRefactoring)obj1;
+				ExtractClassCandidateRefactoring candidate2 = (ExtractClassCandidateRefactoring)obj2;
+				return candidate1.compareTo(candidate2);
 			} 
 			else if(obj1 instanceof ExtractedConcept
 					&& obj2 instanceof ExtractedConcept) {
-				double value1 = ((ExtractedConcept) obj1).getMinEP();
-				double value2 = ((ExtractedConcept) obj2).getMinEP();
-				if (value1 < value2) {
-					return -1;
-				} else if (value1 > value2) {
-					return 1;
-				} else {
-					return 0;
-				}
+				ExtractedConcept concept1 = (ExtractedConcept)obj1;
+				ExtractedConcept concept2 = (ExtractedConcept)obj2;
+				return concept1.compareTo(concept2);
 			}
 			else {
-				double value1 = ((ExtractClassCandidateGroup) obj1).getMinEP();
-				double value2 = ((ExtractClassCandidateGroup) obj2).getMinEP();
-				if (value1 < value2) {
-					return -1;
-				} else if (value1 > value2) {
-					return 1;
-				} else {
-					return 0;
-				}
+				ExtractClassCandidateGroup group1 = (ExtractClassCandidateGroup)obj1;
+				ExtractClassCandidateGroup group2 = (ExtractClassCandidateGroup)obj2;
+				return group1.compareTo(group2);
 			}
 		}
 	}
@@ -342,7 +325,7 @@ public class GodClass extends ViewPart {
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Refactoring Type");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Source Class/General Concept");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Extractable Concept");
-		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Entity Placement");
+		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Source/Extracted accessed members");
 		new TreeColumn(treeViewer.getTree(), SWT.LEFT).setText("Rate it!");
 		
 		treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
@@ -432,7 +415,7 @@ public class GodClass extends ViewPart {
 							content += "&" + URLEncoder.encode("group_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
 							content += "&" + URLEncoder.encode("total_groups", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
 							content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalOpportunities), "UTF-8");
-							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+							content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(0.0), "UTF-8");
 							if(allowSourceCodeReporting)
 								content += "&" + URLEncoder.encode("extracted_elements_source_code", "UTF-8") + "=" + URLEncoder.encode(extractedElementsSourceCode, "UTF-8");
 							content += "&" + URLEncoder.encode("rating", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getUserRate()), "UTF-8");
@@ -616,7 +599,7 @@ public class GodClass extends ViewPart {
 									content += "&" + URLEncoder.encode("group_position", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(groupPosition), "UTF-8");
 									content += "&" + URLEncoder.encode("total_groups", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalGroups), "UTF-8");
 									content += "&" + URLEncoder.encode("total_opportunities", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(totalOpportunities), "UTF-8");
-									content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(candidate.getEntityPlacement()), "UTF-8");
+									content += "&" + URLEncoder.encode("EP", "UTF-8") + "=" + URLEncoder.encode(String.valueOf(0.0), "UTF-8");
 									if(allowSourceCodeReporting)
 										content += "&" + URLEncoder.encode("extracted_elements_source_code", "UTF-8") + "=" + URLEncoder.encode(extractedElementsSourceCode, "UTF-8");
 									content += "&" + URLEncoder.encode("application", "UTF-8") + "=" + URLEncoder.encode("1", "UTF-8");
@@ -787,11 +770,6 @@ public class GodClass extends ViewPart {
 				}
 				MySystem system = new MySystem(systemObject, true);
 				final DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-				ps.busyCursorWhile(new IRunnableWithProgress() {
-					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
-						distanceMatrix.generateDistances(monitor);
-					}
-				});
 				final List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
 
 				ps.busyCursorWhile(new IRunnableWithProgress() {
@@ -814,11 +792,8 @@ public class GodClass extends ViewPart {
 					groupedBySourceClassMap.get(sourceClass).groupConcepts();
 				}
 
-				table = new ExtractClassCandidateGroup[groupedBySourceClassMap.values().size() + 1];
-				ExtractClassCandidateGroup currentSystem = new ExtractClassCandidateGroup("current system");
-				currentSystem.setMinEP(new CurrentSystem(distanceMatrix).getEntityPlacement());
-				table[0] = currentSystem;
-				int counter = 1;
+				table = new ExtractClassCandidateGroup[groupedBySourceClassMap.values().size()];
+				int counter = 0;
 				for(ExtractClassCandidateGroup candidate : groupedBySourceClassMap.values()) {
 					table[counter] = candidate;
 					counter++;

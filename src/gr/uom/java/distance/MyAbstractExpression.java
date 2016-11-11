@@ -56,13 +56,6 @@ public class MyAbstractExpression {
         }
     }
 
-
-    private MyAbstractExpression() {
-    	this.owner = null;
-    	this.methodInvocationList = new ArrayList<MyMethodInvocation>();
-        this.attributeInstructionList = new ArrayList<MyAttributeInstruction>();
-    }
-
     private boolean isAccessor(MethodInvocationObject methodInvocation, SystemObject system) {
     	FieldInstructionObject fieldInstruction = null;
     	if((fieldInstruction = system.containsGetter(methodInvocation)) != null) {
@@ -153,34 +146,6 @@ public class MyAbstractExpression {
     	return this.expression.toString();
     }
 
-    public void replaceMethodInvocationWithAttributeInstruction(MyMethodInvocation methodInvocation, MyAttributeInstruction attributeInstruction) {
-    	if(methodInvocationList.contains(methodInvocation)) {
-    		methodInvocationList.remove(methodInvocation);
-    		if(!attributeInstructionList.contains(attributeInstruction))
-    			attributeInstructionList.add(attributeInstruction);
-    	}
-    }
-
-    public void replaceMethodInvocation(MyMethodInvocation oldMethodInvocation, MyMethodInvocation newMethodInvocation) {
-        if(methodInvocationList.contains(oldMethodInvocation)) {
-            int index = methodInvocationList.indexOf(oldMethodInvocation);
-            methodInvocationList.remove(index);
-            methodInvocationList.add(index,newMethodInvocation);
-        }
-    }
-
-    public void replaceAttributeInstruction(MyAttributeInstruction oldInstruction, MyAttributeInstruction newInstruction) {
-        if(attributeInstructionList.contains(oldInstruction)) {
-            int index = attributeInstructionList.indexOf(oldInstruction);
-            attributeInstructionList.remove(index);
-            attributeInstructionList.add(index,newInstruction);
-        }
-    }
-
-    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
-    	attributeInstructionList.remove(attributeInstruction);
-    }
-
     public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	int index = attributeInstructionList.indexOf(myAttributeInstruction);
     	if(index != -1) {
@@ -215,21 +180,4 @@ public class MyAbstractExpression {
     	}
     	return false;
     }
-
-	public static MyAbstractExpression newInstance(MyAbstractExpression expression) {
-		MyAbstractExpression newExpression = new MyAbstractExpression();
-		newExpression.setExpression(expression.getExpression());
-		newExpression.setOwner(expression.getOwner());
-		ListIterator<MyMethodInvocation> methodInvocationIterator = expression.getMethodInvocationIterator();
-		while(methodInvocationIterator.hasNext()) {
-			MyMethodInvocation myMethodInvocation = methodInvocationIterator.next();
-			newExpression.addMethodInvocation(myMethodInvocation);
-		}
-		ListIterator<MyAttributeInstruction> attributeInstructionIterator = expression.getAttributeInstructionIterator();
-		while(attributeInstructionIterator.hasNext()) {
-			MyAttributeInstruction myAttributeInstruction = attributeInstructionIterator.next();
-			newExpression.addAttributeInstruction(myAttributeInstruction);
-		}
-		return newExpression;
-	}
 }

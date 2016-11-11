@@ -2,7 +2,6 @@ package gr.uom.java.distance;
 
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.Set;
 
 import gr.uom.java.ast.decomposition.AbstractExpression;
@@ -25,14 +24,6 @@ public class MyMethodBody {
 		for(AbstractStatement statement : statements) {
 			processStatement(compositeStatement, statement);
 		}
-	}
-
-	public MyMethodBody(List<MyAbstractStatement> statementList) {
-		this.compositeStatement = new MyCompositeStatement(statementList);
-	}
-
-	private MyMethodBody(MyCompositeStatement compositeStatement) {
-		this.compositeStatement = compositeStatement;
 	}
 
 	private void processStatement(MyCompositeStatement parent, AbstractStatement statement) {
@@ -84,24 +75,6 @@ public class MyMethodBody {
         return this.compositeStatement.getAttributeInstructionIterator();
     }
 
-	public void replaceMethodInvocationsWithAttributeInstructions(Map<MyMethodInvocation, MyAttributeInstruction> map) {
-		for(MyMethodInvocation key : map.keySet()) {
-			this.compositeStatement.replaceMethodInvocationWithAttributeInstruction(key, map.get(key));
-		}
-	}
-
-	public void replaceMethodInvocation(MyMethodInvocation oldMethodInvocation, MyMethodInvocation newMethodInvocation) {
-		this.compositeStatement.replaceMethodInvocation(oldMethodInvocation, newMethodInvocation);
-	}
-
-	public void replaceAttributeInstruction(MyAttributeInstruction oldInstruction, MyAttributeInstruction newInstruction) {
-		this.compositeStatement.replaceAttributeInstruction(oldInstruction, newInstruction);
-	}
-
-    public void removeAttributeInstruction(MyAttributeInstruction attributeInstruction) {
-    	this.compositeStatement.removeAttributeInstruction(attributeInstruction);
-    }
-
 	public void setAttributeInstructionReference(MyAttributeInstruction myAttributeInstruction, boolean reference) {
     	this.compositeStatement.setAttributeInstructionReference(myAttributeInstruction, reference);
     }
@@ -128,11 +101,5 @@ public class MyMethodBody {
 
 	public Set<String> getEntitySet() {
 		return this.compositeStatement.getEntitySet();
-	}
-
-	public static MyMethodBody newInstance(MyMethodBody methodBody) {
-		MyCompositeStatement myCompositeStatement = methodBody.compositeStatement;
-		MyCompositeStatement newMyCompositeStatement = MyCompositeStatement.newInstance(myCompositeStatement);
-		return new MyMethodBody(newMyCompositeStatement);
 	}
 }

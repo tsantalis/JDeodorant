@@ -61,7 +61,6 @@ public class Standalone {
 			}
 			MySystem system = new MySystem(systemObject, false);
 			DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-			distanceMatrix.generateDistances(null);
 			
 			moveMethodCandidateList.addAll(distanceMatrix.getMoveMethodCandidateRefactoringsByAccess(classNamesToBeExamined, null));
 			Collections.sort(moveMethodCandidateList);
@@ -94,7 +93,6 @@ public class Standalone {
 			}
 			MySystem system = new MySystem(systemObject, true);
 			DistanceMatrix distanceMatrix = new DistanceMatrix(system);
-			distanceMatrix.generateDistances(null);
 			
 			List<ExtractClassCandidateRefactoring> extractClassCandidateList = new ArrayList<ExtractClassCandidateRefactoring>();
 			extractClassCandidateList.addAll(distanceMatrix.getExtractClassCandidateRefactorings(classNamesToBeExamined, null));

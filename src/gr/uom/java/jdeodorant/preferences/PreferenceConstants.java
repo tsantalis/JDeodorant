@@ -26,4 +26,8 @@ public class PreferenceConstants {
 	public static final String P_ENABLE_USAGE_REPORTING = "enableUsageReporting";
 	
 	public static final String P_ENABLE_SOURCE_CODE_REPORTING = "enableSourceCodeReporting";
+	
+	public static final String P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_MOVE_METHOD_CANDIDATE = "maximumNumberOfSourceClassMembersAccessedByMoveMethodCandidatePreference";
+	
+	public static final String P_MAXIMUM_NUMBER_OF_SOURCE_CLASS_MEMBERS_ACCESSED_BY_EXTRACT_CLASS_CANDIDATE = "maximumNumberOfSourceClassMembersAccessedByExtractClassCandidatePreference";
 }

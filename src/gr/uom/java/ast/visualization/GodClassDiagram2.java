@@ -453,8 +453,8 @@ public class GodClassDiagram2 {
 			}
 
 
-			contains = false;
 			for(Entry<MethodInvocationObject, Integer> map  : connectionMap.entrySet()){
+				contains = false;
 				MethodInvocationObject target = map.getKey();
 				Integer occurences = map.getValue();
 
@@ -525,7 +525,7 @@ public class GodClassDiagram2 {
 							bendHeight = targetClassWidth + bendGap;
 						else
 							bendHeight = targetSectionWidth + bendGap;
-						connection = connectionSource.addToSameClassMethodConnectionLL(ConnectionType.METHOD_CALL_TARGET,targetFigure, occurences, bendHeight);
+						connection = connectionSource.addToSameClassMethodConnectionRR(ConnectionType.METHOD_CALL_TARGET,targetFigure, occurences, bendHeight);
 						connectionList.add(connection);
 						connections.add(connection);
 					}

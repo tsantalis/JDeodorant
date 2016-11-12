@@ -327,18 +327,14 @@ public class DistanceMatrix {
     		if(monitor != null && monitor.isCanceled())
     			throw new OperationCanceledException();
     		if (!sourceClass.getMethodList().isEmpty() && !sourceClass.getAttributeList().isEmpty()) {
-    			ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass);
-    			double[][] distanceMatrix = candidate.getJaccardDistanceMatrix();
+    			double[][] distanceMatrix = getJaccardDistanceMatrix(sourceClass);
 				Clustering clustering = Clustering.getInstance(0, distanceMatrix);
 				ArrayList<Entity> entities = new ArrayList<Entity>();
 				entities.addAll(sourceClass.getAttributeList());
 				entities.addAll(sourceClass.getMethodList());
 				HashSet<Cluster> clusters = clustering.clustering(entities);
 				for (Cluster cluster : clusters) {
-    				candidate = new ExtractClassCandidateRefactoring(system, sourceClass);
-    				for (Entity entity : cluster.getEntities()) {
-    					candidate.addEntity(entity);
-    				}
+    				ExtractClassCandidateRefactoring candidate = new ExtractClassCandidateRefactoring(system, sourceClass, cluster.getEntities());
     				if (candidate.isApplicable()) {
     					int sourceClassDependencies = candidate.getDistinctSourceDependencies();
     					int extractedClassDependencies = candidate.getDistinctTargetDependencies();
@@ -357,4 +353,23 @@ public class DistanceMatrix {
     		monitor.done();
     	return candidateList;
     }
+
+	public double[][] getJaccardDistanceMatrix(MyClass sourceClass) {
+		ArrayList<Entity> entities = new ArrayList<Entity>();
+		entities.addAll(sourceClass.getAttributeList());
+		entities.addAll(sourceClass.getMethodList());
+		double[][] jaccardDistanceMatrix = new double[entities.size()][entities.size()];
+		for(int i=0; i<jaccardDistanceMatrix.length; i++) {
+			for(int j=0; j<jaccardDistanceMatrix.length; j++) {
+				if(i != j) {
+					jaccardDistanceMatrix[i][j] = DistanceCalculator.getDistance(entities.get(i).getFullEntitySet(), entities.get(j).getFullEntitySet());
+				}
+				else {
+					jaccardDistanceMatrix[i][j] = 0.0;
+				}
+			}
+		}
+		return jaccardDistanceMatrix;
+	}
+
 }

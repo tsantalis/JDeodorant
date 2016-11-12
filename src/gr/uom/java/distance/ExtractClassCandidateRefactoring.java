@@ -32,11 +32,11 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	private Integer userRate;
 	private List<String> topics;
 
-	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass) {
+	public ExtractClassCandidateRefactoring(MySystem system, MyClass sourceClass, ArrayList<Entity> extractedEntities) {
 		super();
 		this.system = system;
 		this.sourceClass = sourceClass;
-		this.extractedEntities = new ArrayList<Entity>();
+		this.extractedEntities = extractedEntities;
 		this.leaveDelegate = new LinkedHashMap<MyMethod, Boolean>();
 		if (system.getClass(sourceClass.getName() + "Product") == null) {
 			this.targetClassName = sourceClass.getName() + "Product";
@@ -53,11 +53,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 
 	public void setTargetClassName(String targetClassName) {
 		this.targetClassName = targetClassName;
-	}
-
-	public void addEntity(Entity entity) {
-		if(!extractedEntities.contains(entity))
-			extractedEntities.add(entity);
 	}
 
 	public List<Entity> getExtractedEntities() {
@@ -95,24 +90,6 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		return extractedFieldFragments;
 	}
 
-	public double[][] getJaccardDistanceMatrix() {
-		ArrayList<Entity> entities = new ArrayList<Entity>();
-		entities.addAll(sourceClass.getAttributeList());
-		entities.addAll(sourceClass.getMethodList());
-		double[][] jaccardDistanceMatrix = new double[entities.size()][entities.size()];
-		for(int i=0; i<jaccardDistanceMatrix.length; i++) {
-			for(int j=0; j<jaccardDistanceMatrix.length; j++) {
-				if(i != j) {
-					jaccardDistanceMatrix[i][j] = DistanceCalculator.getDistance(entities.get(i).getFullEntitySet(), entities.get(j).getFullEntitySet());
-				}
-				else {
-					jaccardDistanceMatrix[i][j] = 0.0;
-				}
-			}
-		}
-		return jaccardDistanceMatrix;
-	}
-
 	public Map<MyMethod, Boolean> getLeaveDelegate() {
 		return leaveDelegate;
 	}
@@ -141,7 +118,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 				}
 			}
 		}
-		if(extractedEntities.size() <=2 || methodCounter == 0 || !validRemainingMembersInSourceClass()) {
+		if(extractedEntities.size() <=2 || methodCounter == 0 || !validRemainingMethodsInSourceClass() || !validRemainingFieldsInSourceClass()) {
 			return false;
 		}
 		else {
@@ -149,12 +126,24 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 		}
 	}
 
-	private boolean validRemainingMembersInSourceClass() {
+	private boolean validRemainingMethodsInSourceClass() {
 		for(MyMethod sourceMethod : sourceClass.getMethodList()) {
 			if(!extractedEntities.contains(sourceMethod)) {
 				MethodObject methodObject = sourceMethod.getMethodObject();
 				if(!methodObject.isStatic() && !methodObject.isAbstract() && methodObject.isGetter() == null && methodObject.isSetter() == null && methodObject.isDelegate() == null &&
-						!isReadObject(methodObject) && !isWriteObject(methodObject) && !isEquals(methodObject) && !isHashCode(methodObject) && !isClone(methodObject) && !isCompareTo(methodObject)) {
+						!isReadObject(methodObject) && !isWriteObject(methodObject) && !isEquals(methodObject) && !isHashCode(methodObject) && !isClone(methodObject) && !isCompareTo(methodObject) && !isToString(methodObject)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean validRemainingFieldsInSourceClass() {
+		for(MyAttribute sourceAttribute : sourceClass.getAttributeList()) {
+			if(!extractedEntities.contains(sourceAttribute)) {
+				FieldObject fieldObject = sourceAttribute.getFieldObject();
+				if(!fieldObject.isStatic()) {
 					return true;
 				}
 			}
@@ -189,6 +178,11 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	private boolean isHashCode(MethodObject methodObject) {
 		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
 		return methodObject.getName().equals("hashCode") && methodObject.getReturnType().getClassType().equals("int") && parameterTypeList.size() == 0;
+	}
+
+	private boolean isToString(MethodObject methodObject) {
+		List<TypeObject> parameterTypeList = methodObject.getParameterTypeList();
+		return methodObject.getName().equals("toString") && methodObject.getReturnType().getClassType().equals("java.lang.String") && parameterTypeList.size() == 0;
 	}
 
 	private boolean isClone(MethodObject methodObject) {

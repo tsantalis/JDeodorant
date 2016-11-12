@@ -287,4 +287,22 @@ public class GodClassVisualizationData implements VisualizationData {
 		}
 		return fields.size() + methods.size();
 	}
+
+	public boolean containsNonAccessedFieldInExtractedClass() {
+		Set<FieldInstructionObject> fields = new LinkedHashSet<FieldInstructionObject>();
+		for(MethodObject key : internalFieldReadMap.keySet()) {
+			Map<FieldInstructionObject, Integer> value = internalFieldReadMap.get(key);
+			fields.addAll(value.keySet());
+		}
+		for(MethodObject key : internalFieldWriteMap.keySet()) {
+			Map<FieldInstructionObject, Integer> value = internalFieldWriteMap.get(key);
+			fields.addAll(value.keySet());
+		}
+		for(FieldObject field : extractedFields) {
+			if(!fields.contains(field.generateFieldInstruction())) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

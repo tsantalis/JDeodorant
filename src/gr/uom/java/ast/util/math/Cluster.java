@@ -36,23 +36,6 @@ public class Cluster {
 	public boolean equals(Object o) {
 		Cluster c = (Cluster)o;
 		return this.entities.equals(c.entities);
-		/*if(this.entities.size() == c.entities.size()) {
-			int counter = 0;
-			for(Entity entity : c.entities) {
-				if(this.entities.contains(entity)) {
-					counter++;
-				}
-			}
-			if(counter == this.entities.size()) {
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-		else{
-			return false;
-		}*/
 	}
 	
 	public int hashCode() {
@@ -74,5 +57,4 @@ public class Cluster {
 		}
 		return s+="}";
 	}
-
 }

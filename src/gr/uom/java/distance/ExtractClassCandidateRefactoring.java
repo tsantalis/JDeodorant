@@ -45,6 +45,19 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 			this.targetClassName = sourceClass.getName() + "Product2";
 		}
 		this.topics = new ArrayList<String>();
+		Set<MethodObject> extractedMethods = new LinkedHashSet<MethodObject>();
+		Set<FieldObject> extractedFields = new LinkedHashSet<FieldObject>();
+		for(Entity entity : extractedEntities) {
+			if(entity instanceof MyMethod) {
+				MyMethod myMethod = (MyMethod)entity;
+				extractedMethods.add(myMethod.getMethodObject());
+			}
+			else if(entity instanceof MyAttribute) {
+				MyAttribute myAttribute = (MyAttribute)entity;
+				extractedFields.add(myAttribute.getFieldObject());
+			}
+		}
+		this.visualizationData = new GodClassVisualizationData(sourceClass.getClassObject(), extractedMethods, extractedFields);
 	}
 
 	public String getTargetClassName() {
@@ -118,7 +131,7 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 				}
 			}
 		}
-		if(extractedEntities.size() <=2 || methodCounter == 0 || !validRemainingMethodsInSourceClass() || !validRemainingFieldsInSourceClass()) {
+		if(extractedEntities.size() <=2 || methodCounter == 0 || !validRemainingMethodsInSourceClass() || !validRemainingFieldsInSourceClass() || visualizationData.containsNonAccessedFieldInExtractedClass()) {
 			return false;
 		}
 		else {
@@ -289,26 +302,10 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
     }
 
 	public String getAnnotationText() {
-		GodClassVisualizationData data = getGodClassVisualizationData();
-		return data.toString();
+		return visualizationData.toString();
 	}
 
 	public GodClassVisualizationData getGodClassVisualizationData() {
-		if(visualizationData == null) {
-			Set<MethodObject> extractedMethods = new LinkedHashSet<MethodObject>();
-			Set<FieldObject> extractedFields = new LinkedHashSet<FieldObject>();
-			for(Entity entity : extractedEntities) {
-				if(entity instanceof MyMethod) {
-					MyMethod myMethod = (MyMethod)entity;
-					extractedMethods.add(myMethod.getMethodObject());
-				}
-				else if(entity instanceof MyAttribute) {
-					MyAttribute myAttribute = (MyAttribute)entity;
-					extractedFields.add(myAttribute.getFieldObject());
-				}
-			}
-			this.visualizationData = new GodClassVisualizationData(sourceClass.getClassObject(), extractedMethods, extractedFields);
-		}
 		return visualizationData;
 	}
 
@@ -368,10 +365,10 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	}
 
 	public int getDistinctSourceDependencies() {
-		return getGodClassVisualizationData().getDistinctSourceDependencies();
+		return visualizationData.getDistinctSourceDependencies();
 	}
 
 	public int getDistinctTargetDependencies() {
-		return getGodClassVisualizationData().getDistinctTargetDependencies();
+		return visualizationData.getDistinctTargetDependencies();
 	}
 }

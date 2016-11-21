@@ -382,7 +382,7 @@ public class GodClass extends ViewPart {
 					if(allowUsageReporting) {
 						Tree tree = treeViewer.getTree();
 						int groupPosition = -1;
-						int totalGroups = tree.getItemCount()-1;
+						int totalGroups = tree.getItemCount();
 						int totalOpportunities = 0;
 						for(int i=0; i<tree.getItemCount(); i++) {
 							TreeItem treeItem = tree.getItem(i);
@@ -568,7 +568,7 @@ public class GodClass extends ViewPart {
 							if(allowUsageReporting) {
 								Tree tree = treeViewer.getTree();
 								int groupPosition = -1;
-								int totalGroups = tree.getItemCount()-1;
+								int totalGroups = tree.getItemCount();
 								int totalOpportunities = 0;
 								for(int i=0; i<tree.getItemCount(); i++) {
 									TreeItem treeItem = tree.getItem(i);

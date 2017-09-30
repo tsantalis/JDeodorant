@@ -40,6 +40,7 @@ To enable the analysis of large Java projects, edit the **eclipse.ini** file ins
 # Research
 If you are interested to learn how exactly JDeodorant works, please have a look at the following **papers**:
 ###### Duplicated Code
+- Nikolaos Tsantalis, Davood Mazinanian, and Shahriar Rostami, "[Clone Refactoring with Lambda Expressions](https://users.encs.concordia.ca/~nikolaos/publications/ICSE_2017.pdf)," 39th International Conference on Software Engineering (ICSE'2017), Buenos Aires, Argentina, May 20-28, 2017.
 - Nikolaos Tsantalis, Davood Mazinanian, and Giri Panamoottil Krishnan, "[Assessing the Refactorability of Software Clones](http://users.encs.concordia.ca/~nikolaos/publications/TSE_2015.pdf)," IEEE Transactions on Software Engineering, vol. 41, no. 11, pp. 1055-1090, November 2015.
 - Giri Panamoottil Krishnan, and Nikolaos Tsantalis, "[Unification and Refactoring of Clones](http://users.encs.concordia.ca/~nikolaos/publications/CSMR-WCRE_2014.pdf)," pp. 104-113, IEEE Conference on Software Maintenance, Reengineering and Reverse Engineering (CSMR-WCRE'2014), 2014 Software Evolution Week, Antwerp, Belgium, February 3-7, 2014.
 - Giri Panamoottil Krishnan, and Nikolaos Tsantalis, "[Refactoring Clones: An Optimization Problem](http://users.encs.concordia.ca/~nikolaos/publications/ICSM_2013.pdf)," pp. 360-363, 29th IEEE International Conference on Software Maintenance (ICSM'2013), ERA Track, Eindhoven, The Netherlands, September 22-28, 2013.

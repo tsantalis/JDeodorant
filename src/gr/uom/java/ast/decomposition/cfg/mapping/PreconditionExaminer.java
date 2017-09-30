@@ -1484,14 +1484,14 @@ public class PreconditionExaminer {
 							IMethodBinding declaringMethod2 = variableBinding2.getDeclaringMethod();
 							IMethodBinding  method1 = pdg1.getMethod().getMethodDeclaration().resolveBinding();
 							IMethodBinding  method2 = pdg2.getMethod().getMethodDeclaration().resolveBinding();
-							if(/*declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
+							if(variableBinding1.isField() && variableBinding2.isField() &&
+									!alreadyContainsOneOfTheKeys(fieldNameMismatches, nodeDifference.getBindingSignaturePair())) {
+								fieldNameMismatches.add(nodeDifference.getBindingSignaturePair());
+							}
+							else if(/*declaringMethod1 != null && declaringMethod1.isEqualTo(method1) &&
 									declaringMethod2 != null && declaringMethod2.isEqualTo(method2) &&*/
 									!alreadyContainsOneOfTheKeys(variableNameMismatches, nodeDifference.getBindingSignaturePair())) {
 								variableNameMismatches.add(nodeDifference.getBindingSignaturePair());
-							}
-							else if(variableBinding1.isField() && variableBinding2.isField() &&
-									!alreadyContainsOneOfTheKeys(fieldNameMismatches, nodeDifference.getBindingSignaturePair())) {
-								fieldNameMismatches.add(nodeDifference.getBindingSignaturePair());
 							}
 						}
 					}
@@ -1562,7 +1562,7 @@ public class PreconditionExaminer {
 					boolean matchingPairFound = false;
 					for(PlainVariable plainVariable2 : variables2) {
 						BindingSignaturePair pair2 = getBindingSignaturePairForVariable2(plainVariable2, allNameMismatches);
-						if(pair2 != null && pair2.equals(pair1) && localVariableNameMismatches.contains(pair1)) {
+						if(pair2 != null && pair2.equals(pair1) && (localVariableNameMismatches.contains(pair1) || fieldNameMismatches.contains(pair1))) {
 							matchingPairFound = true;
 							break;
 						}
@@ -1578,7 +1578,7 @@ public class PreconditionExaminer {
 					boolean matchingPairFound = false;
 					for(PlainVariable plainVariable1 : variables1) {
 						BindingSignaturePair pair1 = getBindingSignaturePairForVariable1(plainVariable1, allNameMismatches);
-						if(pair1 != null && pair1.equals(pair2) && localVariableNameMismatches.contains(pair2)) {
+						if(pair1 != null && pair1.equals(pair2) && (localVariableNameMismatches.contains(pair2) || fieldNameMismatches.contains(pair2))) {
 							matchingPairFound = true;
 							break;
 						}

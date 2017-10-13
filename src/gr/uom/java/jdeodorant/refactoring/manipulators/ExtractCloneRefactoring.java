@@ -920,7 +920,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								!commonSuperTypeDeclaresOrInheritsMethodWithIdenticalSignature(methodDeclaration2.resolveBinding(), commonSuperTypeOfSourceTypeDeclarations)) {
 							boolean avoidPullUpDueToSerialization1 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(0), fieldsAccessedInMethod1, fieldsModifiedInMethod1);
 							boolean avoidPullUpDueToSerialization2 = avoidPullUpMethodDueToSerialization(sourceTypeDeclarations.get(1), fieldsAccessedInMethod2, fieldsModifiedInMethod2);
-							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2) {
+							if(clones && !avoidPullUpDueToSerialization1 && !avoidPullUpDueToSerialization2 &&
+									typeContainsMethodWithSignature(sourceTypeDeclaration, methodDeclaration1) == null && typeContainsMethodWithSignature(sourceTypeDeclaration, methodDeclaration2) == null) {
 								MethodDeclaration copiedMethodDeclaration = (MethodDeclaration) ASTNode.copySubtree(ast, methodDeclaration1);
 								ListRewrite modifiersRewrite = sourceRewriter.getListRewrite(copiedMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
 								List<IExtendedModifier> originalModifiers = copiedMethodDeclaration.modifiers();
@@ -959,10 +960,10 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 								fieldsModifiedInMethod1.removeAll(modifiedLocalFieldsG1);
 								fieldsModifiedInMethod2.removeAll(modifiedLocalFieldsG2);
 								pullUpLocallyAccessedFields(fieldsAccessedInMethod1, fieldsAccessedInMethod2, fieldsModifiedInMethod1, fieldsModifiedInMethod2, bodyDeclarationsRewrite, requiredImportTypeBindings);
-								if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								if(!typeDeclaration1.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && typeContainsMethodWithSignature(sourceTypeDeclaration, methodDeclaration1) == null) {
 									methodDeclarationsToBePulledUp.get(0).add(methodDeclaration1);
 								}
-								if(!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding())) {
+								if(!typeDeclaration2.resolveBinding().isEqualTo(sourceTypeDeclaration.resolveBinding()) && typeContainsMethodWithSignature(sourceTypeDeclaration, methodDeclaration2) == null) {
 									methodDeclarationsToBePulledUp.get(1).add(methodDeclaration2);
 								}
 							}
@@ -971,7 +972,8 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 									//static methods with the same signature, but different bodies are called. A parameter should be introduced in the extracted method
 									createDifferencesForStaticMethodCalls(methodDeclaration1.resolveBinding(), methodDeclaration2.resolveBinding());
 								}
-								else if(!containsSuperMethodCall(typeDeclaration1, methodDeclaration1.resolveBinding()) && !containsSuperMethodCall(typeDeclaration2, methodDeclaration2.resolveBinding())) {
+								else if(!containsSuperMethodCall(typeDeclaration1, methodDeclaration1.resolveBinding()) && !containsSuperMethodCall(typeDeclaration2, methodDeclaration2.resolveBinding()) &&
+										typeContainsMethodWithSignature(sourceTypeDeclaration, methodDeclaration1) == null && typeContainsMethodWithSignature(sourceTypeDeclaration, methodDeclaration2) == null) {
 									MethodDeclaration newMethodDeclaration = ast.newMethodDeclaration();
 									sourceRewriter.set(newMethodDeclaration, MethodDeclaration.NAME_PROPERTY, ast.newSimpleName(methodDeclaration1.getName().getIdentifier()), null);
 									if(localMethodG1.getReturnType().equals(localMethodG2.getReturnType())) {
@@ -4214,6 +4216,16 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(MethodDeclaration methodDeclaration : typeDeclaration.getMethods()) {
 			if(methodDeclaration.getName().getIdentifier().equals(methodName)) {
 				return methodDeclaration;
+			}
+		}
+		return null;
+	}
+
+	private MethodDeclaration typeContainsMethodWithSignature(TypeDeclaration typeDeclaration, MethodDeclaration methodDeclaration) {
+		for(MethodDeclaration methodDeclaration2 : typeDeclaration.getMethods()) {
+			if(MethodCallAnalyzer.equalSignature(methodDeclaration2.resolveBinding(), methodDeclaration.resolveBinding()) ||
+					MethodCallAnalyzer.equalSignatureIgnoringSubclassTypeDifferences(methodDeclaration2.resolveBinding(), methodDeclaration.resolveBinding())) {
+				return methodDeclaration2;
 			}
 		}
 		return null;

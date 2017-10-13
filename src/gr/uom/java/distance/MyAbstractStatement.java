@@ -78,10 +78,19 @@ public abstract class MyAbstractStatement {
     
     private MethodInvocationObject recurseDelegations(MethodInvocationObject methodInvocation, SystemObject system) {
     	MethodInvocationObject delegation;
-    	if((delegation = system.containsDelegate(methodInvocation)) != null && system.getClassObject(delegation.getOriginClassName()) != null && !delegation.equals(methodInvocation))
+    	if((delegation = system.containsDelegate(methodInvocation)) != null && system.getClassObject(delegation.getOriginClassName()) != null && !delegation.equals(methodInvocation) &&
+    			!delegationLoop(methodInvocation, delegation, system))
     		return recurseDelegations(delegation, system);
     	else
     		return methodInvocation;
+    }
+    
+    private boolean delegationLoop(MethodInvocationObject methodInvocation, MethodInvocationObject delegation, SystemObject system) {
+    	MethodInvocationObject delegation2;
+    	if((delegation2 = system.containsDelegate(delegation)) != null && delegation2.equals(methodInvocation)) {
+    		return true;
+    	}
+    	return false;
     }
     
     public MyAbstractStatement(List<MyAbstractStatement> statementList) {

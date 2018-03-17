@@ -4197,11 +4197,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		for(MethodDeclaration constructor : constructorsToBeCopied) {
 			addConstructorDeclaration(constructor, typeDeclaration, compilationUnit, cloneInfo.requiredImportTypeBindings);
 		}
-		for(MethodDeclaration methodDeclaration : methodDeclarationsToBePulledUp) {
-			if(methodDeclaration.getRoot().equals(compilationUnit)) {
-				removeMethodDeclaration(methodDeclaration, RefactoringUtility.findTypeDeclaration(methodDeclaration), RefactoringUtility.findCompilationUnit(methodDeclaration));
-			}
-		}
+		removeMethodDeclarations(methodDeclarationsToBePulledUp);
 		removeFieldDeclarations(fieldDeclarationsToBePulledUp);
 		for(VariableDeclaration variableDeclaration : accessedFieldDeclarations) {
 			if(variableDeclaration.getRoot().equals(compilationUnit)) {
@@ -4420,6 +4416,50 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 		return accessorMethodName;
 	}
 
+	private void removeMethodDeclarations(Set<MethodDeclaration> methodDeclarationsToBePulledUp) {
+		TreeSet<MethodDeclaration> orderedMethods = new TreeSet<MethodDeclaration>(new EarliestStartPositionComparator());
+		orderedMethods.addAll(methodDeclarationsToBePulledUp);
+		List<TextEdit> textEdits = new ArrayList<TextEdit>();
+		for(MethodDeclaration methodDeclaration : orderedMethods) {
+			TypeDeclaration typeDeclaration = RefactoringUtility.findTypeDeclaration(methodDeclaration);
+			CompilationUnit compilationUnit = RefactoringUtility.findCompilationUnit(methodDeclaration);
+			if(methodDeclaration.getRoot().equals(compilationUnit)) {
+				AST ast = typeDeclaration.getAST();
+				ASTRewrite rewriter = ASTRewrite.create(ast);
+				ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
+				bodyRewrite.remove(methodDeclaration, null);
+				try {
+					TextEdit sourceEdit = rewriter.rewriteAST();
+					if(textEdits.size() > 0) {
+						TextEdit previousTextEdit = textEdits.get(textEdits.size()-1);
+						for(TextEdit previousChild : previousTextEdit.getChildren()) {
+							for(TextEdit currentChild : sourceEdit.getChildren()) {
+								if(currentChild.getOffset() == previousChild.getOffset() && currentChild.getLength() == previousChild.getLength()) {
+									sourceEdit.removeChild(currentChild);
+									break;
+								}
+							}
+						}
+					}
+					textEdits.add(sourceEdit);
+					ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
+					CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+					if(change == null) {
+						MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
+						change = new CompilationUnitChange("", sourceICompilationUnit);
+						change.setEdit(sourceMultiTextEdit);
+						compilationUnitChanges.put(sourceICompilationUnit, change);
+					}
+					change.getEdit().addChild(sourceEdit);
+					String message = cloneInfo.extractUtilityClass ? "Move method to utility class" : "Pull up method to superclass";
+					change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
+				} catch (JavaModelException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
 	private void removeFieldDeclarations(Set<VariableDeclaration> variableDeclarations) {
 		TreeSet<VariableDeclaration> orderedFields = new TreeSet<VariableDeclaration>(new EarliestStartPositionComparator());
 		orderedFields.addAll(variableDeclarations);
@@ -4480,29 +4520,6 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 					e.printStackTrace();
 				}
 			}
-		}
-	}
-
-	private void removeMethodDeclaration(MethodDeclaration methodDeclaration, TypeDeclaration typeDeclaration, CompilationUnit compilationUnit) {
-		AST ast = typeDeclaration.getAST();
-		ASTRewrite rewriter = ASTRewrite.create(ast);
-		ListRewrite bodyRewrite = rewriter.getListRewrite(typeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-		bodyRewrite.remove(methodDeclaration, null);
-		try {
-			TextEdit sourceEdit = rewriter.rewriteAST();
-			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)compilationUnit.getJavaElement();
-			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-			if(change == null) {
-				MultiTextEdit sourceMultiTextEdit = new MultiTextEdit();
-				change = new CompilationUnitChange("", sourceICompilationUnit);
-				change.setEdit(sourceMultiTextEdit);
-				compilationUnitChanges.put(sourceICompilationUnit, change);
-			}
-			change.getEdit().addChild(sourceEdit);
-			String message = cloneInfo.extractUtilityClass ? "Move method to utility class" : "Pull up method to superclass";
-			change.addTextEditGroup(new TextEditGroup(message, new TextEdit[] {sourceEdit}));
-		} catch (JavaModelException e) {
-			e.printStackTrace();
 		}
 	}
 

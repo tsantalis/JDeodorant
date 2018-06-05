@@ -1,8 +1,14 @@
 package gr.uom.java.jdeodorant.refactoring.views;
 
 import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -42,6 +48,7 @@ import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.AnnotationModel;
@@ -114,6 +121,8 @@ import gr.uom.java.ast.CompilationErrorDetectedException;
 import gr.uom.java.ast.CompilationUnitCache;
 import gr.uom.java.ast.decomposition.cfg.mapping.CloneInstanceMapper;
 import gr.uom.java.ast.decomposition.cfg.mapping.PDGRegionSubTreeMapper;
+import gr.uom.java.jdeodorant.preferences.PreferenceConstants;
+import gr.uom.java.jdeodorant.refactoring.Activator;
 import gr.uom.java.jdeodorant.refactoring.manipulators.ExtractCloneRefactoring;
 
 public class DuplicatedCode extends ViewPart {
@@ -770,6 +779,39 @@ public class DuplicatedCode extends ViewPart {
 						} catch (JavaModelException e) {
 							e.printStackTrace();
 						}
+						IPreferenceStore store = Activator.getDefault().getPreferenceStore();
+						boolean allowUsageReporting = store.getBoolean(PreferenceConstants.P_ENABLE_USAGE_REPORTING);
+						if(allowUsageReporting) {
+							try {
+								boolean allowSourceCodeReporting = store.getBoolean(PreferenceConstants.P_ENABLE_SOURCE_CODE_REPORTING);
+								String content = URLEncoder.encode("project_name", "UTF-8") + "=" + URLEncoder.encode(selectedProject.getElementName(), "UTF-8");
+								content += "&" + URLEncoder.encode("source_class_name_1", "UTF-8") + "=" + URLEncoder.encode(instance1.getContainingClassFullyQualifiedName(), "UTF-8");
+								content += "&" + URLEncoder.encode("source_class_name_2", "UTF-8") + "=" + URLEncoder.encode(instance2.getContainingClassFullyQualifiedName(), "UTF-8");
+								content += "&" + URLEncoder.encode("source_method_name_1", "UTF-8") + "=" + URLEncoder.encode(instance1.getMethodSignature(), "UTF-8");
+								content += "&" + URLEncoder.encode("source_method_name_2", "UTF-8") + "=" + URLEncoder.encode(instance2.getMethodSignature(), "UTF-8");
+								if(allowSourceCodeReporting) {
+									content += "&" + URLEncoder.encode("clone_fragment_1", "UTF-8") + "=" + URLEncoder.encode(instance1.getOriginalCodeFragment(), "UTF-8");
+									content += "&" + URLEncoder.encode("clone_fragment_2", "UTF-8") + "=" + URLEncoder.encode(instance2.getOriginalCodeFragment(), "UTF-8");
+								}
+								content += "&" + URLEncoder.encode("application_type", "UTF-8") + "=" + URLEncoder.encode("import", "UTF-8");
+								content += "&" + URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(System.getProperty("user.name"), "UTF-8");
+								content += "&" + URLEncoder.encode("tb", "UTF-8") + "=" + URLEncoder.encode("4", "UTF-8");
+								URL url = new URL(Activator.RANK_URL);
+								URLConnection urlConn = url.openConnection();
+								urlConn.setDoInput(true);
+								urlConn.setDoOutput(true);
+								urlConn.setUseCaches(false);
+								urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+								DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
+								printout.writeBytes(content);
+								printout.flush();
+								printout.close();
+								DataInputStream input = new DataInputStream(urlConn.getInputStream());
+								input.close();
+							} catch (IOException ioe) {
+								ioe.printStackTrace();
+							}
+						}
 						Refactoring refactoring = new ExtractCloneRefactoring(mapper.getSubTreeMappers());
 						MyRefactoringWizard wizard = new MyRefactoringWizard(refactoring, null);
 						RefactoringWizardOpenOperation op = new RefactoringWizardOpenOperation(wizard);
@@ -782,7 +824,7 @@ public class DuplicatedCode extends ViewPart {
 					}
 					else {
 						MessageDialog.openInformation(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getShell(), MESSAGE_DIALOG_TITLE,
-								"Unfortunatley, no refactoring opportunities were found.");
+								"Unfortunately, no refactoring opportunities were found.");
 					}
 					CompilationUnitCache.getInstance().releaseLock();
 				}

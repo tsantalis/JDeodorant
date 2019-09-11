@@ -60,6 +60,7 @@ public class ASTInformation {
 			result = 37*result + startPosition;
 			result = 37*result + length;
 			result = 37*result + nodeType;
+			hashCode = result;
 		}
 		return hashCode;
 	}

@@ -723,6 +723,103 @@ public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 		return typeCheckMethod.parameters();
 	}
 	
+	private Map<ReturnStatement, VariableDeclaration> getTypeCheckMethodReturnedVariableMap() {
+		Map<ReturnStatement, VariableDeclaration> map = new LinkedHashMap<ReturnStatement, VariableDeclaration>();
+		StatementExtractor statementExtractor = new StatementExtractor();
+		ExpressionExtractor expressionExtractor = new ExpressionExtractor();
+		List<Statement> typeCheckCodeFragmentReturnStatements = statementExtractor.getReturnStatements(typeCheckCodeFragment);
+		List<Statement> variableDeclarationStatements = statementExtractor.getVariableDeclarationStatements(typeCheckMethod.getBody());
+		List<Expression> variableDeclarationExpressions = expressionExtractor.getVariableDeclarationExpressions(typeCheckMethod.getBody());
+		for(Statement statement : typeCheckCodeFragmentReturnStatements) {
+			ReturnStatement returnStatement = (ReturnStatement)statement;
+			if(returnStatement.getExpression() instanceof SimpleName) {
+				SimpleName returnExpression = (SimpleName)returnStatement.getExpression();
+				List<SingleVariableDeclaration> parameters = typeCheckMethod.parameters();
+				for(SingleVariableDeclaration parameter : parameters) {
+					if(parameter.resolveBinding().isEqualTo(returnExpression.resolveBinding())) {
+						map.put(returnStatement, parameter);
+					}
+				}
+				for(Statement vdStatement : variableDeclarationStatements) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)vdStatement;
+					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.resolveBinding().isEqualTo(returnExpression.resolveBinding())) {
+							map.put(returnStatement, fragment);
+						}
+					}
+				}
+				for(Expression expression : variableDeclarationExpressions) {
+					VariableDeclarationExpression variableDeclarationExpression = (VariableDeclarationExpression)expression;
+					List<VariableDeclarationFragment> fragments = variableDeclarationExpression.fragments();
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.resolveBinding().isEqualTo(returnExpression.resolveBinding())) {
+							map.put(returnStatement, fragment);
+						}
+					}
+				}
+			}
+		}
+		return map;
+	}
+	
+	public boolean returnedVariableReturnedInBranches() {
+		Map<ReturnStatement, VariableDeclaration> map = getTypeCheckMethodReturnedVariableMap();
+		int returnedInBranchCounter = 0;
+		for(ReturnStatement key : map.keySet()) {
+			for(Expression expression : typeCheckMap.keySet()) {
+				ArrayList<Statement> branchStatements = typeCheckMap.get(expression);
+				if(branchStatements.contains(key)) {
+					returnedInBranchCounter++;
+				}
+			}
+			if(defaultCaseStatements.contains(key)) {
+				returnedInBranchCounter++;
+			}
+		}
+		return map.size() == returnedInBranchCounter;
+	}
+
+	public boolean returnedVariableDeclaredAndReturnedInBranches() {
+		Map<ReturnStatement, VariableDeclaration> map = getTypeCheckMethodReturnedVariableMap();
+		int returnedInBranchCounter = 0;
+		int declaredInBranchCounter = 0;
+		for(ReturnStatement key : map.keySet()) {
+			for(Expression expression : typeCheckMap.keySet()) {
+				ArrayList<Statement> branchStatements = typeCheckMap.get(expression);
+				if(branchStatements.contains(key)) {
+					returnedInBranchCounter++;
+				}
+				for(Statement statement : branchStatements) {
+					if(statement instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+						List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+						for(VariableDeclarationFragment fragment : fragments) {
+							if(fragment.equals(map.get(key))) {
+								declaredInBranchCounter++;
+							}
+						}
+					}
+				}
+			}
+			if(defaultCaseStatements.contains(key)) {
+				returnedInBranchCounter++;
+			}
+			for(Statement statement : defaultCaseStatements) {
+				if(statement instanceof VariableDeclarationStatement) {
+					VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+					List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+					for(VariableDeclarationFragment fragment : fragments) {
+						if(fragment.equals(map.get(key))) {
+							declaredInBranchCounter++;
+						}
+					}
+				}
+			}
+		}
+		return map.size() == returnedInBranchCounter && map.size() == declaredInBranchCounter;
+	}
+
 	public VariableDeclaration getTypeCheckMethodReturnedVariable() {
 		StatementExtractor statementExtractor = new StatementExtractor();
 		ExpressionExtractor expressionExtractor = new ExpressionExtractor();

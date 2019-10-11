@@ -47,6 +47,7 @@ import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
+import org.eclipse.jdt.core.dom.rewrite.ImportRewrite;
 import org.eclipse.jdt.core.dom.rewrite.ListRewrite;
 import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.ltk.core.refactoring.Change;
@@ -367,12 +368,28 @@ public class ExtractMethodRefactoring extends ExtractMethodFragmentRefactoring {
 		
 		ListRewrite methodDeclarationRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		methodDeclarationRewrite.insertAfter(newMethodDeclaration, sourceMethodDeclaration, null);
+		
+		ImportRewrite importRewrite = ImportRewrite.create(sourceCompilationUnit, true);
+		for(ITypeBinding typeBinding : exceptionTypesThatShouldBeThrownByExtractedMethod) {
+			if(!typeBinding.isNested()) {
+				importRewrite.addImport(typeBinding);
+			}
+		}
+		
 		try {
+			TextEdit importEdit = importRewrite.rewriteImports(null);
+			if(importRewrite.getCreatedImports().length > 0) {
+				root.addChild(importEdit);
+				compilationUnitChange.addTextEditGroup(new TextEditGroup("Add required import declarations", new TextEdit[] {importEdit}));
+			}
 			TextEdit sourceEdit = sourceRewriter.rewriteAST();
 			root.addChild(sourceEdit);
 			compilationUnitChange.addTextEditGroup(new TextEditGroup("Create extracted method", new TextEdit[] {sourceEdit}));
 		} catch (JavaModelException e) {
 			e.printStackTrace();
+		}
+		catch(CoreException coreException) {
+			coreException.printStackTrace();
 		}
 	}
 

@@ -338,7 +338,7 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 						PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
 						listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 					}
-					else {
+					else if(!tryStatementBodyRewriteMap.containsKey(dstPDGNode.getASTStatement())) {
 						processStatementNode(listRewrite, dstPDGNode, ast, sourceRewriter);
 						sliceNodes.remove(dstPDGNode);
 					}
@@ -366,7 +366,7 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 						PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
 						listRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 					}
-					else {
+					else if(!tryStatementBodyRewriteMap.containsKey(dstPDGNode.getASTStatement())) {
 						processStatementNode(listRewrite, dstPDGNode, ast, sourceRewriter);
 						sliceNodes.remove(dstPDGNode);
 					}
@@ -404,7 +404,7 @@ public abstract class ExtractMethodFragmentRefactoring extends Refactoring {
 							PDGControlPredicateNode dstPredicateNode = (PDGControlPredicateNode)dstPDGNode;
 							bodyRewrite.insertLast(processPredicateNode(dstPredicateNode, ast, sourceRewriter, sliceNodes), null);
 						}
-						else {
+						else if(!tryStatementBodyRewriteMap.containsKey(dstPDGNode.getASTStatement())) {
 							processStatementNode(bodyRewrite, dstPDGNode, ast, sourceRewriter);
 							sliceNodes.remove(dstPDGNode);
 						}

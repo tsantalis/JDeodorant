@@ -1,5 +1,6 @@
 package gr.uom.java.jdeodorant.refactoring.manipulators;
 
+import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.util.ExpressionExtractor;
 import gr.uom.java.ast.util.MethodDeclarationUtility;
 
@@ -18,6 +19,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.Assignment;
@@ -701,11 +703,21 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 							subclassRewriter.set(methodInvocation, MethodInvocation.EXPRESSION_PROPERTY, subclassAST.newSimpleName(invokerName), null);
 							if(newSimpleName.getParent() instanceof FieldAccess) {
 								FieldAccess fieldAccess = (FieldAccess)newSimpleName.getParent();
-								subclassRewriter.replace(fieldAccess, methodInvocation, null);
+								if(newSimpleName.equals(fieldAccess.getName())) {
+									subclassRewriter.replace(fieldAccess, methodInvocation, null);
+								}
+								else {
+									subclassRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, methodInvocation, null);
+								}
 							}
 							else if(newSimpleName.getParent() instanceof QualifiedName) {
 								QualifiedName qualifiedName = (QualifiedName)newSimpleName.getParent();
-								subclassRewriter.replace(qualifiedName, methodInvocation, null);
+								if(newSimpleName.equals(qualifiedName.getName())) {
+									subclassRewriter.replace(qualifiedName, methodInvocation, null);
+								}
+								else {
+									subclassRewriter.set(qualifiedName, QualifiedName.QUALIFIER_PROPERTY, methodInvocation, null);
+								}
 							}
 							else {
 								subclassRewriter.replace(newSimpleName, methodInvocation, null);
@@ -804,7 +816,24 @@ public abstract class PolymorphismRefactoring extends Refactoring {
 		return null;
 	}
 
-	protected IFile getFile(IContainer rootContainer, String fullyQualifiedClassName) {
+	protected IFile getFile(String fullyQualifiedClassName) {
+		try {
+			IPackageFragmentRoot[] rootContainers = ASTReader.getExaminedProject().getAllPackageFragmentRoots();
+			for(IPackageFragmentRoot fragmentRoot : rootContainers) {
+				if(fragmentRoot.getKind() == IPackageFragmentRoot.K_SOURCE) {
+					IFile file = getFile((IContainer)fragmentRoot.getResource(), fullyQualifiedClassName);
+					if(file != null) {
+						return file;
+					}
+				}
+			}
+		} catch (JavaModelException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	private IFile getFile(IContainer rootContainer, String fullyQualifiedClassName) {
 		String[] subPackages = fullyQualifiedClassName.split("\\.");
 		IContainer classContainer = rootContainer;
 		IFile classFile = null;

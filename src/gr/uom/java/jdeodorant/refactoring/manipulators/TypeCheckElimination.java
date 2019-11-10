@@ -7,6 +7,7 @@ import gr.uom.java.ast.util.MethodDeclarationUtility;
 import gr.uom.java.ast.util.StatementExtractor;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -426,12 +427,24 @@ public class TypeCheckElimination implements Comparable<TypeCheckElimination> {
 	
 	public boolean isApplicable() {
 		if(!containsLocalVariableAssignment() && !containsBranchingStatement() && !containsSuperMethodInvocation() && !containsSuperFieldAccess() &&
-				!isSubclassTypeAnInterface() && !returnStatementAfterTypeCheckCodeFragment())
+				!isSubclassTypeAnInterface() && !returnStatementAfterTypeCheckCodeFragment() && !typeCheckClassPartOfExistingInheritanceTree())
 			return true;
 		else
 			return false;
 	}
 	
+	private boolean typeCheckClassPartOfExistingInheritanceTree() {
+		Collection<List<Type>> subTypeCollection = subclassTypeMap.values();
+		for(List<Type> subTypes : subTypeCollection) {
+			for(Type subType : subTypes) {
+				if(subType.resolveBinding().isEqualTo(typeCheckClass.resolveBinding())) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	private boolean isSubclassTypeAnInterface() {
 		for(List<Type> subTypes : subclassTypeMap.values()) {
 			for(Type subType : subTypes) {

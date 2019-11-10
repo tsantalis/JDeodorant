@@ -947,7 +947,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		IFile stateStrategyFile = null;
 		if(tree != null) {
 			DefaultMutableTreeNode rootNode = tree.getRootNode();
-			stateStrategyFile = getFile(rootContainer, (String)rootNode.getUserObject());
+			stateStrategyFile = getFile((String)rootNode.getUserObject());
 		}
 		else {
 			if(contextContainer instanceof IProject) {
@@ -1258,7 +1258,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				while(leaf != null) {
 					String qualifiedSubclassName = (String)leaf.getUserObject();
 					if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + subclassNames.get(i))) || qualifiedSubclassName.equals(subclassNames.get(i))) {
-						subclassFile = getFile(rootContainer, qualifiedSubclassName);
+						subclassFile = getFile(qualifiedSubclassName);
 						break;
 					}
 					leaf = leaf.getNextLeaf();
@@ -1649,7 +1649,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			while(leaf != null) {
 				String qualifiedSubclassName = (String)leaf.getUserObject();
 				if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + intermediateClassName)) || qualifiedSubclassName.equals(intermediateClassName)) {
-					intermediateClassFile = getFile(rootContainer, qualifiedSubclassName);
+					intermediateClassFile = getFile(qualifiedSubclassName);
 					break;
 				}
 				leaf = leaf.getNextLeaf();
@@ -1942,7 +1942,7 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				while(leaf != null) {
 					String qualifiedSubclassName = (String)leaf.getUserObject();
 					if((qualifiedSubclassName.contains(".") && qualifiedSubclassName.endsWith("." + subclassNames.get(i))) || qualifiedSubclassName.equals(subclassNames.get(i))) {
-						subclassFile = getFile(rootContainer, qualifiedSubclassName);
+						subclassFile = getFile(qualifiedSubclassName);
 						break;
 					}
 					leaf = leaf.getNextLeaf();

@@ -263,7 +263,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 				rootContainer = (IContainer)rootContainer.getParent();
 		}
 		String abstractClassFullyQualifiedName = typeCheckElimination.getAbstractClassName();
-		IFile abstractClassFile = getFile(rootContainer, abstractClassFullyQualifiedName);
+		IFile abstractClassFile = getFile(abstractClassFullyQualifiedName);
 		
 		ICompilationUnit abstractICompilationUnit = null;
 		CompilationUnit abstractCompilationUnit = null;
@@ -495,7 +495,7 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 			else {
 				statements = typeCheckElimination.getDefaultCaseStatements();
 			}
-			IFile subclassFile = getFile(rootContainer, subclassNames.get(i));
+			IFile subclassFile = getFile(subclassNames.get(i));
 			ICompilationUnit subclassICompilationUnit = null;
 			CompilationUnit subclassCompilationUnit = null;
 			AST subclassAST = null;

@@ -2300,6 +2300,50 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 							}
 						}
 					}
+					else if(statement instanceof VariableDeclarationStatement) {
+						VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)statement;
+						List<VariableDeclarationFragment> fragments = variableDeclarationStatement.fragments();
+						for(VariableDeclarationFragment fragment : fragments) {
+							Expression intializerExpression = fragment.getInitializer();
+							SimpleName accessedVariable = null;
+							if(intializerExpression instanceof SimpleName) {
+								accessedVariable = (SimpleName)intializerExpression;
+							}
+							else if(intializerExpression instanceof FieldAccess) {
+								FieldAccess fieldAccess = (FieldAccess)intializerExpression;
+								accessedVariable = fieldAccess.getName();
+							}
+							if(accessedVariable != null) {
+								IBinding initializerExpressionBinding = accessedVariable.resolveBinding();
+								if(initializerExpressionBinding != null && initializerExpressionBinding.getKind() == IBinding.VARIABLE) {
+									IVariableBinding accessedVariableBinding = (IVariableBinding)initializerExpressionBinding;
+									if(accessedVariableBinding.isField() && typeCheckElimination.getTypeField().resolveBinding().isEqualTo(accessedVariableBinding)) {
+										if(modify && !nodeExistsInsideTypeCheckCodeFragment(intializerExpression)) {
+											ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
+											AST contextAST = sourceTypeDeclaration.getAST();
+											MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+											if(typeCheckElimination.getTypeFieldGetterMethod() != null) {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, typeCheckElimination.getTypeFieldGetterMethod().getName(), null);
+											}
+											else {
+												sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName), null);
+											}
+											sourceRewriter.replace(intializerExpression, getterMethodInvocation, null);
+											try {
+												TextEdit sourceEdit = sourceRewriter.rewriteAST();
+												ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+												CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+												change.getEdit().addChild(sourceEdit);
+												change.addTextEditGroup(new TextEditGroup("Replace field access with invocation of getter method", new TextEdit[] {sourceEdit}));
+											} catch (JavaModelException e) {
+												e.printStackTrace();
+											}
+										}
+									}
+								}
+							}
+						}
+					}
 					List<Expression> methodInvocations = expressionExtractor.getMethodInvocations(statement);
 					for(Expression expression : methodInvocations) {
 						if(expression instanceof MethodInvocation) {

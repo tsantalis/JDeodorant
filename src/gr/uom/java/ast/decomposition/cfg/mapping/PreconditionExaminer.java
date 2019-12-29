@@ -622,7 +622,7 @@ public class PreconditionExaminer {
 							if((variable2.getVariableName().equals(variable1.getVariableName()) ||
 									variable1.getVariableName().equals(renamedVariableName)) &&
 									(variable2.getVariableType().equals(variable1.getVariableType()) ||
-											variableBinding1 != null && variableBinding2 != null && ASTNodeMatcher.commonSuperType(variableBinding1.getType(), variableBinding2.getType()) != null)) {
+											commonSuperType(variableBinding1, variableBinding2))) {
 								sortedVariables2.add(variable2);
 								break;
 							}
@@ -669,6 +669,45 @@ public class PreconditionExaminer {
 				}
 			}
 		}
+	}
+
+	private boolean commonSuperType(IVariableBinding variableBinding1, IVariableBinding variableBinding2) {
+		if(variableBinding1 != null && variableBinding2 != null) {
+			ITypeBinding typeBinding1 = variableBinding1.getType();
+			ITypeBinding typeBinding2 = variableBinding2.getType();
+			ITypeBinding commonSuperTypeBinding = ASTNodeMatcher.commonSuperType(typeBinding1, typeBinding2);
+			if(commonSuperTypeBinding != null) {
+				return true;
+			}
+			else if(typeBinding1.getQualifiedName().equals("java.lang.Number") && isNumberPrimitiveType(typeBinding2)) {
+				return true;
+			}
+			else if(isNumberPrimitiveType(typeBinding1) && typeBinding2.getQualifiedName().equals("java.lang.Number")) {
+				return true;
+			}
+			else if(typeBinding1.getName().equals("float") && typeBinding2.getName().equals("double")) {
+				return true;
+			}
+			else if(typeBinding1.getName().equals("double") && typeBinding2.getName().equals("float")) {
+				return true;
+			}
+			else if(typeBinding1.getName().equals("int") && typeBinding2.getName().equals("byte")) {
+				return true;
+			}
+			else if(typeBinding1.getName().equals("byte") && typeBinding2.getName().equals("int")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean isNumberPrimitiveType(ITypeBinding typeBinding) {
+		if(typeBinding.isPrimitive()) {
+			String name = typeBinding.getQualifiedName();
+			if(name.equals("byte") || name.equals("double") || name.equals("float") || name.equals("int") || name.equals("long") || name.equals("short"))
+				return true;
+		}
+		return false;
 	}
 
 	private VariableBindingKeyPair commonPassedParametersAlreadyContainOneOfTheKeys(VariableBindingKeyPair keyPair) {

@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
@@ -93,13 +94,16 @@ public class ExtractClassCandidateRefactoring extends CandidateRefactoring imple
 	}
 
 	public Set<VariableDeclaration> getExtractedFieldFragments() {
-		Set<VariableDeclaration> extractedFieldFragments = new LinkedHashSet<VariableDeclaration>();
+		Map<Integer, VariableDeclaration> extractedFieldFragmentMap = new TreeMap<Integer, VariableDeclaration>();
 		for(Entity entity : extractedEntities) {
 			if(entity instanceof MyAttribute) {
 				MyAttribute attribute = (MyAttribute)entity;
-				extractedFieldFragments.add(attribute.getFieldObject().getVariableDeclaration());
+				int index = sourceClass.getAttributeList().indexOf(attribute);
+				extractedFieldFragmentMap.put(index, attribute.getFieldObject().getVariableDeclaration());
 			}
 		}
+		Set<VariableDeclaration> extractedFieldFragments = new LinkedHashSet<VariableDeclaration>();
+		extractedFieldFragments.addAll(extractedFieldFragmentMap.values());
 		return extractedFieldFragments;
 	}
 

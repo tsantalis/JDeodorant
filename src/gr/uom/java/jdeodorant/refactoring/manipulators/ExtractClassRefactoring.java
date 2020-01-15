@@ -3488,7 +3488,31 @@ public class ExtractClassRefactoring extends Refactoring {
 													setterMethodInvocationArgumentsRewrite.insertLast(infixExpression, null);
 												}
 												else {
-													setterMethodInvocationArgumentsRewrite.insertLast(assignment.getRightHandSide(), null);
+													if(accessedVariables.contains(rightHandSide)) {
+														IBinding rightHandBinding = ((SimpleName)rightHandSide).resolveBinding();
+														if(rightHandBinding != null && rightHandBinding.getKind() == IBinding.VARIABLE) {
+															IVariableBinding accessedVariableBinding = (IVariableBinding)rightHandBinding;
+															if(accessedVariableBinding.isField() && fieldFragment.resolveBinding().isEqualTo(accessedVariableBinding)) {
+																MethodInvocation getterMethodInvocation = contextAST.newMethodInvocation();
+																sourceRewriter.set(getterMethodInvocation, MethodInvocation.NAME_PROPERTY, contextAST.newSimpleName(getterMethodName), null);
+																if((accessedVariableBinding.getModifiers() & Modifier.STATIC) != 0) {
+																	sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(extractedTypeName), null);
+																}
+																else {
+																	sourceRewriter.set(getterMethodInvocation, MethodInvocation.EXPRESSION_PROPERTY, contextAST.newSimpleName(modifiedExtractedTypeName), null);
+																}
+																setterMethodInvocationArgumentsRewrite.insertLast(getterMethodInvocation, null);
+																rewriteAST = true;
+																accessedFields.add(fieldFragment);
+															}
+															else {
+																setterMethodInvocationArgumentsRewrite.insertLast(rightHandSide, null);
+															}
+														}
+													}
+													else {
+														setterMethodInvocationArgumentsRewrite.insertLast(rightHandSide, null);
+													}
 												}
 												if(leftHandSide instanceof QualifiedName) {
 													Name qualifier = contextAST.newName(((QualifiedName)leftHandSide).getQualifier().getFullyQualifiedName());

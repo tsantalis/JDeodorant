@@ -261,18 +261,12 @@ public class ExtractClassRefactoring extends Refactoring {
 		createExtractedClass(modifiedFieldsInNonExtractedMethods, accessedFieldsInNonExtractedMethods);
 		modifyExtractedMethodInvocationsInSourceClass();
 		handleInitializationOfExtractedFieldsWithThisExpressionInTheirInitializer();
-		for(Statement statement : statementRewriteMap.keySet()) {
-			ASTRewrite sourceRewriter = statementRewriteMap.get(statement);
-			try {
-				TextEdit sourceEdit = sourceRewriter.rewriteAST();
-				ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
-				CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
-				change.getEdit().addChild(sourceEdit);
-				change.addTextEditGroup(new TextEditGroup("Change access of extracted member", new TextEdit[] {sourceEdit}));
-			}
-			catch(JavaModelException javaModelException) {
-				javaModelException.printStackTrace();
-			}
+		List<TextEdit> textEdits = deleteOverlappingDeleteEdits();
+		for(TextEdit sourceEdit : textEdits) {
+			ICompilationUnit sourceICompilationUnit = (ICompilationUnit)sourceCompilationUnit.getJavaElement();
+			CompilationUnitChange change = compilationUnitChanges.get(sourceICompilationUnit);
+			change.getEdit().addChild(sourceEdit);
+			change.addTextEditGroup(new TextEditGroup("Change access of extracted member", new TextEdit[] {sourceEdit}));
 		}
 		Set<MethodDeclaration> methodsToBeRemoved = new LinkedHashSet<MethodDeclaration>();
 		for(MethodDeclaration method : extractedMethods) {
@@ -283,6 +277,31 @@ public class ExtractClassRefactoring extends Refactoring {
 		}
 		if(methodsToBeRemoved.size() > 0)
 			removeSourceMethods(methodsToBeRemoved);
+	}
+
+	private List<TextEdit> deleteOverlappingDeleteEdits() {
+		List<TextEdit> textEdits = new ArrayList<TextEdit>();
+		for(Statement statement : statementRewriteMap.keySet()) {
+			ASTRewrite sourceRewriter = statementRewriteMap.get(statement);
+			try {
+				TextEdit sourceEdit = sourceRewriter.rewriteAST();
+				if(textEdits.size() > 0) {
+					TextEdit previousTextEdit = textEdits.get(textEdits.size()-1);
+					for(TextEdit previousChild : previousTextEdit.getChildren()) {
+						for(TextEdit currentChild : sourceEdit.getChildren()) {
+							if(currentChild.getOffset() == previousChild.getOffset() && currentChild.getLength() == previousChild.getLength()) {
+								sourceEdit.removeChild(currentChild);
+								break;
+							}
+						}
+					}
+				}
+				textEdits.add(sourceEdit);
+			} catch (JavaModelException e) {
+				e.printStackTrace();
+			}
+		}
+		return textEdits;
 	}
 
 	private void handleInitializationOfExtractedFieldsWithThisExpressionInTheirInitializer() {
@@ -722,8 +741,14 @@ public class ExtractClassRefactoring extends Refactoring {
         			parameterType = ((SingleVariableDeclaration)variableDeclaration).getType();
         		}
         		else if(variableDeclaration instanceof VariableDeclarationFragment) {
-        			VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclaration.getParent();
-        			parameterType = variableDeclarationStatement.getType();
+        			if(variableDeclaration.getParent() instanceof VariableDeclarationStatement) {
+        				VariableDeclarationStatement variableDeclarationStatement = (VariableDeclarationStatement)variableDeclaration.getParent();
+        				parameterType = variableDeclarationStatement.getType();
+        			}
+        			else if(variableDeclaration.getParent() instanceof FieldDeclaration) {
+        				FieldDeclaration fieldDeclaration = (FieldDeclaration)variableDeclaration.getParent();
+        				parameterType = fieldDeclaration.getType();
+        			}
         		}
         		SingleVariableDeclaration constructorParameter = extractedClassAST.newSingleVariableDeclaration();
         		extractedClassRewriter.set(constructorParameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
@@ -2874,6 +2899,28 @@ public class ExtractClassRefactoring extends Refactoring {
 	        					}
 	        					if(foundInVariableDeclarationStatement) {
 	        						break;
+	        					}
+	        				}
+	        				if(!foundInVariableDeclarationStatement) {
+	        					boolean foundInFieldDeclaration = false;
+	        					for(FieldDeclaration fieldDeclaration : sourceTypeDeclaration.getFields()) {
+	        						List<VariableDeclarationFragment> fragments = fieldDeclaration.fragments();
+		        					for(VariableDeclarationFragment fragment : fragments) {
+		        						if(fragment.resolveBinding().isEqualTo(simpleName.resolveBinding())) {
+		        							if(!extractedClassConstructorParameters.contains(fragment)) {
+		        								classInstanceCreationArgumentsRewrite.insertLast(simpleName, null);
+		    	        						extractedClassConstructorParameters.add(fragment);
+		    	        						Set<ITypeBinding> typeBindings = new LinkedHashSet<ITypeBinding>();
+		    	        						typeBindings.add(fieldDeclaration.getType().resolveBinding());
+		    	        						RefactoringUtility.getSimpleTypeBindings(typeBindings, requiredImportDeclarationsInExtractedClass);
+		    	        						foundInFieldDeclaration = true;
+		    	        						break;
+		        							}
+		        						}
+		        					}
+		        					if(foundInFieldDeclaration) {
+		        						break;
+		        					}
 	        					}
 	        				}
 	        			}

@@ -64,7 +64,7 @@ public class ASTReader {
 
 	private static SystemObject systemObject;
 	private static IJavaProject examinedProject;
-	public static final int JLS = AST.JLS8;
+	public static final int JLS = AST.JLS14;
 
 	public ASTReader(IJavaProject iJavaProject, IProgressMonitor monitor) throws CompilationErrorDetectedException {
 		List<IMarker> markers = buildProject(iJavaProject, monitor);

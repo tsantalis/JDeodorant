@@ -761,7 +761,19 @@ public class ExtractClassRefactoring extends Refactoring {
         		Assignment fieldAssignment = finalFieldAssignmentMap.get(fieldFragment);
         		Assignment newFieldAssignment = extractedClassAST.newAssignment();
         		extractedClassRewriter.set(newFieldAssignment, Assignment.LEFT_HAND_SIDE_PROPERTY, fieldAssignment.getLeftHandSide(), null);
-        		extractedClassRewriter.set(newFieldAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, fieldAssignment.getRightHandSide(), null);
+        		if(fieldAssignment.getRightHandSide() instanceof MethodInvocation) {
+        			MethodInvocation invocation = (MethodInvocation)fieldAssignment.getRightHandSide();
+        			SimpleName variableName = extractedClassAST.newSimpleName(invocation.resolveMethodBinding().getName());
+        			extractedClassRewriter.set(newFieldAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, variableName, null);
+        		}
+        		else if(fieldAssignment.getRightHandSide() instanceof ClassInstanceCreation) {
+        			ClassInstanceCreation creation = (ClassInstanceCreation)fieldAssignment.getRightHandSide();
+        			SimpleName variableName = extractedClassAST.newSimpleName(creation.resolveConstructorBinding().getName());
+        			extractedClassRewriter.set(newFieldAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, variableName, null);
+        		}
+        		else {
+        			extractedClassRewriter.set(newFieldAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, fieldAssignment.getRightHandSide(), null);
+        		}
         		extractedClassRewriter.set(newFieldAssignment, Assignment.OPERATOR_PROPERTY, fieldAssignment.getOperator(), null);
         		ExpressionStatement assignmentStatement = extractedClassAST.newExpressionStatement(newFieldAssignment);
         		extractedClassConstructorBodyStatementsRewrite.insertLast(assignmentStatement, null);

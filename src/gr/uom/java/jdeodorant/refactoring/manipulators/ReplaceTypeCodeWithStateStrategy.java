@@ -314,13 +314,20 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		AST contextAST = sourceTypeDeclaration.getAST();
 		ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
 		MethodDeclaration setterMethod = typeCheckElimination.getTypeFieldSetterMethod();
-		SwitchStatement switchStatement = contextAST.newSwitchStatement();
+		SimpleName parameterName = null;
+		if(setterMethod != null) {
+			List<SingleVariableDeclaration> setterMethodParameters = setterMethod.parameters();
+			parameterName = setterMethodParameters.get(0).getName();
+		}
+		else {
+			parameterName = typeCheckElimination.getTypeField().getName();
+		}
 		List<SimpleName> staticFieldNames = new ArrayList<SimpleName>(staticFieldMap.keySet());
 		List<String> subclassNames = new ArrayList<String>(staticFieldMap.values());
-		ListRewrite switchStatementStatementsRewrite = sourceRewriter.getListRewrite(switchStatement, SwitchStatement.STATEMENTS_PROPERTY);
 		int i = 0;
+		List<IfStatement> ifStatements = new ArrayList<IfStatement>();
 		for(SimpleName staticFieldName : staticFieldNames) {
-			SwitchCase switchCase = contextAST.newSwitchCase();
+			IfStatement ifStatement = contextAST.newIfStatement();
 			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
 			String staticFieldNameDeclaringClass = null;
 			boolean isEnumConstant = false;
@@ -331,16 +338,19 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
 				}
 			}
+			InfixExpression infixExpression = contextAST.newInfixExpression();
+			sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, parameterName, null);
+			sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.EQUALS, null);
 			if(staticFieldNameDeclaringClass == null || isEnumConstant) {
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+				sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, staticFieldName, null);
 			}
 			else {
 				FieldAccess fieldAccess = contextAST.newFieldAccess();
 				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
 				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+				sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, fieldAccess, null);
 			}
-			switchStatementStatementsRewrite.insertLast(switchCase, null);
+			sourceRewriter.set(ifStatement, IfStatement.EXPRESSION_PROPERTY, infixExpression, null);
 			Assignment assignment = contextAST.newAssignment();
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
 			FieldAccess typeFieldAccess = contextAST.newFieldAccess();
@@ -350,12 +360,12 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
 			sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
 			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
-			switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(assignment), null);
-			switchStatementStatementsRewrite.insertLast(contextAST.newBreakStatement(), null);
+			sourceRewriter.set(ifStatement, IfStatement.THEN_STATEMENT_PROPERTY, contextAST.newExpressionStatement(assignment), null);
+			ifStatements.add(ifStatement);
 			i++;
 		}
 		for(SimpleName staticFieldName : additionalStaticFieldMap.keySet()) {
-			SwitchCase switchCase = contextAST.newSwitchCase();
+			IfStatement ifStatement = contextAST.newIfStatement();
 			IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
 			String staticFieldNameDeclaringClass = null;
 			boolean isEnumConstant = false;
@@ -366,16 +376,19 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 					staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
 				}
 			}
+			InfixExpression infixExpression = contextAST.newInfixExpression();
+			sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, parameterName, null);
+			sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.EQUALS, null);
 			if(staticFieldNameDeclaringClass == null || isEnumConstant) {
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
+				sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, staticFieldName, null);
 			}
 			else {
 				FieldAccess fieldAccess = contextAST.newFieldAccess();
 				sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
 				sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
-				sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
+				sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, fieldAccess, null);
 			}
-			switchStatementStatementsRewrite.insertLast(switchCase, null);
+			sourceRewriter.set(ifStatement, IfStatement.EXPRESSION_PROPERTY, infixExpression, null);
 			Assignment assignment = contextAST.newAssignment();
 			sourceRewriter.set(assignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
 			FieldAccess typeFieldAccess = contextAST.newFieldAccess();
@@ -385,12 +398,9 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
 			sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(additionalStaticFieldMap.get(staticFieldName)), null);
 			sourceRewriter.set(assignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, classInstanceCreation, null);
-			switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(assignment), null);
-			switchStatementStatementsRewrite.insertLast(contextAST.newBreakStatement(), null);
+			sourceRewriter.set(ifStatement, IfStatement.THEN_STATEMENT_PROPERTY, contextAST.newExpressionStatement(assignment), null);
+			ifStatements.add(ifStatement);
 		}
-		SwitchCase switchCase = contextAST.newSwitchCase();
-		sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, null, null);
-		switchStatementStatementsRewrite.insertLast(switchCase, null);
 		Assignment nullAssignment = contextAST.newAssignment();
 		sourceRewriter.set(nullAssignment, Assignment.OPERATOR_PROPERTY, Assignment.Operator.ASSIGN, null);
 		FieldAccess typeFieldAccess = contextAST.newFieldAccess();
@@ -398,18 +408,17 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 		sourceRewriter.set(typeFieldAccess, FieldAccess.NAME_PROPERTY, typeCheckElimination.getTypeField().getName(), null);
 		sourceRewriter.set(nullAssignment, Assignment.LEFT_HAND_SIDE_PROPERTY, typeFieldAccess, null);
 		sourceRewriter.set(nullAssignment, Assignment.RIGHT_HAND_SIDE_PROPERTY, contextAST.newNullLiteral(), null);
-		switchStatementStatementsRewrite.insertLast(contextAST.newExpressionStatement(nullAssignment), null);
-		switchStatementStatementsRewrite.insertLast(contextAST.newBreakStatement(), null);
+		ExpressionStatement nullAssignmentStatement = contextAST.newExpressionStatement(nullAssignment);
 		if(setterMethod != null) {
-			List<SingleVariableDeclaration> setterMethodParameters = setterMethod.parameters();
-			if(setterMethodParameters.size() == 1) {
-				sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, setterMethodParameters.get(0).getName(), null);
-			}
 			Block setterMethodBody = setterMethod.getBody();
 			List<Statement> setterMethodBodyStatements = setterMethodBody.statements();
 			ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
 			if(setterMethodBodyStatements.size() == 1) {
-				setterMethodBodyRewrite.replace(setterMethodBodyStatements.get(0), switchStatement, null);
+				setterMethodBodyRewrite.remove(setterMethodBodyStatements.get(0), null);
+				for(IfStatement ifStatement : ifStatements) {
+					setterMethodBodyRewrite.insertLast(ifStatement, null);
+				}
+				setterMethodBodyRewrite.insertLast(nullAssignmentStatement, null);
 			}
 			try {
 				TextEdit sourceEdit = sourceRewriter.rewriteAST();
@@ -435,10 +444,12 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, typeField.getName(), null);
 			setterMethodParameterRewrite.insertLast(parameter, null);
 			
-			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, typeField.getName(), null);
 			Block setterMethodBody = contextAST.newBlock();
 			ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
-			setterMethodBodyRewrite.insertLast(switchStatement, null);
+			for(IfStatement ifStatement : ifStatements) {
+				setterMethodBodyRewrite.insertLast(ifStatement, null);
+			}
+			setterMethodBodyRewrite.insertLast(nullAssignmentStatement, null);
 			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.BODY_PROPERTY, setterMethodBody, null);
 			contextBodyRewrite.insertLast(setterMethodDeclaration, null);
 			try {
@@ -661,78 +672,6 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 			ASTRewrite sourceRewriter = ASTRewrite.create(sourceTypeDeclaration.getAST());
 			AST contextAST = sourceTypeDeclaration.getAST();
 			ListRewrite contextBodyRewrite = sourceRewriter.getListRewrite(sourceTypeDeclaration, TypeDeclaration.BODY_DECLARATIONS_PROPERTY);
-			SwitchStatement switchStatement = contextAST.newSwitchStatement();
-			List<SimpleName> staticFieldNames = new ArrayList<SimpleName>(staticFieldMap.keySet());
-			List<String> subclassNames = new ArrayList<String>(staticFieldMap.values());
-			ListRewrite switchStatementStatementsRewrite = sourceRewriter.getListRewrite(switchStatement, SwitchStatement.STATEMENTS_PROPERTY);
-			int i = 0;
-			for(SimpleName staticFieldName : staticFieldNames) {
-				SwitchCase switchCase = contextAST.newSwitchCase();
-				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
-				String staticFieldNameDeclaringClass = null;
-				boolean isEnumConstant = false;
-				if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
-					isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
-					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
-						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
-					}
-				}
-				if(staticFieldNameDeclaringClass == null || isEnumConstant) {
-					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
-				}
-				else {
-					FieldAccess fieldAccess = contextAST.newFieldAccess();
-					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
-					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
-					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
-				}
-				switchStatementStatementsRewrite.insertLast(switchCase, null);
-				ReturnStatement returnStatement = contextAST.newReturnStatement();
-				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
-				sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
-				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
-				switchStatementStatementsRewrite.insertLast(returnStatement, null);
-				i++;
-			}
-			for(SimpleName staticFieldName : additionalStaticFieldMap.keySet()) {
-				SwitchCase switchCase = contextAST.newSwitchCase();
-				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
-				String staticFieldNameDeclaringClass = null;
-				boolean isEnumConstant = false;
-				if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
-					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
-					isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
-					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
-						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
-					}
-				}
-				if(staticFieldNameDeclaringClass == null || isEnumConstant) {
-					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, staticFieldName, null);
-				}
-				else {
-					FieldAccess fieldAccess = contextAST.newFieldAccess();
-					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
-					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
-					sourceRewriter.set(switchCase, SwitchCase.EXPRESSION_PROPERTY, fieldAccess, null);
-				}
-				switchStatementStatementsRewrite.insertLast(switchCase, null);
-				ReturnStatement returnStatement = contextAST.newReturnStatement();
-				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
-				sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(additionalStaticFieldMap.get(staticFieldName)), null);
-				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
-				switchStatementStatementsRewrite.insertLast(returnStatement, null);
-			}
-			
-			MethodDeclaration setterMethodDeclaration = contextAST.newMethodDeclaration();
-			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName + "Object"), null);
-			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newSimpleType(contextAST.newSimpleName(abstractClassName)), null);
-			ListRewrite setterMethodModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
-			setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
-			if((typeCheckElimination.getTypeCheckMethod().resolveBinding().getModifiers() & Modifier.STATIC) != 0)
-				setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
-			ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
-			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
 			Type parameterType = null;
 			SimpleName parameterName = null;
 			if(typeCheckElimination.getTypeLocalVariable() != null) {
@@ -766,14 +705,94 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 				parameterName = foreignTypeField.getName();
 				
 			}
+			List<SimpleName> staticFieldNames = new ArrayList<SimpleName>(staticFieldMap.keySet());
+			List<String> subclassNames = new ArrayList<String>(staticFieldMap.values());
+			int i = 0;
+			List<IfStatement> ifStatements = new ArrayList<IfStatement>();
+			for(SimpleName staticFieldName : staticFieldNames) {
+				IfStatement ifStatement = contextAST.newIfStatement();
+				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+				String staticFieldNameDeclaringClass = null;
+				boolean isEnumConstant = false;
+				if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
+					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
+				}
+				InfixExpression infixExpression = contextAST.newInfixExpression();
+				sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, parameterName, null);
+				sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.EQUALS, null);
+				if(staticFieldNameDeclaringClass == null || isEnumConstant) {
+					sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, staticFieldName, null);
+				}
+				else {
+					FieldAccess fieldAccess = contextAST.newFieldAccess();
+					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+					sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, fieldAccess, null);
+				}
+				sourceRewriter.set(ifStatement, IfStatement.EXPRESSION_PROPERTY, infixExpression, null);
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+				sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(subclassNames.get(i)), null);
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
+				sourceRewriter.set(ifStatement, IfStatement.THEN_STATEMENT_PROPERTY, returnStatement, null);
+				ifStatements.add(ifStatement);
+				i++;
+			}
+			for(SimpleName staticFieldName : additionalStaticFieldMap.keySet()) {
+				IfStatement ifStatement = contextAST.newIfStatement();
+				IBinding staticFieldNameBinding = staticFieldName.resolveBinding();
+				String staticFieldNameDeclaringClass = null;
+				boolean isEnumConstant = false;
+				if(staticFieldNameBinding != null && staticFieldNameBinding.getKind() == IBinding.VARIABLE) {
+					IVariableBinding staticFieldNameVariableBinding = (IVariableBinding)staticFieldNameBinding;
+					isEnumConstant = staticFieldNameVariableBinding.isEnumConstant();
+					if(!sourceTypeDeclaration.resolveBinding().isEqualTo(staticFieldNameVariableBinding.getDeclaringClass())) {
+						staticFieldNameDeclaringClass = staticFieldNameVariableBinding.getDeclaringClass().getName();
+					}
+				}
+				InfixExpression infixExpression = contextAST.newInfixExpression();
+				sourceRewriter.set(infixExpression, InfixExpression.LEFT_OPERAND_PROPERTY, parameterName, null);
+				sourceRewriter.set(infixExpression, InfixExpression.OPERATOR_PROPERTY, InfixExpression.Operator.EQUALS, null);
+				if(staticFieldNameDeclaringClass == null || isEnumConstant) {
+					sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, staticFieldName, null);
+				}
+				else {
+					FieldAccess fieldAccess = contextAST.newFieldAccess();
+					sourceRewriter.set(fieldAccess, FieldAccess.EXPRESSION_PROPERTY, contextAST.newSimpleName(staticFieldNameDeclaringClass), null);
+					sourceRewriter.set(fieldAccess, FieldAccess.NAME_PROPERTY, staticFieldName, null);
+					sourceRewriter.set(infixExpression, InfixExpression.RIGHT_OPERAND_PROPERTY, fieldAccess, null);
+				}
+				sourceRewriter.set(ifStatement, IfStatement.EXPRESSION_PROPERTY, infixExpression, null);
+				ReturnStatement returnStatement = contextAST.newReturnStatement();
+				ClassInstanceCreation classInstanceCreation = contextAST.newClassInstanceCreation();
+				sourceRewriter.set(classInstanceCreation, ClassInstanceCreation.TYPE_PROPERTY, contextAST.newSimpleName(additionalStaticFieldMap.get(staticFieldName)), null);
+				sourceRewriter.set(returnStatement, ReturnStatement.EXPRESSION_PROPERTY, classInstanceCreation, null);
+				sourceRewriter.set(ifStatement, IfStatement.THEN_STATEMENT_PROPERTY, returnStatement, null);
+				ifStatements.add(ifStatement);
+			}
+			
+			MethodDeclaration setterMethodDeclaration = contextAST.newMethodDeclaration();
+			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.NAME_PROPERTY, contextAST.newSimpleName("get" + abstractClassName + "Object"), null);
+			sourceRewriter.set(setterMethodDeclaration, MethodDeclaration.RETURN_TYPE2_PROPERTY, contextAST.newSimpleType(contextAST.newSimpleName(abstractClassName)), null);
+			ListRewrite setterMethodModifiersRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.MODIFIERS2_PROPERTY);
+			setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD), null);
+			if((typeCheckElimination.getTypeCheckMethod().resolveBinding().getModifiers() & Modifier.STATIC) != 0)
+				setterMethodModifiersRewrite.insertLast(contextAST.newModifier(Modifier.ModifierKeyword.STATIC_KEYWORD), null);
+			ListRewrite setterMethodParameterRewrite = sourceRewriter.getListRewrite(setterMethodDeclaration, MethodDeclaration.PARAMETERS_PROPERTY);
+			SingleVariableDeclaration parameter = contextAST.newSingleVariableDeclaration();
 			sourceRewriter.set(parameter, SingleVariableDeclaration.TYPE_PROPERTY, parameterType, null);
 			sourceRewriter.set(parameter, SingleVariableDeclaration.NAME_PROPERTY, parameterName, null);
 			setterMethodParameterRewrite.insertLast(parameter, null);
 			
-			sourceRewriter.set(switchStatement, SwitchStatement.EXPRESSION_PROPERTY, parameterName, null);
 			Block setterMethodBody = contextAST.newBlock();
 			ListRewrite setterMethodBodyRewrite = sourceRewriter.getListRewrite(setterMethodBody, Block.STATEMENTS_PROPERTY);
-			setterMethodBodyRewrite.insertLast(switchStatement, null);
+			for(IfStatement ifStatement : ifStatements) {
+				setterMethodBodyRewrite.insertLast(ifStatement, null);
+			}
 			ReturnStatement defaultReturnStatement = contextAST.newReturnStatement();
 			sourceRewriter.set(defaultReturnStatement, ReturnStatement.EXPRESSION_PROPERTY, contextAST.newNullLiteral(), null);
 			setterMethodBodyRewrite.insertLast(defaultReturnStatement, null);
@@ -905,13 +924,13 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 						Block contextMethodBody = contextMethod.getBody();
 						if(contextMethodBody != null) {
 							List<Statement> statements = contextMethodBody.statements();
-							if(statements.size() > 0 && statements.get(0) instanceof SwitchStatement) {
-								SwitchStatement switchStatement = (SwitchStatement)statements.get(0);
-								List<Statement> statements2 = switchStatement.statements();
-								int matchCounter = 0;
-								for(Statement statement2 : statements2) {
-									if(statement2 instanceof ReturnStatement) {
-										ReturnStatement returnStatement = (ReturnStatement)statement2;
+							int matchCounter = 0;
+							for(Statement statement : statements) {
+								if(statement instanceof IfStatement) {
+									IfStatement ifStatement = (IfStatement)statement;
+									Statement thenStatement = ifStatement.getThenStatement();
+									if(thenStatement instanceof ReturnStatement) {
+										ReturnStatement returnStatement = (ReturnStatement)thenStatement;
 										Expression returnStatementExpression = returnStatement.getExpression();
 										if(returnStatementExpression instanceof ClassInstanceCreation) {
 											ClassInstanceCreation classInstanceCreation = (ClassInstanceCreation)returnStatementExpression;
@@ -922,9 +941,9 @@ public class ReplaceTypeCodeWithStateStrategy extends PolymorphismRefactoring {
 										}
 									}
 								}
-								if(matchCounter == subclassNames.size())
-									return true;
 							}
+							if(matchCounter == subclassNames.size())
+								return true;
 						}
 					}
 				}

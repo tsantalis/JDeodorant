@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: JDeodorant Plug-in
 Bundle-SymbolicName: gr.uom.java.jdeodorant; singleton:=true
-Bundle-Version: 5.0.79
+Bundle-Version: 5.0.80
 Bundle-Activator: gr.uom.java.jdeodorant.refactoring.Activator
 Bundle-Localization: plugin
 Require-Bundle: org.eclipse.ui,

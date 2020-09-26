@@ -78,7 +78,7 @@ public class MyAbstractExpression {
     
     private MethodInvocationObject recurseDelegations(MethodInvocationObject methodInvocation, SystemObject system) {
     	MethodInvocationObject delegation;
-    	if((delegation = system.containsDelegate(methodInvocation)) != null && system.getClassObject(delegation.getOriginClassName()) != null)
+    	if((delegation = system.containsDelegate(methodInvocation)) != null && system.getClassObject(delegation.getOriginClassName()) != null && !methodInvocation.equals(delegation))
     		return recurseDelegations(delegation, system);
     	else
     		return methodInvocation;

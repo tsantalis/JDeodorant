@@ -717,6 +717,11 @@ public class DuplicatedCode extends ViewPart {
 						if (iCompilationUnit != null && iCompilationUnit.exists())
 							return iCompilationUnit;
 					}
+					else {
+						ICompilationUnit iCompilationUnit = (ICompilationUnit)JavaCore.create(iJavaProject.getProject().getFile(fullName));
+						if (iCompilationUnit != null && iCompilationUnit.exists())
+							return iCompilationUnit;
+					}
 				}
 			}
 		} catch (JavaModelException e) {

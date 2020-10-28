@@ -1231,6 +1231,10 @@ public class ExtractClassRefactoring extends Refactoring {
 					break;
 				}
 			}
+			if(originalParameterTypeBinding.getDeclaringClass() != null && originalParameterTypeBinding.getDeclaringClass().isEqualTo(sourceTypeDeclaration.resolveBinding()) &&
+					(originalParameterTypeBinding.getModifiers() & Modifier.PRIVATE) != 0) {
+				setPublicModifierToSourceMemberType(originalParameterTypeBinding);
+			}
 			i++;
 		}
 		requiredImportDeclarationsInExtractedClass.removeAll(typeBindingsToBeRemoved);

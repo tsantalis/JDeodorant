@@ -1,6 +1,8 @@
 package gr.uom.java.ast.inheritance;
 
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
+
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -23,9 +25,9 @@ public class InheritanceTree {
     }
 
     public boolean contains(String nodeName) {
-    	Enumeration<DefaultMutableTreeNode> e = rootNode.breadthFirstEnumeration();
+    	Enumeration<TreeNode> e = rootNode.breadthFirstEnumeration();
         while(e.hasMoreElements()) {
-            DefaultMutableTreeNode node = e.nextElement();
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode) e.nextElement();
             if(node.getUserObject().equals(nodeName)) {
             	return true;
             }
@@ -35,9 +37,9 @@ public class InheritanceTree {
 
     public DefaultMutableTreeNode getNode(String nodeName) {
         if(rootNode != null) {
-            Enumeration<DefaultMutableTreeNode> e = rootNode.breadthFirstEnumeration();
+            Enumeration<TreeNode> e = rootNode.breadthFirstEnumeration();
             while(e.hasMoreElements()) {
-                DefaultMutableTreeNode node = e.nextElement();
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode) e.nextElement();
                 if(node.getUserObject().equals(nodeName)) {
                     return node;
                 }
@@ -70,9 +72,9 @@ public class InheritanceTree {
 
     public TreeMap<Integer, Set<String>> getLeavesByLevel() {
     	TreeMap<Integer, Set<String>> levelMap = new TreeMap<Integer, Set<String>>();
-    	Enumeration<DefaultMutableTreeNode> e = rootNode.breadthFirstEnumeration();
+    	Enumeration<TreeNode> e = rootNode.breadthFirstEnumeration();
     	while(e.hasMoreElements()) {
-            DefaultMutableTreeNode node = e.nextElement();
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode) e.nextElement();
             if(node.isLeaf()) {
             	int level = node.getLevel();
             	if(levelMap.containsKey(level)) {

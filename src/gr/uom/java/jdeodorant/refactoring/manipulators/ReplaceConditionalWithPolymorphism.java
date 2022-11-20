@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
 
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
@@ -477,9 +478,9 @@ public class ReplaceConditionalWithPolymorphism extends PolymorphismRefactoring 
 		List<ArrayList<Statement>> typeCheckStatements = typeCheckElimination.getTypeCheckStatements();
 		List<String> subclassNames = typeCheckElimination.getSubclassNames();
 		DefaultMutableTreeNode root = typeCheckElimination.getExistingInheritanceTree().getRootNode();
-		Enumeration<DefaultMutableTreeNode> enumeration = root.children();
+		Enumeration<TreeNode> enumeration = root.children();
 		while(enumeration.hasMoreElements()) {
-			DefaultMutableTreeNode child = enumeration.nextElement();
+			DefaultMutableTreeNode child = (DefaultMutableTreeNode) enumeration.nextElement();
 			String childClassName = (String)child.getUserObject();
 			if(!subclassNames.contains(childClassName))
 				subclassNames.add(childClassName);

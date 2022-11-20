@@ -2770,7 +2770,7 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else if(oldStatement instanceof TryStatement) {
 				TryStatement oldTryStatement = (TryStatement)oldStatement;
 				TryStatement newTryStatement = ast.newTryStatement();
-				ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES_PROPERTY);
+				ListRewrite resourceRewrite = sourceRewriter.getListRewrite(newTryStatement, TryStatement.RESOURCES2_PROPERTY);
 				List<VariableDeclarationExpression> resources = oldTryStatement.resources();
 				for(VariableDeclarationExpression expression : resources) {
 					Expression newResourceExpression = (Expression)processASTNodeWithDifferences(ast, sourceRewriter, expression, nodeMapping);

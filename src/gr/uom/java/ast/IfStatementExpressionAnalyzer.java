@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
 
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.InfixExpression;
@@ -268,9 +269,9 @@ public class IfStatementExpressionAnalyzer {
 	}
 	
 	public boolean allParentNodesAreConditionalAndOperators() {
-		Enumeration<DefaultMutableTreeNode> enumeration = root.breadthFirstEnumeration();
+		Enumeration<TreeNode> enumeration = root.breadthFirstEnumeration();
 		while(enumeration.hasMoreElements()) {
-			DefaultMutableTreeNode node = enumeration.nextElement();
+			DefaultMutableTreeNode node = (DefaultMutableTreeNode) enumeration.nextElement();
 			if(!node.isLeaf()) {
 				InfixExpression.Operator operator = (InfixExpression.Operator)node.getUserObject();
 				if(!operator.equals(InfixExpression.Operator.CONDITIONAL_AND))
@@ -281,9 +282,9 @@ public class IfStatementExpressionAnalyzer {
 	}
 
 	public boolean allParentNodesAreConditionalOrOperators() {
-		Enumeration<DefaultMutableTreeNode> enumeration = root.breadthFirstEnumeration();
+		Enumeration<TreeNode> enumeration = root.breadthFirstEnumeration();
 		while(enumeration.hasMoreElements()) {
-			DefaultMutableTreeNode node = enumeration.nextElement();
+			DefaultMutableTreeNode node = (DefaultMutableTreeNode) enumeration.nextElement();
 			if(!node.isLeaf()) {
 				InfixExpression.Operator operator = (InfixExpression.Operator)node.getUserObject();
 				if(!operator.equals(InfixExpression.Operator.CONDITIONAL_OR))
@@ -295,9 +296,9 @@ public class IfStatementExpressionAnalyzer {
 	
 	public int getNumberOfConditionalOperatorNodes() {
 		int counter = 0;
-		Enumeration<DefaultMutableTreeNode> enumeration = root.breadthFirstEnumeration();
+		Enumeration<TreeNode> enumeration = root.breadthFirstEnumeration();
 		while(enumeration.hasMoreElements()) {
-			DefaultMutableTreeNode node = enumeration.nextElement();
+			DefaultMutableTreeNode node = (DefaultMutableTreeNode) enumeration.nextElement();
 			if(!node.isLeaf()) {
 				counter++;
 			}

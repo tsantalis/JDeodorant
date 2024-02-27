@@ -504,7 +504,13 @@ public class ASTReader {
 							IBinding binding = name.resolveBinding();
 							if(binding instanceof ITypeBinding) {
 								ITypeBinding typeBinding = (ITypeBinding)binding;
-								constructorObject.addExceptionInJavaDocThrows(typeBinding.getQualifiedName());
+								boolean runtimeException = false;
+								if(typeBinding.getSuperclass() != null && typeBinding.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
+									runtimeException = true;
+								}
+								if(!runtimeException) {
+									constructorObject.addExceptionInJavaDocThrows(typeBinding.getQualifiedName());
+								}
 							}
 						}
 					}

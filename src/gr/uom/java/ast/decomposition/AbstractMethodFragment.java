@@ -328,7 +328,13 @@ public abstract class AbstractMethodFragment {
 		}
 		ITypeBinding[] thrownExceptionTypes = methodBinding.getExceptionTypes();
 		for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
-			constructorInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+			boolean runtimeException = false;
+			if(thrownExceptionType.getSuperclass() != null && thrownExceptionType.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
+				runtimeException = true;
+			}
+			if(!runtimeException) {
+				constructorInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+			}
 		}
 		if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
 			constructorInvocationObject.setStatic(true);
@@ -369,7 +375,13 @@ public abstract class AbstractMethodFragment {
 				}
 				ITypeBinding[] thrownExceptionTypes = methodBinding.getExceptionTypes();
 				for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
-					methodInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+					boolean runtimeException = false;
+					if(thrownExceptionType.getSuperclass() != null && thrownExceptionType.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
+						runtimeException = true;
+					}
+					if(!runtimeException) {
+						methodInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+					}
 				}
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
 					methodInvocationObject.setStatic(true);
@@ -431,7 +443,13 @@ public abstract class AbstractMethodFragment {
 				}
 				ITypeBinding[] thrownExceptionTypes = methodBinding.getExceptionTypes();
 				for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
-					superMethodInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+					boolean runtimeException = false;
+					if(thrownExceptionType.getSuperclass() != null && thrownExceptionType.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
+						runtimeException = true;
+					}
+					if(!runtimeException) {
+						superMethodInvocationObject.addThrownException(thrownExceptionType.getQualifiedName());
+					}
 				}
 				if((methodBinding.getModifiers() & Modifier.STATIC) != 0)
 					superMethodInvocationObject.setStatic(true);
@@ -494,7 +512,13 @@ public abstract class AbstractMethodFragment {
 				}
 				ITypeBinding[] thrownExceptionTypes = constructorBinding.getExceptionTypes();
 				for(ITypeBinding thrownExceptionType : thrownExceptionTypes) {
-					creationObject.addThrownException(thrownExceptionType.getQualifiedName());
+					boolean runtimeException = false;
+					if(thrownExceptionType.getSuperclass() != null && thrownExceptionType.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
+						runtimeException = true;
+					}
+					if(!runtimeException) {
+						creationObject.addThrownException(thrownExceptionType.getQualifiedName());
+					}
 				}
 				AnonymousClassDeclaration anonymous = classInstanceCreation.getAnonymousClassDeclaration();
 				if(anonymous != null) {
@@ -698,7 +722,13 @@ public abstract class AbstractMethodFragment {
 		if(expression instanceof ClassInstanceCreation) {
 			ClassInstanceCreation creation = (ClassInstanceCreation)expression;
 			ITypeBinding typeBinding = creation.getType().resolveBinding();
-			addExceptionInThrowStatement(typeBinding.getQualifiedName());
+			boolean runtimeException = false;
+			if(typeBinding.getSuperclass() != null && typeBinding.getSuperclass().getQualifiedName().equals("java.lang.RuntimeException")) {
+				runtimeException = true;
+			}
+			if(!runtimeException) {
+				addExceptionInThrowStatement(typeBinding.getQualifiedName());
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@ package gr.uom.java.jdeodorant.refactoring.manipulators;
 import gr.uom.java.ast.ASTInformationGenerator;
 import gr.uom.java.ast.ASTReader;
 import gr.uom.java.ast.AbstractMethodDeclaration;
+import gr.uom.java.ast.AnonymousClassDeclarationObject;
 import gr.uom.java.ast.ClassObject;
 import gr.uom.java.ast.MethodObject;
 import gr.uom.java.ast.decomposition.AbstractExpression;
@@ -1164,8 +1165,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
 				statement1.getStatement().accept(thrownExceptionVisitor);
+				Set<String> exceptionsCaughtByCatch = new LinkedHashSet<String>();
+				for(AnonymousClassDeclarationObject anonymous : statement1.getAnonymousClassDeclarations()) {
+					for(MethodObject method : anonymous.getMethodList()) {
+						if(method.getMethodBody() != null) {
+							for(TryStatementObject tryStatement : method.getMethodBody().getTryStatements()) {
+								for(CatchClauseObject catchClause : tryStatement.getCatchClauses()) {
+									exceptionsCaughtByCatch.addAll(catchClause.getExceptionTypes());
+								}
+							}
+						}
+					}
+				}
 				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
-					if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+					if(pdgNode1.getThrownExceptionTypes().contains(thrownException.getQualifiedName()) &&
+							!exceptionsCaughtByCatch.contains(thrownException.getQualifiedName())) {
 						addTypeBinding(thrownException, thrownExceptionTypeBindings);
 					}
 				}
@@ -1183,8 +1197,21 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 			else {
 				ThrownExceptionVisitor thrownExceptionVisitor = new ThrownExceptionVisitor();
 				statement2.getStatement().accept(thrownExceptionVisitor);
+				Set<String> exceptionsCaughtByCatch = new LinkedHashSet<String>();
+				for(AnonymousClassDeclarationObject anonymous : statement2.getAnonymousClassDeclarations()) {
+					for(MethodObject method : anonymous.getMethodList()) {
+						if(method.getMethodBody() != null) {
+							for(TryStatementObject tryStatement : method.getMethodBody().getTryStatements()) {
+								for(CatchClauseObject catchClause : tryStatement.getCatchClauses()) {
+									exceptionsCaughtByCatch.addAll(catchClause.getExceptionTypes());
+								}
+							}
+						}
+					}
+				}
 				for(ITypeBinding thrownException : thrownExceptionVisitor.getTypeBindings()) {
-					if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName())) {
+					if(pdgNode2.getThrownExceptionTypes().contains(thrownException.getQualifiedName()) &&
+							!exceptionsCaughtByCatch.contains(thrownException.getQualifiedName())) {
 						addTypeBinding(thrownException, thrownExceptionTypeBindings);
 					}
 				}

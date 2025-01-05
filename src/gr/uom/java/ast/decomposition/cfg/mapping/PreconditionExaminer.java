@@ -2419,8 +2419,10 @@ public class PreconditionExaminer {
 			checkIfStatementIsSuperConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
 			checkIfStatementIsThisConstructorInvocation(nodeMapping, nodeMapping.getNodeG1());
 			checkIfStatementIsThisConstructorInvocation(nodeMapping, nodeMapping.getNodeG2());
-			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG1());
-			checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG2());
+			if(!iCompilationUnit1.equals(iCompilationUnit2)) {
+				checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG1());
+				checkIfStatementContainsSuperMethodInvocation(nodeMapping, nodeMapping.getNodeG2());
+			}
 			//skip examining the conditional return precondition, if the number of examined nodes is equal to the number of PDG nodes
 			if(getAllNodesInSubTreePDG1().size() != pdg1.getNodes().size()) {
 				conditionalReturnStatement(nodeMapping, nodeMapping.getNodeG1());

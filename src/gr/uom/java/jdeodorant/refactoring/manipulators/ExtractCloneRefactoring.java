@@ -3825,15 +3825,28 @@ public class ExtractCloneRefactoring extends ExtractMethodFragmentRefactoring {
 				SuperMethodInvocation oldSuperMethodInvocation = (SuperMethodInvocation)oldExpression;
 				SuperMethodInvocation newSuperMethodInvocation = (SuperMethodInvocation)newSuperMethodInvocations.get(j);
 				if(oldSuperMethodInvocation.resolveMethodBinding().getDeclaringClass().isEqualTo(commonSuperTypeOfSourceTypeDeclarations)) {
-					MethodInvocation newMethodInvocation = ast.newMethodInvocation();
-					sourceRewriter.set(newMethodInvocation, MethodInvocation.NAME_PROPERTY, oldSuperMethodInvocation.getName(), null);
-					ListRewrite argumentRewrite = sourceRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
-					List<Expression> oldArguments = oldSuperMethodInvocation.arguments();
-					for(Expression oldArgument : oldArguments) {
-						argumentRewrite.insertLast(oldArgument, null);
+					if(typeBinding1.isEqualTo(typeBinding2)) {
+						SuperMethodInvocation newMethodInvocation = ast.newSuperMethodInvocation();
+						sourceRewriter.set(newMethodInvocation, SuperMethodInvocation.NAME_PROPERTY, oldSuperMethodInvocation.getName(), null);
+						ListRewrite argumentRewrite = sourceRewriter.getListRewrite(newMethodInvocation, SuperMethodInvocation.ARGUMENTS_PROPERTY);
+						List<Expression> oldArguments = oldSuperMethodInvocation.arguments();
+						for(Expression oldArgument : oldArguments) {
+							argumentRewrite.insertLast(oldArgument, null);
+						}
+						sourceRewriter.replace(newSuperMethodInvocation, newMethodInvocation, null);
+						replacement = true;
 					}
-					sourceRewriter.replace(newSuperMethodInvocation, newMethodInvocation, null);
-					replacement = true;
+					else {
+						MethodInvocation newMethodInvocation = ast.newMethodInvocation();
+						sourceRewriter.set(newMethodInvocation, MethodInvocation.NAME_PROPERTY, oldSuperMethodInvocation.getName(), null);
+						ListRewrite argumentRewrite = sourceRewriter.getListRewrite(newMethodInvocation, MethodInvocation.ARGUMENTS_PROPERTY);
+						List<Expression> oldArguments = oldSuperMethodInvocation.arguments();
+						for(Expression oldArgument : oldArguments) {
+							argumentRewrite.insertLast(oldArgument, null);
+						}
+						sourceRewriter.replace(newSuperMethodInvocation, newMethodInvocation, null);
+						replacement = true;
+					}
 					break;
 				}
 				j++;
